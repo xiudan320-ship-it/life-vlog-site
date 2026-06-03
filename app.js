@@ -42,7 +42,9 @@ const els = {
   supabaseAnonKey: document.querySelector("#supabaseAnonKey"),
   saveConfig: document.querySelector("#saveConfig"),
   emailInput: document.querySelector("#emailInput"),
+  passwordInput: document.querySelector("#passwordInput"),
   loginButton: document.querySelector("#loginButton"),
+  signupButton: document.querySelector("#signupButton"),
   logoutButton: document.querySelector("#logoutButton"),
   authHint: document.querySelector("#authHint"),
   composer: document.querySelector("#composer"),
@@ -127,16 +129,18 @@ function updateAuthUI() {
   const signedIn = Boolean(session);
   els.composer.hidden = !signedIn;
   els.loginButton.hidden = signedIn;
+  els.signupButton.hidden = signedIn;
   els.logoutButton.hidden = !signedIn;
   els.emailInput.hidden = signedIn;
+  els.passwordInput.hidden = signedIn;
   setHint(
     signedIn
       ? `已登录：${session.user.email}`
-      : "输入邮箱获取登录链接。第一次使用时会自动创建账号。"
+      : "输入邮箱和密码登录。第一次使用请先注册。"
   );
 }
 
-async function sendLoginLink() {
+async function loginWithPassword() {
   if (!supabase) {
     setHint("先点右上角设置，填入 Supabase 配置。");
     els.setupPanel.hidden = false;
@@ -144,17 +148,46 @@ async function sendLoginLink() {
   }
 
   const email = els.emailInput.value.trim();
-  if (!email) {
-    setHint("请输入邮箱。");
+  const password = els.passwordInput.value;
+  if (!email || !password) {
+    setHint("请输入邮箱和密码。");
     return;
   }
 
-  const { error } = await supabase.auth.signInWithOtp({
+  const { error } = await supabase.auth.signInWithPassword({
     email,
+    password,
+  });
+
+  setHint(error ? error.message : "登录成功。");
+}
+
+async function signupWithPassword() {
+  if (!supabase) {
+    setHint("先点右上角设置，填入 Supabase 配置。");
+    els.setupPanel.hidden = false;
+    return;
+  }
+
+  const email = els.emailInput.value.trim();
+  const password = els.passwordInput.value;
+  if (!email || !password) {
+    setHint("请输入邮箱和密码。");
+    return;
+  }
+
+  if (password.length < 6) {
+    setHint("密码至少需要 6 位。");
+    return;
+  }
+
+  const { error } = await supabase.auth.signUp({
+    email,
+    password,
     options: { emailRedirectTo: getRedirectUrl() },
   });
 
-  setHint(error ? error.message : "登录链接已发送，请检查邮箱。");
+  setHint(error ? error.message : "注册完成。如果 Supabase 要求邮箱确认，请先检查邮箱。");
 }
 
 async function logout() {
@@ -369,7 +402,8 @@ els.setupToggle.addEventListener("click", () => {
   els.setupPanel.hidden = !els.setupPanel.hidden;
 });
 els.saveConfig.addEventListener("click", saveConfig);
-els.loginButton.addEventListener("click", sendLoginLink);
+els.loginButton.addEventListener("click", loginWithPassword);
+els.signupButton.addEventListener("click", signupWithPassword);
 els.logoutButton.addEventListener("click", logout);
 els.uploadForm.addEventListener("submit", uploadPhoto);
 els.photoInput.addEventListener("change", () => {
