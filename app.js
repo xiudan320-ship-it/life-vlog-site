@@ -2,6 +2,8 @@ const CONFIG_KEY = "life-vlog-supabase-config";
 const BUCKET = "life-photos";
 const PRODUCTION_URL = "https://xiudan320-ship-it.github.io/life-vlog-site/";
 const PAGE_SIZE = 6;
+const DEFAULT_SUPABASE_URL = "https://cimejrarjcosgayfnikk.supabase.co";
+const DEFAULT_SUPABASE_ANON_KEY = "sb_publishable_G0ZHVQG0XYB2zja9VHiJiQ_HKDUt_fJ";
 
 const demoPhotos = [
   {
@@ -89,6 +91,13 @@ const els = {
 els.dateInput.valueAsDate = new Date();
 
 function loadConfig() {
+  if (DEFAULT_SUPABASE_URL && DEFAULT_SUPABASE_ANON_KEY) {
+    return {
+      url: DEFAULT_SUPABASE_URL,
+      anonKey: DEFAULT_SUPABASE_ANON_KEY,
+    };
+  }
+
   const stored = localStorage.getItem(CONFIG_KEY);
   if (!stored) return null;
 
@@ -114,6 +123,7 @@ function saveConfig() {
 
 async function initializeSupabase() {
   const config = loadConfig();
+  els.setupToggle.hidden = Boolean(DEFAULT_SUPABASE_URL && DEFAULT_SUPABASE_ANON_KEY);
   if (!config) {
     els.setupPanel.hidden = false;
     setHint("当前是演示模式。填入 Supabase 配置后可登录上传。");
