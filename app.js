@@ -154,12 +154,18 @@ async function loginWithPassword() {
     return;
   }
 
-  const { error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+  setHint("正在登录...");
 
-  setHint(error ? error.message : "登录成功。");
+  try {
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    setHint(error ? error.message : "登录成功。");
+  } catch (error) {
+    setHint(`登录失败：${error.message || "网络或配置错误"}`);
+  }
 }
 
 async function signupWithPassword() {
@@ -181,13 +187,19 @@ async function signupWithPassword() {
     return;
   }
 
-  const { error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: { emailRedirectTo: getRedirectUrl() },
-  });
+  setHint("正在注册...");
 
-  setHint(error ? error.message : "注册完成。如果 Supabase 要求邮箱确认，请先检查邮箱。");
+  try {
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: getRedirectUrl() },
+    });
+
+    setHint(error ? error.message : "注册完成。如果 Supabase 要求邮箱确认，请先检查邮箱。");
+  } catch (error) {
+    setHint(`注册失败：${error.message || "网络或配置错误"}`);
+  }
 }
 
 async function logout() {
@@ -404,6 +416,11 @@ els.setupToggle.addEventListener("click", () => {
 els.saveConfig.addEventListener("click", saveConfig);
 els.loginButton.addEventListener("click", loginWithPassword);
 els.signupButton.addEventListener("click", signupWithPassword);
+els.passwordInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    loginWithPassword();
+  }
+});
 els.logoutButton.addEventListener("click", logout);
 els.uploadForm.addEventListener("submit", uploadPhoto);
 els.photoInput.addEventListener("change", () => {
