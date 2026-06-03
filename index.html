@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>咻蛋之家</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
-    <link rel="stylesheet" href="./styles.css?v=20260603-6" />
+    <link rel="stylesheet" href="./styles.css?v=20260603-7" />
   </head>
   <body>
     <header class="topbar">
@@ -84,12 +84,20 @@
         </div>
 
         <form id="uploadForm" hidden>
-          <label class="file-drop">
+          <label class="file-drop" id="photoDrop" tabindex="0">
             <input id="photoInput" type="file" accept="image/*" />
             <img id="photoPreview" alt="照片预览" hidden />
             <span>选择一张照片</span>
             <strong id="fileName">还没有选择图片</strong>
           </label>
+
+          <div class="link-row">
+            <label>
+              图片链接
+              <input id="imageUrlInput" type="url" />
+            </label>
+            <button id="useUrlButton" type="button">使用链接</button>
+          </div>
 
           <div class="form-grid">
             <label>
@@ -165,6 +173,6 @@
       </article>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260603-6"></script>
+    <script type="module" src="./app.js?v=20260603-7"></script>
   </body>
 </html>
