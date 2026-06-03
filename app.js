@@ -379,11 +379,13 @@ function renderGallery() {
 
   els.gallery.innerHTML = visible
     .map(
-      (photo, index) => {
-        const canDelete = Boolean(session);
-        const displayTitle = getDisplayTitle(photo);
-        return `
+        (photo, index) => {
+          const canDelete = Boolean(session);
+          const displayTitle = getDisplayTitle(photo);
+          const sequence = String(start + index + 1).padStart(2, "0");
+          return `
         <article class="photo-card">
+          <span class="strand-index">${sequence}</span>
           <button class="photo-open" type="button" data-index="${index}">
             <img src="${escapeHtml(photo.image_url)}" alt="${escapeHtml(displayTitle)}" loading="lazy" />
             <article>
