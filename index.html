@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>星星生活相册</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
-    <link rel="stylesheet" href="./styles.css?v=20260603-4" />
+    <link rel="stylesheet" href="./styles.css?v=20260603-5" />
   </head>
   <body>
     <header class="topbar">
@@ -36,9 +36,9 @@
     <main>
       <section class="hero">
         <div class="hero-copy">
-          <p class="kicker">Private Photo Journal</p>
-          <h1>记录生活照片和 vlog 瞬间。</h1>
-          <p>轻量上传、手机友好浏览、按分类整理。像一个属于自己的小型影像日记应用。</p>
+          <p class="kicker">Strand Photo Archive</p>
+          <h1>把生活影像串成一条时间丝带。</h1>
+          <p>照片在两侧交错下潜，像一条私人记忆通道。上传、浏览、删除都保持轻量。</p>
         </div>
       </section>
 
@@ -77,10 +77,13 @@
             <p class="kicker">Upload</p>
             <h2>发布新照片</h2>
           </div>
+          <button class="ghost-button" id="uploadToggle" type="button" aria-expanded="false">
+            展开上传
+          </button>
           <span id="uploadStatus"></span>
         </div>
 
-        <form id="uploadForm">
+        <form id="uploadForm" hidden>
           <label class="file-drop">
             <input id="photoInput" type="file" accept="image/*" />
             <img id="photoPreview" alt="照片预览" hidden />
@@ -144,6 +147,12 @@
       </section>
 
       <section class="gallery" id="gallery" aria-live="polite"></section>
+
+      <nav class="pager" id="pager" aria-label="照片分页" hidden>
+        <button id="prevPage" type="button">上一页</button>
+        <span id="pageIndicator">1 / 1</span>
+        <button id="nextPage" type="button">下一页</button>
+      </nav>
     </main>
 
     <dialog id="photoDialog">
@@ -156,6 +165,6 @@
       </article>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260603-4"></script>
+    <script type="module" src="./app.js?v=20260603-5"></script>
   </body>
 </html>
