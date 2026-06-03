@@ -1,6 +1,7 @@
 const CONFIG_KEY = "life-vlog-supabase-config";
 const BUCKET = "life-photos";
 const PRODUCTION_URL = "https://xiudan320-ship-it.github.io/life-vlog-site/";
+const PAGE_SIZE = 6;
 
 const demoPhotos = [
   {
@@ -35,6 +36,7 @@ let session = null;
 let photos = [];
 let activeFilter = "全部";
 let previewUrl = "";
+let currentPage = 1;
 
 const els = {
   setupToggle: document.querySelector("#setupToggle"),
@@ -56,6 +58,7 @@ const els = {
   profileName: document.querySelector("#profileName"),
   globalStatus: document.querySelector("#globalStatus"),
   composer: document.querySelector("#composer"),
+  uploadToggle: document.querySelector("#uploadToggle"),
   uploadForm: document.querySelector("#uploadForm"),
   photoInput: document.querySelector("#photoInput"),
   photoPreview: document.querySelector("#photoPreview"),
@@ -67,6 +70,10 @@ const els = {
   noteInput: document.querySelector("#noteInput"),
   uploadStatus: document.querySelector("#uploadStatus"),
   gallery: document.querySelector("#gallery"),
+  pager: document.querySelector("#pager"),
+  prevPage: document.querySelector("#prevPage"),
+  nextPage: document.querySelector("#nextPage"),
+  pageIndicator: document.querySelector("#pageIndicator"),
   chips: document.querySelectorAll(".chip"),
   dialog: document.querySelector("#photoDialog"),
   closeDialog: document.querySelector("#closeDialog"),
@@ -313,6 +320,7 @@ async function uploadPhoto(event) {
   els.dateInput.valueAsDate = new Date();
   els.fileName.textContent = "还没有选择图片";
   clearPhotoPreview();
+  setUploadExpanded(false);
   setStatus("上传完成，已回到照片流");
   await loadPhotos();
   document.querySelector(".feed-head")?.scrollIntoView({
@@ -353,13 +361,19 @@ function compressImage(file) {
 }
 
 function renderGallery() {
-  const visible =
+  const filtered =
     activeFilter === "全部"
       ? photos
       : photos.filter((photo) => photo.category === activeFilter);
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  currentPage = Math.min(currentPage, totalPages);
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const visible = filtered.slice(start, start + PAGE_SIZE);
+
   if (!visible.length) {
     els.gallery.innerHTML = `<div class="empty">还没有这个分类的照片。</div>`;
+    updatePager(totalPages, filtered.length);
     return;
   }
 
@@ -402,6 +416,15 @@ function renderGallery() {
       deletePhoto(visible[Number(button.dataset.deleteIndex)]);
     });
   });
+
+  updatePager(totalPages, filtered.length);
+}
+
+function updatePager(totalPages, totalItems) {
+  els.pager.hidden = totalItems <= PAGE_SIZE;
+  els.pageIndicator.textContent = `${currentPage} / ${totalPages}`;
+  els.prevPage.disabled = currentPage <= 1;
+  els.nextPage.disabled = currentPage >= totalPages;
 }
 
 async function deletePhoto(photo) {
@@ -572,12 +595,21 @@ function setStatus(message) {
   els.uploadStatus.textContent = message;
 }
 
+function setUploadExpanded(expanded) {
+  els.uploadForm.hidden = !expanded;
+  els.uploadToggle.setAttribute("aria-expanded", String(expanded));
+  els.uploadToggle.textContent = expanded ? "收起上传" : "展开上传";
+}
+
 els.setupToggle.addEventListener("click", () => {
   els.setupPanel.hidden = !els.setupPanel.hidden;
 });
 els.saveConfig.addEventListener("click", saveConfig);
 els.loginButton.addEventListener("click", loginWithPassword);
 els.signupButton.addEventListener("click", signupWithPassword);
+els.uploadToggle.addEventListener("click", () => {
+  setUploadExpanded(els.uploadForm.hidden);
+});
 els.avatarButton.addEventListener("click", () => {
   els.userPopover.hidden = !els.userPopover.hidden;
 });
@@ -600,9 +632,20 @@ els.closeDialog.addEventListener("click", () => els.dialog.close());
 els.chips.forEach((chip) => {
   chip.addEventListener("click", () => {
     activeFilter = chip.dataset.filter;
+    currentPage = 1;
     els.chips.forEach((item) => item.classList.toggle("active", item === chip));
     renderGallery();
   });
+});
+els.prevPage.addEventListener("click", () => {
+  currentPage = Math.max(1, currentPage - 1);
+  renderGallery();
+  document.querySelector(".feed-head")?.scrollIntoView({ behavior: "smooth" });
+});
+els.nextPage.addEventListener("click", () => {
+  currentPage += 1;
+  renderGallery();
+  document.querySelector(".feed-head")?.scrollIntoView({ behavior: "smooth" });
 });
 
 initializeSupabase();
