@@ -289,7 +289,7 @@ main {
 
 .auth-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 0.7fr) auto auto auto;
   gap: 10px;
 }
 
