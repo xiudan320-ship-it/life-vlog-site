@@ -340,7 +340,7 @@ textarea:focus {
 }
 
 .file-drop {
-  min-height: 138px;
+  min-height: 180px;
   align-items: center;
   justify-items: center;
   border: 1.5px dashed #e8c7df;
@@ -354,6 +354,20 @@ textarea:focus {
 }
 
 .file-drop input {
+  display: none;
+}
+
+#photoPreview {
+  display: block;
+  width: min(100%, 360px);
+  max-height: 260px;
+  margin-bottom: 12px;
+  border-radius: 18px;
+  object-fit: cover;
+  box-shadow: var(--shadow-sm);
+}
+
+#photoPreview[hidden] {
   display: none;
 }
 
@@ -455,13 +469,13 @@ textarea:focus {
   color: #fff;
   font-size: 12px;
   font-weight: 900;
-  opacity: 0;
+  opacity: 1;
   padding: 0 12px;
   backdrop-filter: blur(12px);
   transition:
     opacity 160ms ease,
     transform 160ms ease;
-  transform: translateY(-4px);
+  transform: none;
 }
 
 .photo-card:hover .delete-photo,
