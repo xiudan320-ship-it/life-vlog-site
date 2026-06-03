@@ -1,5 +1,6 @@
 const CONFIG_KEY = "life-vlog-supabase-config";
 const BUCKET = "life-photos";
+const PRODUCTION_URL = "https://xiudan320-ship-it.github.io/life-vlog-site/";
 
 const demoPhotos = [
   {
@@ -150,7 +151,7 @@ async function sendLoginLink() {
 
   const { error } = await supabase.auth.signInWithOtp({
     email,
-    options: { emailRedirectTo: window.location.href },
+    options: { emailRedirectTo: getRedirectUrl() },
   });
 
   setHint(error ? error.message : "登录链接已发送，请检查邮箱。");
@@ -343,6 +344,14 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function getRedirectUrl() {
+  if (["localhost", "127.0.0.1"].includes(window.location.hostname)) {
+    return PRODUCTION_URL;
+  }
+
+  return new URL("./", window.location.href).toString();
 }
 
 function setHint(message) {
