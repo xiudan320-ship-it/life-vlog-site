@@ -367,6 +367,12 @@ textarea:focus {
   text-align: center;
 }
 
+.file-drop:focus-visible {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 4px rgba(16, 16, 20, 0.08);
+  outline: none;
+}
+
 .file-drop input {
   display: none;
 }
@@ -404,6 +410,22 @@ textarea:focus {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 13px;
+}
+
+.link-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 13px;
+  align-items: end;
+}
+
+.link-row button {
+  min-height: 48px;
+  border: 1px solid var(--ink);
+  background: #fff;
+  color: var(--ink);
+  font-weight: 950;
+  padding: 0 18px;
 }
 
 .primary,
@@ -684,7 +706,8 @@ dialog article {
   }
 
   .auth-row,
-  .form-grid {
+  .form-grid,
+  .link-row {
     grid-template-columns: 1fr;
   }
 
