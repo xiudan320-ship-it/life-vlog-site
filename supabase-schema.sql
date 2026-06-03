@@ -15,9 +15,17 @@ create table if not exists public.photos (
 
 alter table public.photos enable row level security;
 
+grant usage on schema public to anon, authenticated;
+grant select on public.photos to anon, authenticated;
+grant insert, update, delete on public.photos to authenticated;
+
 create policy "Anyone can read public photos"
   on public.photos for select
   using (is_public = true);
+
+create policy "Users can read their own photos"
+  on public.photos for select
+  using (auth.uid() = user_id);
 
 create policy "Users can create their own photos"
   on public.photos for insert
