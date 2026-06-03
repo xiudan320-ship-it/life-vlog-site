@@ -271,7 +271,8 @@ async function uploadPhoto(event) {
 
   setStatus("正在压缩图片...");
   const compressed = await compressImage(file);
-  const safeName = slugify(els.titleInput.value || "photo");
+  const finalTitle = getFinalTitle();
+  const safeName = slugify(finalTitle);
   const path = `${session.user.id}/${Date.now()}-${safeName}.jpg`;
 
   setStatus("正在上传...");
@@ -291,7 +292,7 @@ async function uploadPhoto(event) {
 
   const record = {
     user_id: session.user.id,
-    title: els.titleInput.value.trim(),
+    title: finalTitle,
     note: els.noteInput.value.trim(),
     category: els.categoryInput.value,
     taken_at: els.dateInput.value,
@@ -376,11 +377,13 @@ function renderGallery() {
               <p>${escapeHtml(photo.note || "")}</p>
             </article>
           </button>
-          ${
-            canDelete
-              ? `<button class="delete-photo" type="button" data-delete-index="${index}" title="删除照片">删除</button>`
-              : ""
-          }
+          <div class="card-actions">
+            ${
+              canDelete
+                ? `<button class="delete-photo" type="button" data-delete-index="${index}" title="删除照片">删除</button>`
+                : ""
+            }
+          </div>
         </article>
       `;
       }
@@ -460,6 +463,22 @@ function slugify(value) {
     .slice(0, 48);
 
   return slug || "photo";
+}
+
+function getFinalTitle() {
+  const title = els.titleInput.value.trim();
+  if (title) return title;
+
+  const date = els.dateInput.value ? new Date(els.dateInput.value) : new Date();
+  const label = new Intl.DateTimeFormat("zh-CN", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }).format(date);
+
+  const names = ["今日小星星", "软乎乎的一天", "闪闪生活碎片", "快乐收藏夹"];
+  const seed = date.getFullYear() + date.getMonth() + date.getDate();
+  return `${names[seed % names.length]} · ${label}`;
 }
 
 function escapeHtml(value) {
