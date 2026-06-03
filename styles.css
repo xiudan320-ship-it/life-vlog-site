@@ -262,6 +262,10 @@ h2 {
   display: none;
 }
 
+body.signed-in .auth-card {
+  display: none !important;
+}
+
 .auth-card {
   display: grid;
   gap: 16px;
@@ -419,6 +423,7 @@ textarea:focus {
 }
 
 .photo-card {
+  position: relative;
   display: inline-block;
   width: 100%;
   margin: 0 0 18px;
@@ -430,13 +435,39 @@ textarea:focus {
   transform: translateZ(0);
 }
 
-.photo-card button {
+.photo-card .photo-open {
   display: block;
   width: 100%;
   padding: 0;
   background: transparent;
   color: inherit;
   text-align: left;
+}
+
+.delete-photo {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  min-height: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 999px;
+  background: rgba(36, 32, 47, 0.72);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+  opacity: 0;
+  padding: 0 12px;
+  backdrop-filter: blur(12px);
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease;
+  transform: translateY(-4px);
+}
+
+.photo-card:hover .delete-photo,
+.delete-photo:focus-visible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .photo-card img {
@@ -527,6 +558,11 @@ dialog article {
   .feed-head {
     align-items: start;
     flex-direction: column;
+  }
+
+  .delete-photo {
+    opacity: 1;
+    transform: none;
   }
 }
 
