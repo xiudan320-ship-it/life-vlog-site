@@ -10,29 +10,35 @@
   <body>
     <header class="topbar">
       <a class="brand" href="#gallery" aria-label="回到照片墙">
-        <span class="brand-orb" aria-hidden="true"></span>
+        <span class="brand-mark" aria-hidden="true"></span>
         <span>
           <strong>星星生活相册</strong>
           <small>Life Vlog Gallery</small>
         </span>
       </a>
-      <button class="icon-button" id="setupToggle" type="button" title="设置">
-        <span aria-hidden="true">✦</span>
-      </button>
+      <div class="top-actions">
+        <button class="icon-button" id="setupToggle" type="button" title="设置">
+          <span aria-hidden="true">⚙</span>
+        </button>
+        <div class="user-menu" id="userMenu" hidden>
+          <button class="avatar-button" id="avatarButton" type="button" title="账号">
+            <span id="avatarInitial">U</span>
+          </button>
+          <div class="user-popover" id="userPopover" hidden>
+            <p class="user-label">已登录</p>
+            <strong id="profileName">User</strong>
+            <button id="logoutButton" type="button">退出登录</button>
+          </div>
+        </div>
+      </div>
     </header>
 
     <main>
       <section class="hero">
         <div class="hero-copy">
-          <p class="kicker">Tiny Planet Diary</p>
-          <h1>把今天收进一颗软软的星球。</h1>
-          <p>
-            上传生活照片、vlog 封面和小小文字记录。手机打开时会自动变成轻巧的照片瀑布流。
-          </p>
-        </div>
-        <div class="mascot" aria-hidden="true">
-          <span class="mascot-face"></span>
-          <span class="mascot-shine"></span>
+          <p class="kicker">Private Photo Journal</p>
+          <h1>记录生活照片和 vlog 瞬间。</h1>
+          <p>轻量上传、手机友好浏览、按分类整理。像一个属于自己的小型影像日记应用。</p>
         </div>
       </section>
 
@@ -53,7 +59,7 @@
       <section class="auth-card" id="authCard">
         <div>
           <p class="kicker">Account</p>
-          <h2>登录后上传照片</h2>
+          <h2>进入你的相册</h2>
         </div>
         <div class="auth-row">
           <input id="usernameInput" type="text" placeholder="用户名" autocomplete="username" />
@@ -69,7 +75,7 @@
         <div class="section-title">
           <div>
             <p class="kicker">Upload</p>
-            <h2>记录今天</h2>
+            <h2>发布新照片</h2>
           </div>
           <span id="uploadStatus"></span>
         </div>
@@ -117,6 +123,14 @@
 
           <button class="primary" type="submit">上传并发布</button>
         </form>
+      </section>
+
+      <section class="feed-head">
+        <div>
+          <p class="kicker">Gallery</p>
+          <h2>照片流</h2>
+        </div>
+        <p class="status-line" id="globalStatus"></p>
       </section>
 
       <section class="filters" aria-label="照片分类">
