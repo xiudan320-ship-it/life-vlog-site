@@ -367,13 +367,14 @@ function renderGallery() {
     .map(
       (photo, index) => {
         const canDelete = Boolean(session);
+        const displayTitle = getDisplayTitle(photo);
         return `
         <article class="photo-card">
           <button class="photo-open" type="button" data-index="${index}">
-            <img src="${escapeHtml(photo.image_url)}" alt="${escapeHtml(photo.title)}" loading="lazy" />
+            <img src="${escapeHtml(photo.image_url)}" alt="${escapeHtml(displayTitle)}" loading="lazy" />
             <article>
               <p class="kicker">${escapeHtml(photo.category || "日常")} · ${formatDate(photo.taken_at)}</p>
-              <h3>${escapeHtml(photo.title || "未命名照片")}</h3>
+              <h3>${escapeHtml(displayTitle)}</h3>
               <p>${escapeHtml(photo.note || "")}</p>
             </article>
           </button>
@@ -437,9 +438,10 @@ async function deletePhoto(photo) {
 }
 
 function openPhoto(photo) {
+  const displayTitle = getDisplayTitle(photo);
   els.dialogImage.src = photo.image_url;
-  els.dialogImage.alt = photo.title || "";
-  els.dialogTitle.textContent = photo.title || "未命名照片";
+  els.dialogImage.alt = displayTitle;
+  els.dialogTitle.textContent = displayTitle;
   els.dialogMeta.textContent = `${photo.category || "日常"} · ${formatDate(photo.taken_at)}`;
   els.dialogNote.textContent = photo.note || "";
   els.dialog.showModal();
@@ -470,6 +472,17 @@ function getFinalTitle() {
   if (title) return title;
 
   const date = els.dateInput.value ? new Date(els.dateInput.value) : new Date();
+  return makeCuteTitle(date);
+}
+
+function getDisplayTitle(photo) {
+  const title = String(photo.title || "").trim();
+  if (title && title !== "未命名照片") return title;
+
+  return makeCuteTitle(photo.taken_at ? new Date(photo.taken_at) : new Date());
+}
+
+function makeCuteTitle(date) {
   const label = new Intl.DateTimeFormat("zh-CN", {
     year: "numeric",
     month: "long",
