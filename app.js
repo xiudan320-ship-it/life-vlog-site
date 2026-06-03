@@ -41,12 +41,19 @@ const els = {
   supabaseUrl: document.querySelector("#supabaseUrl"),
   supabaseAnonKey: document.querySelector("#supabaseAnonKey"),
   saveConfig: document.querySelector("#saveConfig"),
+  authCard: document.querySelector("#authCard"),
   usernameInput: document.querySelector("#usernameInput"),
   passwordInput: document.querySelector("#passwordInput"),
   loginButton: document.querySelector("#loginButton"),
   signupButton: document.querySelector("#signupButton"),
   logoutButton: document.querySelector("#logoutButton"),
   authHint: document.querySelector("#authHint"),
+  userMenu: document.querySelector("#userMenu"),
+  avatarButton: document.querySelector("#avatarButton"),
+  avatarInitial: document.querySelector("#avatarInitial"),
+  userPopover: document.querySelector("#userPopover"),
+  profileName: document.querySelector("#profileName"),
+  globalStatus: document.querySelector("#globalStatus"),
   composer: document.querySelector("#composer"),
   uploadForm: document.querySelector("#uploadForm"),
   photoInput: document.querySelector("#photoInput"),
@@ -127,17 +134,26 @@ async function initializeSupabase() {
 
 function updateAuthUI() {
   const signedIn = Boolean(session);
+  const displayName = signedIn
+    ? session.user.user_metadata?.username || session.user.email
+    : "";
   els.composer.hidden = !signedIn;
+  els.authCard.hidden = signedIn;
+  els.userMenu.hidden = !signedIn;
   els.loginButton.hidden = signedIn;
   els.signupButton.hidden = signedIn;
   els.logoutButton.hidden = !signedIn;
   els.usernameInput.hidden = signedIn;
   els.passwordInput.hidden = signedIn;
+  els.userPopover.hidden = true;
+  els.profileName.textContent = displayName;
+  els.avatarInitial.textContent = getInitial(displayName);
   setHint(
     signedIn
-      ? `已登录：${session.user.user_metadata?.username || session.user.email}`
+      ? ""
       : "输入用户名和密码登录。第一次使用请先注册。"
   );
+  setGlobalStatus(signedIn ? `欢迎回来，${displayName}` : "");
 }
 
 async function loginWithPassword() {
@@ -227,9 +243,10 @@ async function loadPhotos() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    setHint(`读取照片失败：${error.message}`);
+    setGlobalStatus(`读取照片失败：${error.message}`);
     photos = [];
   } else {
+    setGlobalStatus("");
     photos = data || [];
   }
 
@@ -424,8 +441,17 @@ function usernameToEmail(username) {
   return `${ascii || "user"}@life-vlog.local`;
 }
 
+function getInitial(value) {
+  const trimmed = String(value || "").trim();
+  return trimmed ? trimmed[0].toUpperCase() : "U";
+}
+
 function setHint(message) {
   els.authHint.textContent = message;
+}
+
+function setGlobalStatus(message) {
+  els.globalStatus.textContent = message;
 }
 
 function setStatus(message) {
@@ -438,12 +464,20 @@ els.setupToggle.addEventListener("click", () => {
 els.saveConfig.addEventListener("click", saveConfig);
 els.loginButton.addEventListener("click", loginWithPassword);
 els.signupButton.addEventListener("click", signupWithPassword);
+els.avatarButton.addEventListener("click", () => {
+  els.userPopover.hidden = !els.userPopover.hidden;
+});
 els.passwordInput.addEventListener("keydown", (event) => {
   if (event.key === "Enter") {
     loginWithPassword();
   }
 });
 els.logoutButton.addEventListener("click", logout);
+document.addEventListener("click", (event) => {
+  if (!els.userMenu.hidden && !els.userMenu.contains(event.target)) {
+    els.userPopover.hidden = true;
+  }
+});
 els.uploadForm.addEventListener("submit", uploadPhoto);
 els.photoInput.addEventListener("change", () => {
   els.fileName.textContent = els.photoInput.files[0]?.name || "还没有选择图片";
