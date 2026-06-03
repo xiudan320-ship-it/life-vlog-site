@@ -41,7 +41,7 @@ const els = {
   supabaseUrl: document.querySelector("#supabaseUrl"),
   supabaseAnonKey: document.querySelector("#supabaseAnonKey"),
   saveConfig: document.querySelector("#saveConfig"),
-  emailInput: document.querySelector("#emailInput"),
+  usernameInput: document.querySelector("#usernameInput"),
   passwordInput: document.querySelector("#passwordInput"),
   loginButton: document.querySelector("#loginButton"),
   signupButton: document.querySelector("#signupButton"),
@@ -131,12 +131,12 @@ function updateAuthUI() {
   els.loginButton.hidden = signedIn;
   els.signupButton.hidden = signedIn;
   els.logoutButton.hidden = !signedIn;
-  els.emailInput.hidden = signedIn;
+  els.usernameInput.hidden = signedIn;
   els.passwordInput.hidden = signedIn;
   setHint(
     signedIn
-      ? `已登录：${session.user.email}`
-      : "输入邮箱和密码登录。第一次使用请先注册。"
+      ? `已登录：${session.user.user_metadata?.username || session.user.email}`
+      : "输入用户名和密码登录。第一次使用请先注册。"
   );
 }
 
@@ -147,10 +147,11 @@ async function loginWithPassword() {
     return;
   }
 
-  const email = els.emailInput.value.trim();
+  const username = els.usernameInput.value.trim();
   const password = els.passwordInput.value;
+  const email = usernameToEmail(username);
   if (!email || !password) {
-    setHint("请输入邮箱和密码。");
+    setHint("请输入用户名和密码。");
     return;
   }
 
@@ -175,10 +176,11 @@ async function signupWithPassword() {
     return;
   }
 
-  const email = els.emailInput.value.trim();
+  const username = els.usernameInput.value.trim();
   const password = els.passwordInput.value;
+  const email = usernameToEmail(username);
   if (!email || !password) {
-    setHint("请输入邮箱和密码。");
+    setHint("请输入用户名和密码。用户名只能用中文、英文、数字、下划线或短横线。");
     return;
   }
 
@@ -193,10 +195,13 @@ async function signupWithPassword() {
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: getRedirectUrl() },
+      options: {
+        emailRedirectTo: getRedirectUrl(),
+        data: { username },
+      },
     });
 
-    setHint(error ? error.message : "注册完成。如果 Supabase 要求邮箱确认，请先检查邮箱。");
+    setHint(error ? error.message : "注册完成，可以直接登录。");
   } catch (error) {
     setHint(`注册失败：${error.message || "网络或配置错误"}`);
   }
@@ -400,6 +405,23 @@ function getRedirectUrl() {
   }
 
   return new URL("./", window.location.href).toString();
+}
+
+function usernameToEmail(username) {
+  const normalized = username
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9_\-\u4e00-\u9fa5]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  if (!normalized) return "";
+
+  const ascii = normalized
+    .replace(/[\u4e00-\u9fa5]/g, (char) => `u${char.codePointAt(0).toString(16)}`)
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .slice(0, 48);
+
+  return `${ascii || "user"}@life-vlog.local`;
 }
 
 function setHint(message) {
