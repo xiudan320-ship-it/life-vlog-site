@@ -137,6 +137,7 @@ function updateAuthUI() {
   const displayName = signedIn
     ? session.user.user_metadata?.username || session.user.email
     : "";
+  document.body.classList.toggle("signed-in", signedIn);
   els.composer.hidden = !signedIn;
   els.authCard.hidden = signedIn;
   els.userMenu.hidden = !signedIn;
@@ -153,7 +154,7 @@ function updateAuthUI() {
       ? ""
       : "输入用户名和密码登录。第一次使用请先注册。"
   );
-  setGlobalStatus(signedIn ? `欢迎回来，${displayName}` : "");
+  setGlobalStatus("");
 }
 
 async function loginWithPassword() {
@@ -308,8 +309,12 @@ async function uploadPhoto(event) {
   els.uploadForm.reset();
   els.dateInput.valueAsDate = new Date();
   els.fileName.textContent = "还没有选择图片";
-  setStatus("上传完成");
+  setStatus("上传完成，已回到照片流");
   await loadPhotos();
+  document.querySelector(".feed-head")?.scrollIntoView({
+    behavior: "smooth",
+    block: "start",
+  });
 }
 
 function compressImage(file) {
@@ -356,9 +361,11 @@ function renderGallery() {
 
   els.gallery.innerHTML = visible
     .map(
-      (photo, index) => `
+      (photo, index) => {
+        const canDelete = Boolean(session && photo.user_id === session.user.id);
+        return `
         <article class="photo-card">
-          <button type="button" data-index="${index}">
+          <button class="photo-open" type="button" data-index="${index}">
             <img src="${escapeHtml(photo.image_url)}" alt="${escapeHtml(photo.title)}" loading="lazy" />
             <article>
               <p class="kicker">${escapeHtml(photo.category || "日常")} · ${formatDate(photo.taken_at)}</p>
@@ -366,8 +373,14 @@ function renderGallery() {
               <p>${escapeHtml(photo.note || "")}</p>
             </article>
           </button>
+          ${
+            canDelete
+              ? `<button class="delete-photo" type="button" data-delete-index="${index}" title="删除照片">删除</button>`
+              : ""
+          }
         </article>
-      `
+      `;
+      }
     )
     .join("");
 
@@ -376,6 +389,45 @@ function renderGallery() {
       openPhoto(visible[Number(button.dataset.index)]);
     });
   });
+
+  els.gallery.querySelectorAll("button[data-delete-index]").forEach((button) => {
+    button.addEventListener("click", () => {
+      deletePhoto(visible[Number(button.dataset.deleteIndex)]);
+    });
+  });
+}
+
+async function deletePhoto(photo) {
+  if (!supabase || !session || !photo || photo.user_id !== session.user.id) {
+    setGlobalStatus("只能删除自己上传的照片。");
+    return;
+  }
+
+  const ok = window.confirm(`删除“${photo.title || "这张照片"}”？`);
+  if (!ok) return;
+
+  setGlobalStatus("正在删除照片...");
+
+  if (photo.image_path) {
+    const { error: storageError } = await supabase.storage
+      .from(BUCKET)
+      .remove([photo.image_path]);
+
+    if (storageError) {
+      setGlobalStatus(`删除图片文件失败：${storageError.message}`);
+      return;
+    }
+  }
+
+  const { error } = await supabase.from("photos").delete().eq("id", photo.id);
+  if (error) {
+    setGlobalStatus(`删除记录失败：${error.message}`);
+    return;
+  }
+
+  photos = photos.filter((item) => item.id !== photo.id);
+  setGlobalStatus("照片已删除。");
+  renderGallery();
 }
 
 function openPhoto(photo) {
