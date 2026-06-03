@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>星星生活相册</title>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="#gallery" aria-label="回到照片墙">
+        <span class="brand-orb" aria-hidden="true"></span>
+        <span>
+          <strong>星星生活相册</strong>
+          <small>Life Vlog Gallery</small>
+        </span>
+      </a>
+      <button class="icon-button" id="setupToggle" type="button" title="设置">
+        <span aria-hidden="true">✦</span>
+      </button>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="kicker">Tiny Planet Diary</p>
+          <h1>把今天收进一颗软软的星球。</h1>
+          <p>
+            上传生活照片、vlog 封面和小小文字记录。手机打开时会自动变成轻巧的照片瀑布流。
+          </p>
+        </div>
+        <div class="mascot" aria-hidden="true">
+          <span class="mascot-face"></span>
+          <span class="mascot-shine"></span>
+        </div>
+      </section>
+
+      <section class="setup-panel" id="setupPanel" hidden>
+        <h2>连接 Supabase</h2>
+        <p>填入 Supabase 项目的 URL 和 anon key。保存后就能登录、上传和读取照片。</p>
+        <label>
+          Project URL
+          <input id="supabaseUrl" placeholder="https://xxxx.supabase.co" />
+        </label>
+        <label>
+          Anon public key
+          <input id="supabaseAnonKey" placeholder="eyJhbGci..." />
+        </label>
+        <button id="saveConfig" type="button">保存配置</button>
+      </section>
+
+      <section class="auth-card" id="authCard">
+        <div>
+          <p class="kicker">Account</p>
+          <h2>登录后上传照片</h2>
+        </div>
+        <div class="auth-row">
+          <input id="emailInput" type="email" placeholder="你的邮箱" />
+          <button id="loginButton" type="button">发送登录链接</button>
+          <button id="logoutButton" type="button" hidden>退出</button>
+        </div>
+        <p class="hint" id="authHint">未配置 Supabase 时会显示演示数据。</p>
+      </section>
+
+      <section class="composer" id="composer" hidden>
+        <div class="section-title">
+          <div>
+            <p class="kicker">Upload</p>
+            <h2>记录今天</h2>
+          </div>
+          <span id="uploadStatus"></span>
+        </div>
+
+        <form id="uploadForm">
+          <label class="file-drop">
+            <input id="photoInput" type="file" accept="image/*" />
+            <span>选择一张照片</span>
+            <strong id="fileName">还没有选择图片</strong>
+          </label>
+
+          <div class="form-grid">
+            <label>
+              标题
+              <input id="titleInput" maxlength="80" placeholder="比如：傍晚散步" required />
+            </label>
+            <label>
+              日期
+              <input id="dateInput" type="date" required />
+            </label>
+            <label>
+              分类
+              <select id="categoryInput">
+                <option>日常</option>
+                <option>旅行</option>
+                <option>食物</option>
+                <option>朋友</option>
+                <option>城市</option>
+                <option>家</option>
+              </select>
+            </label>
+            <label>
+              是否公开
+              <select id="publicInput">
+                <option value="true">公开展示</option>
+                <option value="false">只保存在库里</option>
+              </select>
+            </label>
+          </div>
+
+          <label>
+            文字记录
+            <textarea id="noteInput" rows="4" maxlength="500" placeholder="今天发生了什么？"></textarea>
+          </label>
+
+          <button class="primary" type="submit">上传并发布</button>
+        </form>
+      </section>
+
+      <section class="filters" aria-label="照片分类">
+        <button class="chip active" data-filter="全部" type="button">全部</button>
+        <button class="chip" data-filter="日常" type="button">日常</button>
+        <button class="chip" data-filter="旅行" type="button">旅行</button>
+        <button class="chip" data-filter="食物" type="button">食物</button>
+        <button class="chip" data-filter="朋友" type="button">朋友</button>
+        <button class="chip" data-filter="城市" type="button">城市</button>
+      </section>
+
+      <section class="gallery" id="gallery" aria-live="polite"></section>
+    </main>
+
+    <dialog id="photoDialog">
+      <button class="dialog-close" id="closeDialog" type="button" aria-label="关闭">×</button>
+      <img id="dialogImage" alt="" />
+      <article>
+        <p class="kicker" id="dialogMeta"></p>
+        <h2 id="dialogTitle"></h2>
+        <p id="dialogNote"></p>
+      </article>
+    </dialog>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
