@@ -60,8 +60,11 @@ const els = {
   composer: document.querySelector("#composer"),
   uploadToggle: document.querySelector("#uploadToggle"),
   uploadForm: document.querySelector("#uploadForm"),
+  photoDrop: document.querySelector("#photoDrop"),
   photoInput: document.querySelector("#photoInput"),
   photoPreview: document.querySelector("#photoPreview"),
+  imageUrlInput: document.querySelector("#imageUrlInput"),
+  useUrlButton: document.querySelector("#useUrlButton"),
   fileName: document.querySelector("#fileName"),
   titleInput: document.querySelector("#titleInput"),
   dateInput: document.querySelector("#dateInput"),
@@ -271,31 +274,24 @@ async function uploadPhoto(event) {
   }
 
   const file = els.photoInput.files[0];
-  if (!file) {
-    setStatus("请选择图片。");
+  const remoteUrl = normalizeImageUrl(els.imageUrlInput.value);
+  if (!file && !remoteUrl) {
+    setStatus("请选择图片或粘贴图片链接。");
     return;
   }
 
-  setStatus("正在压缩图片...");
-  const compressed = await compressImage(file);
   const finalTitle = getFinalTitle();
   const safeName = slugify(finalTitle);
-  const path = `${session.user.id}/${Date.now()}-${safeName}.jpg`;
+  const imageData = file
+    ? await uploadImageFile(file, safeName)
+    : {
+        image_path: "",
+        image_url: remoteUrl,
+        width: null,
+        height: null,
+      };
 
-  setStatus("正在上传...");
-  const { error: uploadError } = await supabase.storage
-    .from(BUCKET)
-    .upload(path, compressed.blob, {
-      contentType: "image/jpeg",
-      upsert: false,
-    });
-
-  if (uploadError) {
-    setStatus(uploadError.message);
-    return;
-  }
-
-  const { data: publicUrlData } = supabase.storage.from(BUCKET).getPublicUrl(path);
+  if (!imageData) return;
 
   const record = {
     user_id: session.user.id,
@@ -304,10 +300,10 @@ async function uploadPhoto(event) {
     category: els.categoryInput.value,
     taken_at: els.dateInput.value,
     is_public: els.publicInput.value === "true",
-    image_path: path,
-    image_url: publicUrlData.publicUrl,
-    width: compressed.width,
-    height: compressed.height,
+    image_path: imageData.image_path,
+    image_url: imageData.image_url,
+    width: imageData.width,
+    height: imageData.height,
   };
 
   const { error: insertError } = await supabase.from("photos").insert(record);
@@ -358,6 +354,34 @@ function compressImage(file) {
     image.onerror = () => reject(new Error("图片读取失败。"));
     image.src = URL.createObjectURL(file);
   });
+}
+
+async function uploadImageFile(file, safeName) {
+  setStatus("正在压缩图片...");
+  const compressed = await compressImage(file);
+  const path = `${session.user.id}/${Date.now()}-${safeName}.jpg`;
+
+  setStatus("正在上传...");
+  const { error: uploadError } = await supabase.storage
+    .from(BUCKET)
+    .upload(path, compressed.blob, {
+      contentType: "image/jpeg",
+      upsert: false,
+    });
+
+  if (uploadError) {
+    setStatus(uploadError.message);
+    return null;
+  }
+
+  const { data: publicUrlData } = supabase.storage.from(BUCKET).getPublicUrl(path);
+
+  return {
+    image_path: path,
+    image_url: publicUrlData.publicUrl,
+    width: compressed.width,
+    height: compressed.height,
+  };
 }
 
 function renderGallery() {
@@ -556,10 +580,13 @@ function usernameToEmail(username) {
 function updatePhotoPreview() {
   const file = els.photoInput.files[0];
   if (!file) {
-    clearPhotoPreview();
+    if (!normalizeImageUrl(els.imageUrlInput.value)) {
+      clearPhotoPreview();
+    }
     return;
   }
 
+  els.imageUrlInput.value = "";
   if (previewUrl) {
     URL.revokeObjectURL(previewUrl);
   }
@@ -568,6 +595,64 @@ function updatePhotoPreview() {
   els.photoPreview.src = previewUrl;
   els.photoPreview.hidden = false;
   els.fileName.textContent = file.name;
+}
+
+function useImageUrl() {
+  const url = normalizeImageUrl(els.imageUrlInput.value);
+  if (!url) {
+    setStatus("图片链接无效。");
+    return;
+  }
+
+  els.photoInput.value = "";
+  clearPhotoPreview();
+  els.imageUrlInput.value = url;
+  els.photoPreview.src = url;
+  els.photoPreview.hidden = false;
+  els.fileName.textContent = url;
+  setStatus("已使用图片链接。");
+}
+
+function handlePasteUpload(event) {
+  const items = Array.from(event.clipboardData?.items || []);
+  const imageItem = items.find((item) => item.type.startsWith("image/"));
+
+  if (imageItem) {
+    const file = imageItem.getAsFile();
+    if (!file) return;
+
+    event.preventDefault();
+    const pastedFile = new File([file], `pasted-${Date.now()}.png`, {
+      type: file.type || "image/png",
+    });
+    const transfer = new DataTransfer();
+    transfer.items.add(pastedFile);
+    els.photoInput.files = transfer.files;
+    updatePhotoPreview();
+    setStatus("已读取剪贴板图片。");
+    return;
+  }
+
+  const text = event.clipboardData?.getData("text") || "";
+  const url = normalizeImageUrl(text);
+  if (!url) return;
+
+  event.preventDefault();
+  els.imageUrlInput.value = url;
+  useImageUrl();
+}
+
+function normalizeImageUrl(value) {
+  const url = String(value || "").trim();
+  if (!url) return "";
+
+  try {
+    const parsed = new URL(url);
+    if (!["http:", "https:"].includes(parsed.protocol)) return "";
+    return parsed.toString();
+  } catch {
+    return "";
+  }
 }
 
 function clearPhotoPreview() {
@@ -627,6 +712,9 @@ document.addEventListener("click", (event) => {
   }
 });
 els.uploadForm.addEventListener("submit", uploadPhoto);
+els.photoDrop.addEventListener("paste", handlePasteUpload);
+els.imageUrlInput.addEventListener("paste", handlePasteUpload);
+els.useUrlButton.addEventListener("click", useImageUrl);
 els.photoInput.addEventListener("change", () => {
   updatePhotoPreview();
 });
