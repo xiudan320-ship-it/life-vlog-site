@@ -34,6 +34,7 @@ let supabase = null;
 let session = null;
 let photos = [];
 let activeFilter = "全部";
+let previewUrl = "";
 
 const els = {
   setupToggle: document.querySelector("#setupToggle"),
@@ -57,6 +58,7 @@ const els = {
   composer: document.querySelector("#composer"),
   uploadForm: document.querySelector("#uploadForm"),
   photoInput: document.querySelector("#photoInput"),
+  photoPreview: document.querySelector("#photoPreview"),
   fileName: document.querySelector("#fileName"),
   titleInput: document.querySelector("#titleInput"),
   dateInput: document.querySelector("#dateInput"),
@@ -309,6 +311,7 @@ async function uploadPhoto(event) {
   els.uploadForm.reset();
   els.dateInput.valueAsDate = new Date();
   els.fileName.textContent = "还没有选择图片";
+  clearPhotoPreview();
   setStatus("上传完成，已回到照片流");
   await loadPhotos();
   document.querySelector(".feed-head")?.scrollIntoView({
@@ -362,7 +365,7 @@ function renderGallery() {
   els.gallery.innerHTML = visible
     .map(
       (photo, index) => {
-        const canDelete = Boolean(session && photo.user_id === session.user.id);
+        const canDelete = Boolean(session);
         return `
         <article class="photo-card">
           <button class="photo-open" type="button" data-index="${index}">
@@ -398,8 +401,8 @@ function renderGallery() {
 }
 
 async function deletePhoto(photo) {
-  if (!supabase || !session || !photo || photo.user_id !== session.user.id) {
-    setGlobalStatus("只能删除自己上传的照片。");
+  if (!supabase || !session || !photo) {
+    setGlobalStatus("请先登录后再删除照片。");
     return;
   }
 
@@ -493,6 +496,33 @@ function usernameToEmail(username) {
   return `${ascii || "user"}@life-vlog.local`;
 }
 
+function updatePhotoPreview() {
+  const file = els.photoInput.files[0];
+  if (!file) {
+    clearPhotoPreview();
+    return;
+  }
+
+  if (previewUrl) {
+    URL.revokeObjectURL(previewUrl);
+  }
+
+  previewUrl = URL.createObjectURL(file);
+  els.photoPreview.src = previewUrl;
+  els.photoPreview.hidden = false;
+  els.fileName.textContent = file.name;
+}
+
+function clearPhotoPreview() {
+  if (previewUrl) {
+    URL.revokeObjectURL(previewUrl);
+    previewUrl = "";
+  }
+
+  els.photoPreview.removeAttribute("src");
+  els.photoPreview.hidden = true;
+}
+
 function getInitial(value) {
   const trimmed = String(value || "").trim();
   return trimmed ? trimmed[0].toUpperCase() : "U";
@@ -532,7 +562,7 @@ document.addEventListener("click", (event) => {
 });
 els.uploadForm.addEventListener("submit", uploadPhoto);
 els.photoInput.addEventListener("change", () => {
-  els.fileName.textContent = els.photoInput.files[0]?.name || "还没有选择图片";
+  updatePhotoPreview();
 });
 els.closeDialog.addEventListener("click", () => els.dialog.close());
 els.chips.forEach((chip) => {
