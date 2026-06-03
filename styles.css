@@ -458,30 +458,22 @@ textarea:focus {
   text-align: left;
 }
 
-.delete-photo {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  min-height: 34px;
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  border-radius: 999px;
-  background: rgba(36, 32, 47, 0.72);
-  color: #fff;
-  font-size: 12px;
-  font-weight: 900;
-  opacity: 1;
-  padding: 0 12px;
-  backdrop-filter: blur(12px);
-  transition:
-    opacity 160ms ease,
-    transform 160ms ease;
-  transform: none;
+.card-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 14px 14px;
 }
 
-.photo-card:hover .delete-photo,
-.delete-photo:focus-visible {
+.delete-photo {
+  min-height: 34px;
+  border: 1px solid #f4d9e6;
+  border-radius: 12px;
+  background: #fff1f6;
+  color: var(--pink-deep);
+  font-size: 13px;
+  font-weight: 900;
   opacity: 1;
-  transform: translateY(0);
+  padding: 0 14px;
 }
 
 .photo-card img {
