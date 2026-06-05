@@ -1,10 +1,52 @@
 const CONFIG_KEY = "life-vlog-supabase-config";
+const THEME_KEY = "life-vlog-theme";
+const VIP_LEVEL_KEY = "life-vlog-vip-level";
 const BUCKET = "life-photos";
 const PRODUCTION_URL = "https://xiudan320-ship-it.github.io/life-vlog-site/";
 const PAGE_SIZE = 6;
 const DEFAULT_SUPABASE_URL = "https://cimejrarjcosgayfnikk.supabase.co";
 const DEFAULT_SUPABASE_ANON_KEY = "sb_publishable_G0ZHVQG0XYB2zja9VHiJiQ_HKDUt_fJ";
 const VIP_USERS = new Set(["xiao980320"]);
+const MEDIA_META_START = "<!--life-vlog-media:";
+const MEDIA_META_END = "-->";
+
+const VIP_LEVELS = [
+  {
+    level: 1,
+    name: "Spark",
+    label: "星火会员",
+    limit: 3,
+    perks: ["专属 VIP 标识", "日夜模式记忆", "一篇笔记最多 3 张图"],
+  },
+  {
+    level: 2,
+    name: "Ribbon",
+    label: "丝带会员",
+    limit: 6,
+    perks: ["合集九宫格封面", "弹窗左右翻图", "一篇笔记最多 6 张图"],
+  },
+  {
+    level: 3,
+    name: "Prism",
+    label: "棱镜会员",
+    limit: 9,
+    perks: ["高质压缩上传", "9 图完整宫格", "合集计数角标"],
+  },
+  {
+    level: 4,
+    name: "Archive",
+    label: "档案会员",
+    limit: 12,
+    perks: ["私密内容共享", "编辑后保留合集", "一篇笔记最多 12 张图"],
+  },
+  {
+    level: 5,
+    name: "Director",
+    label: "导演会员",
+    limit: 18,
+    perks: ["黑金导演模式", "最高画质上传", "一篇笔记最多 18 张图"],
+  },
+];
 
 const demoPhotos = [
   {
@@ -41,8 +83,12 @@ let activeFilter = "全部";
 let previewUrls = [];
 let currentPage = 1;
 let editingPhoto = null;
+let dialogImages = [];
+let dialogImageIndex = 0;
+let activeVipLevel = 1;
 
 const els = {
+  themeToggle: document.querySelector("#themeToggle"),
   setupToggle: document.querySelector("#setupToggle"),
   setupPanel: document.querySelector("#setupPanel"),
   supabaseUrl: document.querySelector("#supabaseUrl"),
@@ -91,6 +137,10 @@ const els = {
   dialogTitle: document.querySelector("#dialogTitle"),
   dialogMeta: document.querySelector("#dialogMeta"),
   dialogNote: document.querySelector("#dialogNote"),
+  dialogPrev: document.querySelector("#dialogPrev"),
+  dialogNext: document.querySelector("#dialogNext"),
+  dialogCounter: document.querySelector("#dialogCounter"),
+  dialogThumbs: document.querySelector("#dialogThumbs"),
   editDialog: document.querySelector("#editDialog"),
   closeEditDialog: document.querySelector("#closeEditDialog"),
   editForm: document.querySelector("#editForm"),
@@ -100,9 +150,18 @@ const els = {
   editPublicInput: document.querySelector("#editPublicInput"),
   editNoteInput: document.querySelector("#editNoteInput"),
   saveEditStatus: document.querySelector("#saveEditStatus"),
+  vipDialog: document.querySelector("#vipDialog"),
+  closeVipDialog: document.querySelector("#closeVipDialog"),
+  vipSummary: document.querySelector("#vipSummary"),
+  vipCurrentLevel: document.querySelector("#vipCurrentLevel"),
+  vipCurrentName: document.querySelector("#vipCurrentName"),
+  vipLevels: document.querySelector("#vipLevels"),
+  vipPerks: document.querySelector("#vipPerks"),
+  vipStatus: document.querySelector("#vipStatus"),
 };
 
 els.dateInput.valueAsDate = new Date();
+applyTheme(loadTheme());
 
 function loadConfig() {
   if (DEFAULT_SUPABASE_URL && DEFAULT_SUPABASE_ANON_KEY) {
@@ -172,8 +231,10 @@ function updateAuthUI() {
   const signedIn = Boolean(session);
   const displayName = signedIn ? getSessionDisplayName() : "";
   const vip = signedIn && isVipUser(displayName);
+  activeVipLevel = vip ? loadVipLevel() : 0;
   document.body.classList.toggle("signed-in", signedIn);
   document.body.classList.toggle("vip-member", vip);
+  document.body.dataset.vipLevel = String(activeVipLevel);
   els.composer.hidden = !signedIn;
   els.authCard.hidden = signedIn;
   els.userMenu.hidden = !signedIn;
@@ -186,6 +247,11 @@ function updateAuthUI() {
   els.avatarInitial.textContent = getInitial(displayName);
   els.vipBadge.hidden = !vip;
   els.vipPopoverBadge.hidden = !vip;
+  els.vipBadge.textContent = vip ? `VIP LV.${activeVipLevel}` : "VIP";
+  els.vipPopoverBadge.textContent = vip
+    ? `咻蛋之家 ${getVipLevel(activeVipLevel).label}`
+    : "咻蛋之家 VIP";
+  renderVipCenter();
   setHint(
     signedIn
       ? ""
@@ -307,41 +373,43 @@ async function uploadPhoto(event) {
     return;
   }
 
-  const uploadedCount = files.length || 1;
+  const imageLimit = getCurrentImageLimit();
+  if (files.length > imageLimit) {
+    setStatus(`当前 VIP 等级单篇最多 ${imageLimit} 张图。`);
+    return;
+  }
+
+  const images = [];
 
   for (const [index, file] of files.entries()) {
-    const finalTitle = getFinalTitle(index, uploadedCount, file.name);
+    const finalTitle = getFinalTitle();
     const safeName = slugify(finalTitle);
-    const imageData = await uploadImageFile(file, safeName, index + 1, uploadedCount);
+    const imageData = await uploadImageFile(file, safeName, index + 1, files.length);
     if (!imageData) return;
-
-    const insertError = await insertPhotoRecord(finalTitle, imageData);
-    if (insertError) {
-      setStatus(insertError.message);
-      return;
-    }
+    images.push(imageData);
   }
 
   if (!files.length && remoteUrl) {
-    const finalTitle = getFinalTitle(0, 1, remoteUrl);
-    const insertError = await insertPhotoRecord(finalTitle, {
+    images.push({
       image_path: "",
       image_url: remoteUrl,
       width: null,
       height: null,
     });
+  }
 
-    if (insertError) {
-      setStatus(insertError.message);
-      return;
-    }
+  const finalTitle = getFinalTitle();
+  const insertError = await insertPhotoRecord(finalTitle, images);
+  if (insertError) {
+    setStatus(insertError.message);
+    return;
   }
 
   els.uploadForm.reset();
   els.dateInput.valueAsDate = new Date();
   clearPhotoPreview();
   setUploadExpanded(false);
-  setStatus(uploadedCount > 1 ? `已发布 ${uploadedCount} 张照片。` : "上传完成，已回到照片流");
+  setStatus(images.length > 1 ? `已发布 1 篇合集，共 ${images.length} 张图。` : "上传完成，已回到照片流");
   await loadPhotos();
   document.querySelector(".feed-head")?.scrollIntoView({
     behavior: "smooth",
@@ -349,18 +417,19 @@ async function uploadPhoto(event) {
   });
 }
 
-async function insertPhotoRecord(finalTitle, imageData) {
+async function insertPhotoRecord(finalTitle, images) {
+  const primaryImage = images[0];
   const record = {
     user_id: session.user.id,
     title: finalTitle,
-    note: els.noteInput.value.trim(),
+    note: composeStoredNote(els.noteInput.value.trim(), images),
     category: els.categoryInput.value,
     taken_at: els.dateInput.value,
     is_public: els.publicInput.value === "true",
-    image_path: imageData.image_path,
-    image_url: imageData.image_url,
-    width: imageData.width,
-    height: imageData.height,
+    image_path: primaryImage.image_path,
+    image_url: primaryImage.image_url,
+    width: primaryImage.width,
+    height: primaryImage.height,
   };
 
   const { error } = await supabase.from("photos").insert(record);
@@ -373,7 +442,8 @@ function compressImage(file) {
     const objectUrl = URL.createObjectURL(file);
     image.onload = () => {
       URL.revokeObjectURL(objectUrl);
-      const maxSide = 1800;
+      const quality = getUploadQuality();
+      const maxSide = quality.maxSide;
       const scale = Math.min(1, maxSide / Math.max(image.width, image.height));
       const width = Math.round(image.width * scale);
       const height = Math.round(image.height * scale);
@@ -392,7 +462,7 @@ function compressImage(file) {
           resolve({ blob, width, height });
         },
         "image/jpeg",
-        0.86
+        quality.jpeg
       );
     };
     image.onerror = () => {
@@ -454,16 +524,18 @@ function renderGallery() {
         (photo, index) => {
           const canManage = Boolean(session && (!photo.user_id || photo.user_id === session.user.id));
           const displayTitle = getDisplayTitle(photo);
+          const images = getPhotoImages(photo);
+          const noteText = getPlainNote(photo);
           const sequence = String(start + index + 1).padStart(2, "0");
           return `
         <article class="photo-card">
           <span class="strand-index">${sequence}</span>
           <button class="photo-open" type="button" data-index="${index}">
-            <img src="${escapeHtml(photo.image_url)}" alt="${escapeHtml(displayTitle)}" loading="lazy" />
+            ${renderPhotoMedia(images, displayTitle)}
             <article>
               <p class="kicker">${escapeHtml(photo.category || "日常")} · ${formatDate(photo.taken_at)}</p>
               <h3>${escapeHtml(displayTitle)}</h3>
-              <p>${escapeHtml(photo.note || "")}</p>
+              <p>${escapeHtml(noteText)}</p>
             </article>
           </button>
           <div class="card-actions">
@@ -501,6 +573,148 @@ function renderGallery() {
   updatePager(totalPages, filtered.length);
 }
 
+function renderPhotoMedia(images, title) {
+  const safeTitle = escapeHtml(title);
+  if (images.length <= 1) {
+    const image = images[0] || {};
+    return `
+      <div class="photo-media single">
+        <img src="${escapeHtml(image.image_url || "")}" alt="${safeTitle}" loading="lazy" />
+      </div>
+    `;
+  }
+
+  const previewImages = images.slice(0, 9);
+  return `
+    <div class="photo-media collage count-${previewImages.length}">
+      ${previewImages
+        .map(
+          (image, index) => `
+            <img src="${escapeHtml(image.image_url)}" alt="${safeTitle} ${index + 1}" loading="lazy" />
+          `
+        )
+        .join("")}
+      <span class="media-count">${images.length} 张</span>
+    </div>
+  `;
+}
+
+function getPhotoImages(photo) {
+  const storedImages = parseStoredImages(photo.note);
+  const primary = {
+    image_url: photo.image_url,
+    image_path: photo.image_path || "",
+    width: photo.width ?? null,
+    height: photo.height ?? null,
+  };
+  const images = storedImages.length ? storedImages : [primary];
+  const seen = new Set();
+
+  return images
+    .filter((image) => image?.image_url)
+    .map((image) => ({
+      image_url: image.image_url || image.url,
+      image_path: image.image_path || image.path || "",
+      width: image.width ?? null,
+      height: image.height ?? null,
+    }))
+    .filter((image) => {
+      if (seen.has(image.image_url)) return false;
+      seen.add(image.image_url);
+      return true;
+    });
+}
+
+function getPlainNote(photo) {
+  return stripMediaMeta(photo.note || "");
+}
+
+function composeStoredNote(noteText, images) {
+  const cleanNote = stripMediaMeta(noteText).trim();
+  const normalizedImages = images.map((image) => ({
+    image_url: image.image_url,
+    image_path: image.image_path || "",
+    width: image.width ?? null,
+    height: image.height ?? null,
+  }));
+
+  if (normalizedImages.length <= 1) return cleanNote;
+
+  const payload = encodeURIComponent(JSON.stringify(normalizedImages));
+  return `${cleanNote}${cleanNote ? "\n\n" : ""}${MEDIA_META_START}${payload}${MEDIA_META_END}`;
+}
+
+function parseStoredImages(note) {
+  const text = String(note || "");
+  const start = text.indexOf(MEDIA_META_START);
+  if (start === -1) return [];
+
+  const payloadStart = start + MEDIA_META_START.length;
+  const end = text.indexOf(MEDIA_META_END, payloadStart);
+  if (end === -1) return [];
+
+  try {
+    const payload = text.slice(payloadStart, end);
+    const parsed = JSON.parse(decodeURIComponent(payload));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function stripMediaMeta(note) {
+  const text = String(note || "");
+  const start = text.indexOf(MEDIA_META_START);
+  if (start === -1) return text.trim();
+
+  const end = text.indexOf(MEDIA_META_END, start + MEDIA_META_START.length);
+  if (end === -1) return text.trim();
+
+  return `${text.slice(0, start)}${text.slice(end + MEDIA_META_END.length)}`.trim();
+}
+
+function renderDialogMedia() {
+  const image = dialogImages[dialogImageIndex] || dialogImages[0] || {};
+  els.dialogImage.src = image.image_url || "";
+  els.dialogImage.alt = `${els.dialogTitle.textContent} ${dialogImageIndex + 1}`;
+  const hasMultiple = dialogImages.length > 1;
+  els.dialogPrev.hidden = !hasMultiple;
+  els.dialogNext.hidden = !hasMultiple;
+  els.dialogCounter.hidden = !hasMultiple;
+  els.dialogThumbs.hidden = !hasMultiple;
+  els.dialogCounter.textContent = hasMultiple
+    ? `${dialogImageIndex + 1} / ${dialogImages.length}`
+    : "";
+
+  if (!hasMultiple) {
+    els.dialogThumbs.innerHTML = "";
+    return;
+  }
+
+  els.dialogThumbs.innerHTML = dialogImages
+    .map(
+      (thumb, index) => `
+        <button class="${index === dialogImageIndex ? "active" : ""}" type="button" data-dialog-thumb="${index}" aria-label="查看第 ${index + 1} 张">
+          <img src="${escapeHtml(thumb.image_url)}" alt="" />
+        </button>
+      `
+    )
+    .join("");
+
+  els.dialogThumbs.querySelectorAll("button[data-dialog-thumb]").forEach((button) => {
+    button.addEventListener("click", () => {
+      dialogImageIndex = Number(button.dataset.dialogThumb);
+      renderDialogMedia();
+    });
+  });
+}
+
+function moveDialogImage(step) {
+  if (dialogImages.length <= 1) return;
+  dialogImageIndex = (dialogImageIndex + step + dialogImages.length) % dialogImages.length;
+  renderDialogMedia();
+}
+
 function updatePager(totalPages, totalItems) {
   els.pager.hidden = totalItems <= PAGE_SIZE;
   els.pageIndicator.textContent = `${currentPage} / ${totalPages}`;
@@ -519,10 +733,14 @@ async function deletePhoto(photo) {
 
   setGlobalStatus("正在删除照片...");
 
-  if (photo.image_path) {
+  const storagePaths = [
+    ...new Set(getPhotoImages(photo).map((image) => image.image_path).filter(Boolean)),
+  ];
+
+  if (storagePaths.length) {
     const { error: storageError } = await supabase.storage
       .from(BUCKET)
-      .remove([photo.image_path]);
+      .remove(storagePaths);
 
     if (storageError) {
       setGlobalStatus(`删除图片文件失败：${storageError.message}`);
@@ -543,11 +761,12 @@ async function deletePhoto(photo) {
 
 function openPhoto(photo) {
   const displayTitle = getDisplayTitle(photo);
-  els.dialogImage.src = photo.image_url;
-  els.dialogImage.alt = displayTitle;
+  dialogImages = getPhotoImages(photo);
+  dialogImageIndex = 0;
   els.dialogTitle.textContent = displayTitle;
   els.dialogMeta.textContent = `${photo.category || "日常"} · ${formatDate(photo.taken_at)}`;
-  els.dialogNote.textContent = photo.note || "";
+  els.dialogNote.textContent = getPlainNote(photo);
+  renderDialogMedia();
   els.dialog.showModal();
 }
 
@@ -559,7 +778,7 @@ function openEditPhoto(photo) {
   els.editDateInput.value = toDateInputValue(photo.taken_at);
   els.editCategoryInput.value = photo.category || "日常";
   els.editPublicInput.value = String(photo.is_public !== false);
-  els.editNoteInput.value = photo.note || "";
+  els.editNoteInput.value = getPlainNote(photo);
   els.editDialog.showModal();
 }
 
@@ -575,7 +794,7 @@ async function savePhotoEdit(event) {
     els.editTitleInput.value.trim() || makeCuteTitle(takenAt ? new Date(takenAt) : new Date());
   const updates = {
     title,
-    note: els.editNoteInput.value.trim(),
+    note: composeStoredNote(els.editNoteInput.value.trim(), getPhotoImages(editingPhoto)),
     category: els.editCategoryInput.value,
     taken_at: takenAt,
     is_public: els.editPublicInput.value === "true",
@@ -696,6 +915,96 @@ function isVipUser(value) {
   return VIP_USERS.has(String(value || "").trim().toLowerCase());
 }
 
+function loadVipLevel() {
+  const stored = Number(localStorage.getItem(VIP_LEVEL_KEY));
+  if (Number.isInteger(stored) && stored >= 1 && stored <= VIP_LEVELS.length) {
+    return stored;
+  }
+
+  return 5;
+}
+
+function getVipLevel(level = activeVipLevel) {
+  return VIP_LEVELS.find((item) => item.level === level) || VIP_LEVELS[0];
+}
+
+function getCurrentImageLimit() {
+  return getVipLevel(activeVipLevel || 1).limit;
+}
+
+function getUploadQuality() {
+  if (activeVipLevel >= 5) return { maxSide: 3200, jpeg: 0.92 };
+  if (activeVipLevel >= 3) return { maxSide: 2400, jpeg: 0.9 };
+  return { maxSide: 1800, jpeg: 0.86 };
+}
+
+function renderVipCenter() {
+  const displayName = session ? getSessionDisplayName() : "";
+  const vip = Boolean(session && isVipUser(displayName));
+  const currentLevel = getVipLevel(vip ? activeVipLevel : 1);
+  els.vipCurrentLevel.textContent = `LV.${currentLevel.level}`;
+  els.vipCurrentName.textContent = currentLevel.name;
+  els.vipSummary.textContent = vip
+    ? `${displayName} 当前激活 ${currentLevel.label}，单篇合集最多 ${currentLevel.limit} 张图。`
+    : "登录 xiao980320 后可激活 5 级会员功能。";
+
+  els.vipLevels.innerHTML = VIP_LEVELS.map((level) => {
+    const active = vip && level.level === activeVipLevel;
+    const locked = !vip;
+    return `
+      <article class="vip-level ${active ? "active" : ""} ${locked ? "locked" : ""}">
+        <span>LV.${level.level}</span>
+        <strong>${escapeHtml(level.name)}</strong>
+        <p>${escapeHtml(level.label)}</p>
+        <button type="button" data-vip-level="${level.level}" ${locked || active ? "disabled" : ""}>
+          ${active ? "使用中" : locked ? "未解锁" : "激活"}
+        </button>
+      </article>
+    `;
+  }).join("");
+
+  els.vipPerks.innerHTML = currentLevel.perks
+    .map((perk) => `<span>${escapeHtml(perk)}</span>`)
+    .join("");
+  els.vipStatus.textContent = vip
+    ? "这些设置保存在当前浏览器；分享账号后，对方也会看到 VIP 身份。"
+    : "会员中心是展示模式，当前账号未解锁。";
+
+  els.vipLevels.querySelectorAll("button[data-vip-level]").forEach((button) => {
+    button.addEventListener("click", () => activateVipLevel(Number(button.dataset.vipLevel)));
+  });
+}
+
+function activateVipLevel(level) {
+  if (!session || !isVipUser(getSessionDisplayName())) {
+    els.vipStatus.textContent = "这个账号还没有 VIP 权限。";
+    return;
+  }
+
+  activeVipLevel = Math.min(Math.max(level, 1), VIP_LEVELS.length);
+  localStorage.setItem(VIP_LEVEL_KEY, String(activeVipLevel));
+  updateAuthUI();
+  els.vipStatus.textContent = `已激活 LV.${activeVipLevel} · ${getVipLevel(activeVipLevel).label}`;
+}
+
+function loadTheme() {
+  const stored = localStorage.getItem(THEME_KEY);
+  if (stored === "dark" || stored === "light") return stored;
+  return "light";
+}
+
+function applyTheme(theme) {
+  const nextTheme = theme === "dark" ? "dark" : "light";
+  document.body.classList.toggle("theme-dark", nextTheme === "dark");
+  localStorage.setItem(THEME_KEY, nextTheme);
+  els.themeToggle.querySelector("span").textContent = nextTheme === "dark" ? "☀" : "☾";
+  els.themeToggle.title = nextTheme === "dark" ? "切换白天模式" : "切换黑夜模式";
+}
+
+function toggleTheme() {
+  applyTheme(document.body.classList.contains("theme-dark") ? "light" : "dark");
+}
+
 function updatePhotoPreview() {
   const files = Array.from(els.photoInput.files || []);
   if (!files.length) {
@@ -707,7 +1016,13 @@ function updatePhotoPreview() {
 
   els.imageUrlInput.value = "";
   revokePreviewUrls();
-  previewUrls = files.slice(0, 8).map((file) => URL.createObjectURL(file));
+  const imageLimit = getCurrentImageLimit();
+  if (files.length > imageLimit) {
+    setStatus(`当前 VIP 等级单篇最多 ${imageLimit} 张图。`);
+  } else {
+    setStatus(files.length > 1 ? `将发布为 1 篇合集，共 ${files.length} 张图。` : "");
+  }
+  previewUrls = files.slice(0, 9).map((file) => URL.createObjectURL(file));
   els.photoPreview.src = previewUrls[0];
   els.photoPreview.hidden = false;
   els.fileName.textContent =
@@ -849,6 +1164,7 @@ function setUploadExpanded(expanded) {
 els.setupToggle.addEventListener("click", () => {
   els.setupPanel.hidden = !els.setupPanel.hidden;
 });
+els.themeToggle.addEventListener("click", toggleTheme);
 els.saveConfig.addEventListener("click", saveConfig);
 els.loginButton.addEventListener("click", loginWithPassword);
 els.signupButton.addEventListener("click", signupWithPassword);
@@ -857,6 +1173,14 @@ els.uploadToggle.addEventListener("click", () => {
 });
 els.avatarButton.addEventListener("click", () => {
   els.userPopover.hidden = !els.userPopover.hidden;
+});
+els.vipBadge.addEventListener("click", () => {
+  renderVipCenter();
+  els.vipDialog.showModal();
+});
+els.vipPopoverBadge.addEventListener("click", () => {
+  renderVipCenter();
+  els.vipDialog.showModal();
 });
 els.passwordInput.addEventListener("keydown", (event) => {
   if (event.key === "Enter") {
@@ -877,11 +1201,14 @@ els.photoInput.addEventListener("change", () => {
   updatePhotoPreview();
 });
 els.closeDialog.addEventListener("click", () => els.dialog.close());
+els.dialogPrev.addEventListener("click", () => moveDialogImage(-1));
+els.dialogNext.addEventListener("click", () => moveDialogImage(1));
 els.editForm.addEventListener("submit", savePhotoEdit);
 els.closeEditDialog.addEventListener("click", () => {
   editingPhoto = null;
   els.editDialog.close();
 });
+els.closeVipDialog.addEventListener("click", () => els.vipDialog.close());
 els.chips.forEach((chip) => {
   chip.addEventListener("click", () => {
     activeFilter = chip.dataset.filter;
