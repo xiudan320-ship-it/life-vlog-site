@@ -4,6 +4,7 @@ const PRODUCTION_URL = "https://xiudan320-ship-it.github.io/life-vlog-site/";
 const PAGE_SIZE = 6;
 const DEFAULT_SUPABASE_URL = "https://cimejrarjcosgayfnikk.supabase.co";
 const DEFAULT_SUPABASE_ANON_KEY = "sb_publishable_G0ZHVQG0XYB2zja9VHiJiQ_HKDUt_fJ";
+const VIP_USERS = new Set(["xiao980320"]);
 
 const demoPhotos = [
   {
@@ -37,8 +38,9 @@ let supabase = null;
 let session = null;
 let photos = [];
 let activeFilter = "全部";
-let previewUrl = "";
+let previewUrls = [];
 let currentPage = 1;
+let editingPhoto = null;
 
 const els = {
   setupToggle: document.querySelector("#setupToggle"),
@@ -58,6 +60,8 @@ const els = {
   avatarInitial: document.querySelector("#avatarInitial"),
   userPopover: document.querySelector("#userPopover"),
   profileName: document.querySelector("#profileName"),
+  vipBadge: document.querySelector("#vipBadge"),
+  vipPopoverBadge: document.querySelector("#vipPopoverBadge"),
   globalStatus: document.querySelector("#globalStatus"),
   composer: document.querySelector("#composer"),
   uploadToggle: document.querySelector("#uploadToggle"),
@@ -65,6 +69,7 @@ const els = {
   photoDrop: document.querySelector("#photoDrop"),
   photoInput: document.querySelector("#photoInput"),
   photoPreview: document.querySelector("#photoPreview"),
+  previewStrip: document.querySelector("#previewStrip"),
   imageUrlInput: document.querySelector("#imageUrlInput"),
   useUrlButton: document.querySelector("#useUrlButton"),
   fileName: document.querySelector("#fileName"),
@@ -86,6 +91,15 @@ const els = {
   dialogTitle: document.querySelector("#dialogTitle"),
   dialogMeta: document.querySelector("#dialogMeta"),
   dialogNote: document.querySelector("#dialogNote"),
+  editDialog: document.querySelector("#editDialog"),
+  closeEditDialog: document.querySelector("#closeEditDialog"),
+  editForm: document.querySelector("#editForm"),
+  editTitleInput: document.querySelector("#editTitleInput"),
+  editDateInput: document.querySelector("#editDateInput"),
+  editCategoryInput: document.querySelector("#editCategoryInput"),
+  editPublicInput: document.querySelector("#editPublicInput"),
+  editNoteInput: document.querySelector("#editNoteInput"),
+  saveEditStatus: document.querySelector("#saveEditStatus"),
 };
 
 els.dateInput.valueAsDate = new Date();
@@ -156,21 +170,22 @@ async function initializeSupabase() {
 
 function updateAuthUI() {
   const signedIn = Boolean(session);
-  const displayName = signedIn
-    ? session.user.user_metadata?.username || session.user.email
-    : "";
+  const displayName = signedIn ? getSessionDisplayName() : "";
+  const vip = signedIn && isVipUser(displayName);
   document.body.classList.toggle("signed-in", signedIn);
+  document.body.classList.toggle("vip-member", vip);
   els.composer.hidden = !signedIn;
   els.authCard.hidden = signedIn;
   els.userMenu.hidden = !signedIn;
   els.loginButton.hidden = signedIn;
   els.signupButton.hidden = signedIn;
-  els.logoutButton.hidden = !signedIn;
   els.usernameInput.hidden = signedIn;
   els.passwordInput.hidden = signedIn;
   els.userPopover.hidden = true;
   els.profileName.textContent = displayName;
   els.avatarInitial.textContent = getInitial(displayName);
+  els.vipBadge.hidden = !vip;
+  els.vipPopoverBadge.hidden = !vip;
   setHint(
     signedIn
       ? ""
@@ -258,10 +273,12 @@ async function loadPhotos() {
     return;
   }
 
-  const { data, error } = await supabase
-    .from("photos")
-    .select("*")
-    .eq("is_public", true)
+  let query = supabase.from("photos").select("*");
+  query = session
+    ? query.or(`is_public.eq.true,user_id.eq.${session.user.id}`)
+    : query.eq("is_public", true);
+
+  const { data, error } = await query
     .order("taken_at", { ascending: false })
     .order("created_at", { ascending: false });
 
@@ -283,26 +300,56 @@ async function uploadPhoto(event) {
     return;
   }
 
-  const file = els.photoInput.files[0];
+  const files = Array.from(els.photoInput.files || []);
   const remoteUrl = normalizeImageUrl(els.imageUrlInput.value);
-  if (!file && !remoteUrl) {
+  if (!files.length && !remoteUrl) {
     setStatus("请选择图片或粘贴图片链接。");
     return;
   }
 
-  const finalTitle = getFinalTitle();
-  const safeName = slugify(finalTitle);
-  const imageData = file
-    ? await uploadImageFile(file, safeName)
-    : {
-        image_path: "",
-        image_url: remoteUrl,
-        width: null,
-        height: null,
-      };
+  const uploadedCount = files.length || 1;
 
-  if (!imageData) return;
+  for (const [index, file] of files.entries()) {
+    const finalTitle = getFinalTitle(index, uploadedCount, file.name);
+    const safeName = slugify(finalTitle);
+    const imageData = await uploadImageFile(file, safeName, index + 1, uploadedCount);
+    if (!imageData) return;
 
+    const insertError = await insertPhotoRecord(finalTitle, imageData);
+    if (insertError) {
+      setStatus(insertError.message);
+      return;
+    }
+  }
+
+  if (!files.length && remoteUrl) {
+    const finalTitle = getFinalTitle(0, 1, remoteUrl);
+    const insertError = await insertPhotoRecord(finalTitle, {
+      image_path: "",
+      image_url: remoteUrl,
+      width: null,
+      height: null,
+    });
+
+    if (insertError) {
+      setStatus(insertError.message);
+      return;
+    }
+  }
+
+  els.uploadForm.reset();
+  els.dateInput.valueAsDate = new Date();
+  clearPhotoPreview();
+  setUploadExpanded(false);
+  setStatus(uploadedCount > 1 ? `已发布 ${uploadedCount} 张照片。` : "上传完成，已回到照片流");
+  await loadPhotos();
+  document.querySelector(".feed-head")?.scrollIntoView({
+    behavior: "smooth",
+    block: "start",
+  });
+}
+
+async function insertPhotoRecord(finalTitle, imageData) {
   const record = {
     user_id: session.user.id,
     title: finalTitle,
@@ -316,29 +363,16 @@ async function uploadPhoto(event) {
     height: imageData.height,
   };
 
-  const { error: insertError } = await supabase.from("photos").insert(record);
-  if (insertError) {
-    setStatus(insertError.message);
-    return;
-  }
-
-  els.uploadForm.reset();
-  els.dateInput.valueAsDate = new Date();
-  els.fileName.textContent = "还没有选择图片";
-  clearPhotoPreview();
-  setUploadExpanded(false);
-  setStatus("上传完成，已回到照片流");
-  await loadPhotos();
-  document.querySelector(".feed-head")?.scrollIntoView({
-    behavior: "smooth",
-    block: "start",
-  });
+  const { error } = await supabase.from("photos").insert(record);
+  return error;
 }
 
 function compressImage(file) {
   return new Promise((resolve, reject) => {
     const image = new Image();
+    const objectUrl = URL.createObjectURL(file);
     image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
       const maxSide = 1800;
       const scale = Math.min(1, maxSide / Math.max(image.width, image.height));
       const width = Math.round(image.width * scale);
@@ -361,17 +395,21 @@ function compressImage(file) {
         0.86
       );
     };
-    image.onerror = () => reject(new Error("图片读取失败。"));
-    image.src = URL.createObjectURL(file);
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("图片读取失败。"));
+    };
+    image.src = objectUrl;
   });
 }
 
-async function uploadImageFile(file, safeName) {
-  setStatus("正在压缩图片...");
+async function uploadImageFile(file, safeName, index = 1, total = 1) {
+  const prefix = total > 1 ? `${index}/${total} · ` : "";
+  setStatus(`${prefix}正在压缩图片...`);
   const compressed = await compressImage(file);
   const path = `${session.user.id}/${Date.now()}-${safeName}.jpg`;
 
-  setStatus("正在上传...");
+  setStatus(`${prefix}正在上传...`);
   const { error: uploadError } = await supabase.storage
     .from(BUCKET)
     .upload(path, compressed.blob, {
@@ -414,7 +452,7 @@ function renderGallery() {
   els.gallery.innerHTML = visible
     .map(
         (photo, index) => {
-          const canDelete = Boolean(session);
+          const canManage = Boolean(session && (!photo.user_id || photo.user_id === session.user.id));
           const displayTitle = getDisplayTitle(photo);
           const sequence = String(start + index + 1).padStart(2, "0");
           return `
@@ -430,8 +468,9 @@ function renderGallery() {
           </button>
           <div class="card-actions">
             ${
-              canDelete
-                ? `<button class="delete-photo" type="button" data-delete-index="${index}" title="删除照片">删除</button>`
+              canManage
+                ? `<button class="edit-photo" type="button" data-edit-index="${index}" title="编辑照片">编辑</button>
+                  <button class="delete-photo" type="button" data-delete-index="${index}" title="删除照片">删除</button>`
                 : ""
             }
           </div>
@@ -450,6 +489,12 @@ function renderGallery() {
   els.gallery.querySelectorAll("button[data-delete-index]").forEach((button) => {
     button.addEventListener("click", () => {
       deletePhoto(visible[Number(button.dataset.deleteIndex)]);
+    });
+  });
+
+  els.gallery.querySelectorAll("button[data-edit-index]").forEach((button) => {
+    button.addEventListener("click", () => {
+      openEditPhoto(visible[Number(button.dataset.editIndex)]);
     });
   });
 
@@ -506,6 +551,57 @@ function openPhoto(photo) {
   els.dialog.showModal();
 }
 
+function openEditPhoto(photo) {
+  if (!photo) return;
+  editingPhoto = photo;
+  els.saveEditStatus.textContent = "";
+  els.editTitleInput.value = getDisplayTitle(photo);
+  els.editDateInput.value = toDateInputValue(photo.taken_at);
+  els.editCategoryInput.value = photo.category || "日常";
+  els.editPublicInput.value = String(photo.is_public !== false);
+  els.editNoteInput.value = photo.note || "";
+  els.editDialog.showModal();
+}
+
+async function savePhotoEdit(event) {
+  event.preventDefault();
+  if (!supabase || !session || !editingPhoto) {
+    els.saveEditStatus.textContent = "请先登录后再编辑。";
+    return;
+  }
+
+  const takenAt = els.editDateInput.value || toDateInputValue(new Date());
+  const title =
+    els.editTitleInput.value.trim() || makeCuteTitle(takenAt ? new Date(takenAt) : new Date());
+  const updates = {
+    title,
+    note: els.editNoteInput.value.trim(),
+    category: els.editCategoryInput.value,
+    taken_at: takenAt,
+    is_public: els.editPublicInput.value === "true",
+  };
+
+  els.saveEditStatus.textContent = "正在保存...";
+  const { error } = await supabase.from("photos").update(updates).eq("id", editingPhoto.id);
+
+  if (error) {
+    els.saveEditStatus.textContent = error.message;
+    return;
+  }
+
+  els.editDialog.close();
+  editingPhoto = null;
+  await loadPhotos();
+  setGlobalStatus("照片信息已更新。");
+}
+
+function toDateInputValue(value) {
+  if (!value) return new Date().toISOString().slice(0, 10);
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return new Date().toISOString().slice(0, 10);
+  return date.toISOString().slice(0, 10);
+}
+
 function formatDate(value) {
   if (!value) return "未记录日期";
   return new Intl.DateTimeFormat("zh-CN", {
@@ -526,12 +622,13 @@ function slugify(value) {
   return slug || "photo";
 }
 
-function getFinalTitle() {
+function getFinalTitle(index = 0, total = 1) {
   const title = els.titleInput.value.trim();
-  if (title) return title;
+  if (title) return total > 1 ? `${title} ${String(index + 1).padStart(2, "0")}` : title;
 
   const date = els.dateInput.value ? new Date(els.dateInput.value) : new Date();
-  return makeCuteTitle(date);
+  const cuteTitle = makeCuteTitle(date);
+  return total > 1 ? `${cuteTitle} ${String(index + 1).padStart(2, "0")}` : cuteTitle;
 }
 
 function getDisplayTitle(photo) {
@@ -587,9 +684,21 @@ function usernameToEmail(username) {
   return `${ascii || "user"}@life-vlog.local`;
 }
 
+function getSessionDisplayName() {
+  const metadataName = session?.user?.user_metadata?.username;
+  if (metadataName) return metadataName;
+
+  const emailPrefix = session?.user?.email?.split("@")[0];
+  return emailPrefix || "User";
+}
+
+function isVipUser(value) {
+  return VIP_USERS.has(String(value || "").trim().toLowerCase());
+}
+
 function updatePhotoPreview() {
-  const file = els.photoInput.files[0];
-  if (!file) {
+  const files = Array.from(els.photoInput.files || []);
+  if (!files.length) {
     if (!normalizeImageUrl(els.imageUrlInput.value)) {
       clearPhotoPreview();
     }
@@ -597,14 +706,13 @@ function updatePhotoPreview() {
   }
 
   els.imageUrlInput.value = "";
-  if (previewUrl) {
-    URL.revokeObjectURL(previewUrl);
-  }
-
-  previewUrl = URL.createObjectURL(file);
-  els.photoPreview.src = previewUrl;
+  revokePreviewUrls();
+  previewUrls = files.slice(0, 8).map((file) => URL.createObjectURL(file));
+  els.photoPreview.src = previewUrls[0];
   els.photoPreview.hidden = false;
-  els.fileName.textContent = file.name;
+  els.fileName.textContent =
+    files.length > 1 ? `已选择 ${files.length} 张图片` : files[0].name;
+  renderPreviewStrip(files, previewUrls);
 }
 
 function useImageUrl() {
@@ -619,27 +727,31 @@ function useImageUrl() {
   els.imageUrlInput.value = url;
   els.photoPreview.src = url;
   els.photoPreview.hidden = false;
+  els.previewStrip.hidden = true;
   els.fileName.textContent = url;
   setStatus("已使用图片链接。");
 }
 
 function handlePasteUpload(event) {
   const items = Array.from(event.clipboardData?.items || []);
-  const imageItem = items.find((item) => item.type.startsWith("image/"));
+  const imageItems = items.filter((item) => item.type.startsWith("image/"));
 
-  if (imageItem) {
-    const file = imageItem.getAsFile();
-    if (!file) return;
+  if (imageItems.length) {
+    const files = imageItems.map((item) => item.getAsFile()).filter(Boolean);
+    if (!files.length) return;
 
     event.preventDefault();
-    const pastedFile = new File([file], `pasted-${Date.now()}.png`, {
-      type: file.type || "image/png",
-    });
     const transfer = new DataTransfer();
-    transfer.items.add(pastedFile);
+    files.forEach((file, index) => {
+      const extension = file.type?.split("/")[1] || "png";
+      const pastedFile = new File([file], `pasted-${Date.now()}-${index + 1}.${extension}`, {
+        type: file.type || "image/png",
+      });
+      transfer.items.add(pastedFile);
+    });
     els.photoInput.files = transfer.files;
     updatePhotoPreview();
-    setStatus("已读取剪贴板图片。");
+    setStatus(files.length > 1 ? `已读取 ${files.length} 张剪贴板图片。` : "已读取剪贴板图片。");
     return;
   }
 
@@ -666,13 +778,49 @@ function normalizeImageUrl(value) {
 }
 
 function clearPhotoPreview() {
-  if (previewUrl) {
-    URL.revokeObjectURL(previewUrl);
-    previewUrl = "";
-  }
+  revokePreviewUrls();
 
   els.photoPreview.removeAttribute("src");
   els.photoPreview.hidden = true;
+  els.previewStrip.innerHTML = "";
+  els.previewStrip.hidden = true;
+  els.fileName.textContent = "还没有选择图片";
+}
+
+function revokePreviewUrls() {
+  previewUrls.forEach((url) => URL.revokeObjectURL(url));
+  previewUrls = [];
+}
+
+function renderPreviewStrip(files, urls) {
+  if (files.length <= 1) {
+    els.previewStrip.innerHTML = "";
+    els.previewStrip.hidden = true;
+    return;
+  }
+
+  els.previewStrip.innerHTML = urls
+    .map(
+      (url, index) => `
+        <span class="preview-thumb" data-preview-index="${index}" role="button" tabindex="0" aria-label="预览第 ${index + 1} 张">
+          <img src="${url}" alt="" />
+        </span>
+      `
+    )
+    .join("");
+  els.previewStrip.hidden = false;
+
+  els.previewStrip.querySelectorAll("[data-preview-index]").forEach((thumb) => {
+    const showPreview = (event) => {
+      event.preventDefault();
+      const index = Number(thumb.dataset.previewIndex);
+      els.photoPreview.src = urls[index];
+    };
+    thumb.addEventListener("click", showPreview);
+    thumb.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") showPreview(event);
+    });
+  });
 }
 
 function getInitial(value) {
@@ -729,6 +877,11 @@ els.photoInput.addEventListener("change", () => {
   updatePhotoPreview();
 });
 els.closeDialog.addEventListener("click", () => els.dialog.close());
+els.editForm.addEventListener("submit", savePhotoEdit);
+els.closeEditDialog.addEventListener("click", () => {
+  editingPhoto = null;
+  els.editDialog.close();
+});
 els.chips.forEach((chip) => {
   chip.addEventListener("click", () => {
     activeFilter = chip.dataset.filter;
