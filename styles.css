@@ -150,6 +150,28 @@ p {
 
 .user-menu {
   position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vip-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  border: 1px solid rgba(185, 145, 58, 0.7);
+  background: linear-gradient(135deg, #111116, #2d2514 55%, #111116);
+  color: #f6d27a;
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0;
+  padding: 0 10px;
+  text-transform: uppercase;
+}
+
+body.vip-member .avatar-button {
+  border-color: #f6d27a;
+  box-shadow: 0 0 0 3px rgba(246, 210, 122, 0.2);
 }
 
 .user-popover {
@@ -179,6 +201,19 @@ p {
   white-space: nowrap;
 }
 
+.vip-popover-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  margin: 0 0 12px;
+  border: 1px solid rgba(185, 145, 58, 0.64);
+  background: rgba(246, 210, 122, 0.16);
+  color: #6c4e0f;
+  font-size: 12px;
+  font-weight: 950;
+  padding: 0 12px;
+}
+
 .user-popover button {
   width: 100%;
   min-height: 42px;
@@ -204,6 +239,13 @@ main {
     linear-gradient(90deg, rgba(255, 56, 92, 0.95) 0 6px, transparent 6px),
     linear-gradient(135deg, #111116, #29292f 56%, #111116);
   color: #fff;
+}
+
+body.vip-member .hero {
+  background:
+    linear-gradient(90deg, #f6d27a 0 6px, transparent 6px),
+    radial-gradient(circle at 82% 18%, rgba(246, 210, 122, 0.24), transparent 34%),
+    linear-gradient(135deg, #111116, #29292f 56%, #111116);
 }
 
 .hero-copy {
@@ -264,6 +306,9 @@ h2 {
 .composer[hidden],
 .user-menu[hidden],
 .user-popover[hidden],
+.vip-badge[hidden],
+.vip-popover-badge[hidden],
+#previewStrip[hidden],
 #uploadForm[hidden],
 .pager[hidden] {
   display: none;
@@ -389,6 +434,38 @@ textarea:focus {
 
 #photoPreview[hidden] {
   display: none;
+}
+
+.preview-strip {
+  display: flex;
+  width: min(100%, 520px);
+  gap: 8px;
+  justify-content: center;
+  margin: 0 auto 12px;
+  overflow-x: auto;
+  padding: 4px 0;
+}
+
+.preview-thumb {
+  display: block;
+  flex: 0 0 54px;
+  width: 54px;
+  height: 54px;
+  border: 1px solid rgba(16, 16, 20, 0.18);
+  background: #fff;
+  cursor: pointer;
+}
+
+.preview-thumb:focus-visible {
+  outline: 3px solid rgba(255, 56, 92, 0.34);
+  outline-offset: 2px;
+}
+
+.preview-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .file-drop span,
@@ -620,19 +697,29 @@ textarea:focus {
 
 .card-actions {
   display: flex;
+  gap: 8px;
   justify-content: flex-end;
   padding: 0 18px 18px;
 }
 
+.edit-photo,
 .delete-photo {
   min-height: 36px;
   border: 1px solid var(--ink);
   border-radius: 0;
-  background: #fff;
-  color: var(--ink);
   font-size: 13px;
   font-weight: 950;
   padding: 0 16px;
+}
+
+.edit-photo {
+  background: var(--ink);
+  color: #fff;
+}
+
+.delete-photo {
+  background: #fff;
+  color: var(--ink);
 }
 
 .empty {
@@ -684,6 +771,24 @@ dialog::backdrop {
 
 dialog article {
   padding: 20px;
+}
+
+.edit-dialog {
+  width: min(760px, calc(100% - 24px));
+}
+
+.edit-dialog form {
+  display: grid;
+  gap: 16px;
+  padding: clamp(18px, 4vw, 30px);
+}
+
+.edit-dialog h2 {
+  margin-top: 4px;
+}
+
+.edit-dialog .primary {
+  justify-self: stretch;
 }
 
 .dialog-close {
