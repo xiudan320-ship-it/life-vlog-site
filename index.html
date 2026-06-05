@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>咻蛋之家</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
-    <link rel="stylesheet" href="./styles.css?v=20260603-11" />
+    <link rel="stylesheet" href="./styles.css?v=20260603-12" />
   </head>
   <body>
     <header class="topbar">
@@ -16,6 +16,10 @@
           <small>Private Archive</small>
         </span>
       </a>
+      <nav class="main-nav" aria-label="页面切换">
+        <button class="active" id="galleryNav" type="button">照片</button>
+        <button id="recipesNav" type="button">菜谱</button>
+      </nav>
       <div class="top-actions">
         <button class="icon-button" id="themeToggle" type="button" title="切换日夜模式">
           <span aria-hidden="true">☾</span>
@@ -79,12 +83,9 @@
 
       <section class="composer" id="composer" hidden>
         <div class="section-title">
-          <div>
+          <button class="section-heading-button" id="uploadToggle" type="button" aria-expanded="false">
             <p class="kicker">Upload</p>
             <h2>发布新照片</h2>
-          </div>
-          <button class="ghost-button" id="uploadToggle" type="button" aria-expanded="false">
-            展开上传
           </button>
           <span id="uploadStatus"></span>
         </div>
@@ -144,7 +145,7 @@
         </form>
       </section>
 
-      <section class="feed-head">
+      <section class="feed-head" id="galleryHead">
         <div>
           <p class="kicker">Gallery</p>
           <h2>照片流</h2>
@@ -152,7 +153,7 @@
         <p class="status-line" id="globalStatus"></p>
       </section>
 
-      <section class="filters" aria-label="照片分类">
+      <section class="filters" id="galleryFilters" aria-label="照片分类">
         <button class="chip active" data-filter="全部" type="button">全部</button>
         <button class="chip" data-filter="日常" type="button">日常</button>
         <button class="chip" data-filter="旅行" type="button">旅行</button>
@@ -168,6 +169,59 @@
         <span id="pageIndicator">1 / 1</span>
         <button id="nextPage" type="button">下一页</button>
       </nav>
+
+      <section class="recipes-page" id="recipesPage" hidden>
+        <div class="feed-head">
+          <div>
+            <p class="kicker">Cookbook</p>
+            <h2>我的菜谱</h2>
+          </div>
+          <p class="status-line" id="recipeStatus"></p>
+        </div>
+
+        <form class="recipe-form" id="recipeForm">
+          <div class="form-grid">
+            <label>
+              菜名
+              <input id="recipeNameInput" maxlength="80" required />
+            </label>
+            <label>
+              分类
+              <select id="recipeCategoryInput">
+                <option>家常菜</option>
+                <option>甜品</option>
+                <option>早餐</option>
+                <option>汤</option>
+                <option>便当</option>
+                <option>饮品</option>
+              </select>
+            </label>
+            <label>
+              用时
+              <input id="recipeTimeInput" maxlength="30" placeholder="比如 30 分钟" />
+            </label>
+            <label>
+              份量
+              <input id="recipeServingsInput" maxlength="30" placeholder="比如 2 人份" />
+            </label>
+          </div>
+          <label>
+            食材
+            <textarea id="recipeIngredientsInput" rows="4" maxlength="1000" placeholder="每行写一种食材"></textarea>
+          </label>
+          <label>
+            步骤
+            <textarea id="recipeStepsInput" rows="5" maxlength="1600" placeholder="每行写一步"></textarea>
+          </label>
+          <label>
+            备注
+            <textarea id="recipeNoteInput" rows="3" maxlength="500"></textarea>
+          </label>
+          <button class="primary" type="submit">保存菜谱</button>
+        </form>
+
+        <section class="recipes-list" id="recipesList" aria-live="polite"></section>
+      </section>
     </main>
 
     <dialog id="photoDialog">
@@ -260,6 +314,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260603-11"></script>
+    <script type="module" src="./app.js?v=20260603-12"></script>
   </body>
 </html>
