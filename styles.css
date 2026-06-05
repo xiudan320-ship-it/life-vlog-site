@@ -399,6 +399,9 @@ h2 {
 .user-popover[hidden],
 .vip-badge[hidden],
 .vip-popover-badge[hidden],
+.feed-head[hidden],
+.filters[hidden],
+.gallery[hidden],
 #previewStrip[hidden],
 #uploadForm[hidden],
 .pager[hidden] {
