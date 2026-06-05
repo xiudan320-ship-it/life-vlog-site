@@ -94,6 +94,9 @@ let editingPhoto = null;
 let dialogImages = [];
 let dialogImageIndex = 0;
 let activeVipLevel = 1;
+let recipeEditingId = null;
+let recipeExistingCover = "";
+let recipeCoverPreviewUrl = "";
 
 const els = {
   themeToggle: document.querySelector("#themeToggle"),
@@ -175,7 +178,14 @@ const els = {
   vipPerks: document.querySelector("#vipPerks"),
   vipStatus: document.querySelector("#vipStatus"),
   recipesPage: document.querySelector("#recipesPage"),
+  recipeComposer: document.querySelector("#recipeComposer"),
+  recipeToggle: document.querySelector("#recipeToggle"),
+  recipeFormTitle: document.querySelector("#recipeFormTitle"),
   recipeForm: document.querySelector("#recipeForm"),
+  recipeCoverDrop: document.querySelector("#recipeCoverDrop"),
+  recipeCoverInput: document.querySelector("#recipeCoverInput"),
+  recipeCoverPreview: document.querySelector("#recipeCoverPreview"),
+  recipeCoverName: document.querySelector("#recipeCoverName"),
   recipeNameInput: document.querySelector("#recipeNameInput"),
   recipeCategoryInput: document.querySelector("#recipeCategoryInput"),
   recipeTimeInput: document.querySelector("#recipeTimeInput"),
@@ -183,6 +193,8 @@ const els = {
   recipeIngredientsInput: document.querySelector("#recipeIngredientsInput"),
   recipeStepsInput: document.querySelector("#recipeStepsInput"),
   recipeNoteInput: document.querySelector("#recipeNoteInput"),
+  recipeSubmitButton: document.querySelector("#recipeSubmitButton"),
+  recipeCancelEdit: document.querySelector("#recipeCancelEdit"),
   recipeStatus: document.querySelector("#recipeStatus"),
   recipesList: document.querySelector("#recipesList"),
 };
@@ -1245,7 +1257,7 @@ function switchPage(page) {
   els.gallery.hidden = showRecipes;
   els.pager.hidden = showRecipes || photos.length <= PAGE_SIZE;
   els.recipesPage.hidden = !showRecipes;
-  els.recipeForm.hidden = showRecipes && !session;
+  els.recipeComposer.hidden = !showRecipes || !session;
   if (showRecipes) renderRecipes();
   if (!showRecipes) renderGallery();
 }
@@ -1269,7 +1281,106 @@ function saveRecipes() {
   localStorage.setItem(getRecipesStorageKey(), JSON.stringify(recipes));
 }
 
-function saveRecipe(event) {
+function setRecipeExpanded(expanded) {
+  els.recipeComposer.classList.toggle("expanded", expanded);
+  els.recipeForm.hidden = !expanded;
+  els.recipeToggle.setAttribute("aria-expanded", String(expanded));
+}
+
+function getSelectedSeasonings() {
+  return Array.from(document.querySelectorAll('input[name="recipeSeasoning"]:checked')).map(
+    (input) => input.value
+  );
+}
+
+function setSelectedSeasonings(values = []) {
+  const selected = new Set(values);
+  document.querySelectorAll('input[name="recipeSeasoning"]').forEach((input) => {
+    input.checked = selected.has(input.value);
+  });
+}
+
+async function getRecipeCoverForSave() {
+  const file = els.recipeCoverInput.files?.[0];
+  if (!file) return recipeExistingCover;
+
+  try {
+    return await compressRecipeCover(file);
+  } catch (error) {
+    setRecipeStatus(`封面读取失败：${error.message || "请换一张图片"}`);
+    return recipeExistingCover;
+  }
+}
+
+function compressRecipeCover(file) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const maxSide = 1000;
+      const scale = Math.min(1, maxSide / Math.max(image.width, image.height));
+      const width = Math.round(image.width * scale);
+      const height = Math.round(image.height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext("2d");
+      context.drawImage(image, 0, 0, width, height);
+      resolve(canvas.toDataURL("image/jpeg", 0.82));
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("图片读取失败"));
+    };
+    image.src = objectUrl;
+  });
+}
+
+function updateRecipeCoverPreview() {
+  const file = els.recipeCoverInput.files?.[0];
+  if (!file) {
+    if (!recipeExistingCover) clearRecipeCoverPreview();
+    return;
+  }
+
+  if (recipeCoverPreviewUrl) URL.revokeObjectURL(recipeCoverPreviewUrl);
+  recipeCoverPreviewUrl = URL.createObjectURL(file);
+  els.recipeCoverPreview.src = recipeCoverPreviewUrl;
+  els.recipeCoverPreview.hidden = false;
+  els.recipeCoverName.textContent = file.name;
+}
+
+function setRecipeCoverPreview(src, name = "已保留原封面") {
+  clearRecipeCoverPreview();
+  if (!src) return;
+  els.recipeCoverPreview.src = src;
+  els.recipeCoverPreview.hidden = false;
+  els.recipeCoverName.textContent = name;
+}
+
+function clearRecipeCoverPreview() {
+  if (recipeCoverPreviewUrl) {
+    URL.revokeObjectURL(recipeCoverPreviewUrl);
+    recipeCoverPreviewUrl = "";
+  }
+  els.recipeCoverPreview.removeAttribute("src");
+  els.recipeCoverPreview.hidden = true;
+  els.recipeCoverName.textContent = "还没有选择封面";
+}
+
+function resetRecipeForm() {
+  els.recipeForm.reset();
+  recipeEditingId = null;
+  recipeExistingCover = "";
+  clearRecipeCoverPreview();
+  setSelectedSeasonings([]);
+  els.recipeFormTitle.textContent = "添加菜谱";
+  els.recipeSubmitButton.textContent = "保存菜谱";
+  els.recipeCancelEdit.hidden = true;
+}
+
+async function saveRecipe(event) {
   event.preventDefault();
   if (!session) {
     setRecipeStatus("请先登录后再保存菜谱。");
@@ -1282,22 +1393,31 @@ function saveRecipe(event) {
     return;
   }
 
+  const coverImage = await getRecipeCoverForSave();
   const recipe = {
-    id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
+    id: recipeEditingId || (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`),
     name,
     category: els.recipeCategoryInput.value,
     time: els.recipeTimeInput.value.trim(),
     servings: els.recipeServingsInput.value.trim(),
+    coverImage,
+    seasonings: getSelectedSeasonings(),
     ingredients: splitLines(els.recipeIngredientsInput.value),
     steps: splitLines(els.recipeStepsInput.value),
     note: els.recipeNoteInput.value.trim(),
-    createdAt: new Date().toISOString(),
+    createdAt:
+      recipes.find((item) => item.id === recipeEditingId)?.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   };
 
-  recipes = [recipe, ...recipes];
+  const wasEditing = Boolean(recipeEditingId);
+  recipes = recipeEditingId
+    ? recipes.map((item) => (item.id === recipeEditingId ? recipe : item))
+    : [recipe, ...recipes];
   saveRecipes();
-  els.recipeForm.reset();
-  setRecipeStatus("菜谱已保存。");
+  resetRecipeForm();
+  setRecipeExpanded(false);
+  setRecipeStatus(wasEditing ? "菜谱已更新。" : "菜谱已保存。");
   renderRecipes();
 }
 
@@ -1320,14 +1440,19 @@ function renderRecipes() {
         <article class="recipe-card">
           <div class="recipe-card-head">
             <span>${String(index + 1).padStart(2, "0")}</span>
-            <button type="button" data-delete-recipe="${escapeHtml(recipe.id)}">删除</button>
+            <div>
+              <button type="button" data-edit-recipe="${escapeHtml(recipe.id)}">编辑</button>
+              <button type="button" data-delete-recipe="${escapeHtml(recipe.id)}">删除</button>
+            </div>
           </div>
+          ${renderRecipeCover(recipe)}
           <p class="kicker">${escapeHtml(recipe.category)} · ${formatRecipeDate(recipe.createdAt)}</p>
           <h3>${escapeHtml(recipe.name)}</h3>
           <div class="recipe-meta">
             ${recipe.time ? `<span>${escapeHtml(recipe.time)}</span>` : ""}
             ${recipe.servings ? `<span>${escapeHtml(recipe.servings)}</span>` : ""}
           </div>
+          ${renderSeasonings(recipe.seasonings)}
           <div class="recipe-columns">
             <section>
               <strong>食材</strong>
@@ -1344,9 +1469,56 @@ function renderRecipes() {
     )
     .join("");
 
+  els.recipesList.querySelectorAll("button[data-edit-recipe]").forEach((button) => {
+    button.addEventListener("click", () => editRecipe(button.dataset.editRecipe));
+  });
   els.recipesList.querySelectorAll("button[data-delete-recipe]").forEach((button) => {
     button.addEventListener("click", () => deleteRecipe(button.dataset.deleteRecipe));
   });
+}
+
+function renderRecipeCover(recipe) {
+  if (recipe.coverImage) {
+    return `
+      <div class="recipe-cover">
+        <img src="${recipe.coverImage}" alt="${escapeHtml(recipe.name)} 封面" loading="lazy" />
+      </div>
+    `;
+  }
+
+  return `<div class="recipe-cover placeholder"><span>${escapeHtml(recipe.name.slice(0, 1))}</span></div>`;
+}
+
+function renderSeasonings(seasonings = []) {
+  if (!seasonings.length) return "";
+  return `
+    <div class="seasoning-tags">
+      ${seasonings.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}
+    </div>
+  `;
+}
+
+function editRecipe(id) {
+  const recipe = recipes.find((item) => item.id === id);
+  if (!recipe) return;
+
+  recipeEditingId = id;
+  recipeExistingCover = recipe.coverImage || "";
+  els.recipeNameInput.value = recipe.name || "";
+  els.recipeCategoryInput.value = recipe.category || "家常菜";
+  els.recipeTimeInput.value = recipe.time || "";
+  els.recipeServingsInput.value = recipe.servings || "";
+  els.recipeIngredientsInput.value = (recipe.ingredients || []).join("\n");
+  els.recipeStepsInput.value = (recipe.steps || []).join("\n");
+  els.recipeNoteInput.value = recipe.note || "";
+  setSelectedSeasonings(recipe.seasonings || []);
+  setRecipeCoverPreview(recipeExistingCover);
+  els.recipeFormTitle.textContent = "编辑菜谱";
+  els.recipeSubmitButton.textContent = "保存修改";
+  els.recipeCancelEdit.hidden = false;
+  setRecipeExpanded(true);
+  setRecipeStatus(`正在编辑：${recipe.name}`);
+  els.recipeComposer.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function deleteRecipe(id) {
@@ -1419,7 +1591,16 @@ els.signupButton.addEventListener("click", signupWithPassword);
 els.uploadToggle.addEventListener("click", () => {
   setUploadExpanded(els.uploadForm.hidden);
 });
+els.recipeToggle.addEventListener("click", () => {
+  setRecipeExpanded(els.recipeForm.hidden);
+});
+els.recipeCoverInput.addEventListener("change", updateRecipeCoverPreview);
 els.recipeForm.addEventListener("submit", saveRecipe);
+els.recipeCancelEdit.addEventListener("click", () => {
+  resetRecipeForm();
+  setRecipeExpanded(false);
+  setRecipeStatus("");
+});
 els.avatarButton.addEventListener("click", () => {
   els.userPopover.hidden = !els.userPopover.hidden;
 });
