@@ -11,6 +11,19 @@
   --shadow: 0 24px 80px rgba(16, 16, 20, 0.12);
 }
 
+body.theme-dark {
+  color-scheme: dark;
+  --bg: #101014;
+  --surface: #18181d;
+  --ink: #f4f1e8;
+  --muted: #aaa6a0;
+  --line: #303038;
+  --ribbon: #f4f1e8;
+  --accent: #ff4f70;
+  --paper: rgba(24, 24, 29, 0.86);
+  --shadow: 0 24px 80px rgba(0, 0, 0, 0.42);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -30,6 +43,13 @@ body {
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     "Microsoft YaHei", sans-serif;
+}
+
+body.theme-dark {
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(180deg, #15151a 0%, var(--bg) 100%);
+  background-size: 64px 64px, auto;
 }
 
 button,
@@ -70,6 +90,11 @@ p {
   backdrop-filter: blur(18px);
 }
 
+body.theme-dark .topbar {
+  background: rgba(16, 16, 20, 0.86);
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
 .brand {
   display: inline-flex;
   align-items: center;
@@ -87,6 +112,10 @@ p {
   border-radius: 999px;
   background: var(--ink);
   box-shadow: inset 0 0 0 8px #fff;
+}
+
+body.theme-dark .brand-mark {
+  box-shadow: inset 0 0 0 8px #101014;
 }
 
 .brand-mark::after {
@@ -141,6 +170,10 @@ p {
   color: var(--ink);
 }
 
+body.theme-dark .icon-button {
+  background: rgba(24, 24, 29, 0.86);
+}
+
 .avatar-button {
   border-color: var(--ink);
   background: var(--ink);
@@ -186,6 +219,10 @@ body.vip-member .avatar-button {
   box-shadow: var(--shadow);
 }
 
+body.theme-dark .user-popover {
+  background: rgba(24, 24, 29, 0.98);
+}
+
 .user-label {
   color: var(--muted);
   font-size: 12px;
@@ -214,6 +251,18 @@ body.vip-member .avatar-button {
   padding: 0 12px;
 }
 
+.user-popover .vip-popover-badge {
+  width: auto;
+  min-height: 32px;
+  border-radius: 0;
+  background: rgba(246, 210, 122, 0.16);
+  color: #8a6518;
+}
+
+body.theme-dark .user-popover .vip-popover-badge {
+  color: #f6d27a;
+}
+
 .user-popover button {
   width: 100%;
   min-height: 42px;
@@ -221,6 +270,20 @@ body.vip-member .avatar-button {
   background: var(--ink);
   color: #fff;
   font-weight: 900;
+}
+
+.user-popover .vip-popover-badge {
+  width: auto;
+  min-height: 32px;
+  border: 1px solid rgba(185, 145, 58, 0.64);
+  border-radius: 0;
+  background: rgba(246, 210, 122, 0.16);
+  color: #8a6518;
+  padding: 0 12px;
+}
+
+body.theme-dark .user-popover .vip-popover-badge {
+  color: #f6d27a;
 }
 
 main {
@@ -349,6 +412,12 @@ textarea {
   color: var(--ink);
   outline: none;
   padding: 13px 14px;
+}
+
+body.theme-dark input,
+body.theme-dark select,
+body.theme-dark textarea {
+  background: rgba(16, 16, 20, 0.92);
 }
 
 textarea {
@@ -537,6 +606,10 @@ textarea:focus {
   backdrop-filter: blur(14px);
 }
 
+body.theme-dark .filters {
+  background: linear-gradient(180deg, rgba(16, 16, 20, 0.94), rgba(16, 16, 20, 0.74));
+}
+
 .chip {
   flex: 0 0 auto;
   border: 1px solid var(--line);
@@ -545,6 +618,10 @@ textarea:focus {
   color: var(--muted);
   font-weight: 950;
   padding: 10px 16px;
+}
+
+body.theme-dark .chip {
+  background: #18181d;
 }
 
 .chip.active {
@@ -667,13 +744,57 @@ textarea:focus {
   text-align: left;
 }
 
-.photo-card img {
+.photo-media {
+  position: relative;
+  display: grid;
+  width: 100%;
+  background: #ededeb;
+}
+
+body.theme-dark .photo-media {
+  background: #0e0e12;
+}
+
+.photo-media.single img,
+.photo-card > .photo-open > img {
   display: block;
   width: 100%;
   height: auto;
   max-height: 560px;
   background: #ededeb;
   object-fit: cover;
+}
+
+.photo-media.collage {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2px;
+  aspect-ratio: 1;
+  padding: 2px;
+}
+
+.photo-media.collage.count-2,
+.photo-media.collage.count-4 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.photo-media.collage img {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  object-fit: cover;
+}
+
+.media-count {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  min-height: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(16, 16, 20, 0.72);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 950;
+  padding: 6px 10px;
 }
 
 .photo-card article {
@@ -751,7 +872,7 @@ dialog {
   width: min(920px, calc(100% - 24px));
   border: 1px solid var(--line);
   border-radius: 24px;
-  background: #fff;
+  background: var(--surface);
   color: var(--ink);
   padding: 0;
   box-shadow: 0 24px 60px rgba(33, 26, 44, 0.24);
@@ -767,6 +888,84 @@ dialog::backdrop {
   max-height: 72vh;
   object-fit: contain;
   background: #101014;
+}
+
+.dialog-media {
+  position: relative;
+  display: grid;
+  place-items: center;
+  background: #101014;
+}
+
+.carousel-button {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  display: grid;
+  width: 44px;
+  height: 64px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  background: rgba(16, 16, 20, 0.64);
+  color: #fff;
+  font-size: 42px;
+  line-height: 1;
+  transform: translateY(-50%);
+}
+
+.carousel-button.prev {
+  left: 12px;
+}
+
+.carousel-button.next {
+  right: 12px;
+}
+
+.carousel-button[hidden],
+.media-counter[hidden],
+.dialog-thumbs[hidden] {
+  display: none;
+}
+
+.media-counter {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  background: rgba(16, 16, 20, 0.72);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 950;
+  padding: 7px 10px;
+}
+
+.dialog-thumbs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 10px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.dialog-thumbs button {
+  flex: 0 0 64px;
+  width: 64px;
+  height: 64px;
+  border: 2px solid transparent;
+  background: transparent;
+  padding: 0;
+}
+
+.dialog-thumbs button.active {
+  border-color: var(--accent);
+}
+
+.dialog-thumbs img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 dialog article {
@@ -789,6 +988,131 @@ dialog article {
 
 .edit-dialog .primary {
   justify-self: stretch;
+}
+
+.vip-dialog {
+  width: min(980px, calc(100% - 24px));
+}
+
+.vip-center {
+  display: grid;
+  gap: 18px;
+  padding: clamp(18px, 4vw, 30px);
+}
+
+.vip-hero {
+  display: grid;
+  gap: 12px;
+  min-height: 220px;
+  align-content: end;
+  border: 1px solid rgba(246, 210, 122, 0.38);
+  background:
+    linear-gradient(90deg, #f6d27a 0 5px, transparent 5px),
+    radial-gradient(circle at 82% 16%, rgba(246, 210, 122, 0.32), transparent 34%),
+    linear-gradient(135deg, #111116, #28241d);
+  color: #fff;
+  padding: clamp(18px, 4vw, 34px);
+}
+
+.vip-hero .kicker {
+  color: #f6d27a;
+}
+
+.vip-hero h2 {
+  font-size: clamp(34px, 7vw, 76px);
+}
+
+.vip-hero p {
+  max-width: 660px;
+  color: rgba(255, 255, 255, 0.72);
+  line-height: 1.7;
+}
+
+.vip-current {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.vip-current span,
+.vip-current strong {
+  border: 1px solid rgba(246, 210, 122, 0.5);
+  background: rgba(246, 210, 122, 0.12);
+  color: #f6d27a;
+  font-weight: 950;
+  padding: 8px 12px;
+}
+
+.vip-levels {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.vip-level {
+  display: grid;
+  gap: 8px;
+  min-height: 180px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: 14px;
+}
+
+.vip-level.active {
+  border-color: #b9913a;
+  box-shadow: inset 0 0 0 2px rgba(246, 210, 122, 0.36);
+}
+
+.vip-level.locked {
+  opacity: 0.56;
+}
+
+.vip-level span {
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.vip-level strong {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.vip-level p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.vip-level button {
+  align-self: end;
+  min-height: 38px;
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--surface);
+  font-weight: 950;
+}
+
+.vip-level.active button,
+.vip-level button:disabled {
+  background: transparent;
+  color: var(--muted);
+}
+
+.vip-perks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.vip-perks span {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 900;
+  padding: 9px 12px;
 }
 
 .dialog-close {
@@ -814,6 +1138,16 @@ dialog article {
   .form-grid,
   .link-row {
     grid-template-columns: 1fr;
+  }
+
+  .vip-levels {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .vip-level {
+    flex: 0 0 210px;
   }
 
   .section-title,
@@ -856,6 +1190,12 @@ dialog article {
     right: auto !important;
     width: 32px;
     height: 32px;
+  }
+
+  .carousel-button {
+    width: 38px;
+    height: 54px;
+    font-size: 34px;
   }
 }
 
