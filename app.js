@@ -2,6 +2,8 @@ const CONFIG_KEY = "life-vlog-supabase-config";
 const THEME_KEY = "life-vlog-theme";
 const VIP_RECHARGE_KEY = "life-vlog-vip-recharge";
 const RECIPES_KEY = "life-vlog-recipes";
+const EXPERIENCE_KEY = "life-vlog-experience";
+const DAILY_LOGIN_EXP = 25;
 const BUCKET = "life-photos";
 const PRODUCTION_URL = "https://xiudan320-ship-it.github.io/life-vlog-site/";
 const PAGE_SIZE = 6;
@@ -119,6 +121,11 @@ const els = {
   avatarInitial: document.querySelector("#avatarInitial"),
   userPopover: document.querySelector("#userPopover"),
   profileName: document.querySelector("#profileName"),
+  xpPanel: document.querySelector("#xpPanel"),
+  xpLevel: document.querySelector("#xpLevel"),
+  xpText: document.querySelector("#xpText"),
+  xpBar: document.querySelector("#xpBar"),
+  xpHint: document.querySelector("#xpHint"),
   vipBadge: document.querySelector("#vipBadge"),
   vipPopoverBadge: document.querySelector("#vipPopoverBadge"),
   globalStatus: document.querySelector("#globalStatus"),
@@ -285,6 +292,10 @@ function updateAuthUI() {
   els.userPopover.hidden = true;
   els.profileName.textContent = displayName;
   els.avatarInitial.textContent = getInitial(displayName);
+  if (signedIn) {
+    awardDailyExperience(displayName);
+    renderExperience(displayName);
+  }
   els.vipBadge.hidden = !signedIn;
   els.vipPopoverBadge.hidden = !signedIn;
   els.vipBadge.textContent = vip ? `VIP LV.${activeVipLevel}` : "开通 VIP";
@@ -1093,6 +1104,85 @@ function rechargeVip(amount) {
 
 function formatMoney(value) {
   return `¥${Math.max(0, Math.round(Number(value) || 0))}`;
+}
+
+function getExperienceStorageKey(displayName = getSessionDisplayName()) {
+  return `${EXPERIENCE_KEY}:${String(displayName || "guest").toLowerCase()}`;
+}
+
+function loadExperience(displayName = getSessionDisplayName()) {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(getExperienceStorageKey(displayName)) || "{}");
+    return {
+      total: Number(parsed.total) || 0,
+      lastLoginDate: parsed.lastLoginDate || "",
+      gainedToday: Boolean(parsed.gainedToday),
+    };
+  } catch {
+    return { total: 0, lastLoginDate: "", gainedToday: false };
+  }
+}
+
+function saveExperience(data, displayName = getSessionDisplayName()) {
+  localStorage.setItem(getExperienceStorageKey(displayName), JSON.stringify(data));
+}
+
+function awardDailyExperience(displayName = getSessionDisplayName()) {
+  const today = getLocalDateKey();
+  const data = loadExperience(displayName);
+  if (data.lastLoginDate === today) return data;
+
+  const next = {
+    total: data.total + DAILY_LOGIN_EXP,
+    lastLoginDate: today,
+    gainedToday: true,
+  };
+  saveExperience(next, displayName);
+  return next;
+}
+
+function getExperienceLevel(totalExp) {
+  let level = 1;
+  let remaining = Math.max(0, Number(totalExp) || 0);
+  let needed = getLevelNeed(level);
+
+  while (remaining >= needed && level < 99) {
+    remaining -= needed;
+    level += 1;
+    needed = getLevelNeed(level);
+  }
+
+  return {
+    level,
+    current: remaining,
+    needed,
+    percent: Math.min(100, Math.round((remaining / needed) * 100)),
+  };
+}
+
+function getLevelNeed(level) {
+  return 80 + level * 20;
+}
+
+function renderExperience(displayName = getSessionDisplayName()) {
+  const data = loadExperience(displayName);
+  const progress = getExperienceLevel(data.total);
+  els.xpLevel.textContent = `Lv.${progress.level}`;
+  els.xpText.textContent = `${progress.current} / ${progress.needed} EXP`;
+  els.xpBar.style.width = `${progress.percent}%`;
+  els.xpHint.textContent =
+    data.lastLoginDate === getLocalDateKey()
+      ? `今日登录 +${DAILY_LOGIN_EXP} EXP 已领取`
+      : `明日登录 +${DAILY_LOGIN_EXP} EXP`;
+}
+
+function getLocalDateKey() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 }
 
 function loadTheme() {
