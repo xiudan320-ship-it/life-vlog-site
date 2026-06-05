@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>咻蛋之家</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
-    <link rel="stylesheet" href="./styles.css?v=20260603-9" />
+    <link rel="stylesheet" href="./styles.css?v=20260603-10" />
   </head>
   <body>
     <header class="topbar">
@@ -17,18 +17,23 @@
         </span>
       </a>
       <div class="top-actions">
+        <button class="icon-button" id="themeToggle" type="button" title="切换日夜模式">
+          <span aria-hidden="true">☾</span>
+        </button>
         <button class="icon-button" id="setupToggle" type="button" title="设置">
           <span aria-hidden="true">⚙</span>
         </button>
         <div class="user-menu" id="userMenu" hidden>
-          <span class="vip-badge" id="vipBadge" hidden>VIP</span>
+          <button class="vip-badge" id="vipBadge" type="button" hidden>VIP</button>
           <button class="avatar-button" id="avatarButton" type="button" title="账号">
             <span id="avatarInitial">U</span>
           </button>
           <div class="user-popover" id="userPopover" hidden>
             <p class="user-label">已登录</p>
             <strong id="profileName">User</strong>
-            <span class="vip-popover-badge" id="vipPopoverBadge" hidden>咻蛋之家 VIP</span>
+            <button class="vip-popover-badge" id="vipPopoverBadge" type="button" hidden>
+              咻蛋之家 VIP
+            </button>
             <button id="logoutButton" type="button">退出登录</button>
           </div>
         </div>
@@ -89,7 +94,7 @@
             <input id="photoInput" type="file" accept="image/*" multiple />
             <img id="photoPreview" alt="照片预览" hidden />
             <div class="preview-strip" id="previewStrip" hidden></div>
-            <span>选择照片，或直接把图片粘贴进来</span>
+            <span>选择多张照片，自动合成一篇合集</span>
             <strong id="fileName">还没有选择图片</strong>
           </label>
 
@@ -167,7 +172,13 @@
 
     <dialog id="photoDialog">
       <button class="dialog-close" id="closeDialog" type="button" aria-label="关闭">×</button>
-      <img id="dialogImage" alt="" />
+      <div class="dialog-media">
+        <button class="carousel-button prev" id="dialogPrev" type="button" aria-label="上一张">‹</button>
+        <img id="dialogImage" alt="" />
+        <button class="carousel-button next" id="dialogNext" type="button" aria-label="下一张">›</button>
+        <span class="media-counter" id="dialogCounter"></span>
+      </div>
+      <div class="dialog-thumbs" id="dialogThumbs" hidden></div>
       <article>
         <p class="kicker" id="dialogMeta"></p>
         <h2 id="dialogTitle"></h2>
@@ -219,6 +230,24 @@
       </form>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260603-9"></script>
+    <dialog class="vip-dialog" id="vipDialog">
+      <button class="dialog-close" id="closeVipDialog" type="button" aria-label="关闭">×</button>
+      <section class="vip-center">
+        <div class="vip-hero">
+          <p class="kicker">Member Center</p>
+          <h2>咻蛋之家 VIP</h2>
+          <p id="vipSummary">五级会员系统，解锁合集、质感上传、私密分享和导演模式。</p>
+          <div class="vip-current">
+            <span id="vipCurrentLevel">LV.5</span>
+            <strong id="vipCurrentName">Director</strong>
+          </div>
+        </div>
+        <div class="vip-levels" id="vipLevels"></div>
+        <div class="vip-perks" id="vipPerks"></div>
+        <p class="hint" id="vipStatus"></p>
+      </section>
+    </dialog>
+
+    <script type="module" src="./app.js?v=20260603-10"></script>
   </body>
 </html>
