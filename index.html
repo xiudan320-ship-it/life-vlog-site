@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>咻蛋之家</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
-    <link rel="stylesheet" href="./styles.css?v=20260603-17" />
+    <link rel="stylesheet" href="./styles.css?v=20260603-18" />
   </head>
   <body>
     <header class="topbar">
@@ -19,6 +19,7 @@
       <nav class="main-nav" aria-label="页面切换">
         <button class="active" id="galleryNav" type="button">照片</button>
         <button id="recipesNav" type="button">菜谱</button>
+        <button id="wishlistNav" type="button">心愿</button>
       </nav>
       <div class="top-actions">
         <button class="icon-button" id="themeToggle" type="button" title="切换日夜模式">
@@ -270,6 +271,63 @@
 
         <section class="recipes-list" id="recipesList" aria-live="polite"></section>
       </section>
+
+      <section class="wishlist-page" id="wishlistPage" hidden>
+        <div class="feed-head">
+          <div>
+            <p class="kicker">Wishlist</p>
+            <h2>心愿单</h2>
+          </div>
+          <p class="status-line" id="wishlistStatus"></p>
+        </div>
+
+        <section class="wishlist-composer" id="wishlistComposer" hidden>
+          <div class="section-title">
+            <button class="section-heading-button" id="wishlistToggle" type="button" aria-expanded="false">
+              <p class="kicker">New Wish</p>
+              <h2>添加心愿</h2>
+            </button>
+          </div>
+
+          <form class="wishlist-form" id="wishlistForm" hidden>
+            <div class="form-grid">
+              <label>
+                想做什么
+                <input id="wishTitleInput" maxlength="80" required />
+              </label>
+              <label>
+                类型
+                <select id="wishTypeInput">
+                  <option>想做</option>
+                  <option>想吃</option>
+                  <option>想去</option>
+                  <option>想买</option>
+                  <option>想学</option>
+                </select>
+              </label>
+              <label>
+                计划时间
+                <input id="wishDateInput" type="date" />
+              </label>
+              <label>
+                优先级
+                <select id="wishPriorityInput">
+                  <option>普通</option>
+                  <option>想尽快</option>
+                  <option>一定要做</option>
+                </select>
+              </label>
+            </div>
+            <label>
+              备注
+              <textarea id="wishNoteInput" rows="3" maxlength="500"></textarea>
+            </label>
+            <button class="primary" type="submit">保存心愿</button>
+          </form>
+        </section>
+
+        <section class="wishlist-list" id="wishlistList" aria-live="polite"></section>
+      </section>
     </main>
 
     <dialog id="photoDialog">
@@ -362,6 +420,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260603-17"></script>
+    <script type="module" src="./app.js?v=20260603-18"></script>
   </body>
 </html>
