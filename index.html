@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>咻蛋之家</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
-    <link rel="stylesheet" href="./styles.css?v=20260603-15" />
+    <link rel="stylesheet" href="./styles.css?v=20260603-16" />
   </head>
   <body>
     <header class="topbar">
@@ -35,6 +35,16 @@
           <div class="user-popover" id="userPopover" hidden>
             <p class="user-label">已登录</p>
             <strong id="profileName">User</strong>
+            <div class="xp-panel" id="xpPanel">
+              <div class="xp-head">
+                <span id="xpLevel">Lv.1</span>
+                <strong id="xpText">0 / 100 EXP</strong>
+              </div>
+              <div class="xp-track" aria-hidden="true">
+                <span id="xpBar"></span>
+              </div>
+              <p id="xpHint">今日登录经验已领取</p>
+            </div>
             <button class="vip-popover-badge" id="vipPopoverBadge" type="button" hidden>
               咻蛋之家 VIP
             </button>
@@ -352,6 +362,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260603-15"></script>
+    <script type="module" src="./app.js?v=20260603-16"></script>
   </body>
 </html>
