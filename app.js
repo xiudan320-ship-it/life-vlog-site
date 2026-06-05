@@ -1,6 +1,6 @@
 const CONFIG_KEY = "life-vlog-supabase-config";
 const THEME_KEY = "life-vlog-theme";
-const VIP_LEVEL_KEY = "life-vlog-vip-level";
+const VIP_RECHARGE_KEY = "life-vlog-vip-recharge";
 const BUCKET = "life-photos";
 const PRODUCTION_URL = "https://xiudan320-ship-it.github.io/life-vlog-site/";
 const PAGE_SIZE = 6;
@@ -15,6 +15,7 @@ const VIP_LEVELS = [
     level: 1,
     name: "Spark",
     label: "星火会员",
+    price: 9,
     limit: 3,
     perks: ["专属 VIP 标识", "日夜模式记忆", "一篇笔记最多 3 张图"],
   },
@@ -22,6 +23,7 @@ const VIP_LEVELS = [
     level: 2,
     name: "Ribbon",
     label: "丝带会员",
+    price: 29,
     limit: 6,
     perks: ["合集九宫格封面", "弹窗左右翻图", "一篇笔记最多 6 张图"],
   },
@@ -29,6 +31,7 @@ const VIP_LEVELS = [
     level: 3,
     name: "Prism",
     label: "棱镜会员",
+    price: 68,
     limit: 9,
     perks: ["高质压缩上传", "9 图完整宫格", "合集计数角标"],
   },
@@ -36,6 +39,7 @@ const VIP_LEVELS = [
     level: 4,
     name: "Archive",
     label: "档案会员",
+    price: 128,
     limit: 12,
     perks: ["私密内容共享", "编辑后保留合集", "一篇笔记最多 12 张图"],
   },
@@ -43,6 +47,7 @@ const VIP_LEVELS = [
     level: 5,
     name: "Director",
     label: "导演会员",
+    price: 298,
     limit: 18,
     perks: ["黑金导演模式", "最高画质上传", "一篇笔记最多 18 张图"],
   },
@@ -155,7 +160,11 @@ const els = {
   vipSummary: document.querySelector("#vipSummary"),
   vipCurrentLevel: document.querySelector("#vipCurrentLevel"),
   vipCurrentName: document.querySelector("#vipCurrentName"),
+  vipRechargeTotal: document.querySelector("#vipRechargeTotal"),
+  vipTierAmount: document.querySelector("#vipTierAmount"),
+  vipNext: document.querySelector("#vipNext"),
   vipLevels: document.querySelector("#vipLevels"),
+  vipRecharge: document.querySelector("#vipRecharge"),
   vipPerks: document.querySelector("#vipPerks"),
   vipStatus: document.querySelector("#vipStatus"),
 };
@@ -230,8 +239,9 @@ async function initializeSupabase() {
 function updateAuthUI() {
   const signedIn = Boolean(session);
   const displayName = signedIn ? getSessionDisplayName() : "";
-  const vip = signedIn && isVipUser(displayName);
-  activeVipLevel = vip ? loadVipLevel() : 0;
+  const rechargeTotal = signedIn ? loadRechargeTotal(displayName) : 0;
+  activeVipLevel = signedIn ? getVipLevelByRecharge(rechargeTotal)?.level || 0 : 0;
+  const vip = signedIn && activeVipLevel > 0;
   document.body.classList.toggle("signed-in", signedIn);
   document.body.classList.toggle("vip-member", vip);
   document.body.dataset.vipLevel = String(activeVipLevel);
@@ -245,12 +255,12 @@ function updateAuthUI() {
   els.userPopover.hidden = true;
   els.profileName.textContent = displayName;
   els.avatarInitial.textContent = getInitial(displayName);
-  els.vipBadge.hidden = !vip;
-  els.vipPopoverBadge.hidden = !vip;
-  els.vipBadge.textContent = vip ? `VIP LV.${activeVipLevel}` : "VIP";
+  els.vipBadge.hidden = !signedIn;
+  els.vipPopoverBadge.hidden = !signedIn;
+  els.vipBadge.textContent = vip ? `VIP LV.${activeVipLevel}` : "开通 VIP";
   els.vipPopoverBadge.textContent = vip
     ? `咻蛋之家 ${getVipLevel(activeVipLevel).label}`
-    : "咻蛋之家 VIP";
+    : "开通咻蛋之家 VIP";
   renderVipCenter();
   setHint(
     signedIn
@@ -915,21 +925,18 @@ function isVipUser(value) {
   return VIP_USERS.has(String(value || "").trim().toLowerCase());
 }
 
-function loadVipLevel() {
-  const stored = Number(localStorage.getItem(VIP_LEVEL_KEY));
-  if (Number.isInteger(stored) && stored >= 1 && stored <= VIP_LEVELS.length) {
-    return stored;
-  }
-
-  return 5;
-}
-
 function getVipLevel(level = activeVipLevel) {
   return VIP_LEVELS.find((item) => item.level === level) || VIP_LEVELS[0];
 }
 
+function getVipLevelByRecharge(amount) {
+  return [...VIP_LEVELS]
+    .reverse()
+    .find((level) => amount >= level.price) || null;
+}
+
 function getCurrentImageLimit() {
-  return getVipLevel(activeVipLevel || 1).limit;
+  return activeVipLevel > 0 ? getVipLevel(activeVipLevel).limit : 1;
 }
 
 function getUploadQuality() {
@@ -938,53 +945,120 @@ function getUploadQuality() {
   return { maxSide: 1800, jpeg: 0.86 };
 }
 
+function getRechargeStorageKey(displayName = getSessionDisplayName()) {
+  return `${VIP_RECHARGE_KEY}:${String(displayName || "guest").toLowerCase()}`;
+}
+
+function loadRechargeTotal(displayName = getSessionDisplayName()) {
+  const key = getRechargeStorageKey(displayName);
+  const stored = Number(localStorage.getItem(key));
+  if (Number.isFinite(stored) && stored >= 0) return stored;
+  return isVipUser(displayName) ? 298 : 0;
+}
+
+function saveRechargeTotal(amount, displayName = getSessionDisplayName()) {
+  localStorage.setItem(getRechargeStorageKey(displayName), String(Math.max(0, Math.round(amount))));
+}
+
 function renderVipCenter() {
   const displayName = session ? getSessionDisplayName() : "";
-  const vip = Boolean(session && isVipUser(displayName));
-  const currentLevel = getVipLevel(vip ? activeVipLevel : 1);
-  els.vipCurrentLevel.textContent = `LV.${currentLevel.level}`;
-  els.vipCurrentName.textContent = currentLevel.name;
-  els.vipSummary.textContent = vip
-    ? `${displayName} 当前激活 ${currentLevel.label}，单篇合集最多 ${currentLevel.limit} 张图。`
-    : "登录 xiao980320 后可激活 5 级会员功能。";
+  const rechargeTotal = session ? loadRechargeTotal(displayName) : 0;
+  const currentLevel = getVipLevelByRecharge(rechargeTotal);
+  const nextLevel = VIP_LEVELS.find((level) => rechargeTotal < level.price);
+  const vip = Boolean(currentLevel);
+  els.vipCurrentLevel.textContent = currentLevel ? `LV.${currentLevel.level}` : "FREE";
+  els.vipCurrentName.textContent = currentLevel?.name || "Visitor";
+  els.vipRechargeTotal.textContent = formatMoney(rechargeTotal);
+  els.vipTierAmount.textContent = currentLevel ? formatMoney(currentLevel.price) : "¥0";
+  els.vipSummary.textContent = session
+    ? `${displayName} 累计充值 ${formatMoney(rechargeTotal)}，${currentLevel ? `当前为 ${currentLevel.label}` : "还未开通 VIP"}。`
+    : "登录后可充值激活 5 个 VIP 档位。";
+  els.vipNext.innerHTML = nextLevel
+    ? `<strong>下一档 ${nextLevel.label}</strong><span>还差 ${formatMoney(nextLevel.price - rechargeTotal)}</span>`
+    : `<strong>已解锁最高档</strong><span>Director 档位已满级</span>`;
 
   els.vipLevels.innerHTML = VIP_LEVELS.map((level) => {
-    const active = vip && level.level === activeVipLevel;
-    const locked = !vip;
+    const unlocked = rechargeTotal >= level.price;
+    const active = currentLevel?.level === level.level;
+    const diff = Math.max(0, level.price - rechargeTotal);
     return `
-      <article class="vip-level ${active ? "active" : ""} ${locked ? "locked" : ""}">
+      <article class="vip-level ${active ? "active" : ""} ${unlocked ? "unlocked" : ""}">
         <span>LV.${level.level}</span>
         <strong>${escapeHtml(level.name)}</strong>
-        <p>${escapeHtml(level.label)}</p>
-        <button type="button" data-vip-level="${level.level}" ${locked || active ? "disabled" : ""}>
-          ${active ? "使用中" : locked ? "未解锁" : "激活"}
+        <p>${escapeHtml(level.label)} · 累计 ${formatMoney(level.price)}</p>
+        <small>最多 ${level.limit} 张/篇</small>
+        <button type="button" data-top-up-level="${level.level}" ${!session || active || unlocked ? "disabled" : ""}>
+          ${active ? "当前档位" : unlocked ? "已解锁" : `补 ${formatMoney(diff)}`}
         </button>
       </article>
     `;
   }).join("");
 
-  els.vipPerks.innerHTML = currentLevel.perks
+  const rechargePacks = VIP_LEVELS.map((level) => {
+    const amount = Math.max(0, level.price - rechargeTotal);
+    return { level, amount: amount || level.price };
+  });
+
+  els.vipRecharge.innerHTML = rechargePacks
+    .map(
+      ({ level, amount }) => `
+        <button type="button" data-recharge-amount="${amount}">
+          <span>${level.label}</span>
+          <strong>${formatMoney(amount)}</strong>
+        </button>
+      `
+    )
+    .join("");
+
+  els.vipPerks.innerHTML = (currentLevel || VIP_LEVELS[0]).perks
     .map((perk) => `<span>${escapeHtml(perk)}</span>`)
     .join("");
-  els.vipStatus.textContent = vip
-    ? "这些设置保存在当前浏览器；分享账号后，对方也会看到 VIP 身份。"
-    : "会员中心是展示模式，当前账号未解锁。";
+  els.vipStatus.textContent = session
+    ? "这是前端模拟充值额度，不会真实扣款；档位会保存在当前浏览器。"
+    : "请先登录再使用充值档位。";
 
-  els.vipLevels.querySelectorAll("button[data-vip-level]").forEach((button) => {
-    button.addEventListener("click", () => activateVipLevel(Number(button.dataset.vipLevel)));
+  els.vipLevels.querySelectorAll("button[data-top-up-level]").forEach((button) => {
+    button.addEventListener("click", () => topUpToLevel(Number(button.dataset.topUpLevel)));
+  });
+  els.vipRecharge.querySelectorAll("button[data-recharge-amount]").forEach((button) => {
+    button.addEventListener("click", () => rechargeVip(Number(button.dataset.rechargeAmount)));
   });
 }
 
-function activateVipLevel(level) {
-  if (!session || !isVipUser(getSessionDisplayName())) {
-    els.vipStatus.textContent = "这个账号还没有 VIP 权限。";
+function topUpToLevel(level) {
+  if (!session) {
+    els.vipStatus.textContent = "请先登录。";
     return;
   }
 
-  activeVipLevel = Math.min(Math.max(level, 1), VIP_LEVELS.length);
-  localStorage.setItem(VIP_LEVEL_KEY, String(activeVipLevel));
+  const target = getVipLevel(level);
+  const current = loadRechargeTotal();
+  const diff = Math.max(0, target.price - current);
+  rechargeVip(diff);
+}
+
+function rechargeVip(amount) {
+  if (!session) {
+    els.vipStatus.textContent = "请先登录。";
+    return;
+  }
+
+  const numericAmount = Math.max(0, Math.round(Number(amount) || 0));
+  if (!numericAmount) {
+    els.vipStatus.textContent = "这个档位已经解锁。";
+    return;
+  }
+
+  const nextTotal = loadRechargeTotal() + numericAmount;
+  saveRechargeTotal(nextTotal);
+  activeVipLevel = getVipLevelByRecharge(nextTotal)?.level || 0;
   updateAuthUI();
-  els.vipStatus.textContent = `已激活 LV.${activeVipLevel} · ${getVipLevel(activeVipLevel).label}`;
+  renderVipCenter();
+  els.vipStatus.textContent = `模拟充值 ${formatMoney(numericAmount)} 成功，累计 ${formatMoney(nextTotal)}。`;
+}
+
+function formatMoney(value) {
+  return `¥${Math.max(0, Math.round(Number(value) || 0))}`;
 }
 
 function loadTheme() {
