@@ -2,6 +2,7 @@ const CONFIG_KEY = "life-vlog-supabase-config";
 const THEME_KEY = "life-vlog-theme";
 const VIP_RECHARGE_KEY = "life-vlog-vip-recharge";
 const RECIPES_KEY = "life-vlog-recipes";
+const WISHLIST_KEY = "life-vlog-wishlist";
 const EXPERIENCE_KEY = "life-vlog-experience";
 const DAILY_LOGIN_EXP = 25;
 const BUCKET = "life-photos";
@@ -88,6 +89,7 @@ let supabase = null;
 let session = null;
 let photos = [];
 let recipes = [];
+let wishes = [];
 let activePage = "gallery";
 let activeFilter = "全部";
 let previewUrls = [];
@@ -104,6 +106,7 @@ const els = {
   themeToggle: document.querySelector("#themeToggle"),
   galleryNav: document.querySelector("#galleryNav"),
   recipesNav: document.querySelector("#recipesNav"),
+  wishlistNav: document.querySelector("#wishlistNav"),
   setupToggle: document.querySelector("#setupToggle"),
   setupPanel: document.querySelector("#setupPanel"),
   supabaseUrl: document.querySelector("#supabaseUrl"),
@@ -204,6 +207,17 @@ const els = {
   recipeCancelEdit: document.querySelector("#recipeCancelEdit"),
   recipeStatus: document.querySelector("#recipeStatus"),
   recipesList: document.querySelector("#recipesList"),
+  wishlistPage: document.querySelector("#wishlistPage"),
+  wishlistComposer: document.querySelector("#wishlistComposer"),
+  wishlistToggle: document.querySelector("#wishlistToggle"),
+  wishlistForm: document.querySelector("#wishlistForm"),
+  wishTitleInput: document.querySelector("#wishTitleInput"),
+  wishTypeInput: document.querySelector("#wishTypeInput"),
+  wishDateInput: document.querySelector("#wishDateInput"),
+  wishPriorityInput: document.querySelector("#wishPriorityInput"),
+  wishNoteInput: document.querySelector("#wishNoteInput"),
+  wishlistStatus: document.querySelector("#wishlistStatus"),
+  wishlistList: document.querySelector("#wishlistList"),
 };
 
 els.dateInput.valueAsDate = new Date();
@@ -304,7 +318,9 @@ function updateAuthUI() {
     : "开通咻蛋之家 VIP";
   renderVipCenter();
   recipes = signedIn ? loadRecipes() : [];
+  wishes = signedIn ? loadWishes() : [];
   renderRecipes();
+  renderWishes();
   switchPage(activePage);
   setHint(
     signedIn
@@ -771,7 +787,7 @@ function moveDialogImage(step) {
 }
 
 function updatePager(totalPages, totalItems) {
-  els.pager.hidden = activePage === "recipes" || totalItems <= PAGE_SIZE;
+  els.pager.hidden = activePage !== "gallery" || totalItems <= PAGE_SIZE;
   els.pageIndicator.textContent = `${currentPage} / ${totalPages}`;
   els.prevPage.disabled = currentPage <= 1;
   els.nextPage.disabled = currentPage >= totalPages;
@@ -1337,19 +1353,24 @@ function renderPreviewStrip(files, urls) {
 }
 
 function switchPage(page) {
-  activePage = page === "recipes" ? "recipes" : "gallery";
+  activePage = ["recipes", "wishlist"].includes(page) ? page : "gallery";
   const showRecipes = activePage === "recipes";
-  els.galleryNav.classList.toggle("active", !showRecipes);
+  const showWishlist = activePage === "wishlist";
+  els.galleryNav.classList.toggle("active", activePage === "gallery");
   els.recipesNav.classList.toggle("active", showRecipes);
-  els.composer.hidden = showRecipes || !session;
-  els.galleryHead.hidden = showRecipes;
-  els.galleryFilters.hidden = showRecipes;
-  els.gallery.hidden = showRecipes;
-  els.pager.hidden = showRecipes || photos.length <= PAGE_SIZE;
+  els.wishlistNav.classList.toggle("active", showWishlist);
+  els.composer.hidden = activePage !== "gallery" || !session;
+  els.galleryHead.hidden = activePage !== "gallery";
+  els.galleryFilters.hidden = activePage !== "gallery";
+  els.gallery.hidden = activePage !== "gallery";
+  els.pager.hidden = activePage !== "gallery" || photos.length <= PAGE_SIZE;
   els.recipesPage.hidden = !showRecipes;
+  els.wishlistPage.hidden = !showWishlist;
   els.recipeComposer.hidden = !showRecipes || !session;
+  els.wishlistComposer.hidden = !showWishlist || !session;
   if (showRecipes) renderRecipes();
-  if (!showRecipes) renderGallery();
+  if (showWishlist) renderWishes();
+  if (activePage === "gallery") renderGallery();
 }
 
 function getRecipesStorageKey() {
@@ -1646,6 +1667,143 @@ function setRecipeStatus(message) {
   els.recipeStatus.textContent = message;
 }
 
+function setWishlistExpanded(expanded) {
+  els.wishlistComposer.classList.toggle("expanded", expanded);
+  els.wishlistForm.hidden = !expanded;
+  els.wishlistToggle.setAttribute("aria-expanded", String(expanded));
+}
+
+function getWishlistStorageKey() {
+  const name = session ? getSessionDisplayName() : "guest";
+  return `${WISHLIST_KEY}:${String(name).toLowerCase()}`;
+}
+
+function loadWishes() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(getWishlistStorageKey()) || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveWishes() {
+  if (!session) return;
+  localStorage.setItem(getWishlistStorageKey(), JSON.stringify(wishes));
+}
+
+function saveWish(event) {
+  event.preventDefault();
+  if (!session) {
+    setWishlistStatus("请先登录后再保存心愿。");
+    return;
+  }
+
+  const title = els.wishTitleInput.value.trim();
+  if (!title) {
+    setWishlistStatus("先写一个心愿。");
+    return;
+  }
+
+  const wish = {
+    id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
+    title,
+    type: els.wishTypeInput.value,
+    date: els.wishDateInput.value,
+    priority: els.wishPriorityInput.value,
+    note: els.wishNoteInput.value.trim(),
+    done: false,
+    createdAt: new Date().toISOString(),
+  };
+
+  wishes = [wish, ...wishes];
+  saveWishes();
+  els.wishlistForm.reset();
+  setWishlistExpanded(false);
+  setWishlistStatus("心愿已保存。");
+  renderWishes();
+}
+
+function renderWishes() {
+  if (!els.wishlistList) return;
+  if (!session) {
+    els.wishlistList.innerHTML = `<div class="empty">登录后可以记录想做、想吃、想去的事。</div>`;
+    setWishlistStatus("");
+    return;
+  }
+
+  if (!wishes.length) {
+    els.wishlistList.innerHTML = `<div class="empty">还没有心愿。先写一个以后想完成的小目标。</div>`;
+    return;
+  }
+
+  const sorted = [...wishes].sort((a, b) => Number(a.done) - Number(b.done));
+  els.wishlistList.innerHTML = sorted
+    .map(
+      (wish, index) => `
+        <article class="wish-card ${wish.done ? "done" : ""}">
+          <div class="wish-card-head">
+            <span>${String(index + 1).padStart(2, "0")}</span>
+            <div>
+              <button type="button" data-toggle-wish="${escapeHtml(wish.id)}">
+                ${wish.done ? "取消完成" : "完成"}
+              </button>
+              <button type="button" data-delete-wish="${escapeHtml(wish.id)}">删除</button>
+            </div>
+          </div>
+          <p class="kicker">${escapeHtml(wish.type)} · ${escapeHtml(wish.priority)}</p>
+          <h3>${escapeHtml(wish.title)}</h3>
+          <div class="wish-meta">
+            ${wish.date ? `<span>${formatWishDate(wish.date)}</span>` : ""}
+            <span>${wish.done ? "已完成" : "待实现"}</span>
+          </div>
+          ${wish.note ? `<p>${escapeHtml(wish.note)}</p>` : ""}
+        </article>
+      `
+    )
+    .join("");
+
+  els.wishlistList.querySelectorAll("button[data-toggle-wish]").forEach((button) => {
+    button.addEventListener("click", () => toggleWish(button.dataset.toggleWish));
+  });
+  els.wishlistList.querySelectorAll("button[data-delete-wish]").forEach((button) => {
+    button.addEventListener("click", () => deleteWish(button.dataset.deleteWish));
+  });
+}
+
+function toggleWish(id) {
+  wishes = wishes.map((wish) =>
+    wish.id === id ? { ...wish, done: !wish.done, completedAt: !wish.done ? new Date().toISOString() : "" } : wish
+  );
+  saveWishes();
+  setWishlistStatus("心愿状态已更新。");
+  renderWishes();
+}
+
+function deleteWish(id) {
+  const wish = wishes.find((item) => item.id === id);
+  if (!wish) return;
+  const ok = window.confirm(`删除心愿“${wish.title}”？`);
+  if (!ok) return;
+
+  wishes = wishes.filter((item) => item.id !== id);
+  saveWishes();
+  setWishlistStatus("心愿已删除。");
+  renderWishes();
+}
+
+function formatWishDate(value) {
+  return new Intl.DateTimeFormat("zh-CN", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  }).format(new Date(value));
+}
+
+function setWishlistStatus(message) {
+  els.wishlistStatus.textContent = message;
+}
+
 function getInitial(value) {
   const trimmed = String(value || "").trim();
   return trimmed ? trimmed[0].toUpperCase() : "U";
@@ -1675,6 +1833,7 @@ els.setupToggle.addEventListener("click", () => {
 els.themeToggle.addEventListener("click", toggleTheme);
 els.galleryNav.addEventListener("click", () => switchPage("gallery"));
 els.recipesNav.addEventListener("click", () => switchPage("recipes"));
+els.wishlistNav.addEventListener("click", () => switchPage("wishlist"));
 els.saveConfig.addEventListener("click", saveConfig);
 els.loginButton.addEventListener("click", loginWithPassword);
 els.signupButton.addEventListener("click", signupWithPassword);
@@ -1691,6 +1850,10 @@ els.recipeCancelEdit.addEventListener("click", () => {
   setRecipeExpanded(false);
   setRecipeStatus("");
 });
+els.wishlistToggle.addEventListener("click", () => {
+  setWishlistExpanded(els.wishlistForm.hidden);
+});
+els.wishlistForm.addEventListener("submit", saveWish);
 els.avatarButton.addEventListener("click", () => {
   els.userPopover.hidden = !els.userPopover.hidden;
 });
