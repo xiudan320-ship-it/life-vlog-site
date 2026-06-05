@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>咻蛋之家</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
-    <link rel="stylesheet" href="./styles.css?v=20260603-10" />
+    <link rel="stylesheet" href="./styles.css?v=20260603-11" />
   </head>
   <body>
     <header class="topbar">
@@ -241,13 +241,25 @@
             <span id="vipCurrentLevel">LV.5</span>
             <strong id="vipCurrentName">Director</strong>
           </div>
+          <div class="vip-wallet">
+            <article>
+              <span>累计充值</span>
+              <strong id="vipRechargeTotal">¥298</strong>
+            </article>
+            <article>
+              <span>当前档位</span>
+              <strong id="vipTierAmount">¥298</strong>
+            </article>
+          </div>
+          <div class="vip-next" id="vipNext"></div>
         </div>
         <div class="vip-levels" id="vipLevels"></div>
+        <div class="vip-recharge" id="vipRecharge"></div>
         <div class="vip-perks" id="vipPerks"></div>
         <p class="hint" id="vipStatus"></p>
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260603-10"></script>
+    <script type="module" src="./app.js?v=20260603-11"></script>
   </body>
 </html>
