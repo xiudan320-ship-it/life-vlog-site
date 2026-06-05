@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>咻蛋之家</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
-    <link rel="stylesheet" href="./styles.css?v=20260603-13" />
+    <link rel="stylesheet" href="./styles.css?v=20260603-14" />
   </head>
   <body>
     <header class="topbar">
@@ -179,46 +179,84 @@
           <p class="status-line" id="recipeStatus"></p>
         </div>
 
-        <form class="recipe-form" id="recipeForm">
-          <div class="form-grid">
-            <label>
-              菜名
-              <input id="recipeNameInput" maxlength="80" required />
-            </label>
-            <label>
-              分类
-              <select id="recipeCategoryInput">
-                <option>家常菜</option>
-                <option>甜品</option>
-                <option>早餐</option>
-                <option>汤</option>
-                <option>便当</option>
-                <option>饮品</option>
-              </select>
-            </label>
-            <label>
-              用时
-              <input id="recipeTimeInput" maxlength="30" placeholder="比如 30 分钟" />
-            </label>
-            <label>
-              份量
-              <input id="recipeServingsInput" maxlength="30" placeholder="比如 2 人份" />
-            </label>
+        <section class="recipe-composer" id="recipeComposer" hidden>
+          <div class="section-title">
+            <button class="section-heading-button" id="recipeToggle" type="button" aria-expanded="false">
+              <p class="kicker">New Recipe</p>
+              <h2 id="recipeFormTitle">添加菜谱</h2>
+            </button>
           </div>
-          <label>
-            食材
-            <textarea id="recipeIngredientsInput" rows="4" maxlength="1000" placeholder="每行写一种食材"></textarea>
-          </label>
-          <label>
-            步骤
-            <textarea id="recipeStepsInput" rows="5" maxlength="1600" placeholder="每行写一步"></textarea>
-          </label>
-          <label>
-            备注
-            <textarea id="recipeNoteInput" rows="3" maxlength="500"></textarea>
-          </label>
-          <button class="primary" type="submit">保存菜谱</button>
-        </form>
+
+          <form class="recipe-form" id="recipeForm" hidden>
+            <label class="recipe-cover-drop" id="recipeCoverDrop" tabindex="0">
+              <input id="recipeCoverInput" type="file" accept="image/*" />
+              <img id="recipeCoverPreview" alt="菜谱封面预览" hidden />
+              <span>上传封面</span>
+              <strong id="recipeCoverName">还没有选择封面</strong>
+            </label>
+
+            <div class="form-grid">
+              <label>
+                菜名
+                <input id="recipeNameInput" maxlength="80" required />
+              </label>
+              <label>
+                分类
+                <select id="recipeCategoryInput">
+                  <option>家常菜</option>
+                  <option>甜品</option>
+                  <option>早餐</option>
+                  <option>汤</option>
+                  <option>便当</option>
+                  <option>饮品</option>
+                </select>
+              </label>
+              <label>
+                用时
+                <input id="recipeTimeInput" maxlength="30" placeholder="比如 30 分钟" />
+              </label>
+              <label>
+                份量
+                <input id="recipeServingsInput" maxlength="30" placeholder="比如 2 人份" />
+              </label>
+            </div>
+
+            <fieldset class="seasoning-panel">
+              <legend>调味料</legend>
+              <label><input type="checkbox" name="recipeSeasoning" value="盐" /> 盐</label>
+              <label><input type="checkbox" name="recipeSeasoning" value="糖" /> 糖</label>
+              <label><input type="checkbox" name="recipeSeasoning" value="生抽" /> 生抽</label>
+              <label><input type="checkbox" name="recipeSeasoning" value="老抽" /> 老抽</label>
+              <label><input type="checkbox" name="recipeSeasoning" value="蚝油" /> 蚝油</label>
+              <label><input type="checkbox" name="recipeSeasoning" value="料酒" /> 料酒</label>
+              <label><input type="checkbox" name="recipeSeasoning" value="醋" /> 醋</label>
+              <label><input type="checkbox" name="recipeSeasoning" value="胡椒" /> 胡椒</label>
+              <label><input type="checkbox" name="recipeSeasoning" value="辣椒" /> 辣椒</label>
+              <label><input type="checkbox" name="recipeSeasoning" value="葱" /> 葱</label>
+              <label><input type="checkbox" name="recipeSeasoning" value="姜" /> 姜</label>
+              <label><input type="checkbox" name="recipeSeasoning" value="蒜" /> 蒜</label>
+              <label><input type="checkbox" name="recipeSeasoning" value="香油" /> 香油</label>
+              <label><input type="checkbox" name="recipeSeasoning" value="淀粉" /> 淀粉</label>
+            </fieldset>
+
+            <label>
+              食材
+              <textarea id="recipeIngredientsInput" rows="4" maxlength="1000" placeholder="每行写一种食材"></textarea>
+            </label>
+            <label>
+              步骤
+              <textarea id="recipeStepsInput" rows="5" maxlength="1600" placeholder="每行写一步"></textarea>
+            </label>
+            <label>
+              备注
+              <textarea id="recipeNoteInput" rows="3" maxlength="500"></textarea>
+            </label>
+            <div class="recipe-form-actions">
+              <button class="primary" id="recipeSubmitButton" type="submit">保存菜谱</button>
+              <button class="ghost-button" id="recipeCancelEdit" type="button" hidden>取消编辑</button>
+            </div>
+          </form>
+        </section>
 
         <section class="recipes-list" id="recipesList" aria-live="polite"></section>
       </section>
@@ -314,6 +352,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260603-13"></script>
+    <script type="module" src="./app.js?v=20260603-14"></script>
   </body>
 </html>
