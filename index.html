@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>咻蛋之家</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
-    <link rel="stylesheet" href="./styles.css?v=20260603-8" />
+    <link rel="stylesheet" href="./styles.css?v=20260603-9" />
   </head>
   <body>
     <header class="topbar">
@@ -21,12 +21,14 @@
           <span aria-hidden="true">⚙</span>
         </button>
         <div class="user-menu" id="userMenu" hidden>
+          <span class="vip-badge" id="vipBadge" hidden>VIP</span>
           <button class="avatar-button" id="avatarButton" type="button" title="账号">
             <span id="avatarInitial">U</span>
           </button>
           <div class="user-popover" id="userPopover" hidden>
             <p class="user-label">已登录</p>
             <strong id="profileName">User</strong>
+            <span class="vip-popover-badge" id="vipPopoverBadge" hidden>咻蛋之家 VIP</span>
             <button id="logoutButton" type="button">退出登录</button>
           </div>
         </div>
@@ -66,7 +68,6 @@
           <input id="passwordInput" type="password" placeholder="密码" />
           <button id="loginButton" type="button">登录</button>
           <button id="signupButton" type="button">注册</button>
-          <button id="logoutButton" type="button" hidden>退出</button>
         </div>
         <p class="hint" id="authHint">未配置 Supabase 时会显示演示数据。</p>
       </section>
@@ -85,9 +86,10 @@
 
         <form id="uploadForm" hidden>
           <label class="file-drop" id="photoDrop" tabindex="0">
-            <input id="photoInput" type="file" accept="image/*" />
+            <input id="photoInput" type="file" accept="image/*" multiple />
             <img id="photoPreview" alt="照片预览" hidden />
-            <span>选择一张照片</span>
+            <div class="preview-strip" id="previewStrip" hidden></div>
+            <span>选择照片，或直接把图片粘贴进来</span>
             <strong id="fileName">还没有选择图片</strong>
           </label>
 
@@ -173,6 +175,50 @@
       </article>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260603-8"></script>
+    <dialog class="edit-dialog" id="editDialog">
+      <button class="dialog-close" id="closeEditDialog" type="button" aria-label="关闭">×</button>
+      <form id="editForm">
+        <div>
+          <p class="kicker">Edit</p>
+          <h2>编辑照片</h2>
+        </div>
+        <div class="form-grid">
+          <label>
+            标题
+            <input id="editTitleInput" maxlength="80" />
+          </label>
+          <label>
+            日期
+            <input id="editDateInput" type="date" required />
+          </label>
+          <label>
+            分类
+            <select id="editCategoryInput">
+              <option>日常</option>
+              <option>旅行</option>
+              <option>食物</option>
+              <option>朋友</option>
+              <option>城市</option>
+              <option>家</option>
+            </select>
+          </label>
+          <label>
+            是否公开
+            <select id="editPublicInput">
+              <option value="true">公开展示</option>
+              <option value="false">只保存在库里</option>
+            </select>
+          </label>
+        </div>
+        <label>
+          文字记录
+          <textarea id="editNoteInput" rows="4" maxlength="500"></textarea>
+        </label>
+        <p class="hint" id="saveEditStatus"></p>
+        <button class="primary" type="submit">保存修改</button>
+      </form>
+    </dialog>
+
+    <script type="module" src="./app.js?v=20260603-9"></script>
   </body>
 </html>
