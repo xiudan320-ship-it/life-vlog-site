@@ -806,6 +806,11 @@ body.theme-dark .chip {
   box-shadow: 0 24px 70px rgba(16, 16, 20, 0.13);
 }
 
+body.theme-dark .photo-card {
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.42);
+}
+
 .photo-card:nth-child(odd) {
   grid-column: 1;
   justify-self: end;
@@ -967,6 +972,24 @@ body.theme-dark .photo-media {
 .delete-photo {
   background: #fff;
   color: var(--ink);
+}
+
+body.theme-dark .edit-photo {
+  border-color: rgba(255, 255, 255, 0.78);
+  background: #f4f1e8;
+  color: #101014;
+}
+
+body.theme-dark .delete-photo {
+  border-color: rgba(255, 79, 112, 0.72);
+  background: rgba(255, 79, 112, 0.12);
+  color: #ff9caf;
+}
+
+body.theme-dark .edit-photo:focus-visible,
+body.theme-dark .delete-photo:focus-visible {
+  outline: 3px solid rgba(246, 210, 122, 0.34);
+  outline-offset: 2px;
 }
 
 .empty {
