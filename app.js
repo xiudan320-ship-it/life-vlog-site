@@ -1631,6 +1631,11 @@ els.photoInput.addEventListener("change", () => {
   updatePhotoPreview();
 });
 els.closeDialog.addEventListener("click", () => els.dialog.close());
+els.dialog.addEventListener("click", (event) => {
+  if (event.target === els.dialog) {
+    els.dialog.close();
+  }
+});
 els.dialogPrev.addEventListener("click", () => moveDialogImage(-1));
 els.dialogNext.addEventListener("click", () => moveDialogImage(1));
 els.editForm.addEventListener("submit", savePhotoEdit);
