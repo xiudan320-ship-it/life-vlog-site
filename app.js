@@ -1,6 +1,7 @@
 const CONFIG_KEY = "life-vlog-supabase-config";
 const THEME_KEY = "life-vlog-theme";
 const VIP_RECHARGE_KEY = "life-vlog-vip-recharge";
+const RECIPES_KEY = "life-vlog-recipes";
 const BUCKET = "life-photos";
 const PRODUCTION_URL = "https://xiudan320-ship-it.github.io/life-vlog-site/";
 const PAGE_SIZE = 6;
@@ -84,6 +85,8 @@ let createClient = null;
 let supabase = null;
 let session = null;
 let photos = [];
+let recipes = [];
+let activePage = "gallery";
 let activeFilter = "全部";
 let previewUrls = [];
 let currentPage = 1;
@@ -94,6 +97,8 @@ let activeVipLevel = 1;
 
 const els = {
   themeToggle: document.querySelector("#themeToggle"),
+  galleryNav: document.querySelector("#galleryNav"),
+  recipesNav: document.querySelector("#recipesNav"),
   setupToggle: document.querySelector("#setupToggle"),
   setupPanel: document.querySelector("#setupPanel"),
   supabaseUrl: document.querySelector("#supabaseUrl"),
@@ -130,6 +135,8 @@ const els = {
   publicInput: document.querySelector("#publicInput"),
   noteInput: document.querySelector("#noteInput"),
   uploadStatus: document.querySelector("#uploadStatus"),
+  galleryHead: document.querySelector("#galleryHead"),
+  galleryFilters: document.querySelector("#galleryFilters"),
   gallery: document.querySelector("#gallery"),
   pager: document.querySelector("#pager"),
   prevPage: document.querySelector("#prevPage"),
@@ -167,6 +174,17 @@ const els = {
   vipRecharge: document.querySelector("#vipRecharge"),
   vipPerks: document.querySelector("#vipPerks"),
   vipStatus: document.querySelector("#vipStatus"),
+  recipesPage: document.querySelector("#recipesPage"),
+  recipeForm: document.querySelector("#recipeForm"),
+  recipeNameInput: document.querySelector("#recipeNameInput"),
+  recipeCategoryInput: document.querySelector("#recipeCategoryInput"),
+  recipeTimeInput: document.querySelector("#recipeTimeInput"),
+  recipeServingsInput: document.querySelector("#recipeServingsInput"),
+  recipeIngredientsInput: document.querySelector("#recipeIngredientsInput"),
+  recipeStepsInput: document.querySelector("#recipeStepsInput"),
+  recipeNoteInput: document.querySelector("#recipeNoteInput"),
+  recipeStatus: document.querySelector("#recipeStatus"),
+  recipesList: document.querySelector("#recipesList"),
 };
 
 els.dateInput.valueAsDate = new Date();
@@ -262,6 +280,9 @@ function updateAuthUI() {
     ? `咻蛋之家 ${getVipLevel(activeVipLevel).label}`
     : "开通咻蛋之家 VIP";
   renderVipCenter();
+  recipes = signedIn ? loadRecipes() : [];
+  renderRecipes();
+  switchPage(activePage);
   setHint(
     signedIn
       ? ""
@@ -421,7 +442,8 @@ async function uploadPhoto(event) {
   setUploadExpanded(false);
   setStatus(images.length > 1 ? `已发布 1 篇合集，共 ${images.length} 张图。` : "上传完成，已回到照片流");
   await loadPhotos();
-  document.querySelector(".feed-head")?.scrollIntoView({
+  switchPage("gallery");
+  els.galleryHead?.scrollIntoView({
     behavior: "smooth",
     block: "start",
   });
@@ -726,7 +748,7 @@ function moveDialogImage(step) {
 }
 
 function updatePager(totalPages, totalItems) {
-  els.pager.hidden = totalItems <= PAGE_SIZE;
+  els.pager.hidden = activePage === "recipes" || totalItems <= PAGE_SIZE;
   els.pageIndicator.textContent = `${currentPage} / ${totalPages}`;
   els.prevPage.disabled = currentPage <= 1;
   els.nextPage.disabled = currentPage >= totalPages;
@@ -1212,6 +1234,156 @@ function renderPreviewStrip(files, urls) {
   });
 }
 
+function switchPage(page) {
+  activePage = page === "recipes" ? "recipes" : "gallery";
+  const showRecipes = activePage === "recipes";
+  els.galleryNav.classList.toggle("active", !showRecipes);
+  els.recipesNav.classList.toggle("active", showRecipes);
+  els.composer.hidden = showRecipes || !session;
+  els.galleryHead.hidden = showRecipes;
+  els.galleryFilters.hidden = showRecipes;
+  els.gallery.hidden = showRecipes;
+  els.pager.hidden = showRecipes || photos.length <= PAGE_SIZE;
+  els.recipesPage.hidden = !showRecipes;
+  els.recipeForm.hidden = showRecipes && !session;
+  if (showRecipes) renderRecipes();
+  if (!showRecipes) renderGallery();
+}
+
+function getRecipesStorageKey() {
+  const name = session ? getSessionDisplayName() : "guest";
+  return `${RECIPES_KEY}:${String(name).toLowerCase()}`;
+}
+
+function loadRecipes() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(getRecipesStorageKey()) || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveRecipes() {
+  if (!session) return;
+  localStorage.setItem(getRecipesStorageKey(), JSON.stringify(recipes));
+}
+
+function saveRecipe(event) {
+  event.preventDefault();
+  if (!session) {
+    setRecipeStatus("请先登录后再保存菜谱。");
+    return;
+  }
+
+  const name = els.recipeNameInput.value.trim();
+  if (!name) {
+    setRecipeStatus("先写一个菜名。");
+    return;
+  }
+
+  const recipe = {
+    id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
+    name,
+    category: els.recipeCategoryInput.value,
+    time: els.recipeTimeInput.value.trim(),
+    servings: els.recipeServingsInput.value.trim(),
+    ingredients: splitLines(els.recipeIngredientsInput.value),
+    steps: splitLines(els.recipeStepsInput.value),
+    note: els.recipeNoteInput.value.trim(),
+    createdAt: new Date().toISOString(),
+  };
+
+  recipes = [recipe, ...recipes];
+  saveRecipes();
+  els.recipeForm.reset();
+  setRecipeStatus("菜谱已保存。");
+  renderRecipes();
+}
+
+function renderRecipes() {
+  if (!els.recipesList) return;
+  if (!session) {
+    els.recipesList.innerHTML = `<div class="empty">登录后可以记录自己的菜谱。</div>`;
+    setRecipeStatus("");
+    return;
+  }
+
+  if (!recipes.length) {
+    els.recipesList.innerHTML = `<div class="empty">还没有菜谱。先记录一道最近想复刻的菜。</div>`;
+    return;
+  }
+
+  els.recipesList.innerHTML = recipes
+    .map(
+      (recipe, index) => `
+        <article class="recipe-card">
+          <div class="recipe-card-head">
+            <span>${String(index + 1).padStart(2, "0")}</span>
+            <button type="button" data-delete-recipe="${escapeHtml(recipe.id)}">删除</button>
+          </div>
+          <p class="kicker">${escapeHtml(recipe.category)} · ${formatRecipeDate(recipe.createdAt)}</p>
+          <h3>${escapeHtml(recipe.name)}</h3>
+          <div class="recipe-meta">
+            ${recipe.time ? `<span>${escapeHtml(recipe.time)}</span>` : ""}
+            ${recipe.servings ? `<span>${escapeHtml(recipe.servings)}</span>` : ""}
+          </div>
+          <div class="recipe-columns">
+            <section>
+              <strong>食材</strong>
+              ${renderRecipeList(recipe.ingredients, "还没写食材")}
+            </section>
+            <section>
+              <strong>步骤</strong>
+              ${renderRecipeList(recipe.steps, "还没写步骤")}
+            </section>
+          </div>
+          ${recipe.note ? `<p class="recipe-note">${escapeHtml(recipe.note)}</p>` : ""}
+        </article>
+      `
+    )
+    .join("");
+
+  els.recipesList.querySelectorAll("button[data-delete-recipe]").forEach((button) => {
+    button.addEventListener("click", () => deleteRecipe(button.dataset.deleteRecipe));
+  });
+}
+
+function deleteRecipe(id) {
+  const recipe = recipes.find((item) => item.id === id);
+  if (!recipe) return;
+  const ok = window.confirm(`删除菜谱“${recipe.name}”？`);
+  if (!ok) return;
+
+  recipes = recipes.filter((item) => item.id !== id);
+  saveRecipes();
+  setRecipeStatus("菜谱已删除。");
+  renderRecipes();
+}
+
+function splitLines(value) {
+  return String(value || "")
+    .split(/\r?\n/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function renderRecipeList(items, emptyText) {
+  if (!items?.length) return `<p class="recipe-empty">${emptyText}</p>`;
+  return `<ol>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ol>`;
+}
+
+function formatRecipeDate(value) {
+  return new Intl.DateTimeFormat("zh-CN", {
+    month: "short",
+    day: "numeric",
+  }).format(new Date(value));
+}
+
+function setRecipeStatus(message) {
+  els.recipeStatus.textContent = message;
+}
+
 function getInitial(value) {
   const trimmed = String(value || "").trim();
   return trimmed ? trimmed[0].toUpperCase() : "U";
@@ -1230,21 +1402,24 @@ function setStatus(message) {
 }
 
 function setUploadExpanded(expanded) {
+  els.composer.classList.toggle("expanded", expanded);
   els.uploadForm.hidden = !expanded;
   els.uploadToggle.setAttribute("aria-expanded", String(expanded));
-  els.uploadToggle.textContent = expanded ? "收起上传" : "展开上传";
 }
 
 els.setupToggle.addEventListener("click", () => {
   els.setupPanel.hidden = !els.setupPanel.hidden;
 });
 els.themeToggle.addEventListener("click", toggleTheme);
+els.galleryNav.addEventListener("click", () => switchPage("gallery"));
+els.recipesNav.addEventListener("click", () => switchPage("recipes"));
 els.saveConfig.addEventListener("click", saveConfig);
 els.loginButton.addEventListener("click", loginWithPassword);
 els.signupButton.addEventListener("click", signupWithPassword);
 els.uploadToggle.addEventListener("click", () => {
   setUploadExpanded(els.uploadForm.hidden);
 });
+els.recipeForm.addEventListener("submit", saveRecipe);
 els.avatarButton.addEventListener("click", () => {
   els.userPopover.hidden = !els.userPopover.hidden;
 });
@@ -1294,12 +1469,12 @@ els.chips.forEach((chip) => {
 els.prevPage.addEventListener("click", () => {
   currentPage = Math.max(1, currentPage - 1);
   renderGallery();
-  document.querySelector(".feed-head")?.scrollIntoView({ behavior: "smooth" });
+  els.galleryHead?.scrollIntoView({ behavior: "smooth" });
 });
 els.nextPage.addEventListener("click", () => {
   currentPage += 1;
   renderGallery();
-  document.querySelector(".feed-head")?.scrollIntoView({ behavior: "smooth" });
+  els.galleryHead?.scrollIntoView({ behavior: "smooth" });
 });
 
 initializeSupabase();
