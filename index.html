@@ -5,15 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>咻蛋之家</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
-    <link rel="stylesheet" href="./styles.css?v=20260606-19" />
+    <link rel="stylesheet" href="./styles.css?v=20260606-20" />
+    <link rel="stylesheet" href="./redesign.css?v=20260606-20" />
   </head>
   <body>
     <header class="topbar">
       <a class="brand" href="#gallery" aria-label="回到照片墙">
-        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-logo-wrap">
+          <img class="brand-logo" src="./assets/black-cat-logo.png" alt="" />
+        </span>
         <span>
           <strong>咻蛋之家</strong>
-          <small>Private Archive</small>
+          <small>Life Archive</small>
         </span>
       </a>
       <nav class="main-nav" aria-label="页面切换">
@@ -23,7 +26,7 @@
       </nav>
       <div class="top-actions">
         <button class="icon-button" id="themeToggle" type="button" title="切换日夜模式">
-          <span aria-hidden="true">☾</span>
+          <span aria-hidden="true">◐</span>
         </button>
         <button class="icon-button" id="setupToggle" type="button" title="设置">
           <span aria-hidden="true">⚙</span>
@@ -58,9 +61,52 @@
     <main>
       <section class="hero">
         <div class="hero-copy">
-          <p class="kicker">Private Archive</p>
+          <p class="kicker">Life, collected carefully</p>
           <h1>咻蛋之家</h1>
-          <p>照片、vlog、日常记录，按时间向下展开。</p>
+          <p>收藏生活里值得回看的照片、味道和还没完成的小愿望。</p>
+          <div class="hero-tags" aria-label="网站内容">
+            <span>影像</span>
+            <span>菜谱</span>
+            <span>心愿</span>
+          </div>
+        </div>
+        <img class="hero-cat" src="./assets/black-cat-logo.png" alt="" aria-hidden="true" />
+      </section>
+
+      <section class="overview" id="overview" hidden>
+        <div class="overview-head">
+          <div>
+            <p class="kicker">Today</p>
+            <h2>今日概览</h2>
+          </div>
+          <button class="memory-button" id="memoryButton" type="button">随机回忆</button>
+        </div>
+        <div class="overview-grid">
+          <article>
+            <span>照片记录</span>
+            <strong id="overviewPhotos">0</strong>
+            <small>篇影像笔记</small>
+          </article>
+          <article>
+            <span>私人菜谱</span>
+            <strong id="overviewRecipes">0</strong>
+            <small>道收藏味道</small>
+          </article>
+          <article>
+            <span>待实现</span>
+            <strong id="overviewWishes">0</strong>
+            <small>个未完成心愿</small>
+          </article>
+          <article class="overview-level">
+            <span>成长等级</span>
+            <strong id="overviewLevel">Lv.1</strong>
+            <div class="overview-progress" aria-hidden="true"><span id="overviewProgress"></span></div>
+          </article>
+        </div>
+        <div class="quick-actions">
+          <button id="quickPhoto" type="button"><span>01</span>发布照片</button>
+          <button id="quickRecipe" type="button"><span>02</span>添加菜谱</button>
+          <button id="quickWish" type="button"><span>03</span>写下心愿</button>
         </div>
       </section>
 
@@ -420,6 +466,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260606-19"></script>
+    <script type="module" src="./app.js?v=20260606-20"></script>
   </body>
 </html>
