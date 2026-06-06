@@ -101,6 +101,15 @@ let activeVipLevel = 1;
 let recipeEditingId = null;
 let recipeExistingCover = "";
 let recipeCoverPreviewUrl = "";
+let cloudSyncAvailable = false;
+let cloudSyncInFlight = null;
+let syncedUserId = "";
+let accountProfile = {
+  rechargeTotal: 0,
+  vipLevel: 0,
+  experienceTotal: 0,
+  lastLoginDate: "",
+};
 
 const els = {
   themeToggle: document.querySelector("#themeToggle"),
@@ -307,7 +316,6 @@ function updateAuthUI() {
   els.profileName.textContent = displayName;
   els.avatarInitial.textContent = getInitial(displayName);
   if (signedIn) {
-    awardDailyExperience(displayName);
     renderExperience(displayName);
   }
   els.vipBadge.hidden = !signedIn;
@@ -328,6 +336,24 @@ function updateAuthUI() {
       : "输入用户名和密码登录。第一次使用请先注册。"
   );
   setGlobalStatus("");
+
+  if (!signedIn) {
+    cloudSyncAvailable = false;
+    cloudSyncInFlight = null;
+    syncedUserId = "";
+    accountProfile = {
+      rechargeTotal: 0,
+      vipLevel: 0,
+      experienceTotal: 0,
+      lastLoginDate: "",
+    };
+    return;
+  }
+
+  if (session.user.id !== syncedUserId) {
+    syncedUserId = session.user.id;
+    void synchronizeAccountData();
+  }
 }
 
 async function loginWithPassword() {
@@ -982,6 +1008,249 @@ function getSessionDisplayName() {
   return emailPrefix || "User";
 }
 
+function isMissingCloudSchema(error) {
+  const code = String(error?.code || "");
+  const message = String(error?.message || "").toLowerCase();
+  return (
+    code === "42P01" ||
+    code === "PGRST205" ||
+    message.includes("schema cache") ||
+    message.includes("does not exist")
+  );
+}
+
+function normalizeUuid(value) {
+  const candidate = String(value || "");
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(candidate)) {
+    return candidate;
+  }
+  return crypto.randomUUID();
+}
+
+function recipeToCloudRow(recipe, userId = session?.user?.id) {
+  return {
+    id: normalizeUuid(recipe.id),
+    user_id: userId,
+    name: recipe.name,
+    category: recipe.category || "家常菜",
+    cooking_time: recipe.time || "",
+    servings: recipe.servings || "",
+    cover_image: recipe.coverImage || "",
+    seasonings: recipe.seasonings || [],
+    ingredients: recipe.ingredients || [],
+    steps: recipe.steps || [],
+    note: recipe.note || "",
+    created_at: recipe.createdAt || new Date().toISOString(),
+    updated_at: recipe.updatedAt || new Date().toISOString(),
+  };
+}
+
+function recipeFromCloudRow(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    category: row.category,
+    time: row.cooking_time,
+    servings: row.servings,
+    coverImage: row.cover_image,
+    seasonings: row.seasonings || [],
+    ingredients: row.ingredients || [],
+    steps: row.steps || [],
+    note: row.note || "",
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function wishToCloudRow(wish, userId = session?.user?.id) {
+  return {
+    id: normalizeUuid(wish.id),
+    user_id: userId,
+    title: wish.title,
+    wish_type: wish.type || "想做",
+    planned_date: wish.date || null,
+    priority: wish.priority || "普通",
+    note: wish.note || "",
+    is_done: Boolean(wish.done),
+    completed_at: wish.completedAt || null,
+    created_at: wish.createdAt || new Date().toISOString(),
+    updated_at: wish.updatedAt || new Date().toISOString(),
+  };
+}
+
+function wishFromCloudRow(row) {
+  return {
+    id: row.id,
+    title: row.title,
+    type: row.wish_type,
+    date: row.planned_date || "",
+    priority: row.priority,
+    note: row.note || "",
+    done: Boolean(row.is_done),
+    completedAt: row.completed_at || "",
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+async function synchronizeAccountData() {
+  if (!supabase || !session) return;
+  if (cloudSyncInFlight) return cloudSyncInFlight;
+
+  const userId = session.user.id;
+  const displayName = getSessionDisplayName();
+  cloudSyncInFlight = (async () => {
+    try {
+      setGlobalStatus("正在同步账户数据…");
+      const [profileResult, recipesResult, wishesResult] = await Promise.all([
+        supabase.from("user_profiles").select("*").eq("user_id", userId).maybeSingle(),
+        supabase.from("recipes").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
+        supabase.from("wishes").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
+      ]);
+
+      const firstError = profileResult.error || recipesResult.error || wishesResult.error;
+      if (firstError) throw firstError;
+      if (!session || session.user.id !== userId) return;
+
+      const localRecipes = loadRecipes();
+      const localWishes = loadWishes();
+      const localRecharge = loadRechargeTotal(displayName);
+      const localExperience = loadExperience(displayName);
+      let profile = profileResult.data;
+
+      if (!profile) {
+        const initialRecharge = Math.max(localRecharge, isVipUser(displayName) ? 298 : 0);
+        const { data, error } = await supabase
+          .from("user_profiles")
+          .insert({
+            user_id: userId,
+            username: displayName,
+            recharge_total: initialRecharge,
+            vip_level: getVipLevelByRecharge(initialRecharge)?.level || 0,
+            experience_total: localExperience.total,
+            last_login_date: localExperience.lastLoginDate || null,
+          })
+          .select("*")
+          .single();
+        if (error) throw error;
+        profile = data;
+      }
+
+      let cloudRecipes = recipesResult.data || [];
+      let cloudWishes = wishesResult.data || [];
+      const needsLocalMigration = !profile.local_data_migrated;
+
+      if (needsLocalMigration) {
+        if (localRecipes.length) {
+          const rows = localRecipes.map((recipe) => recipeToCloudRow(recipe, userId));
+          const { error } = await supabase.from("recipes").upsert(rows, { onConflict: "id" });
+          if (error) throw error;
+        }
+        if (localWishes.length) {
+          const rows = localWishes.map((wish) => wishToCloudRow(wish, userId));
+          const { error } = await supabase.from("wishes").upsert(rows, { onConflict: "id" });
+          if (error) throw error;
+        }
+
+        const [migratedRecipes, migratedWishes] = await Promise.all([
+          supabase.from("recipes").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
+          supabase.from("wishes").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
+        ]);
+        if (migratedRecipes.error || migratedWishes.error) {
+          throw migratedRecipes.error || migratedWishes.error;
+        }
+        cloudRecipes = migratedRecipes.data || [];
+        cloudWishes = migratedWishes.data || [];
+      }
+
+      const today = getLocalDateKey();
+      let rechargeTotal = Math.max(
+        Number(profile.recharge_total) || 0,
+        needsLocalMigration ? localRecharge : 0,
+        isVipUser(displayName) ? 298 : 0
+      );
+      let experienceTotal = Math.max(
+        Number(profile.experience_total) || 0,
+        needsLocalMigration ? Number(localExperience.total) || 0 : 0
+      );
+      let lastLoginDate =
+        profile.last_login_date || (needsLocalMigration ? localExperience.lastLoginDate : "") || "";
+
+      if (
+        profile.last_login_date !== today &&
+        (!needsLocalMigration || localExperience.lastLoginDate !== today)
+      ) {
+        experienceTotal += DAILY_LOGIN_EXP;
+      }
+      lastLoginDate = today;
+      const vipLevel = getVipLevelByRecharge(rechargeTotal)?.level || 0;
+
+      const { data: savedProfile, error: profileError } = await supabase
+        .from("user_profiles")
+        .update({
+          username: displayName,
+          recharge_total: rechargeTotal,
+          vip_level: vipLevel,
+          experience_total: experienceTotal,
+          last_login_date: lastLoginDate,
+          local_data_migrated: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", userId)
+        .select("*")
+        .single();
+      if (profileError) throw profileError;
+
+      cloudSyncAvailable = true;
+      accountProfile = {
+        rechargeTotal: Number(savedProfile.recharge_total) || 0,
+        vipLevel: Number(savedProfile.vip_level) || 0,
+        experienceTotal: Number(savedProfile.experience_total) || 0,
+        lastLoginDate: savedProfile.last_login_date || "",
+      };
+      recipes = cloudRecipes.map(recipeFromCloudRow);
+      wishes = cloudWishes.map(wishFromCloudRow);
+
+      saveRechargeTotal(accountProfile.rechargeTotal, displayName);
+      saveExperience(
+        {
+          total: accountProfile.experienceTotal,
+          lastLoginDate: accountProfile.lastLoginDate,
+          gainedToday: accountProfile.lastLoginDate === today,
+        },
+        displayName
+      );
+      saveRecipes();
+      saveWishes();
+
+      activeVipLevel = accountProfile.vipLevel;
+      document.body.classList.toggle("vip-member", activeVipLevel > 0);
+      document.body.dataset.vipLevel = String(activeVipLevel);
+      els.vipBadge.textContent = activeVipLevel > 0 ? `VIP LV.${activeVipLevel}` : "开通 VIP";
+      els.vipPopoverBadge.textContent =
+        activeVipLevel > 0 ? `咻蛋之家 ${getVipLevel(activeVipLevel).label}` : "开通咻蛋之家 VIP";
+      renderExperience(displayName);
+      renderVipCenter();
+      renderRecipes();
+      renderWishes();
+      setGlobalStatus("云端数据已同步");
+    } catch (error) {
+      cloudSyncAvailable = false;
+      awardDailyExperience(displayName);
+      renderExperience(displayName);
+      if (isMissingCloudSchema(error)) {
+        setGlobalStatus("云同步数据库尚未初始化，请先运行 supabase-cloud-sync.sql");
+      } else {
+        setGlobalStatus(`云同步失败：${error.message || "请稍后重试"}`);
+      }
+    } finally {
+      cloudSyncInFlight = null;
+    }
+  })();
+
+  return cloudSyncInFlight;
+}
+
 function isVipUser(value) {
   return VIP_USERS.has(String(value || "").trim().toLowerCase());
 }
@@ -1011,6 +1280,9 @@ function getRechargeStorageKey(displayName = getSessionDisplayName()) {
 }
 
 function loadRechargeTotal(displayName = getSessionDisplayName()) {
+  if (cloudSyncAvailable && session) {
+    return Math.max(0, Number(accountProfile.rechargeTotal) || 0);
+  }
   const key = getRechargeStorageKey(displayName);
   const stored = Number(localStorage.getItem(key));
   if (Number.isFinite(stored) && stored >= 0) return stored;
@@ -1018,7 +1290,9 @@ function loadRechargeTotal(displayName = getSessionDisplayName()) {
 }
 
 function saveRechargeTotal(amount, displayName = getSessionDisplayName()) {
-  localStorage.setItem(getRechargeStorageKey(displayName), String(Math.max(0, Math.round(amount))));
+  const normalized = Math.max(0, Math.round(amount));
+  localStorage.setItem(getRechargeStorageKey(displayName), String(normalized));
+  if (session) accountProfile.rechargeTotal = normalized;
 }
 
 function renderVipCenter() {
@@ -1075,7 +1349,9 @@ function renderVipCenter() {
     .map((perk) => `<span>${escapeHtml(perk)}</span>`)
     .join("");
   els.vipStatus.textContent = session
-    ? "这是前端模拟充值额度，不会真实扣款；档位会保存在当前浏览器。"
+    ? cloudSyncAvailable
+      ? "这是模拟充值，不会真实扣款；会员档位已同步到你的云端账户。"
+      : "这是模拟充值，不会真实扣款；数据库初始化前暂存于当前浏览器。"
     : "请先登录再使用充值档位。";
 
   els.vipLevels.querySelectorAll("button[data-top-up-level]").forEach((button) => {
@@ -1098,7 +1374,7 @@ function topUpToLevel(level) {
   rechargeVip(diff);
 }
 
-function rechargeVip(amount) {
+async function rechargeVip(amount) {
   if (!session) {
     els.vipStatus.textContent = "请先登录。";
     return;
@@ -1111,11 +1387,29 @@ function rechargeVip(amount) {
   }
 
   const nextTotal = loadRechargeTotal() + numericAmount;
+  const nextLevel = getVipLevelByRecharge(nextTotal)?.level || 0;
+
+  if (cloudSyncAvailable) {
+    const { error } = await supabase
+      .from("user_profiles")
+      .update({
+        recharge_total: nextTotal,
+        vip_level: nextLevel,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", session.user.id);
+    if (error) {
+      els.vipStatus.textContent = `会员同步失败：${error.message}`;
+      return;
+    }
+  }
+
   saveRechargeTotal(nextTotal);
-  activeVipLevel = getVipLevelByRecharge(nextTotal)?.level || 0;
+  accountProfile.vipLevel = nextLevel;
+  activeVipLevel = nextLevel;
   updateAuthUI();
   renderVipCenter();
-  els.vipStatus.textContent = `模拟充值 ${formatMoney(numericAmount)} 成功，累计 ${formatMoney(nextTotal)}。`;
+  els.vipStatus.textContent = `模拟充值 ${formatMoney(numericAmount)} 成功，累计 ${formatMoney(nextTotal)}，已同步。`;
 }
 
 function formatMoney(value) {
@@ -1127,6 +1421,13 @@ function getExperienceStorageKey(displayName = getSessionDisplayName()) {
 }
 
 function loadExperience(displayName = getSessionDisplayName()) {
+  if (cloudSyncAvailable && session) {
+    return {
+      total: Math.max(0, Number(accountProfile.experienceTotal) || 0),
+      lastLoginDate: accountProfile.lastLoginDate || "",
+      gainedToday: accountProfile.lastLoginDate === getLocalDateKey(),
+    };
+  }
   try {
     const parsed = JSON.parse(localStorage.getItem(getExperienceStorageKey(displayName)) || "{}");
     return {
@@ -1141,6 +1442,10 @@ function loadExperience(displayName = getSessionDisplayName()) {
 
 function saveExperience(data, displayName = getSessionDisplayName()) {
   localStorage.setItem(getExperienceStorageKey(displayName), JSON.stringify(data));
+  if (session) {
+    accountProfile.experienceTotal = Number(data.total) || 0;
+    accountProfile.lastLoginDate = data.lastLoginDate || "";
+  }
 }
 
 function awardDailyExperience(displayName = getSessionDisplayName()) {
@@ -1505,8 +1810,8 @@ async function saveRecipe(event) {
   }
 
   const coverImage = await getRecipeCoverForSave();
-  const recipe = {
-    id: recipeEditingId || (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`),
+  let recipe = {
+    id: normalizeUuid(recipeEditingId),
     name,
     category: els.recipeCategoryInput.value,
     time: els.recipeTimeInput.value.trim(),
@@ -1522,6 +1827,19 @@ async function saveRecipe(event) {
   };
 
   const wasEditing = Boolean(recipeEditingId);
+  if (cloudSyncAvailable) {
+    const { data, error } = await supabase
+      .from("recipes")
+      .upsert(recipeToCloudRow(recipe), { onConflict: "id" })
+      .select("*")
+      .single();
+    if (error) {
+      setRecipeStatus(`菜谱同步失败：${error.message}`);
+      return;
+    }
+    recipe = recipeFromCloudRow(data);
+  }
+
   recipes = recipeEditingId
     ? recipes.map((item) => (item.id === recipeEditingId ? recipe : item))
     : [recipe, ...recipes];
@@ -1632,15 +1950,23 @@ function editRecipe(id) {
   els.recipeComposer.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-function deleteRecipe(id) {
+async function deleteRecipe(id) {
   const recipe = recipes.find((item) => item.id === id);
   if (!recipe) return;
   const ok = window.confirm(`删除菜谱“${recipe.name}”？`);
   if (!ok) return;
 
+  if (cloudSyncAvailable) {
+    const { error } = await supabase.from("recipes").delete().eq("id", id);
+    if (error) {
+      setRecipeStatus(`删除同步失败：${error.message}`);
+      return;
+    }
+  }
+
   recipes = recipes.filter((item) => item.id !== id);
   saveRecipes();
-  setRecipeStatus("菜谱已删除。");
+  setRecipeStatus(cloudSyncAvailable ? "菜谱已从云端删除。" : "菜谱已删除。");
   renderRecipes();
 }
 
@@ -1692,7 +2018,7 @@ function saveWishes() {
   localStorage.setItem(getWishlistStorageKey(), JSON.stringify(wishes));
 }
 
-function saveWish(event) {
+async function saveWish(event) {
   event.preventDefault();
   if (!session) {
     setWishlistStatus("请先登录后再保存心愿。");
@@ -1705,8 +2031,8 @@ function saveWish(event) {
     return;
   }
 
-  const wish = {
-    id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
+  let wish = {
+    id: normalizeUuid(),
     title,
     type: els.wishTypeInput.value,
     date: els.wishDateInput.value,
@@ -1714,7 +2040,21 @@ function saveWish(event) {
     note: els.wishNoteInput.value.trim(),
     done: false,
     createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   };
+
+  if (cloudSyncAvailable) {
+    const { data, error } = await supabase
+      .from("wishes")
+      .insert(wishToCloudRow(wish))
+      .select("*")
+      .single();
+    if (error) {
+      setWishlistStatus(`心愿同步失败：${error.message}`);
+      return;
+    }
+    wish = wishFromCloudRow(data);
+  }
 
   wishes = [wish, ...wishes];
   saveWishes();
@@ -1771,24 +2111,57 @@ function renderWishes() {
   });
 }
 
-function toggleWish(id) {
-  wishes = wishes.map((wish) =>
-    wish.id === id ? { ...wish, done: !wish.done, completedAt: !wish.done ? new Date().toISOString() : "" } : wish
-  );
+async function toggleWish(id) {
+  const current = wishes.find((wish) => wish.id === id);
+  if (!current) return;
+  const next = {
+    ...current,
+    done: !current.done,
+    completedAt: !current.done ? new Date().toISOString() : "",
+    updatedAt: new Date().toISOString(),
+  };
+
+  if (cloudSyncAvailable) {
+    const { data, error } = await supabase
+      .from("wishes")
+      .update({
+        is_done: next.done,
+        completed_at: next.completedAt || null,
+        updated_at: next.updatedAt,
+      })
+      .eq("id", id)
+      .select("*")
+      .single();
+    if (error) {
+      setWishlistStatus(`心愿同步失败：${error.message}`);
+      return;
+    }
+    Object.assign(next, wishFromCloudRow(data));
+  }
+
+  wishes = wishes.map((wish) => (wish.id === id ? next : wish));
   saveWishes();
-  setWishlistStatus("心愿状态已更新。");
+  setWishlistStatus(cloudSyncAvailable ? "心愿状态已同步。" : "心愿状态已更新。");
   renderWishes();
 }
 
-function deleteWish(id) {
+async function deleteWish(id) {
   const wish = wishes.find((item) => item.id === id);
   if (!wish) return;
   const ok = window.confirm(`删除心愿“${wish.title}”？`);
   if (!ok) return;
 
+  if (cloudSyncAvailable) {
+    const { error } = await supabase.from("wishes").delete().eq("id", id);
+    if (error) {
+      setWishlistStatus(`删除同步失败：${error.message}`);
+      return;
+    }
+  }
+
   wishes = wishes.filter((item) => item.id !== id);
   saveWishes();
-  setWishlistStatus("心愿已删除。");
+  setWishlistStatus(cloudSyncAvailable ? "心愿已从云端删除。" : "心愿已删除。");
   renderWishes();
 }
 
