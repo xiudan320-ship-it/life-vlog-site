@@ -196,6 +196,16 @@ const els = {
   vipRecharge: document.querySelector("#vipRecharge"),
   vipPerks: document.querySelector("#vipPerks"),
   vipStatus: document.querySelector("#vipStatus"),
+  overview: document.querySelector("#overview"),
+  overviewPhotos: document.querySelector("#overviewPhotos"),
+  overviewRecipes: document.querySelector("#overviewRecipes"),
+  overviewWishes: document.querySelector("#overviewWishes"),
+  overviewLevel: document.querySelector("#overviewLevel"),
+  overviewProgress: document.querySelector("#overviewProgress"),
+  memoryButton: document.querySelector("#memoryButton"),
+  quickPhoto: document.querySelector("#quickPhoto"),
+  quickRecipe: document.querySelector("#quickRecipe"),
+  quickWish: document.querySelector("#quickWish"),
   recipesPage: document.querySelector("#recipesPage"),
   recipeComposer: document.querySelector("#recipeComposer"),
   recipeToggle: document.querySelector("#recipeToggle"),
@@ -327,6 +337,7 @@ function updateAuthUI() {
   renderVipCenter();
   recipes = signedIn ? loadRecipes() : [];
   wishes = signedIn ? loadWishes() : [];
+  renderOverview();
   renderRecipes();
   renderWishes();
   switchPage(activePage);
@@ -600,6 +611,7 @@ async function uploadImageFile(file, safeName, index = 1, total = 1) {
 }
 
 function renderGallery() {
+  renderOverview();
   const filtered =
     activeFilter === "全部"
       ? photos
@@ -1665,6 +1677,7 @@ function switchPage(page) {
   els.recipesNav.classList.toggle("active", showRecipes);
   els.wishlistNav.classList.toggle("active", showWishlist);
   els.composer.hidden = activePage !== "gallery" || !session;
+  els.overview.hidden = activePage !== "gallery" || !session;
   els.galleryHead.hidden = activePage !== "gallery";
   els.galleryFilters.hidden = activePage !== "gallery";
   els.gallery.hidden = activePage !== "gallery";
@@ -1676,6 +1689,26 @@ function switchPage(page) {
   if (showRecipes) renderRecipes();
   if (showWishlist) renderWishes();
   if (activePage === "gallery") renderGallery();
+}
+
+function renderOverview() {
+  if (!els.overview) return;
+  const signedIn = Boolean(session);
+  els.overview.hidden = !signedIn || activePage !== "gallery";
+  if (!signedIn) return;
+
+  const personalPhotos = photos.filter(
+    (photo) => !photo.user_id || photo.user_id === session.user.id
+  );
+  const unfinishedWishes = wishes.filter((wish) => !wish.done).length;
+  const experience = loadExperience();
+  const progress = getExperienceLevel(experience.total);
+  els.overviewPhotos.textContent = String(personalPhotos.length);
+  els.overviewRecipes.textContent = String(recipes.length);
+  els.overviewWishes.textContent = String(unfinishedWishes);
+  els.overviewLevel.textContent = `Lv.${progress.level}`;
+  els.overviewProgress.style.width = `${progress.percent}%`;
+  els.memoryButton.disabled = personalPhotos.length === 0;
 }
 
 function getRecipesStorageKey() {
@@ -1851,6 +1884,7 @@ async function saveRecipe(event) {
 }
 
 function renderRecipes() {
+  renderOverview();
   if (!els.recipesList) return;
   if (!session) {
     els.recipesList.innerHTML = `<div class="empty">登录后可以记录自己的菜谱。</div>`;
@@ -2065,6 +2099,7 @@ async function saveWish(event) {
 }
 
 function renderWishes() {
+  renderOverview();
   if (!els.wishlistList) return;
   if (!session) {
     els.wishlistList.innerHTML = `<div class="empty">登录后可以记录想做、想吃、想去的事。</div>`;
@@ -2207,6 +2242,28 @@ els.themeToggle.addEventListener("click", toggleTheme);
 els.galleryNav.addEventListener("click", () => switchPage("gallery"));
 els.recipesNav.addEventListener("click", () => switchPage("recipes"));
 els.wishlistNav.addEventListener("click", () => switchPage("wishlist"));
+els.memoryButton.addEventListener("click", () => {
+  const personalPhotos = photos.filter(
+    (photo) => !photo.user_id || photo.user_id === session?.user?.id
+  );
+  if (!personalPhotos.length) return;
+  openPhoto(personalPhotos[Math.floor(Math.random() * personalPhotos.length)]);
+});
+els.quickPhoto.addEventListener("click", () => {
+  switchPage("gallery");
+  setUploadExpanded(true);
+  els.composer.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+els.quickRecipe.addEventListener("click", () => {
+  switchPage("recipes");
+  setRecipeExpanded(true);
+  els.recipeComposer.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+els.quickWish.addEventListener("click", () => {
+  switchPage("wishlist");
+  setWishlistExpanded(true);
+  els.wishlistComposer.scrollIntoView({ behavior: "smooth", block: "start" });
+});
 els.saveConfig.addEventListener("click", saveConfig);
 els.loginButton.addEventListener("click", loginWithPassword);
 els.signupButton.addEventListener("click", signupWithPassword);
