@@ -49,3 +49,16 @@ http://127.0.0.1:8000/index.html
 ## 免费额度提醒
 
 照片会在浏览器中压缩到最长边 1800px、JPEG 质量 0.86，再上传到 Supabase Storage。这样更省空间，也更适合手机访问。
+
+## 启用账户云同步
+
+已有项目升级时，在 Supabase Dashboard 的 `SQL Editor` 中运行一次
+`supabase-cloud-sync.sql`。
+
+该脚本会创建：
+
+- `user_profiles`：VIP 档位、累计充值、经验与每日登录日期
+- `recipes`：菜谱、封面、调味料、食材与步骤
+- `wishes`：心愿类型、计划日期、优先级与完成状态
+
+登录后的首次加载会自动把旧浏览器中的本地菜谱、心愿、VIP 和经验迁移到云端。
