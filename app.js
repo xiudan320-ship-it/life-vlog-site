@@ -103,7 +103,10 @@ let foodOptions = [];
 let activePage = "gallery";
 let activeFilter = "全部";
 let previewUrls = [];
-let currentPage = 1;
+let visiblePhotoCount = PAGE_SIZE;
+let filteredPhotoCount = 0;
+let feedObserver = null;
+let feedLoading = false;
 let editingPhoto = null;
 let editingImages = [];
 let editingImageFiles = new Map();
@@ -186,10 +189,8 @@ const els = {
   galleryHead: document.querySelector("#galleryHead"),
   galleryFilters: document.querySelector("#galleryFilters"),
   gallery: document.querySelector("#gallery"),
-  pager: document.querySelector("#pager"),
-  prevPage: document.querySelector("#prevPage"),
-  nextPage: document.querySelector("#nextPage"),
-  pageIndicator: document.querySelector("#pageIndicator"),
+  feedLoader: document.querySelector("#feedLoader"),
+  feedLoaderText: document.querySelector("#feedLoaderText"),
   chips: document.querySelectorAll(".chip"),
   dialog: document.querySelector("#photoDialog"),
   closeDialog: document.querySelector("#closeDialog"),
@@ -541,6 +542,7 @@ async function loadPhotos() {
     if (session) await synchronizePhotoFavorites();
   }
 
+  visiblePhotoCount = PAGE_SIZE;
   renderGallery();
 }
 
@@ -773,10 +775,12 @@ function renderGallery() {
           ? sortedPhotos.filter((photo) => favoritePhotoIds.has(photo.id))
           : sortedPhotos.filter((photo) => photo.category === activeFilter);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  currentPage = Math.min(currentPage, totalPages);
-  const start = (currentPage - 1) * PAGE_SIZE;
-  const visible = filtered.slice(start, start + PAGE_SIZE);
+  filteredPhotoCount = filtered.length;
+  visiblePhotoCount = Math.min(
+    Math.max(PAGE_SIZE, visiblePhotoCount),
+    Math.max(PAGE_SIZE, filteredPhotoCount)
+  );
+  const visible = filtered.slice(0, visiblePhotoCount);
 
   if (!visible.length) {
     const emptyMessage =
@@ -788,7 +792,7 @@ function renderGallery() {
             : "登录后可以收藏喜欢的照片。"
           : "还没有这个分类的照片。";
     els.gallery.innerHTML = `<div class="empty">${emptyMessage}</div>`;
-    updatePager(totalPages, filtered.length);
+    updateFeedLoader(0);
     return;
   }
 
@@ -799,7 +803,7 @@ function renderGallery() {
           const displayTitle = getDisplayTitle(photo);
           const images = getPhotoImages(photo);
           const noteText = getPlainNote(photo);
-          const sequence = String(start + index + 1).padStart(2, "0");
+          const sequence = String(index + 1).padStart(2, "0");
           return `
         <article class="photo-card">
           <span class="strand-index">${sequence}</span>
@@ -881,7 +885,7 @@ function renderGallery() {
     });
   });
 
-  updatePager(totalPages, filtered.length);
+  updateFeedLoader(filtered.length);
 }
 
 function isPhotoWithinSevenDays(photo) {
@@ -1101,11 +1105,48 @@ function moveDialogImage(step) {
   renderDialogMedia();
 }
 
-function updatePager(totalPages, totalItems) {
-  els.pager.hidden = activePage !== "gallery" || totalItems <= PAGE_SIZE;
-  els.pageIndicator.textContent = `${currentPage} / ${totalPages}`;
-  els.prevPage.disabled = currentPage <= 1;
-  els.nextPage.disabled = currentPage >= totalPages;
+function updateFeedLoader(totalItems) {
+  if (!els.feedLoader) return;
+  els.feedLoader.hidden = activePage !== "gallery" || totalItems === 0;
+  if (els.feedLoader.hidden) return;
+
+  const hasMore = visiblePhotoCount < totalItems;
+  els.feedLoader.classList.toggle("complete", !hasMore);
+  els.feedLoaderText.textContent = hasMore
+    ? `继续下滑加载 · ${Math.min(visiblePhotoCount, totalItems)} / ${totalItems}`
+    : `已经到底了 · 共 ${totalItems} 篇`;
+}
+
+function initializeFeedObserver() {
+  if (!els.feedLoader || feedObserver) return;
+  feedObserver = new IntersectionObserver(
+    (entries) => {
+      const entry = entries[0];
+      if (
+        !entry?.isIntersecting ||
+        feedLoading ||
+        activePage !== "gallery" ||
+        visiblePhotoCount >= filteredPhotoCount
+      ) {
+        return;
+      }
+
+      feedLoading = true;
+      els.feedLoader.classList.add("loading");
+      els.feedLoaderText.textContent = "正在加载更多...";
+      window.setTimeout(() => {
+        visiblePhotoCount = Math.min(
+          visiblePhotoCount + PAGE_SIZE,
+          filteredPhotoCount
+        );
+        renderGallery();
+        feedLoading = false;
+        els.feedLoader.classList.remove("loading");
+      }, 180);
+    },
+    { rootMargin: "500px 0px 500px", threshold: 0.01 }
+  );
+  feedObserver.observe(els.feedLoader);
 }
 
 async function deletePhoto(photo, triggerButton = null) {
@@ -2296,7 +2337,9 @@ function switchPage(page) {
   els.galleryHead.hidden = activePage !== "gallery";
   els.galleryFilters.hidden = activePage !== "gallery";
   els.gallery.hidden = activePage !== "gallery";
-  els.pager.hidden = activePage !== "gallery" || photos.length <= PAGE_SIZE;
+  if (activePage !== "gallery") {
+    els.feedLoader.hidden = true;
+  }
   els.recipesPage.hidden = !showRecipes;
   els.wishlistPage.hidden = !showWishlist;
   els.weekendPage.hidden = !showWeekend;
@@ -2306,7 +2349,10 @@ function switchPage(page) {
   if (showRecipes) renderRecipes();
   if (showWishlist) renderWishes();
   if (showWeekend) renderWeekendPlans();
-  if (activePage === "gallery") renderGallery();
+  if (activePage === "gallery") {
+    renderGallery();
+    updateFeedLoader(filteredPhotoCount);
+  }
 }
 
 function renderOverview() {
@@ -3510,21 +3556,12 @@ els.closeVipDialog.addEventListener("click", () => els.vipDialog.close());
 els.chips.forEach((chip) => {
   chip.addEventListener("click", () => {
     activeFilter = chip.dataset.filter;
-    currentPage = 1;
+    visiblePhotoCount = PAGE_SIZE;
     els.chips.forEach((item) => item.classList.toggle("active", item === chip));
     renderGallery();
   });
 });
-els.prevPage.addEventListener("click", () => {
-  currentPage = Math.max(1, currentPage - 1);
-  renderGallery();
-  els.galleryHead?.scrollIntoView({ behavior: "smooth" });
-});
-els.nextPage.addEventListener("click", () => {
-  currentPage += 1;
-  renderGallery();
-  els.galleryHead?.scrollIntoView({ behavior: "smooth" });
-});
 
 renderFoodWheel();
+initializeFeedObserver();
 initializeSupabase();
