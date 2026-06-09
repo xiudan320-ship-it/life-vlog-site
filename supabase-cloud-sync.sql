@@ -79,6 +79,7 @@ grant select, insert, update on public.user_profiles to authenticated;
 grant select, insert, update, delete on public.recipes to authenticated;
 grant select, insert, update, delete on public.wishes to authenticated;
 grant select, insert, update, delete on public.weekend_plans to authenticated;
+grant select, insert, update, delete on public.photos to authenticated;
 
 drop policy if exists "Users can read their own profile" on public.user_profiles;
 drop policy if exists "Users can create their own profile" on public.user_profiles;
@@ -95,6 +96,7 @@ drop policy if exists "Users can read their own weekend plans" on public.weekend
 drop policy if exists "Users can create their own weekend plans" on public.weekend_plans;
 drop policy if exists "Users can update their own weekend plans" on public.weekend_plans;
 drop policy if exists "Users can delete their own weekend plans" on public.weekend_plans;
+drop policy if exists "Users can delete their own photos" on public.photos;
 
 create policy "Users can read their own profile"
   on public.user_profiles for select
@@ -159,6 +161,18 @@ create policy "Users can update their own weekend plans"
 create policy "Users can delete their own weekend plans"
   on public.weekend_plans for delete
   using (auth.uid() = user_id);
+
+create policy "Users can delete their own photos"
+  on public.photos for delete
+  using (auth.uid() = user_id);
+
+drop policy if exists "Users can delete their own life photos" on storage.objects;
+create policy "Users can delete their own life photos"
+  on storage.objects for delete
+  using (
+    bucket_id = 'life-photos'
+    and auth.uid()::text = (storage.foldername(name))[1]
+  );
 
 create or replace function public.handle_new_life_vlog_user()
 returns trigger
