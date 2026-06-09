@@ -43,20 +43,38 @@ create table if not exists public.wishes (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.weekend_plans (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  title text not null,
+  plan_date date not null,
+  location text not null default '',
+  plan_type text not null default '出门玩',
+  note text not null default '',
+  is_done boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create index if not exists recipes_user_created_idx
   on public.recipes (user_id, created_at desc);
 
 create index if not exists wishes_user_done_created_idx
   on public.wishes (user_id, is_done, created_at desc);
 
+create index if not exists weekend_plans_user_date_idx
+  on public.weekend_plans (user_id, plan_date asc);
+
 alter table public.user_profiles enable row level security;
 alter table public.recipes enable row level security;
 alter table public.wishes enable row level security;
+alter table public.weekend_plans enable row level security;
 
 grant usage on schema public to authenticated;
 grant select, insert, update on public.user_profiles to authenticated;
 grant select, insert, update, delete on public.recipes to authenticated;
 grant select, insert, update, delete on public.wishes to authenticated;
+grant select, insert, update, delete on public.weekend_plans to authenticated;
 
 drop policy if exists "Users can read their own profile" on public.user_profiles;
 drop policy if exists "Users can create their own profile" on public.user_profiles;
@@ -69,6 +87,10 @@ drop policy if exists "Users can read their own wishes" on public.wishes;
 drop policy if exists "Users can create their own wishes" on public.wishes;
 drop policy if exists "Users can update their own wishes" on public.wishes;
 drop policy if exists "Users can delete their own wishes" on public.wishes;
+drop policy if exists "Users can read their own weekend plans" on public.weekend_plans;
+drop policy if exists "Users can create their own weekend plans" on public.weekend_plans;
+drop policy if exists "Users can update their own weekend plans" on public.weekend_plans;
+drop policy if exists "Users can delete their own weekend plans" on public.weekend_plans;
 
 create policy "Users can read their own profile"
   on public.user_profiles for select
@@ -115,6 +137,23 @@ create policy "Users can update their own wishes"
 
 create policy "Users can delete their own wishes"
   on public.wishes for delete
+  using (auth.uid() = user_id);
+
+create policy "Users can read their own weekend plans"
+  on public.weekend_plans for select
+  using (auth.uid() = user_id);
+
+create policy "Users can create their own weekend plans"
+  on public.weekend_plans for insert
+  with check (auth.uid() = user_id);
+
+create policy "Users can update their own weekend plans"
+  on public.weekend_plans for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create policy "Users can delete their own weekend plans"
+  on public.weekend_plans for delete
   using (auth.uid() = user_id);
 
 create or replace function public.handle_new_life_vlog_user()
