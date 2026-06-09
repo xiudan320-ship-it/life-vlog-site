@@ -1,5 +1,5 @@
 -- Run this file once in Supabase Dashboard > SQL Editor.
--- It adds cloud sync for account progress, recipes, and wishes.
+-- It adds cloud sync for account progress, recipes, wishes, and anniversaries.
 
 create table if not exists public.user_profiles (
   user_id uuid primary key references auth.users(id) on delete cascade,
@@ -71,6 +71,18 @@ create table if not exists public.weekend_plans (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.anniversaries (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  title text not null,
+  event_type text not null default 'annual'
+    check (event_type in ('pet', 'together', 'annual')),
+  event_date date not null,
+  note text not null default '',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create index if not exists recipes_user_created_idx
   on public.recipes (user_id, created_at desc);
 
@@ -79,6 +91,9 @@ create index if not exists wishes_user_done_created_idx
 
 create index if not exists weekend_plans_user_date_idx
   on public.weekend_plans (user_id, plan_date asc);
+
+create index if not exists anniversaries_user_date_idx
+  on public.anniversaries (user_id, event_date asc);
 
 create index if not exists photos_featured_date_idx
   on public.photos (is_featured, taken_at desc);
@@ -90,6 +105,7 @@ alter table public.user_profiles enable row level security;
 alter table public.recipes enable row level security;
 alter table public.wishes enable row level security;
 alter table public.weekend_plans enable row level security;
+alter table public.anniversaries enable row level security;
 alter table public.photo_favorites enable row level security;
 
 grant usage on schema public to authenticated;
@@ -97,6 +113,7 @@ grant select, insert, update on public.user_profiles to authenticated;
 grant select, insert, update, delete on public.recipes to authenticated;
 grant select, insert, update, delete on public.wishes to authenticated;
 grant select, insert, update, delete on public.weekend_plans to authenticated;
+grant select, insert, update, delete on public.anniversaries to authenticated;
 grant select, insert, update, delete on public.photos to authenticated;
 grant select, insert, delete on public.photo_favorites to authenticated;
 
@@ -115,6 +132,10 @@ drop policy if exists "Users can read their own weekend plans" on public.weekend
 drop policy if exists "Users can create their own weekend plans" on public.weekend_plans;
 drop policy if exists "Users can update their own weekend plans" on public.weekend_plans;
 drop policy if exists "Users can delete their own weekend plans" on public.weekend_plans;
+drop policy if exists "Users can read their own anniversaries" on public.anniversaries;
+drop policy if exists "Users can create their own anniversaries" on public.anniversaries;
+drop policy if exists "Users can update their own anniversaries" on public.anniversaries;
+drop policy if exists "Users can delete their own anniversaries" on public.anniversaries;
 drop policy if exists "Users can delete their own photos" on public.photos;
 drop policy if exists "Users can update their own photos" on public.photos;
 drop policy if exists "Users can read their own photo favorites" on public.photo_favorites;
@@ -183,6 +204,23 @@ create policy "Users can update their own weekend plans"
 
 create policy "Users can delete their own weekend plans"
   on public.weekend_plans for delete
+  using (auth.uid() = user_id);
+
+create policy "Users can read their own anniversaries"
+  on public.anniversaries for select
+  using (auth.uid() = user_id);
+
+create policy "Users can create their own anniversaries"
+  on public.anniversaries for insert
+  with check (auth.uid() = user_id);
+
+create policy "Users can update their own anniversaries"
+  on public.anniversaries for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create policy "Users can delete their own anniversaries"
+  on public.anniversaries for delete
   using (auth.uid() = user_id);
 
 create policy "Users can delete their own photos"
