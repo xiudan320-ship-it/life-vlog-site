@@ -1,5 +1,6 @@
 const CONFIG_KEY = "life-vlog-supabase-config";
 const THEME_KEY = "life-vlog-theme";
+const HOME_NAME_KEY = "life-vlog-home-name";
 const VIP_RECHARGE_KEY = "life-vlog-vip-recharge";
 const RECIPES_KEY = "life-vlog-recipes";
 const WISHLIST_KEY = "life-vlog-wishlist";
@@ -141,6 +142,7 @@ let accountProfile = {
   experienceTotal: 0,
   lastLoginDate: "",
   themePreference: "",
+  homeName: "咻蛋之家",
 };
 
 const els = {
@@ -166,6 +168,16 @@ const els = {
   avatarInitial: document.querySelector("#avatarInitial"),
   userPopover: document.querySelector("#userPopover"),
   profileName: document.querySelector("#profileName"),
+  brandName: document.querySelector("#brandName"),
+  heroHomeName: document.querySelector("#heroHomeName"),
+  vipHomeName: document.querySelector("#vipHomeName"),
+  renameHomeButton: document.querySelector("#renameHomeButton"),
+  renameHomeDialog: document.querySelector("#renameHomeDialog"),
+  closeRenameHome: document.querySelector("#closeRenameHome"),
+  renameHomeForm: document.querySelector("#renameHomeForm"),
+  homeNameInput: document.querySelector("#homeNameInput"),
+  homeNameStatus: document.querySelector("#homeNameStatus"),
+  resetHomeName: document.querySelector("#resetHomeName"),
   xpPanel: document.querySelector("#xpPanel"),
   xpLevel: document.querySelector("#xpLevel"),
   xpText: document.querySelector("#xpText"),
@@ -359,6 +371,36 @@ function saveConfig() {
   initializeSupabase();
 }
 
+function getHomeNameStorageKey(userId = session?.user?.id || null) {
+  return userId ? `${HOME_NAME_KEY}:${userId}` : HOME_NAME_KEY;
+}
+
+function normalizeHomeName(value) {
+  return String(value || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .slice(0, 20);
+}
+
+function loadHomeName(userId = session?.user?.id || null) {
+  return normalizeHomeName(localStorage.getItem(getHomeNameStorageKey(userId))) || "咻蛋之家";
+}
+
+function applyHomeName(value, { persist = false, userId = session?.user?.id || null } = {}) {
+  const homeName = normalizeHomeName(value) || "咻蛋之家";
+  els.brandName.textContent = homeName;
+  els.heroHomeName.textContent = homeName;
+  els.vipHomeName.textContent = homeName;
+  els.brandName.title = homeName;
+  els.heroHomeName.classList.toggle("long-home-name", Array.from(homeName).length > 8);
+  document.title = homeName;
+  accountProfile.homeName = homeName;
+  if (persist && userId) {
+    localStorage.setItem(getHomeNameStorageKey(userId), homeName);
+  }
+  return homeName;
+}
+
 async function initializeSupabase() {
   const config = loadConfig();
   els.setupToggle.hidden = Boolean(DEFAULT_SUPABASE_URL && DEFAULT_SUPABASE_ANON_KEY);
@@ -395,6 +437,8 @@ async function initializeSupabase() {
 function updateAuthUI() {
   const signedIn = Boolean(session);
   const displayName = signedIn ? getSessionDisplayName() : "";
+  const localHomeName = signedIn ? loadHomeName(session.user.id) : "咻蛋之家";
+  applyHomeName(localHomeName, { persist: false, userId: signedIn ? session.user.id : null });
   applyTheme(loadTheme(signedIn ? session.user.id : null), {
     persist: false,
     userId: signedIn ? session.user.id : null,
@@ -423,8 +467,8 @@ function updateAuthUI() {
   els.vipPopoverBadge.hidden = !signedIn;
   els.vipBadge.textContent = vip ? `VIP LV.${activeVipLevel}` : "开通 VIP";
   els.vipPopoverBadge.textContent = vip
-    ? `咻蛋之家 ${getVipLevel(activeVipLevel).label}`
-    : "开通咻蛋之家 VIP";
+    ? `${localHomeName} ${getVipLevel(activeVipLevel).label}`
+    : `开通 ${localHomeName} VIP`;
   renderVipCenter();
   recipes = signedIn ? loadRecipes() : [];
   wishes = signedIn ? loadWishes() : [];
@@ -458,7 +502,9 @@ function updateAuthUI() {
       experienceTotal: 0,
       lastLoginDate: "",
       themePreference: "",
+      homeName: "咻蛋之家",
     };
+    applyHomeName("咻蛋之家");
     return;
   }
 
@@ -1901,14 +1947,18 @@ async function synchronizeAccountData() {
       cloudSyncAvailable = true;
       const cloudTheme = normalizeTheme(savedProfile.theme_preference);
       const preferredTheme = cloudTheme || loadTheme(userId);
+      const preferredHomeName =
+        normalizeHomeName(savedProfile.home_name) || loadHomeName(userId);
       accountProfile = {
         rechargeTotal: Number(savedProfile.recharge_total) || 0,
         vipLevel: Number(savedProfile.vip_level) || 0,
         experienceTotal: Number(savedProfile.experience_total) || 0,
         lastLoginDate: savedProfile.last_login_date || "",
         themePreference: preferredTheme,
+        homeName: preferredHomeName,
       };
       applyTheme(preferredTheme, { userId, syncCloud: false });
+      applyHomeName(preferredHomeName, { persist: true, userId });
       if (!cloudTheme) void persistThemeToCloud(preferredTheme);
       recipes = cloudRecipes.map(recipeFromCloudRow);
       wishes = cloudWishes.map(wishFromCloudRow);
@@ -1930,7 +1980,9 @@ async function synchronizeAccountData() {
       document.body.dataset.vipLevel = String(activeVipLevel);
       els.vipBadge.textContent = activeVipLevel > 0 ? `VIP LV.${activeVipLevel}` : "开通 VIP";
       els.vipPopoverBadge.textContent =
-        activeVipLevel > 0 ? `咻蛋之家 ${getVipLevel(activeVipLevel).label}` : "开通咻蛋之家 VIP";
+        activeVipLevel > 0
+          ? `${preferredHomeName} ${getVipLevel(activeVipLevel).label}`
+          : `开通 ${preferredHomeName} VIP`;
       renderExperience(displayName);
       renderVipCenter();
       renderRecipes();
@@ -2274,6 +2326,62 @@ async function persistThemeToCloud(theme) {
   if (!error && session?.user?.id === userId) {
     accountProfile.themePreference = nextTheme;
   }
+}
+
+async function persistHomeNameToCloud(homeName) {
+  if (!supabase || !session) return false;
+  const { error } = await supabase
+    .from("user_profiles")
+    .update({
+      home_name: homeName,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", session.user.id);
+  if (error) {
+    if (isMissingCloudSchema(error) || String(error.message || "").includes("home_name")) {
+      els.homeNameStatus.textContent =
+        "名称已保存在此浏览器。运行最新数据库脚本后即可跨设备同步。";
+      return false;
+    }
+    els.homeNameStatus.textContent = `云端保存失败：${error.message}`;
+    return false;
+  }
+  accountProfile.homeName = homeName;
+  return true;
+}
+
+async function saveHomeName(event) {
+  event.preventDefault();
+  if (!session) return;
+  const homeName = normalizeHomeName(els.homeNameInput.value);
+  if (!homeName) {
+    els.homeNameStatus.textContent = "请先输入一个名称。";
+    return;
+  }
+  applyHomeName(homeName, { persist: true, userId: session.user.id });
+  els.vipPopoverBadge.textContent =
+    activeVipLevel > 0
+      ? `${homeName} ${getVipLevel(activeVipLevel).label}`
+      : `开通 ${homeName} VIP`;
+  els.homeNameStatus.textContent = "正在保存…";
+  const cloudSaved = await persistHomeNameToCloud(homeName);
+  if (cloudSaved) {
+    els.homeNameStatus.textContent = "名称已保存并同步。";
+    window.setTimeout(() => els.renameHomeDialog.close(), 450);
+  }
+}
+
+async function restoreDefaultHomeName() {
+  if (!session) return;
+  els.homeNameInput.value = "咻蛋之家";
+  applyHomeName("咻蛋之家", { persist: true, userId: session.user.id });
+  els.vipPopoverBadge.textContent =
+    activeVipLevel > 0
+      ? `咻蛋之家 ${getVipLevel(activeVipLevel).label}`
+      : "开通 咻蛋之家 VIP";
+  els.homeNameStatus.textContent = "正在恢复默认名称…";
+  const cloudSaved = await persistHomeNameToCloud("咻蛋之家");
+  if (cloudSaved) els.homeNameStatus.textContent = "已恢复默认名称。";
 }
 
 function updatePhotoPreview() {
@@ -3962,6 +4070,19 @@ els.weekendCancelEdit.addEventListener("click", () => {
 els.avatarButton.addEventListener("click", () => {
   els.userPopover.hidden = !els.userPopover.hidden;
 });
+els.renameHomeButton.addEventListener("click", () => {
+  els.userPopover.hidden = true;
+  els.homeNameInput.value = accountProfile.homeName || loadHomeName(session?.user?.id);
+  els.homeNameStatus.textContent = "";
+  els.renameHomeDialog.showModal();
+  els.homeNameInput.focus();
+});
+els.closeRenameHome.addEventListener("click", () => els.renameHomeDialog.close());
+els.renameHomeDialog.addEventListener("click", (event) => {
+  if (event.target === els.renameHomeDialog) els.renameHomeDialog.close();
+});
+els.renameHomeForm.addEventListener("submit", saveHomeName);
+els.resetHomeName.addEventListener("click", restoreDefaultHomeName);
 els.vipBadge.addEventListener("click", () => {
   renderVipCenter();
   els.vipDialog.showModal();
