@@ -3,6 +3,8 @@ const THEME_KEY = "life-vlog-theme";
 const VIP_RECHARGE_KEY = "life-vlog-vip-recharge";
 const RECIPES_KEY = "life-vlog-recipes";
 const WISHLIST_KEY = "life-vlog-wishlist";
+const WEEKEND_KEY = "life-vlog-weekend-plans";
+const FOOD_OPTIONS_KEY = "life-vlog-food-options";
 const EXPERIENCE_KEY = "life-vlog-experience";
 const DAILY_LOGIN_EXP = 25;
 const BUCKET = "life-photos";
@@ -15,6 +17,7 @@ const MEDIA_META_START = "<!--life-vlog-media:";
 const MEDIA_META_END = "-->";
 const WISH_MEDIA_META_START = "<!--life-vlog-wish-media:";
 const WISH_MEDIA_META_END = "-->";
+const DEFAULT_FOOD_OPTIONS = ["拉面", "寿喜烧", "咖喱饭", "烤肉", "火锅", "寿司", "麻婆豆腐", "披萨"];
 
 const VIP_LEVELS = [
   {
@@ -92,6 +95,8 @@ let session = null;
 let photos = [];
 let recipes = [];
 let wishes = [];
+let weekendPlans = [];
+let foodOptions = [];
 let activePage = "gallery";
 let activeFilter = "全部";
 let previewUrls = [];
@@ -108,6 +113,10 @@ let wishExistingImage = "";
 let wishExistingImagePath = "";
 let wishImagePreviewUrl = "";
 let wishRemoveImageRequested = false;
+let weekendEditingId = null;
+let weekendCloudAvailable = false;
+let foodWheelRotation = 0;
+let foodWheelSpinning = false;
 let cloudSyncAvailable = false;
 let cloudSyncInFlight = null;
 let syncedUserId = "";
@@ -123,6 +132,7 @@ const els = {
   galleryNav: document.querySelector("#galleryNav"),
   recipesNav: document.querySelector("#recipesNav"),
   wishlistNav: document.querySelector("#wishlistNav"),
+  weekendNav: document.querySelector("#weekendNav"),
   setupToggle: document.querySelector("#setupToggle"),
   setupPanel: document.querySelector("#setupPanel"),
   supabaseUrl: document.querySelector("#supabaseUrl"),
@@ -213,6 +223,14 @@ const els = {
   quickPhoto: document.querySelector("#quickPhoto"),
   quickRecipe: document.querySelector("#quickRecipe"),
   quickWish: document.querySelector("#quickWish"),
+  quickWeekend: document.querySelector("#quickWeekend"),
+  foodWheelSection: document.querySelector("#foodWheelSection"),
+  foodWheel: document.querySelector("#foodWheel"),
+  spinFoodWheel: document.querySelector("#spinFoodWheel"),
+  foodWheelResult: document.querySelector("#foodWheelResult"),
+  foodOptionInput: document.querySelector("#foodOptionInput"),
+  addFoodOption: document.querySelector("#addFoodOption"),
+  foodOptions: document.querySelector("#foodOptions"),
   recipesPage: document.querySelector("#recipesPage"),
   recipeComposer: document.querySelector("#recipeComposer"),
   recipeToggle: document.querySelector("#recipeToggle"),
@@ -252,9 +270,25 @@ const els = {
   wishCancelEdit: document.querySelector("#wishCancelEdit"),
   wishlistStatus: document.querySelector("#wishlistStatus"),
   wishlistList: document.querySelector("#wishlistList"),
+  weekendPage: document.querySelector("#weekendPage"),
+  weekendComposer: document.querySelector("#weekendComposer"),
+  weekendToggle: document.querySelector("#weekendToggle"),
+  weekendFormTitle: document.querySelector("#weekendFormTitle"),
+  weekendForm: document.querySelector("#weekendForm"),
+  weekendTitleInput: document.querySelector("#weekendTitleInput"),
+  weekendDateInput: document.querySelector("#weekendDateInput"),
+  weekendLocationInput: document.querySelector("#weekendLocationInput"),
+  weekendTypeInput: document.querySelector("#weekendTypeInput"),
+  weekendNoteInput: document.querySelector("#weekendNoteInput"),
+  weekendSubmitButton: document.querySelector("#weekendSubmitButton"),
+  weekendCancelEdit: document.querySelector("#weekendCancelEdit"),
+  weekendStatus: document.querySelector("#weekendStatus"),
+  weekendList: document.querySelector("#weekendList"),
 };
 
 els.dateInput.valueAsDate = new Date();
+els.weekendDateInput.value = getNextWeekendDate();
+foodOptions = loadFoodOptions();
 applyTheme(loadTheme());
 
 function loadConfig() {
@@ -352,9 +386,12 @@ function updateAuthUI() {
   renderVipCenter();
   recipes = signedIn ? loadRecipes() : [];
   wishes = signedIn ? loadWishes() : [];
+  weekendPlans = signedIn ? loadWeekendPlans() : [];
   renderOverview();
   renderRecipes();
   renderWishes();
+  renderWeekendPlans();
+  renderFoodWheel();
   switchPage(activePage);
   setHint(
     signedIn
@@ -365,6 +402,7 @@ function updateAuthUI() {
 
   if (!signedIn) {
     cloudSyncAvailable = false;
+    weekendCloudAvailable = false;
     cloudSyncInFlight = null;
     syncedUserId = "";
     accountProfile = {
@@ -1123,6 +1161,75 @@ function wishFromCloudRow(row) {
   };
 }
 
+function weekendToCloudRow(plan, userId = session?.user?.id) {
+  return {
+    id: normalizeUuid(plan.id),
+    user_id: userId,
+    title: plan.title,
+    plan_date: plan.date,
+    location: plan.location || "",
+    plan_type: plan.type || "出门玩",
+    note: plan.note || "",
+    is_done: Boolean(plan.done),
+    created_at: plan.createdAt || new Date().toISOString(),
+    updated_at: plan.updatedAt || new Date().toISOString(),
+  };
+}
+
+function weekendFromCloudRow(row) {
+  return {
+    id: row.id,
+    title: row.title,
+    date: row.plan_date,
+    location: row.location || "",
+    type: row.plan_type,
+    note: row.note || "",
+    done: Boolean(row.is_done),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+async function synchronizeWeekendPlans(userId = session?.user?.id) {
+  if (!supabase || !session || !userId) return;
+  try {
+    const { data, error } = await supabase
+      .from("weekend_plans")
+      .select("*")
+      .eq("user_id", userId)
+      .order("plan_date", { ascending: true });
+    if (error) throw error;
+
+    let cloudPlans = data || [];
+    const localPlans = loadWeekendPlans();
+    if (!cloudPlans.length && localPlans.length) {
+      const { error: migrateError } = await supabase
+        .from("weekend_plans")
+        .upsert(localPlans.map((plan) => weekendToCloudRow(plan, userId)), { onConflict: "id" });
+      if (migrateError) throw migrateError;
+      const refreshed = await supabase
+        .from("weekend_plans")
+        .select("*")
+        .eq("user_id", userId)
+        .order("plan_date", { ascending: true });
+      if (refreshed.error) throw refreshed.error;
+      cloudPlans = refreshed.data || [];
+    }
+
+    weekendCloudAvailable = true;
+    weekendPlans = cloudPlans.map(weekendFromCloudRow);
+    saveWeekendPlans();
+    renderWeekendPlans();
+  } catch (error) {
+    weekendCloudAvailable = false;
+    if (isMissingCloudSchema(error)) {
+      setWeekendStatus("周末计划云表尚未初始化，暂时保存在当前浏览器。");
+    } else {
+      setWeekendStatus(`周末计划同步失败：${error.message || "请稍后重试"}`);
+    }
+  }
+}
+
 async function synchronizeAccountData() {
   if (!supabase || !session) return;
   if (cloudSyncInFlight) return cloudSyncInFlight;
@@ -1263,6 +1370,7 @@ async function synchronizeAccountData() {
       renderVipCenter();
       renderRecipes();
       renderWishes();
+      await synchronizeWeekendPlans(userId);
       setGlobalStatus("云端数据已同步");
     } catch (error) {
       cloudSyncAvailable = false;
@@ -1688,24 +1796,30 @@ function renderPreviewStrip(files, urls) {
 }
 
 function switchPage(page) {
-  activePage = ["recipes", "wishlist"].includes(page) ? page : "gallery";
+  activePage = ["recipes", "wishlist", "weekend"].includes(page) ? page : "gallery";
   const showRecipes = activePage === "recipes";
   const showWishlist = activePage === "wishlist";
+  const showWeekend = activePage === "weekend";
   els.galleryNav.classList.toggle("active", activePage === "gallery");
   els.recipesNav.classList.toggle("active", showRecipes);
   els.wishlistNav.classList.toggle("active", showWishlist);
+  els.weekendNav.classList.toggle("active", showWeekend);
   els.composer.hidden = activePage !== "gallery" || !session;
   els.overview.hidden = activePage !== "gallery" || !session;
+  els.foodWheelSection.hidden = activePage !== "gallery";
   els.galleryHead.hidden = activePage !== "gallery";
   els.galleryFilters.hidden = activePage !== "gallery";
   els.gallery.hidden = activePage !== "gallery";
   els.pager.hidden = activePage !== "gallery" || photos.length <= PAGE_SIZE;
   els.recipesPage.hidden = !showRecipes;
   els.wishlistPage.hidden = !showWishlist;
+  els.weekendPage.hidden = !showWeekend;
   els.recipeComposer.hidden = !showRecipes || !session;
   els.wishlistComposer.hidden = !showWishlist || !session;
+  els.weekendComposer.hidden = !showWeekend || !session;
   if (showRecipes) renderRecipes();
   if (showWishlist) renderWishes();
+  if (showWeekend) renderWeekendPlans();
   if (activePage === "gallery") renderGallery();
 }
 
@@ -1727,6 +1841,129 @@ function renderOverview() {
   els.overviewLevel.textContent = `Lv.${progress.level}`;
   els.overviewProgress.style.width = `${progress.percent}%`;
   els.memoryButton.disabled = personalPhotos.length === 0;
+}
+
+function loadFoodOptions() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(FOOD_OPTIONS_KEY) || "[]");
+    return Array.isArray(parsed) && parsed.length ? parsed : [...DEFAULT_FOOD_OPTIONS];
+  } catch {
+    return [...DEFAULT_FOOD_OPTIONS];
+  }
+}
+
+function saveFoodOptions() {
+  localStorage.setItem(FOOD_OPTIONS_KEY, JSON.stringify(foodOptions));
+}
+
+function getWheelOptions() {
+  return [...new Set([...foodOptions, ...recipes.map((recipe) => recipe.name)].filter(Boolean))].slice(0, 14);
+}
+
+function renderFoodWheel() {
+  if (!els.foodWheel) return;
+  const options = getWheelOptions();
+  const canvas = els.foodWheel;
+  const context = canvas.getContext("2d");
+  const size = canvas.width;
+  const center = size / 2;
+  const radius = center - 18;
+  const colors = ["#55d6b5", "#ff806d", "#8798f2", "#f0c85f", "#e8f2ed", "#bd9ee8"];
+  context.clearRect(0, 0, size, size);
+
+  const segment = (Math.PI * 2) / options.length;
+  options.forEach((option, index) => {
+    const start = -Math.PI / 2 + index * segment;
+    const end = start + segment;
+    context.beginPath();
+    context.moveTo(center, center);
+    context.arc(center, center, radius, start, end);
+    context.closePath();
+    context.fillStyle = colors[index % colors.length];
+    context.fill();
+    context.strokeStyle = "#151816";
+    context.lineWidth = 5;
+    context.stroke();
+
+    context.save();
+    context.translate(center, center);
+    context.rotate(start + segment / 2);
+    context.textAlign = "right";
+    context.textBaseline = "middle";
+    context.fillStyle = "#111512";
+    context.font = `800 ${options.length > 10 ? 22 : 27}px "Microsoft YaHei", sans-serif`;
+    const label = option.length > 7 ? `${option.slice(0, 7)}…` : option;
+    context.fillText(label, radius - 30, 0);
+    context.restore();
+  });
+
+  context.beginPath();
+  context.arc(center, center, 62, 0, Math.PI * 2);
+  context.fillStyle = "#151816";
+  context.fill();
+  context.strokeStyle = "#f2f4ef";
+  context.lineWidth = 9;
+  context.stroke();
+
+  els.foodOptions.innerHTML = options
+    .map(
+      (option) => `
+        <button type="button" data-remove-food="${escapeHtml(option)}" title="从转盘移除">
+          ${escapeHtml(option)}<span>×</span>
+        </button>
+      `
+    )
+    .join("");
+  els.foodOptions.querySelectorAll("[data-remove-food]").forEach((button) => {
+    button.addEventListener("click", () => removeFoodOption(button.dataset.removeFood));
+  });
+}
+
+function addFoodOption() {
+  const value = els.foodOptionInput.value.trim();
+  if (!value) return;
+  if (!foodOptions.includes(value)) foodOptions.push(value);
+  saveFoodOptions();
+  els.foodOptionInput.value = "";
+  renderFoodWheel();
+}
+
+function removeFoodOption(value) {
+  const recipeNames = new Set(recipes.map((recipe) => recipe.name));
+  if (recipeNames.has(value)) {
+    els.foodWheelResult.textContent = "菜谱里的菜会自动保留在转盘中";
+    return;
+  }
+  if (getWheelOptions().length <= 2) {
+    els.foodWheelResult.textContent = "至少保留两个候选";
+    return;
+  }
+  foodOptions = foodOptions.filter((item) => item !== value);
+  saveFoodOptions();
+  renderFoodWheel();
+}
+
+function spinFoodWheel() {
+  if (foodWheelSpinning) return;
+  const options = getWheelOptions();
+  if (options.length < 2) return;
+  foodWheelSpinning = true;
+  els.spinFoodWheel.disabled = true;
+  els.foodWheelResult.textContent = "转盘正在认真思考…";
+
+  const winnerIndex = Math.floor(Math.random() * options.length);
+  const segmentDegrees = 360 / options.length;
+  const desiredMod = (360 - (winnerIndex * segmentDegrees + segmentDegrees / 2)) % 360;
+  const currentMod = ((foodWheelRotation % 360) + 360) % 360;
+  const delta = ((desiredMod - currentMod + 360) % 360) + 360 * 6;
+  foodWheelRotation += delta;
+  els.foodWheel.style.transform = `rotate(${foodWheelRotation}deg)`;
+
+  window.setTimeout(() => {
+    foodWheelSpinning = false;
+    els.spinFoodWheel.disabled = false;
+    els.foodWheelResult.textContent = `今天就吃：${options[winnerIndex]}`;
+  }, 4300);
 }
 
 function getRecipesStorageKey() {
@@ -1903,6 +2140,7 @@ async function saveRecipe(event) {
 
 function renderRecipes() {
   renderOverview();
+  renderFoodWheel();
   if (!els.recipesList) return;
   if (!session) {
     els.recipesList.innerHTML = `<div class="empty">登录后可以记录自己的菜谱。</div>`;
@@ -2412,6 +2650,209 @@ function setWishlistStatus(message) {
   els.wishlistStatus.textContent = message;
 }
 
+function getWeekendStorageKey() {
+  const name = session ? getSessionDisplayName() : "guest";
+  return `${WEEKEND_KEY}:${String(name).toLowerCase()}`;
+}
+
+function loadWeekendPlans() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(getWeekendStorageKey()) || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveWeekendPlans() {
+  if (!session) return;
+  localStorage.setItem(getWeekendStorageKey(), JSON.stringify(weekendPlans));
+}
+
+function setWeekendExpanded(expanded) {
+  els.weekendComposer.classList.toggle("expanded", expanded);
+  els.weekendForm.hidden = !expanded;
+  els.weekendToggle.setAttribute("aria-expanded", String(expanded));
+}
+
+function getNextWeekendDate() {
+  const date = new Date();
+  const daysUntilSaturday = (6 - date.getDay() + 7) % 7;
+  date.setDate(date.getDate() + daysUntilSaturday);
+  return date.toISOString().slice(0, 10);
+}
+
+function resetWeekendForm() {
+  els.weekendForm.reset();
+  weekendEditingId = null;
+  els.weekendDateInput.value = getNextWeekendDate();
+  els.weekendFormTitle.textContent = "安排周末";
+  els.weekendSubmitButton.textContent = "保存计划";
+  els.weekendCancelEdit.hidden = true;
+}
+
+async function saveWeekendPlan(event) {
+  event.preventDefault();
+  if (!session) {
+    setWeekendStatus("请先登录后再保存周末计划。");
+    return;
+  }
+
+  const title = els.weekendTitleInput.value.trim();
+  if (!title) {
+    setWeekendStatus("先写下周末想做什么。");
+    return;
+  }
+
+  const previous = weekendPlans.find((item) => item.id === weekendEditingId);
+  let plan = {
+    id: normalizeUuid(weekendEditingId),
+    title,
+    date: els.weekendDateInput.value || getNextWeekendDate(),
+    location: els.weekendLocationInput.value.trim(),
+    type: els.weekendTypeInput.value,
+    note: els.weekendNoteInput.value.trim(),
+    done: previous?.done || false,
+    createdAt: previous?.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  if (weekendCloudAvailable) {
+    const { data, error } = await supabase
+      .from("weekend_plans")
+      .upsert(weekendToCloudRow(plan), { onConflict: "id" })
+      .select("*")
+      .single();
+    if (error) {
+      setWeekendStatus(`周末计划同步失败：${error.message}`);
+      return;
+    }
+    plan = weekendFromCloudRow(data);
+  }
+
+  const wasEditing = Boolean(weekendEditingId);
+  weekendPlans = wasEditing
+    ? weekendPlans.map((item) => (item.id === weekendEditingId ? plan : item))
+    : [plan, ...weekendPlans];
+  saveWeekendPlans();
+  resetWeekendForm();
+  setWeekendExpanded(false);
+  setWeekendStatus(wasEditing ? "周末计划已更新。" : "周末计划已保存。");
+  renderWeekendPlans();
+}
+
+function renderWeekendPlans() {
+  if (!els.weekendList) return;
+  if (!session) {
+    els.weekendList.innerHTML = `<div class="empty">登录后可以安排周末去哪、吃什么和做什么。</div>`;
+    return;
+  }
+  if (!weekendPlans.length) {
+    els.weekendList.innerHTML = `<div class="empty">这个周末还没有安排。给自己留一个值得期待的计划。</div>`;
+    return;
+  }
+
+  const sorted = [...weekendPlans].sort(
+    (a, b) => Number(a.done) - Number(b.done) || new Date(a.date) - new Date(b.date)
+  );
+  els.weekendList.innerHTML = sorted
+    .map(
+      (plan, index) => `
+        <article class="weekend-card ${plan.done ? "done" : ""}">
+          <div class="weekend-date">
+            <span>${new Intl.DateTimeFormat("zh-CN", { month: "short" }).format(new Date(plan.date))}</span>
+            <strong>${new Intl.DateTimeFormat("zh-CN", { day: "2-digit" }).format(new Date(plan.date))}</strong>
+            <small>${new Intl.DateTimeFormat("zh-CN", { weekday: "short" }).format(new Date(plan.date))}</small>
+          </div>
+          <div class="weekend-card-body">
+            <p class="kicker">${escapeHtml(plan.type)} · PLAN ${String(index + 1).padStart(2, "0")}</p>
+            <h3>${escapeHtml(plan.title)}</h3>
+            ${plan.location ? `<p class="weekend-location">地点：${escapeHtml(plan.location)}</p>` : ""}
+            ${plan.note ? `<p>${escapeHtml(plan.note)}</p>` : ""}
+            <div class="weekend-card-actions">
+              <button type="button" data-edit-weekend="${escapeHtml(plan.id)}">编辑</button>
+              <button type="button" data-toggle-weekend="${escapeHtml(plan.id)}">
+                ${plan.done ? "重新计划" : "完成"}
+              </button>
+              <button type="button" data-delete-weekend="${escapeHtml(plan.id)}">删除</button>
+            </div>
+          </div>
+        </article>
+      `
+    )
+    .join("");
+
+  els.weekendList.querySelectorAll("[data-edit-weekend]").forEach((button) => {
+    button.addEventListener("click", () => editWeekendPlan(button.dataset.editWeekend));
+  });
+  els.weekendList.querySelectorAll("[data-toggle-weekend]").forEach((button) => {
+    button.addEventListener("click", () => toggleWeekendPlan(button.dataset.toggleWeekend));
+  });
+  els.weekendList.querySelectorAll("[data-delete-weekend]").forEach((button) => {
+    button.addEventListener("click", () => deleteWeekendPlan(button.dataset.deleteWeekend));
+  });
+}
+
+function editWeekendPlan(id) {
+  const plan = weekendPlans.find((item) => item.id === id);
+  if (!plan) return;
+  weekendEditingId = id;
+  els.weekendTitleInput.value = plan.title || "";
+  els.weekendDateInput.value = plan.date || getNextWeekendDate();
+  els.weekendLocationInput.value = plan.location || "";
+  els.weekendTypeInput.value = plan.type || "出门玩";
+  els.weekendNoteInput.value = plan.note || "";
+  els.weekendFormTitle.textContent = "编辑周末计划";
+  els.weekendSubmitButton.textContent = "保存修改";
+  els.weekendCancelEdit.hidden = false;
+  setWeekendExpanded(true);
+  setWeekendStatus(`正在编辑：${plan.title}`);
+  els.weekendComposer.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+async function toggleWeekendPlan(id) {
+  const current = weekendPlans.find((item) => item.id === id);
+  if (!current) return;
+  let next = { ...current, done: !current.done, updatedAt: new Date().toISOString() };
+  if (weekendCloudAvailable) {
+    const { data, error } = await supabase
+      .from("weekend_plans")
+      .update({ is_done: next.done, updated_at: next.updatedAt })
+      .eq("id", id)
+      .select("*")
+      .single();
+    if (error) {
+      setWeekendStatus(`状态同步失败：${error.message}`);
+      return;
+    }
+    next = weekendFromCloudRow(data);
+  }
+  weekendPlans = weekendPlans.map((item) => (item.id === id ? next : item));
+  saveWeekendPlans();
+  setWeekendStatus("周末计划状态已更新。");
+  renderWeekendPlans();
+}
+
+async function deleteWeekendPlan(id) {
+  const plan = weekendPlans.find((item) => item.id === id);
+  if (!plan || !window.confirm(`删除周末计划“${plan.title}”？`)) return;
+  if (weekendCloudAvailable) {
+    const { error } = await supabase.from("weekend_plans").delete().eq("id", id);
+    if (error) {
+      setWeekendStatus(`删除同步失败：${error.message}`);
+      return;
+    }
+  }
+  weekendPlans = weekendPlans.filter((item) => item.id !== id);
+  saveWeekendPlans();
+  setWeekendStatus("周末计划已删除。");
+  renderWeekendPlans();
+}
+
+function setWeekendStatus(message) {
+  els.weekendStatus.textContent = message;
+}
+
 function getInitial(value) {
   const trimmed = String(value || "").trim();
   return trimmed ? trimmed[0].toUpperCase() : "U";
@@ -2442,6 +2883,12 @@ els.themeToggle.addEventListener("click", toggleTheme);
 els.galleryNav.addEventListener("click", () => switchPage("gallery"));
 els.recipesNav.addEventListener("click", () => switchPage("recipes"));
 els.wishlistNav.addEventListener("click", () => switchPage("wishlist"));
+els.weekendNav.addEventListener("click", () => switchPage("weekend"));
+els.spinFoodWheel.addEventListener("click", spinFoodWheel);
+els.addFoodOption.addEventListener("click", addFoodOption);
+els.foodOptionInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") addFoodOption();
+});
 els.memoryButton.addEventListener("click", () => {
   const personalPhotos = photos.filter(
     (photo) => !photo.user_id || photo.user_id === session?.user?.id
@@ -2463,6 +2910,11 @@ els.quickWish.addEventListener("click", () => {
   switchPage("wishlist");
   setWishlistExpanded(true);
   els.wishlistComposer.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+els.quickWeekend.addEventListener("click", () => {
+  switchPage("weekend");
+  setWeekendExpanded(true);
+  els.weekendComposer.scrollIntoView({ behavior: "smooth", block: "start" });
 });
 els.saveConfig.addEventListener("click", saveConfig);
 els.loginButton.addEventListener("click", loginWithPassword);
@@ -2491,6 +2943,15 @@ els.wishCancelEdit.addEventListener("click", () => {
   resetWishForm();
   setWishlistExpanded(false);
   setWishlistStatus("");
+});
+els.weekendToggle.addEventListener("click", () => {
+  setWeekendExpanded(els.weekendForm.hidden);
+});
+els.weekendForm.addEventListener("submit", saveWeekendPlan);
+els.weekendCancelEdit.addEventListener("click", () => {
+  resetWeekendForm();
+  setWeekendExpanded(false);
+  setWeekendStatus("");
 });
 els.avatarButton.addEventListener("click", () => {
   els.userPopover.hidden = !els.userPopover.hidden;
@@ -2554,4 +3015,5 @@ els.nextPage.addEventListener("click", () => {
   els.galleryHead?.scrollIntoView({ behavior: "smooth" });
 });
 
+renderFoodWheel();
 initializeSupabase();
