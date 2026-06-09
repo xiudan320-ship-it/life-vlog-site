@@ -2004,6 +2004,7 @@ function spinFoodWheel() {
   if (options.length < 2) return;
   foodWheelSpinning = true;
   els.spinFoodWheel.disabled = true;
+  els.spinFoodWheel.textContent = "转动中";
   els.foodWheelResult.textContent = "转盘正在认真思考…";
 
   const winnerIndex = Math.floor(Math.random() * options.length);
@@ -2017,6 +2018,7 @@ function spinFoodWheel() {
   window.setTimeout(() => {
     foodWheelSpinning = false;
     els.spinFoodWheel.disabled = false;
+    els.spinFoodWheel.textContent = "开始转";
     const result = options[winnerIndex];
     els.foodWheelResult.textContent = `今天就吃：${result}`;
     els.foodWheelPeek.textContent = `今天吃 ${result}`;
