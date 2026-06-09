@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>咻蛋之家</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
-    <link rel="stylesheet" href="./styles.css?v=20260609-24" />
-    <link rel="stylesheet" href="./redesign.css?v=20260609-24" />
+    <link rel="stylesheet" href="./styles.css?v=20260609-25" />
+    <link rel="stylesheet" href="./redesign.css?v=20260609-25" />
   </head>
   <body>
     <header class="topbar">
@@ -109,7 +109,9 @@
             <div class="food-wheel-stage">
               <div class="wheel-disc">
                 <span class="wheel-pointer" aria-hidden="true"></span>
-                <canvas id="foodWheel" width="640" height="640" aria-label="今日吃什么转盘"></canvas>
+                <div class="wheel-viewport">
+                  <canvas id="foodWheel" width="640" height="640" aria-label="今日吃什么转盘"></canvas>
+                </div>
                 <button class="spin-button" id="spinFoodWheel" type="button">开始转</button>
               </div>
               <p class="wheel-result" id="foodWheelResult">今天吃点什么？</p>
@@ -580,6 +582,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260609-24"></script>
+    <script type="module" src="./app.js?v=20260609-25"></script>
   </body>
 </html>
