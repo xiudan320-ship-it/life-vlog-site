@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>咻蛋之家</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
-    <link rel="stylesheet" href="./styles.css?v=20260609-28" />
-    <link rel="stylesheet" href="./redesign.css?v=20260609-28" />
+    <link rel="stylesheet" href="./styles.css?v=20260609-29" />
+    <link rel="stylesheet" href="./redesign.css?v=20260609-29" />
   </head>
   <body>
     <header class="topbar">
@@ -271,11 +271,10 @@
 
       <section class="gallery" id="gallery" aria-live="polite"></section>
 
-      <nav class="pager" id="pager" aria-label="照片分页" hidden>
-        <button id="prevPage" type="button">上一页</button>
-        <span id="pageIndicator">1 / 1</span>
-        <button id="nextPage" type="button">下一页</button>
-      </nav>
+      <div class="feed-loader" id="feedLoader" aria-live="polite" hidden>
+        <span class="feed-loader-mark" aria-hidden="true"></span>
+        <span id="feedLoaderText">继续下滑加载</span>
+      </div>
 
       <section class="recipes-page" id="recipesPage" hidden>
         <div class="feed-head">
@@ -599,6 +598,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260609-28"></script>
+    <script type="module" src="./app.js?v=20260609-29"></script>
   </body>
 </html>
