@@ -873,6 +873,36 @@ body.theme-dark .photo-card {
   letter-spacing: 0;
 }
 
+.photo-status-badges {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 4;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.photo-status-badges span {
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  background: rgba(16, 16, 20, 0.78);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+  padding: 6px 8px;
+}
+
+.photo-status-badges .featured-badge {
+  background: #e8b94a;
+  color: #151816;
+}
+
+.photo-status-badges .pin-badge {
+  background: #55d6b5;
+  color: #10241e;
+}
+
 .photo-card:nth-child(odd) .strand-index {
   right: -77px;
 }
@@ -986,13 +1016,17 @@ body.theme-dark .photo-media {
 
 .card-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   justify-content: flex-end;
   padding: 0 18px 18px;
 }
 
 .edit-photo,
-.delete-photo {
+.delete-photo,
+.favorite-photo,
+.feature-photo,
+.pin-photo {
   min-height: 36px;
   border: 1px solid var(--ink);
   border-radius: 0;
@@ -1011,10 +1045,58 @@ body.theme-dark .photo-media {
   color: var(--ink);
 }
 
+.favorite-photo,
+.feature-photo,
+.pin-photo {
+  background: transparent;
+  color: var(--ink);
+}
+
+.favorite-photo.active {
+  border-color: #f06450;
+  background: rgba(240, 100, 80, 0.1);
+  color: #d44d39;
+}
+
+.feature-photo.active {
+  border-color: #e8b94a;
+  background: rgba(232, 185, 74, 0.14);
+}
+
+.pin-photo.active {
+  border-color: #32b896;
+  background: rgba(50, 184, 150, 0.12);
+}
+
 body.theme-dark .edit-photo {
   border-color: rgba(255, 255, 255, 0.78);
   background: #f4f1e8;
   color: #101014;
+}
+
+body.theme-dark .favorite-photo,
+body.theme-dark .feature-photo,
+body.theme-dark .pin-photo {
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #f0f4ef;
+}
+
+body.theme-dark .favorite-photo.active {
+  border-color: var(--coral);
+  background: rgba(255, 128, 109, 0.14);
+  color: var(--coral);
+}
+
+body.theme-dark .feature-photo.active {
+  border-color: var(--gold);
+  background: rgba(240, 200, 95, 0.14);
+  color: var(--gold);
+}
+
+body.theme-dark .pin-photo.active {
+  border-color: var(--accent);
+  background: rgba(85, 214, 181, 0.14);
+  color: var(--accent);
 }
 
 body.theme-dark .delete-photo {
