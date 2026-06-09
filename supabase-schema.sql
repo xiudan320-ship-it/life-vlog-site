@@ -10,14 +10,37 @@ create table if not exists public.photos (
   width integer,
   height integer,
   is_public boolean not null default true,
+  is_featured boolean not null default false,
+  is_pinned boolean not null default false,
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.photo_favorites (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  photo_id uuid not null references public.photos(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (user_id, photo_id)
+);
+
 alter table public.photos enable row level security;
+alter table public.photo_favorites enable row level security;
 
 grant usage on schema public to anon, authenticated;
 grant select on public.photos to anon, authenticated;
 grant insert, update, delete on public.photos to authenticated;
+grant select, insert, delete on public.photo_favorites to authenticated;
+
+create policy "Users can read their own photo favorites"
+  on public.photo_favorites for select
+  using (auth.uid() = user_id);
+
+create policy "Users can create their own photo favorites"
+  on public.photo_favorites for insert
+  with check (auth.uid() = user_id);
+
+create policy "Users can delete their own photo favorites"
+  on public.photo_favorites for delete
+  using (auth.uid() = user_id);
 
 create policy "Anyone can read public photos"
   on public.photos for select
