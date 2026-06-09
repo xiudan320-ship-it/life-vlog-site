@@ -17,6 +17,9 @@ alter table public.user_profiles
   add column if not exists theme_preference text
   check (theme_preference in ('light', 'dark'));
 
+alter table public.user_profiles
+  add column if not exists home_name text not null default '咻蛋之家';
+
 alter table public.photos
   add column if not exists is_featured boolean not null default false,
   add column if not exists is_pinned boolean not null default false;
