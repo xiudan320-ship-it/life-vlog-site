@@ -5,6 +5,7 @@ const RECIPES_KEY = "life-vlog-recipes";
 const WISHLIST_KEY = "life-vlog-wishlist";
 const WEEKEND_KEY = "life-vlog-weekend-plans";
 const FOOD_OPTIONS_KEY = "life-vlog-food-options";
+const PHOTO_FAVORITES_KEY = "life-vlog-photo-favorites";
 const EXPERIENCE_KEY = "life-vlog-experience";
 const DAILY_LOGIN_EXP = 25;
 const BUCKET = "life-photos";
@@ -93,6 +94,8 @@ let createClient = null;
 let supabase = null;
 let session = null;
 let photos = [];
+let favoritePhotoIds = new Set();
+let favoritesCloudAvailable = false;
 let recipes = [];
 let wishes = [];
 let weekendPlans = [];
@@ -405,6 +408,7 @@ function updateAuthUI() {
   recipes = signedIn ? loadRecipes() : [];
   wishes = signedIn ? loadWishes() : [];
   weekendPlans = signedIn ? loadWeekendPlans() : [];
+  favoritePhotoIds = signedIn ? loadLocalFavoritePhotoIds() : new Set();
   renderOverview();
   renderRecipes();
   renderWishes();
@@ -421,6 +425,7 @@ function updateAuthUI() {
   if (!signedIn) {
     cloudSyncAvailable = false;
     weekendCloudAvailable = false;
+    favoritesCloudAvailable = false;
     cloudSyncInFlight = null;
     syncedUserId = "";
     accountProfile = {
@@ -533,9 +538,71 @@ async function loadPhotos() {
   } else {
     setGlobalStatus("");
     photos = data || [];
+    if (session) await synchronizePhotoFavorites();
   }
 
   renderGallery();
+}
+
+function getPhotoFavoritesStorageKey(userId = session?.user?.id || "guest") {
+  return `${PHOTO_FAVORITES_KEY}:${userId}`;
+}
+
+function loadLocalFavoritePhotoIds() {
+  try {
+    const parsed = JSON.parse(
+      localStorage.getItem(getPhotoFavoritesStorageKey()) || "[]"
+    );
+    return new Set(Array.isArray(parsed) ? parsed : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveLocalFavoritePhotoIds() {
+  localStorage.setItem(
+    getPhotoFavoritesStorageKey(),
+    JSON.stringify([...favoritePhotoIds])
+  );
+}
+
+async function synchronizePhotoFavorites() {
+  if (!supabase || !session) return;
+  const userId = session.user.id;
+  const visiblePhotoIds = new Set(photos.map((photo) => photo.id));
+  const localIds = [...loadLocalFavoritePhotoIds()].filter((id) =>
+    visiblePhotoIds.has(id)
+  );
+  try {
+    const { data, error } = await supabase
+      .from("photo_favorites")
+      .select("photo_id")
+      .eq("user_id", userId);
+    if (error) throw error;
+
+    const cloudIdSet = new Set((data || []).map((row) => row.photo_id));
+    const missingLocalIds = localIds.filter((id) => !cloudIdSet.has(id));
+    if (missingLocalIds.length) {
+      const { error: migrateError } = await supabase
+        .from("photo_favorites")
+        .upsert(
+          missingLocalIds.map((photoId) => ({ user_id: userId, photo_id: photoId })),
+          { onConflict: "user_id,photo_id" }
+        );
+      if (migrateError) throw migrateError;
+      missingLocalIds.forEach((id) => cloudIdSet.add(id));
+    }
+
+    favoritesCloudAvailable = true;
+    favoritePhotoIds = cloudIdSet;
+    saveLocalFavoritePhotoIds();
+  } catch (error) {
+    favoritesCloudAvailable = false;
+    favoritePhotoIds = new Set(localIds);
+    if (!isMissingCloudSchema(error)) {
+      console.warn("Favorite sync failed:", error);
+    }
+  }
 }
 
 async function uploadPhoto(event) {
@@ -684,10 +751,27 @@ async function uploadImageFile(file, safeName, index = 1, total = 1) {
 
 function renderGallery() {
   renderOverview();
+  const sortedPhotos = [...photos].sort((a, b) => {
+    const pinnedDifference = Number(Boolean(b.is_pinned)) - Number(Boolean(a.is_pinned));
+    if (pinnedDifference) return pinnedDifference;
+    const featuredDifference =
+      Number(Boolean(b.is_featured)) - Number(Boolean(a.is_featured));
+    if (featuredDifference) return featuredDifference;
+    return (
+      new Date(b.taken_at || b.created_at || 0) -
+      new Date(a.taken_at || a.created_at || 0)
+    );
+  });
   const filtered =
     activeFilter === "全部"
-      ? photos
-      : photos.filter((photo) => photo.category === activeFilter);
+      ? sortedPhotos
+      : activeFilter === "featured7"
+        ? sortedPhotos.filter(
+            (photo) => Boolean(photo.is_featured) && isPhotoWithinSevenDays(photo)
+          )
+        : activeFilter === "favorites"
+          ? sortedPhotos.filter((photo) => favoritePhotoIds.has(photo.id))
+          : sortedPhotos.filter((photo) => photo.category === activeFilter);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   currentPage = Math.min(currentPage, totalPages);
@@ -695,7 +779,15 @@ function renderGallery() {
   const visible = filtered.slice(start, start + PAGE_SIZE);
 
   if (!visible.length) {
-    els.gallery.innerHTML = `<div class="empty">还没有这个分类的照片。</div>`;
+    const emptyMessage =
+      activeFilter === "featured7"
+        ? "最近七天还没有精选照片。"
+        : activeFilter === "favorites"
+          ? session
+            ? "还没有收藏照片。"
+            : "登录后可以收藏喜欢的照片。"
+          : "还没有这个分类的照片。";
+    els.gallery.innerHTML = `<div class="empty">${emptyMessage}</div>`;
     updatePager(totalPages, filtered.length);
     return;
   }
@@ -711,6 +803,10 @@ function renderGallery() {
           return `
         <article class="photo-card">
           <span class="strand-index">${sequence}</span>
+          <div class="photo-status-badges">
+            ${photo.is_pinned ? `<span class="pin-badge">置顶</span>` : ""}
+            ${photo.is_featured ? `<span class="featured-badge">精选</span>` : ""}
+          </div>
           <div class="photo-open">
             ${renderPhotoMedia(images, displayTitle, index)}
             <button class="photo-copy-open" type="button" data-photo-index="${index}" data-image-index="0">
@@ -721,8 +817,21 @@ function renderGallery() {
           </div>
           <div class="card-actions">
             ${
+              session
+                ? `<button class="favorite-photo ${favoritePhotoIds.has(photo.id) ? "active" : ""}" type="button" data-favorite-index="${index}">
+                    ${favoritePhotoIds.has(photo.id) ? "♥ 已收藏" : "♡ 收藏"}
+                  </button>`
+                : ""
+            }
+            ${
               canManage
-                ? `<button class="edit-photo" type="button" data-edit-index="${index}" title="编辑照片">编辑</button>
+                ? `<button class="feature-photo ${photo.is_featured ? "active" : ""}" type="button" data-feature-index="${index}">
+                    ${photo.is_featured ? "取消精选" : "设为精选"}
+                  </button>
+                  <button class="pin-photo ${photo.is_pinned ? "active" : ""}" type="button" data-pin-index="${index}">
+                    ${photo.is_pinned ? "取消置顶" : "置顶"}
+                  </button>
+                  <button class="edit-photo" type="button" data-edit-index="${index}" title="编辑照片">编辑</button>
                   <button class="delete-photo" type="button" data-delete-index="${index}" title="删除照片">删除</button>`
                 : ""
             }
@@ -748,6 +857,24 @@ function renderGallery() {
     });
   });
 
+  els.gallery.querySelectorAll("button[data-favorite-index]").forEach((button) => {
+    button.addEventListener("click", () => {
+      togglePhotoFavorite(visible[Number(button.dataset.favoriteIndex)], button);
+    });
+  });
+
+  els.gallery.querySelectorAll("button[data-feature-index]").forEach((button) => {
+    button.addEventListener("click", () => {
+      togglePhotoFlag(visible[Number(button.dataset.featureIndex)], "is_featured");
+    });
+  });
+
+  els.gallery.querySelectorAll("button[data-pin-index]").forEach((button) => {
+    button.addEventListener("click", () => {
+      togglePhotoFlag(visible[Number(button.dataset.pinIndex)], "is_pinned");
+    });
+  });
+
   els.gallery.querySelectorAll("button[data-edit-index]").forEach((button) => {
     button.addEventListener("click", () => {
       openEditPhoto(visible[Number(button.dataset.editIndex)]);
@@ -755,6 +882,77 @@ function renderGallery() {
   });
 
   updatePager(totalPages, filtered.length);
+}
+
+function isPhotoWithinSevenDays(photo) {
+  const value = photo.taken_at || photo.created_at;
+  if (!value) return false;
+  const target = new Date(`${String(value).slice(0, 10)}T00:00:00`);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const difference = Math.floor((today - target) / 86400000);
+  return difference >= 0 && difference < 7;
+}
+
+async function togglePhotoFlag(photo, field) {
+  if (!supabase || !session || !photo || photo.user_id !== session.user.id) return;
+  const nextValue = !Boolean(photo[field]);
+  const label = field === "is_pinned" ? "置顶" : "精选";
+  setGlobalStatus(`正在更新${label}状态...`);
+
+  const { data, error } = await supabase
+    .from("photos")
+    .update({ [field]: nextValue })
+    .eq("id", photo.id)
+    .eq("user_id", session.user.id)
+    .select("id,is_featured,is_pinned")
+    .single();
+
+  if (error) {
+    setGlobalStatus(
+      isMissingCloudSchema(error)
+        ? `请先运行最新的 supabase-cloud-sync.sql，再使用${label}功能。`
+        : `${label}更新失败：${error.message}`
+    );
+    return;
+  }
+
+  Object.assign(photo, data);
+  setGlobalStatus(nextValue ? `已设为${label}。` : `已取消${label}。`);
+  renderGallery();
+}
+
+async function togglePhotoFavorite(photo, button) {
+  if (!session || !photo) {
+    setGlobalStatus("登录后可以收藏照片。");
+    return;
+  }
+
+  const wasFavorite = favoritePhotoIds.has(photo.id);
+  button.disabled = true;
+  if (favoritesCloudAvailable) {
+    const request = wasFavorite
+      ? supabase
+          .from("photo_favorites")
+          .delete()
+          .eq("user_id", session.user.id)
+          .eq("photo_id", photo.id)
+      : supabase
+          .from("photo_favorites")
+          .insert({ user_id: session.user.id, photo_id: photo.id });
+    const { error } = await request;
+    if (error) {
+      button.disabled = false;
+      setGlobalStatus(`收藏更新失败：${error.message}`);
+      return;
+    }
+  }
+
+  if (wasFavorite) favoritePhotoIds.delete(photo.id);
+  else favoritePhotoIds.add(photo.id);
+  saveLocalFavoritePhotoIds();
+  setGlobalStatus(wasFavorite ? "已取消收藏。" : "已收藏。");
+  renderGallery();
 }
 
 function renderPhotoMedia(images, title, photoIndex) {
@@ -951,6 +1149,8 @@ async function deletePhoto(photo, triggerButton = null) {
     }
 
     photos = photos.filter((item) => item.id !== photo.id);
+    favoritePhotoIds.delete(photo.id);
+    saveLocalFavoritePhotoIds();
     renderGallery();
     setGlobalStatus("照片已删除。");
 
