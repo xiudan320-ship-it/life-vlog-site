@@ -959,6 +959,15 @@ body.theme-dark .photo-card {
   background: rgba(255, 255, 255, 0.38);
 }
 
+.feed-loader {
+  margin: 4px 0 24px;
+  border-top: 1px solid var(--line);
+}
+
+body.theme-dark .feed-loader {
+  color: #aeb8b2;
+}
+
 .ghost-button,
 .pager button,
 .link-row button {
@@ -1280,6 +1289,12 @@ dialog {
 }
 
 @media (max-width: 700px) {
+  .feed-loader {
+    justify-content: center;
+    padding-right: 132px;
+    padding-left: 10px;
+  }
+
   .edit-image-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
