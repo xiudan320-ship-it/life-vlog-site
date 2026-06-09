@@ -125,6 +125,7 @@ let accountProfile = {
   vipLevel: 0,
   experienceTotal: 0,
   lastLoginDate: "",
+  themePreference: "",
 };
 
 const els = {
@@ -289,7 +290,7 @@ const els = {
 els.dateInput.valueAsDate = new Date();
 els.weekendDateInput.value = getNextWeekendDate();
 foodOptions = loadFoodOptions();
-applyTheme(loadTheme());
+applyTheme(loadTheme(null), { persist: false, userId: null });
 
 function loadConfig() {
   if (DEFAULT_SUPABASE_URL && DEFAULT_SUPABASE_ANON_KEY) {
@@ -358,6 +359,10 @@ async function initializeSupabase() {
 function updateAuthUI() {
   const signedIn = Boolean(session);
   const displayName = signedIn ? getSessionDisplayName() : "";
+  applyTheme(loadTheme(signedIn ? session.user.id : null), {
+    persist: false,
+    userId: signedIn ? session.user.id : null,
+  });
   const rechargeTotal = signedIn ? loadRechargeTotal(displayName) : 0;
   activeVipLevel = signedIn ? getVipLevelByRecharge(rechargeTotal)?.level || 0 : 0;
   const vip = signedIn && activeVipLevel > 0;
@@ -410,6 +415,7 @@ function updateAuthUI() {
       vipLevel: 0,
       experienceTotal: 0,
       lastLoginDate: "",
+      themePreference: "",
     };
     return;
   }
@@ -1339,12 +1345,17 @@ async function synchronizeAccountData() {
       if (profileError) throw profileError;
 
       cloudSyncAvailable = true;
+      const cloudTheme = normalizeTheme(savedProfile.theme_preference);
+      const preferredTheme = cloudTheme || loadTheme(userId);
       accountProfile = {
         rechargeTotal: Number(savedProfile.recharge_total) || 0,
         vipLevel: Number(savedProfile.vip_level) || 0,
         experienceTotal: Number(savedProfile.experience_total) || 0,
         lastLoginDate: savedProfile.last_login_date || "",
+        themePreference: preferredTheme,
       };
+      applyTheme(preferredTheme, { userId, syncCloud: false });
+      if (!cloudTheme) void persistThemeToCloud(preferredTheme);
       recipes = cloudRecipes.map(recipeFromCloudRow);
       wishes = cloudWishes.map(wishFromCloudRow);
 
@@ -1644,22 +1655,59 @@ function getLocalDateKey() {
   }).format(new Date());
 }
 
-function loadTheme() {
-  const stored = localStorage.getItem(THEME_KEY);
-  if (stored === "dark" || stored === "light") return stored;
-  return "light";
+function normalizeTheme(theme) {
+  return theme === "dark" || theme === "light" ? theme : "";
 }
 
-function applyTheme(theme) {
+function getThemeStorageKey(userId = session?.user?.id || null) {
+  return `${THEME_KEY}:${userId || "guest"}`;
+}
+
+function loadTheme(userId = session?.user?.id || null) {
+  const stored =
+    localStorage.getItem(getThemeStorageKey(userId)) || localStorage.getItem(THEME_KEY);
+  if (stored === "dark" || stored === "light") return stored;
+  return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function applyTheme(
+  theme,
+  { persist = true, userId = session?.user?.id || null, syncCloud = false } = {}
+) {
   const nextTheme = theme === "dark" ? "dark" : "light";
   document.body.classList.toggle("theme-dark", nextTheme === "dark");
-  localStorage.setItem(THEME_KEY, nextTheme);
+  document.documentElement.style.colorScheme = nextTheme;
+  if (persist) {
+    localStorage.setItem(getThemeStorageKey(userId), nextTheme);
+    if (userId && session?.user?.id === userId) {
+      accountProfile.themePreference = nextTheme;
+    }
+  }
   els.themeToggle.querySelector("span").textContent = nextTheme === "dark" ? "☀" : "☾";
   els.themeToggle.title = nextTheme === "dark" ? "切换白天模式" : "切换黑夜模式";
+  if (syncCloud) void persistThemeToCloud(nextTheme);
 }
 
 function toggleTheme() {
-  applyTheme(document.body.classList.contains("theme-dark") ? "light" : "dark");
+  applyTheme(document.body.classList.contains("theme-dark") ? "light" : "dark", {
+    syncCloud: Boolean(session),
+  });
+}
+
+async function persistThemeToCloud(theme) {
+  const nextTheme = normalizeTheme(theme);
+  if (!nextTheme || !supabase || !session || !cloudSyncAvailable) return;
+  const userId = session.user.id;
+  const { error } = await supabase
+    .from("user_profiles")
+    .update({
+      theme_preference: nextTheme,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", userId);
+  if (!error && session?.user?.id === userId) {
+    accountProfile.themePreference = nextTheme;
+  }
 }
 
 function updatePhotoPreview() {
