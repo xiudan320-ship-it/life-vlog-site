@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>咻蛋之家</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
-    <link rel="stylesheet" href="./styles.css?v=20260609-33" />
-    <link rel="stylesheet" href="./redesign.css?v=20260609-33" />
+    <link rel="stylesheet" href="./styles.css?v=20260609-34" />
+    <link rel="stylesheet" href="./redesign.css?v=20260609-34" />
   </head>
   <body>
     <header class="topbar">
@@ -122,6 +122,20 @@
             </div>
           </div>
         </dialog>
+      </aside>
+
+      <aside class="anniversary-section" id="anniversarySection" hidden>
+        <button
+          class="anniversary-launch"
+          id="anniversaryOpen"
+          type="button"
+          aria-haspopup="dialog"
+          aria-controls="anniversaryDialog"
+        >
+          <span class="anniversary-launch-mark" aria-hidden="true">D</span>
+          <strong>时间纪念册</strong>
+          <small id="anniversaryPeek">设置重要日子</small>
+        </button>
       </aside>
 
       <section class="overview" id="overview" hidden>
@@ -500,6 +514,63 @@
       </section>
     </main>
 
+    <dialog class="anniversary-dialog" id="anniversaryDialog">
+      <div class="anniversary-dialog-head">
+        <div>
+          <p class="kicker">Days Together</p>
+          <h2>时间纪念册</h2>
+          <p>记录相遇、成长和每一个值得等待的日子。</p>
+        </div>
+        <button class="anniversary-close" id="anniversaryClose" type="button" aria-label="关闭">
+          ×
+        </button>
+      </div>
+
+      <div class="anniversary-dialog-body">
+        <section class="anniversary-list" id="anniversaryList"></section>
+
+        <section class="anniversary-editor">
+          <button
+            class="anniversary-add"
+            id="anniversaryAdd"
+            type="button"
+            aria-expanded="false"
+          >
+            添加纪念日
+          </button>
+          <form id="anniversaryForm" hidden>
+            <div class="form-grid">
+              <label>
+                名称
+                <input id="anniversaryTitleInput" maxlength="40" required placeholder="比如：呱呱" />
+              </label>
+              <label>
+                计算方式
+                <select id="anniversaryTypeInput">
+                  <option value="pet">宠物年龄</option>
+                  <option value="together">累计相伴天数</option>
+                  <option value="annual">年度纪念日倒计时</option>
+                </select>
+              </label>
+              <label>
+                开始日期
+                <input id="anniversaryDateInput" type="date" required />
+              </label>
+              <label>
+                简短备注
+                <input id="anniversaryNoteInput" maxlength="80" placeholder="比如：来到我们家的日子" />
+              </label>
+            </div>
+            <p class="status-line" id="anniversaryStatus"></p>
+            <div class="anniversary-form-actions">
+              <button class="primary" id="anniversarySubmit" type="submit">保存</button>
+              <button class="ghost-button" id="anniversaryCancel" type="button">取消</button>
+            </div>
+          </form>
+        </section>
+      </div>
+    </dialog>
+
     <dialog id="photoDialog">
       <button class="dialog-close" id="closeDialog" type="button" aria-label="关闭">×</button>
       <div class="dialog-media">
@@ -605,6 +676,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260609-33"></script>
+    <script type="module" src="./app.js?v=20260609-34"></script>
   </body>
 </html>
