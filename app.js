@@ -102,6 +102,11 @@ let activeFilter = "全部";
 let previewUrls = [];
 let currentPage = 1;
 let editingPhoto = null;
+let editingImages = [];
+let editingImageFiles = new Map();
+let editingRemovedPaths = new Set();
+let editingReplaceIndex = -1;
+let editingPreviewUrls = [];
 let dialogImages = [];
 let dialogImageIndex = 0;
 let activeVipLevel = 1;
@@ -201,6 +206,10 @@ const els = {
   editCategoryInput: document.querySelector("#editCategoryInput"),
   editPublicInput: document.querySelector("#editPublicInput"),
   editNoteInput: document.querySelector("#editNoteInput"),
+  editImageInput: document.querySelector("#editImageInput"),
+  editImageList: document.querySelector("#editImageList"),
+  editImageCount: document.querySelector("#editImageCount"),
+  deleteEditingPhoto: document.querySelector("#deleteEditingPhoto"),
   saveEditStatus: document.querySelector("#saveEditStatus"),
   vipDialog: document.querySelector("#vipDialog"),
   closeVipDialog: document.querySelector("#closeVipDialog"),
@@ -702,14 +711,14 @@ function renderGallery() {
           return `
         <article class="photo-card">
           <span class="strand-index">${sequence}</span>
-          <button class="photo-open" type="button" data-index="${index}">
-            ${renderPhotoMedia(images, displayTitle)}
-            <article>
+          <div class="photo-open">
+            ${renderPhotoMedia(images, displayTitle, index)}
+            <button class="photo-copy-open" type="button" data-photo-index="${index}" data-image-index="0">
               <p class="kicker">${escapeHtml(photo.category || "日常")} · ${formatDate(photo.taken_at)}</p>
               <h3>${escapeHtml(displayTitle)}</h3>
               <p>${escapeHtml(noteText)}</p>
-            </article>
-          </button>
+            </button>
+          </div>
           <div class="card-actions">
             ${
               canManage
@@ -724,9 +733,12 @@ function renderGallery() {
     )
     .join("");
 
-  els.gallery.querySelectorAll("button[data-index]").forEach((button) => {
+  els.gallery.querySelectorAll("button[data-photo-index][data-image-index]").forEach((button) => {
     button.addEventListener("click", () => {
-      openPhoto(visible[Number(button.dataset.index)]);
+      openPhoto(
+        visible[Number(button.dataset.photoIndex)],
+        Number(button.dataset.imageIndex)
+      );
     });
   });
 
@@ -745,13 +757,15 @@ function renderGallery() {
   updatePager(totalPages, filtered.length);
 }
 
-function renderPhotoMedia(images, title) {
+function renderPhotoMedia(images, title, photoIndex) {
   const safeTitle = escapeHtml(title);
   if (images.length <= 1) {
     const image = images[0] || {};
     return `
       <div class="photo-media single">
-        <img src="${escapeHtml(image.image_url || "")}" alt="${safeTitle}" loading="lazy" />
+        <button type="button" data-photo-index="${photoIndex}" data-image-index="0">
+          <img src="${escapeHtml(image.image_url || "")}" alt="${safeTitle}" loading="lazy" />
+        </button>
       </div>
     `;
   }
@@ -762,7 +776,9 @@ function renderPhotoMedia(images, title) {
       ${previewImages
         .map(
           (image, index) => `
-            <img src="${escapeHtml(image.image_url)}" alt="${safeTitle} ${index + 1}" loading="lazy" />
+            <button type="button" data-photo-index="${photoIndex}" data-image-index="${index}">
+              <img src="${escapeHtml(image.image_url)}" alt="${safeTitle} ${index + 1}" loading="lazy" />
+            </button>
           `
         )
         .join("")}
@@ -897,16 +913,16 @@ function updatePager(totalPages, totalItems) {
 async function deletePhoto(photo, triggerButton = null) {
   if (!supabase || !session || !photo) {
     setGlobalStatus("请先登录后再删除照片。");
-    return;
+    return false;
   }
 
   if (photo.user_id && photo.user_id !== session.user.id) {
     setGlobalStatus("只能删除自己上传的照片。");
-    return;
+    return false;
   }
 
   const ok = window.confirm(`删除“${getDisplayTitle(photo)}”？删除后无法恢复。`);
-  if (!ok) return;
+  if (!ok) return false;
 
   setGlobalStatus("正在删除照片...");
   const originalButtonText = triggerButton?.textContent || "删除";
@@ -949,19 +965,24 @@ async function deletePhoto(photo, triggerButton = null) {
     }
 
     await loadPhotos();
+    return true;
   } catch (error) {
     setGlobalStatus(error.message || "删除失败，请稍后重试。");
     if (triggerButton?.isConnected) {
       triggerButton.disabled = false;
       triggerButton.textContent = originalButtonText;
     }
+    return false;
   }
 }
 
-function openPhoto(photo) {
+function openPhoto(photo, initialImageIndex = 0) {
   const displayTitle = getDisplayTitle(photo);
   dialogImages = getPhotoImages(photo);
-  dialogImageIndex = 0;
+  dialogImageIndex = Math.min(
+    Math.max(0, Number(initialImageIndex) || 0),
+    Math.max(0, dialogImages.length - 1)
+  );
   els.dialogTitle.textContent = displayTitle;
   els.dialogMeta.textContent = `${photo.category || "日常"} · ${formatDate(photo.taken_at)}`;
   els.dialogNote.textContent = getPlainNote(photo);
@@ -971,17 +992,22 @@ function openPhoto(photo) {
 
 function openEditPhoto(photo) {
   if (!photo) return;
+  resetEditImageState();
   editingPhoto = photo;
+  editingImages = getPhotoImages(photo).map((image) => ({ ...image }));
+  els.deleteEditingPhoto.disabled = false;
+  els.deleteEditingPhoto.textContent = "删除整篇";
   els.saveEditStatus.textContent = "";
   els.editTitleInput.value = getDisplayTitle(photo);
   els.editDateInput.value = toDateInputValue(photo.taken_at);
   els.editCategoryInput.value = photo.category || "日常";
   els.editPublicInput.value = String(photo.is_public !== false);
   els.editNoteInput.value = getPlainNote(photo);
+  renderEditImages();
   els.editDialog.showModal();
 }
 
-async function savePhotoEdit(event) {
+async function savePhotoEditLegacy(event) {
   event.preventDefault();
   if (!supabase || !session || !editingPhoto) {
     els.saveEditStatus.textContent = "请先登录后再编辑。";
@@ -1011,6 +1037,184 @@ async function savePhotoEdit(event) {
   editingPhoto = null;
   await loadPhotos();
   setGlobalStatus("照片信息已更新。");
+}
+
+async function savePhotoEdit(event) {
+  event.preventDefault();
+  if (!supabase || !session || !editingPhoto || !editingImages.length) {
+    els.saveEditStatus.textContent = "请先登录，并至少保留一张照片。";
+    return;
+  }
+
+  const takenAt = els.editDateInput.value || toDateInputValue(new Date());
+  const title =
+    els.editTitleInput.value.trim() || makeCuteTitle(takenAt ? new Date(takenAt) : new Date());
+  const nextImages = [];
+  const newlyUploadedPaths = [];
+  els.saveEditStatus.textContent = "正在处理照片...";
+
+  try {
+    for (const [index, image] of editingImages.entries()) {
+      const replacement = editingImageFiles.get(index);
+      if (!replacement) {
+        nextImages.push(image);
+        continue;
+      }
+
+      const uploaded = await uploadImageFile(
+        replacement,
+        `${slugify(title)}-edit-${index + 1}`,
+        index + 1,
+        editingImages.length
+      );
+      if (!uploaded) throw new Error("替换图片上传失败。");
+      nextImages.push(uploaded);
+      if (uploaded.image_path) newlyUploadedPaths.push(uploaded.image_path);
+      if (image.image_path) editingRemovedPaths.add(image.image_path);
+    }
+
+    const primaryImage = nextImages[0];
+    const updates = {
+      title,
+      note: composeStoredNote(els.editNoteInput.value.trim(), nextImages),
+      category: els.editCategoryInput.value,
+      taken_at: takenAt,
+      is_public: els.editPublicInput.value === "true",
+      image_path: primaryImage.image_path || "",
+      image_url: primaryImage.image_url,
+      width: primaryImage.width,
+      height: primaryImage.height,
+    };
+
+    els.saveEditStatus.textContent = "正在保存...";
+    const { error } = await supabase
+      .from("photos")
+      .update(updates)
+      .eq("id", editingPhoto.id)
+      .eq("user_id", session.user.id);
+    if (error) throw error;
+
+    const pathsToRemove = [...editingRemovedPaths].filter(
+      (path) => path && !nextImages.some((image) => image.image_path === path)
+    );
+    if (pathsToRemove.length) {
+      const { error: cleanupError } = await supabase.storage
+        .from(BUCKET)
+        .remove(pathsToRemove);
+      if (cleanupError) {
+        console.warn("Album saved, but old image cleanup failed:", cleanupError);
+      }
+    }
+
+    els.editDialog.close();
+    editingPhoto = null;
+    resetEditImageState();
+    await loadPhotos();
+    setGlobalStatus("照片和合集内容已更新。");
+  } catch (error) {
+    els.saveEditStatus.textContent = error.message || "保存失败，请稍后重试。";
+    if (newlyUploadedPaths.length) {
+      void supabase.storage.from(BUCKET).remove(newlyUploadedPaths);
+    }
+  }
+}
+
+function renderEditImages() {
+  els.editImageCount.textContent = `${editingImages.length} 张`;
+  els.editImageList.innerHTML = editingImages
+    .map((image, index) => {
+      const file = editingImageFiles.get(index);
+      const previewUrl = file ? getEditPreviewUrl(file, index) : image.image_url;
+      return `
+        <article class="edit-image-item">
+          <span>${String(index + 1).padStart(2, "0")}</span>
+          <img src="${escapeHtml(previewUrl || "")}" alt="合集第 ${index + 1} 张" />
+          <div>
+            <button type="button" data-replace-edit-image="${index}">替换</button>
+            <button type="button" data-delete-edit-image="${index}">删除</button>
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+
+  els.editImageList.querySelectorAll("[data-replace-edit-image]").forEach((button) => {
+    button.addEventListener("click", () => {
+      editingReplaceIndex = Number(button.dataset.replaceEditImage);
+      els.editImageInput.value = "";
+      els.editImageInput.click();
+    });
+  });
+  els.editImageList.querySelectorAll("[data-delete-edit-image]").forEach((button) => {
+    button.addEventListener("click", () => removeEditingImage(Number(button.dataset.deleteEditImage)));
+  });
+}
+
+function getEditPreviewUrl(file, index) {
+  if (editingPreviewUrls[index]) return editingPreviewUrls[index];
+  const url = URL.createObjectURL(file);
+  editingPreviewUrls[index] = url;
+  return url;
+}
+
+function replaceEditingImage() {
+  const file = els.editImageInput.files?.[0];
+  if (!file || editingReplaceIndex < 0 || !editingImages[editingReplaceIndex]) return;
+  if (editingPreviewUrls[editingReplaceIndex]) {
+    URL.revokeObjectURL(editingPreviewUrls[editingReplaceIndex]);
+    editingPreviewUrls[editingReplaceIndex] = "";
+  }
+  editingImageFiles.set(editingReplaceIndex, file);
+  els.saveEditStatus.textContent = `第 ${editingReplaceIndex + 1} 张将在保存时替换。`;
+  editingReplaceIndex = -1;
+  renderEditImages();
+}
+
+function removeEditingImage(index) {
+  if (editingImages.length <= 1) {
+    els.saveEditStatus.textContent = "一篇笔记至少保留一张图片。";
+    return;
+  }
+  const image = editingImages[index];
+  if (!image || !window.confirm(`删除合集中的第 ${index + 1} 张图片？`)) return;
+  if (image.image_path) editingRemovedPaths.add(image.image_path);
+  if (editingPreviewUrls[index]) URL.revokeObjectURL(editingPreviewUrls[index]);
+  editingImages.splice(index, 1);
+  editingPreviewUrls.splice(index, 1);
+
+  const nextFiles = new Map();
+  editingImageFiles.forEach((file, fileIndex) => {
+    if (fileIndex < index) nextFiles.set(fileIndex, file);
+    if (fileIndex > index) nextFiles.set(fileIndex - 1, file);
+  });
+  editingImageFiles = nextFiles;
+  els.saveEditStatus.textContent = "图片将在保存后从合集中删除。";
+  renderEditImages();
+}
+
+function resetEditImageState() {
+  editingPreviewUrls.forEach((url) => {
+    if (url) URL.revokeObjectURL(url);
+  });
+  editingImages = [];
+  editingImageFiles = new Map();
+  editingRemovedPaths = new Set();
+  editingReplaceIndex = -1;
+  editingPreviewUrls = [];
+  if (els.editImageList) els.editImageList.innerHTML = "";
+}
+
+async function deletePhotoFromEditor() {
+  if (!editingPhoto) return;
+  const photo = editingPhoto;
+  const deleted = await deletePhoto(photo, els.deleteEditingPhoto);
+  if (deleted) {
+    els.editDialog.close();
+    els.deleteEditingPhoto.disabled = false;
+    els.deleteEditingPhoto.textContent = "删除整篇";
+    editingPhoto = null;
+    resetEditImageState();
+  }
 }
 
 function toDateInputValue(value) {
@@ -3095,8 +3299,11 @@ els.dialog.addEventListener("click", (event) => {
 els.dialogPrev.addEventListener("click", () => moveDialogImage(-1));
 els.dialogNext.addEventListener("click", () => moveDialogImage(1));
 els.editForm.addEventListener("submit", savePhotoEdit);
+els.editImageInput.addEventListener("change", replaceEditingImage);
+els.deleteEditingPhoto.addEventListener("click", deletePhotoFromEditor);
 els.closeEditDialog.addEventListener("click", () => {
   editingPhoto = null;
+  resetEditImageState();
   els.editDialog.close();
 });
 els.closeVipDialog.addEventListener("click", () => els.vipDialog.close());
