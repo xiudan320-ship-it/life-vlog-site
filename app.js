@@ -4,6 +4,7 @@ const VIP_RECHARGE_KEY = "life-vlog-vip-recharge";
 const RECIPES_KEY = "life-vlog-recipes";
 const WISHLIST_KEY = "life-vlog-wishlist";
 const WEEKEND_KEY = "life-vlog-weekend-plans";
+const ANNIVERSARY_KEY = "life-vlog-anniversaries";
 const FOOD_OPTIONS_KEY = "life-vlog-food-options";
 const PHOTO_FAVORITES_KEY = "life-vlog-photo-favorites";
 const EXPERIENCE_KEY = "life-vlog-experience";
@@ -99,6 +100,7 @@ let favoritesCloudAvailable = false;
 let recipes = [];
 let wishes = [];
 let weekendPlans = [];
+let anniversaries = [];
 let foodOptions = [];
 let activePage = "gallery";
 let activeFilter = "全部";
@@ -126,6 +128,8 @@ let wishImagePreviewUrl = "";
 let wishRemoveImageRequested = false;
 let weekendEditingId = null;
 let weekendCloudAvailable = false;
+let anniversaryEditingId = null;
+let anniversaryCloudAvailable = false;
 let foodWheelRotation = 0;
 let foodWheelSpinning = false;
 let cloudSyncAvailable = false;
@@ -249,6 +253,21 @@ const els = {
   foodOptionInput: document.querySelector("#foodOptionInput"),
   addFoodOption: document.querySelector("#addFoodOption"),
   foodOptions: document.querySelector("#foodOptions"),
+  anniversarySection: document.querySelector("#anniversarySection"),
+  anniversaryOpen: document.querySelector("#anniversaryOpen"),
+  anniversaryPeek: document.querySelector("#anniversaryPeek"),
+  anniversaryDialog: document.querySelector("#anniversaryDialog"),
+  anniversaryClose: document.querySelector("#anniversaryClose"),
+  anniversaryList: document.querySelector("#anniversaryList"),
+  anniversaryAdd: document.querySelector("#anniversaryAdd"),
+  anniversaryForm: document.querySelector("#anniversaryForm"),
+  anniversaryTitleInput: document.querySelector("#anniversaryTitleInput"),
+  anniversaryTypeInput: document.querySelector("#anniversaryTypeInput"),
+  anniversaryDateInput: document.querySelector("#anniversaryDateInput"),
+  anniversaryNoteInput: document.querySelector("#anniversaryNoteInput"),
+  anniversaryStatus: document.querySelector("#anniversaryStatus"),
+  anniversarySubmit: document.querySelector("#anniversarySubmit"),
+  anniversaryCancel: document.querySelector("#anniversaryCancel"),
   recipesPage: document.querySelector("#recipesPage"),
   recipeComposer: document.querySelector("#recipeComposer"),
   recipeToggle: document.querySelector("#recipeToggle"),
@@ -387,6 +406,7 @@ function updateAuthUI() {
   document.body.classList.toggle("vip-member", vip);
   document.body.dataset.vipLevel = String(activeVipLevel);
   els.composer.hidden = !signedIn;
+  els.anniversarySection.hidden = !signedIn;
   els.authCard.hidden = signedIn;
   els.userMenu.hidden = !signedIn;
   els.loginButton.hidden = signedIn;
@@ -409,11 +429,13 @@ function updateAuthUI() {
   recipes = signedIn ? loadRecipes() : [];
   wishes = signedIn ? loadWishes() : [];
   weekendPlans = signedIn ? loadWeekendPlans() : [];
+  anniversaries = signedIn ? loadAnniversaries() : [];
   favoritePhotoIds = signedIn ? loadLocalFavoritePhotoIds() : new Set();
   renderOverview();
   renderRecipes();
   renderWishes();
   renderWeekendPlans();
+  renderAnniversaries();
   renderFoodWheel();
   switchPage(activePage);
   setHint(
@@ -426,6 +448,7 @@ function updateAuthUI() {
   if (!signedIn) {
     cloudSyncAvailable = false;
     weekendCloudAvailable = false;
+    anniversaryCloudAvailable = false;
     favoritesCloudAvailable = false;
     cloudSyncInFlight = null;
     syncedUserId = "";
@@ -1913,6 +1936,7 @@ async function synchronizeAccountData() {
       renderRecipes();
       renderWishes();
       await synchronizeWeekendPlans(userId);
+      await synchronizeAnniversaries(userId);
       setGlobalStatus("云端数据已同步");
     } catch (error) {
       cloudSyncAvailable = false;
@@ -3261,6 +3285,354 @@ function setWishlistStatus(message) {
   els.wishlistStatus.textContent = message;
 }
 
+function getAnniversaryStorageKey() {
+  const name = session ? getSessionDisplayName() : "guest";
+  return `${ANNIVERSARY_KEY}:${String(name).toLowerCase()}`;
+}
+
+function createDefaultAnniversaries() {
+  const now = new Date().toISOString();
+  return [
+    {
+      id: crypto.randomUUID(),
+      title: "我和妻子",
+      type: "together",
+      date: "",
+      note: "在一起的日子",
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: crypto.randomUUID(),
+      title: "呱呱",
+      type: "pet",
+      date: "",
+      note: "记录呱呱的年龄",
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: crypto.randomUUID(),
+      title: "噗噗",
+      type: "pet",
+      date: "",
+      note: "记录噗噗的年龄",
+      createdAt: now,
+      updatedAt: now,
+    },
+  ];
+}
+
+function loadAnniversaries() {
+  const stored = localStorage.getItem(getAnniversaryStorageKey());
+  if (!stored) {
+    const defaults = createDefaultAnniversaries();
+    localStorage.setItem(getAnniversaryStorageKey(), JSON.stringify(defaults));
+    return defaults;
+  }
+  try {
+    const parsed = JSON.parse(stored);
+    return Array.isArray(parsed) ? parsed : createDefaultAnniversaries();
+  } catch {
+    return createDefaultAnniversaries();
+  }
+}
+
+function saveAnniversaries() {
+  if (!session) return;
+  localStorage.setItem(getAnniversaryStorageKey(), JSON.stringify(anniversaries));
+}
+
+function anniversaryToCloudRow(item, userId = session?.user?.id) {
+  return {
+    id: normalizeUuid(item.id),
+    user_id: userId,
+    title: item.title,
+    event_type: item.type || "annual",
+    event_date: item.date,
+    note: item.note || "",
+    created_at: item.createdAt || new Date().toISOString(),
+    updated_at: item.updatedAt || new Date().toISOString(),
+  };
+}
+
+function anniversaryFromCloudRow(row) {
+  return {
+    id: row.id,
+    title: row.title,
+    type: row.event_type,
+    date: row.event_date || "",
+    note: row.note || "",
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function parseLocalDay(value) {
+  const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+}
+
+function startOfToday() {
+  const today = new Date();
+  return new Date(today.getFullYear(), today.getMonth(), today.getDate());
+}
+
+function differenceInDays(later, earlier) {
+  return Math.max(0, Math.round((later.getTime() - earlier.getTime()) / 86_400_000));
+}
+
+function getCalendarAge(startDate, today) {
+  let years = today.getFullYear() - startDate.getFullYear();
+  let months = today.getMonth() - startDate.getMonth();
+  let days = today.getDate() - startDate.getDate();
+  if (days < 0) {
+    months -= 1;
+    days += new Date(today.getFullYear(), today.getMonth(), 0).getDate();
+  }
+  if (months < 0) {
+    years -= 1;
+    months += 12;
+  }
+  return {
+    years: Math.max(0, years),
+    months: Math.max(0, months),
+    days: Math.max(0, days),
+  };
+}
+
+function getAnniversaryMetrics(item) {
+  const start = parseLocalDay(item.date);
+  if (!start) {
+    return {
+      pending: true,
+      value: "设置日期",
+      unit: "",
+      detail: "点击编辑，填写这个重要日子的开始日期。",
+    };
+  }
+
+  const today = startOfToday();
+  if (item.type === "pet") {
+    const age = getCalendarAge(start, today);
+    return {
+      value: age.years,
+      unit: "岁",
+      detail: `${age.months} 个月 ${age.days} 天 · 已来到世界 ${differenceInDays(today, start)} 天`,
+    };
+  }
+
+  const totalDays = differenceInDays(today, start);
+  if (item.type === "together") {
+    return {
+      value: totalDays,
+      unit: "天",
+      detail: `从 ${formatDate(item.date)} 开始，一起走过的每一天。`,
+    };
+  }
+
+  let next = new Date(today.getFullYear(), start.getMonth(), start.getDate());
+  if (next < today) next = new Date(today.getFullYear() + 1, start.getMonth(), start.getDate());
+  const countdown = differenceInDays(next, today);
+  return {
+    value: countdown,
+    unit: countdown === 0 ? "就是今天" : "天后",
+    detail: `已经过去 ${totalDays} 天 · 下一次是 ${formatDate(next)}`,
+  };
+}
+
+function getAnniversaryTypeLabel(type) {
+  if (type === "pet") return "宠物年龄";
+  if (type === "together") return "相伴天数";
+  return "纪念日倒计时";
+}
+
+function renderAnniversaries() {
+  if (!els.anniversaryList) return;
+  if (!session) {
+    els.anniversaryList.innerHTML = "";
+    els.anniversaryPeek.textContent = "设置重要日子";
+    return;
+  }
+
+  els.anniversaryList.innerHTML = anniversaries
+    .map((item, index) => {
+      const metrics = getAnniversaryMetrics(item);
+      return `
+        <article class="anniversary-card ${metrics.pending ? "pending" : ""}">
+          <div class="anniversary-card-head">
+            <span class="anniversary-card-index">${getAnniversaryTypeLabel(item.type)} · ${String(index + 1).padStart(2, "0")}</span>
+            <div class="anniversary-card-actions">
+              <button type="button" data-edit-anniversary="${escapeHtml(item.id)}">编辑</button>
+              <button type="button" data-delete-anniversary="${escapeHtml(item.id)}">删除</button>
+            </div>
+          </div>
+          <div>
+            <h3>${escapeHtml(item.title)}</h3>
+            <p class="anniversary-value">
+              <strong>${escapeHtml(metrics.value)}</strong>
+              ${metrics.unit ? `<span>${escapeHtml(metrics.unit)}</span>` : ""}
+            </p>
+          </div>
+          <p class="anniversary-detail">${escapeHtml(item.note || metrics.detail)}</p>
+          ${item.note ? `<p class="anniversary-detail">${escapeHtml(metrics.detail)}</p>` : ""}
+        </article>
+      `;
+    })
+    .join("");
+
+  els.anniversaryList.querySelectorAll("[data-edit-anniversary]").forEach((button) => {
+    button.addEventListener("click", () => editAnniversary(button.dataset.editAnniversary));
+  });
+  els.anniversaryList.querySelectorAll("[data-delete-anniversary]").forEach((button) => {
+    button.addEventListener("click", () => deleteAnniversary(button.dataset.deleteAnniversary));
+  });
+
+  const relationship =
+    anniversaries.find((item) => item.type === "together" && item.date) ||
+    anniversaries.find((item) => item.date);
+  if (relationship) {
+    const metrics = getAnniversaryMetrics(relationship);
+    els.anniversaryPeek.textContent = `${relationship.title} ${metrics.value}${metrics.unit}`;
+  } else {
+    els.anniversaryPeek.textContent = "设置重要日子";
+  }
+}
+
+function setAnniversaryFormExpanded(expanded) {
+  els.anniversaryForm.hidden = !expanded;
+  els.anniversaryAdd.setAttribute("aria-expanded", String(expanded));
+  els.anniversaryAdd.textContent = expanded ? "收起编辑器" : "添加纪念日";
+}
+
+function resetAnniversaryForm() {
+  els.anniversaryForm.reset();
+  anniversaryEditingId = null;
+  els.anniversarySubmit.textContent = "保存";
+  els.anniversaryStatus.textContent = "";
+}
+
+function editAnniversary(id) {
+  const item = anniversaries.find((entry) => entry.id === id);
+  if (!item) return;
+  anniversaryEditingId = id;
+  els.anniversaryTitleInput.value = item.title || "";
+  els.anniversaryTypeInput.value = item.type || "annual";
+  els.anniversaryDateInput.value = item.date || "";
+  els.anniversaryNoteInput.value = item.note || "";
+  els.anniversarySubmit.textContent = "保存修改";
+  setAnniversaryFormExpanded(true);
+  els.anniversaryTitleInput.focus();
+}
+
+async function saveAnniversary(event) {
+  event.preventDefault();
+  if (!session) return;
+  const title = els.anniversaryTitleInput.value.trim();
+  const date = els.anniversaryDateInput.value;
+  if (!title || !date) {
+    els.anniversaryStatus.textContent = "请填写名称和日期。";
+    return;
+  }
+
+  const previous = anniversaries.find((item) => item.id === anniversaryEditingId);
+  let item = {
+    id: normalizeUuid(anniversaryEditingId),
+    title,
+    type: els.anniversaryTypeInput.value,
+    date,
+    note: els.anniversaryNoteInput.value.trim(),
+    createdAt: previous?.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  if (anniversaryCloudAvailable) {
+    const { data, error } = await supabase
+      .from("anniversaries")
+      .upsert(anniversaryToCloudRow(item), { onConflict: "id" })
+      .select("*")
+      .single();
+    if (error) {
+      els.anniversaryStatus.textContent = `同步失败：${error.message}`;
+      return;
+    }
+    item = anniversaryFromCloudRow(data);
+  }
+
+  anniversaries = previous
+    ? anniversaries.map((entry) => (entry.id === anniversaryEditingId ? item : entry))
+    : [item, ...anniversaries];
+  saveAnniversaries();
+  resetAnniversaryForm();
+  setAnniversaryFormExpanded(false);
+  renderAnniversaries();
+}
+
+async function deleteAnniversary(id) {
+  const item = anniversaries.find((entry) => entry.id === id);
+  if (!item || !window.confirm(`删除“${item.title}”？`)) return;
+  if (anniversaryCloudAvailable && item.date) {
+    const { error } = await supabase.from("anniversaries").delete().eq("id", id);
+    if (error) {
+      els.anniversaryStatus.textContent = `删除失败：${error.message}`;
+      return;
+    }
+  }
+  anniversaries = anniversaries.filter((entry) => entry.id !== id);
+  saveAnniversaries();
+  renderAnniversaries();
+}
+
+async function synchronizeAnniversaries(userId = session?.user?.id) {
+  if (!supabase || !session || !userId) return;
+  try {
+    const { data, error } = await supabase
+      .from("anniversaries")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true });
+    if (error) throw error;
+
+    let cloudItems = data || [];
+    const localItems = loadAnniversaries();
+    const migratableItems = localItems.filter((item) => item.date);
+    if (!cloudItems.length && migratableItems.length) {
+      const { error: migrateError } = await supabase
+        .from("anniversaries")
+        .upsert(migratableItems.map((item) => anniversaryToCloudRow(item, userId)), {
+          onConflict: "id",
+        });
+      if (migrateError) throw migrateError;
+      const refreshed = await supabase
+        .from("anniversaries")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: true });
+      if (refreshed.error) throw refreshed.error;
+      cloudItems = refreshed.data || [];
+    }
+
+    anniversaryCloudAvailable = true;
+    const cloudMapped = cloudItems.map(anniversaryFromCloudRow);
+    const cloudIds = new Set(cloudMapped.map((item) => item.id));
+    const pendingLocal = localItems.filter((item) => !item.date && !cloudIds.has(item.id));
+    anniversaries = cloudMapped.length ? [...cloudMapped, ...pendingLocal] : localItems;
+    saveAnniversaries();
+    renderAnniversaries();
+  } catch (error) {
+    anniversaryCloudAvailable = false;
+    anniversaries = loadAnniversaries();
+    renderAnniversaries();
+    if (isMissingCloudSchema(error)) {
+      els.anniversaryStatus.textContent =
+        "纪念日云表尚未初始化，当前先保存在此浏览器。";
+    } else {
+      els.anniversaryStatus.textContent = `纪念日同步失败：${error.message || "请稍后重试"}`;
+    }
+  }
+}
+
 function getWeekendStorageKey() {
   const name = session ? getSessionDisplayName() : "guest";
   return `${WEEKEND_KEY}:${String(name).toLowerCase()}`;
@@ -3504,6 +3876,24 @@ els.spinFoodWheel.addEventListener("click", spinFoodWheel);
 els.addFoodOption.addEventListener("click", addFoodOption);
 els.foodOptionInput.addEventListener("keydown", (event) => {
   if (event.key === "Enter") addFoodOption();
+});
+els.anniversaryOpen.addEventListener("click", () => {
+  renderAnniversaries();
+  els.anniversaryDialog.showModal();
+});
+els.anniversaryClose.addEventListener("click", () => els.anniversaryDialog.close());
+els.anniversaryDialog.addEventListener("click", (event) => {
+  if (event.target === els.anniversaryDialog) els.anniversaryDialog.close();
+});
+els.anniversaryAdd.addEventListener("click", () => {
+  const shouldExpand = els.anniversaryForm.hidden;
+  if (shouldExpand) resetAnniversaryForm();
+  setAnniversaryFormExpanded(shouldExpand);
+});
+els.anniversaryForm.addEventListener("submit", saveAnniversary);
+els.anniversaryCancel.addEventListener("click", () => {
+  resetAnniversaryForm();
+  setAnniversaryFormExpanded(false);
 });
 els.memoryButton.addEventListener("click", () => {
   const personalPhotos = photos.filter(
