@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>咻蛋之家</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
-    <link rel="stylesheet" href="./styles.css?v=20260609-34" />
-    <link rel="stylesheet" href="./redesign.css?v=20260609-34" />
+    <link rel="stylesheet" href="./styles.css?v=20260609-35" />
+    <link rel="stylesheet" href="./redesign.css?v=20260609-35" />
   </head>
   <body>
     <header class="topbar">
@@ -15,7 +15,7 @@
           <img class="brand-logo" src="./assets/black-cat-logo.png" alt="" />
         </span>
         <span>
-          <strong>咻蛋之家</strong>
+          <strong id="brandName">咻蛋之家</strong>
           <small>Life Archive</small>
         </span>
       </a>
@@ -53,6 +53,9 @@
             <button class="vip-popover-badge" id="vipPopoverBadge" type="button" hidden>
               咻蛋之家 VIP
             </button>
+            <button class="rename-home-button" id="renameHomeButton" type="button">
+              修改主页名称
+            </button>
             <button id="logoutButton" type="button">退出登录</button>
           </div>
         </div>
@@ -68,7 +71,7 @@
         />
         <div class="hero-copy">
           <p class="kicker">Life, collected carefully</p>
-          <h1>咻蛋之家</h1>
+          <h1 id="heroHomeName">咻蛋之家</h1>
           <p>收藏生活里值得回看的照片、味道和还没完成的小愿望。</p>
           <div class="hero-tags" aria-label="网站内容">
             <span>影像</span>
@@ -571,6 +574,31 @@
       </div>
     </dialog>
 
+    <dialog class="rename-home-dialog" id="renameHomeDialog">
+      <button class="dialog-close" id="closeRenameHome" type="button" aria-label="关闭">×</button>
+      <form id="renameHomeForm">
+        <div>
+          <p class="kicker">Home Name</p>
+          <h2>给这里取个名字</h2>
+          <p>会同步显示在左上角、封面和浏览器标签。</p>
+        </div>
+        <label>
+          主页名称
+          <input
+            id="homeNameInput"
+            maxlength="20"
+            required
+            placeholder="比如：呱噗之家"
+          />
+        </label>
+        <p class="status-line" id="homeNameStatus"></p>
+        <div class="rename-home-actions">
+          <button class="ghost-button" id="resetHomeName" type="button">恢复默认</button>
+          <button class="primary" type="submit">保存名称</button>
+        </div>
+      </form>
+    </dialog>
+
     <dialog id="photoDialog">
       <button class="dialog-close" id="closeDialog" type="button" aria-label="关闭">×</button>
       <div class="dialog-media">
@@ -651,7 +679,7 @@
       <section class="vip-center">
         <div class="vip-hero">
           <p class="kicker">Member Center</p>
-          <h2>咻蛋之家 VIP</h2>
+          <h2><span id="vipHomeName">咻蛋之家</span> VIP</h2>
           <p id="vipSummary">五级会员系统，解锁合集、质感上传、私密分享和导演模式。</p>
           <div class="vip-current">
             <span id="vipCurrentLevel">LV.5</span>
@@ -676,6 +704,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260609-34"></script>
+    <script type="module" src="./app.js?v=20260609-35"></script>
   </body>
 </html>
