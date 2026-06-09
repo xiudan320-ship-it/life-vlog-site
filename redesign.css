@@ -311,7 +311,7 @@ body.vip-member .hero {
 
 .food-wheel-section {
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(360px, 1.1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 440px);
   gap: clamp(28px, 5vw, 72px);
   align-items: center;
   margin: 22px 0 8px;
@@ -392,16 +392,26 @@ body.theme-dark .food-option-row button {
 }
 
 .food-wheel-stage {
-  position: relative;
-  display: grid;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   justify-items: center;
+  gap: 12px;
   min-width: 0;
+  width: 100%;
+}
+
+.wheel-disc {
+  position: relative;
+  width: min(100%, 380px);
+  aspect-ratio: 1;
+  margin-top: 18px;
 }
 
 #foodWheel {
   display: block;
-  width: min(100%, 440px);
-  height: auto;
+  width: 100%;
+  height: 100%;
   border-radius: 999px;
   filter: drop-shadow(0 22px 30px rgba(21, 24, 22, 0.18));
   transition: transform 4.2s cubic-bezier(0.12, 0.72, 0.12, 1);
@@ -413,7 +423,7 @@ body.theme-dark #foodWheel {
 
 .wheel-pointer {
   position: absolute;
-  top: -5px;
+  top: -20px;
   left: 50%;
   z-index: 2;
   width: 0;
@@ -451,7 +461,7 @@ body.theme-dark .wheel-pointer {
 
 .wheel-result {
   min-height: 30px;
-  margin-top: 16px;
+  margin: 0;
   color: var(--ink);
   font-size: 18px;
   font-weight: 850;
@@ -1094,8 +1104,8 @@ dialog {
     grid-template-columns: 1fr;
   }
 
-  #foodWheel {
-    width: min(100%, 390px);
+  .wheel-disc {
+    width: min(100%, 360px);
   }
 
   .hero {
