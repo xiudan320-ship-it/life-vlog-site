@@ -1250,6 +1250,15 @@ dialog {
 }
 
 @media (max-width: 700px) {
+  .edit-image-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .edit-form-actions {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+
   .food-wheel-launch {
     top: auto;
     right: 14px;
