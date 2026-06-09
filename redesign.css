@@ -507,17 +507,27 @@ body.theme-dark .food-option-row button {
   margin-top: 18px;
 }
 
+.wheel-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 50%;
+  box-shadow: 0 22px 30px rgba(21, 24, 22, 0.18);
+  contain: layout paint;
+}
+
 #foodWheel {
   display: block;
   width: 100%;
   height: 100%;
   border-radius: 999px;
-  filter: drop-shadow(0 22px 30px rgba(21, 24, 22, 0.18));
+  transform-origin: 50% 50%;
+  will-change: transform;
   transition: transform 4.2s cubic-bezier(0.12, 0.72, 0.12, 1);
 }
 
-body.theme-dark #foodWheel {
-  filter: drop-shadow(0 24px 34px rgba(0, 0, 0, 0.42));
+body.theme-dark .wheel-viewport {
+  box-shadow: 0 24px 34px rgba(0, 0, 0, 0.42);
 }
 
 .wheel-pointer {
@@ -558,7 +568,13 @@ body.theme-dark .wheel-pointer {
   transform: translate(-50%, -49%);
 }
 
+.spin-button:disabled {
+  cursor: wait;
+  opacity: 1;
+}
+
 .wheel-result {
+  width: 100%;
   min-height: 30px;
   margin: 0;
   color: var(--ink);
