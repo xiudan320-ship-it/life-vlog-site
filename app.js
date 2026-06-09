@@ -226,6 +226,10 @@ const els = {
   quickWish: document.querySelector("#quickWish"),
   quickWeekend: document.querySelector("#quickWeekend"),
   foodWheelSection: document.querySelector("#foodWheelSection"),
+  foodWheelOpen: document.querySelector("#foodWheelOpen"),
+  foodWheelDialog: document.querySelector("#foodWheelDialog"),
+  foodWheelClose: document.querySelector("#foodWheelClose"),
+  foodWheelPeek: document.querySelector("#foodWheelPeek"),
   foodWheel: document.querySelector("#foodWheel"),
   spinFoodWheel: document.querySelector("#spinFoodWheel"),
   foodWheelResult: document.querySelector("#foodWheelResult"),
@@ -1855,6 +1859,9 @@ function switchPage(page) {
   els.composer.hidden = activePage !== "gallery" || !session;
   els.overview.hidden = activePage !== "gallery" || !session;
   els.foodWheelSection.hidden = activePage !== "gallery";
+  if (activePage !== "gallery" && els.foodWheelDialog.open) {
+    els.foodWheelDialog.close();
+  }
   els.galleryHead.hidden = activePage !== "gallery";
   els.galleryFilters.hidden = activePage !== "gallery";
   els.gallery.hidden = activePage !== "gallery";
@@ -2010,8 +2017,23 @@ function spinFoodWheel() {
   window.setTimeout(() => {
     foodWheelSpinning = false;
     els.spinFoodWheel.disabled = false;
-    els.foodWheelResult.textContent = `今天就吃：${options[winnerIndex]}`;
+    const result = options[winnerIndex];
+    els.foodWheelResult.textContent = `今天就吃：${result}`;
+    els.foodWheelPeek.textContent = `今天吃 ${result}`;
   }, 4300);
+}
+
+function openFoodWheel() {
+  renderFoodWheel();
+  if (!els.foodWheelDialog.open) {
+    els.foodWheelDialog.showModal();
+  }
+}
+
+function closeFoodWheel() {
+  if (els.foodWheelDialog.open) {
+    els.foodWheelDialog.close();
+  }
 }
 
 function getRecipesStorageKey() {
@@ -2932,6 +2954,11 @@ els.galleryNav.addEventListener("click", () => switchPage("gallery"));
 els.recipesNav.addEventListener("click", () => switchPage("recipes"));
 els.wishlistNav.addEventListener("click", () => switchPage("wishlist"));
 els.weekendNav.addEventListener("click", () => switchPage("weekend"));
+els.foodWheelOpen.addEventListener("click", openFoodWheel);
+els.foodWheelClose.addEventListener("click", closeFoodWheel);
+els.foodWheelDialog.addEventListener("click", (event) => {
+  if (event.target === els.foodWheelDialog) closeFoodWheel();
+});
 els.spinFoodWheel.addEventListener("click", spinFoodWheel);
 els.addFoodOption.addEventListener("click", addFoodOption);
 els.foodOptionInput.addEventListener("keydown", (event) => {
