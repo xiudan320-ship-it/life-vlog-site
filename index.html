@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>咻蛋之家</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
-    <link rel="stylesheet" href="./styles.css?v=20260609-23" />
-    <link rel="stylesheet" href="./redesign.css?v=20260609-23" />
+    <link rel="stylesheet" href="./styles.css?v=20260609-24" />
+    <link rel="stylesheet" href="./redesign.css?v=20260609-24" />
   </head>
   <body>
     <header class="topbar">
@@ -74,26 +74,49 @@
         <img class="hero-cat" src="./assets/black-cat-logo.png" alt="" aria-hidden="true" />
       </section>
 
-      <section class="food-wheel-section" id="foodWheelSection">
-        <div class="food-wheel-copy">
-          <p class="kicker">Dinner Roulette</p>
-          <h2>今日吃什么</h2>
-          <p>把选择困难交给转盘。你的菜谱会自动加入候选，也可以临时添加今天想吃的。</p>
-          <div class="food-option-row">
-            <input id="foodOptionInput" maxlength="20" placeholder="加一个候选，比如寿喜烧" />
-            <button id="addFoodOption" type="button">加入转盘</button>
+      <aside class="food-wheel-section" id="foodWheelSection">
+        <button
+          class="food-wheel-launch"
+          id="foodWheelOpen"
+          type="button"
+          aria-haspopup="dialog"
+          aria-controls="foodWheelDialog"
+        >
+          <span class="food-wheel-launch-mark" aria-hidden="true"></span>
+          <strong>今日吃什么</strong>
+          <small id="foodWheelPeek">打开转盘</small>
+        </button>
+
+        <dialog class="food-wheel-dialog" id="foodWheelDialog">
+          <div class="food-wheel-dialog-head">
+            <div>
+              <p class="kicker">Dinner Roulette</p>
+              <h2>今日吃什么</h2>
+            </div>
+            <button class="food-wheel-close" id="foodWheelClose" type="button" aria-label="关闭">
+              ×
+            </button>
           </div>
-          <div class="food-options" id="foodOptions"></div>
-        </div>
-        <div class="food-wheel-stage">
-          <div class="wheel-disc">
-            <span class="wheel-pointer" aria-hidden="true"></span>
-            <canvas id="foodWheel" width="640" height="640" aria-label="今日吃什么转盘"></canvas>
-            <button class="spin-button" id="spinFoodWheel" type="button">开始转</button>
+          <div class="food-wheel-dialog-grid">
+            <div class="food-wheel-copy">
+              <p>把选择困难交给转盘。你的菜谱会自动加入候选，也可以临时添加今天想吃的。</p>
+              <div class="food-option-row">
+                <input id="foodOptionInput" maxlength="20" placeholder="加一个候选，比如寿喜烧" />
+                <button id="addFoodOption" type="button">加入转盘</button>
+              </div>
+              <div class="food-options" id="foodOptions"></div>
+            </div>
+            <div class="food-wheel-stage">
+              <div class="wheel-disc">
+                <span class="wheel-pointer" aria-hidden="true"></span>
+                <canvas id="foodWheel" width="640" height="640" aria-label="今日吃什么转盘"></canvas>
+                <button class="spin-button" id="spinFoodWheel" type="button">开始转</button>
+              </div>
+              <p class="wheel-result" id="foodWheelResult">今天吃点什么？</p>
+            </div>
           </div>
-          <p class="wheel-result" id="foodWheelResult">今天吃点什么？</p>
-        </div>
-      </section>
+        </dialog>
+      </aside>
 
       <section class="overview" id="overview" hidden>
         <div class="overview-head">
@@ -557,6 +580,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260609-23"></script>
+    <script type="module" src="./app.js?v=20260609-24"></script>
   </body>
 </html>
