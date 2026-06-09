@@ -657,7 +657,17 @@ async function uploadPhoto(event) {
   els.dateInput.valueAsDate = new Date();
   clearPhotoPreview();
   setUploadExpanded(false);
-  setStatus(images.length > 1 ? `已发布 1 篇合集，共 ${images.length} 张图。` : "上传完成，已回到照片流");
+  const localImages = images.filter((image) => Number.isFinite(image.original_size));
+  const originalBytes = localImages.reduce((sum, image) => sum + image.original_size, 0);
+  const uploadedBytes = localImages.reduce((sum, image) => sum + image.compressed_size, 0);
+  const savings =
+    originalBytes > 0 ? Math.max(0, Math.round((1 - uploadedBytes / originalBytes) * 100)) : 0;
+  const compressionSummary = originalBytes
+    ? ` 自动压缩 ${formatFileSize(originalBytes)} → ${formatFileSize(uploadedBytes)}，节省 ${savings}%。`
+    : "";
+  setStatus(
+    `${images.length > 1 ? `已发布 1 篇合集，共 ${images.length} 张图。` : "上传完成。"}${compressionSummary}`
+  );
   await loadPhotos();
   switchPage("gallery");
   els.galleryHead?.scrollIntoView({
@@ -685,38 +695,73 @@ async function insertPhotoRecord(finalTitle, images) {
   return error;
 }
 
-function compressImage(file) {
+function canvasToBlob(canvas, type, quality) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error("图片压缩失败。"));
+      },
+      type,
+      quality
+    );
+  });
+}
+
+function compressImage(file, options = null) {
   return new Promise((resolve, reject) => {
     const image = new Image();
     const objectUrl = URL.createObjectURL(file);
-    image.onload = () => {
+    image.onload = async () => {
       URL.revokeObjectURL(objectUrl);
-      const quality = getUploadQuality();
-      const maxSide = quality.maxSide;
-      const scale = Math.min(1, maxSide / Math.max(image.width, image.height));
-      const width = Math.round(image.width * scale);
-      const height = Math.round(image.height * scale);
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
+      try {
+        const settings = options || getUploadQuality();
+        const scale = Math.min(1, settings.maxSide / Math.max(image.width, image.height));
+        let width = Math.max(1, Math.round(image.width * scale));
+        let height = Math.max(1, Math.round(image.height * scale));
+        let quality = settings.jpeg;
+        let blob;
 
-      const context = canvas.getContext("2d");
-      context.drawImage(image, 0, 0, width, height);
-      canvas.toBlob(
-        (blob) => {
-          if (!blob) {
-            reject(new Error("图片压缩失败。"));
-            return;
+        for (let resizePass = 0; resizePass < 3; resizePass += 1) {
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const context = canvas.getContext("2d");
+          context.fillStyle = "#ffffff";
+          context.fillRect(0, 0, width, height);
+          context.drawImage(image, 0, 0, width, height);
+
+          quality = settings.jpeg;
+          blob = await canvasToBlob(canvas, "image/jpeg", quality);
+          while (blob.size > settings.targetBytes && quality > settings.minJpeg) {
+            quality = Math.max(settings.minJpeg, quality - 0.07);
+            blob = await canvasToBlob(canvas, "image/jpeg", quality);
           }
-          resolve({ blob, width, height });
-        },
-        "image/jpeg",
-        quality.jpeg
-      );
+
+          if (blob.size <= settings.targetBytes || resizePass === 2) break;
+          const reduction = Math.max(
+            0.68,
+            Math.min(0.9, Math.sqrt(settings.targetBytes / blob.size) * 0.94)
+          );
+          width = Math.max(1, Math.round(width * reduction));
+          height = Math.max(1, Math.round(height * reduction));
+        }
+
+        resolve({
+          blob,
+          width,
+          height,
+          originalBytes: file.size,
+          compressedBytes: blob.size,
+          quality,
+        });
+      } catch (error) {
+        reject(error);
+      }
     };
     image.onerror = () => {
       URL.revokeObjectURL(objectUrl);
-      reject(new Error("图片读取失败。"));
+      reject(new Error("图片读取失败，请换一张图片重试。"));
     };
     image.src = objectUrl;
   });
@@ -724,11 +769,19 @@ function compressImage(file) {
 
 async function uploadImageFile(file, safeName, index = 1, total = 1) {
   const prefix = total > 1 ? `${index}/${total} · ` : "";
-  setStatus(`${prefix}正在压缩图片...`);
-  const compressed = await compressImage(file);
+  setStatus(`${prefix}正在自动压缩图片...`);
+  let compressed;
+  try {
+    compressed = await compressImage(file);
+  } catch (error) {
+    setStatus(error.message || "图片压缩失败。");
+    return null;
+  }
   const path = `${session.user.id}/${Date.now()}-${safeName}.jpg`;
 
-  setStatus(`${prefix}正在上传...`);
+  setStatus(
+    `${prefix}已压缩 ${formatFileSize(file.size)} → ${formatFileSize(compressed.blob.size)}，正在上传...`
+  );
   const { error: uploadError } = await supabase.storage
     .from(BUCKET)
     .upload(path, compressed.blob, {
@@ -748,6 +801,8 @@ async function uploadImageFile(file, safeName, index = 1, total = 1) {
     image_url: publicUrlData.publicUrl,
     width: compressed.width,
     height: compressed.height,
+    original_size: compressed.originalBytes,
+    compressed_size: compressed.compressedBytes,
   };
 }
 
@@ -1895,9 +1950,20 @@ function getCurrentImageLimit() {
 }
 
 function getUploadQuality() {
-  if (activeVipLevel >= 5) return { maxSide: 3200, jpeg: 0.92 };
-  if (activeVipLevel >= 3) return { maxSide: 2400, jpeg: 0.9 };
-  return { maxSide: 1800, jpeg: 0.86 };
+  if (activeVipLevel >= 5) {
+    return { maxSide: 2800, jpeg: 0.9, minJpeg: 0.69, targetBytes: 1_600_000 };
+  }
+  if (activeVipLevel >= 3) {
+    return { maxSide: 2200, jpeg: 0.87, minJpeg: 0.66, targetBytes: 1_200_000 };
+  }
+  return { maxSide: 1800, jpeg: 0.84, minJpeg: 0.62, targetBytes: 850_000 };
+}
+
+function formatFileSize(bytes) {
+  const size = Math.max(0, Number(bytes) || 0);
+  if (size < 1024) return `${Math.round(size)} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(size < 10240 ? 1 : 0)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(2)} MB`;
 }
 
 function getRechargeStorageKey(displayName = getSessionDisplayName()) {
@@ -2565,29 +2631,23 @@ async function getRecipeCoverForSave() {
   }
 }
 
-function compressRecipeCover(file) {
+function blobToDataUrl(blob) {
   return new Promise((resolve, reject) => {
-    const image = new Image();
-    const objectUrl = URL.createObjectURL(file);
-    image.onload = () => {
-      URL.revokeObjectURL(objectUrl);
-      const maxSide = 1000;
-      const scale = Math.min(1, maxSide / Math.max(image.width, image.height));
-      const width = Math.round(image.width * scale);
-      const height = Math.round(image.height * scale);
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-      const context = canvas.getContext("2d");
-      context.drawImage(image, 0, 0, width, height);
-      resolve(canvas.toDataURL("image/jpeg", 0.82));
-    };
-    image.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      reject(new Error("图片读取失败"));
-    };
-    image.src = objectUrl;
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("图片读取失败。"));
+    reader.readAsDataURL(blob);
   });
+}
+
+async function compressRecipeCover(file) {
+  const compressed = await compressImage(file, {
+    maxSide: 1200,
+    jpeg: 0.82,
+    minJpeg: 0.62,
+    targetBytes: 360_000,
+  });
+  return blobToDataUrl(compressed.blob);
 }
 
 function updateRecipeCoverPreview() {
@@ -2937,7 +2997,9 @@ async function uploadWishImage(file, title) {
   setWishlistStatus("正在压缩心愿图片…");
   const compressed = await compressImage(file);
   const path = `${session.user.id}/wishes/${Date.now()}-${slugify(title)}.jpg`;
-  setWishlistStatus("正在上传心愿图片…");
+  setWishlistStatus(
+    `已压缩 ${formatFileSize(file.size)} → ${formatFileSize(compressed.blob.size)}，正在上传心愿图片…`
+  );
   const { error } = await supabase.storage.from(BUCKET).upload(path, compressed.blob, {
     contentType: "image/jpeg",
     upsert: false,
