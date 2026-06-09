@@ -13,6 +13,10 @@ create table if not exists public.user_profiles (
   updated_at timestamptz not null default now()
 );
 
+alter table public.user_profiles
+  add column if not exists theme_preference text
+  check (theme_preference in ('light', 'dark'));
+
 create table if not exists public.recipes (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
