@@ -816,6 +816,21 @@ textarea:focus {
   background: rgba(50, 184, 150, 0.05);
 }
 
+.compression-note {
+  margin-top: -7px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.compression-note::before {
+  color: var(--accent-strong);
+  content: "AUTO COMPRESS · ";
+  font-size: 10px;
+  font-weight: 850;
+}
+
 body.theme-dark .recipe-cover-drop {
   background: rgba(85, 214, 181, 0.05);
 }
