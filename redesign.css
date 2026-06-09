@@ -222,6 +222,19 @@ body.theme-dark .user-popover {
   border-radius: 6px;
 }
 
+.user-popover .rename-home-button {
+  margin-bottom: 8px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+}
+
+body.theme-dark .user-popover .rename-home-button {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.04);
+  color: #f0f4ef;
+}
+
 body.theme-dark #logoutButton {
   border-color: rgba(255, 255, 255, 0.16);
   background: rgba(255, 255, 255, 0.07);
@@ -290,6 +303,12 @@ body.vip-member .hero {
   font-weight: 850;
   line-height: 0.94;
   text-shadow: 0 3px 24px rgba(0, 0, 0, 0.38);
+}
+
+.hero h1.long-home-name {
+  max-width: 560px;
+  font-size: clamp(38px, 5vw, 64px);
+  line-height: 1;
 }
 
 .hero p:last-of-type {
@@ -446,6 +465,39 @@ body.theme-dark .anniversary-launch {
   max-height: calc(100dvh - 36px);
   overflow: auto;
   border-radius: 8px;
+}
+
+.rename-home-dialog {
+  width: min(520px, calc(100% - 24px));
+  border-radius: 8px;
+}
+
+.rename-home-dialog form {
+  display: grid;
+  gap: 18px;
+  padding: 28px;
+}
+
+.rename-home-dialog form > div:first-child {
+  display: grid;
+  gap: 7px;
+  padding-right: 42px;
+}
+
+.rename-home-dialog form > div:first-child p:last-child {
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.rename-home-actions {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+}
+
+.rename-home-actions .primary,
+.rename-home-actions .ghost-button {
+  min-height: 46px;
 }
 
 .anniversary-dialog::backdrop {
@@ -1649,6 +1701,14 @@ dialog {
     grid-column: auto;
   }
 
+  .rename-home-dialog form {
+    padding: 22px 18px 18px;
+  }
+
+  .rename-home-actions {
+    grid-template-columns: 1fr;
+  }
+
   .food-wheel-launch:hover {
     transform: translateY(-2px);
   }
@@ -1742,6 +1802,12 @@ dialog {
 
   .hero h1 {
     font-size: 38px;
+  }
+
+  .hero h1.long-home-name {
+    max-width: 310px;
+    font-size: 29px;
+    line-height: 1.08;
   }
 
   .hero p:last-of-type {
