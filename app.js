@@ -731,8 +731,8 @@ function renderGallery() {
   });
 
   els.gallery.querySelectorAll("button[data-delete-index]").forEach((button) => {
-    button.addEventListener("click", () => {
-      deletePhoto(visible[Number(button.dataset.deleteIndex)]);
+    button.addEventListener("click", async () => {
+      await deletePhoto(visible[Number(button.dataset.deleteIndex)], button);
     });
   });
 
@@ -894,41 +894,68 @@ function updatePager(totalPages, totalItems) {
   els.nextPage.disabled = currentPage >= totalPages;
 }
 
-async function deletePhoto(photo) {
+async function deletePhoto(photo, triggerButton = null) {
   if (!supabase || !session || !photo) {
     setGlobalStatus("请先登录后再删除照片。");
     return;
   }
 
-  const ok = window.confirm(`删除“${photo.title || "这张照片"}”？`);
+  if (photo.user_id && photo.user_id !== session.user.id) {
+    setGlobalStatus("只能删除自己上传的照片。");
+    return;
+  }
+
+  const ok = window.confirm(`删除“${getDisplayTitle(photo)}”？删除后无法恢复。`);
   if (!ok) return;
 
   setGlobalStatus("正在删除照片...");
+  const originalButtonText = triggerButton?.textContent || "删除";
+  if (triggerButton) {
+    triggerButton.disabled = true;
+    triggerButton.textContent = "删除中";
+  }
 
   const storagePaths = [
     ...new Set(getPhotoImages(photo).map((image) => image.image_path).filter(Boolean)),
   ];
 
-  if (storagePaths.length) {
-    const { error: storageError } = await supabase.storage
-      .from(BUCKET)
-      .remove(storagePaths);
+  try {
+    const { data: deletedRows, error: deleteError } = await supabase
+      .from("photos")
+      .delete()
+      .eq("id", photo.id)
+      .eq("user_id", session.user.id)
+      .select("id");
 
-    if (storageError) {
-      setGlobalStatus(`删除图片文件失败：${storageError.message}`);
-      return;
+    if (deleteError) {
+      throw new Error(`数据库删除失败：${deleteError.message}`);
+    }
+    if (!deletedRows?.length) {
+      throw new Error("数据库没有删除任何记录，请重新运行最新的 Supabase SQL 权限脚本。");
+    }
+
+    photos = photos.filter((item) => item.id !== photo.id);
+    renderGallery();
+    setGlobalStatus("照片已删除。");
+
+    if (storagePaths.length) {
+      const { error: storageError } = await supabase.storage
+        .from(BUCKET)
+        .remove(storagePaths);
+      if (storageError) {
+        console.warn("Photo record deleted, but storage cleanup failed:", storageError);
+        setGlobalStatus("照片已删除，云端原图清理稍后再试，不影响相册。");
+      }
+    }
+
+    await loadPhotos();
+  } catch (error) {
+    setGlobalStatus(error.message || "删除失败，请稍后重试。");
+    if (triggerButton?.isConnected) {
+      triggerButton.disabled = false;
+      triggerButton.textContent = originalButtonText;
     }
   }
-
-  const { error } = await supabase.from("photos").delete().eq("id", photo.id);
-  if (error) {
-    setGlobalStatus(`删除记录失败：${error.message}`);
-    return;
-  }
-
-  photos = photos.filter((item) => item.id !== photo.id);
-  setGlobalStatus("照片已删除。");
-  renderGallery();
 }
 
 function openPhoto(photo) {
