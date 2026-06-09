@@ -381,6 +381,259 @@ body.theme-dark .food-wheel-launch {
   box-shadow: 0 18px 55px rgba(0, 0, 0, 0.4);
 }
 
+.anniversary-section {
+  display: block;
+  height: 0;
+  margin: 0;
+}
+
+.anniversary-launch {
+  position: fixed;
+  top: 48%;
+  left: 18px;
+  z-index: 24;
+  display: grid;
+  width: 78px;
+  justify-items: center;
+  gap: 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 18px 50px rgba(21, 24, 22, 0.16);
+  padding: 12px 9px;
+  transform: translateY(-50%);
+}
+
+.anniversary-launch:hover {
+  border-color: var(--accent);
+  transform: translateY(-50%) translateX(3px);
+}
+
+.anniversary-launch-mark {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border: 3px solid var(--ink);
+  border-radius: 50%;
+  background: var(--accent);
+  color: #102015;
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.anniversary-launch strong {
+  font-size: 14px;
+  line-height: 1.25;
+  writing-mode: vertical-rl;
+}
+
+.anniversary-launch small {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.25;
+}
+
+body.theme-dark .anniversary-launch {
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 18px 55px rgba(0, 0, 0, 0.4);
+}
+
+.anniversary-dialog {
+  width: min(calc(100% - 36px), 920px);
+  max-width: none;
+  max-height: calc(100dvh - 36px);
+  overflow: auto;
+  border-radius: 8px;
+}
+
+.anniversary-dialog::backdrop {
+  background: rgba(9, 12, 10, 0.72);
+  backdrop-filter: blur(8px);
+}
+
+.anniversary-dialog-head {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface) 95%, transparent);
+  padding: 24px 28px 20px;
+}
+
+.anniversary-dialog-head > div {
+  display: grid;
+  gap: 5px;
+}
+
+.anniversary-dialog-head h2 {
+  font-size: 42px;
+}
+
+.anniversary-dialog-head p:last-child {
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.anniversary-close {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 28px;
+  line-height: 1;
+}
+
+body.theme-dark .anniversary-close {
+  border-color: rgba(255, 255, 255, 0.42);
+  background: rgba(255, 255, 255, 0.06);
+  color: #f0f4ef;
+}
+
+.anniversary-dialog-body {
+  display: grid;
+  gap: 20px;
+  padding: 24px 28px 28px;
+}
+
+.anniversary-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.anniversary-card {
+  display: grid;
+  min-height: 190px;
+  align-content: space-between;
+  gap: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 18px;
+}
+
+.anniversary-card:first-child {
+  grid-column: 1 / -1;
+  background:
+    linear-gradient(110deg, rgba(91, 152, 52, 0.18), transparent 58%),
+    var(--surface);
+}
+
+.anniversary-card-head,
+.anniversary-card-actions,
+.anniversary-form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.anniversary-card-index {
+  color: var(--accent-strong);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.anniversary-card-actions {
+  justify-content: flex-end;
+}
+
+.anniversary-card-actions button {
+  min-height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  padding: 0 10px;
+}
+
+.anniversary-card-actions button[data-delete-anniversary] {
+  border-color: rgba(240, 100, 80, 0.4);
+  color: var(--coral);
+}
+
+.anniversary-card h3 {
+  font-size: 26px;
+  line-height: 1.1;
+}
+
+.anniversary-value {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--ink);
+}
+
+.anniversary-value strong {
+  font-size: clamp(42px, 8vw, 68px);
+  line-height: 0.9;
+}
+
+.anniversary-value span {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.anniversary-detail {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.anniversary-card.pending .anniversary-value strong {
+  font-size: 28px;
+}
+
+.anniversary-editor {
+  display: grid;
+  gap: 14px;
+  border-top: 1px solid var(--line);
+  padding-top: 20px;
+}
+
+.anniversary-add {
+  justify-self: start;
+  min-height: 42px;
+  border: 1px solid var(--ink);
+  border-radius: 6px;
+  background: var(--ink);
+  color: var(--surface);
+  font-weight: 850;
+  padding: 0 17px;
+}
+
+.anniversary-editor form {
+  display: grid;
+  gap: 15px;
+}
+
+.anniversary-form-actions {
+  justify-content: flex-start;
+}
+
+.anniversary-form-actions .primary,
+.anniversary-form-actions .ghost-button {
+  min-width: 130px;
+}
+
+body.theme-dark .anniversary-card:first-child {
+  background:
+    linear-gradient(110deg, rgba(139, 201, 95, 0.13), transparent 58%),
+    var(--surface);
+}
+
 .food-wheel-dialog {
   width: min(calc(100% - 36px), 1060px);
   max-width: none;
@@ -1339,6 +1592,61 @@ dialog {
     gap: 10px;
     padding: 7px 12px 7px 8px;
     transform: none;
+  }
+
+  .anniversary-launch {
+    top: auto;
+    right: auto;
+    bottom: 16px;
+    left: 14px;
+    display: flex;
+    width: auto;
+    min-height: 52px;
+    gap: 10px;
+    padding: 7px 10px 7px 8px;
+    transform: none;
+  }
+
+  .anniversary-launch:hover {
+    transform: translateY(-2px);
+  }
+
+  .anniversary-launch-mark {
+    width: 36px;
+    height: 36px;
+    border-width: 2px;
+    font-size: 16px;
+  }
+
+  .anniversary-launch strong {
+    font-size: 13px;
+    writing-mode: horizontal-tb;
+  }
+
+  .anniversary-launch small {
+    display: none;
+  }
+
+  .anniversary-dialog {
+    width: calc(100% - 18px);
+    max-height: calc(100dvh - 18px);
+  }
+
+  .anniversary-dialog-head,
+  .anniversary-dialog-body {
+    padding: 18px;
+  }
+
+  .anniversary-dialog-head h2 {
+    font-size: 32px;
+  }
+
+  .anniversary-list {
+    grid-template-columns: 1fr;
+  }
+
+  .anniversary-card:first-child {
+    grid-column: auto;
   }
 
   .food-wheel-launch:hover {
