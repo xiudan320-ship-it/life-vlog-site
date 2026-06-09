@@ -17,6 +17,17 @@ alter table public.user_profiles
   add column if not exists theme_preference text
   check (theme_preference in ('light', 'dark'));
 
+alter table public.photos
+  add column if not exists is_featured boolean not null default false,
+  add column if not exists is_pinned boolean not null default false;
+
+create table if not exists public.photo_favorites (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  photo_id uuid not null references public.photos(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (user_id, photo_id)
+);
+
 create table if not exists public.recipes (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -69,10 +80,17 @@ create index if not exists wishes_user_done_created_idx
 create index if not exists weekend_plans_user_date_idx
   on public.weekend_plans (user_id, plan_date asc);
 
+create index if not exists photos_featured_date_idx
+  on public.photos (is_featured, taken_at desc);
+
+create index if not exists photos_pinned_date_idx
+  on public.photos (is_pinned, taken_at desc);
+
 alter table public.user_profiles enable row level security;
 alter table public.recipes enable row level security;
 alter table public.wishes enable row level security;
 alter table public.weekend_plans enable row level security;
+alter table public.photo_favorites enable row level security;
 
 grant usage on schema public to authenticated;
 grant select, insert, update on public.user_profiles to authenticated;
@@ -80,6 +98,7 @@ grant select, insert, update, delete on public.recipes to authenticated;
 grant select, insert, update, delete on public.wishes to authenticated;
 grant select, insert, update, delete on public.weekend_plans to authenticated;
 grant select, insert, update, delete on public.photos to authenticated;
+grant select, insert, delete on public.photo_favorites to authenticated;
 
 drop policy if exists "Users can read their own profile" on public.user_profiles;
 drop policy if exists "Users can create their own profile" on public.user_profiles;
@@ -97,6 +116,10 @@ drop policy if exists "Users can create their own weekend plans" on public.weeke
 drop policy if exists "Users can update their own weekend plans" on public.weekend_plans;
 drop policy if exists "Users can delete their own weekend plans" on public.weekend_plans;
 drop policy if exists "Users can delete their own photos" on public.photos;
+drop policy if exists "Users can update their own photos" on public.photos;
+drop policy if exists "Users can read their own photo favorites" on public.photo_favorites;
+drop policy if exists "Users can create their own photo favorites" on public.photo_favorites;
+drop policy if exists "Users can delete their own photo favorites" on public.photo_favorites;
 
 create policy "Users can read their own profile"
   on public.user_profiles for select
@@ -164,6 +187,23 @@ create policy "Users can delete their own weekend plans"
 
 create policy "Users can delete their own photos"
   on public.photos for delete
+  using (auth.uid() = user_id);
+
+create policy "Users can update their own photos"
+  on public.photos for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create policy "Users can read their own photo favorites"
+  on public.photo_favorites for select
+  using (auth.uid() = user_id);
+
+create policy "Users can create their own photo favorites"
+  on public.photo_favorites for insert
+  with check (auth.uid() = user_id);
+
+create policy "Users can delete their own photo favorites"
+  on public.photo_favorites for delete
   using (auth.uid() = user_id);
 
 drop policy if exists "Users can delete their own life photos" on storage.objects;
