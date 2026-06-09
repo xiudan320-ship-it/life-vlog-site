@@ -13,6 +13,8 @@ const DEFAULT_SUPABASE_ANON_KEY = "sb_publishable_G0ZHVQG0XYB2zja9VHiJiQ_HKDUt_f
 const VIP_USERS = new Set(["xiao980320"]);
 const MEDIA_META_START = "<!--life-vlog-media:";
 const MEDIA_META_END = "-->";
+const WISH_MEDIA_META_START = "<!--life-vlog-wish-media:";
+const WISH_MEDIA_META_END = "-->";
 
 const VIP_LEVELS = [
   {
@@ -101,6 +103,11 @@ let activeVipLevel = 1;
 let recipeEditingId = null;
 let recipeExistingCover = "";
 let recipeCoverPreviewUrl = "";
+let wishEditingId = null;
+let wishExistingImage = "";
+let wishExistingImagePath = "";
+let wishImagePreviewUrl = "";
+let wishRemoveImageRequested = false;
 let cloudSyncAvailable = false;
 let cloudSyncInFlight = null;
 let syncedUserId = "";
@@ -229,12 +236,20 @@ const els = {
   wishlistPage: document.querySelector("#wishlistPage"),
   wishlistComposer: document.querySelector("#wishlistComposer"),
   wishlistToggle: document.querySelector("#wishlistToggle"),
+  wishlistFormTitle: document.querySelector("#wishlistFormTitle"),
   wishlistForm: document.querySelector("#wishlistForm"),
+  wishImageDrop: document.querySelector("#wishImageDrop"),
+  wishImageInput: document.querySelector("#wishImageInput"),
+  wishImagePreview: document.querySelector("#wishImagePreview"),
+  wishImageName: document.querySelector("#wishImageName"),
+  wishRemoveImage: document.querySelector("#wishRemoveImage"),
   wishTitleInput: document.querySelector("#wishTitleInput"),
   wishTypeInput: document.querySelector("#wishTypeInput"),
   wishDateInput: document.querySelector("#wishDateInput"),
   wishPriorityInput: document.querySelector("#wishPriorityInput"),
   wishNoteInput: document.querySelector("#wishNoteInput"),
+  wishSubmitButton: document.querySelector("#wishSubmitButton"),
+  wishCancelEdit: document.querySelector("#wishCancelEdit"),
   wishlistStatus: document.querySelector("#wishlistStatus"),
   wishlistList: document.querySelector("#wishlistList"),
 };
@@ -1082,7 +1097,7 @@ function wishToCloudRow(wish, userId = session?.user?.id) {
     wish_type: wish.type || "想做",
     planned_date: wish.date || null,
     priority: wish.priority || "普通",
-    note: wish.note || "",
+    note: composeWishStoredNote(wish.note, wish.imageUrl, wish.imagePath),
     is_done: Boolean(wish.done),
     completed_at: wish.completedAt || null,
     created_at: wish.createdAt || new Date().toISOString(),
@@ -1091,13 +1106,16 @@ function wishToCloudRow(wish, userId = session?.user?.id) {
 }
 
 function wishFromCloudRow(row) {
+  const media = parseWishStoredNote(row.note);
   return {
     id: row.id,
     title: row.title,
     type: row.wish_type,
     date: row.planned_date || "",
     priority: row.priority,
-    note: row.note || "",
+    note: media.note,
+    imageUrl: media.imageUrl,
+    imagePath: media.imagePath,
     done: Boolean(row.is_done),
     completedAt: row.completed_at || "",
     createdAt: row.created_at,
@@ -2033,6 +2051,127 @@ function setWishlistExpanded(expanded) {
   els.wishlistToggle.setAttribute("aria-expanded", String(expanded));
 }
 
+function composeWishStoredNote(note, imageUrl = "", imagePath = "") {
+  const cleanNote = String(note || "").trim();
+  if (!imageUrl) return cleanNote;
+  const payload = encodeURIComponent(JSON.stringify({ imageUrl, imagePath }));
+  return `${cleanNote}${cleanNote ? "\n\n" : ""}${WISH_MEDIA_META_START}${payload}${WISH_MEDIA_META_END}`;
+}
+
+function parseWishStoredNote(value) {
+  const text = String(value || "");
+  const start = text.indexOf(WISH_MEDIA_META_START);
+  if (start === -1) return { note: text.trim(), imageUrl: "", imagePath: "" };
+  const payloadStart = start + WISH_MEDIA_META_START.length;
+  const end = text.indexOf(WISH_MEDIA_META_END, payloadStart);
+  if (end === -1) return { note: text.trim(), imageUrl: "", imagePath: "" };
+
+  try {
+    const media = JSON.parse(decodeURIComponent(text.slice(payloadStart, end)));
+    return {
+      note: `${text.slice(0, start)}${text.slice(end + WISH_MEDIA_META_END.length)}`.trim(),
+      imageUrl: media.imageUrl || "",
+      imagePath: media.imagePath || "",
+    };
+  } catch {
+    return { note: text.trim(), imageUrl: "", imagePath: "" };
+  }
+}
+
+function updateWishImagePreview() {
+  const file = els.wishImageInput.files?.[0];
+  if (!file) return;
+  if (wishImagePreviewUrl) URL.revokeObjectURL(wishImagePreviewUrl);
+  wishImagePreviewUrl = URL.createObjectURL(file);
+  wishRemoveImageRequested = false;
+  els.wishImagePreview.src = wishImagePreviewUrl;
+  els.wishImagePreview.hidden = false;
+  els.wishImageName.textContent = file.name;
+  els.wishRemoveImage.hidden = false;
+}
+
+function setWishImagePreview(src, name = "已保存的心愿图片") {
+  clearWishImagePreview();
+  if (!src) return;
+  wishExistingImage = src;
+  els.wishImagePreview.src = src;
+  els.wishImagePreview.hidden = false;
+  els.wishImageName.textContent = name;
+  els.wishRemoveImage.hidden = false;
+}
+
+function clearWishImagePreview() {
+  if (wishImagePreviewUrl) {
+    URL.revokeObjectURL(wishImagePreviewUrl);
+    wishImagePreviewUrl = "";
+  }
+  els.wishImageInput.value = "";
+  els.wishImagePreview.removeAttribute("src");
+  els.wishImagePreview.hidden = true;
+  els.wishImageName.textContent = "还没有选择图片";
+  els.wishRemoveImage.hidden = true;
+}
+
+function removeWishImage() {
+  clearWishImagePreview();
+  wishExistingImage = "";
+  wishRemoveImageRequested = true;
+}
+
+function handleWishImagePaste(event) {
+  const imageItem = Array.from(event.clipboardData?.items || []).find((item) =>
+    item.type.startsWith("image/")
+  );
+  if (!imageItem) return;
+  const file = imageItem.getAsFile();
+  if (!file) return;
+
+  event.preventDefault();
+  const extension = file.type?.split("/")[1] || "png";
+  const transfer = new DataTransfer();
+  transfer.items.add(
+    new File([file], `wish-${Date.now()}.${extension}`, {
+      type: file.type || "image/png",
+    })
+  );
+  els.wishImageInput.files = transfer.files;
+  updateWishImagePreview();
+  setWishlistStatus("已读取剪切板图片。");
+}
+
+async function uploadWishImage(file, title) {
+  if (!file) {
+    return {
+      imageUrl: wishRemoveImageRequested ? "" : wishExistingImage,
+      imagePath: wishRemoveImageRequested ? "" : wishExistingImagePath,
+    };
+  }
+
+  setWishlistStatus("正在压缩心愿图片…");
+  const compressed = await compressImage(file);
+  const path = `${session.user.id}/wishes/${Date.now()}-${slugify(title)}.jpg`;
+  setWishlistStatus("正在上传心愿图片…");
+  const { error } = await supabase.storage.from(BUCKET).upload(path, compressed.blob, {
+    contentType: "image/jpeg",
+    upsert: false,
+  });
+  if (error) throw error;
+  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
+  return { imageUrl: data.publicUrl, imagePath: path };
+}
+
+function resetWishForm() {
+  els.wishlistForm.reset();
+  wishEditingId = null;
+  wishExistingImage = "";
+  wishExistingImagePath = "";
+  wishRemoveImageRequested = false;
+  clearWishImagePreview();
+  els.wishlistFormTitle.textContent = "添加心愿";
+  els.wishSubmitButton.textContent = "保存心愿";
+  els.wishCancelEdit.hidden = true;
+}
+
 function getWishlistStorageKey() {
   const name = session ? getSessionDisplayName() : "guest";
   return `${WISHLIST_KEY}:${String(name).toLowerCase()}`;
@@ -2065,36 +2204,62 @@ async function saveWish(event) {
     return;
   }
 
+  const previous = wishes.find((item) => item.id === wishEditingId);
+  let image;
+  try {
+    image = await uploadWishImage(els.wishImageInput.files?.[0], title);
+  } catch (error) {
+    setWishlistStatus(`图片上传失败：${error.message}`);
+    return;
+  }
+
   let wish = {
-    id: normalizeUuid(),
+    id: normalizeUuid(wishEditingId),
     title,
     type: els.wishTypeInput.value,
     date: els.wishDateInput.value,
     priority: els.wishPriorityInput.value,
     note: els.wishNoteInput.value.trim(),
-    done: false,
-    createdAt: new Date().toISOString(),
+    imageUrl: image.imageUrl,
+    imagePath: image.imagePath,
+    done: previous?.done || false,
+    completedAt: previous?.completedAt || "",
+    createdAt: previous?.createdAt || new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
 
   if (cloudSyncAvailable) {
     const { data, error } = await supabase
       .from("wishes")
-      .insert(wishToCloudRow(wish))
+      .upsert(wishToCloudRow(wish), { onConflict: "id" })
       .select("*")
       .single();
     if (error) {
+      if (image.imagePath && image.imagePath !== previous?.imagePath) {
+        await supabase.storage.from(BUCKET).remove([image.imagePath]);
+      }
       setWishlistStatus(`心愿同步失败：${error.message}`);
       return;
     }
     wish = wishFromCloudRow(data);
   }
 
-  wishes = [wish, ...wishes];
+  const wasEditing = Boolean(wishEditingId);
+  wishes = wasEditing
+    ? wishes.map((item) => (item.id === wishEditingId ? wish : item))
+    : [wish, ...wishes];
   saveWishes();
-  els.wishlistForm.reset();
+  if (
+    previous?.imagePath &&
+    previous.imagePath !== wish.imagePath &&
+    supabase &&
+    session
+  ) {
+    await supabase.storage.from(BUCKET).remove([previous.imagePath]);
+  }
+  resetWishForm();
   setWishlistExpanded(false);
-  setWishlistStatus("心愿已保存。");
+  setWishlistStatus(wasEditing ? "心愿已更新。" : "心愿已保存。");
   renderWishes();
 }
 
@@ -2120,12 +2285,18 @@ function renderWishes() {
           <div class="wish-card-head">
             <span>${String(index + 1).padStart(2, "0")}</span>
             <div>
+              <button type="button" data-edit-wish="${escapeHtml(wish.id)}">编辑</button>
               <button type="button" data-toggle-wish="${escapeHtml(wish.id)}">
                 ${wish.done ? "取消完成" : "完成"}
               </button>
               <button type="button" data-delete-wish="${escapeHtml(wish.id)}">删除</button>
             </div>
           </div>
+          ${
+            wish.imageUrl
+              ? `<img class="wish-card-image" src="${escapeHtml(wish.imageUrl)}" alt="${escapeHtml(wish.title)}" loading="lazy" />`
+              : ""
+          }
           <p class="kicker">${escapeHtml(wish.type)} · ${escapeHtml(wish.priority)}</p>
           <h3>${escapeHtml(wish.title)}</h3>
           <div class="wish-meta">
@@ -2138,12 +2309,38 @@ function renderWishes() {
     )
     .join("");
 
+  els.wishlistList.querySelectorAll("button[data-edit-wish]").forEach((button) => {
+    button.addEventListener("click", () => editWish(button.dataset.editWish));
+  });
   els.wishlistList.querySelectorAll("button[data-toggle-wish]").forEach((button) => {
     button.addEventListener("click", () => toggleWish(button.dataset.toggleWish));
   });
   els.wishlistList.querySelectorAll("button[data-delete-wish]").forEach((button) => {
     button.addEventListener("click", () => deleteWish(button.dataset.deleteWish));
   });
+}
+
+function editWish(id) {
+  const wish = wishes.find((item) => item.id === id);
+  if (!wish) return;
+
+  wishEditingId = id;
+  wishExistingImage = wish.imageUrl || "";
+  wishExistingImagePath = wish.imagePath || "";
+  wishRemoveImageRequested = false;
+  els.wishTitleInput.value = wish.title || "";
+  els.wishTypeInput.value = wish.type || "想做";
+  els.wishDateInput.value = wish.date || "";
+  els.wishPriorityInput.value = wish.priority || "普通";
+  els.wishNoteInput.value = wish.note || "";
+  if (wishExistingImage) setWishImagePreview(wishExistingImage);
+  else clearWishImagePreview();
+  els.wishlistFormTitle.textContent = "编辑心愿";
+  els.wishSubmitButton.textContent = "保存修改";
+  els.wishCancelEdit.hidden = false;
+  setWishlistExpanded(true);
+  setWishlistStatus(`正在编辑：${wish.title}`);
+  els.wishlistComposer.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 async function toggleWish(id) {
@@ -2194,6 +2391,9 @@ async function deleteWish(id) {
     }
   }
 
+  if (wish.imagePath && supabase && session) {
+    await supabase.storage.from(BUCKET).remove([wish.imagePath]);
+  }
   wishes = wishes.filter((item) => item.id !== id);
   saveWishes();
   setWishlistStatus(cloudSyncAvailable ? "心愿已从云端删除。" : "心愿已删除。");
@@ -2283,7 +2483,15 @@ els.recipeCancelEdit.addEventListener("click", () => {
 els.wishlistToggle.addEventListener("click", () => {
   setWishlistExpanded(els.wishlistForm.hidden);
 });
+els.wishImageInput.addEventListener("change", updateWishImagePreview);
+els.wishImageDrop.addEventListener("paste", handleWishImagePaste);
+els.wishRemoveImage.addEventListener("click", removeWishImage);
 els.wishlistForm.addEventListener("submit", saveWish);
+els.wishCancelEdit.addEventListener("click", () => {
+  resetWishForm();
+  setWishlistExpanded(false);
+  setWishlistStatus("");
+});
 els.avatarButton.addEventListener("click", () => {
   els.userPopover.hidden = !els.userPopover.hidden;
 });
