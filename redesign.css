@@ -234,7 +234,7 @@ main {
 
 .hero {
   position: relative;
-  min-height: clamp(360px, 48vw, 620px);
+  min-height: clamp(240px, 24vw, 310px);
   align-items: end;
   overflow: hidden;
   border: 0;
@@ -1292,8 +1292,8 @@ dialog {
   }
 
   .hero {
-    min-height: 440px;
-    padding: 36px 28px;
+    min-height: 260px;
+    padding: 24px 28px;
   }
 
   .hero h1 {
@@ -1423,8 +1423,8 @@ dialog {
   }
 
   .hero {
-    min-height: 440px;
-    padding: 30px 22px;
+    min-height: 250px;
+    padding: 20px 22px;
   }
 
   .hero::before {
@@ -1433,16 +1433,17 @@ dialog {
   }
 
   .hero h1 {
-    font-size: 47px;
+    font-size: 38px;
   }
 
   .hero p:last-of-type {
     max-width: 330px;
-    font-size: 15px;
+    font-size: 13px;
+    line-height: 1.5;
   }
 
   .hero-cover {
-    object-position: 38% center;
+    object-position: 42% center;
   }
 
   .overview-head,
