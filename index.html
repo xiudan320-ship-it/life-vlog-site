@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>咻蛋之家</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
-    <link rel="stylesheet" href="./styles.css?v=20260606-20" />
-    <link rel="stylesheet" href="./redesign.css?v=20260606-20" />
+    <link rel="stylesheet" href="./styles.css?v=20260609-21" />
+    <link rel="stylesheet" href="./redesign.css?v=20260609-21" />
   </head>
   <body>
     <header class="topbar">
@@ -331,11 +331,20 @@
           <div class="section-title">
             <button class="section-heading-button" id="wishlistToggle" type="button" aria-expanded="false">
               <p class="kicker">New Wish</p>
-              <h2>添加心愿</h2>
+              <h2 id="wishlistFormTitle">添加心愿</h2>
             </button>
           </div>
 
           <form class="wishlist-form" id="wishlistForm" hidden>
+            <label class="wish-image-drop" id="wishImageDrop" tabindex="0">
+              <input id="wishImageInput" type="file" accept="image/*" />
+              <img id="wishImagePreview" alt="心愿图片预览" hidden />
+              <span>添加一张心愿图片，也可以直接粘贴剪切板图片</span>
+              <strong id="wishImageName">还没有选择图片</strong>
+            </label>
+            <button class="wish-remove-image" id="wishRemoveImage" type="button" hidden>
+              移除图片
+            </button>
             <div class="form-grid">
               <label>
                 想做什么
@@ -368,7 +377,10 @@
               备注
               <textarea id="wishNoteInput" rows="3" maxlength="500"></textarea>
             </label>
-            <button class="primary" type="submit">保存心愿</button>
+            <div class="wish-form-actions">
+              <button class="primary" id="wishSubmitButton" type="submit">保存心愿</button>
+              <button class="ghost-button" id="wishCancelEdit" type="button" hidden>取消编辑</button>
+            </div>
           </form>
         </section>
 
@@ -466,6 +478,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260606-20"></script>
+    <script type="module" src="./app.js?v=20260609-21"></script>
   </body>
 </html>
