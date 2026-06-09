@@ -837,10 +837,40 @@ body.theme-dark .filters {
   color: #fff;
 }
 
+.feature-chip {
+  border-color: rgba(232, 185, 74, 0.55);
+}
+
+.favorite-chip {
+  border-color: rgba(240, 100, 80, 0.45);
+}
+
+.feature-chip.active {
+  background: var(--gold);
+  color: #151816;
+}
+
+.favorite-chip.active {
+  background: var(--coral);
+  color: #fff;
+}
+
 body.theme-dark .chip.active {
   border-color: var(--accent);
   background: var(--accent);
   color: #0d100f;
+}
+
+body.theme-dark .feature-chip.active {
+  border-color: var(--gold);
+  background: var(--gold);
+  color: #151816;
+}
+
+body.theme-dark .favorite-chip.active {
+  border-color: var(--coral);
+  background: var(--coral);
+  color: #151816;
 }
 
 .gallery {
