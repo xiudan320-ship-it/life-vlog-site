@@ -253,8 +253,8 @@ body.vip-member .hero {
   z-index: 1;
   inset: 0;
   background:
-    linear-gradient(90deg, rgba(5, 8, 5, 0.78) 0%, rgba(5, 8, 5, 0.38) 38%, transparent 67%),
-    linear-gradient(0deg, rgba(5, 8, 5, 0.7) 0%, transparent 48%);
+    linear-gradient(270deg, rgba(5, 8, 5, 0.78) 0%, rgba(5, 8, 5, 0.35) 42%, transparent 70%),
+    linear-gradient(0deg, rgba(5, 8, 5, 0.72) 0%, transparent 50%);
   content: "";
   pointer-events: none;
 }
@@ -272,8 +272,11 @@ body.vip-member .hero {
 .hero-copy {
   position: relative;
   z-index: 2;
+  justify-self: end;
   max-width: 620px;
   gap: 15px;
+  justify-items: end;
+  text-align: right;
 }
 
 .hero .kicker {
@@ -300,6 +303,7 @@ body.vip-member .hero {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  justify-content: flex-end;
   margin-top: 4px;
 }
 
@@ -1410,7 +1414,7 @@ dialog {
 
   .hero::before {
     background:
-      linear-gradient(0deg, rgba(5, 8, 5, 0.86) 0%, rgba(5, 8, 5, 0.42) 48%, transparent 78%);
+      linear-gradient(0deg, rgba(5, 8, 5, 0.88) 0%, rgba(5, 8, 5, 0.46) 48%, transparent 78%);
   }
 
   .hero h1 {
