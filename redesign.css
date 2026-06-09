@@ -144,8 +144,13 @@ body.theme-dark .main-nav {
 .main-nav button.active {
   border: 0;
   background: var(--ink);
-  color: var(--surface);
+  color: #fff;
   box-shadow: 0 5px 14px rgba(21, 24, 22, 0.14);
+}
+
+body.theme-dark .main-nav button.active {
+  background: var(--accent);
+  color: #0d100f;
 }
 
 .top-actions {
@@ -497,12 +502,13 @@ textarea:focus {
 .auth-row button,
 .setup-panel button {
   border-radius: 6px;
-  background: var(--ink);
-  color: var(--surface);
+  background: #151816;
+  color: #fff;
 }
 
 #signupButton {
   background: var(--coral);
+  color: #fff;
 }
 
 .section-heading-button h2::after {
@@ -552,7 +558,13 @@ body.theme-dark .filters {
 .chip.active {
   border-color: var(--ink);
   background: var(--ink);
-  color: var(--surface);
+  color: #fff;
+}
+
+body.theme-dark .chip.active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #0d100f;
 }
 
 .gallery {
@@ -653,6 +665,72 @@ body.theme-dark .photo-card {
   box-shadow: none;
 }
 
+.wish-image-drop {
+  display: grid;
+  min-height: 230px;
+  align-content: center;
+  justify-items: center;
+  overflow: hidden;
+  border: 1px dashed #aeb9b2;
+  border-radius: 6px;
+  background: rgba(50, 184, 150, 0.05);
+  color: var(--muted);
+  cursor: pointer;
+  padding: 16px;
+  text-align: center;
+}
+
+body.theme-dark .wish-image-drop {
+  border-color: #48534d;
+  background: rgba(85, 214, 181, 0.05);
+}
+
+.wish-image-drop input {
+  display: none;
+}
+
+.wish-image-drop img {
+  display: block;
+  width: min(100%, 620px);
+  max-height: 360px;
+  margin-bottom: 14px;
+  border-radius: 5px;
+  object-fit: cover;
+}
+
+.wish-image-drop img[hidden] {
+  display: none;
+}
+
+.wish-image-drop span,
+.wish-image-drop strong {
+  display: block;
+}
+
+.wish-image-drop strong {
+  margin-top: 6px;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.wish-remove-image {
+  justify-self: start;
+  min-height: 36px;
+  border: 1px solid rgba(240, 100, 80, 0.42);
+  border-radius: 5px;
+  background: rgba(240, 100, 80, 0.08);
+  color: var(--coral);
+  font-size: 13px;
+  font-weight: 800;
+  padding: 0 14px;
+}
+
+.wish-form-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
 .recipes-list,
 .wishlist-list {
   gap: 18px;
@@ -689,6 +767,28 @@ body.theme-dark .wish-card {
 
 .wish-card h3 {
   font-size: 36px;
+}
+
+.wish-card-image {
+  display: block;
+  width: 100%;
+  max-height: 390px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+body.theme-dark .wish-card-head button[data-edit-wish] {
+  border-color: rgba(85, 214, 181, 0.5);
+  background: rgba(85, 214, 181, 0.12);
+  color: var(--accent);
+}
+
+body.theme-dark .ghost-button,
+body.theme-dark .pager button,
+body.theme-dark .link-row button {
+  border-color: rgba(255, 255, 255, 0.28);
+  background: transparent;
+  color: #f0f4ef;
 }
 
 dialog {
@@ -830,7 +930,8 @@ dialog {
   .recipes-list,
   .wishlist-list,
   .recipe-columns,
-  .recipe-form-actions {
+  .recipe-form-actions,
+  .wish-form-actions {
     grid-template-columns: 1fr;
   }
 
