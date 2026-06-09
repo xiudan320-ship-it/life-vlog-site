@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>咻蛋之家</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
-    <link rel="stylesheet" href="./styles.css?v=20260609-26" />
-    <link rel="stylesheet" href="./redesign.css?v=20260609-26" />
+    <link rel="stylesheet" href="./styles.css?v=20260609-27" />
+    <link rel="stylesheet" href="./redesign.css?v=20260609-27" />
   </head>
   <body>
     <header class="topbar">
@@ -543,12 +543,27 @@
             </select>
           </label>
         </div>
+        <section class="edit-media-manager">
+          <div class="edit-media-heading">
+            <div>
+              <p class="kicker">Album Images</p>
+              <h3>管理照片</h3>
+            </div>
+            <span id="editImageCount"></span>
+          </div>
+          <input id="editImageInput" type="file" accept="image/*" hidden />
+          <div class="edit-image-list" id="editImageList"></div>
+          <p class="hint">可以替换或删除合集中的单张图片，至少保留一张。</p>
+        </section>
         <label>
           文字记录
           <textarea id="editNoteInput" rows="4" maxlength="500"></textarea>
         </label>
         <p class="hint" id="saveEditStatus"></p>
-        <button class="primary" type="submit">保存修改</button>
+        <div class="edit-form-actions">
+          <button class="danger-button" id="deleteEditingPhoto" type="button">删除整篇</button>
+          <button class="primary" type="submit">保存修改</button>
+        </div>
       </form>
     </dialog>
 
@@ -582,6 +597,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260609-26"></script>
+    <script type="module" src="./app.js?v=20260609-27"></script>
   </body>
 </html>
