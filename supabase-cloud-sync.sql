@@ -1,5 +1,5 @@
 -- Run this file once in Supabase Dashboard > SQL Editor.
--- It adds cloud sync for account progress, recipes, wishes, and anniversaries.
+-- It adds cloud sync for all signed-in account data and photo interactions.
 
 create table if not exists public.user_profiles (
   user_id uuid primary key references auth.users(id) on delete cascade,
@@ -19,6 +19,9 @@ alter table public.user_profiles
 
 alter table public.user_profiles
   add column if not exists home_name text not null default '咻蛋之家';
+
+alter table public.user_profiles
+  add column if not exists food_options jsonb not null default '[]'::jsonb;
 
 alter table public.photos
   add column if not exists is_featured boolean not null default false,
