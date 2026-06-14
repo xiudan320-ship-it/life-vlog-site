@@ -131,6 +131,9 @@ let weekendEditingId = null;
 let weekendCloudAvailable = false;
 let anniversaryEditingId = null;
 let anniversaryCloudAvailable = false;
+let photoFlagsCloudAvailable = false;
+let foodOptionsCloudAvailable = false;
+let profilePreferencesCloudAvailable = false;
 let foodWheelRotation = 0;
 let foodWheelSpinning = false;
 let cloudSyncAvailable = false;
@@ -143,6 +146,7 @@ let accountProfile = {
   lastLoginDate: "",
   themePreference: "",
   homeName: "咻蛋之家",
+  foodOptions: [],
 };
 
 const els = {
@@ -494,6 +498,9 @@ function updateAuthUI() {
     weekendCloudAvailable = false;
     anniversaryCloudAvailable = false;
     favoritesCloudAvailable = false;
+    photoFlagsCloudAvailable = false;
+    foodOptionsCloudAvailable = false;
+    profilePreferencesCloudAvailable = false;
     cloudSyncInFlight = null;
     syncedUserId = "";
     accountProfile = {
@@ -503,6 +510,7 @@ function updateAuthUI() {
       lastLoginDate: "",
       themePreference: "",
       homeName: "咻蛋之家",
+      foodOptions: [],
     };
     applyHomeName("咻蛋之家");
     return;
@@ -605,14 +613,30 @@ async function loadPhotos() {
   if (error) {
     setGlobalStatus(`读取照片失败：${error.message}`);
     photos = [];
+    photoFlagsCloudAvailable = false;
   } else {
     setGlobalStatus("");
     photos = data || [];
-    if (session) await synchronizePhotoFavorites();
+    if (session) {
+      await Promise.all([verifyPhotoFlagSchema(), synchronizePhotoFavorites()]);
+    }
   }
 
   visiblePhotoCount = PAGE_SIZE;
   renderGallery();
+  if (cloudSyncAvailable) updateCloudSyncStatus();
+}
+
+async function verifyPhotoFlagSchema() {
+  if (!supabase || !session) {
+    photoFlagsCloudAvailable = false;
+    return;
+  }
+  const { error } = await supabase
+    .from("photos")
+    .select("id,is_featured,is_pinned")
+    .limit(1);
+  photoFlagsCloudAvailable = !error;
 }
 
 function getPhotoFavoritesStorageKey(userId = session?.user?.id || "guest") {
@@ -1024,8 +1048,12 @@ function isPhotoWithinSevenDays(photo) {
 
 async function togglePhotoFlag(photo, field) {
   if (!supabase || !session || !photo || photo.user_id !== session.user.id) return;
-  const nextValue = !Boolean(photo[field]);
   const label = field === "is_pinned" ? "置顶" : "精选";
+  if (!photoFlagsCloudAvailable) {
+    setGlobalStatus(`数据库尚未启用${label}字段，请先运行最新版 supabase-cloud-sync.sql。`);
+    return;
+  }
+  const nextValue = !Boolean(photo[field]);
   setGlobalStatus(`正在更新${label}状态...`);
 
   const { data, error } = await supabase
@@ -1056,24 +1084,27 @@ async function togglePhotoFavorite(photo, button) {
     return;
   }
 
+  if (!favoritesCloudAvailable) {
+    setGlobalStatus("收藏数据库尚未启用，请先运行最新版 supabase-cloud-sync.sql。");
+    return;
+  }
+
   const wasFavorite = favoritePhotoIds.has(photo.id);
   button.disabled = true;
-  if (favoritesCloudAvailable) {
-    const request = wasFavorite
-      ? supabase
-          .from("photo_favorites")
-          .delete()
-          .eq("user_id", session.user.id)
-          .eq("photo_id", photo.id)
-      : supabase
-          .from("photo_favorites")
-          .insert({ user_id: session.user.id, photo_id: photo.id });
-    const { error } = await request;
-    if (error) {
-      button.disabled = false;
-      setGlobalStatus(`收藏更新失败：${error.message}`);
-      return;
-    }
+  const request = wasFavorite
+    ? supabase
+        .from("photo_favorites")
+        .delete()
+        .eq("user_id", session.user.id)
+        .eq("photo_id", photo.id)
+    : supabase
+        .from("photo_favorites")
+        .insert({ user_id: session.user.id, photo_id: photo.id });
+  const { error } = await request;
+  if (error) {
+    button.disabled = false;
+    setGlobalStatus(`收藏更新失败：${error.message}`);
+    return;
   }
 
   if (wasFavorite) favoritePhotoIds.delete(photo.id);
@@ -1859,6 +1890,7 @@ async function synchronizeAccountData() {
       const localWishes = loadWishes();
       const localRecharge = loadRechargeTotal(displayName);
       const localExperience = loadExperience(displayName);
+      const localFoodOptions = loadFoodOptions(userId);
       let profile = profileResult.data;
 
       if (!profile) {
@@ -1918,6 +1950,17 @@ async function synchronizeAccountData() {
       );
       let lastLoginDate =
         profile.last_login_date || (needsLocalMigration ? localExperience.lastLoginDate : "") || "";
+      const cloudFoodOptions = normalizeFoodOptions(profile.food_options);
+      const preferredFoodOptions = cloudFoodOptions.length
+        ? cloudFoodOptions
+        : localFoodOptions;
+      foodOptionsCloudAvailable = Object.prototype.hasOwnProperty.call(
+        profile,
+        "food_options"
+      );
+      profilePreferencesCloudAvailable =
+        Object.prototype.hasOwnProperty.call(profile, "theme_preference") &&
+        Object.prototype.hasOwnProperty.call(profile, "home_name");
 
       if (
         profile.last_login_date !== today &&
@@ -1928,17 +1971,22 @@ async function synchronizeAccountData() {
       lastLoginDate = today;
       const vipLevel = getVipLevelByRecharge(rechargeTotal)?.level || 0;
 
+      const profileUpdates = {
+        username: displayName,
+        recharge_total: rechargeTotal,
+        vip_level: vipLevel,
+        experience_total: experienceTotal,
+        last_login_date: lastLoginDate,
+        local_data_migrated: true,
+        updated_at: new Date().toISOString(),
+      };
+      if (foodOptionsCloudAvailable) {
+        profileUpdates.food_options = preferredFoodOptions;
+      }
+
       const { data: savedProfile, error: profileError } = await supabase
         .from("user_profiles")
-        .update({
-          username: displayName,
-          recharge_total: rechargeTotal,
-          vip_level: vipLevel,
-          experience_total: experienceTotal,
-          last_login_date: lastLoginDate,
-          local_data_migrated: true,
-          updated_at: new Date().toISOString(),
-        })
+        .update(profileUpdates)
         .eq("user_id", userId)
         .select("*")
         .single();
@@ -1956,12 +2004,18 @@ async function synchronizeAccountData() {
         lastLoginDate: savedProfile.last_login_date || "",
         themePreference: preferredTheme,
         homeName: preferredHomeName,
+        foodOptions: foodOptionsCloudAvailable
+          ? normalizeFoodOptions(savedProfile.food_options)
+          : localFoodOptions,
       };
       applyTheme(preferredTheme, { userId, syncCloud: false });
       applyHomeName(preferredHomeName, { persist: true, userId });
       if (!cloudTheme) void persistThemeToCloud(preferredTheme);
       recipes = cloudRecipes.map(recipeFromCloudRow);
       wishes = cloudWishes.map(wishFromCloudRow);
+      foodOptions = accountProfile.foodOptions.length
+        ? accountProfile.foodOptions
+        : [...DEFAULT_FOOD_OPTIONS];
 
       saveRechargeTotal(accountProfile.rechargeTotal, displayName);
       saveExperience(
@@ -1974,6 +2028,7 @@ async function synchronizeAccountData() {
       );
       saveRecipes();
       saveWishes();
+      saveFoodOptionsCache(userId);
 
       activeVipLevel = accountProfile.vipLevel;
       document.body.classList.toggle("vip-member", activeVipLevel > 0);
@@ -1987,9 +2042,10 @@ async function synchronizeAccountData() {
       renderVipCenter();
       renderRecipes();
       renderWishes();
+      renderFoodWheel();
       await synchronizeWeekendPlans(userId);
       await synchronizeAnniversaries(userId);
-      setGlobalStatus("云端数据已同步");
+      updateCloudSyncStatus();
     } catch (error) {
       cloudSyncAvailable = false;
       awardDailyExperience(displayName);
@@ -2005,6 +2061,22 @@ async function synchronizeAccountData() {
   })();
 
   return cloudSyncInFlight;
+}
+
+function updateCloudSyncStatus() {
+  if (!session || !cloudSyncAvailable) return;
+  const missing = [];
+  if (!photoFlagsCloudAvailable) missing.push("置顶/精选");
+  if (!favoritesCloudAvailable) missing.push("收藏");
+  if (!weekendCloudAvailable) missing.push("周末计划");
+  if (!anniversaryCloudAvailable) missing.push("纪念日");
+  if (!foodOptionsCloudAvailable) missing.push("转盘候选");
+  if (!profilePreferencesCloudAvailable) missing.push("主题/主页名称");
+  setGlobalStatus(
+    missing.length
+      ? `数据库仍缺少：${missing.join("、")}。请运行最新版 supabase-cloud-sync.sql。`
+      : "全部账户数据已同步到云端"
+  );
 }
 
 function isVipUser(value) {
@@ -2152,23 +2224,26 @@ async function rechargeVip(amount) {
     els.vipStatus.textContent = "这个档位已经解锁。";
     return;
   }
+  if (!cloudSyncAvailable) {
+    els.vipStatus.textContent =
+      "数据库尚未升级，本次充值没有保存。请先运行最新版 supabase-cloud-sync.sql。";
+    return;
+  }
 
   const nextTotal = loadRechargeTotal() + numericAmount;
   const nextLevel = getVipLevelByRecharge(nextTotal)?.level || 0;
 
-  if (cloudSyncAvailable) {
-    const { error } = await supabase
-      .from("user_profiles")
-      .update({
-        recharge_total: nextTotal,
-        vip_level: nextLevel,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("user_id", session.user.id);
-    if (error) {
-      els.vipStatus.textContent = `会员同步失败：${error.message}`;
-      return;
-    }
+  const { error } = await supabase
+    .from("user_profiles")
+    .update({
+      recharge_total: nextTotal,
+      vip_level: nextLevel,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", session.user.id);
+  if (error) {
+    els.vipStatus.textContent = `会员同步失败：${error.message}`;
+    return;
   }
 
   saveRechargeTotal(nextTotal);
@@ -2358,14 +2433,14 @@ async function saveHomeName(event) {
     els.homeNameStatus.textContent = "请先输入一个名称。";
     return;
   }
-  applyHomeName(homeName, { persist: true, userId: session.user.id });
-  els.vipPopoverBadge.textContent =
-    activeVipLevel > 0
-      ? `${homeName} ${getVipLevel(activeVipLevel).label}`
-      : `开通 ${homeName} VIP`;
   els.homeNameStatus.textContent = "正在保存…";
   const cloudSaved = await persistHomeNameToCloud(homeName);
   if (cloudSaved) {
+    applyHomeName(homeName, { persist: true, userId: session.user.id });
+    els.vipPopoverBadge.textContent =
+      activeVipLevel > 0
+        ? `${homeName} ${getVipLevel(activeVipLevel).label}`
+        : `开通 ${homeName} VIP`;
     els.homeNameStatus.textContent = "名称已保存并同步。";
     window.setTimeout(() => els.renameHomeDialog.close(), 450);
   }
@@ -2374,14 +2449,16 @@ async function saveHomeName(event) {
 async function restoreDefaultHomeName() {
   if (!session) return;
   els.homeNameInput.value = "咻蛋之家";
-  applyHomeName("咻蛋之家", { persist: true, userId: session.user.id });
-  els.vipPopoverBadge.textContent =
-    activeVipLevel > 0
-      ? `咻蛋之家 ${getVipLevel(activeVipLevel).label}`
-      : "开通 咻蛋之家 VIP";
   els.homeNameStatus.textContent = "正在恢复默认名称…";
   const cloudSaved = await persistHomeNameToCloud("咻蛋之家");
-  if (cloudSaved) els.homeNameStatus.textContent = "已恢复默认名称。";
+  if (cloudSaved) {
+    applyHomeName("咻蛋之家", { persist: true, userId: session.user.id });
+    els.vipPopoverBadge.textContent =
+      activeVipLevel > 0
+        ? `咻蛋之家 ${getVipLevel(activeVipLevel).label}`
+        : "开通 咻蛋之家 VIP";
+    els.homeNameStatus.textContent = "已恢复默认名称。";
+  }
 }
 
 function updatePhotoPreview() {
@@ -2573,17 +2650,70 @@ function renderOverview() {
   els.memoryButton.disabled = personalPhotos.length === 0;
 }
 
-function loadFoodOptions() {
+function normalizeFoodOptions(values) {
+  if (!Array.isArray(values)) return [];
+  return [
+    ...new Set(
+      values
+        .map((value) => String(value || "").trim().slice(0, 24))
+        .filter(Boolean)
+    ),
+  ].slice(0, 14);
+}
+
+function getFoodOptionsStorageKey(userId = session?.user?.id || "guest") {
+  return `${FOOD_OPTIONS_KEY}:${userId}`;
+}
+
+function loadFoodOptions(userId = session?.user?.id || "guest") {
   try {
-    const parsed = JSON.parse(localStorage.getItem(FOOD_OPTIONS_KEY) || "[]");
-    return Array.isArray(parsed) && parsed.length ? parsed : [...DEFAULT_FOOD_OPTIONS];
+    const stored =
+      localStorage.getItem(getFoodOptionsStorageKey(userId)) ||
+      localStorage.getItem(FOOD_OPTIONS_KEY) ||
+      "[]";
+    const parsed = normalizeFoodOptions(JSON.parse(stored));
+    return parsed.length ? parsed : [...DEFAULT_FOOD_OPTIONS];
   } catch {
     return [...DEFAULT_FOOD_OPTIONS];
   }
 }
 
-function saveFoodOptions() {
-  localStorage.setItem(FOOD_OPTIONS_KEY, JSON.stringify(foodOptions));
+function saveFoodOptionsCache(userId = session?.user?.id || "guest") {
+  localStorage.setItem(
+    getFoodOptionsStorageKey(userId),
+    JSON.stringify(foodOptions)
+  );
+}
+
+async function persistFoodOptions(nextOptions) {
+  if (
+    !supabase ||
+    !session ||
+    !cloudSyncAvailable ||
+    !foodOptionsCloudAvailable
+  ) {
+    els.foodWheelResult.textContent =
+      "数据库尚未升级，候选没有保存。请先运行最新版 supabase-cloud-sync.sql。";
+    return false;
+  }
+  const normalized = normalizeFoodOptions(nextOptions);
+  const { data, error } = await supabase
+    .from("user_profiles")
+    .update({
+      food_options: normalized,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", session.user.id)
+    .select("food_options")
+    .single();
+  if (error) {
+    els.foodWheelResult.textContent = `候选同步失败：${error.message}`;
+    return false;
+  }
+  foodOptions = normalizeFoodOptions(data.food_options);
+  accountProfile.foodOptions = [...foodOptions];
+  saveFoodOptionsCache(session.user.id);
+  return true;
 }
 
 function getWheelOptions() {
@@ -2649,16 +2779,20 @@ function renderFoodWheel() {
   });
 }
 
-function addFoodOption() {
+async function addFoodOption() {
   const value = els.foodOptionInput.value.trim();
   if (!value) return;
-  if (!foodOptions.includes(value)) foodOptions.push(value);
-  saveFoodOptions();
+  if (foodOptions.includes(value)) {
+    els.foodOptionInput.value = "";
+    return;
+  }
+  const saved = await persistFoodOptions([...foodOptions, value]);
+  if (!saved) return;
   els.foodOptionInput.value = "";
   renderFoodWheel();
 }
 
-function removeFoodOption(value) {
+async function removeFoodOption(value) {
   const recipeNames = new Set(recipes.map((recipe) => recipe.name));
   if (recipeNames.has(value)) {
     els.foodWheelResult.textContent = "菜谱里的菜会自动保留在转盘中";
@@ -2668,8 +2802,10 @@ function removeFoodOption(value) {
     els.foodWheelResult.textContent = "至少保留两个候选";
     return;
   }
-  foodOptions = foodOptions.filter((item) => item !== value);
-  saveFoodOptions();
+  const saved = await persistFoodOptions(
+    foodOptions.filter((item) => item !== value)
+  );
+  if (!saved) return;
   renderFoodWheel();
 }
 
@@ -2831,6 +2967,12 @@ async function saveRecipe(event) {
     setRecipeStatus("请先登录后再保存菜谱。");
     return;
   }
+  if (!cloudSyncAvailable) {
+    setRecipeStatus(
+      "数据库尚未升级，菜谱没有保存。请先运行最新版 supabase-cloud-sync.sql。"
+    );
+    return;
+  }
 
   const name = els.recipeNameInput.value.trim();
   if (!name) {
@@ -2986,18 +3128,20 @@ async function deleteRecipe(id) {
   if (!recipe) return;
   const ok = window.confirm(`删除菜谱“${recipe.name}”？`);
   if (!ok) return;
+  if (!cloudSyncAvailable) {
+    setRecipeStatus("数据库尚未连接，不能删除菜谱。");
+    return;
+  }
 
-  if (cloudSyncAvailable) {
-    const { error } = await supabase.from("recipes").delete().eq("id", id);
-    if (error) {
-      setRecipeStatus(`删除同步失败：${error.message}`);
-      return;
-    }
+  const { error } = await supabase.from("recipes").delete().eq("id", id);
+  if (error) {
+    setRecipeStatus(`删除同步失败：${error.message}`);
+    return;
   }
 
   recipes = recipes.filter((item) => item.id !== id);
   saveRecipes();
-  setRecipeStatus(cloudSyncAvailable ? "菜谱已从云端删除。" : "菜谱已删除。");
+  setRecipeStatus("菜谱已从云端删除。");
   renderRecipes();
 }
 
@@ -3178,6 +3322,12 @@ async function saveWish(event) {
     setWishlistStatus("请先登录后再保存心愿。");
     return;
   }
+  if (!cloudSyncAvailable) {
+    setWishlistStatus(
+      "数据库尚未升级，心愿没有保存。请先运行最新版 supabase-cloud-sync.sql。"
+    );
+    return;
+  }
 
   const title = els.wishTitleInput.value.trim();
   if (!title) {
@@ -3327,6 +3477,10 @@ function editWish(id) {
 async function toggleWish(id) {
   const current = wishes.find((wish) => wish.id === id);
   if (!current) return;
+  if (!cloudSyncAvailable) {
+    setWishlistStatus("数据库尚未连接，心愿状态没有修改。");
+    return;
+  }
   const next = {
     ...current,
     done: !current.done,
@@ -3363,6 +3517,10 @@ async function deleteWish(id) {
   if (!wish) return;
   const ok = window.confirm(`删除心愿“${wish.title}”？`);
   if (!ok) return;
+  if (!cloudSyncAvailable) {
+    setWishlistStatus("数据库尚未连接，不能删除心愿。");
+    return;
+  }
 
   if (cloudSyncAvailable) {
     const { error } = await supabase.from("wishes").delete().eq("id", id);
@@ -3377,7 +3535,7 @@ async function deleteWish(id) {
   }
   wishes = wishes.filter((item) => item.id !== id);
   saveWishes();
-  setWishlistStatus(cloudSyncAvailable ? "心愿已从云端删除。" : "心愿已删除。");
+  setWishlistStatus("心愿已从云端删除。");
   renderWishes();
 }
 
@@ -3637,6 +3795,11 @@ function editAnniversary(id) {
 async function saveAnniversary(event) {
   event.preventDefault();
   if (!session) return;
+  if (!anniversaryCloudAvailable) {
+    els.anniversaryStatus.textContent =
+      "数据库尚未升级，纪念日没有保存。请先运行最新版 supabase-cloud-sync.sql。";
+    return;
+  }
   const title = els.anniversaryTitleInput.value.trim();
   const date = els.anniversaryDateInput.value;
   if (!title || !date) {
@@ -3680,7 +3843,11 @@ async function saveAnniversary(event) {
 async function deleteAnniversary(id) {
   const item = anniversaries.find((entry) => entry.id === id);
   if (!item || !window.confirm(`删除“${item.title}”？`)) return;
-  if (anniversaryCloudAvailable && item.date) {
+  if (!anniversaryCloudAvailable) {
+    els.anniversaryStatus.textContent = "数据库尚未连接，不能删除纪念日。";
+    return;
+  }
+  if (item.date) {
     const { error } = await supabase.from("anniversaries").delete().eq("id", id);
     if (error) {
       els.anniversaryStatus.textContent = `删除失败：${error.message}`;
@@ -3786,6 +3953,12 @@ async function saveWeekendPlan(event) {
   event.preventDefault();
   if (!session) {
     setWeekendStatus("请先登录后再保存周末计划。");
+    return;
+  }
+  if (!weekendCloudAvailable) {
+    setWeekendStatus(
+      "数据库尚未升级，周末计划没有保存。请先运行最新版 supabase-cloud-sync.sql。"
+    );
     return;
   }
 
@@ -3904,6 +4077,10 @@ function editWeekendPlan(id) {
 async function toggleWeekendPlan(id) {
   const current = weekendPlans.find((item) => item.id === id);
   if (!current) return;
+  if (!weekendCloudAvailable) {
+    setWeekendStatus("数据库尚未连接，计划状态没有修改。");
+    return;
+  }
   let next = { ...current, done: !current.done, updatedAt: new Date().toISOString() };
   if (weekendCloudAvailable) {
     const { data, error } = await supabase
@@ -3927,12 +4104,14 @@ async function toggleWeekendPlan(id) {
 async function deleteWeekendPlan(id) {
   const plan = weekendPlans.find((item) => item.id === id);
   if (!plan || !window.confirm(`删除周末计划“${plan.title}”？`)) return;
-  if (weekendCloudAvailable) {
-    const { error } = await supabase.from("weekend_plans").delete().eq("id", id);
-    if (error) {
-      setWeekendStatus(`删除同步失败：${error.message}`);
-      return;
-    }
+  if (!weekendCloudAvailable) {
+    setWeekendStatus("数据库尚未连接，不能删除周末计划。");
+    return;
+  }
+  const { error } = await supabase.from("weekend_plans").delete().eq("id", id);
+  if (error) {
+    setWeekendStatus(`删除同步失败：${error.message}`);
+    return;
   }
   weekendPlans = weekendPlans.filter((item) => item.id !== id);
   saveWeekendPlans();
