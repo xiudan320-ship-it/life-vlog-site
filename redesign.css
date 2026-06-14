@@ -231,7 +231,15 @@ body.theme-dark .user-popover {
   color: var(--ink);
 }
 
-body.theme-dark .user-popover .rename-home-button {
+.user-popover .account-secondary-button {
+  margin-bottom: 8px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+}
+
+body.theme-dark .user-popover .rename-home-button,
+body.theme-dark .user-popover .account-secondary-button {
   border-color: rgba(255, 255, 255, 0.2);
   background: rgba(255, 255, 255, 0.04);
   color: #f0f4ef;
@@ -1077,6 +1085,23 @@ body.theme-dark .overview-grid article {
   grid-template-columns: minmax(0, 1fr) minmax(150px, 0.8fr) auto auto;
 }
 
+.forgot-password-button {
+  grid-column: 2 / -1;
+  justify-self: start;
+  min-height: auto !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--muted) !important;
+  padding: 2px 0 !important;
+  font-size: 13px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.forgot-password-button:hover {
+  color: var(--accent-strong) !important;
+}
+
 input,
 select,
 textarea {
@@ -1581,6 +1606,39 @@ dialog {
   box-shadow: 0 30px 90px rgba(0, 0, 0, 0.32);
 }
 
+.account-dialog {
+  width: min(calc(100% - 32px), 520px);
+  max-width: none;
+  padding: 0;
+}
+
+.account-dialog form {
+  display: grid;
+  gap: 16px;
+  padding: 32px;
+}
+
+.account-dialog form > div:first-child {
+  padding-right: 38px;
+}
+
+.account-dialog form > div:first-child p:last-child {
+  margin: 8px 0 0;
+  color: var(--muted);
+}
+
+.account-dialog label {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.account-dialog .primary {
+  width: 100%;
+}
+
 .dialog-close {
   border-radius: 6px;
 }
@@ -1621,6 +1679,10 @@ dialog {
 
   .auth-card {
     grid-template-columns: 1fr;
+  }
+
+  .forgot-password-button {
+    grid-column: 1 / -1;
   }
 }
 
@@ -1708,6 +1770,10 @@ dialog {
 
   .rename-home-dialog form {
     padding: 22px 18px 18px;
+  }
+
+  .account-dialog form {
+    padding: 24px 18px 20px;
   }
 
   .rename-home-actions {
