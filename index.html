@@ -6,7 +6,7 @@
     <title>咻蛋之家</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
     <link rel="stylesheet" href="./styles.css?v=20260610-37" />
-    <link rel="stylesheet" href="./redesign.css?v=20260610-37" />
+    <link rel="stylesheet" href="./redesign.css?v=20260614-40" />
   </head>
   <body>
     <header class="topbar">
@@ -55,6 +55,12 @@
             </button>
             <button class="rename-home-button" id="renameHomeButton" type="button">
               修改主页名称
+            </button>
+            <button class="account-secondary-button" id="changePasswordButton" type="button">
+              修改密码
+            </button>
+            <button class="account-secondary-button" id="recoveryKeyButton" type="button">
+              设置恢复密钥
             </button>
             <button id="logoutButton" type="button">退出登录</button>
           </div>
@@ -205,6 +211,9 @@
           <input id="passwordInput" type="password" placeholder="密码" />
           <button id="loginButton" type="button">登录</button>
           <button id="signupButton" type="button">注册</button>
+          <button class="forgot-password-button" id="forgotPasswordButton" type="button">
+            忘记密码
+          </button>
         </div>
         <p class="hint" id="authHint">未配置 Supabase 时会显示演示数据。</p>
       </section>
@@ -601,6 +610,77 @@
       </form>
     </dialog>
 
+    <dialog class="account-dialog" id="changePasswordDialog">
+      <button class="dialog-close" id="closeChangePassword" type="button" aria-label="关闭">×</button>
+      <form id="changePasswordForm">
+        <div>
+          <p class="kicker">Account Security</p>
+          <h2>修改密码</h2>
+          <p>修改成功后，下次登录请使用新密码。</p>
+        </div>
+        <label>
+          新密码
+          <input id="newPasswordInput" type="password" minlength="6" autocomplete="new-password" required />
+        </label>
+        <label>
+          再输入一次
+          <input id="confirmPasswordInput" type="password" minlength="6" autocomplete="new-password" required />
+        </label>
+        <p class="status-line" id="changePasswordStatus"></p>
+        <button class="primary" type="submit">保存新密码</button>
+      </form>
+    </dialog>
+
+    <dialog class="account-dialog" id="recoveryKeyDialog">
+      <button class="dialog-close" id="closeRecoveryKey" type="button" aria-label="关闭">×</button>
+      <form id="recoveryKeyForm">
+        <div>
+          <p class="kicker">Recovery Key</p>
+          <h2>设置恢复密钥</h2>
+          <p>忘记密码时使用。至少 12 位，请保存在只有你能看到的地方。</p>
+        </div>
+        <label>
+          恢复密钥
+          <input id="recoveryKeyInput" type="password" minlength="12" autocomplete="new-password" required />
+        </label>
+        <label>
+          再输入一次
+          <input id="confirmRecoveryKeyInput" type="password" minlength="12" autocomplete="new-password" required />
+        </label>
+        <p class="status-line" id="recoveryKeyStatus"></p>
+        <button class="primary" type="submit">保存恢复密钥</button>
+      </form>
+    </dialog>
+
+    <dialog class="account-dialog" id="forgotPasswordDialog">
+      <button class="dialog-close" id="closeForgotPassword" type="button" aria-label="关闭">×</button>
+      <form id="forgotPasswordForm">
+        <div>
+          <p class="kicker">Password Recovery</p>
+          <h2>重设密码</h2>
+          <p>输入用户名和之前设置的恢复密钥。</p>
+        </div>
+        <label>
+          用户名
+          <input id="recoveryUsernameInput" maxlength="48" autocomplete="username" required />
+        </label>
+        <label>
+          恢复密钥
+          <input id="recoverySecretInput" type="password" minlength="12" autocomplete="off" required />
+        </label>
+        <label>
+          新密码
+          <input id="recoveryNewPasswordInput" type="password" minlength="6" autocomplete="new-password" required />
+        </label>
+        <label>
+          再输入一次
+          <input id="recoveryConfirmPasswordInput" type="password" minlength="6" autocomplete="new-password" required />
+        </label>
+        <p class="status-line" id="forgotPasswordStatus"></p>
+        <button class="primary" type="submit">重设密码</button>
+      </form>
+    </dialog>
+
     <dialog id="photoDialog">
       <button class="dialog-close" id="closeDialog" type="button" aria-label="关闭">×</button>
       <div class="dialog-media">
@@ -706,6 +786,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260614-39"></script>
+    <script type="module" src="./app.js?v=20260614-40"></script>
   </body>
 </html>
