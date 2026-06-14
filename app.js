@@ -182,6 +182,29 @@ const els = {
   homeNameInput: document.querySelector("#homeNameInput"),
   homeNameStatus: document.querySelector("#homeNameStatus"),
   resetHomeName: document.querySelector("#resetHomeName"),
+  changePasswordButton: document.querySelector("#changePasswordButton"),
+  changePasswordDialog: document.querySelector("#changePasswordDialog"),
+  closeChangePassword: document.querySelector("#closeChangePassword"),
+  changePasswordForm: document.querySelector("#changePasswordForm"),
+  newPasswordInput: document.querySelector("#newPasswordInput"),
+  confirmPasswordInput: document.querySelector("#confirmPasswordInput"),
+  changePasswordStatus: document.querySelector("#changePasswordStatus"),
+  recoveryKeyButton: document.querySelector("#recoveryKeyButton"),
+  recoveryKeyDialog: document.querySelector("#recoveryKeyDialog"),
+  closeRecoveryKey: document.querySelector("#closeRecoveryKey"),
+  recoveryKeyForm: document.querySelector("#recoveryKeyForm"),
+  recoveryKeyInput: document.querySelector("#recoveryKeyInput"),
+  confirmRecoveryKeyInput: document.querySelector("#confirmRecoveryKeyInput"),
+  recoveryKeyStatus: document.querySelector("#recoveryKeyStatus"),
+  forgotPasswordButton: document.querySelector("#forgotPasswordButton"),
+  forgotPasswordDialog: document.querySelector("#forgotPasswordDialog"),
+  closeForgotPassword: document.querySelector("#closeForgotPassword"),
+  forgotPasswordForm: document.querySelector("#forgotPasswordForm"),
+  recoveryUsernameInput: document.querySelector("#recoveryUsernameInput"),
+  recoverySecretInput: document.querySelector("#recoverySecretInput"),
+  recoveryNewPasswordInput: document.querySelector("#recoveryNewPasswordInput"),
+  recoveryConfirmPasswordInput: document.querySelector("#recoveryConfirmPasswordInput"),
+  forgotPasswordStatus: document.querySelector("#forgotPasswordStatus"),
   xpPanel: document.querySelector("#xpPanel"),
   xpLevel: document.querySelector("#xpLevel"),
   xpText: document.querySelector("#xpText"),
@@ -592,6 +615,105 @@ async function signupWithPassword() {
 async function logout() {
   if (!supabase) return;
   await supabase.auth.signOut();
+}
+
+function passwordsMatch(password, confirmation, statusElement) {
+  if (password.length < 6) {
+    statusElement.textContent = "密码至少需要 6 位。";
+    return false;
+  }
+  if (password !== confirmation) {
+    statusElement.textContent = "两次输入的密码不一致。";
+    return false;
+  }
+  return true;
+}
+
+async function changePassword(event) {
+  event.preventDefault();
+  if (!supabase || !session) return;
+  const password = els.newPasswordInput.value;
+  if (!passwordsMatch(password, els.confirmPasswordInput.value, els.changePasswordStatus)) {
+    return;
+  }
+  els.changePasswordStatus.textContent = "正在修改密码…";
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) {
+    els.changePasswordStatus.textContent = `修改失败：${error.message}`;
+    return;
+  }
+  els.changePasswordForm.reset();
+  els.changePasswordStatus.textContent = "密码已修改。";
+  window.setTimeout(() => els.changePasswordDialog.close(), 650);
+}
+
+async function saveRecoveryKey(event) {
+  event.preventDefault();
+  if (!supabase || !session) return;
+  const recoveryKey = els.recoveryKeyInput.value.trim();
+  if (recoveryKey.length < 12) {
+    els.recoveryKeyStatus.textContent = "恢复密钥至少需要 12 位。";
+    return;
+  }
+  if (recoveryKey !== els.confirmRecoveryKeyInput.value.trim()) {
+    els.recoveryKeyStatus.textContent = "两次输入的恢复密钥不一致。";
+    return;
+  }
+  els.recoveryKeyStatus.textContent = "正在保存恢复密钥…";
+  const { error } = await supabase.rpc("set_password_recovery_key", {
+    p_recovery_key: recoveryKey,
+  });
+  if (error) {
+    els.recoveryKeyStatus.textContent = isMissingCloudSchema(error)
+      ? "恢复功能尚未初始化，请先运行最新版 supabase-cloud-sync.sql。"
+      : `保存失败：${error.message}`;
+    return;
+  }
+  els.recoveryKeyForm.reset();
+  els.recoveryKeyStatus.textContent = "恢复密钥已加密保存，请妥善保管。";
+  window.setTimeout(() => els.recoveryKeyDialog.close(), 900);
+}
+
+async function resetForgottenPassword(event) {
+  event.preventDefault();
+  if (!supabase) return;
+  const username = els.recoveryUsernameInput.value.trim();
+  const recoveryKey = els.recoverySecretInput.value.trim();
+  const password = els.recoveryNewPasswordInput.value;
+  if (!username || recoveryKey.length < 12) {
+    els.forgotPasswordStatus.textContent = "请输入用户名和至少 12 位的恢复密钥。";
+    return;
+  }
+  if (
+    !passwordsMatch(
+      password,
+      els.recoveryConfirmPasswordInput.value,
+      els.forgotPasswordStatus
+    )
+  ) {
+    return;
+  }
+  els.forgotPasswordStatus.textContent = "正在验证恢复密钥…";
+  const { data, error } = await supabase.rpc("reset_password_with_recovery_key", {
+    p_username: username,
+    p_recovery_key: recoveryKey,
+    p_new_password: password,
+  });
+  if (error) {
+    els.forgotPasswordStatus.textContent = isMissingCloudSchema(error)
+      ? "恢复功能尚未初始化，请先运行最新版 supabase-cloud-sync.sql。"
+      : `重设失败：${error.message}`;
+    return;
+  }
+  if (!data) {
+    els.forgotPasswordStatus.textContent = "用户名或恢复密钥不正确。";
+    return;
+  }
+  els.forgotPasswordForm.reset();
+  els.usernameInput.value = username;
+  els.passwordInput.value = "";
+  els.forgotPasswordStatus.textContent = "密码已重设，可以使用新密码登录。";
+  window.setTimeout(() => els.forgotPasswordDialog.close(), 1000);
 }
 
 async function loadPhotos() {
@@ -1715,6 +1837,8 @@ function isMissingCloudSchema(error) {
   const message = String(error?.message || "").toLowerCase();
   return (
     code === "42P01" ||
+    code === "42883" ||
+    code === "PGRST202" ||
     code === "PGRST205" ||
     message.includes("schema cache") ||
     message.includes("does not exist")
@@ -4219,6 +4343,13 @@ els.quickWeekend.addEventListener("click", () => {
 els.saveConfig.addEventListener("click", saveConfig);
 els.loginButton.addEventListener("click", loginWithPassword);
 els.signupButton.addEventListener("click", signupWithPassword);
+els.forgotPasswordButton.addEventListener("click", () => {
+  els.forgotPasswordForm.reset();
+  els.recoveryUsernameInput.value = els.usernameInput.value.trim();
+  els.forgotPasswordStatus.textContent = "";
+  els.forgotPasswordDialog.showModal();
+  els.recoveryUsernameInput.focus();
+});
 els.uploadToggle.addEventListener("click", () => {
   setUploadExpanded(els.uploadForm.hidden);
 });
@@ -4269,6 +4400,35 @@ els.renameHomeDialog.addEventListener("click", (event) => {
 });
 els.renameHomeForm.addEventListener("submit", saveHomeName);
 els.resetHomeName.addEventListener("click", restoreDefaultHomeName);
+els.changePasswordButton.addEventListener("click", () => {
+  els.userPopover.hidden = true;
+  els.changePasswordForm.reset();
+  els.changePasswordStatus.textContent = "";
+  els.changePasswordDialog.showModal();
+  els.newPasswordInput.focus();
+});
+els.closeChangePassword.addEventListener("click", () => els.changePasswordDialog.close());
+els.changePasswordDialog.addEventListener("click", (event) => {
+  if (event.target === els.changePasswordDialog) els.changePasswordDialog.close();
+});
+els.changePasswordForm.addEventListener("submit", changePassword);
+els.recoveryKeyButton.addEventListener("click", () => {
+  els.userPopover.hidden = true;
+  els.recoveryKeyForm.reset();
+  els.recoveryKeyStatus.textContent = "";
+  els.recoveryKeyDialog.showModal();
+  els.recoveryKeyInput.focus();
+});
+els.closeRecoveryKey.addEventListener("click", () => els.recoveryKeyDialog.close());
+els.recoveryKeyDialog.addEventListener("click", (event) => {
+  if (event.target === els.recoveryKeyDialog) els.recoveryKeyDialog.close();
+});
+els.recoveryKeyForm.addEventListener("submit", saveRecoveryKey);
+els.closeForgotPassword.addEventListener("click", () => els.forgotPasswordDialog.close());
+els.forgotPasswordDialog.addEventListener("click", (event) => {
+  if (event.target === els.forgotPasswordDialog) els.forgotPasswordDialog.close();
+});
+els.forgotPasswordForm.addEventListener("submit", resetForgottenPassword);
 els.vipBadge.addEventListener("click", () => {
   renderVipCenter();
   els.vipDialog.showModal();
