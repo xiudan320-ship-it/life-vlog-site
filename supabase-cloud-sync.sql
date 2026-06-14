@@ -330,3 +330,137 @@ set
   recharge_total = greatest(public.user_profiles.recharge_total, excluded.recharge_total),
   vip_level = greatest(public.user_profiles.vip_level, excluded.vip_level),
   updated_at = now();
+
+-- Username-only accounts cannot receive Supabase password-reset emails because
+-- they use an internal placeholder email. A recovery key provides a separate
+-- reset path without exposing the service-role key to the browser.
+create extension if not exists pgcrypto with schema extensions;
+
+create table if not exists public.password_recovery_credentials (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  recovery_hash text not null,
+  failed_attempts smallint not null default 0,
+  locked_until timestamptz,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.password_recovery_credentials enable row level security;
+revoke all on public.password_recovery_credentials from anon, authenticated;
+
+create or replace function public.set_password_recovery_key(p_recovery_key text)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  current_user_id uuid := auth.uid();
+begin
+  if current_user_id is null then
+    raise exception '请先登录';
+  end if;
+  if length(coalesce(p_recovery_key, '')) < 12 then
+    raise exception '恢复密钥至少需要 12 位';
+  end if;
+
+  insert into public.password_recovery_credentials (
+    user_id,
+    recovery_hash,
+    failed_attempts,
+    locked_until,
+    updated_at
+  )
+  values (
+    current_user_id,
+    extensions.crypt(p_recovery_key, extensions.gen_salt('bf', 10)),
+    0,
+    null,
+    now()
+  )
+  on conflict (user_id) do update
+  set
+    recovery_hash = excluded.recovery_hash,
+    failed_attempts = 0,
+    locked_until = null,
+    updated_at = now();
+end;
+$$;
+
+create or replace function public.reset_password_with_recovery_key(
+  p_username text,
+  p_recovery_key text,
+  p_new_password text
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  target_user_id uuid;
+  stored_hash text;
+  attempt_count smallint;
+  current_lock timestamptz;
+  next_attempt_count smallint;
+begin
+  if length(coalesce(p_username, '')) < 1
+    or length(coalesce(p_recovery_key, '')) < 12
+    or length(coalesce(p_new_password, '')) < 6
+    or length(p_new_password) > 128 then
+    return false;
+  end if;
+
+  select credentials.user_id,
+         credentials.recovery_hash,
+         credentials.failed_attempts,
+         credentials.locked_until
+    into target_user_id, stored_hash, attempt_count, current_lock
+  from public.password_recovery_credentials as credentials
+  join public.user_profiles as profile
+    on profile.user_id = credentials.user_id
+  where lower(trim(profile.username)) = lower(trim(p_username))
+  order by credentials.updated_at desc
+  limit 1
+  for update of credentials;
+
+  if target_user_id is null then
+    return false;
+  end if;
+
+  if current_lock is not null and current_lock > now() then
+    raise exception '尝试次数过多，请 15 分钟后再试';
+  end if;
+
+  if stored_hash <> extensions.crypt(p_recovery_key, stored_hash) then
+    next_attempt_count := coalesce(attempt_count, 0) + 1;
+    update public.password_recovery_credentials
+    set
+      failed_attempts = case when next_attempt_count >= 5 then 0 else next_attempt_count end,
+      locked_until = case
+        when next_attempt_count >= 5 then now() + interval '15 minutes'
+        else null
+      end,
+      updated_at = now()
+    where user_id = target_user_id;
+    return false;
+  end if;
+
+  update auth.users
+  set
+    encrypted_password = extensions.crypt(p_new_password, extensions.gen_salt('bf', 10)),
+    updated_at = now()
+  where id = target_user_id;
+
+  update public.password_recovery_credentials
+  set failed_attempts = 0, locked_until = null, updated_at = now()
+  where user_id = target_user_id;
+
+  return true;
+end;
+$$;
+
+revoke all on function public.set_password_recovery_key(text) from public;
+revoke all on function public.reset_password_with_recovery_key(text, text, text) from public;
+grant execute on function public.set_password_recovery_key(text) to authenticated;
+grant execute on function public.reset_password_with_recovery_key(text, text, text)
+  to anon, authenticated;
