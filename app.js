@@ -1954,6 +1954,14 @@ async function synchronizeAccountData() {
       const preferredFoodOptions = cloudFoodOptions.length
         ? cloudFoodOptions
         : localFoodOptions;
+      const cloudTheme = normalizeTheme(profile.theme_preference);
+      const preferredTheme = cloudTheme || loadTheme(userId);
+      const cloudHomeName = normalizeHomeName(profile.home_name);
+      const localHomeName = loadHomeName(userId);
+      const preferredHomeName =
+        cloudHomeName && (cloudHomeName !== "咻蛋之家" || localHomeName === "咻蛋之家")
+          ? cloudHomeName
+          : localHomeName;
       foodOptionsCloudAvailable = Object.prototype.hasOwnProperty.call(
         profile,
         "food_options"
@@ -1983,6 +1991,10 @@ async function synchronizeAccountData() {
       if (foodOptionsCloudAvailable) {
         profileUpdates.food_options = preferredFoodOptions;
       }
+      if (profilePreferencesCloudAvailable) {
+        profileUpdates.theme_preference = preferredTheme;
+        profileUpdates.home_name = preferredHomeName;
+      }
 
       const { data: savedProfile, error: profileError } = await supabase
         .from("user_profiles")
@@ -1993,10 +2005,6 @@ async function synchronizeAccountData() {
       if (profileError) throw profileError;
 
       cloudSyncAvailable = true;
-      const cloudTheme = normalizeTheme(savedProfile.theme_preference);
-      const preferredTheme = cloudTheme || loadTheme(userId);
-      const preferredHomeName =
-        normalizeHomeName(savedProfile.home_name) || loadHomeName(userId);
       accountProfile = {
         rechargeTotal: Number(savedProfile.recharge_total) || 0,
         vipLevel: Number(savedProfile.vip_level) || 0,
@@ -2010,7 +2018,6 @@ async function synchronizeAccountData() {
       };
       applyTheme(preferredTheme, { userId, syncCloud: false });
       applyHomeName(preferredHomeName, { persist: true, userId });
-      if (!cloudTheme) void persistThemeToCloud(preferredTheme);
       recipes = cloudRecipes.map(recipeFromCloudRow);
       wishes = cloudWishes.map(wishFromCloudRow);
       foodOptions = accountProfile.foodOptions.length
