@@ -6,7 +6,7 @@
     <title>咻蛋之家</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
     <link rel="stylesheet" href="./styles.css?v=20260610-37" />
-    <link rel="stylesheet" href="./redesign.css?v=20260614-40" />
+    <link rel="stylesheet" href="./redesign.css?v=20260615-41" />
   </head>
   <body>
     <header class="topbar">
@@ -24,6 +24,7 @@
         <button id="recipesNav" type="button">菜谱</button>
         <button id="wishlistNav" type="button">心愿</button>
         <button id="weekendNav" type="button">周末</button>
+        <button id="thanksNav" type="button">留言</button>
       </nav>
       <div class="top-actions">
         <button class="icon-button" id="themeToggle" type="button" title="切换日夜模式">
@@ -55,6 +56,9 @@
             </button>
             <button class="rename-home-button" id="renameHomeButton" type="button">
               修改主页名称
+            </button>
+            <button class="account-secondary-button" id="familyAccountButton" type="button">
+              家庭账户
             </button>
             <button class="account-secondary-button" id="changePasswordButton" type="button">
               修改密码
@@ -526,6 +530,59 @@
 
         <section class="weekend-list" id="weekendList" aria-live="polite"></section>
       </section>
+
+      <section class="thanks-page" id="thanksPage" hidden>
+        <div class="thanks-head">
+          <div>
+            <p class="kicker">Little Notes</p>
+            <h2>感谢留言板</h2>
+          </div>
+          <p>随时留一句想记住的话。</p>
+        </div>
+
+        <form class="thanks-composer" id="thanksForm" hidden>
+          <label>
+            留一句话
+            <textarea
+              id="thanksBodyInput"
+              rows="3"
+              maxlength="180"
+              required
+              placeholder="✅ 谢谢你给我的牙刷充电"
+            ></textarea>
+          </label>
+          <fieldset class="thanks-colors">
+            <legend>字的颜色</legend>
+            <label class="active" style="--note-color:#2f6b3b">
+              <input type="radio" name="thanksColor" value="#2f6b3b" checked />
+              <span>森林绿</span>
+            </label>
+            <label style="--note-color:#d6544d">
+              <input type="radio" name="thanksColor" value="#d6544d" />
+              <span>珊瑚红</span>
+            </label>
+            <label style="--note-color:#2e6da4">
+              <input type="radio" name="thanksColor" value="#2e6da4" />
+              <span>晴空蓝</span>
+            </label>
+            <label style="--note-color:#81559b">
+              <input type="radio" name="thanksColor" value="#81559b" />
+              <span>葡萄紫</span>
+            </label>
+            <label style="--note-color:#a66b12">
+              <input type="radio" name="thanksColor" value="#a66b12" />
+              <span>麦穗金</span>
+            </label>
+          </fieldset>
+          <div class="thanks-form-actions">
+            <p class="status-line" id="thanksStatus"></p>
+            <button class="primary" id="thanksSubmitButton" type="submit">贴到留言板</button>
+            <button class="ghost-button" id="thanksCancelEdit" type="button" hidden>取消编辑</button>
+          </div>
+        </form>
+
+        <section class="thanks-board" id="thanksBoard" aria-live="polite"></section>
+      </section>
     </main>
 
     <dialog class="anniversary-dialog" id="anniversaryDialog">
@@ -631,6 +688,44 @@
       </form>
     </dialog>
 
+    <dialog class="family-dialog" id="familyDialog">
+      <button class="dialog-close" id="closeFamilyDialog" type="button" aria-label="关闭">×</button>
+      <div class="family-dialog-head">
+        <p class="kicker">Family Account</p>
+        <h2>家庭账户</h2>
+        <p>加入同一个家庭后，可以共享照片、菜谱、心愿、周末计划、纪念日和留言。</p>
+      </div>
+      <section class="family-empty" id="familyEmpty">
+        <div class="family-invitations" id="familyInvitations"></div>
+        <form id="createFamilyForm">
+          <label>
+            家庭名称
+            <input id="familyNameInput" maxlength="30" required placeholder="比如：咻蛋之家" />
+          </label>
+          <button class="primary" type="submit">创建家庭组</button>
+        </form>
+      </section>
+      <section class="family-content" id="familyContent" hidden>
+        <div class="family-summary">
+          <div>
+            <span>当前家庭</span>
+            <strong id="familyName">我们的家</strong>
+          </div>
+          <small>每个人只能修改自己发布的内容</small>
+        </div>
+        <form class="family-invite" id="familyInviteForm" hidden>
+          <label>
+            添加成员的用户名
+            <input id="familyUsernameInput" maxlength="48" required placeholder="输入对方登录用的用户名" />
+          </label>
+          <button class="primary" type="submit">发送邀请</button>
+        </form>
+        <div class="family-members" id="familyMembers"></div>
+        <div class="family-invitations" id="familyOutgoingInvitations"></div>
+      </section>
+      <p class="status-line" id="familyStatus"></p>
+    </dialog>
+
     <dialog class="account-dialog" id="recoveryKeyDialog">
       <button class="dialog-close" id="closeRecoveryKey" type="button" aria-label="关闭">×</button>
       <form id="recoveryKeyForm">
@@ -695,6 +790,23 @@
         <h2 id="dialogTitle"></h2>
         <p id="dialogNote"></p>
       </article>
+      <section class="photo-comments">
+        <div class="photo-comments-head">
+          <p class="kicker">Family Comments</p>
+          <h3>留言</h3>
+        </div>
+        <div class="photo-comments-list" id="photoCommentsList"></div>
+        <form id="photoCommentForm" hidden>
+          <input
+            id="photoCommentInput"
+            maxlength="300"
+            required
+            placeholder="给这张照片留句话"
+          />
+          <button type="submit">发送</button>
+        </form>
+        <p class="status-line" id="photoCommentStatus"></p>
+      </section>
     </dialog>
 
     <dialog class="edit-dialog" id="editDialog">
@@ -786,6 +898,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260614-40"></script>
+    <script type="module" src="./app.js?v=20260615-41"></script>
   </body>
 </html>
