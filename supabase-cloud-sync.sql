@@ -464,3 +464,459 @@ revoke all on function public.reset_password_with_recovery_key(text, text, text)
 grant execute on function public.set_password_recovery_key(text) to authenticated;
 grant execute on function public.reset_password_with_recovery_key(text, text, text)
   to anon, authenticated;
+
+-- Family sharing ------------------------------------------------------------
+-- Each account can belong to one family. Family members can read each other's
+-- life content, while updates and deletes remain restricted to the author.
+
+create table if not exists public.families (
+  id uuid primary key default gen_random_uuid(),
+  name text not null default '我们的家',
+  owner_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.family_members (
+  family_id uuid not null references public.families(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  role text not null default 'member' check (role in ('owner', 'member')),
+  joined_at timestamptz not null default now(),
+  primary key (family_id, user_id),
+  unique (user_id)
+);
+
+create table if not exists public.family_invitations (
+  id uuid primary key default gen_random_uuid(),
+  family_id uuid not null references public.families(id) on delete cascade,
+  invited_user_id uuid not null references auth.users(id) on delete cascade,
+  invited_by uuid not null references auth.users(id) on delete cascade,
+  status text not null default 'pending'
+    check (status in ('pending', 'accepted', 'declined')),
+  created_at timestamptz not null default now(),
+  responded_at timestamptz
+);
+
+create unique index if not exists family_invitations_pending_unique
+  on public.family_invitations (family_id, invited_user_id)
+  where status = 'pending';
+
+create table if not exists public.gratitude_notes (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  body text not null check (char_length(body) between 1 and 180),
+  text_color text not null default '#2f6b3b',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.photo_comments (
+  id uuid primary key default gen_random_uuid(),
+  photo_id uuid not null references public.photos(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  body text not null check (char_length(body) between 1 and 300),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists family_members_family_idx
+  on public.family_members (family_id, joined_at);
+
+create index if not exists gratitude_notes_user_created_idx
+  on public.gratitude_notes (user_id, created_at desc);
+
+create index if not exists photo_comments_photo_created_idx
+  on public.photo_comments (photo_id, created_at asc);
+
+alter table public.families enable row level security;
+alter table public.family_members enable row level security;
+alter table public.family_invitations enable row level security;
+alter table public.gratitude_notes enable row level security;
+alter table public.photo_comments enable row level security;
+
+revoke all on public.families from anon, authenticated;
+revoke all on public.family_members from anon, authenticated;
+revoke all on public.family_invitations from anon, authenticated;
+grant select, insert, update, delete on public.gratitude_notes to authenticated;
+grant select, insert, update, delete on public.photo_comments to authenticated;
+
+create or replace function public.are_family_members(p_first uuid, p_second uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    p_first is not null
+    and p_second is not null
+    and exists (
+      select 1
+      from public.family_members as first_member
+      join public.family_members as second_member
+        on second_member.family_id = first_member.family_id
+      where first_member.user_id = p_first
+        and second_member.user_id = p_second
+    );
+$$;
+
+revoke all on function public.are_family_members(uuid, uuid) from public;
+grant execute on function public.are_family_members(uuid, uuid) to authenticated;
+
+create or replace function public.create_family(p_name text default '我们的家')
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  current_user_id uuid := auth.uid();
+  existing_family_id uuid;
+  created_family_id uuid;
+begin
+  if current_user_id is null then
+    raise exception '请先登录';
+  end if;
+
+  select family_id into existing_family_id
+  from public.family_members
+  where user_id = current_user_id;
+
+  if existing_family_id is not null then
+    return existing_family_id;
+  end if;
+
+  insert into public.families (name, owner_id)
+  values (left(coalesce(nullif(trim(p_name), ''), '我们的家'), 30), current_user_id)
+  returning id into created_family_id;
+
+  insert into public.family_members (family_id, user_id, role)
+  values (created_family_id, current_user_id, 'owner');
+
+  return created_family_id;
+end;
+$$;
+
+create or replace function public.add_family_member_by_username(p_username text)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  current_user_id uuid := auth.uid();
+  current_family_id uuid;
+  target_user_id uuid;
+begin
+  select member.family_id into current_family_id
+  from public.family_members as member
+  join public.families as family on family.id = member.family_id
+  where member.user_id = current_user_id
+    and family.owner_id = current_user_id;
+
+  if current_family_id is null then
+    raise exception '只有家庭创建者可以添加成员';
+  end if;
+
+  select profile.user_id into target_user_id
+  from public.user_profiles as profile
+  where lower(trim(profile.username)) = lower(trim(p_username))
+  order by profile.created_at asc
+  limit 1;
+
+  if target_user_id is null then
+    raise exception '没有找到这个用户名';
+  end if;
+  if target_user_id = current_user_id then
+    raise exception '你已经在家庭组里';
+  end if;
+  if exists (
+    select 1 from public.family_members where user_id = target_user_id
+  ) then
+    raise exception '这个用户已经加入了一个家庭组';
+  end if;
+
+  insert into public.family_invitations (
+    family_id,
+    invited_user_id,
+    invited_by,
+    status
+  )
+  values (
+    current_family_id,
+    target_user_id,
+    current_user_id,
+    'pending'
+  )
+  on conflict (family_id, invited_user_id) where status = 'pending'
+  do update set invited_by = excluded.invited_by, created_at = now();
+
+  return target_user_id;
+end;
+$$;
+
+create or replace function public.remove_family_member(p_user_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  current_user_id uuid := auth.uid();
+  current_family_id uuid;
+begin
+  select family.id into current_family_id
+  from public.families as family
+  where family.owner_id = current_user_id;
+
+  if current_family_id is null then
+    raise exception '只有家庭创建者可以移除成员';
+  end if;
+  if p_user_id = current_user_id then
+    raise exception '不能移除家庭创建者';
+  end if;
+
+  delete from public.family_members
+  where family_id = current_family_id
+    and user_id = p_user_id;
+end;
+$$;
+
+create or replace function public.get_my_family_members()
+returns table (
+  family_id uuid,
+  family_name text,
+  user_id uuid,
+  username text,
+  role text,
+  joined_at timestamptz
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    family.id,
+    family.name,
+    member.user_id,
+    coalesce(nullif(profile.username, ''), '家庭成员'),
+    member.role,
+    member.joined_at
+  from public.family_members as me
+  join public.families as family on family.id = me.family_id
+  join public.family_members as member on member.family_id = family.id
+  left join public.user_profiles as profile on profile.user_id = member.user_id
+  where me.user_id = auth.uid()
+  order by
+    case when member.role = 'owner' then 0 else 1 end,
+    member.joined_at asc;
+$$;
+
+create or replace function public.get_my_family_invitations()
+returns table (
+  invitation_id uuid,
+  family_id uuid,
+  family_name text,
+  invited_user_id uuid,
+  invited_username text,
+  invited_by uuid,
+  inviter_username text,
+  is_incoming boolean,
+  created_at timestamptz
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    invitation.id,
+    family.id,
+    family.name,
+    invitation.invited_user_id,
+    coalesce(nullif(invited_profile.username, ''), '家庭成员'),
+    invitation.invited_by,
+    coalesce(nullif(inviter_profile.username, ''), '家庭成员'),
+    invitation.invited_user_id = auth.uid(),
+    invitation.created_at
+  from public.family_invitations as invitation
+  join public.families as family on family.id = invitation.family_id
+  left join public.user_profiles as invited_profile
+    on invited_profile.user_id = invitation.invited_user_id
+  left join public.user_profiles as inviter_profile
+    on inviter_profile.user_id = invitation.invited_by
+  where invitation.status = 'pending'
+    and (
+      invitation.invited_user_id = auth.uid()
+      or invitation.invited_by = auth.uid()
+    )
+  order by invitation.created_at desc;
+$$;
+
+create or replace function public.respond_family_invitation(
+  p_invitation_id uuid,
+  p_accept boolean
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  current_user_id uuid := auth.uid();
+  target_invitation public.family_invitations%rowtype;
+begin
+  select * into target_invitation
+  from public.family_invitations
+  where id = p_invitation_id
+    and invited_user_id = current_user_id
+    and status = 'pending'
+  for update;
+
+  if target_invitation.id is null then
+    raise exception '邀请不存在或已经处理';
+  end if;
+
+  if p_accept then
+    if exists (
+      select 1 from public.family_members where user_id = current_user_id
+    ) then
+      raise exception '你已经加入了一个家庭组';
+    end if;
+
+    insert into public.family_members (family_id, user_id, role)
+    values (target_invitation.family_id, current_user_id, 'member');
+
+    update public.family_invitations
+    set status = 'accepted', responded_at = now()
+    where id = target_invitation.id;
+  else
+    update public.family_invitations
+    set status = 'declined', responded_at = now()
+    where id = target_invitation.id;
+  end if;
+end;
+$$;
+
+revoke all on function public.create_family(text) from public;
+revoke all on function public.add_family_member_by_username(text) from public;
+revoke all on function public.remove_family_member(uuid) from public;
+revoke all on function public.get_my_family_members() from public;
+revoke all on function public.get_my_family_invitations() from public;
+revoke all on function public.respond_family_invitation(uuid, boolean) from public;
+grant execute on function public.create_family(text) to authenticated;
+grant execute on function public.add_family_member_by_username(text) to authenticated;
+grant execute on function public.remove_family_member(uuid) to authenticated;
+grant execute on function public.get_my_family_members() to authenticated;
+grant execute on function public.get_my_family_invitations() to authenticated;
+grant execute on function public.respond_family_invitation(uuid, boolean) to authenticated;
+
+drop policy if exists "Family members can read photos" on public.photos;
+create policy "Family members can read photos"
+  on public.photos for select
+  using (public.are_family_members(auth.uid(), user_id));
+
+drop policy if exists "Users can read their own recipes" on public.recipes;
+drop policy if exists "Family members can read recipes" on public.recipes;
+create policy "Family members can read recipes"
+  on public.recipes for select
+  using (
+    auth.uid() = user_id
+    or public.are_family_members(auth.uid(), user_id)
+  );
+
+drop policy if exists "Users can read their own wishes" on public.wishes;
+drop policy if exists "Family members can read wishes" on public.wishes;
+create policy "Family members can read wishes"
+  on public.wishes for select
+  using (
+    auth.uid() = user_id
+    or public.are_family_members(auth.uid(), user_id)
+  );
+
+drop policy if exists "Users can read their own weekend plans" on public.weekend_plans;
+drop policy if exists "Family members can read weekend plans" on public.weekend_plans;
+create policy "Family members can read weekend plans"
+  on public.weekend_plans for select
+  using (
+    auth.uid() = user_id
+    or public.are_family_members(auth.uid(), user_id)
+  );
+
+drop policy if exists "Users can read their own anniversaries" on public.anniversaries;
+drop policy if exists "Family members can read anniversaries" on public.anniversaries;
+create policy "Family members can read anniversaries"
+  on public.anniversaries for select
+  using (
+    auth.uid() = user_id
+    or public.are_family_members(auth.uid(), user_id)
+  );
+
+drop policy if exists "Family members can read gratitude notes" on public.gratitude_notes;
+drop policy if exists "Users can create gratitude notes" on public.gratitude_notes;
+drop policy if exists "Users can update gratitude notes" on public.gratitude_notes;
+drop policy if exists "Users can delete gratitude notes" on public.gratitude_notes;
+
+create policy "Family members can read gratitude notes"
+  on public.gratitude_notes for select
+  using (
+    auth.uid() = user_id
+    or public.are_family_members(auth.uid(), user_id)
+  );
+
+create policy "Users can create gratitude notes"
+  on public.gratitude_notes for insert
+  with check (auth.uid() = user_id);
+
+create policy "Users can update gratitude notes"
+  on public.gratitude_notes for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create policy "Users can delete gratitude notes"
+  on public.gratitude_notes for delete
+  using (auth.uid() = user_id);
+
+drop policy if exists "Family members can read photo comments" on public.photo_comments;
+drop policy if exists "Family members can create photo comments" on public.photo_comments;
+drop policy if exists "Users can update photo comments" on public.photo_comments;
+drop policy if exists "Users can delete photo comments" on public.photo_comments;
+
+create policy "Family members can read photo comments"
+  on public.photo_comments for select
+  using (
+    exists (
+      select 1
+      from public.photos as photo
+      where photo.id = photo_comments.photo_id
+        and (
+          photo.is_public
+          or photo.user_id = auth.uid()
+          or public.are_family_members(auth.uid(), photo.user_id)
+        )
+    )
+  );
+
+create policy "Family members can create photo comments"
+  on public.photo_comments for insert
+  with check (
+    auth.uid() = user_id
+    and exists (
+      select 1
+      from public.photos as photo
+      where photo.id = photo_comments.photo_id
+        and (
+          photo.user_id = auth.uid()
+          or public.are_family_members(auth.uid(), photo.user_id)
+        )
+    )
+  );
+
+create policy "Users can update photo comments"
+  on public.photo_comments for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create policy "Users can delete photo comments"
+  on public.photo_comments for delete
+  using (auth.uid() = user_id);
