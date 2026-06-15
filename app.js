@@ -9,6 +9,7 @@ const ANNIVERSARY_KEY = "life-vlog-anniversaries";
 const FOOD_OPTIONS_KEY = "life-vlog-food-options";
 const PHOTO_FAVORITES_KEY = "life-vlog-photo-favorites";
 const EXPERIENCE_KEY = "life-vlog-experience";
+const THANKS_COLORS = new Set(["#2f6b3b", "#d6544d", "#2e6da4", "#81559b", "#a66b12"]);
 const DAILY_LOGIN_EXP = 25;
 const BUCKET = "life-photos";
 const PRODUCTION_URL = "https://xiudan320-ship-it.github.io/life-vlog-site/";
@@ -102,6 +103,14 @@ let recipes = [];
 let wishes = [];
 let weekendPlans = [];
 let anniversaries = [];
+let gratitudeNotes = [];
+let familyInfo = null;
+let familyMembers = [];
+let familyInvitations = [];
+let familyMemberMap = new Map();
+let gratitudeEditingId = null;
+let activeDialogPhoto = null;
+let photoComments = [];
 let foodOptions = [];
 let activePage = "gallery";
 let activeFilter = "全部";
@@ -155,6 +164,7 @@ const els = {
   recipesNav: document.querySelector("#recipesNav"),
   wishlistNav: document.querySelector("#wishlistNav"),
   weekendNav: document.querySelector("#weekendNav"),
+  thanksNav: document.querySelector("#thanksNav"),
   setupToggle: document.querySelector("#setupToggle"),
   setupPanel: document.querySelector("#setupPanel"),
   supabaseUrl: document.querySelector("#supabaseUrl"),
@@ -176,6 +186,7 @@ const els = {
   heroHomeName: document.querySelector("#heroHomeName"),
   vipHomeName: document.querySelector("#vipHomeName"),
   renameHomeButton: document.querySelector("#renameHomeButton"),
+  familyAccountButton: document.querySelector("#familyAccountButton"),
   renameHomeDialog: document.querySelector("#renameHomeDialog"),
   closeRenameHome: document.querySelector("#closeRenameHome"),
   renameHomeForm: document.querySelector("#renameHomeForm"),
@@ -360,6 +371,30 @@ const els = {
   weekendCancelEdit: document.querySelector("#weekendCancelEdit"),
   weekendStatus: document.querySelector("#weekendStatus"),
   weekendList: document.querySelector("#weekendList"),
+  thanksPage: document.querySelector("#thanksPage"),
+  thanksForm: document.querySelector("#thanksForm"),
+  thanksBodyInput: document.querySelector("#thanksBodyInput"),
+  thanksStatus: document.querySelector("#thanksStatus"),
+  thanksSubmitButton: document.querySelector("#thanksSubmitButton"),
+  thanksCancelEdit: document.querySelector("#thanksCancelEdit"),
+  thanksBoard: document.querySelector("#thanksBoard"),
+  familyDialog: document.querySelector("#familyDialog"),
+  closeFamilyDialog: document.querySelector("#closeFamilyDialog"),
+  familyEmpty: document.querySelector("#familyEmpty"),
+  createFamilyForm: document.querySelector("#createFamilyForm"),
+  familyNameInput: document.querySelector("#familyNameInput"),
+  familyContent: document.querySelector("#familyContent"),
+  familyName: document.querySelector("#familyName"),
+  familyInviteForm: document.querySelector("#familyInviteForm"),
+  familyUsernameInput: document.querySelector("#familyUsernameInput"),
+  familyMembers: document.querySelector("#familyMembers"),
+  familyInvitations: document.querySelector("#familyInvitations"),
+  familyOutgoingInvitations: document.querySelector("#familyOutgoingInvitations"),
+  familyStatus: document.querySelector("#familyStatus"),
+  photoCommentsList: document.querySelector("#photoCommentsList"),
+  photoCommentForm: document.querySelector("#photoCommentForm"),
+  photoCommentInput: document.querySelector("#photoCommentInput"),
+  photoCommentStatus: document.querySelector("#photoCommentStatus"),
 };
 
 els.dateInput.valueAsDate = new Date();
@@ -507,6 +542,7 @@ function updateAuthUI() {
   renderWishes();
   renderWeekendPlans();
   renderAnniversaries();
+  renderGratitudeNotes();
   renderFoodWheel();
   switchPage(activePage);
   setHint(
@@ -524,6 +560,13 @@ function updateAuthUI() {
     photoFlagsCloudAvailable = false;
     foodOptionsCloudAvailable = false;
     profilePreferencesCloudAvailable = false;
+    gratitudeNotes = [];
+    familyInfo = null;
+    familyMembers = [];
+    familyInvitations = [];
+    familyMemberMap = new Map();
+    photoComments = [];
+    activeDialogPhoto = null;
     cloudSyncInFlight = null;
     syncedUserId = "";
     accountProfile = {
@@ -724,9 +767,7 @@ async function loadPhotos() {
   }
 
   let query = supabase.from("photos").select("*");
-  query = session
-    ? query.or(`is_public.eq.true,user_id.eq.${session.user.id}`)
-    : query.eq("is_public", true);
+  query = session ? query : query.eq("is_public", true);
 
   const { data, error } = await query
     .order("taken_at", { ascending: false })
@@ -1084,7 +1125,7 @@ function renderGallery() {
           <div class="photo-open">
             ${renderPhotoMedia(images, displayTitle, index)}
             <button class="photo-copy-open" type="button" data-photo-index="${index}" data-image-index="0">
-              <p class="kicker">${escapeHtml(photo.category || "日常")} · ${formatDate(photo.taken_at)}</p>
+              <p class="kicker">${escapeHtml(photo.category || "日常")} · ${formatDate(photo.taken_at)} · ${escapeHtml(getAuthorName(photo.user_id))}</p>
               <h3>${escapeHtml(displayTitle)}</h3>
               <p>${escapeHtml(noteText)}</p>
             </button>
@@ -1495,6 +1536,7 @@ async function deletePhoto(photo, triggerButton = null) {
 }
 
 function openPhoto(photo, initialImageIndex = 0) {
+  activeDialogPhoto = photo;
   const displayTitle = getDisplayTitle(photo);
   dialogImages = getPhotoImages(photo);
   dialogImageIndex = Math.min(
@@ -1502,9 +1544,10 @@ function openPhoto(photo, initialImageIndex = 0) {
     Math.max(0, dialogImages.length - 1)
   );
   els.dialogTitle.textContent = displayTitle;
-  els.dialogMeta.textContent = `${photo.category || "日常"} · ${formatDate(photo.taken_at)}`;
+  els.dialogMeta.textContent = `${photo.category || "日常"} · ${formatDate(photo.taken_at)} · ${getAuthorName(photo.user_id)} 发布`;
   els.dialogNote.textContent = getPlainNote(photo);
   renderDialogMedia();
+  void loadPhotoComments(photo.id);
   els.dialog.showModal();
 }
 
@@ -1853,6 +1896,77 @@ function normalizeUuid(value) {
   return crypto.randomUUID();
 }
 
+function getAuthorName(userId) {
+  if (!userId) return "我";
+  if (userId === session?.user?.id) return getSessionDisplayName();
+  return familyMemberMap.get(userId)?.username || "其他用户";
+}
+
+function canManageItem(item) {
+  return Boolean(session && (!item?.userId && !item?.user_id || item?.userId === session.user.id || item?.user_id === session.user.id));
+}
+
+function renderAuthorMeta(userId) {
+  return `<span class="author-meta">${escapeHtml(getAuthorName(userId))} 发布</span>`;
+}
+
+async function loadFamilyContext() {
+  familyInfo = null;
+  familyMembers = [];
+  familyInvitations = [];
+  familyMemberMap = new Map();
+  if (!supabase || !session) return;
+
+  const [membersResult, invitationsResult] = await Promise.all([
+    supabase.rpc("get_my_family_members"),
+    supabase.rpc("get_my_family_invitations"),
+  ]);
+  if (membersResult.error || invitationsResult.error) {
+    const error = membersResult.error || invitationsResult.error;
+    if (!isMissingCloudSchema(error)) {
+      console.warn("Family context failed:", error);
+    }
+    return;
+  }
+
+  familyMembers = membersResult.data || [];
+  familyInvitations = invitationsResult.data || [];
+  familyMembers.forEach((member) => familyMemberMap.set(member.user_id, member));
+  if (familyMembers.length) {
+    familyInfo = {
+      id: familyMembers[0].family_id,
+      name: familyMembers[0].family_name,
+      isOwner: familyMembers.some(
+        (member) => member.user_id === session.user.id && member.role === "owner"
+      ),
+    };
+  }
+  renderFamilyDialog();
+}
+
+async function loadGratitudeNotes() {
+  if (!supabase || !session) {
+    gratitudeNotes = [];
+    renderGratitudeNotes();
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from("gratitude_notes")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) {
+    gratitudeNotes = [];
+    els.thanksStatus.textContent = isMissingCloudSchema(error)
+      ? "请先运行最新版 supabase-cloud-sync.sql，启用感谢留言板。"
+      : `留言读取失败：${error.message}`;
+  } else {
+    gratitudeNotes = data || [];
+    els.thanksStatus.textContent = "";
+  }
+  renderGratitudeNotes();
+}
+
 function recipeToCloudRow(recipe, userId = session?.user?.id) {
   return {
     id: normalizeUuid(recipe.id),
@@ -1874,6 +1988,7 @@ function recipeToCloudRow(recipe, userId = session?.user?.id) {
 function recipeFromCloudRow(row) {
   return {
     id: row.id,
+    userId: row.user_id,
     name: row.name,
     category: row.category,
     time: row.cooking_time,
@@ -1908,6 +2023,7 @@ function wishFromCloudRow(row) {
   const media = parseWishStoredNote(row.note);
   return {
     id: row.id,
+    userId: row.user_id,
     title: row.title,
     type: row.wish_type,
     date: row.planned_date || "",
@@ -1940,6 +2056,7 @@ function weekendToCloudRow(plan, userId = session?.user?.id) {
 function weekendFromCloudRow(row) {
   return {
     id: row.id,
+    userId: row.user_id,
     title: row.title,
     date: row.plan_date,
     location: row.location || "",
@@ -1957,21 +2074,23 @@ async function synchronizeWeekendPlans(userId = session?.user?.id) {
     const { data, error } = await supabase
       .from("weekend_plans")
       .select("*")
-      .eq("user_id", userId)
       .order("plan_date", { ascending: true });
     if (error) throw error;
 
     let cloudPlans = data || [];
     const localPlans = loadWeekendPlans();
-    if (!cloudPlans.length && localPlans.length) {
+    const cloudIds = new Set(cloudPlans.map((plan) => plan.id));
+    const missingLocalPlans = localPlans.filter(
+      (plan) => (!plan.userId || plan.userId === userId) && !cloudIds.has(plan.id)
+    );
+    if (missingLocalPlans.length) {
       const { error: migrateError } = await supabase
         .from("weekend_plans")
-        .upsert(localPlans.map((plan) => weekendToCloudRow(plan, userId)), { onConflict: "id" });
+        .upsert(missingLocalPlans.map((plan) => weekendToCloudRow(plan, userId)), { onConflict: "id" });
       if (migrateError) throw migrateError;
       const refreshed = await supabase
         .from("weekend_plans")
         .select("*")
-        .eq("user_id", userId)
         .order("plan_date", { ascending: true });
       if (refreshed.error) throw refreshed.error;
       cloudPlans = refreshed.data || [];
@@ -2000,10 +2119,11 @@ async function synchronizeAccountData() {
   cloudSyncInFlight = (async () => {
     try {
       setGlobalStatus("正在同步账户数据…");
+      await loadFamilyContext();
       const [profileResult, recipesResult, wishesResult] = await Promise.all([
         supabase.from("user_profiles").select("*").eq("user_id", userId).maybeSingle(),
-        supabase.from("recipes").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
-        supabase.from("wishes").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
+        supabase.from("recipes").select("*").order("created_at", { ascending: false }),
+        supabase.from("wishes").select("*").order("created_at", { ascending: false }),
       ]);
 
       const firstError = profileResult.error || recipesResult.error || wishesResult.error;
@@ -2040,20 +2160,26 @@ async function synchronizeAccountData() {
       const needsLocalMigration = !profile.local_data_migrated;
 
       if (needsLocalMigration) {
-        if (localRecipes.length) {
-          const rows = localRecipes.map((recipe) => recipeToCloudRow(recipe, userId));
+        const personalLocalRecipes = localRecipes.filter(
+          (recipe) => !recipe.userId || recipe.userId === userId
+        );
+        const personalLocalWishes = localWishes.filter(
+          (wish) => !wish.userId || wish.userId === userId
+        );
+        if (personalLocalRecipes.length) {
+          const rows = personalLocalRecipes.map((recipe) => recipeToCloudRow(recipe, userId));
           const { error } = await supabase.from("recipes").upsert(rows, { onConflict: "id" });
           if (error) throw error;
         }
-        if (localWishes.length) {
-          const rows = localWishes.map((wish) => wishToCloudRow(wish, userId));
+        if (personalLocalWishes.length) {
+          const rows = personalLocalWishes.map((wish) => wishToCloudRow(wish, userId));
           const { error } = await supabase.from("wishes").upsert(rows, { onConflict: "id" });
           if (error) throw error;
         }
 
         const [migratedRecipes, migratedWishes] = await Promise.all([
-          supabase.from("recipes").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
-          supabase.from("wishes").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
+          supabase.from("recipes").select("*").order("created_at", { ascending: false }),
+          supabase.from("wishes").select("*").order("created_at", { ascending: false }),
         ]);
         if (migratedRecipes.error || migratedWishes.error) {
           throw migratedRecipes.error || migratedWishes.error;
@@ -2176,6 +2302,8 @@ async function synchronizeAccountData() {
       renderFoodWheel();
       await synchronizeWeekendPlans(userId);
       await synchronizeAnniversaries(userId);
+      await loadGratitudeNotes();
+      await loadPhotos();
       updateCloudSyncStatus();
     } catch (error) {
       cloudSyncAvailable = false;
@@ -2726,14 +2854,16 @@ function renderPreviewStrip(files, urls) {
 }
 
 function switchPage(page) {
-  activePage = ["recipes", "wishlist", "weekend"].includes(page) ? page : "gallery";
+  activePage = ["recipes", "wishlist", "weekend", "thanks"].includes(page) ? page : "gallery";
   const showRecipes = activePage === "recipes";
   const showWishlist = activePage === "wishlist";
   const showWeekend = activePage === "weekend";
+  const showThanks = activePage === "thanks";
   els.galleryNav.classList.toggle("active", activePage === "gallery");
   els.recipesNav.classList.toggle("active", showRecipes);
   els.wishlistNav.classList.toggle("active", showWishlist);
   els.weekendNav.classList.toggle("active", showWeekend);
+  els.thanksNav.classList.toggle("active", showThanks);
   els.composer.hidden = activePage !== "gallery" || !session;
   els.overview.hidden = activePage !== "gallery" || !session;
   els.foodWheelSection.hidden = activePage !== "gallery";
@@ -2749,12 +2879,15 @@ function switchPage(page) {
   els.recipesPage.hidden = !showRecipes;
   els.wishlistPage.hidden = !showWishlist;
   els.weekendPage.hidden = !showWeekend;
+  els.thanksPage.hidden = !showThanks;
   els.recipeComposer.hidden = !showRecipes || !session;
   els.wishlistComposer.hidden = !showWishlist || !session;
   els.weekendComposer.hidden = !showWeekend || !session;
+  els.thanksForm.hidden = !showThanks || !session;
   if (showRecipes) renderRecipes();
   if (showWishlist) renderWishes();
   if (showWeekend) renderWeekendPlans();
+  if (showThanks) renderGratitudeNotes();
   if (activePage === "gallery") {
     renderGallery();
     updateFeedLoader(filteredPhotoCount);
@@ -3168,18 +3301,19 @@ function renderRecipes() {
   }
 
   els.recipesList.innerHTML = recipes
-    .map(
-      (recipe, index) => `
+    .map((recipe, index) => {
+      const canManage = canManageItem(recipe);
+      return `
         <article class="recipe-card">
           <div class="recipe-card-head">
             <span>${String(index + 1).padStart(2, "0")}</span>
-            <div>
+            ${canManage ? `<div>
               <button type="button" data-edit-recipe="${escapeHtml(recipe.id)}">编辑</button>
               <button type="button" data-delete-recipe="${escapeHtml(recipe.id)}">删除</button>
-            </div>
+            </div>` : ""}
           </div>
           ${renderRecipeCover(recipe)}
-          <p class="kicker">${escapeHtml(recipe.category)} · ${formatRecipeDate(recipe.createdAt)}</p>
+          <p class="kicker">${escapeHtml(recipe.category)} · ${formatRecipeDate(recipe.createdAt)} · ${escapeHtml(getAuthorName(recipe.userId))}</p>
           <h3>${escapeHtml(recipe.name)}</h3>
           <div class="recipe-meta">
             ${recipe.time ? `<span>${escapeHtml(recipe.time)}</span>` : ""}
@@ -3198,8 +3332,8 @@ function renderRecipes() {
           </div>
           ${recipe.note ? `<p class="recipe-note">${escapeHtml(recipe.note)}</p>` : ""}
         </article>
-      `
-    )
+      `;
+    })
     .join("");
 
   els.recipesList.querySelectorAll("button[data-edit-recipe]").forEach((button) => {
@@ -3233,7 +3367,7 @@ function renderSeasonings(seasonings = []) {
 
 function editRecipe(id) {
   const recipe = recipes.find((item) => item.id === id);
-  if (!recipe) return;
+  if (!recipe || !canManageItem(recipe)) return;
 
   recipeEditingId = id;
   recipeExistingCover = recipe.coverImage || "";
@@ -3256,7 +3390,7 @@ function editRecipe(id) {
 
 async function deleteRecipe(id) {
   const recipe = recipes.find((item) => item.id === id);
-  if (!recipe) return;
+  if (!recipe || !canManageItem(recipe)) return;
   const ok = window.confirm(`删除菜谱“${recipe.name}”？`);
   if (!ok) return;
   if (!cloudSyncAvailable) {
@@ -3541,25 +3675,26 @@ function renderWishes() {
 
   const sorted = [...wishes].sort((a, b) => Number(a.done) - Number(b.done));
   els.wishlistList.innerHTML = sorted
-    .map(
-      (wish, index) => `
+    .map((wish, index) => {
+      const canManage = canManageItem(wish);
+      return `
         <article class="wish-card ${wish.done ? "done" : ""}">
           <div class="wish-card-head">
             <span>${String(index + 1).padStart(2, "0")}</span>
-            <div>
+            ${canManage ? `<div>
               <button type="button" data-edit-wish="${escapeHtml(wish.id)}">编辑</button>
               <button type="button" data-toggle-wish="${escapeHtml(wish.id)}">
                 ${wish.done ? "取消完成" : "完成"}
               </button>
               <button type="button" data-delete-wish="${escapeHtml(wish.id)}">删除</button>
-            </div>
+            </div>` : ""}
           </div>
           ${
             wish.imageUrl
               ? `<img class="wish-card-image" src="${escapeHtml(wish.imageUrl)}" alt="${escapeHtml(wish.title)}" loading="lazy" />`
               : ""
           }
-          <p class="kicker">${escapeHtml(wish.type)} · ${escapeHtml(wish.priority)}</p>
+          <p class="kicker">${escapeHtml(wish.type)} · ${escapeHtml(wish.priority)} · ${escapeHtml(getAuthorName(wish.userId))}</p>
           <h3>${escapeHtml(wish.title)}</h3>
           <div class="wish-meta">
             ${wish.date ? `<span>${formatWishDate(wish.date)}</span>` : ""}
@@ -3567,8 +3702,8 @@ function renderWishes() {
           </div>
           ${wish.note ? `<p>${escapeHtml(wish.note)}</p>` : ""}
         </article>
-      `
-    )
+      `;
+    })
     .join("");
 
   els.wishlistList.querySelectorAll("button[data-edit-wish]").forEach((button) => {
@@ -3584,7 +3719,7 @@ function renderWishes() {
 
 function editWish(id) {
   const wish = wishes.find((item) => item.id === id);
-  if (!wish) return;
+  if (!wish || !canManageItem(wish)) return;
 
   wishEditingId = id;
   wishExistingImage = wish.imageUrl || "";
@@ -3607,7 +3742,7 @@ function editWish(id) {
 
 async function toggleWish(id) {
   const current = wishes.find((wish) => wish.id === id);
-  if (!current) return;
+  if (!current || !canManageItem(current)) return;
   if (!cloudSyncAvailable) {
     setWishlistStatus("数据库尚未连接，心愿状态没有修改。");
     return;
@@ -3645,7 +3780,7 @@ async function toggleWish(id) {
 
 async function deleteWish(id) {
   const wish = wishes.find((item) => item.id === id);
-  if (!wish) return;
+  if (!wish || !canManageItem(wish)) return;
   const ok = window.confirm(`删除心愿“${wish.title}”？`);
   if (!ok) return;
   if (!cloudSyncAvailable) {
@@ -3756,6 +3891,7 @@ function anniversaryToCloudRow(item, userId = session?.user?.id) {
 function anniversaryFromCloudRow(row) {
   return {
     id: row.id,
+    userId: row.user_id,
     title: row.title,
     type: row.event_type,
     date: row.event_date || "",
@@ -3856,14 +3992,15 @@ function renderAnniversaries() {
   els.anniversaryList.innerHTML = anniversaries
     .map((item, index) => {
       const metrics = getAnniversaryMetrics(item);
+      const canManage = canManageItem(item);
       return `
         <article class="anniversary-card ${metrics.pending ? "pending" : ""}">
           <div class="anniversary-card-head">
-            <span class="anniversary-card-index">${getAnniversaryTypeLabel(item.type)} · ${String(index + 1).padStart(2, "0")}</span>
-            <div class="anniversary-card-actions">
+            <span class="anniversary-card-index">${getAnniversaryTypeLabel(item.type)} · ${String(index + 1).padStart(2, "0")} · ${escapeHtml(getAuthorName(item.userId))}</span>
+            ${canManage ? `<div class="anniversary-card-actions">
               <button type="button" data-edit-anniversary="${escapeHtml(item.id)}">编辑</button>
               <button type="button" data-delete-anniversary="${escapeHtml(item.id)}">删除</button>
-            </div>
+            </div>` : ""}
           </div>
           <div>
             <h3>${escapeHtml(item.title)}</h3>
@@ -3912,7 +4049,7 @@ function resetAnniversaryForm() {
 
 function editAnniversary(id) {
   const item = anniversaries.find((entry) => entry.id === id);
-  if (!item) return;
+  if (!item || !canManageItem(item)) return;
   anniversaryEditingId = id;
   els.anniversaryTitleInput.value = item.title || "";
   els.anniversaryTypeInput.value = item.type || "annual";
@@ -3973,7 +4110,7 @@ async function saveAnniversary(event) {
 
 async function deleteAnniversary(id) {
   const item = anniversaries.find((entry) => entry.id === id);
-  if (!item || !window.confirm(`删除“${item.title}”？`)) return;
+  if (!item || !canManageItem(item) || !window.confirm(`删除“${item.title}”？`)) return;
   if (!anniversaryCloudAvailable) {
     els.anniversaryStatus.textContent = "数据库尚未连接，不能删除纪念日。";
     return;
@@ -3996,14 +4133,19 @@ async function synchronizeAnniversaries(userId = session?.user?.id) {
     const { data, error } = await supabase
       .from("anniversaries")
       .select("*")
-      .eq("user_id", userId)
       .order("created_at", { ascending: true });
     if (error) throw error;
 
     let cloudItems = data || [];
     const localItems = loadAnniversaries();
-    const migratableItems = localItems.filter((item) => item.date);
-    if (!cloudItems.length && migratableItems.length) {
+    const cloudIds = new Set(cloudItems.map((item) => item.id));
+    const migratableItems = localItems.filter(
+      (item) =>
+        item.date &&
+        (!item.userId || item.userId === userId) &&
+        !cloudIds.has(item.id)
+    );
+    if (migratableItems.length) {
       const { error: migrateError } = await supabase
         .from("anniversaries")
         .upsert(migratableItems.map((item) => anniversaryToCloudRow(item, userId)), {
@@ -4013,7 +4155,6 @@ async function synchronizeAnniversaries(userId = session?.user?.id) {
       const refreshed = await supabase
         .from("anniversaries")
         .select("*")
-        .eq("user_id", userId)
         .order("created_at", { ascending: true });
       if (refreshed.error) throw refreshed.error;
       cloudItems = refreshed.data || [];
@@ -4021,8 +4162,13 @@ async function synchronizeAnniversaries(userId = session?.user?.id) {
 
     anniversaryCloudAvailable = true;
     const cloudMapped = cloudItems.map(anniversaryFromCloudRow);
-    const cloudIds = new Set(cloudMapped.map((item) => item.id));
-    const pendingLocal = localItems.filter((item) => !item.date && !cloudIds.has(item.id));
+    const mappedCloudIds = new Set(cloudMapped.map((item) => item.id));
+    const pendingLocal = localItems.filter(
+      (item) =>
+        !item.date &&
+        (!item.userId || item.userId === userId) &&
+        !mappedCloudIds.has(item.id)
+    );
     anniversaries = cloudMapped.length ? [...cloudMapped, ...pendingLocal] : localItems;
     saveAnniversaries();
     renderAnniversaries();
@@ -4151,8 +4297,9 @@ function renderWeekendPlans() {
     (a, b) => Number(a.done) - Number(b.done) || new Date(a.date) - new Date(b.date)
   );
   els.weekendList.innerHTML = sorted
-    .map(
-      (plan, index) => `
+    .map((plan, index) => {
+      const canManage = canManageItem(plan);
+      return `
         <article class="weekend-card ${plan.done ? "done" : ""}">
           <div class="weekend-date">
             <span>${new Intl.DateTimeFormat("zh-CN", { month: "short" }).format(new Date(plan.date))}</span>
@@ -4160,21 +4307,21 @@ function renderWeekendPlans() {
             <small>${new Intl.DateTimeFormat("zh-CN", { weekday: "short" }).format(new Date(plan.date))}</small>
           </div>
           <div class="weekend-card-body">
-            <p class="kicker">${escapeHtml(plan.type)} · PLAN ${String(index + 1).padStart(2, "0")}</p>
+            <p class="kicker">${escapeHtml(plan.type)} · PLAN ${String(index + 1).padStart(2, "0")} · ${escapeHtml(getAuthorName(plan.userId))}</p>
             <h3>${escapeHtml(plan.title)}</h3>
             ${plan.location ? `<p class="weekend-location">地点：${escapeHtml(plan.location)}</p>` : ""}
             ${plan.note ? `<p>${escapeHtml(plan.note)}</p>` : ""}
-            <div class="weekend-card-actions">
+            ${canManage ? `<div class="weekend-card-actions">
               <button type="button" data-edit-weekend="${escapeHtml(plan.id)}">编辑</button>
               <button type="button" data-toggle-weekend="${escapeHtml(plan.id)}">
                 ${plan.done ? "重新计划" : "完成"}
               </button>
               <button type="button" data-delete-weekend="${escapeHtml(plan.id)}">删除</button>
-            </div>
+            </div>` : ""}
           </div>
         </article>
-      `
-    )
+      `;
+    })
     .join("");
 
   els.weekendList.querySelectorAll("[data-edit-weekend]").forEach((button) => {
@@ -4190,7 +4337,7 @@ function renderWeekendPlans() {
 
 function editWeekendPlan(id) {
   const plan = weekendPlans.find((item) => item.id === id);
-  if (!plan) return;
+  if (!plan || !canManageItem(plan)) return;
   weekendEditingId = id;
   els.weekendTitleInput.value = plan.title || "";
   els.weekendDateInput.value = plan.date || getNextWeekendDate();
@@ -4207,7 +4354,7 @@ function editWeekendPlan(id) {
 
 async function toggleWeekendPlan(id) {
   const current = weekendPlans.find((item) => item.id === id);
-  if (!current) return;
+  if (!current || !canManageItem(current)) return;
   if (!weekendCloudAvailable) {
     setWeekendStatus("数据库尚未连接，计划状态没有修改。");
     return;
@@ -4234,7 +4381,7 @@ async function toggleWeekendPlan(id) {
 
 async function deleteWeekendPlan(id) {
   const plan = weekendPlans.find((item) => item.id === id);
-  if (!plan || !window.confirm(`删除周末计划“${plan.title}”？`)) return;
+  if (!plan || !canManageItem(plan) || !window.confirm(`删除周末计划“${plan.title}”？`)) return;
   if (!weekendCloudAvailable) {
     setWeekendStatus("数据库尚未连接，不能删除周末计划。");
     return;
@@ -4252,6 +4399,396 @@ async function deleteWeekendPlan(id) {
 
 function setWeekendStatus(message) {
   els.weekendStatus.textContent = message;
+}
+
+function getSelectedThanksColor() {
+  const selected = els.thanksForm.querySelector('input[name="thanksColor"]:checked');
+  return THANKS_COLORS.has(selected?.value) ? selected.value : "#2f6b3b";
+}
+
+function setSelectedThanksColor(color) {
+  const safeColor = THANKS_COLORS.has(color) ? color : "#2f6b3b";
+  els.thanksForm.querySelectorAll('input[name="thanksColor"]').forEach((input) => {
+    input.checked = input.value === safeColor;
+    input.closest("label")?.classList.toggle("active", input.checked);
+  });
+}
+
+function resetGratitudeForm() {
+  gratitudeEditingId = null;
+  els.thanksForm.reset();
+  setSelectedThanksColor("#2f6b3b");
+  els.thanksSubmitButton.textContent = "贴到留言板";
+  els.thanksCancelEdit.hidden = true;
+  els.thanksStatus.textContent = "";
+}
+
+function renderGratitudeNotes() {
+  if (!els.thanksBoard) return;
+  if (!session) {
+    els.thanksBoard.innerHTML = `<div class="empty">登录后可以和家人留下一句话。</div>`;
+    return;
+  }
+  if (!gratitudeNotes.length) {
+    els.thanksBoard.innerHTML = `<div class="empty">留言板还是空的。先留下一句今天想感谢的话。</div>`;
+    return;
+  }
+
+  els.thanksBoard.innerHTML = gratitudeNotes
+    .map((note, index) => {
+      const canManage = note.user_id === session.user.id;
+      const safeColor = THANKS_COLORS.has(note.text_color) ? note.text_color : "#2f6b3b";
+      return `
+        <article class="thanks-note" style="--note-color:${safeColor}">
+          <span class="thanks-note-index">${String(index + 1).padStart(2, "0")}</span>
+          <p>${escapeHtml(note.body)}</p>
+          <footer>
+            <span>${escapeHtml(getAuthorName(note.user_id))}</span>
+            <time>${formatCommentTime(note.created_at)}</time>
+            ${canManage ? `<span class="thanks-note-actions">
+              <button type="button" data-edit-thanks="${escapeHtml(note.id)}">编辑</button>
+              <button type="button" data-delete-thanks="${escapeHtml(note.id)}">删除</button>
+            </span>` : ""}
+          </footer>
+        </article>
+      `;
+    })
+    .join("");
+
+  els.thanksBoard.querySelectorAll("[data-edit-thanks]").forEach((button) => {
+    button.addEventListener("click", () => editGratitudeNote(button.dataset.editThanks));
+  });
+  els.thanksBoard.querySelectorAll("[data-delete-thanks]").forEach((button) => {
+    button.addEventListener("click", () => deleteGratitudeNote(button.dataset.deleteThanks));
+  });
+}
+
+async function saveGratitudeNote(event) {
+  event.preventDefault();
+  if (!supabase || !session) return;
+  const body = els.thanksBodyInput.value.trim();
+  if (!body) return;
+
+  const payload = {
+    user_id: session.user.id,
+    body,
+    text_color: getSelectedThanksColor(),
+    updated_at: new Date().toISOString(),
+  };
+  els.thanksStatus.textContent = "正在保存...";
+
+  const request = gratitudeEditingId
+    ? supabase
+        .from("gratitude_notes")
+        .update(payload)
+        .eq("id", gratitudeEditingId)
+        .eq("user_id", session.user.id)
+    : supabase.from("gratitude_notes").insert(payload);
+  const { error } = await request;
+  if (error) {
+    els.thanksStatus.textContent = isMissingCloudSchema(error)
+      ? "请先运行最新版 supabase-cloud-sync.sql。"
+      : `保存失败：${error.message}`;
+    return;
+  }
+
+  resetGratitudeForm();
+  await loadGratitudeNotes();
+}
+
+function editGratitudeNote(id) {
+  const note = gratitudeNotes.find((item) => item.id === id);
+  if (!note || note.user_id !== session?.user?.id) return;
+  gratitudeEditingId = id;
+  els.thanksBodyInput.value = note.body;
+  setSelectedThanksColor(note.text_color);
+  els.thanksSubmitButton.textContent = "保存修改";
+  els.thanksCancelEdit.hidden = false;
+  els.thanksBodyInput.focus();
+}
+
+async function deleteGratitudeNote(id) {
+  const note = gratitudeNotes.find((item) => item.id === id);
+  if (!note || note.user_id !== session?.user?.id) return;
+  if (!window.confirm("删除这条留言？")) return;
+  const { error } = await supabase
+    .from("gratitude_notes")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", session.user.id);
+  if (error) {
+    els.thanksStatus.textContent = `删除失败：${error.message}`;
+    return;
+  }
+  if (gratitudeEditingId === id) resetGratitudeForm();
+  await loadGratitudeNotes();
+}
+
+function renderFamilyDialog() {
+  if (!els.familyDialog) return;
+  const hasFamily = Boolean(familyInfo);
+  els.familyEmpty.hidden = hasFamily;
+  els.familyContent.hidden = !hasFamily;
+  if (!hasFamily) {
+    els.familyMembers.innerHTML = "";
+    const incoming = familyInvitations.filter((invitation) => invitation.is_incoming);
+    els.familyInvitations.innerHTML = incoming
+      .map(
+        (invitation) => `
+          <article class="family-invitation">
+            <div>
+              <span>${escapeHtml(invitation.inviter_username)} 邀请你加入</span>
+              <strong>${escapeHtml(invitation.family_name)}</strong>
+            </div>
+            <span class="family-invitation-actions">
+              <button type="button" data-family-response="${escapeHtml(invitation.invitation_id)}" data-accept="true">接受</button>
+              <button type="button" data-family-response="${escapeHtml(invitation.invitation_id)}" data-accept="false">拒绝</button>
+            </span>
+          </article>
+        `
+      )
+      .join("");
+    els.familyInvitations.querySelectorAll("[data-family-response]").forEach((button) => {
+      button.addEventListener("click", () =>
+        respondFamilyInvitation(
+          button.dataset.familyResponse,
+          button.dataset.accept === "true"
+        )
+      );
+    });
+    return;
+  }
+
+  els.familyInvitations.innerHTML = "";
+  els.familyName.textContent = familyInfo.name;
+  els.familyInviteForm.hidden = !familyInfo.isOwner;
+  els.familyMembers.innerHTML = familyMembers
+    .map((member) => {
+      const isCurrent = member.user_id === session?.user?.id;
+      const canRemove = familyInfo.isOwner && member.role !== "owner";
+      return `
+        <article class="family-member">
+          <span class="family-member-avatar">${escapeHtml(getInitial(member.username))}</span>
+          <div>
+            <strong>${escapeHtml(member.username)}${isCurrent ? "（我）" : ""}</strong>
+            <small>${member.role === "owner" ? "家庭创建者" : "家庭成员"}</small>
+          </div>
+          ${canRemove ? `<button type="button" data-remove-family-member="${escapeHtml(member.user_id)}">移除</button>` : ""}
+        </article>
+      `;
+    })
+    .join("");
+
+  els.familyMembers.querySelectorAll("[data-remove-family-member]").forEach((button) => {
+    button.addEventListener("click", () => removeFamilyMember(button.dataset.removeFamilyMember));
+  });
+
+  const outgoing = familyInvitations.filter((invitation) => !invitation.is_incoming);
+  els.familyOutgoingInvitations.innerHTML = outgoing
+    .map(
+      (invitation) => `
+        <article class="family-invitation pending">
+          <div>
+            <span>等待对方接受邀请</span>
+            <strong>${escapeHtml(invitation.invited_username)}</strong>
+          </div>
+          <small>邀请已发送</small>
+        </article>
+      `
+    )
+    .join("");
+}
+
+async function refreshSharedContent() {
+  if (!supabase || !session) return;
+  const [recipesResult, wishesResult] = await Promise.all([
+    supabase.from("recipes").select("*").order("created_at", { ascending: false }),
+    supabase.from("wishes").select("*").order("created_at", { ascending: false }),
+  ]);
+  if (!recipesResult.error) recipes = (recipesResult.data || []).map(recipeFromCloudRow);
+  if (!wishesResult.error) wishes = (wishesResult.data || []).map(wishFromCloudRow);
+  await Promise.all([
+    loadPhotos(),
+    synchronizeWeekendPlans(session.user.id),
+    synchronizeAnniversaries(session.user.id),
+    loadGratitudeNotes(),
+  ]);
+  renderRecipes();
+  renderWishes();
+  renderWeekendPlans();
+  renderAnniversaries();
+}
+
+async function createFamily(event) {
+  event.preventDefault();
+  if (!supabase || !session) return;
+  els.familyStatus.textContent = "正在创建家庭组...";
+  const { error } = await supabase.rpc("create_family", {
+    p_name: els.familyNameInput.value.trim() || "我们的家",
+  });
+  if (error) {
+    els.familyStatus.textContent = isMissingCloudSchema(error)
+      ? "请先运行最新版 supabase-cloud-sync.sql。"
+      : `创建失败：${error.message}`;
+    return;
+  }
+  els.createFamilyForm.reset();
+  await loadFamilyContext();
+  els.familyStatus.textContent = "家庭组已创建。现在可以输入另一位用户的用户名。";
+  await refreshSharedContent();
+}
+
+async function addFamilyMember(event) {
+  event.preventDefault();
+  if (!supabase || !session || !familyInfo?.isOwner) return;
+  const username = els.familyUsernameInput.value.trim();
+  if (!username) return;
+  els.familyStatus.textContent = "正在添加家庭成员...";
+  const { error } = await supabase.rpc("add_family_member_by_username", {
+    p_username: username,
+  });
+  if (error) {
+    els.familyStatus.textContent = `添加失败：${error.message}`;
+    return;
+  }
+  els.familyInviteForm.reset();
+  await loadFamilyContext();
+  els.familyStatus.textContent = `已向 ${username} 发送邀请，等对方登录后接受。`;
+}
+
+async function respondFamilyInvitation(invitationId, accept) {
+  if (!supabase || !session) return;
+  els.familyStatus.textContent = accept ? "正在加入家庭..." : "正在拒绝邀请...";
+  const { error } = await supabase.rpc("respond_family_invitation", {
+    p_invitation_id: invitationId,
+    p_accept: accept,
+  });
+  if (error) {
+    els.familyStatus.textContent = `处理邀请失败：${error.message}`;
+    return;
+  }
+  await loadFamilyContext();
+  els.familyStatus.textContent = accept ? "已加入家庭，正在同步共同生活记录。" : "已拒绝邀请。";
+  if (accept) await refreshSharedContent();
+}
+
+async function removeFamilyMember(userId) {
+  const member = familyMembers.find((item) => item.user_id === userId);
+  if (!member || !window.confirm(`把 ${member.username} 移出家庭组？`)) return;
+  const { error } = await supabase.rpc("remove_family_member", { p_user_id: userId });
+  if (error) {
+    els.familyStatus.textContent = `移除失败：${error.message}`;
+    return;
+  }
+  await loadFamilyContext();
+  els.familyStatus.textContent = `${member.username} 已移出家庭组。`;
+  await refreshSharedContent();
+}
+
+function formatCommentTime(value) {
+  return new Intl.DateTimeFormat("zh-CN", {
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+async function loadPhotoComments(photoId) {
+  photoComments = [];
+  els.photoCommentStatus.textContent = "";
+  const canComment = Boolean(
+    session &&
+      activeDialogPhoto &&
+      (activeDialogPhoto.user_id === session.user.id ||
+        familyMemberMap.has(activeDialogPhoto.user_id))
+  );
+  els.photoCommentForm.hidden = !canComment;
+  if (!supabase || !session || !photoId) {
+    renderPhotoComments();
+    return;
+  }
+  const { data, error } = await supabase
+    .from("photo_comments")
+    .select("*")
+    .eq("photo_id", photoId)
+    .order("created_at", { ascending: true });
+  if (error) {
+    els.photoCommentStatus.textContent = isMissingCloudSchema(error)
+      ? "运行最新版数据库脚本后即可留言。"
+      : `留言读取失败：${error.message}`;
+  } else {
+    photoComments = data || [];
+  }
+  renderPhotoComments();
+}
+
+function renderPhotoComments() {
+  if (!els.photoCommentsList) return;
+  if (!photoComments.length) {
+    els.photoCommentsList.innerHTML = `<p class="photo-comments-empty">还没有留言。</p>`;
+    return;
+  }
+  els.photoCommentsList.innerHTML = photoComments
+    .map(
+      (comment) => `
+        <article class="photo-comment">
+          <span class="photo-comment-avatar">${escapeHtml(getInitial(getAuthorName(comment.user_id)))}</span>
+          <div>
+            <header>
+              <strong>${escapeHtml(getAuthorName(comment.user_id))}</strong>
+              <time>${formatCommentTime(comment.created_at)}</time>
+            </header>
+            <p>${escapeHtml(comment.body)}</p>
+          </div>
+          ${
+            comment.user_id === session?.user?.id
+              ? `<button type="button" data-delete-comment="${escapeHtml(comment.id)}" aria-label="删除留言">删除</button>`
+              : ""
+          }
+        </article>
+      `
+    )
+    .join("");
+  els.photoCommentsList.querySelectorAll("[data-delete-comment]").forEach((button) => {
+    button.addEventListener("click", () => deletePhotoComment(button.dataset.deleteComment));
+  });
+}
+
+async function savePhotoComment(event) {
+  event.preventDefault();
+  if (!supabase || !session || !activeDialogPhoto) return;
+  const body = els.photoCommentInput.value.trim();
+  if (!body) return;
+  els.photoCommentStatus.textContent = "正在发送...";
+  const { error } = await supabase.from("photo_comments").insert({
+    photo_id: activeDialogPhoto.id,
+    user_id: session.user.id,
+    body,
+  });
+  if (error) {
+    els.photoCommentStatus.textContent = isMissingCloudSchema(error)
+      ? "请先运行最新版 supabase-cloud-sync.sql。"
+      : `发送失败：${error.message}`;
+    return;
+  }
+  els.photoCommentForm.reset();
+  await loadPhotoComments(activeDialogPhoto.id);
+}
+
+async function deletePhotoComment(id) {
+  const comment = photoComments.find((item) => item.id === id);
+  if (!comment || comment.user_id !== session?.user?.id) return;
+  const { error } = await supabase
+    .from("photo_comments")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", session.user.id);
+  if (error) {
+    els.photoCommentStatus.textContent = `删除失败：${error.message}`;
+    return;
+  }
+  await loadPhotoComments(activeDialogPhoto?.id);
 }
 
 function getInitial(value) {
@@ -4285,6 +4822,7 @@ els.galleryNav.addEventListener("click", () => switchPage("gallery"));
 els.recipesNav.addEventListener("click", () => switchPage("recipes"));
 els.wishlistNav.addEventListener("click", () => switchPage("wishlist"));
 els.weekendNav.addEventListener("click", () => switchPage("weekend"));
+els.thanksNav.addEventListener("click", () => switchPage("thanks"));
 els.foodWheelOpen.addEventListener("click", openFoodWheel);
 els.foodWheelClose.addEventListener("click", closeFoodWheel);
 els.foodWheelDialog.addEventListener("click", (event) => {
@@ -4384,6 +4922,11 @@ els.weekendCancelEdit.addEventListener("click", () => {
   setWeekendExpanded(false);
   setWeekendStatus("");
 });
+els.thanksForm.addEventListener("submit", saveGratitudeNote);
+els.thanksCancelEdit.addEventListener("click", resetGratitudeForm);
+els.thanksForm.querySelectorAll('input[name="thanksColor"]').forEach((input) => {
+  input.addEventListener("change", () => setSelectedThanksColor(input.value));
+});
 els.avatarButton.addEventListener("click", () => {
   els.userPopover.hidden = !els.userPopover.hidden;
 });
@@ -4400,6 +4943,19 @@ els.renameHomeDialog.addEventListener("click", (event) => {
 });
 els.renameHomeForm.addEventListener("submit", saveHomeName);
 els.resetHomeName.addEventListener("click", restoreDefaultHomeName);
+els.familyAccountButton.addEventListener("click", () => {
+  els.userPopover.hidden = true;
+  els.familyStatus.textContent = "";
+  els.familyNameInput.value = accountProfile.homeName || "我们的家";
+  renderFamilyDialog();
+  els.familyDialog.showModal();
+});
+els.closeFamilyDialog.addEventListener("click", () => els.familyDialog.close());
+els.familyDialog.addEventListener("click", (event) => {
+  if (event.target === els.familyDialog) els.familyDialog.close();
+});
+els.createFamilyForm.addEventListener("submit", createFamily);
+els.familyInviteForm.addEventListener("submit", addFamilyMember);
 els.changePasswordButton.addEventListener("click", () => {
   els.userPopover.hidden = true;
   els.changePasswordForm.reset();
@@ -4461,6 +5017,13 @@ els.dialog.addEventListener("click", (event) => {
     els.dialog.close();
   }
 });
+els.dialog.addEventListener("close", () => {
+  activeDialogPhoto = null;
+  photoComments = [];
+  els.photoCommentForm.reset();
+  els.photoCommentStatus.textContent = "";
+});
+els.photoCommentForm.addEventListener("submit", savePhotoComment);
 els.dialogPrev.addEventListener("click", () => moveDialogImage(-1));
 els.dialogNext.addEventListener("click", () => moveDialogImage(1));
 els.editForm.addEventListener("submit", savePhotoEdit);
