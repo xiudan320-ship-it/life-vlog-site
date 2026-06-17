@@ -23,6 +23,9 @@ alter table public.user_profiles
 alter table public.user_profiles
   add column if not exists food_options jsonb not null default '[]'::jsonb;
 
+alter table public.user_profiles
+  add column if not exists preferred_thanks_color text not null default '#2f6b3b';
+
 alter table public.photos
   add column if not exists is_featured boolean not null default false,
   add column if not exists is_pinned boolean not null default false;
