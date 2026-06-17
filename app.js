@@ -1935,7 +1935,10 @@ function getAuthorName(userId) {
 }
 
 function canManageItem(item) {
-  return Boolean(session && (!item?.userId && !item?.user_id || item?.userId === session.user.id || item?.user_id === session.user.id));
+  if (!session) return false;
+  const ownerId = item?.userId || item?.user_id || "";
+  if (!ownerId) return true;
+  return ownerId === session.user.id || familyMemberMap.has(ownerId);
 }
 
 function renderAuthorMeta(userId) {
@@ -3337,8 +3340,10 @@ async function saveRecipe(event) {
   }
 
   const coverImage = await getRecipeCoverForSave();
+  const previous = recipes.find((item) => item.id === recipeEditingId);
   let recipe = {
     id: normalizeUuid(recipeEditingId),
+    userId: previous?.userId || session.user.id,
     name,
     category: els.recipeCategoryInput.value,
     time: els.recipeTimeInput.value.trim(),
@@ -3348,8 +3353,7 @@ async function saveRecipe(event) {
     ingredients: splitLines(els.recipeIngredientsInput.value),
     steps: splitLines(els.recipeStepsInput.value),
     note: els.recipeNoteInput.value.trim(),
-    createdAt:
-      recipes.find((item) => item.id === recipeEditingId)?.createdAt || new Date().toISOString(),
+    createdAt: previous?.createdAt || new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
 
@@ -3357,7 +3361,7 @@ async function saveRecipe(event) {
   if (cloudSyncAvailable) {
     const { data, error } = await supabase
       .from("recipes")
-      .upsert(recipeToCloudRow(recipe), { onConflict: "id" })
+      .upsert(recipeToCloudRow(recipe, recipe.userId), { onConflict: "id" })
       .select("*")
       .single();
     if (error) {
@@ -3703,6 +3707,7 @@ async function saveWish(event) {
 
   let wish = {
     id: normalizeUuid(wishEditingId),
+    userId: previous?.userId || session.user.id,
     title,
     type: els.wishTypeInput.value,
     date: els.wishDateInput.value,
@@ -3719,7 +3724,7 @@ async function saveWish(event) {
   if (cloudSyncAvailable) {
     const { data, error } = await supabase
       .from("wishes")
-      .upsert(wishToCloudRow(wish), { onConflict: "id" })
+      .upsert(wishToCloudRow(wish, wish.userId), { onConflict: "id" })
       .select("*")
       .single();
     if (error) {
@@ -4170,6 +4175,7 @@ async function saveAnniversary(event) {
   const previous = anniversaries.find((item) => item.id === anniversaryEditingId);
   let item = {
     id: normalizeUuid(anniversaryEditingId),
+    userId: previous?.userId || session.user.id,
     title,
     type: els.anniversaryTypeInput.value,
     date,
@@ -4181,7 +4187,7 @@ async function saveAnniversary(event) {
   if (anniversaryCloudAvailable) {
     const { data, error } = await supabase
       .from("anniversaries")
-      .upsert(anniversaryToCloudRow(item), { onConflict: "id" })
+      .upsert(anniversaryToCloudRow(item, item.userId), { onConflict: "id" })
       .select("*")
       .single();
     if (error) {
@@ -4340,6 +4346,7 @@ async function saveWeekendPlan(event) {
   const previous = weekendPlans.find((item) => item.id === weekendEditingId);
   let plan = {
     id: normalizeUuid(weekendEditingId),
+    userId: previous?.userId || session.user.id,
     title,
     date: els.weekendDateInput.value || getNextWeekendDate(),
     location: els.weekendLocationInput.value.trim(),
@@ -4353,7 +4360,7 @@ async function saveWeekendPlan(event) {
   if (weekendCloudAvailable) {
     const { data, error } = await supabase
       .from("weekend_plans")
-      .upsert(weekendToCloudRow(plan), { onConflict: "id" })
+      .upsert(weekendToCloudRow(plan, plan.userId), { onConflict: "id" })
       .select("*")
       .single();
     if (error) {
@@ -4573,7 +4580,7 @@ function renderGratitudeNotes() {
 
   els.thanksBoard.innerHTML = gratitudeNotes
     .map((note, index) => {
-      const canManage = note.user_id === session.user.id;
+      const canManage = canManageItem(note);
       const safeColor = THANKS_COLORS.has(note.text_color) ? note.text_color : "#2f6b3b";
       return `
         <article class="thanks-note" style="--note-color:${safeColor}">
@@ -4606,13 +4613,14 @@ async function saveGratitudeNote(event) {
   const body = els.thanksBodyInput.value.trim();
   if (!body) return;
   const selectedColor = getSelectedThanksColor();
+  const previousNote = gratitudeNotes.find((item) => item.id === gratitudeEditingId);
   saveThanksColorPreference(selectedColor, {
     userId: session.user.id,
     syncCloud: true,
   });
 
   const payload = {
-    user_id: session.user.id,
+    user_id: previousNote?.user_id || session.user.id,
     body,
     text_color: selectedColor,
     updated_at: new Date().toISOString(),
@@ -4640,7 +4648,7 @@ async function saveGratitudeNote(event) {
 
 function editGratitudeNote(id) {
   const note = gratitudeNotes.find((item) => item.id === id);
-  if (!note || note.user_id !== session?.user?.id) return;
+  if (!note || !canManageItem(note)) return;
   gratitudeEditingId = id;
   els.thanksBodyInput.value = note.body;
   setSelectedThanksColor(note.text_color);
@@ -4651,13 +4659,12 @@ function editGratitudeNote(id) {
 
 async function deleteGratitudeNote(id) {
   const note = gratitudeNotes.find((item) => item.id === id);
-  if (!note || note.user_id !== session?.user?.id) return;
+  if (!note || !canManageItem(note)) return;
   if (!window.confirm("删除这条留言？")) return;
   const { error } = await supabase
     .from("gratitude_notes")
     .delete()
-    .eq("id", id)
-    .eq("user_id", session.user.id);
+    .eq("id", id);
   if (error) {
     els.thanksStatus.textContent = `删除失败：${error.message}`;
     return;
