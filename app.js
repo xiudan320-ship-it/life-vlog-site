@@ -524,6 +524,8 @@ function updateAuthUI() {
   document.body.dataset.vipLevel = String(activeVipLevel);
   els.composer.hidden = !signedIn;
   els.anniversarySection.hidden = !signedIn;
+  els.anniversaryOpen.hidden = !signedIn;
+  els.memoryButton.hidden = !signedIn;
   els.authCard.hidden = signedIn;
   els.userMenu.hidden = !signedIn;
   els.loginButton.hidden = signedIn;
@@ -3011,18 +3013,21 @@ function renderOverview() {
   els.overview.hidden = !signedIn || activePage !== "gallery";
   if (!signedIn) return;
 
-  const personalPhotos = photos.filter(
-    (photo) => !photo.user_id || photo.user_id === session.user.id
-  );
+  const familyVisiblePhotos = getMemoryPhotos();
   const unfinishedWishes = wishes.filter((wish) => !wish.done).length;
   const experience = loadExperience();
   const progress = getExperienceLevel(experience.total);
-  els.overviewPhotos.textContent = String(personalPhotos.length);
+  els.overviewPhotos.textContent = String(familyVisiblePhotos.length);
   els.overviewRecipes.textContent = String(recipes.length);
   els.overviewWishes.textContent = String(unfinishedWishes);
   els.overviewLevel.textContent = `Lv.${progress.level}`;
   els.overviewProgress.style.width = `${progress.percent}%`;
-  els.memoryButton.disabled = personalPhotos.length === 0;
+  els.memoryButton.disabled = familyVisiblePhotos.length === 0;
+}
+
+function getMemoryPhotos() {
+  if (!session) return [];
+  return photos.filter((photo) => photo?.image_url || getPhotoImages(photo).length);
 }
 
 function normalizeFoodOptions(values) {
@@ -5024,11 +5029,9 @@ els.anniversaryCancel.addEventListener("click", () => {
   setAnniversaryFormExpanded(false);
 });
 els.memoryButton.addEventListener("click", () => {
-  const personalPhotos = photos.filter(
-    (photo) => !photo.user_id || photo.user_id === session?.user?.id
-  );
-  if (!personalPhotos.length) return;
-  openPhoto(personalPhotos[Math.floor(Math.random() * personalPhotos.length)]);
+  const memoryPhotos = getMemoryPhotos();
+  if (!memoryPhotos.length) return;
+  openPhoto(memoryPhotos[Math.floor(Math.random() * memoryPhotos.length)]);
 });
 els.quickPhoto.addEventListener("click", () => {
   switchPage("gallery");
