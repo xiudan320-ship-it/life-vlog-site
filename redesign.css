@@ -843,38 +843,66 @@ body.vip-member .hero {
   display: none;
 }
 
-.food-wheel-section {
-  display: block;
-  height: 0;
-  margin: 0;
+.tool-dock {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  box-shadow: var(--shadow);
+  padding: 10px;
+  scrollbar-width: none;
 }
 
-.food-wheel-launch {
-  position: fixed;
-  top: 48%;
-  right: 18px;
-  z-index: 24;
-  display: grid;
-  width: 78px;
-  justify-items: center;
-  gap: 9px;
+.tool-dock::-webkit-scrollbar {
+  display: none;
+}
+
+.food-wheel-section,
+.anniversary-section {
+  display: contents;
+}
+
+.tool-dock-button {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  min-width: 178px;
+  gap: 11px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
   color: var(--ink);
-  box-shadow: 0 18px 50px rgba(21, 24, 22, 0.16);
-  padding: 12px 9px;
-  transform: translateY(-50%);
+  box-shadow: 0 10px 28px rgba(21, 24, 22, 0.06);
+  padding: 10px 13px;
 }
 
-.food-wheel-launch:hover {
+.tool-dock-button[hidden] {
+  display: none;
+}
+
+.tool-dock-button:hover {
   border-color: var(--accent);
-  transform: translateY(-50%) translateX(-3px);
+  transform: translateY(-2px);
+}
+
+.tool-dock-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.tool-dock-button > span:last-child {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+  text-align: left;
 }
 
 .food-wheel-launch-mark {
-  width: 46px;
-  height: 46px;
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
   border: 3px solid var(--ink);
   border-radius: 50%;
   background: conic-gradient(
@@ -888,7 +916,6 @@ body.vip-member .hero {
 .food-wheel-launch strong {
   font-size: 14px;
   line-height: 1.25;
-  writing-mode: vertical-rl;
 }
 
 .food-wheel-launch small {
@@ -899,42 +926,13 @@ body.vip-member .hero {
 
 body.theme-dark .food-wheel-launch {
   border-color: rgba(255, 255, 255, 0.18);
-  box-shadow: 0 18px 55px rgba(0, 0, 0, 0.4);
-}
-
-.anniversary-section {
-  display: block;
-  height: 0;
-  margin: 0;
-}
-
-.anniversary-launch {
-  position: fixed;
-  top: 48%;
-  left: 18px;
-  z-index: 24;
-  display: grid;
-  width: 78px;
-  justify-items: center;
-  gap: 9px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surface);
-  color: var(--ink);
-  box-shadow: 0 18px 50px rgba(21, 24, 22, 0.16);
-  padding: 12px 9px;
-  transform: translateY(-50%);
-}
-
-.anniversary-launch:hover {
-  border-color: var(--accent);
-  transform: translateY(-50%) translateX(3px);
 }
 
 .anniversary-launch-mark {
   display: grid;
-  width: 50px;
-  height: 50px;
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
   overflow: hidden;
   place-items: center;
   border: 2px solid var(--ink);
@@ -951,7 +949,6 @@ body.theme-dark .food-wheel-launch {
 .anniversary-launch strong {
   font-size: 14px;
   line-height: 1.25;
-  writing-mode: vertical-rl;
 }
 
 .anniversary-launch small {
@@ -962,7 +959,20 @@ body.theme-dark .food-wheel-launch {
 
 body.theme-dark .anniversary-launch {
   border-color: rgba(255, 255, 255, 0.18);
-  box-shadow: 0 18px 55px rgba(0, 0, 0, 0.4);
+}
+
+.tool-dock-mark {
+  display: grid;
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  color: var(--accent-strong);
+  font-size: 22px;
+  font-weight: 900;
 }
 
 .anniversary-dialog {
@@ -2289,56 +2299,33 @@ dialog {
     flex-direction: column-reverse;
   }
 
-  .food-wheel-launch {
-    top: auto;
-    right: 14px;
-    bottom: calc(14px + env(safe-area-inset-bottom));
-    display: flex;
-    width: 112px;
-    min-height: 44px;
-    justify-content: center;
-    gap: 7px;
-    border-radius: 999px;
-    padding: 6px 10px 6px 7px;
-    opacity: 0.88;
-    backdrop-filter: blur(14px);
-    transform: none;
+  .tool-dock {
+    margin-inline: -2px;
+    padding: 8px;
+    scroll-snap-type: x proximity;
   }
 
-  .anniversary-launch {
-    top: auto;
-    right: auto;
-    bottom: calc(14px + env(safe-area-inset-bottom));
-    left: 14px;
-    display: flex;
-    width: 112px;
-    min-height: 44px;
-    justify-content: center;
-    gap: 7px;
-    border-radius: 999px;
-    padding: 6px 9px 6px 7px;
-    opacity: 0.88;
-    backdrop-filter: blur(14px);
-    transform: none;
+  .tool-dock-button {
+    min-width: 154px;
+    min-height: 54px;
+    gap: 8px;
+    padding: 8px 10px;
+    scroll-snap-align: start;
   }
 
-  .anniversary-launch:hover {
-    transform: none;
+  .food-wheel-launch-mark,
+  .anniversary-launch-mark,
+  .tool-dock-mark {
+    width: 34px;
+    height: 34px;
   }
 
-  .anniversary-launch-mark {
-    width: 30px;
-    height: 30px;
-    border-width: 1px;
+  .tool-dock-button strong {
+    font-size: 13px;
   }
 
-  .anniversary-launch strong {
-    font-size: 12px;
-    writing-mode: horizontal-tb;
-  }
-
-  .anniversary-launch small {
-    display: none;
+  .tool-dock-button small {
+    font-size: 10px;
   }
 
   .anniversary-dialog {
@@ -2373,25 +2360,6 @@ dialog {
 
   .rename-home-actions {
     grid-template-columns: 1fr;
-  }
-
-  .food-wheel-launch:hover {
-    transform: none;
-  }
-
-  .food-wheel-launch-mark {
-    width: 30px;
-    height: 30px;
-    border-width: 1px;
-  }
-
-  .food-wheel-launch strong {
-    font-size: 12px;
-    writing-mode: horizontal-tb;
-  }
-
-  .food-wheel-launch small {
-    display: none;
   }
 
   .food-wheel-dialog {
