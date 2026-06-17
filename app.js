@@ -9,7 +9,9 @@ const ANNIVERSARY_KEY = "life-vlog-anniversaries";
 const FOOD_OPTIONS_KEY = "life-vlog-food-options";
 const PHOTO_FAVORITES_KEY = "life-vlog-photo-favorites";
 const EXPERIENCE_KEY = "life-vlog-experience";
+const THANKS_COLOR_KEY = "life-vlog-thanks-color";
 const THANKS_COLORS = new Set(["#2f6b3b", "#d6544d", "#2e6da4", "#81559b", "#a66b12"]);
+const DEFAULT_THANKS_COLOR = "#2f6b3b";
 const DAILY_LOGIN_EXP = 25;
 const BUCKET = "life-photos";
 const PRODUCTION_URL = "https://xiudan320-ship-it.github.io/life-vlog-site/";
@@ -143,6 +145,7 @@ let anniversaryCloudAvailable = false;
 let photoFlagsCloudAvailable = false;
 let foodOptionsCloudAvailable = false;
 let profilePreferencesCloudAvailable = false;
+let thanksColorCloudAvailable = false;
 let foodWheelRotation = 0;
 let foodWheelSpinning = false;
 let cloudSyncAvailable = false;
@@ -155,6 +158,7 @@ let accountProfile = {
   lastLoginDate: "",
   themePreference: "",
   homeName: "咻蛋之家",
+  thanksColor: DEFAULT_THANKS_COLOR,
   foodOptions: [],
 };
 
@@ -186,6 +190,7 @@ const els = {
   heroHomeName: document.querySelector("#heroHomeName"),
   vipHomeName: document.querySelector("#vipHomeName"),
   renameHomeButton: document.querySelector("#renameHomeButton"),
+  renameProfileButton: document.querySelector("#renameProfileButton"),
   familyAccountButton: document.querySelector("#familyAccountButton"),
   renameHomeDialog: document.querySelector("#renameHomeDialog"),
   closeRenameHome: document.querySelector("#closeRenameHome"),
@@ -193,6 +198,11 @@ const els = {
   homeNameInput: document.querySelector("#homeNameInput"),
   homeNameStatus: document.querySelector("#homeNameStatus"),
   resetHomeName: document.querySelector("#resetHomeName"),
+  renameProfileDialog: document.querySelector("#renameProfileDialog"),
+  closeRenameProfile: document.querySelector("#closeRenameProfile"),
+  renameProfileForm: document.querySelector("#renameProfileForm"),
+  profileNicknameInput: document.querySelector("#profileNicknameInput"),
+  profileNicknameStatus: document.querySelector("#profileNicknameStatus"),
   changePasswordButton: document.querySelector("#changePasswordButton"),
   changePasswordDialog: document.querySelector("#changePasswordDialog"),
   closeChangePassword: document.querySelector("#closeChangePassword"),
@@ -523,6 +533,7 @@ function updateAuthUI() {
   els.profileName.textContent = displayName;
   els.avatarInitial.textContent = getInitial(displayName);
   if (signedIn) {
+    setSelectedThanksColor(accountProfile.thanksColor || loadThanksColor(session.user.id));
     renderExperience(displayName);
   }
   els.vipBadge.hidden = !signedIn;
@@ -559,7 +570,8 @@ function updateAuthUI() {
     favoritesCloudAvailable = false;
     photoFlagsCloudAvailable = false;
     foodOptionsCloudAvailable = false;
-    profilePreferencesCloudAvailable = false;
+      profilePreferencesCloudAvailable = false;
+      thanksColorCloudAvailable = false;
     gratitudeNotes = [];
     familyInfo = null;
     familyMembers = [];
@@ -576,6 +588,7 @@ function updateAuthUI() {
       lastLoginDate: "",
       themePreference: "",
       homeName: "咻蛋之家",
+      thanksColor: DEFAULT_THANKS_COLOR,
       foodOptions: [],
     };
     applyHomeName("咻蛋之家");
@@ -1875,6 +1888,25 @@ function getSessionDisplayName() {
   return emailPrefix || "User";
 }
 
+function normalizeNickname(value) {
+  return String(value || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .slice(0, 24);
+}
+
+function updateSessionDisplayName(nickname) {
+  const nextName = normalizeNickname(nickname);
+  if (!nextName || !session?.user) return;
+  session.user.user_metadata = {
+    ...(session.user.user_metadata || {}),
+    username: nextName,
+  };
+  els.profileName.textContent = nextName;
+  els.avatarInitial.textContent = getInitial(nextName);
+  renderExperience(nextName);
+}
+
 function isMissingCloudSchema(error) {
   const code = String(error?.code || "");
   const message = String(error?.message || "").toLowerCase();
@@ -2135,6 +2167,7 @@ async function synchronizeAccountData() {
       const localRecharge = loadRechargeTotal(displayName);
       const localExperience = loadExperience(displayName);
       const localFoodOptions = loadFoodOptions(userId);
+      const localThanksColor = loadThanksColor(userId);
       let profile = profileResult.data;
 
       if (!profile) {
@@ -2212,9 +2245,19 @@ async function synchronizeAccountData() {
         cloudHomeName && (cloudHomeName !== "咻蛋之家" || localHomeName === "咻蛋之家")
           ? cloudHomeName
           : localHomeName;
+      const cloudThanksColor = normalizeThanksColor(profile.preferred_thanks_color);
+      const preferredThanksColor =
+        Object.prototype.hasOwnProperty.call(profile, "preferred_thanks_color") &&
+        cloudThanksColor
+          ? cloudThanksColor
+          : localThanksColor;
       foodOptionsCloudAvailable = Object.prototype.hasOwnProperty.call(
         profile,
         "food_options"
+      );
+      thanksColorCloudAvailable = Object.prototype.hasOwnProperty.call(
+        profile,
+        "preferred_thanks_color"
       );
       profilePreferencesCloudAvailable =
         Object.prototype.hasOwnProperty.call(profile, "theme_preference") &&
@@ -2245,6 +2288,9 @@ async function synchronizeAccountData() {
         profileUpdates.theme_preference = preferredTheme;
         profileUpdates.home_name = preferredHomeName;
       }
+      if (thanksColorCloudAvailable) {
+        profileUpdates.preferred_thanks_color = preferredThanksColor;
+      }
 
       const { data: savedProfile, error: profileError } = await supabase
         .from("user_profiles")
@@ -2262,12 +2308,17 @@ async function synchronizeAccountData() {
         lastLoginDate: savedProfile.last_login_date || "",
         themePreference: preferredTheme,
         homeName: preferredHomeName,
+        thanksColor: thanksColorCloudAvailable
+          ? normalizeThanksColor(savedProfile.preferred_thanks_color)
+          : preferredThanksColor,
         foodOptions: foodOptionsCloudAvailable
           ? normalizeFoodOptions(savedProfile.food_options)
           : localFoodOptions,
       };
       applyTheme(preferredTheme, { userId, syncCloud: false });
       applyHomeName(preferredHomeName, { persist: true, userId });
+      saveThanksColorPreference(accountProfile.thanksColor, { userId, syncCloud: false });
+      setSelectedThanksColor(accountProfile.thanksColor);
       recipes = cloudRecipes.map(recipeFromCloudRow);
       wishes = cloudWishes.map(wishFromCloudRow);
       foodOptions = accountProfile.foodOptions.length
@@ -2331,6 +2382,7 @@ function updateCloudSyncStatus() {
   if (!anniversaryCloudAvailable) missing.push("纪念日");
   if (!foodOptionsCloudAvailable) missing.push("转盘候选");
   if (!profilePreferencesCloudAvailable) missing.push("主题/主页名称");
+  if (!thanksColorCloudAvailable) missing.push("留言颜色");
   setGlobalStatus(
     missing.length
       ? `数据库仍缺少：${missing.join("、")}。请运行最新版 supabase-cloud-sync.sql。`
@@ -2682,6 +2734,46 @@ async function persistHomeNameToCloud(homeName) {
   }
   accountProfile.homeName = homeName;
   return true;
+}
+
+async function saveProfileNickname(event) {
+  event.preventDefault();
+  if (!supabase || !session) return;
+  const nickname = normalizeNickname(els.profileNicknameInput.value);
+  if (!nickname) {
+    els.profileNicknameStatus.textContent = "昵称不能为空。";
+    return;
+  }
+
+  els.profileNicknameStatus.textContent = "正在保存昵称...";
+  const { error: authError } = await supabase.auth.updateUser({
+    data: { username: nickname },
+  });
+  if (authError) {
+    els.profileNicknameStatus.textContent = `保存失败：${authError.message}`;
+    return;
+  }
+
+  const { error: profileError } = await supabase
+    .from("user_profiles")
+    .update({
+      username: nickname,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", session.user.id);
+
+  if (profileError) {
+    els.profileNicknameStatus.textContent = isMissingCloudSchema(profileError)
+      ? "昵称已更新，运行最新版数据库脚本后家庭账户也会同步显示。"
+      : `资料保存失败：${profileError.message}`;
+  } else {
+    els.profileNicknameStatus.textContent = "昵称已保存。";
+  }
+
+  updateSessionDisplayName(nickname);
+  await loadFamilyContext();
+  renderGallery();
+  setTimeout(() => els.renameProfileDialog.close(), 500);
 }
 
 async function saveHomeName(event) {
@@ -4401,13 +4493,58 @@ function setWeekendStatus(message) {
   els.weekendStatus.textContent = message;
 }
 
+function normalizeThanksColor(color) {
+  return THANKS_COLORS.has(color) ? color : DEFAULT_THANKS_COLOR;
+}
+
+function getThanksColorStorageKey(userId = session?.user?.id || "guest") {
+  return `${THANKS_COLOR_KEY}:${userId}`;
+}
+
+function loadThanksColor(userId = session?.user?.id || "guest") {
+  const stored =
+    localStorage.getItem(getThanksColorStorageKey(userId)) ||
+    localStorage.getItem(THANKS_COLOR_KEY);
+  return normalizeThanksColor(stored);
+}
+
+function saveThanksColorPreference(
+  color,
+  { userId = session?.user?.id || "guest", syncCloud = false } = {}
+) {
+  const safeColor = normalizeThanksColor(color);
+  localStorage.setItem(getThanksColorStorageKey(userId), safeColor);
+  localStorage.setItem(THANKS_COLOR_KEY, safeColor);
+  if (session && session.user.id === userId) {
+    accountProfile.thanksColor = safeColor;
+  }
+  if (syncCloud) void persistThanksColorToCloud(safeColor);
+  return safeColor;
+}
+
+async function persistThanksColorToCloud(color) {
+  if (!supabase || !session || !thanksColorCloudAvailable) return;
+  const safeColor = normalizeThanksColor(color);
+  const { error } = await supabase
+    .from("user_profiles")
+    .update({
+      preferred_thanks_color: safeColor,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", session.user.id);
+  if (error) {
+    thanksColorCloudAvailable = false;
+    console.warn("Thanks color preference sync failed:", error);
+  }
+}
+
 function getSelectedThanksColor() {
   const selected = els.thanksForm.querySelector('input[name="thanksColor"]:checked');
-  return THANKS_COLORS.has(selected?.value) ? selected.value : "#2f6b3b";
+  return normalizeThanksColor(selected?.value);
 }
 
 function setSelectedThanksColor(color) {
-  const safeColor = THANKS_COLORS.has(color) ? color : "#2f6b3b";
+  const safeColor = normalizeThanksColor(color);
   els.thanksForm.querySelectorAll('input[name="thanksColor"]').forEach((input) => {
     input.checked = input.value === safeColor;
     input.closest("label")?.classList.toggle("active", input.checked);
@@ -4417,7 +4554,7 @@ function setSelectedThanksColor(color) {
 function resetGratitudeForm() {
   gratitudeEditingId = null;
   els.thanksForm.reset();
-  setSelectedThanksColor("#2f6b3b");
+  setSelectedThanksColor(accountProfile.thanksColor || loadThanksColor());
   els.thanksSubmitButton.textContent = "贴到留言板";
   els.thanksCancelEdit.hidden = true;
   els.thanksStatus.textContent = "";
@@ -4468,11 +4605,16 @@ async function saveGratitudeNote(event) {
   if (!supabase || !session) return;
   const body = els.thanksBodyInput.value.trim();
   if (!body) return;
+  const selectedColor = getSelectedThanksColor();
+  saveThanksColorPreference(selectedColor, {
+    userId: session.user.id,
+    syncCloud: true,
+  });
 
   const payload = {
     user_id: session.user.id,
     body,
-    text_color: getSelectedThanksColor(),
+    text_color: selectedColor,
     updated_at: new Date().toISOString(),
   };
   els.thanksStatus.textContent = "正在保存...";
@@ -4925,7 +5067,15 @@ els.weekendCancelEdit.addEventListener("click", () => {
 els.thanksForm.addEventListener("submit", saveGratitudeNote);
 els.thanksCancelEdit.addEventListener("click", resetGratitudeForm);
 els.thanksForm.querySelectorAll('input[name="thanksColor"]').forEach((input) => {
-  input.addEventListener("change", () => setSelectedThanksColor(input.value));
+  input.addEventListener("change", () => {
+    setSelectedThanksColor(input.value);
+    if (session) {
+      saveThanksColorPreference(input.value, {
+        userId: session.user.id,
+        syncCloud: true,
+      });
+    }
+  });
 });
 els.avatarButton.addEventListener("click", () => {
   els.userPopover.hidden = !els.userPopover.hidden;
@@ -4943,6 +5093,19 @@ els.renameHomeDialog.addEventListener("click", (event) => {
 });
 els.renameHomeForm.addEventListener("submit", saveHomeName);
 els.resetHomeName.addEventListener("click", restoreDefaultHomeName);
+els.renameProfileButton.addEventListener("click", () => {
+  els.userPopover.hidden = true;
+  els.profileNicknameInput.value = getSessionDisplayName();
+  els.profileNicknameStatus.textContent = "";
+  els.renameProfileDialog.showModal();
+  els.profileNicknameInput.focus();
+  els.profileNicknameInput.select();
+});
+els.closeRenameProfile.addEventListener("click", () => els.renameProfileDialog.close());
+els.renameProfileDialog.addEventListener("click", (event) => {
+  if (event.target === els.renameProfileDialog) els.renameProfileDialog.close();
+});
+els.renameProfileForm.addEventListener("submit", saveProfileNickname);
 els.familyAccountButton.addEventListener("click", () => {
   els.userPopover.hidden = true;
   els.familyStatus.textContent = "";
