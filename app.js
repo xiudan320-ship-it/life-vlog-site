@@ -402,6 +402,7 @@ const els = {
   familyOutgoingInvitations: document.querySelector("#familyOutgoingInvitations"),
   familyStatus: document.querySelector("#familyStatus"),
   photoCommentsList: document.querySelector("#photoCommentsList"),
+  photoCommentsSection: document.querySelector("#photoCommentsSection"),
   photoCommentForm: document.querySelector("#photoCommentForm"),
   photoCommentInput: document.querySelector("#photoCommentInput"),
   photoCommentStatus: document.querySelector("#photoCommentStatus"),
@@ -1550,6 +1551,7 @@ async function deletePhoto(photo, triggerButton = null) {
 
 function openPhoto(photo, initialImageIndex = 0) {
   activeDialogPhoto = photo;
+  els.photoCommentsSection.hidden = false;
   const displayTitle = getDisplayTitle(photo);
   dialogImages = getPhotoImages(photo);
   dialogImageIndex = Math.min(
@@ -1561,6 +1563,20 @@ function openPhoto(photo, initialImageIndex = 0) {
   els.dialogNote.textContent = getPlainNote(photo);
   renderDialogMedia();
   void loadPhotoComments(photo.id);
+  els.dialog.showModal();
+}
+
+function openWishImage(wish) {
+  if (!wish?.imageUrl) return;
+  activeDialogPhoto = null;
+  photoComments = [];
+  dialogImages = [{ image_url: wish.imageUrl }];
+  dialogImageIndex = 0;
+  els.dialogTitle.textContent = wish.title || "心愿图片";
+  els.dialogMeta.textContent = `${wish.type || "心愿"} · ${wish.priority || "普通"} · ${getAuthorName(wish.userId)} 发布`;
+  els.dialogNote.textContent = wish.note || "";
+  els.photoCommentsSection.hidden = true;
+  renderDialogMedia();
   els.dialog.showModal();
 }
 
@@ -3788,7 +3804,9 @@ function renderWishes() {
           </div>
           ${
             wish.imageUrl
-              ? `<img class="wish-card-image" src="${escapeHtml(wish.imageUrl)}" alt="${escapeHtml(wish.title)}" loading="lazy" />`
+              ? `<button class="wish-card-image-button" type="button" data-view-wish-image="${escapeHtml(wish.id)}" aria-label="放大查看 ${escapeHtml(wish.title)}">
+                  <img class="wish-card-image" src="${escapeHtml(wish.imageUrl)}" alt="${escapeHtml(wish.title)}" loading="lazy" />
+                </button>`
               : ""
           }
           <p class="kicker">${escapeHtml(wish.type)} · ${escapeHtml(wish.priority)} · ${escapeHtml(getAuthorName(wish.userId))}</p>
@@ -3805,6 +3823,11 @@ function renderWishes() {
 
   els.wishlistList.querySelectorAll("button[data-edit-wish]").forEach((button) => {
     button.addEventListener("click", () => editWish(button.dataset.editWish));
+  });
+  els.wishlistList.querySelectorAll("button[data-view-wish-image]").forEach((button) => {
+    button.addEventListener("click", () => {
+      openWishImage(wishes.find((wish) => wish.id === button.dataset.viewWishImage));
+    });
   });
   els.wishlistList.querySelectorAll("button[data-toggle-wish]").forEach((button) => {
     button.addEventListener("click", () => toggleWish(button.dataset.toggleWish));
@@ -5190,6 +5213,7 @@ els.dialog.addEventListener("click", (event) => {
 els.dialog.addEventListener("close", () => {
   activeDialogPhoto = null;
   photoComments = [];
+  els.photoCommentsSection.hidden = false;
   els.photoCommentForm.reset();
   els.photoCommentStatus.textContent = "";
 });
