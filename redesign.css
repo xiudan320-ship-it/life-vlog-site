@@ -1923,6 +1923,33 @@ body.theme-dark .wish-card {
     var(--surface);
 }
 
+.wish-card-image-button {
+  display: block;
+  width: 100%;
+  margin: 12px 0 14px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  cursor: zoom-in;
+}
+
+.wish-card-image-button:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.wish-card-image-button .wish-card-image {
+  margin: 0;
+  transition: transform 180ms ease, filter 180ms ease;
+}
+
+.wish-card-image-button:hover .wish-card-image {
+  transform: scale(1.015);
+  filter: saturate(1.05);
+}
+
 .wish-card h3 {
   font-size: 36px;
 }
