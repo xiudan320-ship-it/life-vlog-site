@@ -57,6 +57,9 @@
             <button class="rename-home-button" id="renameHomeButton" type="button">
               修改主页名称
             </button>
+            <button class="account-secondary-button" id="renameProfileButton" type="button">
+              修改昵称
+            </button>
             <button class="account-secondary-button" id="familyAccountButton" type="button">
               家庭账户
             </button>
@@ -667,6 +670,23 @@
       </form>
     </dialog>
 
+    <dialog class="account-dialog" id="renameProfileDialog">
+      <button class="dialog-close" id="closeRenameProfile" type="button" aria-label="关闭">×</button>
+      <form id="renameProfileForm">
+        <div>
+          <p class="kicker">Display Name</p>
+          <h2>修改昵称</h2>
+          <p>家庭账户、留言、评论和你发布的内容都会显示这个名字。</p>
+        </div>
+        <label>
+          昵称
+          <input id="profileNicknameInput" maxlength="24" required placeholder="比如：咻蛋" />
+        </label>
+        <p class="status-line" id="profileNicknameStatus"></p>
+        <button class="primary" type="submit">保存昵称</button>
+      </form>
+    </dialog>
+
     <dialog class="account-dialog" id="changePasswordDialog">
       <button class="dialog-close" id="closeChangePassword" type="button" aria-label="关闭">×</button>
       <form id="changePasswordForm">
@@ -898,6 +918,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260615-41"></script>
+    <script type="module" src="./app.js?v=20260617-42"></script>
   </body>
 </html>
