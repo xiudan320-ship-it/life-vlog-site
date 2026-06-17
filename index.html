@@ -9,7 +9,7 @@
     <title>咻蛋之家</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
     <link rel="stylesheet" href="./styles.css?v=20260610-37" />
-    <link rel="stylesheet" href="./redesign.css?v=20260617-45" />
+    <link rel="stylesheet" href="./redesign.css?v=20260617-46" />
   </head>
   <body>
     <header class="topbar">
@@ -97,19 +97,46 @@
         </div>
       </section>
 
-      <aside class="food-wheel-section" id="foodWheelSection">
+      <section class="tool-dock" aria-label="生活小工具">
         <button
-          class="food-wheel-launch"
+          class="tool-dock-button food-wheel-launch"
           id="foodWheelOpen"
           type="button"
           aria-haspopup="dialog"
           aria-controls="foodWheelDialog"
         >
           <span class="food-wheel-launch-mark" aria-hidden="true"></span>
-          <strong>今日吃什么</strong>
-          <small id="foodWheelPeek">打开转盘</small>
+          <span>
+            <strong>今日吃什么</strong>
+            <small id="foodWheelPeek">打开转盘</small>
+          </span>
         </button>
+        <button
+          class="tool-dock-button anniversary-launch"
+          id="anniversaryOpen"
+          type="button"
+          aria-haspopup="dialog"
+          aria-controls="anniversaryDialog"
+          hidden
+        >
+          <span class="anniversary-launch-mark" aria-hidden="true">
+            <img src="./assets/anniversary-icon.jpg" alt="" />
+          </span>
+          <span>
+            <strong>时间纪念册</strong>
+            <small id="anniversaryPeek">设置重要日子</small>
+          </span>
+        </button>
+        <button class="tool-dock-button memory-button" id="memoryButton" type="button" hidden>
+          <span class="tool-dock-mark" aria-hidden="true">↻</span>
+          <span>
+            <strong>随机回忆</strong>
+            <small>抽一张家庭照片</small>
+          </span>
+        </button>
+      </section>
 
+      <aside class="food-wheel-section" id="foodWheelSection">
         <dialog class="food-wheel-dialog" id="foodWheelDialog">
           <div class="food-wheel-dialog-head">
             <div>
@@ -144,19 +171,6 @@
       </aside>
 
       <aside class="anniversary-section" id="anniversarySection" hidden>
-        <button
-          class="anniversary-launch"
-          id="anniversaryOpen"
-          type="button"
-          aria-haspopup="dialog"
-          aria-controls="anniversaryDialog"
-        >
-          <span class="anniversary-launch-mark" aria-hidden="true">
-            <img src="./assets/anniversary-icon.jpg" alt="" />
-          </span>
-          <strong>时间纪念册</strong>
-          <small id="anniversaryPeek">设置重要日子</small>
-        </button>
       </aside>
 
       <section class="overview" id="overview" hidden>
@@ -165,7 +179,6 @@
             <p class="kicker">Today</p>
             <h2>今日概览</h2>
           </div>
-          <button class="memory-button" id="memoryButton" type="button">随机回忆</button>
         </div>
         <div class="overview-grid">
           <article>
@@ -921,6 +934,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260617-44"></script>
+    <script type="module" src="./app.js?v=20260617-46"></script>
   </body>
 </html>
