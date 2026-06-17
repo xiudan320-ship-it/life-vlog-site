@@ -920,3 +920,7 @@ create policy "Users can update photo comments"
 create policy "Users can delete photo comments"
   on public.photo_comments for delete
   using (auth.uid() = user_id);
+
+-- Ask Supabase/PostgREST to refresh its schema cache immediately so the web app
+-- can see newly created tables, columns, policies, and RPC functions right away.
+notify pgrst, 'reload schema';
