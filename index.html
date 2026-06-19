@@ -9,7 +9,7 @@
     <title>咻蛋之家</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
     <link rel="stylesheet" href="./styles.css?v=20260610-37" />
-    <link rel="stylesheet" href="./redesign.css?v=20260617-46" />
+    <link rel="stylesheet" href="./redesign.css?v=20260619-47" />
   </head>
   <body>
     <header class="topbar">
@@ -36,9 +36,14 @@
         <button class="icon-button" id="setupToggle" type="button" title="设置">
           <span aria-hidden="true">⚙</span>
         </button>
+        <button class="icon-button notification-button" id="notificationButton" type="button" title="互动通知" hidden>
+          <span aria-hidden="true">♢</span>
+          <strong id="notificationBadge" hidden>0</strong>
+        </button>
         <div class="user-menu" id="userMenu" hidden>
           <button class="vip-badge" id="vipBadge" type="button" hidden>VIP</button>
           <button class="avatar-button" id="avatarButton" type="button" title="账号">
+            <img id="avatarImage" alt="我的头像" hidden />
             <span id="avatarInitial">U</span>
           </button>
           <div class="user-popover" id="userPopover" hidden>
@@ -62,6 +67,9 @@
             </button>
             <button class="account-secondary-button" id="renameProfileButton" type="button">
               修改昵称
+            </button>
+            <button class="account-secondary-button" id="changeAvatarButton" type="button">
+              修改头像
             </button>
             <button class="account-secondary-button" id="familyAccountButton" type="button">
               家庭账户
@@ -703,6 +711,38 @@
       </form>
     </dialog>
 
+    <dialog class="account-dialog avatar-dialog" id="avatarDialog">
+      <button class="dialog-close" id="closeAvatarDialog" type="button" aria-label="关闭">×</button>
+      <form id="avatarForm">
+        <div>
+          <p class="kicker">Profile Image</p>
+          <h2>修改头像</h2>
+          <p>会显示在家庭成员、评论和互动通知中。</p>
+        </div>
+        <label class="avatar-picker">
+          <input id="avatarInput" type="file" accept="image/*" />
+          <img id="avatarPreview" alt="头像预览" hidden />
+          <span id="avatarPreviewInitial">U</span>
+          <strong>选择一张图片</strong>
+        </label>
+        <p class="status-line" id="avatarStatus"></p>
+        <button class="primary" type="submit">保存头像</button>
+      </form>
+    </dialog>
+
+    <dialog class="notification-dialog" id="notificationDialog">
+      <button class="dialog-close" id="closeNotificationDialog" type="button" aria-label="关闭">×</button>
+      <header>
+        <div>
+          <p class="kicker">Activity</p>
+          <h2>互动通知</h2>
+        </div>
+        <button class="ghost-button" id="markNotificationsRead" type="button">全部已读</button>
+      </header>
+      <section class="notification-list" id="notificationList"></section>
+      <p class="status-line" id="notificationStatus"></p>
+    </dialog>
+
     <dialog class="account-dialog" id="changePasswordDialog">
       <button class="dialog-close" id="closeChangePassword" type="button" aria-label="关闭">×</button>
       <form id="changePasswordForm">
@@ -833,6 +873,10 @@
         </div>
         <div class="photo-comments-list" id="photoCommentsList"></div>
         <form id="photoCommentForm" hidden>
+          <div class="comment-replying" id="commentReplying" hidden>
+            <span id="commentReplyingText"></span>
+            <button id="cancelCommentReply" type="button" aria-label="取消回复">×</button>
+          </div>
           <input
             id="photoCommentInput"
             maxlength="300"
@@ -934,6 +978,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260617-46"></script>
+    <script type="module" src="./app.js?v=20260619-47"></script>
   </body>
 </html>
