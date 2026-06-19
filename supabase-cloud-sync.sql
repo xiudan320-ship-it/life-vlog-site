@@ -26,6 +26,10 @@ alter table public.user_profiles
 alter table public.user_profiles
   add column if not exists preferred_thanks_color text not null default '#2f6b3b';
 
+alter table public.user_profiles
+  add column if not exists avatar_url text not null default '',
+  add column if not exists avatar_path text not null default '';
+
 alter table public.photos
   add column if not exists is_featured boolean not null default false,
   add column if not exists is_pinned boolean not null default false;
@@ -521,6 +525,21 @@ create table if not exists public.photo_comments (
   updated_at timestamptz not null default now()
 );
 
+alter table public.photo_comments
+  add column if not exists parent_id uuid references public.photo_comments(id) on delete cascade;
+
+create table if not exists public.notifications (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  actor_id uuid not null references auth.users(id) on delete cascade,
+  type text not null check (type in ('favorite', 'comment', 'reply')),
+  photo_id uuid references public.photos(id) on delete cascade,
+  comment_id uuid references public.photo_comments(id) on delete cascade,
+  body text not null default '',
+  is_read boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
 create index if not exists family_members_family_idx
   on public.family_members (family_id, joined_at);
 
@@ -530,17 +549,26 @@ create index if not exists gratitude_notes_user_created_idx
 create index if not exists photo_comments_photo_created_idx
   on public.photo_comments (photo_id, created_at asc);
 
+create index if not exists photo_comments_parent_idx
+  on public.photo_comments (parent_id, created_at asc);
+
+create index if not exists notifications_user_created_idx
+  on public.notifications (user_id, is_read, created_at desc);
+
 alter table public.families enable row level security;
 alter table public.family_members enable row level security;
 alter table public.family_invitations enable row level security;
 alter table public.gratitude_notes enable row level security;
 alter table public.photo_comments enable row level security;
+alter table public.notifications enable row level security;
 
 revoke all on public.families from anon, authenticated;
 revoke all on public.family_members from anon, authenticated;
 revoke all on public.family_invitations from anon, authenticated;
 grant select, insert, update, delete on public.gratitude_notes to authenticated;
 grant select, insert, update, delete on public.photo_comments to authenticated;
+revoke all on public.notifications from anon, authenticated;
+grant select, update, delete on public.notifications to authenticated;
 
 create or replace function public.are_family_members(p_first uuid, p_second uuid)
 returns boolean
@@ -684,12 +712,14 @@ begin
 end;
 $$;
 
-create or replace function public.get_my_family_members()
+drop function if exists public.get_my_family_members();
+create function public.get_my_family_members()
 returns table (
   family_id uuid,
   family_name text,
   user_id uuid,
   username text,
+  avatar_url text,
   role text,
   joined_at timestamptz
 )
@@ -703,6 +733,7 @@ as $$
     family.name,
     member.user_id,
     coalesce(nullif(profile.username, ''), '家庭成员'),
+    coalesce(profile.avatar_url, ''),
     member.role,
     member.joined_at
   from public.family_members as me
@@ -813,6 +844,132 @@ grant execute on function public.remove_family_member(uuid) to authenticated;
 grant execute on function public.get_my_family_members() to authenticated;
 grant execute on function public.get_my_family_invitations() to authenticated;
 grant execute on function public.respond_family_invitation(uuid, boolean) to authenticated;
+
+-- Interaction notifications ------------------------------------------------
+
+create or replace function public.create_photo_interaction_notification()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  photo_owner_id uuid;
+  photo_title text;
+  parent_owner_id uuid;
+  parent_photo_id uuid;
+begin
+  if tg_table_name = 'photo_favorites' then
+    select photo.user_id, photo.title
+      into photo_owner_id, photo_title
+    from public.photos as photo
+    where photo.id = new.photo_id;
+
+    if photo_owner_id is not null and photo_owner_id <> new.user_id then
+      insert into public.notifications (
+        user_id, actor_id, type, photo_id, body
+      ) values (
+        photo_owner_id, new.user_id, 'favorite', new.photo_id, coalesce(photo_title, '')
+      );
+    end if;
+    return new;
+  end if;
+
+  if tg_table_name = 'photo_comments' then
+    select photo.user_id, photo.title
+      into photo_owner_id, photo_title
+    from public.photos as photo
+    where photo.id = new.photo_id;
+
+    if new.parent_id is not null then
+      select comment.user_id, comment.photo_id
+        into parent_owner_id, parent_photo_id
+      from public.photo_comments as comment
+      where comment.id = new.parent_id;
+
+      if parent_photo_id is distinct from new.photo_id then
+        raise exception '回复必须属于同一张照片';
+      end if;
+
+      if parent_owner_id is not null and parent_owner_id <> new.user_id then
+        insert into public.notifications (
+          user_id, actor_id, type, photo_id, comment_id, body
+        ) values (
+          parent_owner_id, new.user_id, 'reply', new.photo_id, new.id, new.body
+        );
+      end if;
+    end if;
+
+    if photo_owner_id is not null
+      and photo_owner_id <> new.user_id
+      and photo_owner_id is distinct from parent_owner_id then
+      insert into public.notifications (
+        user_id, actor_id, type, photo_id, comment_id, body
+      ) values (
+        photo_owner_id, new.user_id, 'comment', new.photo_id, new.id, new.body
+      );
+    end if;
+    return new;
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists notify_photo_favorite on public.photo_favorites;
+create trigger notify_photo_favorite
+  after insert on public.photo_favorites
+  for each row execute function public.create_photo_interaction_notification();
+
+drop trigger if exists notify_photo_comment on public.photo_comments;
+create trigger notify_photo_comment
+  after insert on public.photo_comments
+  for each row execute function public.create_photo_interaction_notification();
+
+drop function if exists public.get_my_notifications(integer);
+create function public.get_my_notifications(p_limit integer default 50)
+returns table (
+  notification_id uuid,
+  type text,
+  actor_id uuid,
+  actor_username text,
+  actor_avatar_url text,
+  photo_id uuid,
+  photo_title text,
+  photo_image_url text,
+  comment_id uuid,
+  body text,
+  is_read boolean,
+  created_at timestamptz
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    notification.id,
+    notification.type,
+    notification.actor_id,
+    coalesce(nullif(profile.username, ''), '家庭成员'),
+    coalesce(profile.avatar_url, ''),
+    notification.photo_id,
+    coalesce(photo.title, '生活照片'),
+    coalesce(photo.image_url, ''),
+    notification.comment_id,
+    notification.body,
+    notification.is_read,
+    notification.created_at
+  from public.notifications as notification
+  left join public.user_profiles as profile on profile.user_id = notification.actor_id
+  left join public.photos as photo on photo.id = notification.photo_id
+  where notification.user_id = auth.uid()
+  order by notification.created_at desc
+  limit greatest(1, least(coalesce(p_limit, 50), 100));
+$$;
+
+revoke all on function public.get_my_notifications(integer) from public;
+grant execute on function public.get_my_notifications(integer) to authenticated;
 
 drop policy if exists "Family members can read photos" on public.photos;
 create policy "Family members can read photos"
@@ -1005,6 +1162,23 @@ create policy "Users can update photo comments"
 
 create policy "Users can delete photo comments"
   on public.photo_comments for delete
+  using (auth.uid() = user_id);
+
+drop policy if exists "Users can read their own notifications" on public.notifications;
+drop policy if exists "Users can update their own notifications" on public.notifications;
+drop policy if exists "Users can delete their own notifications" on public.notifications;
+
+create policy "Users can read their own notifications"
+  on public.notifications for select
+  using (auth.uid() = user_id);
+
+create policy "Users can update their own notifications"
+  on public.notifications for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create policy "Users can delete their own notifications"
+  on public.notifications for delete
   using (auth.uid() = user_id);
 
 -- Ask Supabase/PostgREST to refresh its schema cache immediately so the web app
