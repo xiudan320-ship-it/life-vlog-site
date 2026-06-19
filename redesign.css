@@ -187,9 +187,40 @@ body.theme-dark .icon-button {
 }
 
 .avatar-button {
+  overflow: hidden;
   border-color: var(--ink);
   background: var(--ink);
   color: var(--surface);
+}
+
+.avatar-button img,
+.family-member-avatar img,
+.photo-comment-avatar img,
+.notification-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.notification-button {
+  position: relative;
+}
+
+.notification-button > strong {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  display: grid;
+  min-width: 19px;
+  height: 19px;
+  place-items: center;
+  border: 2px solid var(--surface);
+  border-radius: 999px;
+  background: var(--coral);
+  color: #fff;
+  font-size: 9px;
+  line-height: 1;
+  padding: 0 4px;
 }
 
 .vip-badge {
@@ -625,6 +656,12 @@ body.theme-dark .thanks-note > p {
   font-weight: 900;
 }
 
+.family-member-avatar,
+.photo-comment-avatar,
+.notification-avatar {
+  overflow: hidden;
+}
+
 .family-member div {
   display: grid;
   gap: 3px;
@@ -684,6 +721,15 @@ body.theme-dark .thanks-note > p {
   padding: 4px 0 12px;
 }
 
+.photo-comment-thread {
+  margin-left: calc(var(--comment-depth) * 28px);
+}
+
+.photo-comment-thread .photo-comment-thread {
+  border-left: 2px solid color-mix(in srgb, var(--accent) 28%, var(--line));
+  padding-left: 10px;
+}
+
 .photo-comment > div {
   display: grid;
   gap: 5px;
@@ -706,6 +752,25 @@ body.theme-dark .thanks-note > p {
   white-space: pre-wrap;
 }
 
+.reply-target {
+  color: var(--accent-strong);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.photo-comment-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.photo-comment-actions button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  padding: 2px 0;
+}
+
 .photo-comment > button {
   border: 0;
   background: transparent;
@@ -717,6 +782,145 @@ body.theme-dark .thanks-note > p {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
+}
+
+.comment-replying {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-left: 3px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface));
+  color: var(--muted);
+  font-size: 12px;
+  padding: 7px 10px;
+}
+
+.comment-replying[hidden] {
+  display: none;
+}
+
+.comment-replying button {
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+}
+
+.avatar-picker {
+  display: grid;
+  width: 170px;
+  justify-self: center;
+  justify-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.avatar-picker input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.avatar-picker img,
+.avatar-picker > span {
+  display: grid;
+  width: 128px;
+  height: 128px;
+  overflow: hidden;
+  place-items: center;
+  border: 3px solid var(--ink);
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--surface);
+  font-size: 42px;
+  font-weight: 900;
+  object-fit: cover;
+}
+
+.avatar-picker img[hidden],
+.avatar-picker > span[hidden] {
+  display: none;
+}
+
+.notification-dialog {
+  width: min(calc(100% - 28px), 620px);
+  max-height: calc(100dvh - 28px);
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  padding: 24px;
+}
+
+.notification-dialog::backdrop {
+  background: rgba(7, 10, 8, 0.72);
+  backdrop-filter: blur(8px);
+}
+
+.notification-dialog > header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.notification-dialog h2 {
+  font-size: 34px;
+}
+
+.notification-list {
+  display: grid;
+  gap: 8px;
+}
+
+.notification-item {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 54px;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--ink);
+  padding: 11px;
+  text-align: left;
+}
+
+.notification-item.unread {
+  border-color: color-mix(in srgb, var(--accent) 62%, var(--line));
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+}
+
+.notification-item > span:nth-child(2) {
+  display: grid;
+  gap: 4px;
+}
+
+.notification-item small,
+.notification-item time {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.notification-avatar {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--surface);
+  font-weight: 900;
+}
+
+.notification-photo {
+  width: 54px;
+  height: 54px;
+  border-radius: 5px;
+  object-fit: cover;
 }
 
 #photoCommentForm input {
@@ -2274,6 +2478,33 @@ dialog {
 
   .photo-comments {
     padding: 18px;
+  }
+
+  .photo-comment-thread {
+    margin-left: calc(var(--comment-depth) * 12px);
+  }
+
+  .notification-dialog {
+    width: calc(100% - 18px);
+    padding: 18px;
+  }
+
+  .notification-dialog > header {
+    align-items: start;
+  }
+
+  .notification-item {
+    grid-template-columns: 38px minmax(0, 1fr) 46px;
+  }
+
+  .notification-avatar {
+    width: 38px;
+    height: 38px;
+  }
+
+  .notification-photo {
+    width: 46px;
+    height: 46px;
   }
 
   #photoCommentForm {
