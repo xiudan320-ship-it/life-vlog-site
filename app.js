@@ -113,6 +113,10 @@ let familyMemberMap = new Map();
 let gratitudeEditingId = null;
 let activeDialogPhoto = null;
 let photoComments = [];
+let notifications = [];
+let commentReplyToId = null;
+let avatarPreviewUrl = "";
+let notificationPollTimer = null;
 let foodOptions = [];
 let activePage = "gallery";
 let activeFilter = "全部";
@@ -159,6 +163,8 @@ let accountProfile = {
   themePreference: "",
   homeName: "咻蛋之家",
   thanksColor: DEFAULT_THANKS_COLOR,
+  avatarUrl: "",
+  avatarPath: "",
   foodOptions: [],
 };
 
@@ -171,6 +177,13 @@ const els = {
   thanksNav: document.querySelector("#thanksNav"),
   setupToggle: document.querySelector("#setupToggle"),
   setupPanel: document.querySelector("#setupPanel"),
+  notificationButton: document.querySelector("#notificationButton"),
+  notificationBadge: document.querySelector("#notificationBadge"),
+  notificationDialog: document.querySelector("#notificationDialog"),
+  closeNotificationDialog: document.querySelector("#closeNotificationDialog"),
+  notificationList: document.querySelector("#notificationList"),
+  notificationStatus: document.querySelector("#notificationStatus"),
+  markNotificationsRead: document.querySelector("#markNotificationsRead"),
   supabaseUrl: document.querySelector("#supabaseUrl"),
   supabaseAnonKey: document.querySelector("#supabaseAnonKey"),
   saveConfig: document.querySelector("#saveConfig"),
@@ -184,6 +197,7 @@ const els = {
   userMenu: document.querySelector("#userMenu"),
   avatarButton: document.querySelector("#avatarButton"),
   avatarInitial: document.querySelector("#avatarInitial"),
+  avatarImage: document.querySelector("#avatarImage"),
   userPopover: document.querySelector("#userPopover"),
   profileName: document.querySelector("#profileName"),
   brandName: document.querySelector("#brandName"),
@@ -191,6 +205,7 @@ const els = {
   vipHomeName: document.querySelector("#vipHomeName"),
   renameHomeButton: document.querySelector("#renameHomeButton"),
   renameProfileButton: document.querySelector("#renameProfileButton"),
+  changeAvatarButton: document.querySelector("#changeAvatarButton"),
   familyAccountButton: document.querySelector("#familyAccountButton"),
   renameHomeDialog: document.querySelector("#renameHomeDialog"),
   closeRenameHome: document.querySelector("#closeRenameHome"),
@@ -203,6 +218,13 @@ const els = {
   renameProfileForm: document.querySelector("#renameProfileForm"),
   profileNicknameInput: document.querySelector("#profileNicknameInput"),
   profileNicknameStatus: document.querySelector("#profileNicknameStatus"),
+  avatarDialog: document.querySelector("#avatarDialog"),
+  closeAvatarDialog: document.querySelector("#closeAvatarDialog"),
+  avatarForm: document.querySelector("#avatarForm"),
+  avatarInput: document.querySelector("#avatarInput"),
+  avatarPreview: document.querySelector("#avatarPreview"),
+  avatarPreviewInitial: document.querySelector("#avatarPreviewInitial"),
+  avatarStatus: document.querySelector("#avatarStatus"),
   changePasswordButton: document.querySelector("#changePasswordButton"),
   changePasswordDialog: document.querySelector("#changePasswordDialog"),
   closeChangePassword: document.querySelector("#closeChangePassword"),
@@ -406,6 +428,9 @@ const els = {
   photoCommentForm: document.querySelector("#photoCommentForm"),
   photoCommentInput: document.querySelector("#photoCommentInput"),
   photoCommentStatus: document.querySelector("#photoCommentStatus"),
+  commentReplying: document.querySelector("#commentReplying"),
+  commentReplyingText: document.querySelector("#commentReplyingText"),
+  cancelCommentReply: document.querySelector("#cancelCommentReply"),
 };
 
 els.dateInput.valueAsDate = new Date();
@@ -505,6 +530,10 @@ async function initializeSupabase() {
     updateAuthUI();
     loadPhotos();
   });
+  if (notificationPollTimer) clearInterval(notificationPollTimer);
+  notificationPollTimer = setInterval(() => {
+    if (session && document.visibilityState === "visible") void loadNotifications();
+  }, 45000);
 }
 
 function updateAuthUI() {
@@ -528,6 +557,7 @@ function updateAuthUI() {
   els.memoryButton.hidden = !signedIn;
   els.authCard.hidden = signedIn;
   els.userMenu.hidden = !signedIn;
+  els.notificationButton.hidden = !signedIn;
   els.loginButton.hidden = signedIn;
   els.signupButton.hidden = signedIn;
   els.usernameInput.hidden = signedIn;
@@ -535,6 +565,7 @@ function updateAuthUI() {
   els.userPopover.hidden = true;
   els.profileName.textContent = displayName;
   els.avatarInitial.textContent = getInitial(displayName);
+  renderAccountAvatar(accountProfile.avatarUrl, displayName);
   if (signedIn) {
     setSelectedThanksColor(accountProfile.thanksColor || loadThanksColor(session.user.id));
     renderExperience(displayName);
@@ -576,6 +607,8 @@ function updateAuthUI() {
       profilePreferencesCloudAvailable = false;
       thanksColorCloudAvailable = false;
     gratitudeNotes = [];
+    notifications = [];
+    commentReplyToId = null;
     familyInfo = null;
     familyMembers = [];
     familyInvitations = [];
@@ -592,8 +625,11 @@ function updateAuthUI() {
       themePreference: "",
       homeName: "咻蛋之家",
       thanksColor: DEFAULT_THANKS_COLOR,
+      avatarUrl: "",
+      avatarPath: "",
       foodOptions: [],
     };
+    renderNotifications();
     applyHomeName("咻蛋之家");
     return;
   }
@@ -1921,7 +1957,7 @@ function updateSessionDisplayName(nickname) {
     username: nextName,
   };
   els.profileName.textContent = nextName;
-  els.avatarInitial.textContent = getInitial(nextName);
+  renderAccountAvatar(accountProfile.avatarUrl, nextName);
   renderExperience(nextName);
 }
 
@@ -1950,6 +1986,28 @@ function getAuthorName(userId) {
   if (!userId) return "我";
   if (userId === session?.user?.id) return getSessionDisplayName();
   return familyMemberMap.get(userId)?.username || "其他用户";
+}
+
+function getAuthorAvatar(userId) {
+  if (userId === session?.user?.id) return accountProfile.avatarUrl || "";
+  return familyMemberMap.get(userId)?.avatar_url || "";
+}
+
+function renderAvatarMarkup(userId, className = "photo-comment-avatar") {
+  const name = getAuthorName(userId);
+  const avatarUrl = getAuthorAvatar(userId);
+  return avatarUrl
+    ? `<span class="${className}"><img src="${escapeHtml(avatarUrl)}" alt="${escapeHtml(name)}的头像" /></span>`
+    : `<span class="${className}">${escapeHtml(getInitial(name))}</span>`;
+}
+
+function renderAccountAvatar(avatarUrl = "", displayName = getSessionDisplayName()) {
+  const hasAvatar = Boolean(avatarUrl);
+  els.avatarImage.hidden = !hasAvatar;
+  els.avatarInitial.hidden = hasAvatar;
+  if (hasAvatar) els.avatarImage.src = avatarUrl;
+  else els.avatarImage.removeAttribute("src");
+  els.avatarInitial.textContent = getInitial(displayName);
 }
 
 function canManageItem(item) {
@@ -2332,12 +2390,15 @@ async function synchronizeAccountData() {
         thanksColor: thanksColorCloudAvailable
           ? normalizeThanksColor(savedProfile.preferred_thanks_color)
           : preferredThanksColor,
+        avatarUrl: savedProfile.avatar_url || "",
+        avatarPath: savedProfile.avatar_path || "",
         foodOptions: foodOptionsCloudAvailable
           ? normalizeFoodOptions(savedProfile.food_options)
           : localFoodOptions,
       };
       applyTheme(preferredTheme, { userId, syncCloud: false });
       applyHomeName(preferredHomeName, { persist: true, userId });
+      renderAccountAvatar(accountProfile.avatarUrl, displayName);
       saveThanksColorPreference(accountProfile.thanksColor, { userId, syncCloud: false });
       setSelectedThanksColor(accountProfile.thanksColor);
       recipes = cloudRecipes.map(recipeFromCloudRow);
@@ -2376,6 +2437,7 @@ async function synchronizeAccountData() {
       await synchronizeAnniversaries(userId);
       await loadGratitudeNotes();
       await loadPhotos();
+      await loadNotifications();
       updateCloudSyncStatus();
     } catch (error) {
       cloudSyncAvailable = false;
@@ -2795,6 +2857,87 @@ async function saveProfileNickname(event) {
   await loadFamilyContext();
   renderGallery();
   setTimeout(() => els.renameProfileDialog.close(), 500);
+}
+
+function setAvatarPreview(src = "") {
+  const hasImage = Boolean(src);
+  els.avatarPreview.hidden = !hasImage;
+  els.avatarPreviewInitial.hidden = hasImage;
+  if (hasImage) els.avatarPreview.src = src;
+  else els.avatarPreview.removeAttribute("src");
+  els.avatarPreviewInitial.textContent = getInitial(getSessionDisplayName());
+}
+
+function updateAvatarPreview() {
+  const file = els.avatarInput.files?.[0];
+  if (avatarPreviewUrl) URL.revokeObjectURL(avatarPreviewUrl);
+  avatarPreviewUrl = file ? URL.createObjectURL(file) : "";
+  setAvatarPreview(avatarPreviewUrl || accountProfile.avatarUrl);
+}
+
+async function saveAvatar(event) {
+  event.preventDefault();
+  if (!supabase || !session) return;
+  const file = els.avatarInput.files?.[0];
+  if (!file) {
+    els.avatarStatus.textContent = "先选择一张图片。";
+    return;
+  }
+
+  els.avatarStatus.textContent = "正在压缩头像...";
+  let compressed;
+  try {
+    compressed = await compressImage(file, {
+      maxSide: 640,
+      jpeg: 0.86,
+      minJpeg: 0.68,
+      targetBytes: 220000,
+    });
+  } catch (error) {
+    els.avatarStatus.textContent = `头像处理失败：${error.message}`;
+    return;
+  }
+
+  const path = `${session.user.id}/avatars/avatar-${Date.now()}.jpg`;
+  els.avatarStatus.textContent = "正在上传头像...";
+  const { error: uploadError } = await supabase.storage
+    .from(BUCKET)
+    .upload(path, compressed.blob, { contentType: "image/jpeg", upsert: false });
+  if (uploadError) {
+    els.avatarStatus.textContent = `上传失败：${uploadError.message}`;
+    return;
+  }
+
+  const { data: publicData } = supabase.storage.from(BUCKET).getPublicUrl(path);
+  const avatarUrl = publicData.publicUrl;
+  const previousPath = accountProfile.avatarPath;
+  const { error: profileError } = await supabase
+    .from("user_profiles")
+    .update({
+      avatar_url: avatarUrl,
+      avatar_path: path,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", session.user.id);
+
+  if (profileError) {
+    await supabase.storage.from(BUCKET).remove([path]);
+    els.avatarStatus.textContent = isMissingCloudSchema(profileError)
+      ? "请先运行本次头像数据库补丁。"
+      : `资料保存失败：${profileError.message}`;
+    return;
+  }
+
+  accountProfile.avatarUrl = avatarUrl;
+  accountProfile.avatarPath = path;
+  renderAccountAvatar(avatarUrl);
+  await loadFamilyContext();
+  renderPhotoComments();
+  if (previousPath && previousPath !== path) {
+    void supabase.storage.from(BUCKET).remove([previousPath]);
+  }
+  els.avatarStatus.textContent = "头像已保存。";
+  setTimeout(() => els.avatarDialog.close(), 500);
 }
 
 async function saveHomeName(event) {
@@ -4745,7 +4888,7 @@ function renderFamilyDialog() {
       const canRemove = familyInfo.isOwner && member.role !== "owner";
       return `
         <article class="family-member">
-          <span class="family-member-avatar">${escapeHtml(getInitial(member.username))}</span>
+          ${renderAvatarMarkup(member.user_id, "family-member-avatar")}
           <div>
             <strong>${escapeHtml(member.username)}${isCurrent ? "（我）" : ""}</strong>
             <small>${member.role === "owner" ? "家庭创建者" : "家庭成员"}</small>
@@ -4871,6 +5014,98 @@ function formatCommentTime(value) {
   }).format(new Date(value));
 }
 
+function getNotificationText(item) {
+  const actor = item.actor_username || "有人";
+  if (item.type === "favorite") return `${actor} 收藏了你的照片`;
+  if (item.type === "reply") return `${actor} 回复了你的留言`;
+  return `${actor} 评论了你的照片`;
+}
+
+async function loadNotifications() {
+  if (!supabase || !session) {
+    notifications = [];
+    renderNotifications();
+    return;
+  }
+  const { data, error } = await supabase.rpc("get_my_notifications", { p_limit: 50 });
+  if (error) {
+    notifications = [];
+    els.notificationStatus.textContent = isMissingCloudSchema(error)
+      ? "运行本次互动通知数据库补丁后即可使用。"
+      : `通知读取失败：${error.message}`;
+  } else {
+    notifications = data || [];
+    els.notificationStatus.textContent = "";
+  }
+  renderNotifications();
+}
+
+function renderNotifications() {
+  const unread = notifications.filter((item) => !item.is_read).length;
+  els.notificationBadge.hidden = unread === 0;
+  els.notificationBadge.textContent = unread > 99 ? "99+" : String(unread);
+  if (!els.notificationList) return;
+  if (!notifications.length) {
+    els.notificationList.innerHTML = `<div class="empty">还没有新的互动。</div>`;
+    return;
+  }
+  els.notificationList.innerHTML = notifications
+    .map((item) => {
+      const avatar = item.actor_avatar_url
+        ? `<span class="notification-avatar"><img src="${escapeHtml(item.actor_avatar_url)}" alt="" /></span>`
+        : `<span class="notification-avatar">${escapeHtml(getInitial(item.actor_username))}</span>`;
+      return `
+        <button class="notification-item ${item.is_read ? "" : "unread"}" type="button" data-notification-id="${escapeHtml(item.notification_id)}" data-notification-photo="${escapeHtml(item.photo_id || "")}">
+          ${avatar}
+          <span>
+            <strong>${escapeHtml(getNotificationText(item))}</strong>
+            ${item.body ? `<small>${escapeHtml(item.body)}</small>` : ""}
+            <time>${formatCommentTime(item.created_at)}</time>
+          </span>
+          ${item.photo_image_url ? `<img class="notification-photo" src="${escapeHtml(item.photo_image_url)}" alt="" />` : ""}
+        </button>`;
+    })
+    .join("");
+  els.notificationList.querySelectorAll("[data-notification-id]").forEach((button) => {
+    button.addEventListener("click", () => openNotification(button));
+  });
+}
+
+async function openNotification(button) {
+  const id = button.dataset.notificationId;
+  const photoId = button.dataset.notificationPhoto;
+  await supabase
+    .from("notifications")
+    .update({ is_read: true })
+    .eq("id", id)
+    .eq("user_id", session.user.id);
+  const item = notifications.find((entry) => entry.notification_id === id);
+  if (item) item.is_read = true;
+  renderNotifications();
+  const photo = photos.find((entry) => entry.id === photoId);
+  if (photo) {
+    els.notificationDialog.close();
+    openPhoto(photo);
+  }
+}
+
+async function markAllNotificationsRead() {
+  if (!supabase || !session) return;
+  const { error } = await supabase
+    .from("notifications")
+    .update({ is_read: true })
+    .eq("user_id", session.user.id)
+    .eq("is_read", false);
+  if (error) {
+    els.notificationStatus.textContent = `更新失败：${error.message}`;
+    return;
+  }
+  notifications.forEach((item) => {
+    item.is_read = true;
+  });
+  renderNotifications();
+}
+
 async function loadPhotoComments(photoId) {
   photoComments = [];
   els.photoCommentStatus.textContent = "";
@@ -4906,30 +5141,67 @@ function renderPhotoComments() {
     els.photoCommentsList.innerHTML = `<p class="photo-comments-empty">还没有留言。</p>`;
     return;
   }
-  els.photoCommentsList.innerHTML = photoComments
-    .map(
-      (comment) => `
-        <article class="photo-comment">
-          <span class="photo-comment-avatar">${escapeHtml(getInitial(getAuthorName(comment.user_id)))}</span>
-          <div>
-            <header>
-              <strong>${escapeHtml(getAuthorName(comment.user_id))}</strong>
-              <time>${formatCommentTime(comment.created_at)}</time>
-            </header>
-            <p>${escapeHtml(comment.body)}</p>
+  const byParent = new Map();
+  photoComments.forEach((comment) => {
+    const parentId = comment.parent_id || "root";
+    if (!byParent.has(parentId)) byParent.set(parentId, []);
+    byParent.get(parentId).push(comment);
+  });
+
+  const renderBranch = (parentId = "root", depth = 0) =>
+    (byParent.get(parentId) || [])
+      .map((comment) => {
+        const authorName = getAuthorName(comment.user_id);
+        const replyTarget = comment.parent_id
+          ? photoComments.find((item) => item.id === comment.parent_id)
+          : null;
+        return `
+          <div class="photo-comment-thread" style="--comment-depth:${Math.min(depth, 3)}">
+            <article class="photo-comment">
+              ${renderAvatarMarkup(comment.user_id)}
+              <div>
+                <header>
+                  <strong>${escapeHtml(authorName)}</strong>
+                  <time>${formatCommentTime(comment.created_at)}</time>
+                </header>
+                ${replyTarget ? `<small class="reply-target">回复 ${escapeHtml(getAuthorName(replyTarget.user_id))}</small>` : ""}
+                <p>${escapeHtml(comment.body)}</p>
+                <div class="photo-comment-actions">
+                  <button type="button" data-reply-comment="${escapeHtml(comment.id)}">回复</button>
+                  ${comment.user_id === session?.user?.id ? `<button type="button" data-delete-comment="${escapeHtml(comment.id)}">删除</button>` : ""}
+                </div>
+              </div>
+            </article>
+            ${renderBranch(comment.id, depth + 1)}
           </div>
-          ${
-            comment.user_id === session?.user?.id
-              ? `<button type="button" data-delete-comment="${escapeHtml(comment.id)}" aria-label="删除留言">删除</button>`
-              : ""
-          }
-        </article>
-      `
-    )
-    .join("");
+        `;
+      })
+      .join("");
+
+  els.photoCommentsList.innerHTML = renderBranch();
+  els.photoCommentsList.querySelectorAll("[data-reply-comment]").forEach((button) => {
+    button.addEventListener("click", () => startCommentReply(button.dataset.replyComment));
+  });
   els.photoCommentsList.querySelectorAll("[data-delete-comment]").forEach((button) => {
     button.addEventListener("click", () => deletePhotoComment(button.dataset.deleteComment));
   });
+}
+
+function startCommentReply(commentId) {
+  const comment = photoComments.find((item) => item.id === commentId);
+  if (!comment) return;
+  commentReplyToId = comment.id;
+  els.commentReplyingText.textContent = `正在回复 ${getAuthorName(comment.user_id)}`;
+  els.commentReplying.hidden = false;
+  els.photoCommentInput.placeholder = `回复 ${getAuthorName(comment.user_id)}`;
+  els.photoCommentInput.focus();
+}
+
+function cancelCommentReply() {
+  commentReplyToId = null;
+  els.commentReplying.hidden = true;
+  els.commentReplyingText.textContent = "";
+  els.photoCommentInput.placeholder = "给这张照片留句话";
 }
 
 async function savePhotoComment(event) {
@@ -4942,6 +5214,7 @@ async function savePhotoComment(event) {
     photo_id: activeDialogPhoto.id,
     user_id: session.user.id,
     body,
+    parent_id: commentReplyToId,
   });
   if (error) {
     els.photoCommentStatus.textContent = isMissingCloudSchema(error)
@@ -4950,6 +5223,7 @@ async function savePhotoComment(event) {
     return;
   }
   els.photoCommentForm.reset();
+  cancelCommentReply();
   await loadPhotoComments(activeDialogPhoto.id);
 }
 
@@ -5113,6 +5387,15 @@ els.thanksForm.querySelectorAll('input[name="thanksColor"]').forEach((input) => 
 els.avatarButton.addEventListener("click", () => {
   els.userPopover.hidden = !els.userPopover.hidden;
 });
+els.notificationButton.addEventListener("click", async () => {
+  await loadNotifications();
+  els.notificationDialog.showModal();
+});
+els.closeNotificationDialog.addEventListener("click", () => els.notificationDialog.close());
+els.notificationDialog.addEventListener("click", (event) => {
+  if (event.target === els.notificationDialog) els.notificationDialog.close();
+});
+els.markNotificationsRead.addEventListener("click", markAllNotificationsRead);
 els.renameHomeButton.addEventListener("click", () => {
   els.userPopover.hidden = true;
   els.homeNameInput.value = accountProfile.homeName || loadHomeName(session?.user?.id);
@@ -5139,6 +5422,23 @@ els.renameProfileDialog.addEventListener("click", (event) => {
   if (event.target === els.renameProfileDialog) els.renameProfileDialog.close();
 });
 els.renameProfileForm.addEventListener("submit", saveProfileNickname);
+els.changeAvatarButton.addEventListener("click", () => {
+  els.userPopover.hidden = true;
+  els.avatarForm.reset();
+  els.avatarStatus.textContent = "";
+  setAvatarPreview(accountProfile.avatarUrl);
+  els.avatarDialog.showModal();
+});
+els.closeAvatarDialog.addEventListener("click", () => els.avatarDialog.close());
+els.avatarDialog.addEventListener("click", (event) => {
+  if (event.target === els.avatarDialog) els.avatarDialog.close();
+});
+els.avatarDialog.addEventListener("close", () => {
+  if (avatarPreviewUrl) URL.revokeObjectURL(avatarPreviewUrl);
+  avatarPreviewUrl = "";
+});
+els.avatarInput.addEventListener("change", updateAvatarPreview);
+els.avatarForm.addEventListener("submit", saveAvatar);
 els.familyAccountButton.addEventListener("click", () => {
   els.userPopover.hidden = true;
   els.familyStatus.textContent = "";
@@ -5218,9 +5518,11 @@ els.dialog.addEventListener("close", () => {
   photoComments = [];
   els.photoCommentsSection.hidden = false;
   els.photoCommentForm.reset();
+  cancelCommentReply();
   els.photoCommentStatus.textContent = "";
 });
 els.photoCommentForm.addEventListener("submit", savePhotoComment);
+els.cancelCommentReply.addEventListener("click", cancelCommentReply);
 els.dialogPrev.addEventListener("click", () => moveDialogImage(-1));
 els.dialogNext.addEventListener("click", () => moveDialogImage(1));
 els.editForm.addEventListener("submit", savePhotoEdit);
