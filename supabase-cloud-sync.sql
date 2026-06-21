@@ -977,12 +977,20 @@ create policy "Family members can read photos"
   using (public.are_family_members(auth.uid(), user_id));
 
 drop policy if exists "Users can read their own recipes" on public.recipes;
+drop policy if exists "Users can create their own recipes" on public.recipes;
 drop policy if exists "Family members can read recipes" on public.recipes;
+drop policy if exists "Family members can create recipes" on public.recipes;
 drop policy if exists "Family members can update recipes" on public.recipes;
 drop policy if exists "Family members can delete recipes" on public.recipes;
 create policy "Family members can read recipes"
   on public.recipes for select
   using (
+    auth.uid() = user_id
+    or public.are_family_members(auth.uid(), user_id)
+  );
+create policy "Family members can create recipes"
+  on public.recipes for insert
+  with check (
     auth.uid() = user_id
     or public.are_family_members(auth.uid(), user_id)
   );
@@ -1004,12 +1012,20 @@ create policy "Family members can delete recipes"
   );
 
 drop policy if exists "Users can read their own wishes" on public.wishes;
+drop policy if exists "Users can create their own wishes" on public.wishes;
 drop policy if exists "Family members can read wishes" on public.wishes;
+drop policy if exists "Family members can create wishes" on public.wishes;
 drop policy if exists "Family members can update wishes" on public.wishes;
 drop policy if exists "Family members can delete wishes" on public.wishes;
 create policy "Family members can read wishes"
   on public.wishes for select
   using (
+    auth.uid() = user_id
+    or public.are_family_members(auth.uid(), user_id)
+  );
+create policy "Family members can create wishes"
+  on public.wishes for insert
+  with check (
     auth.uid() = user_id
     or public.are_family_members(auth.uid(), user_id)
   );
@@ -1031,12 +1047,20 @@ create policy "Family members can delete wishes"
   );
 
 drop policy if exists "Users can read their own weekend plans" on public.weekend_plans;
+drop policy if exists "Users can create their own weekend plans" on public.weekend_plans;
 drop policy if exists "Family members can read weekend plans" on public.weekend_plans;
+drop policy if exists "Family members can create weekend plans" on public.weekend_plans;
 drop policy if exists "Family members can update weekend plans" on public.weekend_plans;
 drop policy if exists "Family members can delete weekend plans" on public.weekend_plans;
 create policy "Family members can read weekend plans"
   on public.weekend_plans for select
   using (
+    auth.uid() = user_id
+    or public.are_family_members(auth.uid(), user_id)
+  );
+create policy "Family members can create weekend plans"
+  on public.weekend_plans for insert
+  with check (
     auth.uid() = user_id
     or public.are_family_members(auth.uid(), user_id)
   );
@@ -1058,12 +1082,22 @@ create policy "Family members can delete weekend plans"
   );
 
 drop policy if exists "Users can read their own anniversaries" on public.anniversaries;
+drop policy if exists "Users can create their own anniversaries" on public.anniversaries;
+drop policy if exists "Users can update their own anniversaries" on public.anniversaries;
+drop policy if exists "Users can delete their own anniversaries" on public.anniversaries;
 drop policy if exists "Family members can read anniversaries" on public.anniversaries;
+drop policy if exists "Family members can create anniversaries" on public.anniversaries;
 drop policy if exists "Family members can update anniversaries" on public.anniversaries;
 drop policy if exists "Family members can delete anniversaries" on public.anniversaries;
 create policy "Family members can read anniversaries"
   on public.anniversaries for select
   using (
+    auth.uid() = user_id
+    or public.are_family_members(auth.uid(), user_id)
+  );
+create policy "Family members can create anniversaries"
+  on public.anniversaries for insert
+  with check (
     auth.uid() = user_id
     or public.are_family_members(auth.uid(), user_id)
   );
