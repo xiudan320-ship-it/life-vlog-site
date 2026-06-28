@@ -62,7 +62,7 @@ http://127.0.0.1:8000/index.html
 
 - `user_profiles`：VIP 档位、累计充值、经验、每日登录日期、主题、主页名称与转盘候选
 - `recipes`：菜谱、封面、调味料、食材与步骤
-- `wishes`：心愿类型、图片、计划日期、优先级与完成状态
+- `wishes`：心愿类型、图片、计划日期、优先级、完成状态与完成感想
 - `weekend_plans`：周末计划、日期、地点与完成状态
 - `anniversaries`：宠物年龄、相伴天数与纪念日
 - `photo_favorites`：每个账户自己的照片收藏
