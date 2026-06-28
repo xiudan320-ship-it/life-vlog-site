@@ -2183,6 +2183,34 @@ body.theme-dark .wish-card {
   font-size: 36px;
 }
 
+.wish-completion-note {
+  display: grid;
+  gap: 6px;
+  margin-top: 16px;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--accent), transparent 58%);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent), transparent 92%);
+}
+
+.wish-completion-note span {
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.wish-completion-note p {
+  margin: 0;
+  color: var(--text);
+  font-weight: 800;
+  line-height: 1.65;
+}
+
+body.theme-dark .wish-completion-note {
+  background: color-mix(in srgb, var(--accent), transparent 88%);
+}
+
 .weekend-page {
   display: grid;
   gap: 18px;
