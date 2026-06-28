@@ -385,6 +385,7 @@ const els = {
   wishDateInput: document.querySelector("#wishDateInput"),
   wishPriorityInput: document.querySelector("#wishPriorityInput"),
   wishNoteInput: document.querySelector("#wishNoteInput"),
+  wishCompletionNoteInput: document.querySelector("#wishCompletionNoteInput"),
   wishSubmitButton: document.querySelector("#wishSubmitButton"),
   wishCancelEdit: document.querySelector("#wishCancelEdit"),
   wishlistStatus: document.querySelector("#wishlistStatus"),
@@ -2123,6 +2124,7 @@ function wishToCloudRow(wish, userId = session?.user?.id) {
     planned_date: wish.date || null,
     priority: wish.priority || "普通",
     note: composeWishStoredNote(wish.note, wish.imageUrl, wish.imagePath),
+    completion_note: wish.completionNote || "",
     is_done: Boolean(wish.done),
     completed_at: wish.completedAt || null,
     created_at: wish.createdAt || new Date().toISOString(),
@@ -2140,6 +2142,7 @@ function wishFromCloudRow(row) {
     date: row.planned_date || "",
     priority: row.priority,
     note: media.note,
+    completionNote: row.completion_note || "",
     imageUrl: media.imageUrl,
     imagePath: media.imagePath,
     done: Boolean(row.is_done),
@@ -3877,6 +3880,7 @@ async function saveWish(event) {
     date: els.wishDateInput.value,
     priority: els.wishPriorityInput.value,
     note: els.wishNoteInput.value.trim(),
+    completionNote: els.wishCompletionNoteInput.value.trim(),
     imageUrl: image.imageUrl,
     imagePath: image.imagePath,
     done: previous?.done || false,
@@ -3964,6 +3968,14 @@ function renderWishes() {
             <span>${wish.done ? "已完成" : "待实现"}</span>
           </div>
           ${wish.note ? `<p>${escapeHtml(wish.note)}</p>` : ""}
+          ${
+            wish.done && wish.completionNote
+              ? `<div class="wish-completion-note">
+                  <span>完成感想</span>
+                  <p>${escapeHtml(wish.completionNote)}</p>
+                </div>`
+              : ""
+          }
         </article>
       `;
     })
@@ -3998,6 +4010,7 @@ function editWish(id) {
   els.wishDateInput.value = wish.date || "";
   els.wishPriorityInput.value = wish.priority || "普通";
   els.wishNoteInput.value = wish.note || "";
+  els.wishCompletionNoteInput.value = wish.completionNote || "";
   if (wishExistingImage) setWishImagePreview(wishExistingImage);
   else clearWishImagePreview();
   els.wishlistFormTitle.textContent = "编辑心愿";
@@ -4015,10 +4028,20 @@ async function toggleWish(id) {
     setWishlistStatus("数据库尚未连接，心愿状态没有修改。");
     return;
   }
+  const willComplete = !current.done;
+  let completionNote = current.completionNote || "";
+  if (willComplete) {
+    const input = window.prompt("完成感想（可留空，会显示在心愿底下）", completionNote);
+    if (input === null) return;
+    completionNote = input.trim();
+  } else {
+    completionNote = "";
+  }
   const next = {
     ...current,
-    done: !current.done,
-    completedAt: !current.done ? new Date().toISOString() : "",
+    done: willComplete,
+    completionNote,
+    completedAt: willComplete ? new Date().toISOString() : "",
     updatedAt: new Date().toISOString(),
   };
 
@@ -4027,6 +4050,7 @@ async function toggleWish(id) {
       .from("wishes")
       .update({
         is_done: next.done,
+        completion_note: next.completionNote || "",
         completed_at: next.completedAt || null,
         updated_at: next.updatedAt,
       })
