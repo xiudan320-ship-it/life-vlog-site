@@ -65,11 +65,15 @@ create table if not exists public.wishes (
   planned_date date,
   priority text not null default '普通',
   note text not null default '',
+  completion_note text not null default '',
   is_done boolean not null default false,
   completed_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.wishes
+  add column if not exists completion_note text not null default '';
 
 create table if not exists public.weekend_plans (
   id uuid primary key default gen_random_uuid(),
