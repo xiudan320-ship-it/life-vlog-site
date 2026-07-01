@@ -9,7 +9,7 @@
     <title>咻蛋之家</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
     <link rel="stylesheet" href="./styles.css?v=20260610-37" />
-    <link rel="stylesheet" href="./redesign.css?v=20260619-47" />
+    <link rel="stylesheet" href="./redesign.css?v=20260701-48" />
   </head>
   <body>
     <header class="topbar">
@@ -506,6 +506,34 @@
         <section class="wishlist-list" id="wishlistList" aria-live="polite"></section>
       </section>
 
+      <dialog class="wish-complete-dialog" id="wishCompleteDialog">
+        <button class="dialog-close" id="wishCompleteClose" type="button" aria-label="关闭">×</button>
+        <form id="wishCompleteForm">
+          <div class="wish-complete-hero">
+            <p class="kicker">Wish Complete</p>
+            <h2 id="wishCompleteTitle">完成心愿</h2>
+            <p id="wishCompleteMeta"></p>
+          </div>
+          <div class="wish-complete-body">
+            <div class="wish-complete-preview" id="wishCompletePreview"></div>
+            <label>
+              完成后的留言感想
+              <textarea
+                id="wishCompleteNoteInput"
+                rows="5"
+                maxlength="500"
+                placeholder="比如：终于一起去了，天气很好，值得再来一次。"
+              ></textarea>
+            </label>
+          </div>
+          <p class="status-line" id="wishCompleteStatus"></p>
+          <div class="wish-complete-actions">
+            <button class="ghost-button" id="wishCompleteCancel" type="button">先不完成</button>
+            <button class="primary" id="wishCompleteSubmit" type="submit">保存完成感想</button>
+          </div>
+        </form>
+      </dialog>
+
       <section class="weekend-page" id="weekendPage" hidden>
         <div class="feed-head">
           <div>
@@ -982,6 +1010,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260619-47"></script>
+    <script type="module" src="./app.js?v=20260701-48"></script>
   </body>
 </html>
