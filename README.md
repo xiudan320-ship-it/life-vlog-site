@@ -46,6 +46,18 @@ http://127.0.0.1:8000/index.html
 4. Source 选择 `Deploy from a branch`。
 5. Branch 选择 `main`，目录选择 `/root`。
 
+## 安装到 iPhone 主屏幕
+
+这个项目已配置为 PWA，可以像 App 一样添加到 iOS 主屏幕，不需要上架 App Store。
+
+1. 用 iPhone 的 Safari 打开 GitHub Pages 网址。
+2. 点底部分享按钮。
+3. 选择“添加到主屏幕”。
+4. 名字保留“咻蛋之家”，点“添加”。
+
+第一次从主屏幕打开时可能需要重新登录一次；之后会像独立 App 一样打开。
+前端外壳会缓存到本机，照片、评论和数据库内容仍通过 Supabase 云端同步。
+
 ## 免费额度提醒
 
 照片会在浏览器中压缩到最长边 1800px、JPEG 质量 0.86，再上传到 Supabase Storage。这样更省空间，也更适合手机访问。
