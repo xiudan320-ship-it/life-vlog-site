@@ -8,6 +8,7 @@ const WEEKEND_KEY = "life-vlog-weekend-plans";
 const ANNIVERSARY_KEY = "life-vlog-anniversaries";
 const FOOD_OPTIONS_KEY = "life-vlog-food-options";
 const PHOTO_FAVORITES_KEY = "life-vlog-photo-favorites";
+const TODAY_POSTS_SEEN_KEY = "life-vlog-today-posts-seen";
 const EXPERIENCE_KEY = "life-vlog-experience";
 const THANKS_COLOR_KEY = "life-vlog-thanks-color";
 const THANKS_COLORS = new Set(["#2f6b3b", "#d6544d", "#2e6da4", "#81559b", "#a66b12"]);
@@ -23,6 +24,7 @@ const MEDIA_META_START = "<!--life-vlog-media:";
 const MEDIA_META_END = "-->";
 const WISH_MEDIA_META_START = "<!--life-vlog-wish-media:";
 const WISH_MEDIA_META_END = "-->";
+const PHOTO_COMMENT_PREVIEW_LIMIT = 3;
 const DEFAULT_FOOD_OPTIONS = ["拉面", "寿喜烧", "咖喱饭", "烤肉", "火锅", "寿司", "麻婆豆腐", "披萨"];
 
 const VIP_LEVELS = [
@@ -113,6 +115,7 @@ let familyMemberMap = new Map();
 let gratitudeEditingId = null;
 let activeDialogPhoto = null;
 let photoComments = [];
+let photoCommentPreviewMap = new Map();
 let notifications = [];
 let commentReplyToId = null;
 let avatarPreviewUrl = "";
@@ -275,6 +278,7 @@ const els = {
   noteInput: document.querySelector("#noteInput"),
   uploadStatus: document.querySelector("#uploadStatus"),
   galleryHead: document.querySelector("#galleryHead"),
+  todayPostsNotice: document.querySelector("#todayPostsNotice"),
   galleryFilters: document.querySelector("#galleryFilters"),
   gallery: document.querySelector("#gallery"),
   feedLoader: document.querySelector("#feedLoader"),
@@ -846,13 +850,190 @@ async function loadPhotos() {
     setGlobalStatus("");
     photos = data || [];
     if (session) {
-      await Promise.all([verifyPhotoFlagSchema(), synchronizePhotoFavorites()]);
+      await Promise.all([
+        verifyPhotoFlagSchema(),
+        synchronizePhotoFavorites(),
+        loadPhotoCommentPreviews(),
+      ]);
+    } else {
+      photoCommentPreviewMap = new Map();
     }
   }
 
   visiblePhotoCount = PAGE_SIZE;
   renderGallery();
   if (cloudSyncAvailable) updateCloudSyncStatus();
+}
+
+async function loadPhotoCommentPreviews() {
+  photoCommentPreviewMap = new Map();
+  if (!supabase || !session) return;
+  const { data, error } = await supabase
+    .from("photo_comments")
+    .select("id,photo_id,user_id,body,parent_id,created_at")
+    .order("created_at", { ascending: false })
+    .limit(300);
+  if (error) return;
+  (data || []).forEach((comment) => {
+    const photoId = comment.photo_id;
+    if (!photoId) return;
+    const list = photoCommentPreviewMap.get(photoId) || [];
+    if (list.length >= PHOTO_COMMENT_PREVIEW_LIMIT) return;
+    list.push(comment);
+    photoCommentPreviewMap.set(photoId, list);
+  });
+  photoCommentPreviewMap.forEach((list) => {
+    list.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+  });
+}
+
+function getLocalDateKeyFromValue(value) {
+  if (!value) return "";
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+function isPhotoPublishedToday(photo) {
+  return getLocalDateKeyFromValue(photo?.created_at) === getLocalDateKey();
+}
+
+function getTodayPostsSeenStorageKey(dateKey = getLocalDateKey()) {
+  const userId = session?.user?.id || "guest";
+  return `${TODAY_POSTS_SEEN_KEY}:${userId}:${dateKey}`;
+}
+
+function loadTodaySeenPostIds() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(getTodayPostsSeenStorageKey()) || "[]");
+    return new Set(Array.isArray(parsed) ? parsed.map(String) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveTodaySeenPostIds(ids) {
+  localStorage.setItem(
+    getTodayPostsSeenStorageKey(),
+    JSON.stringify([...new Set([...ids].map(String))])
+  );
+}
+
+function getSortedPhotos(photoList = photos) {
+  return [...photoList].sort((a, b) => {
+    const pinnedDifference = Number(Boolean(b.is_pinned)) - Number(Boolean(a.is_pinned));
+    if (pinnedDifference) return pinnedDifference;
+    const featuredDifference =
+      Number(Boolean(b.is_featured)) - Number(Boolean(a.is_featured));
+    if (featuredDifference) return featuredDifference;
+    return (
+      new Date(b.taken_at || b.created_at || 0) -
+      new Date(a.taken_at || a.created_at || 0)
+    );
+  });
+}
+
+function getTodayPublishedPhotos() {
+  return getSortedPhotos(photos).filter((photo) => isPhotoPublishedToday(photo));
+}
+
+function markTodayPostsViewed(ids) {
+  const seen = loadTodaySeenPostIds();
+  ids.filter(Boolean).forEach((id) => seen.add(String(id)));
+  saveTodaySeenPostIds(seen);
+}
+
+function updateTodayPostsNotice() {
+  if (!els.todayPostsNotice) return;
+  if (activePage !== "gallery") {
+    els.todayPostsNotice.hidden = true;
+    return;
+  }
+  const todayPhotos = getTodayPublishedPhotos();
+  const seen = loadTodaySeenPostIds();
+  const unseen = todayPhotos.filter((photo) => photo.id && !seen.has(String(photo.id)));
+  if (!unseen.length) {
+    els.todayPostsNotice.hidden = true;
+    els.todayPostsNotice.innerHTML = "";
+    return;
+  }
+  const latest = unseen[0];
+  els.todayPostsNotice.hidden = false;
+  els.todayPostsNotice.innerHTML = `
+    <div>
+      <span>今日新帖</span>
+      <strong>今天有 ${unseen.length} 篇新照片</strong>
+      <p>最新：${escapeHtml(getDisplayTitle(latest))} · ${escapeHtml(getAuthorName(latest.user_id))}</p>
+    </div>
+    <div>
+      <button class="today-posts-primary" type="button" data-view-today-posts>查看今天</button>
+      <button type="button" data-dismiss-today-posts>知道了</button>
+    </div>
+  `;
+  els.todayPostsNotice
+    .querySelector("[data-view-today-posts]")
+    ?.addEventListener("click", showTodayPosts);
+  els.todayPostsNotice
+    .querySelector("[data-dismiss-today-posts]")
+    ?.addEventListener("click", () => {
+      markTodayPostsViewed(unseen.map((photo) => photo.id));
+      updateTodayPostsNotice();
+    });
+}
+
+function updateFilterChips() {
+  els.chips.forEach((item) => item.classList.toggle("active", item.dataset.filter === activeFilter));
+}
+
+function showTodayPosts() {
+  const todayPhotos = getTodayPublishedPhotos();
+  if (!todayPhotos.length) return;
+  const targetId = todayPhotos[0].id;
+  activeFilter = "全部";
+  updateFilterChips();
+  const targetIndex = getSortedPhotos(photos).findIndex((photo) => photo.id === targetId);
+  visiblePhotoCount = Math.max(PAGE_SIZE, targetIndex + 1);
+  markTodayPostsViewed(todayPhotos.map((photo) => photo.id));
+  renderGallery();
+  requestAnimationFrame(() => {
+    const target = targetId
+      ? els.gallery.querySelector(`[data-photo-id="${targetId}"]`)
+      : null;
+    (target || els.gallery)?.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+}
+
+function renderPhotoCommentPreview(photoId, visibleIndex) {
+  const comments = photoCommentPreviewMap.get(photoId) || [];
+  if (!comments.length) return "";
+  const totalText =
+    comments.length >= PHOTO_COMMENT_PREVIEW_LIMIT ? `最近 ${comments.length} 条留言` : `${comments.length} 条留言`;
+  return `
+    <section class="photo-card-comments">
+      <header>
+        <span>${totalText}</span>
+        <button type="button" data-open-comments-index="${visibleIndex}">回复</button>
+      </header>
+      ${comments
+        .map(
+          (comment) => `
+            <article>
+              ${renderAvatarMarkup(comment.user_id, "photo-card-comment-avatar")}
+              <div>
+                <strong>${escapeHtml(getAuthorName(comment.user_id))}</strong>
+                <p>${escapeHtml(comment.body)}</p>
+              </div>
+            </article>
+          `
+        )
+        .join("")}
+    </section>
+  `;
 }
 
 async function verifyPhotoFlagSchema() {
@@ -1129,17 +1310,8 @@ async function uploadImageFile(file, safeName, index = 1, total = 1) {
 
 function renderGallery() {
   renderOverview();
-  const sortedPhotos = [...photos].sort((a, b) => {
-    const pinnedDifference = Number(Boolean(b.is_pinned)) - Number(Boolean(a.is_pinned));
-    if (pinnedDifference) return pinnedDifference;
-    const featuredDifference =
-      Number(Boolean(b.is_featured)) - Number(Boolean(a.is_featured));
-    if (featuredDifference) return featuredDifference;
-    return (
-      new Date(b.taken_at || b.created_at || 0) -
-      new Date(a.taken_at || a.created_at || 0)
-    );
-  });
+  updateTodayPostsNotice();
+  const sortedPhotos = getSortedPhotos(photos);
   const filtered =
     activeFilter === "全部"
       ? sortedPhotos
@@ -1181,7 +1353,7 @@ function renderGallery() {
           const noteText = getPlainNote(photo);
           const sequence = String(index + 1).padStart(2, "0");
           return `
-        <article class="photo-card">
+        <article class="photo-card" data-photo-id="${escapeHtml(photo.id || "")}">
           <span class="strand-index">${sequence}</span>
           <div class="photo-status-badges">
             ${photo.is_pinned ? `<span class="pin-badge">置顶</span>` : ""}
@@ -1216,6 +1388,7 @@ function renderGallery() {
                 : ""
             }
           </div>
+          ${renderPhotoCommentPreview(photo.id, index)}
         </article>
       `;
       }
@@ -1258,6 +1431,12 @@ function renderGallery() {
   els.gallery.querySelectorAll("button[data-edit-index]").forEach((button) => {
     button.addEventListener("click", () => {
       openEditPhoto(visible[Number(button.dataset.editIndex)]);
+    });
+  });
+
+  els.gallery.querySelectorAll("button[data-open-comments-index]").forEach((button) => {
+    button.addEventListener("click", () => {
+      openPhoto(visible[Number(button.dataset.openCommentsIndex)]);
     });
   });
 
@@ -1602,6 +1781,10 @@ async function deletePhoto(photo, triggerButton = null) {
 
 function openPhoto(photo, initialImageIndex = 0) {
   activeDialogPhoto = photo;
+  if (isPhotoPublishedToday(photo) && photo.id) {
+    markTodayPostsViewed([photo.id]);
+    updateTodayPostsNotice();
+  }
   els.photoCommentsSection.hidden = false;
   const displayTitle = getDisplayTitle(photo);
   dialogImages = getPhotoImages(photo);
@@ -3165,6 +3348,7 @@ function switchPage(page) {
     els.foodWheelDialog.close();
   }
   els.galleryHead.hidden = activePage !== "gallery";
+  els.todayPostsNotice.hidden = activePage !== "gallery";
   els.galleryFilters.hidden = activePage !== "gallery";
   els.gallery.hidden = activePage !== "gallery";
   if (activePage !== "gallery") {
@@ -5414,6 +5598,8 @@ async function savePhotoComment(event) {
   els.photoCommentForm.reset();
   cancelCommentReply();
   await loadPhotoComments(activeDialogPhoto.id);
+  await loadPhotoCommentPreviews();
+  if (activePage === "gallery") renderGallery();
 }
 
 async function deletePhotoComment(id) {
@@ -5429,6 +5615,8 @@ async function deletePhotoComment(id) {
     return;
   }
   await loadPhotoComments(activeDialogPhoto?.id);
+  await loadPhotoCommentPreviews();
+  if (activePage === "gallery") renderGallery();
 }
 
 function getInitial(value) {
@@ -5733,7 +5921,7 @@ els.chips.forEach((chip) => {
   chip.addEventListener("click", () => {
     activeFilter = chip.dataset.filter;
     visiblePhotoCount = PAGE_SIZE;
-    els.chips.forEach((item) => item.classList.toggle("active", item === chip));
+    updateFilterChips();
     renderGallery();
   });
 });
