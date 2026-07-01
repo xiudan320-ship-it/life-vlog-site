@@ -2,7 +2,7 @@
   "id": "/life-vlog-site/",
   "name": "咻蛋之家",
   "short_name": "咻蛋之家",
-  "description": "收藏生活里的照片、菜谱、心愿、纪念日和家庭留言。",
+  "description": "收藏生活里的日记、菜谱、心愿、纪念日和家庭留言。",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
