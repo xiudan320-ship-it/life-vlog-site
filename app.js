@@ -871,7 +871,7 @@ async function loadPhotos() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    setGlobalStatus(`读取照片失败：${error.message}`);
+    setGlobalStatus(`读取日记失败：${error.message}`);
     if (!photos.length) photos = [];
     photoFlagsCloudAvailable = false;
   } else {
@@ -1079,7 +1079,7 @@ function updateTodayPostsNotice() {
   els.todayPostsNotice.innerHTML = `
     <div>
       <span>今日新帖</span>
-      <strong>今天有 ${unseen.length} 篇新照片</strong>
+      <strong>今天有 ${unseen.length} 篇新日记</strong>
       <p>最新：${escapeHtml(getPhotoLabel(latest))} · ${escapeHtml(getAuthorName(latest.user_id))}</p>
     </div>
     <div>
@@ -1444,12 +1444,12 @@ function renderGallery() {
   if (!visible.length) {
     const emptyMessage =
       activeFilter === "featured7"
-        ? "最近七天还没有精选照片。"
+        ? "最近七天还没有精选日记。"
         : activeFilter === "favorites"
           ? session
-            ? "还没有收藏照片。"
-            : "登录后可以收藏喜欢的照片。"
-          : "还没有这个分类的照片。";
+            ? "还没有收藏日记。"
+            : "登录后可以收藏喜欢的日记。"
+          : "还没有这个分类的日记。";
     els.gallery.innerHTML = `<div class="empty">${emptyMessage}</div>`;
     updateFeedLoader(0);
     return;
@@ -1464,7 +1464,9 @@ function renderGallery() {
           const noteText = getPlainNote(photo);
           const sequence = String(index + 1).padStart(2, "0");
           const titleMarkup = displayTitle ? `<h3>${escapeHtml(displayTitle)}</h3>` : "";
-          const noteMarkup = noteText ? `<p>${escapeHtml(noteText)}</p>` : "";
+          const noteMarkup = noteText
+            ? `<p class="diary-excerpt">${escapeHtml(noteText)}</p><span class="read-more-hint">点击阅读全文</span>`
+            : "";
           return `
         <article class="photo-card" data-photo-id="${escapeHtml(photo.id || "")}">
           <span class="strand-index">${sequence}</span>
@@ -1496,8 +1498,8 @@ function renderGallery() {
                   <button class="pin-photo ${photo.is_pinned ? "active" : ""}" type="button" data-pin-index="${index}">
                     ${photo.is_pinned ? "取消置顶" : "置顶"}
                   </button>
-                  <button class="edit-photo" type="button" data-edit-index="${index}" title="编辑照片">编辑</button>
-                  <button class="delete-photo" type="button" data-delete-index="${index}" title="删除照片">删除</button>`
+                  <button class="edit-photo" type="button" data-edit-index="${index}" title="编辑日记">编辑</button>
+                  <button class="delete-photo" type="button" data-delete-index="${index}" title="删除日记">删除</button>`
                 : ""
             }
           </div>
@@ -1602,7 +1604,7 @@ async function togglePhotoFlag(photo, field) {
 
 async function togglePhotoFavorite(photo, button) {
   if (!session || !photo) {
-    setGlobalStatus("登录后可以收藏照片。");
+    setGlobalStatus("登录后可以收藏日记。");
     return;
   }
 
@@ -1637,7 +1639,7 @@ async function togglePhotoFavorite(photo, button) {
 }
 
 function renderPhotoMedia(images, title, photoIndex) {
-  const altText = title || "照片";
+  const altText = title || "日记图片";
   if (images.length <= 1) {
     const image = images[0] || {};
     return `
@@ -1890,19 +1892,19 @@ function initializeFeedObserver() {
 
 async function deletePhoto(photo, triggerButton = null) {
   if (!supabase || !session || !photo) {
-    setGlobalStatus("请先登录后再删除照片。");
+    setGlobalStatus("请先登录后再删除日记。");
     return false;
   }
 
   if (photo.user_id && photo.user_id !== session.user.id) {
-    setGlobalStatus("只能删除自己上传的照片。");
+    setGlobalStatus("只能删除自己发布的日记。");
     return false;
   }
 
   const ok = window.confirm(`删除“${getPhotoLabel(photo)}”？删除后无法恢复。`);
   if (!ok) return false;
 
-  setGlobalStatus("正在删除照片...");
+  setGlobalStatus("正在删除日记...");
   const originalButtonText = triggerButton?.textContent || "删除";
   if (triggerButton) {
     triggerButton.disabled = true;
@@ -1932,7 +1934,7 @@ async function deletePhoto(photo, triggerButton = null) {
     favoritePhotoIds.delete(photo.id);
     saveLocalFavoritePhotoIds();
     renderGallery();
-    setGlobalStatus("照片已删除。");
+    setGlobalStatus("日记已删除。");
 
     if (storagePaths.length) {
       const { error: storageError } = await supabase.storage
@@ -1940,7 +1942,7 @@ async function deletePhoto(photo, triggerButton = null) {
         .remove(storagePaths);
       if (storageError) {
         console.warn("Photo record deleted, but storage cleanup failed:", storageError);
-        setGlobalStatus("照片已删除，云端原图清理稍后再试，不影响相册。");
+        setGlobalStatus("日记已删除，云端图片清理稍后再试，不影响浏览。");
       }
     }
 
@@ -1969,7 +1971,7 @@ function openPhoto(photo, initialImageIndex = 0) {
     Math.max(0, Number(initialImageIndex) || 0),
     Math.max(0, dialogImages.length - 1)
   );
-  els.dialogTitle.textContent = displayTitle || "照片";
+  els.dialogTitle.textContent = displayTitle || "日记";
   els.dialogMeta.textContent = `${photo.category || "日常"} · 拍摄 ${formatDate(photo.taken_at)} · 发布 ${formatDateTime(photo.created_at)} · ${getAuthorName(photo.user_id)}`;
   els.dialogNote.textContent = getPlainNote(photo);
   renderDialogMedia();
@@ -2036,13 +2038,13 @@ async function savePhotoEditLegacy(event) {
   els.editDialog.close();
   editingPhoto = null;
   await loadPhotos();
-  setGlobalStatus("照片信息已更新。");
+  setGlobalStatus("日记信息已更新。");
 }
 
 async function savePhotoEdit(event) {
   event.preventDefault();
   if (!supabase || !session || !editingPhoto || !editingImages.length) {
-    els.saveEditStatus.textContent = "请先登录，并至少保留一张照片。";
+    els.saveEditStatus.textContent = "请先登录，并至少保留一张图片。";
     return;
   }
 
@@ -2050,7 +2052,7 @@ async function savePhotoEdit(event) {
   const title = els.editTitleInput.value.trim();
   const nextImages = [];
   const newlyUploadedPaths = [];
-  els.saveEditStatus.textContent = "正在处理照片...";
+  els.saveEditStatus.textContent = "正在处理图片...";
 
   try {
     for (const [index, image] of editingImages.entries()) {
@@ -2109,7 +2111,7 @@ async function savePhotoEdit(event) {
     editingPhoto = null;
     resetEditImageState();
     await loadPhotos();
-    setGlobalStatus("照片和合集内容已更新。");
+    setGlobalStatus("日记和合集内容已更新。");
   } catch (error) {
     els.saveEditStatus.textContent = error.message || "保存失败，请稍后重试。";
     if (newlyUploadedPaths.length) {
@@ -2273,7 +2275,7 @@ function getDisplayTitle(photo) {
 }
 
 function getPhotoLabel(photo) {
-  return getDisplayTitle(photo) || "无标题照片";
+  return getDisplayTitle(photo) || "无标题日记";
 }
 
 function isGeneratedTitle(title) {
@@ -5585,9 +5587,9 @@ function formatCommentTime(value) {
 
 function getNotificationText(item) {
   const actor = item.actor_username || "有人";
-  if (item.type === "favorite") return `${actor} 收藏了你的照片`;
+  if (item.type === "favorite") return `${actor} 收藏了你的日记`;
   if (item.type === "reply") return `${actor} 回复了你的留言`;
-  return `${actor} 评论了你的照片`;
+  return `${actor} 评论了你的日记`;
 }
 
 async function loadNotifications() {
@@ -5787,7 +5789,7 @@ function cancelCommentReply() {
   commentReplyToId = null;
   els.commentReplying.hidden = true;
   els.commentReplyingText.textContent = "";
-  els.photoCommentInput.placeholder = "给这张照片留句话";
+  els.photoCommentInput.placeholder = "给这篇日记留句话";
 }
 
 async function savePhotoComment(event) {
