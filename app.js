@@ -9,6 +9,7 @@ const ANNIVERSARY_KEY = "life-vlog-anniversaries";
 const FOOD_OPTIONS_KEY = "life-vlog-food-options";
 const PHOTO_FAVORITES_KEY = "life-vlog-photo-favorites";
 const TODAY_POSTS_SEEN_KEY = "life-vlog-today-posts-seen";
+const PHOTO_FEED_CACHE_KEY = "life-vlog-photo-feed-cache";
 const EXPERIENCE_KEY = "life-vlog-experience";
 const THANKS_COLOR_KEY = "life-vlog-thanks-color";
 const THANKS_COLORS = new Set(["#2f6b3b", "#d6544d", "#2e6da4", "#81559b", "#a66b12"]);
@@ -25,6 +26,7 @@ const MEDIA_META_END = "-->";
 const WISH_MEDIA_META_START = "<!--life-vlog-wish-media:";
 const WISH_MEDIA_META_END = "-->";
 const PHOTO_COMMENT_PREVIEW_LIMIT = 3;
+const PHOTO_FEED_CACHE_LIMIT = 3;
 const DEFAULT_FOOD_OPTIONS = ["拉面", "寿喜烧", "咖喱饭", "烤肉", "火锅", "寿司", "麻婆豆腐", "披萨"];
 
 const VIP_LEVELS = [
@@ -126,6 +128,7 @@ let activeFilter = "全部";
 let previewUrls = [];
 let visiblePhotoCount = PAGE_SIZE;
 let filteredPhotoCount = 0;
+let showingCachedFeed = false;
 let feedObserver = null;
 let feedLoading = false;
 let editingPhoto = null;
@@ -473,6 +476,27 @@ function loadConfig() {
   }
 }
 
+function getStoredSupabaseUserId(config = loadConfig()) {
+  if (!config?.url) return "";
+  try {
+    const ref = new URL(config.url).hostname.split(".")[0];
+    const keys = [`sb-${ref}-auth-token`, "supabase.auth.token"];
+    for (const key of keys) {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw);
+      const userId =
+        parsed?.user?.id ||
+        parsed?.currentSession?.user?.id ||
+        parsed?.session?.user?.id;
+      if (userId) return userId;
+    }
+  } catch {
+    return "";
+  }
+  return "";
+}
+
 function saveConfig() {
   const url = els.supabaseUrl.value.trim();
   const anonKey = els.supabaseAnonKey.value.trim();
@@ -529,6 +553,7 @@ async function initializeSupabase() {
 
   els.supabaseUrl.value = config.url;
   els.supabaseAnonKey.value = config.anonKey;
+  renderCachedPhotoFeed(getStoredSupabaseUserId(config) || "public");
   if (!createClient) {
     const supabaseModule = await import(
       "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm"
@@ -540,11 +565,13 @@ async function initializeSupabase() {
   const { data } = await supabase.auth.getSession();
   session = data.session;
   updateAuthUI();
+  renderCachedPhotoFeed(session?.user?.id || "public");
   await loadPhotos();
 
   supabase.auth.onAuthStateChange((_event, nextSession) => {
     session = nextSession;
     updateAuthUI();
+    renderCachedPhotoFeed(session?.user?.id || "public");
     loadPhotos();
   });
   if (notificationPollTimer) clearInterval(notificationPollTimer);
@@ -844,11 +871,12 @@ async function loadPhotos() {
 
   if (error) {
     setGlobalStatus(`读取照片失败：${error.message}`);
-    photos = [];
+    if (!photos.length) photos = [];
     photoFlagsCloudAvailable = false;
   } else {
     setGlobalStatus("");
     photos = data || [];
+    showingCachedFeed = false;
     if (session) {
       await Promise.all([
         verifyPhotoFlagSchema(),
@@ -858,6 +886,7 @@ async function loadPhotos() {
     } else {
       photoCommentPreviewMap = new Map();
     }
+    savePhotoFeedCache(session?.user?.id || "public");
   }
 
   visiblePhotoCount = PAGE_SIZE;
@@ -885,6 +914,88 @@ async function loadPhotoCommentPreviews() {
   photoCommentPreviewMap.forEach((list) => {
     list.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
   });
+}
+
+function getPhotoFeedCacheStorageKey(userId = session?.user?.id || "public") {
+  return `${PHOTO_FEED_CACHE_KEY}:${userId || "public"}`;
+}
+
+function sanitizePhotoForCache(photo) {
+  return {
+    id: photo.id,
+    user_id: photo.user_id,
+    title: photo.title || "",
+    note: photo.note || "",
+    category: photo.category || "日常",
+    taken_at: photo.taken_at || "",
+    created_at: photo.created_at || "",
+    image_path: photo.image_path || "",
+    image_url: photo.image_url || "",
+    width: photo.width || null,
+    height: photo.height || null,
+    is_public: Boolean(photo.is_public),
+    is_featured: Boolean(photo.is_featured),
+    is_pinned: Boolean(photo.is_pinned),
+  };
+}
+
+function sanitizeCommentForCache(comment) {
+  return {
+    id: comment.id,
+    photo_id: comment.photo_id,
+    user_id: comment.user_id,
+    body: comment.body || "",
+    parent_id: comment.parent_id || null,
+    created_at: comment.created_at || "",
+  };
+}
+
+function savePhotoFeedCache(userId = session?.user?.id || "public") {
+  if (!photos.length) return;
+  const cachedPhotos = getSortedPhotos(photos).slice(0, PHOTO_FEED_CACHE_LIMIT);
+  const cachedIds = new Set(cachedPhotos.map((photo) => photo.id).filter(Boolean));
+  const comments = [];
+  cachedIds.forEach((photoId) => {
+    (photoCommentPreviewMap.get(photoId) || [])
+      .slice(0, PHOTO_COMMENT_PREVIEW_LIMIT)
+      .forEach((comment) => comments.push(sanitizeCommentForCache(comment)));
+  });
+  const payload = {
+    savedAt: new Date().toISOString(),
+    photos: cachedPhotos.map(sanitizePhotoForCache),
+    comments,
+  };
+  try {
+    localStorage.setItem(getPhotoFeedCacheStorageKey(userId), JSON.stringify(payload));
+  } catch {
+    // Local storage can be full or unavailable; the live cloud feed still works.
+  }
+}
+
+function renderCachedPhotoFeed(userId = session?.user?.id || "public") {
+  if (activePage !== "gallery") return false;
+  try {
+    const raw = localStorage.getItem(getPhotoFeedCacheStorageKey(userId));
+    if (!raw) return false;
+    const cached = JSON.parse(raw);
+    if (!Array.isArray(cached.photos) || !cached.photos.length) return false;
+    photos = cached.photos.map((photo) => ({ ...photo, __cached: true }));
+    photoCommentPreviewMap = new Map();
+    (Array.isArray(cached.comments) ? cached.comments : []).forEach((comment) => {
+      if (!comment.photo_id) return;
+      const list = photoCommentPreviewMap.get(comment.photo_id) || [];
+      if (list.length >= PHOTO_COMMENT_PREVIEW_LIMIT) return;
+      list.push(comment);
+      photoCommentPreviewMap.set(comment.photo_id, list);
+    });
+    showingCachedFeed = true;
+    visiblePhotoCount = Math.max(PAGE_SIZE, PHOTO_FEED_CACHE_LIMIT);
+    renderGallery();
+    setGlobalStatus("先显示上次缓存，正在同步最新内容…");
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function getLocalDateKeyFromValue(value) {
