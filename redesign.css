@@ -2183,6 +2183,214 @@ body.theme-dark .wish-card {
   font-size: 36px;
 }
 
+.wish-card {
+  align-content: stretch;
+  gap: 18px;
+  padding: 20px;
+  border: 1px solid color-mix(in srgb, var(--line), var(--accent) 10%);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent), transparent 88%), transparent 34%),
+    linear-gradient(90deg, var(--accent) 0 5px, transparent 5px),
+    var(--surface);
+}
+
+body.theme-dark .wish-card {
+  border-color: color-mix(in srgb, var(--accent), transparent 62%);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent), transparent 84%), transparent 40%),
+    linear-gradient(90deg, var(--accent) 0 5px, transparent 5px),
+    var(--surface);
+}
+
+.wish-card.done {
+  opacity: 1;
+}
+
+.wish-card.done h3 {
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.wish-card-top,
+.wish-actions,
+.wish-meta {
+  display: flex;
+  align-items: center;
+}
+
+.wish-card-top {
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.wish-index-stack {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.wish-seq {
+  color: color-mix(in srgb, var(--ink), transparent 48%);
+  font-size: 13px;
+  font-weight: 950;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.wish-state-pill {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0 10px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.wish-state-pill.open {
+  border-color: color-mix(in srgb, var(--gold), transparent 35%);
+  background: color-mix(in srgb, var(--gold), transparent 86%);
+  color: color-mix(in srgb, var(--gold), #3c2a00 58%);
+}
+
+.wish-state-pill.done {
+  border-color: color-mix(in srgb, var(--accent), transparent 40%);
+  background: color-mix(in srgb, var(--accent), transparent 86%);
+  color: var(--accent-strong);
+}
+
+body.theme-dark .wish-state-pill.done {
+  color: var(--accent);
+}
+
+.wish-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.wish-actions button {
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 950;
+  padding: 0 12px;
+}
+
+.wish-actions .complete {
+  border-color: var(--accent-strong);
+  background: var(--accent-strong);
+  color: #fff;
+}
+
+body.theme-dark .wish-actions .complete {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #10140f;
+}
+
+.wish-actions .danger {
+  border-color: color-mix(in srgb, var(--coral), transparent 54%);
+  background: color-mix(in srgb, var(--coral), transparent 91%);
+  color: var(--coral);
+}
+
+.wish-card-layout {
+  display: grid;
+  grid-template-columns: minmax(170px, 0.86fr) minmax(0, 1.14fr);
+  gap: 18px;
+  align-items: stretch;
+}
+
+.wish-card-content {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.wish-card-content .kicker {
+  color: var(--accent-strong);
+}
+
+body.theme-dark .wish-card-content .kicker {
+  color: var(--accent);
+}
+
+.wish-card h3 {
+  margin: 0;
+  font-size: clamp(28px, 4.4vw, 48px);
+  line-height: 1.02;
+}
+
+.wish-meta {
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.wish-meta span {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 5px 9px;
+  background: color-mix(in srgb, var(--surface), var(--bg) 32%);
+}
+
+.wish-note,
+.wish-card p:not(.kicker).wish-note {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.65;
+}
+
+.wish-card-image-button {
+  height: 100%;
+  min-height: 218px;
+  margin: 0;
+  border: 1px solid var(--line);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--surface), transparent 22%);
+}
+
+.wish-card-image-button .wish-card-image {
+  width: 100%;
+  height: 100%;
+  min-height: 218px;
+  object-fit: cover;
+}
+
+.wish-card-placeholder {
+  min-height: 218px;
+  display: grid;
+  place-items: center;
+  border: 1px dashed color-mix(in srgb, var(--accent), transparent 45%);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 24% 18%, color-mix(in srgb, var(--gold), transparent 70%), transparent 28%),
+    linear-gradient(145deg, color-mix(in srgb, var(--accent), transparent 88%), transparent 70%),
+    color-mix(in srgb, var(--surface), var(--bg) 20%);
+  color: var(--accent-strong);
+  font-size: 26px;
+  font-weight: 950;
+}
+
+body.theme-dark .wish-card-placeholder {
+  color: var(--accent);
+  background:
+    radial-gradient(circle at 24% 18%, color-mix(in srgb, var(--gold), transparent 76%), transparent 28%),
+    linear-gradient(145deg, color-mix(in srgb, var(--accent), transparent 84%), transparent 70%),
+    color-mix(in srgb, var(--surface), #000 12%);
+}
+
 .wish-completion-note {
   display: grid;
   gap: 6px;
@@ -2209,6 +2417,118 @@ body.theme-dark .wish-card {
 
 body.theme-dark .wish-completion-note {
   background: color-mix(in srgb, var(--accent), transparent 88%);
+}
+
+.wish-completion-note.empty {
+  border-style: dashed;
+  background: color-mix(in srgb, var(--surface), var(--bg) 24%);
+}
+
+.wish-complete-dialog {
+  width: min(calc(100% - 32px), 760px);
+  max-width: none;
+  padding: 0;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.wish-complete-dialog::backdrop {
+  background: rgba(7, 10, 8, 0.54);
+  backdrop-filter: blur(8px);
+}
+
+.wish-complete-dialog form {
+  display: grid;
+  gap: 18px;
+  padding: clamp(22px, 4vw, 34px);
+}
+
+.wish-complete-hero {
+  padding-right: 42px;
+}
+
+.wish-complete-hero h2 {
+  margin: 4px 0 6px;
+  font-size: clamp(32px, 5vw, 56px);
+  line-height: 0.98;
+}
+
+.wish-complete-hero p:last-child {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.wish-complete-body {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.82fr) minmax(0, 1.18fr);
+  gap: 18px;
+  align-items: stretch;
+}
+
+.wish-complete-preview {
+  min-height: 260px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--accent), transparent 86%), transparent 72%),
+    color-mix(in srgb, var(--surface), var(--bg) 26%);
+}
+
+.wish-complete-preview img {
+  width: 100%;
+  height: 100%;
+  min-height: 260px;
+  display: block;
+  object-fit: cover;
+}
+
+.wish-complete-preview div {
+  height: 100%;
+  min-height: 260px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  padding: 22px;
+  text-align: center;
+}
+
+.wish-complete-preview span {
+  color: var(--accent-strong);
+  font-size: 14px;
+  font-weight: 950;
+}
+
+.wish-complete-preview strong {
+  font-size: clamp(26px, 4vw, 42px);
+  line-height: 1.04;
+}
+
+.wish-complete-body label {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.wish-complete-body textarea {
+  min-height: 260px;
+  resize: vertical;
+  border-radius: 8px;
+}
+
+.wish-complete-actions {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+}
+
+.wish-complete-actions .primary {
+  width: 100%;
 }
 
 .weekend-page {
@@ -2758,6 +3078,43 @@ dialog {
   .recipe-form-actions,
   .wish-form-actions,
   .weekend-form-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .wish-card {
+    padding: 16px;
+  }
+
+  .wish-card-top {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .wish-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .wish-actions button {
+    flex: 1 1 88px;
+  }
+
+  .wish-card-layout,
+  .wish-complete-body {
+    grid-template-columns: 1fr;
+  }
+
+  .wish-card-image-button,
+  .wish-card-image-button .wish-card-image,
+  .wish-card-placeholder,
+  .wish-complete-preview,
+  .wish-complete-preview img,
+  .wish-complete-preview div,
+  .wish-complete-body textarea {
+    min-height: 210px;
+  }
+
+  .wish-complete-actions {
     grid-template-columns: 1fr;
   }
 
