@@ -142,6 +142,7 @@ let wishExistingImage = "";
 let wishExistingImagePath = "";
 let wishImagePreviewUrl = "";
 let wishRemoveImageRequested = false;
+let wishCompletingId = null;
 let weekendEditingId = null;
 let weekendCloudAvailable = false;
 let anniversaryEditingId = null;
@@ -150,6 +151,7 @@ let photoFlagsCloudAvailable = false;
 let foodOptionsCloudAvailable = false;
 let profilePreferencesCloudAvailable = false;
 let thanksColorCloudAvailable = false;
+let wishCompletionNoteCloudAvailable = true;
 let foodWheelRotation = 0;
 let foodWheelSpinning = false;
 let cloudSyncAvailable = false;
@@ -390,6 +392,16 @@ const els = {
   wishCancelEdit: document.querySelector("#wishCancelEdit"),
   wishlistStatus: document.querySelector("#wishlistStatus"),
   wishlistList: document.querySelector("#wishlistList"),
+  wishCompleteDialog: document.querySelector("#wishCompleteDialog"),
+  wishCompleteClose: document.querySelector("#wishCompleteClose"),
+  wishCompleteForm: document.querySelector("#wishCompleteForm"),
+  wishCompleteTitle: document.querySelector("#wishCompleteTitle"),
+  wishCompleteMeta: document.querySelector("#wishCompleteMeta"),
+  wishCompletePreview: document.querySelector("#wishCompletePreview"),
+  wishCompleteNoteInput: document.querySelector("#wishCompleteNoteInput"),
+  wishCompleteStatus: document.querySelector("#wishCompleteStatus"),
+  wishCompleteCancel: document.querySelector("#wishCompleteCancel"),
+  wishCompleteSubmit: document.querySelector("#wishCompleteSubmit"),
   weekendPage: document.querySelector("#weekendPage"),
   weekendComposer: document.querySelector("#weekendComposer"),
   weekendToggle: document.querySelector("#weekendToggle"),
@@ -2132,6 +2144,12 @@ function wishToCloudRow(wish, userId = session?.user?.id) {
   };
 }
 
+function wishToLegacyCloudRow(wish, userId = session?.user?.id) {
+  const row = wishToCloudRow(wish, userId);
+  delete row.completion_note;
+  return row;
+}
+
 function wishFromCloudRow(row) {
   const media = parseWishStoredNote(row.note);
   return {
@@ -2288,7 +2306,17 @@ async function synchronizeAccountData() {
         }
         if (personalLocalWishes.length) {
           const rows = personalLocalWishes.map((wish) => wishToCloudRow(wish, userId));
-          const { error } = await supabase.from("wishes").upsert(rows, { onConflict: "id" });
+          let { error } = await supabase.from("wishes").upsert(rows, { onConflict: "id" });
+          if (error && isMissingCloudSchema(error)) {
+            wishCompletionNoteCloudAvailable = false;
+            const legacyRows = personalLocalWishes.map((wish) =>
+              wishToLegacyCloudRow(wish, userId)
+            );
+            const retry = await supabase.from("wishes").upsert(legacyRows, {
+              onConflict: "id",
+            });
+            error = retry.error;
+          }
           if (error) throw error;
         }
 
@@ -2382,6 +2410,12 @@ async function synchronizeAccountData() {
         .single();
       if (profileError) throw profileError;
 
+      if (cloudWishes.length) {
+        wishCompletionNoteCloudAvailable = Object.prototype.hasOwnProperty.call(
+          cloudWishes[0],
+          "completion_note"
+        );
+      }
       cloudSyncAvailable = true;
       accountProfile = {
         rechargeTotal: Number(savedProfile.recharge_total) || 0,
@@ -2469,6 +2503,7 @@ function updateCloudSyncStatus() {
   if (!foodOptionsCloudAvailable) missing.push("转盘候选");
   if (!profilePreferencesCloudAvailable) missing.push("主题/主页名称");
   if (!thanksColorCloudAvailable) missing.push("留言颜色");
+  if (!wishCompletionNoteCloudAvailable) missing.push("心愿完成感想");
   setGlobalStatus(
     missing.length
       ? `数据库仍缺少：${missing.join("、")}。请运行最新版 supabase-cloud-sync.sql。`
@@ -3890,11 +3925,25 @@ async function saveWish(event) {
   };
 
   if (cloudSyncAvailable) {
-    const { data, error } = await supabase
+    let row = wishCompletionNoteCloudAvailable
+      ? wishToCloudRow(wish, wish.userId)
+      : wishToLegacyCloudRow(wish, wish.userId);
+    let { data, error } = await supabase
       .from("wishes")
-      .upsert(wishToCloudRow(wish, wish.userId), { onConflict: "id" })
+      .upsert(row, { onConflict: "id" })
       .select("*")
       .single();
+    if (error && isMissingCloudSchema(error)) {
+      wishCompletionNoteCloudAvailable = false;
+      row = wishToLegacyCloudRow(wish, wish.userId);
+      const retry = await supabase
+        .from("wishes")
+        .upsert(row, { onConflict: "id" })
+        .select("*")
+        .single();
+      data = retry.data;
+      error = retry.error;
+    }
     if (error) {
       if (image.imagePath && image.imagePath !== previous?.imagePath) {
         await supabase.storage.from(BUCKET).remove([image.imagePath]);
@@ -3903,6 +3952,9 @@ async function saveWish(event) {
       return;
     }
     wish = wishFromCloudRow(data);
+    if (!wishCompletionNoteCloudAvailable) {
+      wish.completionNote = els.wishCompletionNoteInput.value.trim();
+    }
   }
 
   const wasEditing = Boolean(wishEditingId);
@@ -3920,7 +3972,13 @@ async function saveWish(event) {
   }
   resetWishForm();
   setWishlistExpanded(false);
-  setWishlistStatus(wasEditing ? "心愿已更新。" : "心愿已保存。");
+  setWishlistStatus(
+    !wishCompletionNoteCloudAvailable && wish.completionNote
+      ? "心愿已保存；完成感想字段还没升级，请运行 supabase-wish-completion-note-patch.sql 后再编辑同步。"
+      : wasEditing
+        ? "心愿已更新。"
+        : "心愿已保存。"
+  );
   renderWishes();
 }
 
@@ -3942,40 +4000,56 @@ function renderWishes() {
   els.wishlistList.innerHTML = sorted
     .map((wish, index) => {
       const canManage = canManageItem(wish);
+      const stateText = wish.done ? "已完成" : "待实现";
+      const completedDate = wish.completedAt ? formatWishDate(wish.completedAt) : "";
       return `
         <article class="wish-card ${wish.done ? "done" : ""}">
-          <div class="wish-card-head">
-            <span>${String(index + 1).padStart(2, "0")}</span>
-            ${canManage ? `<div>
+          <div class="wish-card-top">
+            <div class="wish-index-stack">
+              <span class="wish-seq">Wish ${String(index + 1).padStart(2, "0")}</span>
+              <span class="wish-state-pill ${wish.done ? "done" : "open"}">${stateText}</span>
+            </div>
+            ${canManage ? `<div class="wish-actions">
               <button type="button" data-edit-wish="${escapeHtml(wish.id)}">编辑</button>
-              <button type="button" data-toggle-wish="${escapeHtml(wish.id)}">
-                ${wish.done ? "取消完成" : "完成"}
+              <button class="complete" type="button" data-toggle-wish="${escapeHtml(wish.id)}">
+                ${wish.done ? "取消完成" : "写完成感想"}
               </button>
-              <button type="button" data-delete-wish="${escapeHtml(wish.id)}">删除</button>
+              <button class="danger" type="button" data-delete-wish="${escapeHtml(wish.id)}">删除</button>
             </div>` : ""}
           </div>
-          ${
-            wish.imageUrl
-              ? `<button class="wish-card-image-button" type="button" data-view-wish-image="${escapeHtml(wish.id)}" aria-label="放大查看 ${escapeHtml(wish.title)}">
-                  <img class="wish-card-image" src="${escapeHtml(wish.imageUrl)}" alt="${escapeHtml(wish.title)}" loading="lazy" />
-                </button>`
-              : ""
-          }
-          <p class="kicker">${escapeHtml(wish.type)} · ${escapeHtml(wish.priority)} · ${escapeHtml(getAuthorName(wish.userId))}</p>
-          <h3>${escapeHtml(wish.title)}</h3>
-          <div class="wish-meta">
-            ${wish.date ? `<span>${formatWishDate(wish.date)}</span>` : ""}
-            <span>${wish.done ? "已完成" : "待实现"}</span>
+          <div class="wish-card-layout">
+            ${
+              wish.imageUrl
+                ? `<button class="wish-card-image-button" type="button" data-view-wish-image="${escapeHtml(wish.id)}" aria-label="放大查看 ${escapeHtml(wish.title)}">
+                    <img class="wish-card-image" src="${escapeHtml(wish.imageUrl)}" alt="${escapeHtml(wish.title)}" loading="lazy" />
+                  </button>`
+                : `<div class="wish-card-placeholder" aria-hidden="true">
+                    <span>${escapeHtml(wish.type || "心愿")}</span>
+                  </div>`
+            }
+            <div class="wish-card-content">
+              <p class="kicker">${escapeHtml(wish.type)} · ${escapeHtml(wish.priority)} · ${escapeHtml(getAuthorName(wish.userId))}</p>
+              <h3>${escapeHtml(wish.title)}</h3>
+              <div class="wish-meta">
+                ${wish.date ? `<span>计划 ${formatWishDate(wish.date)}</span>` : ""}
+                ${completedDate ? `<span>完成 ${completedDate}</span>` : ""}
+              </div>
+              ${wish.note ? `<p class="wish-note">${escapeHtml(wish.note)}</p>` : ""}
+              ${
+                wish.done && wish.completionNote
+                  ? `<div class="wish-completion-note">
+                      <span>完成回执</span>
+                      <p>${escapeHtml(wish.completionNote)}</p>
+                    </div>`
+                  : wish.done
+                    ? `<div class="wish-completion-note empty">
+                        <span>完成回执</span>
+                        <p>已经完成啦，之后可以编辑补上一句感想。</p>
+                      </div>`
+                    : ""
+              }
+            </div>
           </div>
-          ${wish.note ? `<p>${escapeHtml(wish.note)}</p>` : ""}
-          ${
-            wish.done && wish.completionNote
-              ? `<div class="wish-completion-note">
-                  <span>完成感想</span>
-                  <p>${escapeHtml(wish.completionNote)}</p>
-                </div>`
-              : ""
-          }
         </article>
       `;
     })
@@ -4021,53 +4095,136 @@ function editWish(id) {
   els.wishlistComposer.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-async function toggleWish(id) {
-  const current = wishes.find((wish) => wish.id === id);
-  if (!current || !canManageItem(current)) return;
-  if (!cloudSyncAvailable) {
-    setWishlistStatus("数据库尚未连接，心愿状态没有修改。");
-    return;
-  }
-  const willComplete = !current.done;
-  let completionNote = current.completionNote || "";
-  if (willComplete) {
-    const input = window.prompt("完成感想（可留空，会显示在心愿底下）", completionNote);
-    if (input === null) return;
-    completionNote = input.trim();
+function openWishCompleteDialog(id) {
+  const wish = wishes.find((item) => item.id === id);
+  if (!wish || !canManageItem(wish)) return;
+  wishCompletingId = id;
+  els.wishCompleteTitle.textContent = wish.title || "完成心愿";
+  els.wishCompleteMeta.textContent = `${wish.type || "心愿"} · ${wish.priority || "普通"} · ${getAuthorName(wish.userId)} 发布`;
+  els.wishCompleteNoteInput.value = wish.completionNote || "";
+  els.wishCompleteStatus.textContent = "";
+  els.wishCompletePreview.innerHTML = wish.imageUrl
+    ? `<img src="${escapeHtml(wish.imageUrl)}" alt="${escapeHtml(wish.title)}" />`
+    : `<div><span>${escapeHtml(wish.type || "心愿")}</span><strong>${escapeHtml(wish.title || "完成心愿")}</strong></div>`;
+  els.wishCompleteDialog.showModal();
+  setTimeout(() => els.wishCompleteNoteInput.focus(), 0);
+}
+
+function closeWishCompleteDialog() {
+  wishCompletingId = null;
+  els.wishCompleteForm.reset();
+  els.wishCompleteStatus.textContent = "";
+  els.wishCompleteDialog.close();
+}
+
+function setWishCompletionMessage(message, target = "page") {
+  if (target === "dialog") {
+    els.wishCompleteStatus.textContent = message;
   } else {
-    completionNote = "";
+    setWishlistStatus(message);
+  }
+}
+
+async function saveWishCompletionState(current, done, completionNote = "", target = "page") {
+  if (!cloudSyncAvailable) {
+    setWishCompletionMessage("数据库尚未连接，心愿状态没有修改。", target);
+    return false;
   }
   const next = {
     ...current,
-    done: willComplete,
-    completionNote,
-    completedAt: willComplete ? new Date().toISOString() : "",
+    done,
+    completionNote: done ? completionNote : "",
+    completedAt: done ? new Date().toISOString() : "",
     updatedAt: new Date().toISOString(),
   };
 
-  if (cloudSyncAvailable) {
-    const { data, error } = await supabase
+  const updatePayload = {
+    is_done: next.done,
+    completion_note: next.completionNote || "",
+    completed_at: next.completedAt || null,
+    updated_at: next.updatedAt,
+  };
+  if (!wishCompletionNoteCloudAvailable) {
+    delete updatePayload.completion_note;
+  }
+  let usedLegacyCompletionNote = !wishCompletionNoteCloudAvailable && done && Boolean(completionNote);
+  let result = await supabase
+    .from("wishes")
+    .update(updatePayload)
+    .eq("id", current.id)
+    .select("*")
+    .single();
+
+  if (result.error && isMissingCloudSchema(result.error)) {
+    wishCompletionNoteCloudAvailable = false;
+    result = await supabase
       .from("wishes")
       .update({
         is_done: next.done,
-        completion_note: next.completionNote || "",
         completed_at: next.completedAt || null,
         updated_at: next.updatedAt,
       })
-      .eq("id", id)
+      .eq("id", current.id)
       .select("*")
       .single();
-    if (error) {
-      setWishlistStatus(`心愿同步失败：${error.message}`);
+    if (result.error) {
+      setWishCompletionMessage(`心愿同步失败：${result.error.message}`, target);
       return;
     }
-    Object.assign(next, wishFromCloudRow(data));
+    Object.assign(next, wishFromCloudRow(result.data));
+    next.done = done;
+    next.completionNote = done ? completionNote : "";
+    usedLegacyCompletionNote = true;
+  } else if (result.error) {
+    setWishCompletionMessage(`心愿同步失败：${result.error.message}`, target);
+    return false;
+  } else {
+    wishCompletionNoteCloudAvailable = Object.prototype.hasOwnProperty.call(
+      result.data || {},
+      "completion_note"
+    );
+    Object.assign(next, wishFromCloudRow(result.data));
+    if (!wishCompletionNoteCloudAvailable) {
+      next.completionNote = done ? completionNote : "";
+    }
   }
 
-  wishes = wishes.map((wish) => (wish.id === id ? next : wish));
+  wishes = wishes.map((wish) => (wish.id === current.id ? next : wish));
   saveWishes();
-  setWishlistStatus(cloudSyncAvailable ? "心愿状态已同步。" : "心愿状态已更新。");
+  setWishlistStatus(
+    usedLegacyCompletionNote
+      ? "心愿已完成；数据库还缺少完成感想字段，请运行 supabase-wish-completion-note-patch.sql 后再编辑补上。"
+      : done
+        ? "心愿已完成，感想已保存。"
+        : "已取消完成状态。"
+  );
   renderWishes();
+  return true;
+}
+
+async function submitWishCompletion(event) {
+  event.preventDefault();
+  const current = wishes.find((wish) => wish.id === wishCompletingId);
+  if (!current || !canManageItem(current)) return;
+  const note = els.wishCompleteNoteInput.value.trim();
+  els.wishCompleteSubmit.disabled = true;
+  els.wishCompleteSubmit.textContent = "保存中...";
+  const saved = await saveWishCompletionState(current, true, note, "dialog");
+  els.wishCompleteSubmit.disabled = false;
+  els.wishCompleteSubmit.textContent = "保存完成感想";
+  if (saved) closeWishCompleteDialog();
+}
+
+async function toggleWish(id) {
+  const current = wishes.find((wish) => wish.id === id);
+  if (!current || !canManageItem(current)) return;
+  if (!current.done) {
+    openWishCompleteDialog(id);
+    return;
+  }
+  const ok = window.confirm(`把“${current.title}”改回待实现？`);
+  if (!ok) return;
+  await saveWishCompletionState(current, false, "");
 }
 
 async function deleteWish(id) {
@@ -5385,6 +5542,12 @@ els.wishCancelEdit.addEventListener("click", () => {
   resetWishForm();
   setWishlistExpanded(false);
   setWishlistStatus("");
+});
+els.wishCompleteForm.addEventListener("submit", submitWishCompletion);
+els.wishCompleteClose.addEventListener("click", closeWishCompleteDialog);
+els.wishCompleteCancel.addEventListener("click", closeWishCompleteDialog);
+els.wishCompleteDialog.addEventListener("click", (event) => {
+  if (event.target === els.wishCompleteDialog) closeWishCompleteDialog();
 });
 els.weekendToggle.addEventListener("click", () => {
   setWeekendExpanded(els.weekendForm.hidden);
