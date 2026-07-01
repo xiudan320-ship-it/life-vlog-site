@@ -2075,9 +2075,91 @@ body.theme-dark .photo-card {
   backdrop-filter: blur(10px);
 }
 
+.photo-media {
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, rgba(91, 152, 52, 0.16), rgba(232, 185, 74, 0.12)),
+    #eef2eb;
+}
+
+body.theme-dark .photo-media {
+  background:
+    linear-gradient(135deg, rgba(139, 201, 95, 0.12), rgba(232, 185, 74, 0.08)),
+    #111612;
+}
+
+.photo-media.single {
+  contain: layout paint;
+}
+
+.photo-media.single button {
+  width: 100%;
+  height: 100%;
+}
+
 .photo-media.single img,
 .photo-card > .photo-open > img {
-  max-height: 650px;
+  height: 100%;
+  max-height: none;
+  object-fit: cover;
+}
+
+.photo-media button {
+  position: relative;
+}
+
+.photo-media button::before {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    linear-gradient(
+      110deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.42) 44%,
+      transparent 78%
+    );
+  content: "";
+  opacity: 0.86;
+  transform: translateX(-100%);
+  transition: opacity 180ms ease;
+  animation: feed-image-sheen 1.15s ease-in-out infinite;
+}
+
+body.theme-dark .photo-media button::before {
+  background:
+    linear-gradient(
+      110deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.1) 44%,
+      transparent 78%
+    );
+}
+
+.photo-media button.media-loaded::before {
+  opacity: 0;
+  animation-play-state: paused;
+}
+
+.feed-image {
+  position: relative;
+  z-index: 1;
+  opacity: 0;
+  transform: scale(1.015);
+  transition:
+    opacity 220ms ease,
+    transform 320ms ease;
+}
+
+.feed-image.is-loaded {
+  opacity: 1;
+  transform: scale(1);
+}
+
+@keyframes feed-image-sheen {
+  to {
+    transform: translateX(100%);
+  }
 }
 
 .photo-card article {
