@@ -27,7 +27,9 @@ const WISH_MEDIA_META_START = "<!--life-vlog-wish-media:";
 const WISH_MEDIA_META_END = "-->";
 const PHOTO_COMMENT_PREVIEW_LIMIT = 3;
 const PHOTO_FEED_CACHE_LIMIT = 3;
+const EAGER_IMAGE_CARD_COUNT = 8;
 const DEFAULT_FOOD_OPTIONS = ["拉面", "寿喜烧", "咖喱饭", "烤肉", "火锅", "寿司", "麻婆豆腐", "披萨"];
+const GENERATED_TITLE_PREFIXES = ["今日小星星", "软乎乎的一天", "闪闪生活碎片", "快乐收藏夹"];
 
 const VIP_LEVELS = [
   {
@@ -1079,7 +1081,7 @@ function updateTodayPostsNotice() {
     <div>
       <span>今日新帖</span>
       <strong>今天有 ${unseen.length} 篇新照片</strong>
-      <p>最新：${escapeHtml(getDisplayTitle(latest))} · ${escapeHtml(getAuthorName(latest.user_id))}</p>
+      <p>最新：${escapeHtml(getPhotoLabel(latest))} · ${escapeHtml(getAuthorName(latest.user_id))}</p>
     </div>
     <div>
       <button class="today-posts-primary" type="button" data-view-today-posts>查看今天</button>
@@ -1241,10 +1243,10 @@ async function uploadPhoto(event) {
   }
 
   const images = [];
+  const finalTitle = getFinalTitle();
 
   for (const [index, file] of files.entries()) {
-    const finalTitle = getFinalTitle();
-    const safeName = slugify(finalTitle);
+    const safeName = getUploadFileNameBase(finalTitle, index, files.length);
     const imageData = await uploadImageFile(file, safeName, index + 1, files.length);
     if (!imageData) return;
     images.push(imageData);
@@ -1259,7 +1261,6 @@ async function uploadPhoto(event) {
     });
   }
 
-  const finalTitle = getFinalTitle();
   const insertError = await insertPhotoRecord(finalTitle, images);
   if (insertError) {
     setStatus(insertError.message);
@@ -1463,6 +1464,8 @@ function renderGallery() {
           const images = getPhotoImages(photo);
           const noteText = getPlainNote(photo);
           const sequence = String(index + 1).padStart(2, "0");
+          const titleMarkup = displayTitle ? `<h3>${escapeHtml(displayTitle)}</h3>` : "";
+          const noteMarkup = noteText ? `<p>${escapeHtml(noteText)}</p>` : "";
           return `
         <article class="photo-card" data-photo-id="${escapeHtml(photo.id || "")}">
           <span class="strand-index">${sequence}</span>
@@ -1474,8 +1477,8 @@ function renderGallery() {
             ${renderPhotoMedia(images, displayTitle, index)}
             <button class="photo-copy-open" type="button" data-photo-index="${index}" data-image-index="0">
               <p class="kicker">${escapeHtml(photo.category || "日常")} · ${formatDate(photo.taken_at)} · ${escapeHtml(getAuthorName(photo.user_id))}</p>
-              <h3>${escapeHtml(displayTitle)}</h3>
-              <p>${escapeHtml(noteText)}</p>
+              ${titleMarkup}
+              ${noteMarkup}
             </button>
           </div>
           <div class="card-actions">
@@ -1551,6 +1554,8 @@ function renderGallery() {
     });
   });
 
+  prepareFeedImages(els.gallery);
+  warmUpcomingFeedImages(filtered, visible.length);
   updateFeedLoader(filtered.length);
 }
 
@@ -1633,13 +1638,13 @@ async function togglePhotoFavorite(photo, button) {
 }
 
 function renderPhotoMedia(images, title, photoIndex) {
-  const safeTitle = escapeHtml(title);
+  const altText = title || "照片";
   if (images.length <= 1) {
     const image = images[0] || {};
     return `
-      <div class="photo-media single">
+      <div class="photo-media single"${getPhotoAspectStyle(image)}>
         <button type="button" data-photo-index="${photoIndex}" data-image-index="0">
-          <img src="${escapeHtml(image.image_url || "")}" alt="${safeTitle}" loading="lazy" />
+          ${renderFeedImage(image, altText, photoIndex, 0)}
         </button>
       </div>
     `;
@@ -1652,7 +1657,7 @@ function renderPhotoMedia(images, title, photoIndex) {
         .map(
           (image, index) => `
             <button type="button" data-photo-index="${photoIndex}" data-image-index="${index}">
-              <img src="${escapeHtml(image.image_url)}" alt="${safeTitle} ${index + 1}" loading="lazy" />
+              ${renderFeedImage(image, `${altText} ${index + 1}`, photoIndex, index)}
             </button>
           `
         )
@@ -1660,6 +1665,71 @@ function renderPhotoMedia(images, title, photoIndex) {
       <span class="media-count">${images.length} 张</span>
     </div>
   `;
+}
+
+function renderFeedImage(image, altText, photoIndex, imageIndex) {
+  const loading = photoIndex < EAGER_IMAGE_CARD_COUNT ? "eager" : "lazy";
+  const fetchPriority = photoIndex < 3 && imageIndex === 0 ? "high" : "low";
+  const width = Number(image?.width);
+  const height = Number(image?.height);
+  const widthAttr = Number.isFinite(width) && width > 0 ? ` width="${Math.round(width)}"` : "";
+  const heightAttr = Number.isFinite(height) && height > 0 ? ` height="${Math.round(height)}"` : "";
+
+  return `<img class="feed-image" src="${escapeHtml(image?.image_url || "")}" alt="${escapeHtml(altText)}" loading="${loading}" decoding="async" fetchpriority="${fetchPriority}"${widthAttr}${heightAttr} />`;
+}
+
+function getPhotoAspectStyle(image) {
+  return ` style="aspect-ratio: ${getPhotoAspectRatio(image)};"`;
+}
+
+function getPhotoAspectRatio(image) {
+  const width = Number(image?.width);
+  const height = Number(image?.height);
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    return "0.8";
+  }
+
+  const ratio = width / height;
+  return String(Math.min(1.55, Math.max(0.72, ratio)).toFixed(3));
+}
+
+function prepareFeedImages(root = document) {
+  root.querySelectorAll("img.feed-image").forEach((image) => {
+    const markLoaded = () => {
+      image.classList.add("is-loaded");
+      image.closest("button")?.classList.add("media-loaded");
+    };
+
+    if (image.complete) {
+      markLoaded();
+      return;
+    }
+
+    image.addEventListener("load", markLoaded, { once: true });
+    image.addEventListener("error", markLoaded, { once: true });
+  });
+}
+
+function warmUpcomingFeedImages(filteredPhotos, startIndex) {
+  const upcoming = filteredPhotos.slice(startIndex, startIndex + PAGE_SIZE);
+  if (!upcoming.length) return;
+
+  const preload = () => {
+    upcoming.forEach((photo) => {
+      const image = getPhotoImages(photo)[0];
+      if (!image?.image_url) return;
+      const preloader = new Image();
+      preloader.decoding = "async";
+      preloader.src = image.image_url;
+    });
+  };
+
+  if ("requestIdleCallback" in window) {
+    window.requestIdleCallback(preload, { timeout: 1200 });
+    return;
+  }
+
+  window.setTimeout(preload, 80);
 }
 
 function getPhotoImages(photo) {
@@ -1806,18 +1876,15 @@ function initializeFeedObserver() {
 
       feedLoading = true;
       els.feedLoader.classList.add("loading");
-      els.feedLoaderText.textContent = "正在加载更多...";
-      window.setTimeout(() => {
-        visiblePhotoCount = Math.min(
-          visiblePhotoCount + PAGE_SIZE,
-          filteredPhotoCount
-        );
-        renderGallery();
-        feedLoading = false;
-        els.feedLoader.classList.remove("loading");
-      }, 180);
+      visiblePhotoCount = Math.min(
+        visiblePhotoCount + PAGE_SIZE,
+        filteredPhotoCount
+      );
+      renderGallery();
+      feedLoading = false;
+      els.feedLoader.classList.remove("loading");
     },
-    { rootMargin: "500px 0px 500px", threshold: 0.01 }
+    { rootMargin: "1200px 0px 900px", threshold: 0.01 }
   );
   feedObserver.observe(els.feedLoader);
 }
@@ -1833,7 +1900,7 @@ async function deletePhoto(photo, triggerButton = null) {
     return false;
   }
 
-  const ok = window.confirm(`删除“${getDisplayTitle(photo)}”？删除后无法恢复。`);
+  const ok = window.confirm(`删除“${getPhotoLabel(photo)}”？删除后无法恢复。`);
   if (!ok) return false;
 
   setGlobalStatus("正在删除照片...");
@@ -1903,7 +1970,7 @@ function openPhoto(photo, initialImageIndex = 0) {
     Math.max(0, Number(initialImageIndex) || 0),
     Math.max(0, dialogImages.length - 1)
   );
-  els.dialogTitle.textContent = displayTitle;
+  els.dialogTitle.textContent = displayTitle || "照片";
   els.dialogMeta.textContent = `${photo.category || "日常"} · ${formatDate(photo.taken_at)} · ${getAuthorName(photo.user_id)} 发布`;
   els.dialogNote.textContent = getPlainNote(photo);
   renderDialogMedia();
@@ -1950,8 +2017,7 @@ async function savePhotoEditLegacy(event) {
   }
 
   const takenAt = els.editDateInput.value || toDateInputValue(new Date());
-  const title =
-    els.editTitleInput.value.trim() || makeCuteTitle(takenAt ? new Date(takenAt) : new Date());
+  const title = els.editTitleInput.value.trim();
   const updates = {
     title,
     note: composeStoredNote(els.editNoteInput.value.trim(), getPhotoImages(editingPhoto)),
@@ -1982,8 +2048,7 @@ async function savePhotoEdit(event) {
   }
 
   const takenAt = els.editDateInput.value || toDateInputValue(new Date());
-  const title =
-    els.editTitleInput.value.trim() || makeCuteTitle(takenAt ? new Date(takenAt) : new Date());
+  const title = els.editTitleInput.value.trim();
   const nextImages = [];
   const newlyUploadedPaths = [];
   els.saveEditStatus.textContent = "正在处理照片...";
@@ -1998,7 +2063,7 @@ async function savePhotoEdit(event) {
 
       const uploaded = await uploadImageFile(
         replacement,
-        `${slugify(title)}-edit-${index + 1}`,
+        `${slugify(title || "photo")}-edit-${index + 1}`,
         index + 1,
         editingImages.length
       );
@@ -2179,20 +2244,30 @@ function slugify(value) {
   return slug || "photo";
 }
 
-function getFinalTitle(index = 0, total = 1) {
-  const title = els.titleInput.value.trim();
-  if (title) return total > 1 ? `${title} ${String(index + 1).padStart(2, "0")}` : title;
+function getFinalTitle() {
+  return els.titleInput.value.trim();
+}
 
-  const date = els.dateInput.value ? new Date(els.dateInput.value) : new Date();
-  const cuteTitle = makeCuteTitle(date);
-  return total > 1 ? `${cuteTitle} ${String(index + 1).padStart(2, "0")}` : cuteTitle;
+function getUploadFileNameBase(title, index = 0, total = 1) {
+  const dateText = els.dateInput.value || toDateInputValue(new Date());
+  const base = title || `photo-${dateText}`;
+  return total > 1 ? `${slugify(base)}-${String(index + 1).padStart(2, "0")}` : slugify(base);
 }
 
 function getDisplayTitle(photo) {
   const title = String(photo.title || "").trim();
-  if (title && title !== "未命名照片") return title;
+  if (!title || isGeneratedTitle(title)) return "";
 
-  return makeCuteTitle(photo.taken_at ? new Date(photo.taken_at) : new Date());
+  return title;
+}
+
+function getPhotoLabel(photo) {
+  return getDisplayTitle(photo) || "无标题照片";
+}
+
+function isGeneratedTitle(title) {
+  if (title === "未命名照片") return true;
+  return GENERATED_TITLE_PREFIXES.some((prefix) => title.startsWith(`${prefix} · `));
 }
 
 function makeCuteTitle(date) {
@@ -2202,9 +2277,8 @@ function makeCuteTitle(date) {
     day: "numeric",
   }).format(date);
 
-  const names = ["今日小星星", "软乎乎的一天", "闪闪生活碎片", "快乐收藏夹"];
   const seed = date.getFullYear() + date.getMonth() + date.getDate();
-  return `${names[seed % names.length]} · ${label}`;
+  return `${GENERATED_TITLE_PREFIXES[seed % GENERATED_TITLE_PREFIXES.length]} · ${label}`;
 }
 
 function escapeHtml(value) {
