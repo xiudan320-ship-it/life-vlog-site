@@ -17,11 +17,11 @@
     <link rel="icon" type="image/png" sizes="32x32" href="./assets/app-icon-32.png" />
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
     <link rel="stylesheet" href="./styles.css?v=20260610-37" />
-    <link rel="stylesheet" href="./redesign.css?v=20260702-55" />
+    <link rel="stylesheet" href="./redesign.css?v=20260702-56" />
   </head>
   <body>
     <header class="topbar">
-      <a class="brand" href="#gallery" aria-label="回到照片墙">
+      <a class="brand" href="#gallery" aria-label="回到日记">
         <span class="brand-logo-wrap">
           <img class="brand-logo" src="./assets/home-logo.jpg" alt="" />
         </span>
@@ -31,7 +31,7 @@
         </span>
       </a>
       <nav class="main-nav" aria-label="页面切换">
-        <button class="active" id="galleryNav" type="button">照片</button>
+        <button class="active" id="galleryNav" type="button">日记</button>
         <button id="recipesNav" type="button">菜谱</button>
         <button id="wishlistNav" type="button">心愿</button>
         <button id="weekendNav" type="button">周末</button>
@@ -147,7 +147,7 @@
           <span class="tool-dock-mark" aria-hidden="true">↻</span>
           <span>
             <strong>随机回忆</strong>
-            <small>抽一张家庭照片</small>
+            <small>抽一篇家庭日记</small>
           </span>
         </button>
       </section>
@@ -198,7 +198,7 @@
         </div>
         <div class="overview-grid">
           <article>
-            <span>照片记录</span>
+            <span>日记记录</span>
             <strong id="overviewPhotos">0</strong>
             <small>篇影像笔记</small>
           </article>
@@ -219,7 +219,7 @@
           </article>
         </div>
         <div class="quick-actions">
-          <button id="quickPhoto" type="button"><span>01</span>发布照片</button>
+          <button id="quickPhoto" type="button"><span>01</span>发布日记</button>
           <button id="quickRecipe" type="button"><span>02</span>添加菜谱</button>
           <button id="quickWish" type="button"><span>03</span>写下心愿</button>
           <button id="quickWeekend" type="button"><span>04</span>安排周末</button>
@@ -228,7 +228,7 @@
 
       <section class="setup-panel" id="setupPanel" hidden>
         <h2>连接 Supabase</h2>
-        <p>填入 Supabase 项目的 URL 和 anon key。保存后就能登录、上传和读取照片。</p>
+        <p>填入 Supabase 项目的 URL 和 anon key。保存后就能登录、上传和读取日记。</p>
         <label>
           Project URL
           <input id="supabaseUrl" placeholder="https://xxxx.supabase.co" />
@@ -243,7 +243,7 @@
       <section class="auth-card" id="authCard">
         <div>
           <p class="kicker">Account</p>
-          <h2>进入你的相册</h2>
+          <h2>进入你的日记本</h2>
         </div>
         <div class="auth-row">
           <input id="usernameInput" type="text" placeholder="用户名" autocomplete="username" />
@@ -261,7 +261,7 @@
         <div class="section-title">
           <button class="section-heading-button" id="uploadToggle" type="button" aria-expanded="false">
             <p class="kicker">Upload</p>
-            <h2>发布新照片</h2>
+            <h2>发布新日记</h2>
           </button>
           <span id="uploadStatus"></span>
         </div>
@@ -327,14 +327,14 @@
       <section class="feed-head" id="galleryHead">
         <div>
           <p class="kicker">Gallery</p>
-          <h2>照片流</h2>
+          <h2>时计流</h2>
         </div>
         <p class="status-line" id="globalStatus"></p>
       </section>
 
       <section class="today-posts-notice" id="todayPostsNotice" hidden></section>
 
-      <section class="filters" id="galleryFilters" aria-label="照片分类">
+      <section class="filters" id="galleryFilters" aria-label="日记分类">
         <button class="chip active" data-filter="全部" type="button">全部</button>
         <button class="chip feature-chip" data-filter="featured7" type="button">七日精选</button>
         <button class="chip favorite-chip" data-filter="favorites" type="button">我的收藏</button>
@@ -810,7 +810,7 @@
       <div class="family-dialog-head">
         <p class="kicker">Family Account</p>
         <h2>家庭账户</h2>
-        <p>加入同一个家庭后，可以共享照片、菜谱、心愿、周末计划、纪念日和留言。</p>
+        <p>加入同一个家庭后，可以共享日记、菜谱、心愿、周末计划、纪念日和留言。</p>
       </div>
       <section class="family-empty" id="familyEmpty">
         <div class="family-invitations" id="familyInvitations"></div>
@@ -922,7 +922,7 @@
             id="photoCommentInput"
             maxlength="300"
             required
-            placeholder="给这张照片留句话"
+            placeholder="给这篇日记留句话"
           />
           <button type="submit">发送</button>
         </form>
@@ -935,7 +935,7 @@
       <form id="editForm">
         <div>
           <p class="kicker">Edit</p>
-          <h2>编辑照片</h2>
+          <h2>编辑日记</h2>
         </div>
         <div class="form-grid">
           <label>
@@ -969,7 +969,7 @@
           <div class="edit-media-heading">
             <div>
               <p class="kicker">Album Images</p>
-              <h3>管理照片</h3>
+              <h3>管理图片</h3>
             </div>
             <span id="editImageCount"></span>
           </div>
@@ -1019,6 +1019,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260702-55"></script>
+    <script type="module" src="./app.js?v=20260702-56"></script>
   </body>
 </html>
