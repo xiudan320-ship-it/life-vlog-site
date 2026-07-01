@@ -193,7 +193,6 @@ const els = {
   closeNotificationDialog: document.querySelector("#closeNotificationDialog"),
   notificationList: document.querySelector("#notificationList"),
   notificationStatus: document.querySelector("#notificationStatus"),
-  markNotificationsRead: document.querySelector("#markNotificationsRead"),
   supabaseUrl: document.querySelector("#supabaseUrl"),
   supabaseAnonKey: document.querySelector("#supabaseAnonKey"),
   saveConfig: document.querySelector("#saveConfig"),
@@ -5624,11 +5623,12 @@ function renderNotifications() {
       const avatar = item.actor_avatar_url
         ? `<span class="notification-avatar"><img src="${escapeHtml(item.actor_avatar_url)}" alt="" /></span>`
         : `<span class="notification-avatar">${escapeHtml(getInitial(item.actor_username))}</span>`;
+      const stateClass = item.just_seen ? "just-seen" : item.is_read ? "" : "unread";
       return `
-        <button class="notification-item ${item.is_read ? "" : "unread"}" type="button" data-notification-id="${escapeHtml(item.notification_id)}" data-notification-photo="${escapeHtml(item.photo_id || "")}">
+        <button class="notification-item ${stateClass}" type="button" data-notification-id="${escapeHtml(item.notification_id)}" data-notification-photo="${escapeHtml(item.photo_id || "")}">
           ${avatar}
           <span>
-            <strong>${escapeHtml(getNotificationText(item))}</strong>
+            <strong>${escapeHtml(getNotificationText(item))}${item.just_seen ? `<em>刚看到</em>` : ""}</strong>
             ${item.body ? `<small>${escapeHtml(item.body)}</small>` : ""}
             <time>${formatCommentTime(item.created_at)}</time>
           </span>
@@ -5644,11 +5644,6 @@ function renderNotifications() {
 async function openNotification(button) {
   const id = button.dataset.notificationId;
   const photoId = button.dataset.notificationPhoto;
-  await supabase
-    .from("notifications")
-    .update({ is_read: true })
-    .eq("id", id)
-    .eq("user_id", session.user.id);
   const item = notifications.find((entry) => entry.notification_id === id);
   if (item) item.is_read = true;
   renderNotifications();
@@ -5659,7 +5654,28 @@ async function openNotification(button) {
   }
 }
 
-async function markAllNotificationsRead() {
+async function openNotificationsPanel() {
+  await loadNotifications();
+  const justSeenIds = notifications
+    .filter((item) => !item.is_read)
+    .map((item) => item.notification_id)
+    .filter(Boolean);
+  if (justSeenIds.length) {
+    notifications.forEach((item) => {
+      if (justSeenIds.includes(item.notification_id)) {
+        item.is_read = true;
+        item.just_seen = true;
+      } else {
+        item.just_seen = false;
+      }
+    });
+    renderNotifications();
+    void markUnreadNotificationsRead();
+  }
+  els.notificationDialog.showModal();
+}
+
+async function markUnreadNotificationsRead() {
   if (!supabase || !session) return;
   const { error } = await supabase
     .from("notifications")
@@ -5968,14 +5984,12 @@ els.avatarButton.addEventListener("click", () => {
   els.userPopover.hidden = !els.userPopover.hidden;
 });
 els.notificationButton.addEventListener("click", async () => {
-  await loadNotifications();
-  els.notificationDialog.showModal();
+  await openNotificationsPanel();
 });
 els.closeNotificationDialog.addEventListener("click", () => els.notificationDialog.close());
 els.notificationDialog.addEventListener("click", (event) => {
   if (event.target === els.notificationDialog) els.notificationDialog.close();
 });
-els.markNotificationsRead.addEventListener("click", markAllNotificationsRead);
 els.renameHomeButton.addEventListener("click", () => {
   els.userPopover.hidden = true;
   els.homeNameInput.value = accountProfile.homeName || loadHomeName(session?.user?.id);
