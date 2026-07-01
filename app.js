@@ -4266,6 +4266,14 @@ function setWishlistStatus(message) {
   els.wishlistStatus.textContent = message;
 }
 
+function registerAppShellWorker() {
+  if (!("serviceWorker" in navigator)) return;
+  if (!["https:", "http:"].includes(window.location.protocol)) return;
+  navigator.serviceWorker.register("./service-worker.js", { scope: "./" }).catch(() => {
+    // The app still works normally if install caching is unavailable.
+  });
+}
+
 function getAnniversaryStorageKey() {
   const name = session ? getSessionDisplayName() : "guest";
   return `${ANNIVERSARY_KEY}:${String(name).toLowerCase()}`;
@@ -5730,6 +5738,7 @@ els.chips.forEach((chip) => {
   });
 });
 
+registerAppShellWorker();
 renderFoodWheel();
 initializeFeedObserver();
 initializeSupabase();
