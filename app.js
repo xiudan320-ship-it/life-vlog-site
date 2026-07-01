@@ -1476,7 +1476,7 @@ function renderGallery() {
           <div class="photo-open">
             ${renderPhotoMedia(images, displayTitle, index)}
             <button class="photo-copy-open" type="button" data-photo-index="${index}" data-image-index="0">
-              <p class="kicker">${escapeHtml(photo.category || "日常")} · ${formatDate(photo.taken_at)} · ${escapeHtml(getAuthorName(photo.user_id))}</p>
+              <p class="kicker">${escapeHtml(photo.category || "日常")} · ${formatDate(photo.taken_at)} · 发布：${formatDateTime(photo.created_at)} · ${escapeHtml(getAuthorName(photo.user_id))}</p>
               ${titleMarkup}
               ${noteMarkup}
             </button>
@@ -1971,7 +1971,7 @@ function openPhoto(photo, initialImageIndex = 0) {
     Math.max(0, dialogImages.length - 1)
   );
   els.dialogTitle.textContent = displayTitle || "照片";
-  els.dialogMeta.textContent = `${photo.category || "日常"} · ${formatDate(photo.taken_at)} · ${getAuthorName(photo.user_id)} 发布`;
+  els.dialogMeta.textContent = `${photo.category || "日常"} · 拍摄 ${formatDate(photo.taken_at)} · 发布 ${formatDateTime(photo.created_at)} · ${getAuthorName(photo.user_id)}`;
   els.dialogNote.textContent = getPlainNote(photo);
   renderDialogMedia();
   void loadPhotoComments(photo.id);
@@ -2231,6 +2231,18 @@ function formatDate(value) {
     month: "short",
     day: "numeric",
   }).format(new Date(value));
+}
+
+function formatDateTime(value) {
+  if (!value) return "未知时间";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "未知时间";
+  return new Intl.DateTimeFormat("zh-CN", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
 }
 
 function slugify(value) {
