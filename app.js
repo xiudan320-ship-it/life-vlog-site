@@ -125,6 +125,9 @@ let commentReplyToId = null;
 let avatarPreviewUrl = "";
 let notificationPollTimer = null;
 let lastAppBadgeCount = -1;
+let pendingNewPhotos = [];
+let dismissedFeedRefreshIds = new Set();
+let feedRefreshCheckInFlight = false;
 let returnToSettingsAfterDialog = false;
 let activeSettingsSection = "settingsGeneral";
 let foodOptions = [];
@@ -296,6 +299,7 @@ const els = {
   noteInput: document.querySelector("#noteInput"),
   uploadStatus: document.querySelector("#uploadStatus"),
   galleryHead: document.querySelector("#galleryHead"),
+  feedRefreshNotice: document.querySelector("#feedRefreshNotice"),
   todayPostsNotice: document.querySelector("#todayPostsNotice"),
   galleryFilters: document.querySelector("#galleryFilters"),
   gallery: document.querySelector("#gallery"),
@@ -599,7 +603,10 @@ async function initializeSupabase() {
   });
   if (notificationPollTimer) clearInterval(notificationPollTimer);
   notificationPollTimer = setInterval(() => {
-    if (session) void loadNotifications();
+    if (session) {
+      void loadNotifications();
+      if (document.visibilityState === "visible") void checkForNewPhotos();
+    }
   }, 45000);
 }
 
@@ -901,6 +908,8 @@ async function loadPhotos() {
   } else {
     setGlobalStatus("");
     photos = data || [];
+    pendingNewPhotos = [];
+    dismissedFeedRefreshIds = new Set();
     showingCachedFeed = false;
     if (session) {
       await Promise.all([
@@ -915,6 +924,7 @@ async function loadPhotos() {
   }
 
   visiblePhotoCount = PAGE_SIZE;
+  renderFeedRefreshNotice();
   renderGallery();
   if (cloudSyncAvailable) updateCloudSyncStatus();
 }
@@ -1082,6 +1092,78 @@ function markTodayPostsViewed(ids) {
   const seen = loadTodaySeenPostIds();
   ids.filter(Boolean).forEach((id) => seen.add(String(id)));
   saveTodaySeenPostIds(seen);
+}
+
+function renderFeedRefreshNotice() {
+  if (!els.feedRefreshNotice) return;
+  if (activePage !== "gallery" || !pendingNewPhotos.length) {
+    els.feedRefreshNotice.hidden = true;
+    els.feedRefreshNotice.innerHTML = "";
+    return;
+  }
+
+  const latest = pendingNewPhotos[0];
+  els.feedRefreshNotice.hidden = false;
+  els.feedRefreshNotice.innerHTML = `
+    <div>
+      <span>New diary</span>
+      <strong>有 ${pendingNewPhotos.length} 篇新日记</strong>
+      <p>最新：${escapeHtml(getPhotoLabel(latest))} · ${escapeHtml(getAuthorName(latest.user_id))}</p>
+    </div>
+    <div>
+      <button class="today-posts-primary" type="button" data-refresh-feed>点击查看</button>
+      <button type="button" data-dismiss-feed-refresh>稍后</button>
+    </div>
+  `;
+  els.feedRefreshNotice
+    .querySelector("[data-refresh-feed]")
+    ?.addEventListener("click", refreshFeedForNewPhotos);
+  els.feedRefreshNotice
+    .querySelector("[data-dismiss-feed-refresh]")
+    ?.addEventListener("click", () => {
+      pendingNewPhotos.forEach((photo) => {
+        if (photo.id) dismissedFeedRefreshIds.add(photo.id);
+      });
+      pendingNewPhotos = [];
+      renderFeedRefreshNotice();
+    });
+}
+
+async function checkForNewPhotos() {
+  if (!supabase || !session || feedRefreshCheckInFlight) return;
+  if (showingCachedFeed) return;
+  feedRefreshCheckInFlight = true;
+  try {
+    const currentIds = new Set(photos.map((photo) => photo.id).filter(Boolean));
+    const { data, error } = await supabase
+      .from("photos")
+      .select("id,user_id,title,category,taken_at,created_at")
+      .order("created_at", { ascending: false })
+      .limit(12);
+    if (error) return;
+    pendingNewPhotos = (data || []).filter(
+      (photo) =>
+        photo.id &&
+        !currentIds.has(photo.id) &&
+        !dismissedFeedRefreshIds.has(photo.id)
+    );
+    renderFeedRefreshNotice();
+  } finally {
+    feedRefreshCheckInFlight = false;
+  }
+}
+
+async function refreshFeedForNewPhotos() {
+  const targetId = pendingNewPhotos[0]?.id || "";
+  pendingNewPhotos = [];
+  renderFeedRefreshNotice();
+  activeFilter = "全部";
+  updateFilterChips();
+  await loadPhotos();
+  requestAnimationFrame(() => {
+    const target = targetId ? els.gallery.querySelector(`[data-photo-id="${targetId}"]`) : null;
+    (target || els.gallery)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
 }
 
 function updateTodayPostsNotice() {
@@ -3622,6 +3704,7 @@ function switchPage(page) {
     els.foodWheelDialog.close();
   }
   els.galleryHead.hidden = activePage !== "gallery";
+  els.feedRefreshNotice.hidden = activePage !== "gallery" || !pendingNewPhotos.length;
   els.todayPostsNotice.hidden = activePage !== "gallery";
   els.galleryFilters.hidden = activePage !== "gallery";
   els.gallery.hidden = activePage !== "gallery";
@@ -3641,6 +3724,7 @@ function switchPage(page) {
   if (showWeekend) renderWeekendPlans();
   if (showThanks) renderGratitudeNotes();
   if (activePage === "gallery") {
+    renderFeedRefreshNotice();
     renderGallery();
     updateFeedLoader(filteredPhotoCount);
   }
@@ -6290,10 +6374,16 @@ els.notificationDialog.addEventListener("click", (event) => {
   if (event.target === els.notificationDialog) els.notificationDialog.close();
 });
 document.addEventListener("visibilitychange", () => {
-  if (session) void loadNotifications();
+  if (session && document.visibilityState === "visible") {
+    void loadNotifications();
+    void checkForNewPhotos();
+  }
 });
 window.addEventListener("focus", () => {
-  if (session) void loadNotifications();
+  if (session) {
+    void loadNotifications();
+    void checkForNewPhotos();
+  }
 });
 els.renameHomeButton.addEventListener("click", () => {
   openSettingsChildDialog(els.renameHomeDialog, () => {
