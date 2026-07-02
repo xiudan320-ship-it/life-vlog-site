@@ -17,7 +17,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="./assets/app-icon-32.png" />
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
     <link rel="stylesheet" href="./styles.css?v=20260610-37" />
-    <link rel="stylesheet" href="./redesign.css?v=20260702-56" />
+    <link rel="stylesheet" href="./redesign.css?v=20260702-57" />
   </head>
   <body>
     <header class="topbar">
@@ -70,23 +70,8 @@
             <button class="vip-popover-badge" id="vipPopoverBadge" type="button" hidden>
               咻蛋之家 VIP
             </button>
-            <button class="rename-home-button" id="renameHomeButton" type="button">
-              修改主页名称
-            </button>
-            <button class="account-secondary-button" id="renameProfileButton" type="button">
-              修改昵称
-            </button>
-            <button class="account-secondary-button" id="changeAvatarButton" type="button">
-              修改头像
-            </button>
-            <button class="account-secondary-button" id="familyAccountButton" type="button">
-              家庭账户
-            </button>
-            <button class="account-secondary-button" id="changePasswordButton" type="button">
-              修改密码
-            </button>
-            <button class="account-secondary-button" id="recoveryKeyButton" type="button">
-              设置恢复密钥
+            <button class="rename-home-button" id="accountSettingsButton" type="button">
+              设置
             </button>
             <button id="logoutButton" type="button">退出登录</button>
           </div>
@@ -513,6 +498,15 @@
           </form>
         </section>
 
+        <div class="wish-tabs" id="wishTabs" role="tablist" aria-label="心愿状态">
+          <button class="active" type="button" data-wish-view="open" role="tab" aria-selected="true">
+            未完成 <span id="wishOpenCount">0</span>
+          </button>
+          <button type="button" data-wish-view="done" role="tab" aria-selected="false">
+            已完成 <span id="wishDoneCount">0</span>
+          </button>
+        </div>
+
         <section class="wishlist-list" id="wishlistList" aria-live="polite"></section>
       </section>
 
@@ -734,6 +728,57 @@
           <button class="primary" type="submit">保存名称</button>
         </div>
       </form>
+    </dialog>
+
+    <dialog class="settings-dialog" id="settingsDialog">
+      <button class="dialog-close" id="closeSettingsDialog" type="button" aria-label="关闭">×</button>
+      <aside class="settings-sidebar">
+        <p class="kicker">Settings</p>
+        <h2>设置</h2>
+        <nav aria-label="设置分类">
+          <a href="#settingsGeneral">常规</a>
+          <a href="#settingsAccount">账户</a>
+          <a href="#settingsFamily">家庭</a>
+        </nav>
+      </aside>
+      <section class="settings-content">
+        <section class="settings-group" id="settingsGeneral">
+          <p class="kicker">General</p>
+          <h3>常规</h3>
+          <button id="renameHomeButton" type="button">
+            <span>主页名称</span>
+            <strong>修改咻蛋之家显示名称</strong>
+          </button>
+          <button id="renameProfileButton" type="button">
+            <span>昵称</span>
+            <strong>修改家庭里显示的名字</strong>
+          </button>
+          <button id="changeAvatarButton" type="button">
+            <span>头像</span>
+            <strong>上传或更换右上角头像</strong>
+          </button>
+        </section>
+        <section class="settings-group" id="settingsAccount">
+          <p class="kicker">Security</p>
+          <h3>账户安全</h3>
+          <button id="changePasswordButton" type="button">
+            <span>修改密码</span>
+            <strong>更新当前登录密码</strong>
+          </button>
+          <button id="recoveryKeyButton" type="button">
+            <span>恢复密钥</span>
+            <strong>忘记密码时用来重设</strong>
+          </button>
+        </section>
+        <section class="settings-group" id="settingsFamily">
+          <p class="kicker">Family</p>
+          <h3>家庭与会员</h3>
+          <button id="familyAccountButton" type="button">
+            <span>家庭账户</span>
+            <strong>邀请成员并共享生活记录</strong>
+          </button>
+        </section>
+      </section>
     </dialog>
 
     <dialog class="account-dialog" id="renameProfileDialog">
@@ -1019,6 +1064,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260702-56"></script>
+    <script type="module" src="./app.js?v=20260702-57"></script>
   </body>
 </html>
