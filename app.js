@@ -127,6 +127,7 @@ let notificationPollTimer = null;
 let foodOptions = [];
 let activePage = "gallery";
 let activeFilter = "全部";
+let activeWishView = "open";
 let previewUrls = [];
 let visiblePhotoCount = PAGE_SIZE;
 let filteredPhotoCount = 0;
@@ -208,6 +209,9 @@ const els = {
   avatarInitial: document.querySelector("#avatarInitial"),
   avatarImage: document.querySelector("#avatarImage"),
   userPopover: document.querySelector("#userPopover"),
+  accountSettingsButton: document.querySelector("#accountSettingsButton"),
+  settingsDialog: document.querySelector("#settingsDialog"),
+  closeSettingsDialog: document.querySelector("#closeSettingsDialog"),
   profileName: document.querySelector("#profileName"),
   brandName: document.querySelector("#brandName"),
   heroHomeName: document.querySelector("#heroHomeName"),
@@ -399,6 +403,9 @@ const els = {
   wishSubmitButton: document.querySelector("#wishSubmitButton"),
   wishCancelEdit: document.querySelector("#wishCancelEdit"),
   wishlistStatus: document.querySelector("#wishlistStatus"),
+  wishTabs: document.querySelector("#wishTabs"),
+  wishOpenCount: document.querySelector("#wishOpenCount"),
+  wishDoneCount: document.querySelector("#wishDoneCount"),
   wishlistList: document.querySelector("#wishlistList"),
   wishCompleteDialog: document.querySelector("#wishCompleteDialog"),
   wishCompleteClose: document.querySelector("#wishCompleteClose"),
@@ -1465,7 +1472,7 @@ function renderGallery() {
           const sequence = String(index + 1).padStart(2, "0");
           const titleMarkup = displayTitle ? `<h3>${escapeHtml(displayTitle)}</h3>` : "";
           const noteMarkup = noteText
-            ? `<p class="diary-excerpt">${escapeHtml(noteText)}</p><span class="read-more-hint">点击阅读全文</span>`
+            ? `<p class="diary-excerpt">${escapeHtml(noteText)}</p><span class="read-more-hint" hidden>点击阅读全文</span>`
             : "";
           return `
         <article class="photo-card" data-photo-id="${escapeHtml(photo.id || "")}">
@@ -1556,6 +1563,7 @@ function renderGallery() {
   });
 
   prepareFeedImages(els.gallery);
+  updateReadMoreHints(els.gallery);
   warmUpcomingFeedImages(filtered, visible.length);
   updateFeedLoader(filtered.length);
 }
@@ -1708,6 +1716,15 @@ function prepareFeedImages(root = document) {
 
     image.addEventListener("load", markLoaded, { once: true });
     image.addEventListener("error", markLoaded, { once: true });
+  });
+}
+
+function updateReadMoreHints(root = document) {
+  root.querySelectorAll(".diary-excerpt").forEach((excerpt) => {
+    const hint = excerpt.nextElementSibling;
+    if (!hint?.classList.contains("read-more-hint")) return;
+    const isClamped = excerpt.scrollHeight > excerpt.clientHeight + 1;
+    hint.hidden = !isClamped;
   });
 }
 
@@ -4367,6 +4384,7 @@ async function saveWish(event) {
 function renderWishes() {
   renderOverview();
   if (!els.wishlistList) return;
+  updateWishTabs();
   if (!session) {
     els.wishlistList.innerHTML = `<div class="empty">登录后可以记录想做、想吃、想去的事。</div>`;
     setWishlistStatus("");
@@ -4378,12 +4396,24 @@ function renderWishes() {
     return;
   }
 
-  const sorted = [...wishes].sort((a, b) => Number(a.done) - Number(b.done));
-  els.wishlistList.innerHTML = sorted
+  const visibleWishes = wishes
+    .filter((wish) => (activeWishView === "done" ? wish.done : !wish.done))
+    .sort(compareWishesByPriority);
+
+  if (!visibleWishes.length) {
+    els.wishlistList.innerHTML =
+      activeWishView === "done"
+        ? `<div class="empty">已完成里还没有记录。完成心愿后会放到这里。</div>`
+        : `<div class="empty">未完成心愿已经清空。现在可以写一个新的小目标。</div>`;
+    return;
+  }
+
+  els.wishlistList.innerHTML = visibleWishes
     .map((wish, index) => {
       const canManage = canManageItem(wish);
       const stateText = wish.done ? "已完成" : "待实现";
       const completedDate = wish.completedAt ? formatWishDate(wish.completedAt) : "";
+      const createdDate = wish.createdAt ? formatWishDate(wish.createdAt) : "";
       return `
         <article class="wish-card ${wish.done ? "done" : ""}">
           <div class="wish-card-top">
@@ -4413,6 +4443,7 @@ function renderWishes() {
               <p class="kicker">${escapeHtml(wish.type)} · ${escapeHtml(wish.priority)} · ${escapeHtml(getAuthorName(wish.userId))}</p>
               <h3>${escapeHtml(wish.title)}</h3>
               <div class="wish-meta">
+                ${createdDate ? `<span>添加 ${createdDate}</span>` : ""}
                 ${wish.date ? `<span>计划 ${formatWishDate(wish.date)}</span>` : ""}
                 ${completedDate ? `<span>完成 ${completedDate}</span>` : ""}
               </div>
@@ -4451,6 +4482,35 @@ function renderWishes() {
   els.wishlistList.querySelectorAll("button[data-delete-wish]").forEach((button) => {
     button.addEventListener("click", () => deleteWish(button.dataset.deleteWish));
   });
+}
+
+function updateWishTabs() {
+  const openCount = wishes.filter((wish) => !wish.done).length;
+  const doneCount = wishes.filter((wish) => wish.done).length;
+  if (els.wishOpenCount) els.wishOpenCount.textContent = String(openCount);
+  if (els.wishDoneCount) els.wishDoneCount.textContent = String(doneCount);
+  els.wishTabs?.querySelectorAll("[data-wish-view]").forEach((button) => {
+    const active = button.dataset.wishView === activeWishView;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-selected", String(active));
+  });
+}
+
+function compareWishesByPriority(a, b) {
+  const priorityDifference = getWishPriorityRank(b.priority) - getWishPriorityRank(a.priority);
+  if (priorityDifference) return priorityDifference;
+
+  const dateA = a.date ? new Date(`${a.date}T00:00:00`).getTime() : Number.POSITIVE_INFINITY;
+  const dateB = b.date ? new Date(`${b.date}T00:00:00`).getTime() : Number.POSITIVE_INFINITY;
+  if (dateA !== dateB) return dateA - dateB;
+
+  return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+}
+
+function getWishPriorityRank(priority) {
+  if (priority === "一定要做") return 3;
+  if (priority === "想尽快") return 2;
+  return 1;
 }
 
 function editWish(id) {
@@ -4572,6 +4632,7 @@ async function saveWishCompletionState(current, done, completionNote = "", targe
   }
 
   wishes = wishes.map((wish) => (wish.id === current.id ? next : wish));
+  activeWishView = done ? "done" : "open";
   saveWishes();
   setWishlistStatus(
     usedLegacyCompletionNote
@@ -5954,6 +6015,12 @@ els.wishCancelEdit.addEventListener("click", () => {
   setWishlistExpanded(false);
   setWishlistStatus("");
 });
+els.wishTabs?.querySelectorAll("[data-wish-view]").forEach((button) => {
+  button.addEventListener("click", () => {
+    activeWishView = button.dataset.wishView === "done" ? "done" : "open";
+    renderWishes();
+  });
+});
 els.wishCompleteForm.addEventListener("submit", submitWishCompletion);
 els.wishCompleteClose.addEventListener("click", closeWishCompleteDialog);
 els.wishCompleteCancel.addEventListener("click", closeWishCompleteDialog);
@@ -5985,6 +6052,14 @@ els.thanksForm.querySelectorAll('input[name="thanksColor"]').forEach((input) => 
 els.avatarButton.addEventListener("click", () => {
   els.userPopover.hidden = !els.userPopover.hidden;
 });
+els.accountSettingsButton.addEventListener("click", () => {
+  els.userPopover.hidden = true;
+  els.settingsDialog.showModal();
+});
+els.closeSettingsDialog.addEventListener("click", () => els.settingsDialog.close());
+els.settingsDialog.addEventListener("click", (event) => {
+  if (event.target === els.settingsDialog) els.settingsDialog.close();
+});
 els.notificationButton.addEventListener("click", async () => {
   await openNotificationsPanel();
 });
@@ -5994,6 +6069,7 @@ els.notificationDialog.addEventListener("click", (event) => {
 });
 els.renameHomeButton.addEventListener("click", () => {
   els.userPopover.hidden = true;
+  els.settingsDialog.close();
   els.homeNameInput.value = accountProfile.homeName || loadHomeName(session?.user?.id);
   els.homeNameStatus.textContent = "";
   els.renameHomeDialog.showModal();
@@ -6007,6 +6083,7 @@ els.renameHomeForm.addEventListener("submit", saveHomeName);
 els.resetHomeName.addEventListener("click", restoreDefaultHomeName);
 els.renameProfileButton.addEventListener("click", () => {
   els.userPopover.hidden = true;
+  els.settingsDialog.close();
   els.profileNicknameInput.value = getSessionDisplayName();
   els.profileNicknameStatus.textContent = "";
   els.renameProfileDialog.showModal();
@@ -6020,6 +6097,7 @@ els.renameProfileDialog.addEventListener("click", (event) => {
 els.renameProfileForm.addEventListener("submit", saveProfileNickname);
 els.changeAvatarButton.addEventListener("click", () => {
   els.userPopover.hidden = true;
+  els.settingsDialog.close();
   els.avatarForm.reset();
   els.avatarStatus.textContent = "";
   setAvatarPreview(accountProfile.avatarUrl);
@@ -6037,6 +6115,7 @@ els.avatarInput.addEventListener("change", updateAvatarPreview);
 els.avatarForm.addEventListener("submit", saveAvatar);
 els.familyAccountButton.addEventListener("click", () => {
   els.userPopover.hidden = true;
+  els.settingsDialog.close();
   els.familyStatus.textContent = "";
   els.familyNameInput.value = accountProfile.homeName || "我们的家";
   renderFamilyDialog();
@@ -6050,6 +6129,7 @@ els.createFamilyForm.addEventListener("submit", createFamily);
 els.familyInviteForm.addEventListener("submit", addFamilyMember);
 els.changePasswordButton.addEventListener("click", () => {
   els.userPopover.hidden = true;
+  els.settingsDialog.close();
   els.changePasswordForm.reset();
   els.changePasswordStatus.textContent = "";
   els.changePasswordDialog.showModal();
@@ -6062,6 +6142,7 @@ els.changePasswordDialog.addEventListener("click", (event) => {
 els.changePasswordForm.addEventListener("submit", changePassword);
 els.recoveryKeyButton.addEventListener("click", () => {
   els.userPopover.hidden = true;
+  els.settingsDialog.close();
   els.recoveryKeyForm.reset();
   els.recoveryKeyStatus.textContent = "";
   els.recoveryKeyDialog.showModal();
@@ -6137,6 +6218,10 @@ els.chips.forEach((chip) => {
     updateFilterChips();
     renderGallery();
   });
+});
+window.addEventListener("resize", () => {
+  window.clearTimeout(updateReadMoreHints.resizeTimer);
+  updateReadMoreHints.resizeTimer = window.setTimeout(() => updateReadMoreHints(els.gallery), 120);
 });
 
 registerAppShellWorker();
