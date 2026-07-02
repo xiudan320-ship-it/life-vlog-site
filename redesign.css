@@ -2420,6 +2420,46 @@ body.theme-dark .wish-image-drop {
   gap: 10px;
 }
 
+.wish-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 0 18px;
+}
+
+.wish-tabs button {
+  min-height: 48px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 950;
+}
+
+.wish-tabs button.active {
+  border-color: var(--accent-strong);
+  background: var(--accent-strong);
+  color: #fff;
+}
+
+.wish-tabs span {
+  display: inline-grid;
+  min-width: 24px;
+  min-height: 24px;
+  place-items: center;
+  margin-left: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 14%, transparent);
+  font-size: 12px;
+}
+
+body.theme-dark .wish-tabs button.active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #0d100f;
+}
+
 .recipes-list,
 .wishlist-list,
 .weekend-list {
@@ -2996,6 +3036,132 @@ dialog {
   padding: 0;
 }
 
+.settings-dialog {
+  width: min(calc(100% - 28px), 980px);
+  max-width: none;
+  max-height: calc(100dvh - 28px);
+  overflow: hidden;
+  grid-template-columns: 280px minmax(0, 1fr);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+  padding: 0;
+}
+
+.settings-dialog[open] {
+  display: grid;
+}
+
+.settings-dialog::backdrop {
+  background: rgba(7, 10, 8, 0.72);
+  backdrop-filter: blur(10px);
+}
+
+.settings-dialog > .dialog-close {
+  top: 18px;
+  left: 18px;
+  right: auto;
+  z-index: 3;
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--ink), transparent 88%);
+}
+
+.settings-sidebar {
+  display: grid;
+  align-content: start;
+  gap: 18px;
+  border-right: 1px solid var(--line);
+  background: color-mix(in srgb, var(--ink), transparent 94%);
+  padding: 88px 18px 24px;
+}
+
+.settings-sidebar h2 {
+  font-size: 30px;
+}
+
+.settings-sidebar nav {
+  display: grid;
+  gap: 8px;
+}
+
+.settings-sidebar a {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  border-radius: 8px;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 900;
+  padding: 0 14px;
+  text-decoration: none;
+}
+
+.settings-sidebar a:first-child,
+.settings-sidebar a:hover {
+  background: color-mix(in srgb, var(--accent), transparent 84%);
+}
+
+.settings-content {
+  display: grid;
+  gap: 24px;
+  overflow: auto;
+  padding: 34px 34px 42px;
+}
+
+.settings-group {
+  display: grid;
+  gap: 10px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.settings-group h3 {
+  margin: 0 0 6px;
+  font-size: 28px;
+}
+
+.settings-group button {
+  display: flex;
+  min-height: 72px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  padding: 0;
+  text-align: left;
+}
+
+.settings-group button + button {
+  border-top: 1px solid var(--line);
+}
+
+.settings-group button span {
+  min-width: 96px;
+  font-size: 16px;
+  font-weight: 950;
+}
+
+.settings-group button strong {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 750;
+  text-align: right;
+}
+
+.settings-group button:hover strong {
+  color: var(--accent-strong);
+}
+
+body.theme-dark .settings-sidebar {
+  background: color-mix(in srgb, var(--surface), #000 18%);
+}
+
 .account-dialog form {
   display: grid;
   gap: 16px;
@@ -3444,6 +3610,56 @@ dialog {
 
   .wish-complete-actions {
     grid-template-columns: 1fr;
+  }
+
+  .settings-dialog {
+    width: 100%;
+    max-height: 100dvh;
+    min-height: 100dvh;
+    grid-template-columns: 1fr;
+    border-radius: 0;
+  }
+
+  .settings-dialog > .dialog-close {
+    top: calc(12px + env(safe-area-inset-top));
+    left: 14px;
+  }
+
+  .settings-sidebar {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    padding: calc(76px + env(safe-area-inset-top)) 16px 14px;
+  }
+
+  .settings-sidebar nav {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .settings-sidebar a {
+    flex: 0 0 auto;
+    min-height: 40px;
+  }
+
+  .settings-content {
+    padding: 20px 16px calc(28px + env(safe-area-inset-bottom));
+  }
+
+  .settings-group h3 {
+    font-size: 24px;
+  }
+
+  .settings-group button {
+    min-height: 68px;
+    align-items: flex-start;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+  }
+
+  .settings-group button strong {
+    text-align: left;
   }
 
   .weekend-card {
