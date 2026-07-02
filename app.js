@@ -145,6 +145,7 @@ let editingReplaceIndex = -1;
 let editingPreviewUrls = [];
 let dialogImages = [];
 let dialogImageIndex = 0;
+let dialogSwipeStart = null;
 let activeVipLevel = 1;
 let recipeEditingId = null;
 let recipeExistingCover = "";
@@ -302,6 +303,7 @@ const els = {
   feedLoaderText: document.querySelector("#feedLoaderText"),
   chips: document.querySelectorAll(".chip"),
   dialog: document.querySelector("#photoDialog"),
+  dialogMedia: document.querySelector("#photoDialog .dialog-media"),
   closeDialog: document.querySelector("#closeDialog"),
   dialogImage: document.querySelector("#dialogImage"),
   dialogTitle: document.querySelector("#dialogTitle"),
@@ -1879,6 +1881,33 @@ function moveDialogImage(step) {
   if (dialogImages.length <= 1) return;
   dialogImageIndex = (dialogImageIndex + step + dialogImages.length) % dialogImages.length;
   renderDialogMedia();
+}
+
+function beginDialogSwipe(event) {
+  if (dialogImages.length <= 1 || event.target.closest("button")) return;
+  dialogSwipeStart = {
+    id: event.pointerId,
+    x: event.clientX,
+    y: event.clientY,
+    time: Date.now(),
+  };
+  els.dialogMedia?.setPointerCapture?.(event.pointerId);
+}
+
+function finishDialogSwipe(event) {
+  if (!dialogSwipeStart || dialogSwipeStart.id !== event.pointerId) return;
+  const deltaX = event.clientX - dialogSwipeStart.x;
+  const deltaY = event.clientY - dialogSwipeStart.y;
+  const elapsed = Date.now() - dialogSwipeStart.time;
+  dialogSwipeStart = null;
+
+  const horizontal = Math.abs(deltaX) > 48 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25;
+  if (!horizontal || elapsed > 1200) return;
+  moveDialogImage(deltaX < 0 ? 1 : -1);
+}
+
+function cancelDialogSwipe() {
+  dialogSwipeStart = null;
 }
 
 function updateFeedLoader(totalItems) {
@@ -6392,6 +6421,7 @@ els.dialog.addEventListener("click", (event) => {
 els.dialog.addEventListener("close", () => {
   activeDialogPhoto = null;
   photoComments = [];
+  cancelDialogSwipe();
   els.photoCommentsSection.hidden = false;
   els.photoCommentForm.reset();
   cancelCommentReply();
@@ -6401,6 +6431,10 @@ els.photoCommentForm.addEventListener("submit", savePhotoComment);
 els.cancelCommentReply.addEventListener("click", cancelCommentReply);
 els.dialogPrev.addEventListener("click", () => moveDialogImage(-1));
 els.dialogNext.addEventListener("click", () => moveDialogImage(1));
+els.dialogMedia.addEventListener("pointerdown", beginDialogSwipe);
+els.dialogMedia.addEventListener("pointerup", finishDialogSwipe);
+els.dialogMedia.addEventListener("pointercancel", cancelDialogSwipe);
+els.dialogMedia.addEventListener("lostpointercapture", cancelDialogSwipe);
 els.editForm.addEventListener("submit", savePhotoEdit);
 els.editImageInput.addEventListener("change", replaceEditingImage);
 els.deleteEditingPhoto.addEventListener("click", deletePhotoFromEditor);
