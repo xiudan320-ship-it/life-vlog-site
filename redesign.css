@@ -3171,13 +3171,37 @@ dialog {
 }
 
 .settings-group button strong {
+  display: grid;
+  justify-items: end;
+  gap: 3px;
   color: var(--muted);
   font-size: 14px;
   font-weight: 750;
   text-align: right;
 }
 
+.settings-group button strong em {
+  max-width: 320px;
+  overflow: hidden;
+  color: var(--ink);
+  font-style: normal;
+  font-size: 15px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-group button strong small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+}
+
 .settings-group button:hover strong {
+  color: var(--accent-strong);
+}
+
+.settings-group button:hover strong em {
   color: var(--accent-strong);
 }
 
@@ -3794,7 +3818,12 @@ body.theme-dark .settings-sidebar {
   }
 
   .settings-group button strong {
+    justify-items: start;
     text-align: left;
+  }
+
+  .settings-group button strong em {
+    max-width: min(72vw, 320px);
   }
 
   .weekend-card {
