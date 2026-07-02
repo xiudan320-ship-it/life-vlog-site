@@ -712,6 +712,15 @@ body.theme-dark .thanks-note > p {
   border-radius: 8px;
 }
 
+#photoDialog .dialog-media {
+  touch-action: pan-y;
+  user-select: none;
+}
+
+#photoDialog .dialog-media img {
+  -webkit-user-drag: none;
+}
+
 .photo-comments-head {
   display: flex;
   align-items: end;
