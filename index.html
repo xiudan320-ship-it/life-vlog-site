@@ -17,7 +17,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="./assets/app-icon-32.png" />
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
     <link rel="stylesheet" href="./styles.css?v=20260610-37" />
-    <link rel="stylesheet" href="./redesign.css?v=20260702-68" />
+    <link rel="stylesheet" href="./redesign.css?v=20260702-69" />
   </head>
   <body>
     <header class="topbar">
@@ -775,6 +775,11 @@
             <strong>把 Supabase 旧图片搬到 Cloudflare R2</strong>
           </button>
           <p class="status-line" id="storageMigrationStatus"></p>
+          <button id="cloudD1MigrationButton" type="button">
+            <span>迁移账号到 Cloudflare</span>
+            <strong>把数据库内容导入 D1，并创建新的登录密码</strong>
+          </button>
+          <p class="status-line" id="cloudD1MigrationStatus"></p>
         </section>
         <section class="settings-group" id="settingsFamily">
           <p class="kicker">Family</p>
@@ -913,6 +918,27 @@
         </label>
         <p class="status-line" id="recoveryKeyStatus"></p>
         <button class="primary" type="submit">保存恢复密钥</button>
+      </form>
+    </dialog>
+
+    <dialog class="account-dialog" id="cloudD1MigrationDialog">
+      <button class="dialog-close" id="closeCloudD1Migration" type="button" aria-label="关闭">×</button>
+      <form id="cloudD1MigrationForm">
+        <div>
+          <p class="kicker">Cloudflare D1</p>
+          <h2>迁移账号</h2>
+          <p>设置一个新的 Cloudflare 登录密码，然后把 Supabase 数据复制到 D1。</p>
+        </div>
+        <label>
+          用户名
+          <input id="cloudD1UsernameInput" maxlength="48" autocomplete="username" required />
+        </label>
+        <label>
+          新密码
+          <input id="cloudD1PasswordInput" type="password" minlength="6" maxlength="128" autocomplete="new-password" required />
+        </label>
+        <p class="status-line" id="cloudD1MigrationDialogStatus"></p>
+        <button class="primary" type="submit">开始迁移到 Cloudflare</button>
       </form>
     </dialog>
 
@@ -1071,6 +1097,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260702-68"></script>
+    <script type="module" src="./app.js?v=20260702-69"></script>
   </body>
 </html>
