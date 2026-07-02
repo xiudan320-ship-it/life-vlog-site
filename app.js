@@ -17,6 +17,7 @@ const DEFAULT_THANKS_COLOR = "#2f6b3b";
 const DAILY_LOGIN_EXP = 25;
 const BUCKET = "life-photos";
 const PRODUCTION_URL = "https://xiudan320-ship-it.github.io/life-vlog-site/";
+const R2_UPLOAD_ENDPOINT = "https://life-vlog-r2-upload.xiudan320-life.workers.dev";
 const PAGE_SIZE = 6;
 const DEFAULT_SUPABASE_URL = "https://cimejrarjcosgayfnikk.supabase.co";
 const DEFAULT_SUPABASE_ANON_KEY = "sb_publishable_G0ZHVQG0XYB2zja9VHiJiQ_HKDUt_fJ";
@@ -1501,6 +1502,23 @@ async function uploadImageFile(file, safeName, index = 1, total = 1) {
   setStatus(
     `${prefix}已压缩 ${formatFileSize(file.size)} → ${formatFileSize(compressed.blob.size)}，正在上传...`
   );
+  if (R2_UPLOAD_ENDPOINT) {
+    try {
+      const uploaded = await uploadToR2(compressed.blob, safeName, "photos");
+      return {
+        image_path: `r2:${uploaded.key}`,
+        image_url: uploaded.url,
+        width: compressed.width,
+        height: compressed.height,
+        original_size: compressed.originalBytes,
+        compressed_size: compressed.compressedBytes,
+      };
+    } catch (error) {
+      setStatus(`R2 上传失败：${error.message}`);
+      return null;
+    }
+  }
+
   const { error: uploadError } = await supabase.storage
     .from(BUCKET)
     .upload(path, compressed.blob, {
@@ -1523,6 +1541,75 @@ async function uploadImageFile(file, safeName, index = 1, total = 1) {
     original_size: compressed.originalBytes,
     compressed_size: compressed.compressedBytes,
   };
+}
+
+async function uploadToR2(blob, safeName, folder = "photos") {
+  if (!R2_UPLOAD_ENDPOINT || !session?.access_token) {
+    throw new Error("R2 上传服务尚未配置。");
+  }
+  const endpoint = R2_UPLOAD_ENDPOINT.replace(/\/+$/, "");
+  const formData = new FormData();
+  formData.set("file", new File([blob], `${safeName}.jpg`, { type: "image/jpeg" }));
+  formData.set("name", safeName);
+  formData.set("folder", folder);
+
+  const response = await fetch(`${endpoint}/upload`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: formData,
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || `上传服务返回 ${response.status}`);
+  }
+  return data;
+}
+
+function isR2Path(path) {
+  return String(path || "").startsWith("r2:");
+}
+
+function getR2Key(path) {
+  return String(path || "").replace(/^r2:/, "");
+}
+
+async function deleteR2Object(path) {
+  if (!R2_UPLOAD_ENDPOINT || !session?.access_token) return;
+  const endpoint = R2_UPLOAD_ENDPOINT.replace(/\/+$/, "");
+  const response = await fetch(`${endpoint}/object`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ key: getR2Key(path) }),
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || `R2 删除失败：${response.status}`);
+  }
+}
+
+async function cleanupStoredImagePaths(paths) {
+  const uniquePaths = [...new Set(paths.filter(Boolean))];
+  const r2Paths = uniquePaths.filter(isR2Path);
+  const supabasePaths = uniquePaths.filter((path) => !isR2Path(path));
+  const errors = [];
+
+  if (supabasePaths.length) {
+    const { error } = await supabase.storage.from(BUCKET).remove(supabasePaths);
+    if (error) errors.push(error);
+  }
+  for (const path of r2Paths) {
+    try {
+      await deleteR2Object(path);
+    } catch (error) {
+      errors.push(error);
+    }
+  }
+  if (errors.length) throw errors[0];
 }
 
 function renderGallery() {
@@ -2080,9 +2167,7 @@ async function deletePhoto(photo, triggerButton = null) {
     setGlobalStatus("日记已删除。");
 
     if (storagePaths.length) {
-      const { error: storageError } = await supabase.storage
-        .from(BUCKET)
-        .remove(storagePaths);
+      const storageError = await cleanupStoredImagePaths(storagePaths).then(() => null).catch((error) => error);
       if (storageError) {
         console.warn("Photo record deleted, but storage cleanup failed:", storageError);
         setGlobalStatus("日记已删除，云端图片清理稍后再试，不影响浏览。");
@@ -2242,9 +2327,7 @@ async function savePhotoEdit(event) {
       (path) => path && !nextImages.some((image) => image.image_path === path)
     );
     if (pathsToRemove.length) {
-      const { error: cleanupError } = await supabase.storage
-        .from(BUCKET)
-        .remove(pathsToRemove);
+      const cleanupError = await cleanupStoredImagePaths(pathsToRemove).then(() => null).catch((error) => error);
       if (cleanupError) {
         console.warn("Album saved, but old image cleanup failed:", cleanupError);
       }
@@ -2258,7 +2341,7 @@ async function savePhotoEdit(event) {
   } catch (error) {
     els.saveEditStatus.textContent = error.message || "保存失败，请稍后重试。";
     if (newlyUploadedPaths.length) {
-      void supabase.storage.from(BUCKET).remove(newlyUploadedPaths);
+      void cleanupStoredImagePaths(newlyUploadedPaths);
     }
   }
 }
@@ -4381,6 +4464,11 @@ async function uploadWishImage(file, title) {
   setWishlistStatus(
     `已压缩 ${formatFileSize(file.size)} → ${formatFileSize(compressed.blob.size)}，正在上传心愿图片…`
   );
+  if (R2_UPLOAD_ENDPOINT) {
+    const uploaded = await uploadToR2(compressed.blob, slugify(title), "wishes");
+    return { imageUrl: uploaded.url, imagePath: `r2:${uploaded.key}` };
+  }
+
   const { error } = await supabase.storage.from(BUCKET).upload(path, compressed.blob, {
     contentType: "image/jpeg",
     upsert: false,
@@ -4488,7 +4576,7 @@ async function saveWish(event) {
     }
     if (error) {
       if (image.imagePath && image.imagePath !== previous?.imagePath) {
-        await supabase.storage.from(BUCKET).remove([image.imagePath]);
+        await cleanupStoredImagePaths([image.imagePath]);
       }
       setWishlistStatus(`心愿同步失败：${error.message}`);
       return;
@@ -4510,7 +4598,7 @@ async function saveWish(event) {
     supabase &&
     session
   ) {
-    await supabase.storage.from(BUCKET).remove([previous.imagePath]);
+    await cleanupStoredImagePaths([previous.imagePath]);
   }
   resetWishForm();
   setWishlistExpanded(false);
@@ -4832,7 +4920,7 @@ async function deleteWish(id) {
   }
 
   if (wish.imagePath && supabase && session) {
-    await supabase.storage.from(BUCKET).remove([wish.imagePath]);
+    await cleanupStoredImagePaths([wish.imagePath]);
   }
   wishes = wishes.filter((item) => item.id !== id);
   saveWishes();
