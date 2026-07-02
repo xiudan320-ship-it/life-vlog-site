@@ -587,10 +587,13 @@ async function initializeSupabase() {
     updateAuthUI();
     renderCachedPhotoFeed(session?.user?.id || "public");
     loadPhotos();
+    if (session) {
+      void loadNotifications();
+    }
   });
   if (notificationPollTimer) clearInterval(notificationPollTimer);
   notificationPollTimer = setInterval(() => {
-    if (session && document.visibilityState === "visible") void loadNotifications();
+    if (session) void loadNotifications();
   }, 45000);
 }
 
@@ -6235,6 +6238,12 @@ els.notificationButton.addEventListener("click", async () => {
 els.closeNotificationDialog.addEventListener("click", () => els.notificationDialog.close());
 els.notificationDialog.addEventListener("click", (event) => {
   if (event.target === els.notificationDialog) els.notificationDialog.close();
+});
+document.addEventListener("visibilitychange", () => {
+  if (session) void loadNotifications();
+});
+window.addEventListener("focus", () => {
+  if (session) void loadNotifications();
 });
 els.renameHomeButton.addEventListener("click", () => {
   openSettingsChildDialog(els.renameHomeDialog, () => {
