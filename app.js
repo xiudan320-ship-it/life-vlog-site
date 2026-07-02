@@ -218,6 +218,9 @@ const els = {
   settingsNavButtons: document.querySelectorAll("[data-settings-section]"),
   settingsGroups: document.querySelectorAll(".settings-group"),
   settingsFamilyPanel: document.querySelector("#settingsFamilyPanel"),
+  settingsHomeNameValue: document.querySelector("#settingsHomeNameValue"),
+  settingsNicknameValue: document.querySelector("#settingsNicknameValue"),
+  settingsAvatarValue: document.querySelector("#settingsAvatarValue"),
   profileName: document.querySelector("#profileName"),
   brandName: document.querySelector("#brandName"),
   heroHomeName: document.querySelector("#heroHomeName"),
@@ -551,6 +554,7 @@ function applyHomeName(value, { persist = false, userId = session?.user?.id || n
   if (persist && userId) {
     localStorage.setItem(getHomeNameStorageKey(userId), homeName);
   }
+  renderSettingsSummary();
   return homeName;
 }
 
@@ -627,6 +631,7 @@ function updateAuthUI() {
   els.profileName.textContent = displayName;
   els.avatarInitial.textContent = getInitial(displayName);
   renderAccountAvatar(accountProfile.avatarUrl, displayName);
+  renderSettingsSummary();
   if (signedIn) {
     setSelectedThanksColor(accountProfile.thanksColor || loadThanksColor(session.user.id));
     renderExperience(displayName);
@@ -691,6 +696,7 @@ function updateAuthUI() {
       foodOptions: [],
     };
     renderNotifications();
+    renderSettingsSummary();
     applyHomeName("咻蛋之家");
     return;
   }
@@ -2378,6 +2384,7 @@ function updateSessionDisplayName(nickname) {
   };
   els.profileName.textContent = nextName;
   renderAccountAvatar(accountProfile.avatarUrl, nextName);
+  renderSettingsSummary();
   renderExperience(nextName);
 }
 
@@ -2428,6 +2435,19 @@ function renderAccountAvatar(avatarUrl = "", displayName = getSessionDisplayName
   if (hasAvatar) els.avatarImage.src = avatarUrl;
   else els.avatarImage.removeAttribute("src");
   els.avatarInitial.textContent = getInitial(displayName);
+}
+
+function renderSettingsSummary() {
+  if (els.settingsHomeNameValue) {
+    els.settingsHomeNameValue.textContent =
+      accountProfile.homeName || loadHomeName(session?.user?.id) || "咻蛋之家";
+  }
+  if (els.settingsNicknameValue) {
+    els.settingsNicknameValue.textContent = session ? getSessionDisplayName() : "未登录";
+  }
+  if (els.settingsAvatarValue) {
+    els.settingsAvatarValue.textContent = accountProfile.avatarUrl ? "已设置头像" : "文字头像";
+  }
 }
 
 function canManageItem(item) {
@@ -3376,6 +3396,7 @@ async function saveAvatar(event) {
   accountProfile.avatarUrl = avatarUrl;
   accountProfile.avatarPath = path;
   renderAccountAvatar(avatarUrl);
+  renderSettingsSummary();
   await loadFamilyContext();
   renderPhotoComments();
   if (previousPath && previousPath !== path) {
