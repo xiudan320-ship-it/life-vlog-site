@@ -1,0 +1,16 @@
+name = "life-vlog-r2-upload"
+main = "src/worker.js"
+compatibility_date = "2026-07-02"
+account_id = "e91104ac5162a3cb66f045e5b45f0bdb"
+workers_dev = true
+preview_urls = false
+
+[vars]
+PUBLIC_R2_URL = "https://pub-47959f26cde042c3b37bc0f8f3f441ce.r2.dev"
+SUPABASE_URL = "https://cimejrarjcosgayfnikk.supabase.co"
+SUPABASE_ANON_KEY = "sb_publishable_G0ZHVQG0XYB2zja9VHiJiQ_HKDUt_fJ"
+ALLOWED_ORIGINS = "https://xiudan320-ship-it.github.io,http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000"
+
+[[r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "life-vlog-photos"
