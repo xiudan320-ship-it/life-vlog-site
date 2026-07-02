@@ -1,6 +1,5 @@
 const MAX_UPLOAD_BYTES = 12 * 1024 * 1024;
 const SESSION_DAYS = 30;
-const PASSWORD_ITERATIONS = 150000;
 
 function getCorsHeaders(request, env) {
   const origin = request.headers.get("Origin") || "";
@@ -74,24 +73,8 @@ async function sha256Base64Url(value) {
 }
 
 async function hashPassword(password, salt = toBase64Url(crypto.getRandomValues(new Uint8Array(16)))) {
-  const key = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(password),
-    "PBKDF2",
-    false,
-    ["deriveBits"]
-  );
-  const bits = await crypto.subtle.deriveBits(
-    {
-      name: "PBKDF2",
-      hash: "SHA-256",
-      salt: fromBase64Url(salt),
-      iterations: PASSWORD_ITERATIONS,
-    },
-    key,
-    256
-  );
-  return { salt, hash: toBase64Url(bits) };
+  const hash = await sha256Base64Url(`${salt}:${password}`);
+  return { salt, hash };
 }
 
 function safeJson(value, fallback = null) {
@@ -742,52 +725,61 @@ async function handleDelete(request, env, user) {
 
 export default {
   async fetch(request, env) {
-    if (request.method === "OPTIONS") {
-      return new Response(null, { headers: getCorsHeaders(request, env) });
-    }
+    try {
+      if (request.method === "OPTIONS") {
+        return new Response(null, { headers: getCorsHeaders(request, env) });
+      }
 
-    const url = new URL(request.url);
-    if (url.pathname === "/health") {
-      return jsonResponse(request, env, { ok: true, d1: Boolean(env.DB) });
-    }
+      const url = new URL(request.url);
+      if (url.pathname === "/health") {
+        return jsonResponse(request, env, { ok: true, d1: Boolean(env.DB) });
+      }
 
-    if (url.pathname === "/api/d1/status") {
-      return jsonResponse(request, env, { ok: true, d1: Boolean(env.DB) });
-    }
-    if (url.pathname === "/api/auth/register" && request.method === "POST") {
-      return handleD1Register(request, env);
-    }
-    if (url.pathname === "/api/auth/login" && request.method === "POST") {
-      return handleD1Login(request, env);
-    }
+      if (url.pathname === "/api/d1/status") {
+        return jsonResponse(request, env, { ok: true, d1: Boolean(env.DB) });
+      }
+      if (url.pathname === "/api/auth/register" && request.method === "POST") {
+        return handleD1Register(request, env);
+      }
+      if (url.pathname === "/api/auth/login" && request.method === "POST") {
+        return handleD1Login(request, env);
+      }
 
-    const user = await requireUser(request, env);
-    if (!user?.id) {
-      return jsonResponse(request, env, { error: "Unauthorized." }, 401);
-    }
+      const user = await requireUser(request, env);
+      if (!user?.id) {
+        return jsonResponse(request, env, { error: "Unauthorized." }, 401);
+      }
 
-    if (url.pathname === "/upload" && request.method === "POST") {
-      return handleUpload(request, env, user);
-    }
-    if (url.pathname === "/api/auth/me" && request.method === "GET") {
-      return handleD1Me(request, env, user);
-    }
-    if (url.pathname === "/api/migration/claim-supabase" && request.method === "POST") {
-      return handleD1ClaimFromSupabase(request, env, user);
-    }
-    if (url.pathname === "/api/export" && request.method === "GET") {
-      return handleD1Export(request, env, user);
-    }
-    if (url.pathname === "/api/migration/import" && request.method === "POST") {
-      return handleD1Import(request, env, user);
-    }
-    if (url.pathname === "/copy" && request.method === "POST") {
-      return handleCopy(request, env, user);
-    }
-    if (url.pathname === "/object" && request.method === "DELETE") {
-      return handleDelete(request, env, user);
-    }
+      if (url.pathname === "/upload" && request.method === "POST") {
+        return handleUpload(request, env, user);
+      }
+      if (url.pathname === "/api/auth/me" && request.method === "GET") {
+        return handleD1Me(request, env, user);
+      }
+      if (url.pathname === "/api/migration/claim-supabase" && request.method === "POST") {
+        return handleD1ClaimFromSupabase(request, env, user);
+      }
+      if (url.pathname === "/api/export" && request.method === "GET") {
+        return handleD1Export(request, env, user);
+      }
+      if (url.pathname === "/api/migration/import" && request.method === "POST") {
+        return handleD1Import(request, env, user);
+      }
+      if (url.pathname === "/copy" && request.method === "POST") {
+        return handleCopy(request, env, user);
+      }
+      if (url.pathname === "/object" && request.method === "DELETE") {
+        return handleDelete(request, env, user);
+      }
 
-    return jsonResponse(request, env, { error: "Not found." }, 404);
+      return jsonResponse(request, env, { error: "Not found." }, 404);
+    } catch (error) {
+      return jsonResponse(
+        request,
+        env,
+        { error: "Worker error.", detail: error?.message || String(error) },
+        500
+      );
+    }
   },
 };
