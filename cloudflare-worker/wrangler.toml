@@ -15,9 +15,7 @@ ALLOWED_ORIGINS = "https://xiudan320-ship-it.github.io,http://localhost:5173,htt
 binding = "R2_BUCKET"
 bucket_name = "life-vlog-photos"
 
-# Enable after creating the D1 database:
-# pnpm dlx wrangler@latest d1 create life-vlog-db
-# [[d1_databases]]
-# binding = "DB"
-# database_name = "life-vlog-db"
-# database_id = "paste-created-database-id-here"
+[[d1_databases]]
+binding = "DB"
+database_name = "life-vlog-db"
+database_id = "71b8a86d-5129-44a7-be04-9b2423fb000f"
