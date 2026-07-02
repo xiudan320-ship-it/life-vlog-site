@@ -18,6 +18,7 @@ const DAILY_LOGIN_EXP = 25;
 const BUCKET = "life-photos";
 const PRODUCTION_URL = "https://xiudan320-ship-it.github.io/life-vlog-site/";
 const R2_UPLOAD_ENDPOINT = "https://life-vlog-r2-upload.xiudan320-life.workers.dev";
+const R2_PUBLIC_URL = "https://pub-47959f26cde042c3b37bc0f8f3f441ce.r2.dev";
 const PAGE_SIZE = 6;
 const DEFAULT_SUPABASE_URL = "https://cimejrarjcosgayfnikk.supabase.co";
 const DEFAULT_SUPABASE_ANON_KEY = "sb_publishable_G0ZHVQG0XYB2zja9VHiJiQ_HKDUt_fJ";
@@ -131,6 +132,7 @@ let dismissedFeedRefreshIds = new Set();
 let feedRefreshCheckInFlight = false;
 let returnToSettingsAfterDialog = false;
 let activeSettingsSection = "settingsGeneral";
+let storageMigrationInFlight = false;
 let foodOptions = [];
 let activePage = "gallery";
 let activeFilter = "全部";
@@ -260,6 +262,8 @@ const els = {
   confirmPasswordInput: document.querySelector("#confirmPasswordInput"),
   changePasswordStatus: document.querySelector("#changePasswordStatus"),
   recoveryKeyButton: document.querySelector("#recoveryKeyButton"),
+  storageMigrationButton: document.querySelector("#storageMigrationButton"),
+  storageMigrationStatus: document.querySelector("#storageMigrationStatus"),
   recoveryKeyDialog: document.querySelector("#recoveryKeyDialog"),
   closeRecoveryKey: document.querySelector("#closeRecoveryKey"),
   recoveryKeyForm: document.querySelector("#recoveryKeyForm"),
@@ -1567,12 +1571,102 @@ async function uploadToR2(blob, safeName, folder = "photos") {
   return data;
 }
 
+async function copyUrlToR2(url, safeName, folder = "migrated") {
+  if (!R2_UPLOAD_ENDPOINT || !session?.access_token) {
+    throw new Error("R2 upload service is not configured.");
+  }
+  const endpoint = R2_UPLOAD_ENDPOINT.replace(/\/+$/, "");
+  const response = await fetch(`${endpoint}/copy`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ url, name: safeName, folder }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || `Copy service returned ${response.status}`);
+  }
+  return data;
+}
+
 function isR2Path(path) {
   return String(path || "").startsWith("r2:");
 }
 
+function isR2Url(url) {
+  const value = String(url || "");
+  return Boolean(R2_PUBLIC_URL && value.startsWith(`${R2_PUBLIC_URL.replace(/\/+$/, "")}/`));
+}
+
 function getR2Key(path) {
   return String(path || "").replace(/^r2:/, "");
+}
+
+function getSupabasePublicUrl(path) {
+  if (!path || isR2Path(path) || !supabase) return "";
+  return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+}
+
+function getSupabasePathFromPublicUrl(url) {
+  const marker = `/storage/v1/object/public/${BUCKET}/`;
+  const value = String(url || "");
+  const index = value.indexOf(marker);
+  if (index === -1) return "";
+  return decodeURIComponent(value.slice(index + marker.length).split("?")[0]);
+}
+
+function isSupabaseStorageAsset(url, path = "") {
+  if (path && !isR2Path(path)) return true;
+  return Boolean(getSupabasePathFromPublicUrl(url));
+}
+
+function isDataImageUrl(url) {
+  return String(url || "").startsWith("data:image/");
+}
+
+function shouldMigrateImageAsset(url, path = "") {
+  if (!url && !path) return false;
+  if (isR2Path(path) || isR2Url(url)) return false;
+  return isSupabaseStorageAsset(url, path) || isDataImageUrl(url);
+}
+
+async function uploadDataUrlToR2(dataUrl, safeName, folder) {
+  const response = await fetch(dataUrl);
+  if (!response.ok) throw new Error("Could not read data image.");
+  const blob = await response.blob();
+  const file = new File([blob], `${safeName}.jpg`, { type: blob.type || "image/jpeg" });
+  const compressed = await compressImage(file, {
+    maxSide: 1600,
+    jpeg: 0.84,
+    minJpeg: 0.62,
+    targetBytes: 650_000,
+  });
+  return uploadToR2(compressed.blob, safeName, folder);
+}
+
+async function migrateImageAsset({ url = "", path = "", name = "image", folder = "migrated" }) {
+  if (!shouldMigrateImageAsset(url, path)) {
+    return { changed: false, image_url: url, image_path: path, oldPath: "" };
+  }
+
+  const safeName = slugify(name || folder || "image");
+  const sourceUrl = isDataImageUrl(url) ? url : url || getSupabasePublicUrl(path);
+  if (!sourceUrl) {
+    return { changed: false, image_url: url, image_path: path, oldPath: "" };
+  }
+
+  const uploaded = isDataImageUrl(sourceUrl)
+    ? await uploadDataUrlToR2(sourceUrl, safeName, folder)
+    : await copyUrlToR2(sourceUrl, safeName, folder);
+  const oldPath = path && !isR2Path(path) ? path : getSupabasePathFromPublicUrl(url);
+  return {
+    changed: true,
+    image_url: uploaded.url,
+    image_path: `r2:${uploaded.key}`,
+    oldPath,
+  };
 }
 
 async function deleteR2Object(path) {
@@ -3557,18 +3651,17 @@ async function saveAvatar(event) {
     return;
   }
 
-  const path = `${session.user.id}/avatars/avatar-${Date.now()}.jpg`;
   els.avatarStatus.textContent = "正在上传头像...";
-  const { error: uploadError } = await supabase.storage
-    .from(BUCKET)
-    .upload(path, compressed.blob, { contentType: "image/jpeg", upsert: false });
-  if (uploadError) {
-    els.avatarStatus.textContent = `上传失败：${uploadError.message}`;
+  let uploaded;
+  try {
+    uploaded = await uploadToR2(compressed.blob, "avatar", "avatars");
+  } catch (error) {
+    els.avatarStatus.textContent = `上传失败：${error.message}`;
     return;
   }
 
-  const { data: publicData } = supabase.storage.from(BUCKET).getPublicUrl(path);
-  const avatarUrl = publicData.publicUrl;
+  const avatarUrl = uploaded.url;
+  const path = `r2:${uploaded.key}`;
   const previousPath = accountProfile.avatarPath;
   const { error: profileError } = await supabase
     .from("user_profiles")
@@ -3580,7 +3673,7 @@ async function saveAvatar(event) {
     .eq("user_id", session.user.id);
 
   if (profileError) {
-    await supabase.storage.from(BUCKET).remove([path]);
+    await cleanupStoredImagePaths([path]).catch(() => {});
     els.avatarStatus.textContent = isMissingCloudSchema(profileError)
       ? "请先运行本次头像数据库补丁。"
       : `资料保存失败：${profileError.message}`;
@@ -3594,7 +3687,7 @@ async function saveAvatar(event) {
   await loadFamilyContext();
   renderPhotoComments();
   if (previousPath && previousPath !== path) {
-    void supabase.storage.from(BUCKET).remove([previousPath]);
+    void cleanupStoredImagePaths([previousPath]);
   }
   els.avatarStatus.textContent = "头像已保存。";
   setTimeout(() => els.avatarDialog.close(), 500);
@@ -4101,6 +4194,10 @@ async function compressRecipeCover(file) {
     minJpeg: 0.62,
     targetBytes: 360_000,
   });
+  if (R2_UPLOAD_ENDPOINT) {
+    const uploaded = await uploadToR2(compressed.blob, slugify(file.name || "recipe-cover"), "recipes");
+    return uploaded.url;
+  }
   return blobToDataUrl(compressed.blob);
 }
 
@@ -5914,6 +6011,194 @@ function closeSettingsDialog() {
   els.settingsDialog.close();
 }
 
+function setStorageMigrationStatus(message) {
+  if (els.storageMigrationStatus) els.storageMigrationStatus.textContent = message;
+}
+
+function getRecipeCoverPathFromUrl(url) {
+  if (isR2Url(url)) {
+    return `r2:${String(url).slice(`${R2_PUBLIC_URL.replace(/\/+$/, "")}/`.length)}`;
+  }
+  return getSupabasePathFromPublicUrl(url);
+}
+
+async function migratePhotoStorage(photo, report) {
+  const images = getPhotoImages(photo);
+  if (!images.some((image) => shouldMigrateImageAsset(image.image_url, image.image_path))) {
+    return false;
+  }
+
+  const migratedImages = [];
+  const oldPaths = [];
+  for (const [index, image] of images.entries()) {
+    report(`正在迁移日记图片 ${index + 1}/${images.length}：${photo.title || "未命名日记"}`);
+    const migrated = await migrateImageAsset({
+      url: image.image_url,
+      path: image.image_path,
+      name: `${photo.title || "diary"}-${index + 1}`,
+      folder: "photos",
+    });
+    if (migrated.oldPath) oldPaths.push(migrated.oldPath);
+    migratedImages.push({
+      ...image,
+      image_url: migrated.image_url,
+      image_path: migrated.image_path,
+    });
+  }
+
+  const primary = migratedImages[0];
+  const updates = {
+    image_url: primary.image_url,
+    image_path: primary.image_path || "",
+    note: composeStoredNote(getPlainNote(photo), migratedImages),
+  };
+  const { error } = await supabase.from("photos").update(updates).eq("id", photo.id);
+  if (error) throw error;
+
+  Object.assign(photo, updates);
+  if (oldPaths.length) await cleanupStoredImagePaths(oldPaths).catch(() => {});
+  return true;
+}
+
+async function migrateWishStorage(wish, report) {
+  if (!shouldMigrateImageAsset(wish.imageUrl, wish.imagePath)) return false;
+  report(`正在迁移心愿图片：${wish.title || "未命名心愿"}`);
+  const migrated = await migrateImageAsset({
+    url: wish.imageUrl,
+    path: wish.imagePath,
+    name: wish.title || "wish",
+    folder: "wishes",
+  });
+  const nextNote = composeWishStoredNote(wish.note, migrated.image_url, migrated.image_path);
+  const { data, error } = await supabase
+    .from("wishes")
+    .update({
+      note: nextNote,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", wish.id)
+    .select("*")
+    .single();
+  if (error) throw error;
+
+  const nextWish = wishFromCloudRow(data);
+  wishes = wishes.map((item) => (item.id === wish.id ? nextWish : item));
+  if (migrated.oldPath) await cleanupStoredImagePaths([migrated.oldPath]).catch(() => {});
+  return true;
+}
+
+async function migrateRecipeStorage(recipe, report) {
+  if (!shouldMigrateImageAsset(recipe.coverImage, getRecipeCoverPathFromUrl(recipe.coverImage))) {
+    return false;
+  }
+  report(`正在迁移菜谱封面：${recipe.name || "未命名菜谱"}`);
+  const migrated = await migrateImageAsset({
+    url: recipe.coverImage,
+    path: getRecipeCoverPathFromUrl(recipe.coverImage),
+    name: recipe.name || "recipe",
+    folder: "recipes",
+  });
+  const { data, error } = await supabase
+    .from("recipes")
+    .update({
+      cover_image: migrated.image_url,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", recipe.id)
+    .select("*")
+    .single();
+  if (error) throw error;
+
+  const nextRecipe = recipeFromCloudRow(data);
+  recipes = recipes.map((item) => (item.id === recipe.id ? nextRecipe : item));
+  if (migrated.oldPath) await cleanupStoredImagePaths([migrated.oldPath]).catch(() => {});
+  return true;
+}
+
+async function migrateAvatarStorage(report) {
+  if (!shouldMigrateImageAsset(accountProfile.avatarUrl, accountProfile.avatarPath)) return false;
+  report("正在迁移头像...");
+  const migrated = await migrateImageAsset({
+    url: accountProfile.avatarUrl,
+    path: accountProfile.avatarPath,
+    name: "avatar",
+    folder: "avatars",
+  });
+  const { error } = await supabase
+    .from("user_profiles")
+    .update({
+      avatar_url: migrated.image_url,
+      avatar_path: migrated.image_path,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", session.user.id);
+  if (error) throw error;
+
+  accountProfile.avatarUrl = migrated.image_url;
+  accountProfile.avatarPath = migrated.image_path;
+  renderAccountAvatar(accountProfile.avatarUrl);
+  renderSettingsSummary();
+  if (migrated.oldPath) await cleanupStoredImagePaths([migrated.oldPath]).catch(() => {});
+  return true;
+}
+
+async function migrateLegacyStorageToR2() {
+  if (storageMigrationInFlight) return;
+  if (!supabase || !session) {
+    setStorageMigrationStatus("请先登录后再迁移旧图片。");
+    return;
+  }
+  if (!R2_UPLOAD_ENDPOINT) {
+    setStorageMigrationStatus("R2 上传服务还没有配置。");
+    return;
+  }
+
+  storageMigrationInFlight = true;
+  if (els.storageMigrationButton) els.storageMigrationButton.disabled = true;
+  let migratedCount = 0;
+  const errors = [];
+  const report = (message) => setStorageMigrationStatus(message);
+
+  try {
+    await refreshSharedContent();
+    const tasks = [
+      ...photos.map((photo) => () => migratePhotoStorage(photo, report)),
+      ...wishes.map((wish) => () => migrateWishStorage(wish, report)),
+      ...recipes.map((recipe) => () => migrateRecipeStorage(recipe, report)),
+      () => migrateAvatarStorage(report),
+    ];
+
+    for (const task of tasks) {
+      try {
+        if (await task()) migratedCount += 1;
+      } catch (error) {
+        errors.push(error);
+      }
+    }
+
+    saveRecipes();
+    saveWishes();
+    savePhotoFeedCache(session.user.id);
+    renderGallery();
+    renderRecipes();
+    renderWishes();
+    await loadFamilyContext();
+
+    if (errors.length) {
+      setStorageMigrationStatus(
+        `已迁移 ${migratedCount} 项，有 ${errors.length} 项失败：${errors[0].message}`
+      );
+    } else {
+      setStorageMigrationStatus(
+        migratedCount ? `迁移完成：已搬到 R2 ${migratedCount} 项。` : "没有发现需要迁移的旧图片。"
+      );
+    }
+  } finally {
+    storageMigrationInFlight = false;
+    if (els.storageMigrationButton) els.storageMigrationButton.disabled = false;
+  }
+}
+
 async function refreshSharedContent() {
   if (!supabase || !session) return;
   const [recipesResult, wishesResult] = await Promise.all([
@@ -6559,6 +6844,7 @@ els.recoveryKeyDialog.addEventListener("click", (event) => {
 });
 els.recoveryKeyDialog.addEventListener("close", reopenSettingsAfterChildDialog);
 els.recoveryKeyForm.addEventListener("submit", saveRecoveryKey);
+els.storageMigrationButton?.addEventListener("click", migrateLegacyStorageToR2);
 els.closeForgotPassword.addEventListener("click", () => els.forgotPasswordDialog.close());
 els.forgotPasswordDialog.addEventListener("click", (event) => {
   if (event.target === els.forgotPasswordDialog) els.forgotPasswordDialog.close();
