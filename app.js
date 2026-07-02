@@ -124,7 +124,9 @@ let notifications = [];
 let commentReplyToId = null;
 let avatarPreviewUrl = "";
 let notificationPollTimer = null;
+let lastAppBadgeCount = -1;
 let returnToSettingsAfterDialog = false;
+let activeSettingsSection = "settingsGeneral";
 let foodOptions = [];
 let activePage = "gallery";
 let activeFilter = "全部";
@@ -213,6 +215,8 @@ const els = {
   accountSettingsButton: document.querySelector("#accountSettingsButton"),
   settingsDialog: document.querySelector("#settingsDialog"),
   closeSettingsDialog: document.querySelector("#closeSettingsDialog"),
+  settingsNavButtons: document.querySelectorAll("[data-settings-section]"),
+  settingsGroups: document.querySelectorAll(".settings-group"),
   settingsFamilyPanel: document.querySelector("#settingsFamilyPanel"),
   profileName: document.querySelector("#profileName"),
   brandName: document.querySelector("#brandName"),
@@ -5642,6 +5646,28 @@ function bindSettingsFamilyActions() {
     });
 }
 
+function setActiveSettingsSection(sectionId = "settingsGeneral") {
+  const allowedSections = ["settingsGeneral", "settingsAccount", "settingsFamily"];
+  const nextSection = allowedSections.includes(sectionId) ? sectionId : "settingsGeneral";
+  activeSettingsSection = nextSection;
+
+  els.settingsGroups.forEach((group) => {
+    group.hidden = group.id !== nextSection;
+  });
+  els.settingsNavButtons.forEach((button) => {
+    const active = button.dataset.settingsSection === nextSection;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-selected", String(active));
+  });
+
+  if (nextSection === "settingsFamily") renderSettingsFamilyPanel();
+}
+
+function openSettingsDialog(sectionId = activeSettingsSection || "settingsGeneral") {
+  setActiveSettingsSection(sectionId);
+  if (!els.settingsDialog.open) els.settingsDialog.showModal();
+}
+
 function openSettingsChildDialog(dialog, prepare = null) {
   if (!dialog) return;
   els.userPopover.hidden = true;
@@ -5654,11 +5680,8 @@ function openSettingsChildDialog(dialog, prepare = null) {
 function reopenSettingsAfterChildDialog() {
   if (!returnToSettingsAfterDialog) return;
   returnToSettingsAfterDialog = false;
-  if (!session || els.settingsDialog.open) return;
-  renderSettingsFamilyPanel();
-  window.setTimeout(() => {
-    if (session && !els.settingsDialog.open) els.settingsDialog.showModal();
-  }, 0);
+  if (!session) return;
+  window.setTimeout(() => openSettingsDialog(activeSettingsSection), 0);
 }
 
 function closeSettingsDialog() {
@@ -5761,8 +5784,29 @@ function formatCommentTime(value) {
   }).format(new Date(value));
 }
 
+async function syncAppIconBadge(count = 0) {
+  const nextCount = Math.max(0, Number(count) || 0);
+  if (nextCount === lastAppBadgeCount) return;
+  if (!("setAppBadge" in navigator) && !("clearAppBadge" in navigator)) return;
+  lastAppBadgeCount = nextCount;
+
+  try {
+    if (nextCount > 0 && navigator.setAppBadge) {
+      await navigator.setAppBadge(nextCount);
+    } else if (navigator.clearAppBadge) {
+      await navigator.clearAppBadge();
+    } else if (navigator.setAppBadge) {
+      await navigator.setAppBadge(0);
+    }
+  } catch {
+    // Some browsers expose the API but only allow it for installed PWAs.
+  }
+}
+
 function getNotificationText(item) {
   const actor = item.actor_username || "有人";
+  if (item.type === "diary") return `${actor} 发布了新日记`;
+  if (item.type === "thanks") return `${actor} 写了一句感谢留言`;
   if (item.type === "favorite") return `${actor} 收藏了你的日记`;
   if (item.type === "reply") return `${actor} 回复了你的留言`;
   return `${actor} 评论了你的日记`;
@@ -5791,6 +5835,7 @@ function renderNotifications() {
   const unread = notifications.filter((item) => !item.is_read).length;
   els.notificationBadge.hidden = unread === 0;
   els.notificationBadge.textContent = unread > 99 ? "99+" : String(unread);
+  void syncAppIconBadge(unread);
   if (!els.notificationList) return;
   if (!notifications.length) {
     els.notificationList.innerHTML = `<div class="empty">还没有新的互动。</div>`;
@@ -5803,7 +5848,7 @@ function renderNotifications() {
         : `<span class="notification-avatar">${escapeHtml(getInitial(item.actor_username))}</span>`;
       const stateClass = item.just_seen ? "just-seen" : item.is_read ? "" : "unread";
       return `
-        <button class="notification-item ${stateClass}" type="button" data-notification-id="${escapeHtml(item.notification_id)}" data-notification-photo="${escapeHtml(item.photo_id || "")}">
+        <button class="notification-item ${stateClass}" type="button" data-notification-id="${escapeHtml(item.notification_id)}" data-notification-type="${escapeHtml(item.type || "")}" data-notification-photo="${escapeHtml(item.photo_id || "")}">
           ${avatar}
           <span>
             <strong>${escapeHtml(getNotificationText(item))}${item.just_seen ? `<em>刚看到</em>` : ""}</strong>
@@ -5822,6 +5867,7 @@ function renderNotifications() {
 async function openNotification(button) {
   const id = button.dataset.notificationId;
   const photoId = button.dataset.notificationPhoto;
+  const type = button.dataset.notificationType;
   const item = notifications.find((entry) => entry.notification_id === id);
   if (item) item.is_read = true;
   renderNotifications();
@@ -5829,6 +5875,9 @@ async function openNotification(button) {
   if (photo) {
     els.notificationDialog.close();
     openPhoto(photo);
+  } else if (type === "thanks") {
+    els.notificationDialog.close();
+    switchPage("thanks");
   }
 }
 
@@ -6169,12 +6218,16 @@ els.avatarButton.addEventListener("click", () => {
 });
 els.accountSettingsButton.addEventListener("click", () => {
   els.userPopover.hidden = true;
-  renderSettingsFamilyPanel();
-  els.settingsDialog.showModal();
+  openSettingsDialog("settingsGeneral");
 });
 els.closeSettingsDialog.addEventListener("click", closeSettingsDialog);
 els.settingsDialog.addEventListener("click", (event) => {
   if (event.target === els.settingsDialog) closeSettingsDialog();
+});
+els.settingsNavButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    setActiveSettingsSection(button.dataset.settingsSection);
+  });
 });
 els.notificationButton.addEventListener("click", async () => {
   await openNotificationsPanel();
