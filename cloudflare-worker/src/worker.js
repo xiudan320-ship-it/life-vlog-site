@@ -97,6 +97,65 @@ async function handleUpload(request, env, user) {
   });
 }
 
+function isAllowedCopySource(value, env) {
+  let url;
+  try {
+    url = new URL(value);
+  } catch {
+    return false;
+  }
+
+  const supabaseHost = new URL(env.SUPABASE_URL).host;
+  const publicHost = env.PUBLIC_R2_URL ? new URL(env.PUBLIC_R2_URL).host : "";
+  return (
+    url.protocol === "https:" &&
+    url.host !== publicHost &&
+    (url.host === supabaseHost || url.pathname.includes("/storage/v1/object/public/"))
+  );
+}
+
+async function handleCopy(request, env, user) {
+  const payload = await request.json().catch(() => ({}));
+  const sourceUrl = String(payload.url || "");
+  if (!isAllowedCopySource(sourceUrl, env)) {
+    return jsonResponse(request, env, { error: "Invalid source URL." }, 400);
+  }
+
+  const response = await fetch(sourceUrl);
+  if (!response.ok || !response.body) {
+    return jsonResponse(request, env, { error: "Could not read source image." }, 502);
+  }
+
+  const contentLength = Number(response.headers.get("Content-Length")) || 0;
+  if (contentLength > MAX_UPLOAD_BYTES) {
+    return jsonResponse(request, env, { error: "Source file is too large." }, 413);
+  }
+
+  const folder = cleanSegment(payload.folder, "migrated");
+  const name = cleanSegment(payload.name, "image");
+  const random = crypto.randomUUID().slice(0, 8);
+  const key = `${user.id}/${folder}/${Date.now()}-${random}-${name}.jpg`;
+  const contentType = response.headers.get("Content-Type") || "image/jpeg";
+
+  await env.R2_BUCKET.put(key, response.body, {
+    httpMetadata: {
+      contentType,
+      cacheControl: "public, max-age=31536000, immutable",
+    },
+    customMetadata: {
+      userId: user.id,
+      copiedFrom: sourceUrl.slice(0, 500),
+    },
+  });
+
+  return jsonResponse(request, env, {
+    key,
+    url: publicUrl(env, key),
+    size: contentLength,
+    contentType,
+  });
+}
+
 async function handleDelete(request, env, user) {
   const payload = await request.json().catch(() => ({}));
   const key = String(payload.key || "").replace(/^r2:/, "");
@@ -125,6 +184,9 @@ export default {
 
     if (url.pathname === "/upload" && request.method === "POST") {
       return handleUpload(request, env, user);
+    }
+    if (url.pathname === "/copy" && request.method === "POST") {
+      return handleCopy(request, env, user);
     }
     if (url.pathname === "/object" && request.method === "DELETE") {
       return handleDelete(request, env, user);
