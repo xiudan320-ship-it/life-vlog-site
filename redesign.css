@@ -42,6 +42,7 @@ body {
   max-width: 100%;
   overflow-x: hidden;
   overscroll-behavior-x: none;
+  scrollbar-gutter: stable;
 }
 
 body.theme-dark {
@@ -80,6 +81,9 @@ button:not(:disabled):active {
 }
 
 .topbar {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(390px, 480px) minmax(180px, 1fr);
+  align-items: center;
   position: fixed;
   top: 0;
   right: 0;
@@ -100,6 +104,8 @@ body.theme-dark .topbar {
 
 .brand {
   gap: 11px;
+  justify-self: start;
+  min-width: 0;
 }
 
 .brand-logo-wrap {
@@ -139,11 +145,16 @@ body.theme-dark .brand-logo-wrap {
 }
 
 .main-nav {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  justify-self: center;
+  width: 100%;
   gap: 2px;
   padding: 3px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.55);
+  box-sizing: border-box;
 }
 
 body.theme-dark .main-nav {
@@ -151,6 +162,7 @@ body.theme-dark .main-nav {
 }
 
 .main-nav button {
+  width: 100%;
   min-height: 36px;
   border: 0;
   border-radius: 5px;
@@ -158,6 +170,7 @@ body.theme-dark .main-nav {
   font-size: 13px;
   font-weight: 750;
   padding: 0 17px;
+  white-space: nowrap;
 }
 
 .main-nav button:hover {
@@ -168,7 +181,7 @@ body.theme-dark .main-nav {
   border: 0;
   background: var(--ink);
   color: #fff;
-  box-shadow: 0 5px 14px rgba(21, 24, 22, 0.14);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--surface), transparent 86%);
 }
 
 body.theme-dark .main-nav button.active {
@@ -177,6 +190,7 @@ body.theme-dark .main-nav button.active {
 }
 
 .top-actions {
+  justify-self: end;
   gap: 8px;
 }
 
@@ -980,6 +994,8 @@ body.theme-dark #logoutButton {
 
 main {
   width: min(1320px, 100%);
+  min-height: calc(100svh - 84px - env(safe-area-inset-top));
+  box-sizing: border-box;
   padding: 22px clamp(16px, 4vw, 48px) 80px;
 }
 
@@ -3541,8 +3557,20 @@ body.theme-dark .settings-sidebar {
   }
 
   .topbar {
+    display: flex;
+    min-height: calc(136px + env(safe-area-inset-top));
+    flex-wrap: wrap;
+    align-content: start;
     gap: 10px;
     padding: calc(18px + env(safe-area-inset-top)) 14px 10px;
+  }
+
+  .brand {
+    flex: 1 1 0;
+  }
+
+  .top-actions {
+    flex: 0 0 auto;
   }
 
   .brand-logo-wrap {
@@ -3561,11 +3589,14 @@ body.theme-dark .settings-sidebar {
 
   .main-nav {
     order: 3;
+    flex: 0 0 100%;
     width: 100%;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    overflow: hidden;
   }
 
   .main-nav button {
-    flex: 1;
+    min-width: 0;
     padding-inline: 8px;
   }
 
