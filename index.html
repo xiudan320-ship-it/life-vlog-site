@@ -17,7 +17,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="./assets/app-icon-32.png" />
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
     <link rel="stylesheet" href="./styles.css?v=20260610-37" />
-    <link rel="stylesheet" href="./redesign.css?v=20260702-66" />
+    <link rel="stylesheet" href="./redesign.css?v=20260702-67" />
   </head>
   <body>
     <header class="topbar">
@@ -770,6 +770,11 @@
             <span>恢复密钥</span>
             <strong>忘记密码时用来重设</strong>
           </button>
+          <button id="storageMigrationButton" type="button">
+            <span>迁移旧图片</span>
+            <strong>把 Supabase 旧图片搬到 Cloudflare R2</strong>
+          </button>
+          <p class="status-line" id="storageMigrationStatus"></p>
         </section>
         <section class="settings-group" id="settingsFamily">
           <p class="kicker">Family</p>
@@ -1066,6 +1071,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260702-66"></script>
+    <script type="module" src="./app.js?v=20260702-67"></script>
   </body>
 </html>
