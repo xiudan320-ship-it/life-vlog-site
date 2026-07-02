@@ -17,7 +17,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="./assets/app-icon-32.png" />
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
     <link rel="stylesheet" href="./styles.css?v=20260610-37" />
-    <link rel="stylesheet" href="./redesign.css?v=20260702-62" />
+    <link rel="stylesheet" href="./redesign.css?v=20260702-63" />
   </head>
   <body>
     <header class="topbar">
@@ -747,15 +747,15 @@
           <h3>常规</h3>
           <button id="renameHomeButton" type="button">
             <span>主页名称</span>
-            <strong>修改咻蛋之家显示名称</strong>
+            <strong><em id="settingsHomeNameValue">咻蛋之家</em><small>点击修改</small></strong>
           </button>
           <button id="renameProfileButton" type="button">
             <span>昵称</span>
-            <strong>修改家庭里显示的名字</strong>
+            <strong><em id="settingsNicknameValue">User</em><small>点击修改</small></strong>
           </button>
           <button id="changeAvatarButton" type="button">
             <span>头像</span>
-            <strong>上传或更换右上角头像</strong>
+            <strong><em id="settingsAvatarValue">文字头像</em><small>点击更换</small></strong>
           </button>
         </section>
         <section class="settings-group" id="settingsAccount">
@@ -1065,6 +1065,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260702-62"></script>
+    <script type="module" src="./app.js?v=20260702-63"></script>
   </body>
 </html>
