@@ -124,6 +124,7 @@ let notifications = [];
 let commentReplyToId = null;
 let avatarPreviewUrl = "";
 let notificationPollTimer = null;
+let returnToSettingsAfterDialog = false;
 let foodOptions = [];
 let activePage = "gallery";
 let activeFilter = "全部";
@@ -212,6 +213,7 @@ const els = {
   accountSettingsButton: document.querySelector("#accountSettingsButton"),
   settingsDialog: document.querySelector("#settingsDialog"),
   closeSettingsDialog: document.querySelector("#closeSettingsDialog"),
+  settingsFamilyPanel: document.querySelector("#settingsFamilyPanel"),
   profileName: document.querySelector("#profileName"),
   brandName: document.querySelector("#brandName"),
   heroHomeName: document.querySelector("#heroHomeName"),
@@ -5479,6 +5481,7 @@ async function deleteGratitudeNote(id) {
 function renderFamilyDialog() {
   if (!els.familyDialog) return;
   const hasFamily = Boolean(familyInfo);
+  renderSettingsFamilyPanel();
   els.familyEmpty.hidden = hasFamily;
   els.familyContent.hidden = !hasFamily;
   if (!hasFamily) {
@@ -5549,6 +5552,118 @@ function renderFamilyDialog() {
       `
     )
     .join("");
+}
+
+function renderSettingsFamilyPanel() {
+  if (!els.settingsFamilyPanel) return;
+  if (!session) {
+    els.settingsFamilyPanel.innerHTML = `<div class="settings-family-empty">登录后可以查看家庭成员。</div>`;
+    return;
+  }
+
+  const incoming = familyInvitations.filter((invitation) => invitation.is_incoming);
+  if (!familyInfo) {
+    els.settingsFamilyPanel.innerHTML = `
+      <div class="settings-family-empty">
+        <strong>还没有加入家庭</strong>
+        <p>创建家庭或接受邀请后，这里会直接显示家庭成员。</p>
+      </div>
+      ${incoming
+        .map(
+          (invitation) => `
+            <article class="settings-family-invite">
+              <div>
+                <span>${escapeHtml(invitation.inviter_username)} 邀请你加入</span>
+                <strong>${escapeHtml(invitation.family_name)}</strong>
+              </div>
+              <span>
+                <button type="button" data-settings-family-response="${escapeHtml(invitation.invitation_id)}" data-accept="true">接受</button>
+                <button type="button" data-settings-family-response="${escapeHtml(invitation.invitation_id)}" data-accept="false">拒绝</button>
+              </span>
+            </article>
+          `
+        )
+        .join("")}
+    `;
+    bindSettingsFamilyActions();
+    return;
+  }
+
+  const outgoing = familyInvitations.filter((invitation) => !invitation.is_incoming);
+  els.settingsFamilyPanel.innerHTML = `
+    <div class="settings-family-summary">
+      <span>当前家庭</span>
+      <strong>${escapeHtml(familyInfo.name || "我们的家")}</strong>
+      <small>${familyMembers.length} 位成员</small>
+    </div>
+    <div class="settings-family-members">
+      ${familyMembers
+        .map((member) => {
+          const isCurrent = member.user_id === session?.user?.id;
+          return `
+            <article class="settings-family-member">
+              ${renderAvatarMarkup(member.user_id, "family-member-avatar")}
+              <div>
+                <strong>${escapeHtml(member.username)}${isCurrent ? "（我）" : ""}</strong>
+                <small>${member.role === "owner" ? "家庭创建者" : "家庭成员"}</small>
+              </div>
+            </article>
+          `;
+        })
+        .join("")}
+    </div>
+    ${outgoing.length
+      ? `<div class="settings-family-pending">
+          ${outgoing
+            .map(
+              (invitation) => `
+                <article>
+                  <span>邀请中</span>
+                  <strong>${escapeHtml(invitation.invited_username)}</strong>
+                </article>
+              `
+            )
+            .join("")}
+        </div>`
+      : ""}
+  `;
+}
+
+function bindSettingsFamilyActions() {
+  els.settingsFamilyPanel
+    ?.querySelectorAll("[data-settings-family-response]")
+    .forEach((button) => {
+      button.addEventListener("click", () =>
+        respondFamilyInvitation(
+          button.dataset.settingsFamilyResponse,
+          button.dataset.accept === "true"
+        )
+      );
+    });
+}
+
+function openSettingsChildDialog(dialog, prepare = null) {
+  if (!dialog) return;
+  els.userPopover.hidden = true;
+  returnToSettingsAfterDialog = true;
+  if (els.settingsDialog.open) els.settingsDialog.close();
+  dialog.showModal();
+  if (typeof prepare === "function") prepare();
+}
+
+function reopenSettingsAfterChildDialog() {
+  if (!returnToSettingsAfterDialog) return;
+  returnToSettingsAfterDialog = false;
+  if (!session || els.settingsDialog.open) return;
+  renderSettingsFamilyPanel();
+  window.setTimeout(() => {
+    if (session && !els.settingsDialog.open) els.settingsDialog.showModal();
+  }, 0);
+}
+
+function closeSettingsDialog() {
+  returnToSettingsAfterDialog = false;
+  els.settingsDialog.close();
 }
 
 async function refreshSharedContent() {
@@ -6054,11 +6169,12 @@ els.avatarButton.addEventListener("click", () => {
 });
 els.accountSettingsButton.addEventListener("click", () => {
   els.userPopover.hidden = true;
+  renderSettingsFamilyPanel();
   els.settingsDialog.showModal();
 });
-els.closeSettingsDialog.addEventListener("click", () => els.settingsDialog.close());
+els.closeSettingsDialog.addEventListener("click", closeSettingsDialog);
 els.settingsDialog.addEventListener("click", (event) => {
-  if (event.target === els.settingsDialog) els.settingsDialog.close();
+  if (event.target === els.settingsDialog) closeSettingsDialog();
 });
 els.notificationButton.addEventListener("click", async () => {
   await openNotificationsPanel();
@@ -6068,40 +6184,39 @@ els.notificationDialog.addEventListener("click", (event) => {
   if (event.target === els.notificationDialog) els.notificationDialog.close();
 });
 els.renameHomeButton.addEventListener("click", () => {
-  els.userPopover.hidden = true;
-  els.settingsDialog.close();
-  els.homeNameInput.value = accountProfile.homeName || loadHomeName(session?.user?.id);
-  els.homeNameStatus.textContent = "";
-  els.renameHomeDialog.showModal();
-  els.homeNameInput.focus();
+  openSettingsChildDialog(els.renameHomeDialog, () => {
+    els.homeNameInput.value = accountProfile.homeName || loadHomeName(session?.user?.id);
+    els.homeNameStatus.textContent = "";
+    els.homeNameInput.focus();
+  });
 });
 els.closeRenameHome.addEventListener("click", () => els.renameHomeDialog.close());
 els.renameHomeDialog.addEventListener("click", (event) => {
   if (event.target === els.renameHomeDialog) els.renameHomeDialog.close();
 });
+els.renameHomeDialog.addEventListener("close", reopenSettingsAfterChildDialog);
 els.renameHomeForm.addEventListener("submit", saveHomeName);
 els.resetHomeName.addEventListener("click", restoreDefaultHomeName);
 els.renameProfileButton.addEventListener("click", () => {
-  els.userPopover.hidden = true;
-  els.settingsDialog.close();
-  els.profileNicknameInput.value = getSessionDisplayName();
-  els.profileNicknameStatus.textContent = "";
-  els.renameProfileDialog.showModal();
-  els.profileNicknameInput.focus();
-  els.profileNicknameInput.select();
+  openSettingsChildDialog(els.renameProfileDialog, () => {
+    els.profileNicknameInput.value = getSessionDisplayName();
+    els.profileNicknameStatus.textContent = "";
+    els.profileNicknameInput.focus();
+    els.profileNicknameInput.select();
+  });
 });
 els.closeRenameProfile.addEventListener("click", () => els.renameProfileDialog.close());
 els.renameProfileDialog.addEventListener("click", (event) => {
   if (event.target === els.renameProfileDialog) els.renameProfileDialog.close();
 });
+els.renameProfileDialog.addEventListener("close", reopenSettingsAfterChildDialog);
 els.renameProfileForm.addEventListener("submit", saveProfileNickname);
 els.changeAvatarButton.addEventListener("click", () => {
-  els.userPopover.hidden = true;
-  els.settingsDialog.close();
-  els.avatarForm.reset();
-  els.avatarStatus.textContent = "";
-  setAvatarPreview(accountProfile.avatarUrl);
-  els.avatarDialog.showModal();
+  openSettingsChildDialog(els.avatarDialog, () => {
+    els.avatarForm.reset();
+    els.avatarStatus.textContent = "";
+    setAvatarPreview(accountProfile.avatarUrl);
+  });
 });
 els.closeAvatarDialog.addEventListener("click", () => els.avatarDialog.close());
 els.avatarDialog.addEventListener("click", (event) => {
@@ -6110,48 +6225,49 @@ els.avatarDialog.addEventListener("click", (event) => {
 els.avatarDialog.addEventListener("close", () => {
   if (avatarPreviewUrl) URL.revokeObjectURL(avatarPreviewUrl);
   avatarPreviewUrl = "";
+  reopenSettingsAfterChildDialog();
 });
 els.avatarInput.addEventListener("change", updateAvatarPreview);
 els.avatarForm.addEventListener("submit", saveAvatar);
 els.familyAccountButton.addEventListener("click", () => {
-  els.userPopover.hidden = true;
-  els.settingsDialog.close();
-  els.familyStatus.textContent = "";
-  els.familyNameInput.value = accountProfile.homeName || "我们的家";
-  renderFamilyDialog();
-  els.familyDialog.showModal();
+  openSettingsChildDialog(els.familyDialog, () => {
+    els.familyStatus.textContent = "";
+    els.familyNameInput.value = accountProfile.homeName || "我们的家";
+    renderFamilyDialog();
+  });
 });
 els.closeFamilyDialog.addEventListener("click", () => els.familyDialog.close());
 els.familyDialog.addEventListener("click", (event) => {
   if (event.target === els.familyDialog) els.familyDialog.close();
 });
+els.familyDialog.addEventListener("close", reopenSettingsAfterChildDialog);
 els.createFamilyForm.addEventListener("submit", createFamily);
 els.familyInviteForm.addEventListener("submit", addFamilyMember);
 els.changePasswordButton.addEventListener("click", () => {
-  els.userPopover.hidden = true;
-  els.settingsDialog.close();
-  els.changePasswordForm.reset();
-  els.changePasswordStatus.textContent = "";
-  els.changePasswordDialog.showModal();
-  els.newPasswordInput.focus();
+  openSettingsChildDialog(els.changePasswordDialog, () => {
+    els.changePasswordForm.reset();
+    els.changePasswordStatus.textContent = "";
+    els.newPasswordInput.focus();
+  });
 });
 els.closeChangePassword.addEventListener("click", () => els.changePasswordDialog.close());
 els.changePasswordDialog.addEventListener("click", (event) => {
   if (event.target === els.changePasswordDialog) els.changePasswordDialog.close();
 });
+els.changePasswordDialog.addEventListener("close", reopenSettingsAfterChildDialog);
 els.changePasswordForm.addEventListener("submit", changePassword);
 els.recoveryKeyButton.addEventListener("click", () => {
-  els.userPopover.hidden = true;
-  els.settingsDialog.close();
-  els.recoveryKeyForm.reset();
-  els.recoveryKeyStatus.textContent = "";
-  els.recoveryKeyDialog.showModal();
-  els.recoveryKeyInput.focus();
+  openSettingsChildDialog(els.recoveryKeyDialog, () => {
+    els.recoveryKeyForm.reset();
+    els.recoveryKeyStatus.textContent = "";
+    els.recoveryKeyInput.focus();
+  });
 });
 els.closeRecoveryKey.addEventListener("click", () => els.recoveryKeyDialog.close());
 els.recoveryKeyDialog.addEventListener("click", (event) => {
   if (event.target === els.recoveryKeyDialog) els.recoveryKeyDialog.close();
 });
+els.recoveryKeyDialog.addEventListener("close", reopenSettingsAfterChildDialog);
 els.recoveryKeyForm.addEventListener("submit", saveRecoveryKey);
 els.closeForgotPassword.addEventListener("click", () => els.forgotPasswordDialog.close());
 els.forgotPasswordDialog.addEventListener("click", (event) => {
