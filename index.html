@@ -17,7 +17,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="./assets/app-icon-32.png" />
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
     <link rel="stylesheet" href="./styles.css?v=20260610-37" />
-    <link rel="stylesheet" href="./redesign.css?v=20260702-58" />
+    <link rel="stylesheet" href="./redesign.css?v=20260702-59" />
   </head>
   <body>
     <header class="topbar">
@@ -736,9 +736,9 @@
         <p class="kicker">Settings</p>
         <h2>设置</h2>
         <nav aria-label="设置分类">
-          <a href="#settingsGeneral">常规</a>
-          <a href="#settingsAccount">账户</a>
-          <a href="#settingsFamily">家庭</a>
+          <button class="active" type="button" data-settings-section="settingsGeneral" aria-selected="true">常规</button>
+          <button type="button" data-settings-section="settingsAccount" aria-selected="false">账户</button>
+          <button type="button" data-settings-section="settingsFamily" aria-selected="false">家庭</button>
         </nav>
       </aside>
       <section class="settings-content">
@@ -1065,6 +1065,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260702-58"></script>
+    <script type="module" src="./app.js?v=20260702-59"></script>
   </body>
 </html>
