@@ -19,6 +19,7 @@ const BUCKET = "life-photos";
 const PRODUCTION_URL = "https://xiudan320-ship-it.github.io/life-vlog-site/";
 const R2_UPLOAD_ENDPOINT = "https://life-vlog-r2-upload.xiudan320-life.workers.dev";
 const R2_PUBLIC_URL = "https://pub-47959f26cde042c3b37bc0f8f3f441ce.r2.dev";
+const CLOUDFLARE_SESSION_KEY = "life-vlog-cloudflare-session";
 const PAGE_SIZE = 6;
 const DEFAULT_SUPABASE_URL = "https://cimejrarjcosgayfnikk.supabase.co";
 const DEFAULT_SUPABASE_ANON_KEY = "sb_publishable_G0ZHVQG0XYB2zja9VHiJiQ_HKDUt_fJ";
@@ -133,6 +134,7 @@ let feedRefreshCheckInFlight = false;
 let returnToSettingsAfterDialog = false;
 let activeSettingsSection = "settingsGeneral";
 let storageMigrationInFlight = false;
+let cloudD1MigrationInFlight = false;
 let foodOptions = [];
 let activePage = "gallery";
 let activeFilter = "全部";
@@ -264,6 +266,14 @@ const els = {
   recoveryKeyButton: document.querySelector("#recoveryKeyButton"),
   storageMigrationButton: document.querySelector("#storageMigrationButton"),
   storageMigrationStatus: document.querySelector("#storageMigrationStatus"),
+  cloudD1MigrationButton: document.querySelector("#cloudD1MigrationButton"),
+  cloudD1MigrationStatus: document.querySelector("#cloudD1MigrationStatus"),
+  cloudD1MigrationDialog: document.querySelector("#cloudD1MigrationDialog"),
+  closeCloudD1Migration: document.querySelector("#closeCloudD1Migration"),
+  cloudD1MigrationForm: document.querySelector("#cloudD1MigrationForm"),
+  cloudD1UsernameInput: document.querySelector("#cloudD1UsernameInput"),
+  cloudD1PasswordInput: document.querySelector("#cloudD1PasswordInput"),
+  cloudD1MigrationDialogStatus: document.querySelector("#cloudD1MigrationDialogStatus"),
   recoveryKeyDialog: document.querySelector("#recoveryKeyDialog"),
   closeRecoveryKey: document.querySelector("#closeRecoveryKey"),
   recoveryKeyForm: document.querySelector("#recoveryKeyForm"),
@@ -6199,6 +6209,235 @@ async function migrateLegacyStorageToR2() {
   }
 }
 
+function setCloudD1MigrationStatus(message) {
+  if (els.cloudD1MigrationStatus) els.cloudD1MigrationStatus.textContent = message;
+  if (els.cloudD1MigrationDialogStatus) els.cloudD1MigrationDialogStatus.textContent = message;
+}
+
+function getCloudflareApiBase() {
+  return R2_UPLOAD_ENDPOINT.replace(/\/+$/, "");
+}
+
+function saveCloudflareSession(payload) {
+  localStorage.setItem(CLOUDFLARE_SESSION_KEY, JSON.stringify(payload));
+}
+
+async function cloudflareApi(path, { token, method = "GET", body = null } = {}) {
+  const response = await fetch(`${getCloudflareApiBase()}${path}`, {
+    method,
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(body ? { "Content-Type": "application/json" } : {}),
+    },
+    body: body ? JSON.stringify(body) : null,
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || data.detail || `Cloudflare API ${response.status}`);
+  }
+  return data;
+}
+
+async function readSupabaseRows(table, options = {}) {
+  const { order = null } = options;
+  let query = supabase.from(table).select("*");
+  if (order) query = query.order(order.column, { ascending: order.ascending ?? false });
+  const { data, error } = await query;
+  if (error) {
+    if (isMissingCloudSchema(error)) return [];
+    throw error;
+  }
+  return data || [];
+}
+
+function buildFamilyRowsForD1() {
+  if (!familyInfo?.id || !familyMembers.length) {
+    return { families: [], family_members: [], family_invitations: [] };
+  }
+  const owner = familyMembers.find((member) => member.role === "owner") || familyMembers[0];
+  return {
+    families: [
+      {
+        id: familyInfo.id,
+        name: familyInfo.name || "我们的家",
+        owner_id: owner.user_id,
+        created_at: owner.joined_at || new Date().toISOString(),
+      },
+    ],
+    family_members: familyMembers.map((member) => ({
+      family_id: member.family_id,
+      user_id: member.user_id,
+      role: member.role || "member",
+      joined_at: member.joined_at || new Date().toISOString(),
+    })),
+    family_invitations: familyInvitations.map((invitation) => ({
+      id: invitation.invitation_id,
+      family_id: invitation.family_id,
+      invited_user_id: invitation.invited_user_id,
+      invited_by: invitation.invited_by,
+      status: "pending",
+      created_at: invitation.created_at || new Date().toISOString(),
+      responded_at: null,
+    })),
+  };
+}
+
+function buildProfileRowsForD1(rows) {
+  const byId = new Map();
+  rows.forEach((row) => {
+    if (row?.user_id) byId.set(row.user_id, row);
+  });
+  familyMembers.forEach((member) => {
+    if (!member.user_id || byId.has(member.user_id)) return;
+    byId.set(member.user_id, {
+      user_id: member.user_id,
+      username: member.username || "家庭成员",
+      recharge_total: member.username?.toLowerCase?.() === "xiao980320" ? 298 : 0,
+      vip_level: member.username?.toLowerCase?.() === "xiao980320" ? 5 : 0,
+      experience_total: 0,
+      last_login_date: null,
+      theme_preference: null,
+      home_name: accountProfile.homeName || "咻蛋之家",
+      food_options: [],
+      preferred_thanks_color: DEFAULT_THANKS_COLOR,
+      avatar_url: member.avatar_url || "",
+      avatar_path: "",
+      created_at: member.joined_at || new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+  });
+  if (session?.user?.id) {
+    const existing = byId.get(session.user.id) || {};
+    byId.set(session.user.id, {
+      user_id: session.user.id,
+      username: getSessionDisplayName(),
+      recharge_total: accountProfile.rechargeTotal || existing.recharge_total || 0,
+      vip_level: accountProfile.vipLevel || existing.vip_level || 0,
+      experience_total: accountProfile.experienceTotal || existing.experience_total || 0,
+      last_login_date: accountProfile.lastLoginDate || existing.last_login_date || null,
+      theme_preference: accountProfile.themePreference || existing.theme_preference || null,
+      home_name: accountProfile.homeName || existing.home_name || "咻蛋之家",
+      food_options: foodOptions,
+      preferred_thanks_color: accountProfile.thanksColor || DEFAULT_THANKS_COLOR,
+      avatar_url: accountProfile.avatarUrl || existing.avatar_url || "",
+      avatar_path: accountProfile.avatarPath || existing.avatar_path || "",
+      created_at: existing.created_at || new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+  }
+  return [...byId.values()];
+}
+
+async function collectSupabaseMigrationPayload() {
+  await Promise.all([
+    loadFamilyContext(),
+    loadPhotos(),
+    refreshSharedContent(),
+    loadGratitudeNotes(),
+    loadPhotoCommentPreviews(),
+    loadNotifications(),
+  ]);
+
+  const [
+    profileRows,
+    photoRows,
+    recipeRows,
+    wishRows,
+    weekendRows,
+    anniversaryRows,
+    gratitudeRows,
+    favoriteRows,
+    commentRows,
+    notificationRows,
+  ] = await Promise.all([
+    readSupabaseRows("user_profiles"),
+    readSupabaseRows("photos", { order: { column: "created_at" } }),
+    readSupabaseRows("recipes", { order: { column: "created_at" } }),
+    readSupabaseRows("wishes", { order: { column: "created_at" } }),
+    readSupabaseRows("weekend_plans", { order: { column: "plan_date", ascending: true } }),
+    readSupabaseRows("anniversaries", { order: { column: "event_date", ascending: true } }),
+    readSupabaseRows("gratitude_notes", { order: { column: "created_at" } }),
+    readSupabaseRows("photo_favorites", { order: { column: "created_at" } }),
+    readSupabaseRows("photo_comments", { order: { column: "created_at", ascending: true } }),
+    readSupabaseRows("notifications", { order: { column: "created_at" } }),
+  ]);
+  const familyRows = buildFamilyRowsForD1();
+  return {
+    ...familyRows,
+    user_profiles: buildProfileRowsForD1(profileRows),
+    photos: photoRows,
+    recipes: recipeRows,
+    wishes: wishRows,
+    weekend_plans: weekendRows,
+    anniversaries: anniversaryRows,
+    gratitude_notes: gratitudeRows,
+    photo_favorites: favoriteRows,
+    photo_comments: commentRows,
+    notifications: notificationRows,
+  };
+}
+
+function openCloudD1MigrationDialog() {
+  if (!session) {
+    setCloudD1MigrationStatus("请先用原来的账号登录。");
+    return;
+  }
+  els.userPopover.hidden = true;
+  els.cloudD1MigrationForm.reset();
+  els.cloudD1UsernameInput.value = getSessionDisplayName();
+  setCloudD1MigrationStatus("");
+  els.cloudD1MigrationDialog.showModal();
+}
+
+async function migrateAccountToCloudflare(event) {
+  event.preventDefault();
+  if (cloudD1MigrationInFlight) return;
+  if (!session?.access_token) {
+    setCloudD1MigrationStatus("请先用原来的 Supabase 账号登录。");
+    return;
+  }
+  const username = els.cloudD1UsernameInput.value.trim();
+  const password = els.cloudD1PasswordInput.value;
+  if (!username || password.length < 6) {
+    setCloudD1MigrationStatus("请输入用户名和至少 6 位新密码。");
+    return;
+  }
+
+  cloudD1MigrationInFlight = true;
+  els.cloudD1MigrationButton.disabled = true;
+  setCloudD1MigrationStatus("正在创建 Cloudflare 登录账号...");
+  try {
+    const claim = await cloudflareApi("/api/migration/claim-supabase", {
+      method: "POST",
+      token: session.access_token,
+      body: { username, password },
+    });
+    setCloudD1MigrationStatus("正在读取 Supabase 数据...");
+    const payload = await collectSupabaseMigrationPayload();
+    setCloudD1MigrationStatus("正在导入 Cloudflare D1...");
+    const imported = await cloudflareApi("/api/migration/import", {
+      method: "POST",
+      token: claim.token,
+      body: payload,
+    });
+    saveCloudflareSession({
+      token: claim.token,
+      expires_at: claim.expires_at,
+      user: claim.user,
+      profile: claim.profile,
+      migrated_at: new Date().toISOString(),
+    });
+    const total = Object.values(imported.counts || {}).reduce((sum, value) => sum + Number(value || 0), 0);
+    setCloudD1MigrationStatus(`迁移完成：已导入 D1 ${total} 条记录。`);
+    setTimeout(() => els.cloudD1MigrationDialog.close(), 900);
+  } catch (error) {
+    setCloudD1MigrationStatus(`迁移失败：${error.message}`);
+  } finally {
+    cloudD1MigrationInFlight = false;
+    els.cloudD1MigrationButton.disabled = false;
+  }
+}
+
 async function refreshSharedContent() {
   if (!supabase || !session) return;
   const [recipesResult, wishesResult] = await Promise.all([
@@ -6845,6 +7084,12 @@ els.recoveryKeyDialog.addEventListener("click", (event) => {
 els.recoveryKeyDialog.addEventListener("close", reopenSettingsAfterChildDialog);
 els.recoveryKeyForm.addEventListener("submit", saveRecoveryKey);
 els.storageMigrationButton?.addEventListener("click", migrateLegacyStorageToR2);
+els.cloudD1MigrationButton?.addEventListener("click", openCloudD1MigrationDialog);
+els.closeCloudD1Migration?.addEventListener("click", () => els.cloudD1MigrationDialog.close());
+els.cloudD1MigrationDialog?.addEventListener("click", (event) => {
+  if (event.target === els.cloudD1MigrationDialog) els.cloudD1MigrationDialog.close();
+});
+els.cloudD1MigrationForm?.addEventListener("submit", migrateAccountToCloudflare);
 els.closeForgotPassword.addEventListener("click", () => els.forgotPasswordDialog.close());
 els.forgotPasswordDialog.addEventListener("click", (event) => {
   if (event.target === els.forgotPasswordDialog) els.forgotPasswordDialog.close();
