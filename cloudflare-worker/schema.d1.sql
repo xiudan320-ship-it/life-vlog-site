@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS user_profiles (
   vip_level INTEGER NOT NULL DEFAULT 0 CHECK (vip_level BETWEEN 0 AND 5),
   experience_total INTEGER NOT NULL DEFAULT 0 CHECK (experience_total >= 0),
   last_login_date TEXT,
+  login_streak INTEGER NOT NULL DEFAULT 0 CHECK (login_streak >= 0),
   local_data_migrated INTEGER NOT NULL DEFAULT 0,
   theme_preference TEXT CHECK (theme_preference IN ('light', 'dark') OR theme_preference IS NULL),
   home_name TEXT NOT NULL DEFAULT '咻蛋之家',

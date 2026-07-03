@@ -2671,6 +2671,41 @@ body.theme-dark .feed-loader {
   width: 100%;
 }
 
+.secret-category-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.secret-category-tags[hidden] {
+  display: none;
+}
+
+.secret-category-tags button,
+.edit-media-actions button {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 900;
+  padding: 8px 12px;
+}
+
+.secret-category-tags button:hover,
+.edit-media-actions button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.edit-media-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .secret-filters {
   display: flex;
   gap: 8px;

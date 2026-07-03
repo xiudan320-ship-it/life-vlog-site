@@ -241,6 +241,7 @@ let accountProfile = {
   vipLevel: 0,
   experienceTotal: 0,
   lastLoginDate: "",
+  loginStreak: 0,
   themePreference: "",
   homeName: "咻蛋之家",
   thanksColor: DEFAULT_THANKS_COLOR,
@@ -393,9 +394,11 @@ const els = {
   editCategoryInput: document.querySelector("#editCategoryInput"),
   editPublicInput: document.querySelector("#editPublicInput"),
   editNoteInput: document.querySelector("#editNoteInput"),
+  editMediaManager: document.querySelector("#editMediaManager"),
   editImageInput: document.querySelector("#editImageInput"),
   editImageList: document.querySelector("#editImageList"),
   editImageCount: document.querySelector("#editImageCount"),
+  addEditImageButton: document.querySelector("#addEditImageButton"),
   deleteEditingPhoto: document.querySelector("#deleteEditingPhoto"),
   saveEditStatus: document.querySelector("#saveEditStatus"),
   vipDialog: document.querySelector("#vipDialog"),
@@ -538,6 +541,7 @@ const els = {
   secretTitleInput: document.querySelector("#secretTitleInput"),
   secretCategoryInput: document.querySelector("#secretCategoryInput"),
   secretCategoryList: document.querySelector("#secretCategoryList"),
+  secretCategoryTags: document.querySelector("#secretCategoryTags"),
   secretLinkedPhotoInput: document.querySelector("#secretLinkedPhotoInput"),
   secretNoteInput: document.querySelector("#secretNoteInput"),
   secretSubmitButton: document.querySelector("#secretSubmitButton"),
@@ -604,14 +608,15 @@ function writeCloudflareSession(nextSession) {
 }
 
 function createCloudflareSession(data) {
-  const username = data?.user?.username || data?.profile?.username || "User";
+  const loginName = data?.user?.username || "User";
+  const displayName = data?.profile?.username || loginName;
   return {
     access_token: data.token,
     expires_at: data.expires_at,
     user: {
       id: data.user.id,
-      email: usernameToEmail(username),
-      user_metadata: { username },
+      email: usernameToEmail(loginName),
+      user_metadata: { username: displayName, login_username: loginName },
     },
   };
 }
@@ -1009,6 +1014,7 @@ function updateAuthUI() {
       vipLevel: 0,
       experienceTotal: 0,
       lastLoginDate: "",
+      loginStreak: 0,
       themePreference: "",
       homeName: "咻蛋之家",
       thanksColor: DEFAULT_THANKS_COLOR,
@@ -2669,7 +2675,7 @@ function openPhoto(photo, initialImageIndex = 0, options = {}) {
     Math.max(0, dialogImages.length - 1)
   );
   els.dialogTitle.textContent = displayTitle || "日记";
-  els.dialogMeta.textContent = `${photo.category || "日常"} · 拍摄 ${formatDate(photo.taken_at)} · 发布 ${formatDateTime(photo.created_at)} · ${getAuthorName(photo.user_id)}`;
+  els.dialogMeta.textContent = `${photo.category || "日常"} · 发布 ${formatDateTime(photo.created_at)} · ${getAuthorName(photo.user_id)}`;
   els.dialogNote.textContent = getPlainNote(photo);
   if (els.dialogRandomButton) {
     els.dialogRandomButton.hidden = !dialogRandomMode;
@@ -2872,8 +2878,14 @@ function getEditPreviewUrl(file, index) {
 }
 
 function replaceEditingImage() {
-  const file = els.editImageInput.files?.[0];
-  if (!file || editingReplaceIndex < 0 || !editingImages[editingReplaceIndex]) return;
+  const files = Array.from(els.editImageInput.files || []);
+  if (!files.length) return;
+  if (editingReplaceIndex < 0) {
+    appendEditingImageFiles(files);
+    return;
+  }
+  const file = files[0];
+  if (!file || !editingImages[editingReplaceIndex]) return;
   if (editingPreviewUrls[editingReplaceIndex]) {
     URL.revokeObjectURL(editingPreviewUrls[editingReplaceIndex]);
     editingPreviewUrls[editingReplaceIndex] = "";
@@ -2882,6 +2894,57 @@ function replaceEditingImage() {
   els.saveEditStatus.textContent = `第 ${editingReplaceIndex + 1} 张将在保存时替换。`;
   editingReplaceIndex = -1;
   renderEditImages();
+}
+
+function appendEditingImageFiles(files) {
+  if (!editingPhoto) return;
+  const imageLimit = getCurrentImageLimit();
+  const remaining = imageLimit - editingImages.length;
+  if (remaining <= 0) {
+    els.saveEditStatus.textContent = `当前 VIP 等级单篇最多 ${imageLimit} 张图。`;
+    return;
+  }
+  const nextFiles = files.slice(0, remaining);
+  nextFiles.forEach((file) => {
+    const index = editingImages.length;
+    editingImages.push({
+      image_path: "",
+      image_url: "",
+      width: 0,
+      height: 0,
+    });
+    editingImageFiles.set(index, file);
+  });
+  editingReplaceIndex = -1;
+  els.saveEditStatus.textContent =
+    files.length > remaining
+      ? `已追加 ${nextFiles.length} 张，当前等级最多 ${imageLimit} 张。`
+      : `已追加 ${nextFiles.length} 张图片，保存后上传。`;
+  renderEditImages();
+}
+
+function startAppendEditingImages() {
+  if (!editingPhoto) return;
+  editingReplaceIndex = -1;
+  els.editImageInput.value = "";
+  els.editImageInput.click();
+}
+
+function handleEditImagePaste(event) {
+  if (!editingPhoto) return;
+  const items = Array.from(event.clipboardData?.items || []);
+  const imageItems = items.filter((item) => item.type.startsWith("image/"));
+  if (!imageItems.length) return;
+  const files = imageItems.map((item) => item.getAsFile()).filter(Boolean);
+  if (!files.length) return;
+  event.preventDefault();
+  const normalizedFiles = files.map((file, index) => {
+    const extension = file.type?.split("/")[1] || "png";
+    return new File([file], `edit-pasted-${Date.now()}-${index + 1}.${extension}`, {
+      type: file.type || "image/png",
+    });
+  });
+  appendEditingImageFiles(normalizedFiles);
 }
 
 function removeEditingImage(index) {
@@ -3049,6 +3112,14 @@ function getSessionDisplayName() {
   return emailPrefix || "User";
 }
 
+function getSessionLoginName() {
+  const metadataName = session?.user?.user_metadata?.login_username;
+  if (metadataName) return metadataName;
+
+  const emailPrefix = session?.user?.email?.split("@")[0];
+  return emailPrefix || getSessionDisplayName();
+}
+
 function normalizeNickname(value) {
   return String(value || "")
     .trim()
@@ -3062,6 +3133,7 @@ function updateSessionDisplayName(nickname) {
   session.user.user_metadata = {
     ...(session.user.user_metadata || {}),
     username: nextName,
+    login_username: getSessionLoginName(),
   };
   els.profileName.textContent = nextName;
   renderAccountAvatar(accountProfile.avatarUrl, nextName);
@@ -3396,6 +3468,18 @@ async function synchronizeAccountData() {
         profile = data;
       }
 
+      const loginName = normalizeNickname(getSessionLoginName());
+      const sessionDisplayName = normalizeNickname(getSessionDisplayName());
+      const profileDisplayName = normalizeNickname(profile.username);
+      const preferredDisplayName =
+        profileDisplayName &&
+        !(loginName && profileDisplayName === loginName && sessionDisplayName && sessionDisplayName !== loginName)
+          ? profileDisplayName
+          : sessionDisplayName || profileDisplayName || displayName;
+      if (preferredDisplayName && preferredDisplayName !== getSessionDisplayName()) {
+        updateSessionDisplayName(preferredDisplayName);
+      }
+
       let cloudRecipes = recipesResult.data || [];
       let cloudWishes = wishesResult.data || [];
       const needsLocalMigration = !profile.local_data_migrated;
@@ -3451,6 +3535,7 @@ async function synchronizeAccountData() {
       );
       let lastLoginDate =
         profile.last_login_date || (needsLocalMigration ? localExperience.lastLoginDate : "") || "";
+      let loginStreak = Math.max(0, Number(profile.login_streak) || 0);
       const cloudFoodOptions = normalizeFoodOptions(profile.food_options);
       const preferredFoodOptions = cloudFoodOptions.length
         ? cloudFoodOptions
@@ -3482,16 +3567,22 @@ async function synchronizeAccountData() {
         Object.prototype.hasOwnProperty.call(profile, "home_name");
 
       const vipLevel = getVipLevelByRecharge(rechargeTotal)?.level || 0;
+      const loginStreakCloudAvailable = Object.prototype.hasOwnProperty.call(
+        profile,
+        "login_streak"
+      );
+      const previousLoginDate = lastLoginDate;
       if (
         profile.last_login_date !== today &&
         (!needsLocalMigration || localExperience.lastLoginDate !== today)
       ) {
-        experienceTotal += getVipAdjustedExperience(DAILY_LOGIN_EXP, vipLevel);
+        loginStreak = previousLoginDate === getOffsetLocalDateKey(-1) ? loginStreak + 1 : 1;
+        experienceTotal += getDailyLoginReward(loginStreak, vipLevel);
       }
       lastLoginDate = today;
 
       const profileUpdates = {
-        username: displayName,
+        username: preferredDisplayName,
         recharge_total: rechargeTotal,
         vip_level: vipLevel,
         experience_total: experienceTotal,
@@ -3499,6 +3590,9 @@ async function synchronizeAccountData() {
         local_data_migrated: true,
         updated_at: new Date().toISOString(),
       };
+      if (loginStreakCloudAvailable) {
+        profileUpdates.login_streak = loginStreak;
+      }
       if (foodOptionsCloudAvailable) {
         profileUpdates.food_options = preferredFoodOptions;
       }
@@ -3530,6 +3624,7 @@ async function synchronizeAccountData() {
         vipLevel: Number(savedProfile.vip_level) || 0,
         experienceTotal: Number(savedProfile.experience_total) || 0,
         lastLoginDate: savedProfile.last_login_date || "",
+        loginStreak: Math.max(0, Number(savedProfile.login_streak) || loginStreak || 0),
         themePreference: preferredTheme,
         homeName: preferredHomeName,
         thanksColor: thanksColorCloudAvailable
@@ -3543,7 +3638,7 @@ async function synchronizeAccountData() {
       };
       applyTheme(preferredTheme, { userId, syncCloud: false });
       applyHomeName(preferredHomeName, { persist: true, userId });
-      renderAccountAvatar(accountProfile.avatarUrl, displayName);
+      renderAccountAvatar(accountProfile.avatarUrl, preferredDisplayName);
       saveThanksColorPreference(accountProfile.thanksColor, { userId, syncCloud: false });
       setSelectedThanksColor(accountProfile.thanksColor);
       recipes = cloudRecipes.map(recipeFromCloudRow);
@@ -3552,14 +3647,15 @@ async function synchronizeAccountData() {
         ? accountProfile.foodOptions
         : [...DEFAULT_FOOD_OPTIONS];
 
-      saveRechargeTotal(accountProfile.rechargeTotal, displayName);
+      saveRechargeTotal(accountProfile.rechargeTotal, preferredDisplayName);
       saveExperience(
         {
           total: accountProfile.experienceTotal,
           lastLoginDate: accountProfile.lastLoginDate,
+          loginStreak: accountProfile.loginStreak,
           gainedToday: accountProfile.lastLoginDate === today,
         },
-        displayName
+        preferredDisplayName
       );
       saveRecipes();
       saveWishes();
@@ -3573,7 +3669,7 @@ async function synchronizeAccountData() {
         activeVipLevel > 0
           ? `${preferredHomeName} ${getVipLevel(activeVipLevel).label}`
           : `开通 ${preferredHomeName} VIP`;
-      renderExperience(displayName);
+      renderExperience(preferredDisplayName);
       renderVipCenter();
       renderRecipes();
       renderWishes();
@@ -3809,6 +3905,7 @@ function loadExperience(displayName = getSessionDisplayName()) {
     return {
       total: Math.max(0, Number(accountProfile.experienceTotal) || 0),
       lastLoginDate: accountProfile.lastLoginDate || "",
+      loginStreak: Math.max(0, Number(accountProfile.loginStreak) || 0),
       gainedToday: accountProfile.lastLoginDate === getLocalDateKey(),
     };
   }
@@ -3817,10 +3914,11 @@ function loadExperience(displayName = getSessionDisplayName()) {
     return {
       total: Number(parsed.total) || 0,
       lastLoginDate: parsed.lastLoginDate || "",
+      loginStreak: Math.max(0, Number(parsed.loginStreak) || 0),
       gainedToday: Boolean(parsed.gainedToday),
     };
   } catch {
-    return { total: 0, lastLoginDate: "", gainedToday: false };
+    return { total: 0, lastLoginDate: "", loginStreak: 0, gainedToday: false };
   }
 }
 
@@ -3829,6 +3927,7 @@ function saveExperience(data, displayName = getSessionDisplayName()) {
   if (session) {
     accountProfile.experienceTotal = Number(data.total) || 0;
     accountProfile.lastLoginDate = data.lastLoginDate || "";
+    accountProfile.loginStreak = Math.max(0, Number(data.loginStreak) || 0);
   }
 }
 
@@ -3840,15 +3939,36 @@ function getVipAdjustedExperience(base, level = activeVipLevel) {
   return Math.max(1, Math.round((Number(base) || 0) * getVipExpMultiplier(level)));
 }
 
+function getLoginStreakBonusBase(streak) {
+  const days = Math.max(0, Number(streak) || 0);
+  if (days < 2) return 0;
+  return Math.min(40, Math.floor(days / 2) * 5);
+}
+
+function getDailyLoginReward(streak = accountProfile.loginStreak || 1, level = activeVipLevel) {
+  return getVipAdjustedExperience(DAILY_LOGIN_EXP + getLoginStreakBonusBase(streak), level);
+}
+
+function getNextLoginStreak(experience = loadExperience()) {
+  const lastLoginDate = experience.lastLoginDate || "";
+  const streak = Math.max(0, Number(experience.loginStreak) || 0);
+  if (lastLoginDate === getLocalDateKey() || lastLoginDate === getOffsetLocalDateKey(-1)) {
+    return streak + 1;
+  }
+  return 1;
+}
+
 function awardDailyExperience(displayName = getSessionDisplayName()) {
   const today = getLocalDateKey();
   const data = loadExperience(displayName);
   if (data.lastLoginDate === today) return data;
-  const amount = getVipAdjustedExperience(DAILY_LOGIN_EXP);
+  const streak = data.lastLoginDate === getOffsetLocalDateKey(-1) ? (Number(data.loginStreak) || 0) + 1 : 1;
+  const amount = getDailyLoginReward(streak);
 
   const next = {
     total: data.total + amount,
     lastLoginDate: today,
+    loginStreak: streak,
     gainedToday: true,
   };
   saveExperience(next, displayName);
@@ -3895,7 +4015,7 @@ function getUpgradeEta(progress) {
   if (!progress || progress.nextName === "大道圆满") {
     return "已到最高境界";
   }
-  const dailyExp = getVipAdjustedExperience(DAILY_LOGIN_EXP);
+  const dailyExp = getDailyLoginReward(getNextLoginStreak());
   const remaining = Math.max(0, progress.needed - progress.current);
   const days = Math.ceil(remaining / Math.max(1, dailyExp));
   return `${formatUpgradeDays(days)}到 ${progress.nextName}`;
@@ -3905,10 +4025,11 @@ function renderLevelDialog() {
   if (!els.levelDialog) return;
   const experience = loadExperience();
   const progress = getExperienceLevel(experience.total);
-  const dailyExp = getVipAdjustedExperience(DAILY_LOGIN_EXP);
+  const nextStreak = getNextLoginStreak(experience);
+  const dailyExp = getDailyLoginReward(nextStreak);
   els.levelCurrentTitle.textContent = progress.title;
   els.levelUpgradeEta.textContent = getUpgradeEta(progress);
-  els.levelSummary.textContent = `当前 ${progress.total} EXP。每天登录 +${dailyExp} EXP，发布日记、评论、菜谱、心愿和留言都会继续增加修为。`;
+  els.levelSummary.textContent = `当前 ${progress.total} EXP。连续签到 ${Math.max(0, Number(experience.loginStreak) || 0)} 天，下次登录预计 +${dailyExp} EXP，发布日记、评论、菜谱、心愿和留言都会继续增加修为。`;
   els.levelList.innerHTML = CULTIVATION_REALMS.map((realm, index) => {
     const nextThreshold = Number.isFinite(realm.next) ? realm.next : Infinity;
     const unlocked = experience.total >= realm.threshold;
@@ -3954,12 +4075,13 @@ function renderExperience(displayName = getSessionDisplayName()) {
   els.xpLevel.textContent = progress.title;
   els.xpText.textContent = `${progress.current} / ${progress.needed} EXP`;
   els.xpBar.style.width = `${progress.percent}%`;
-  const loginExp = getVipAdjustedExperience(DAILY_LOGIN_EXP);
+  const nextStreak = getNextLoginStreak(data);
+  const loginExp = getDailyLoginReward(data.lastLoginDate === getLocalDateKey() ? data.loginStreak || 1 : nextStreak);
   const multiplier = getVipExpMultiplier();
   els.xpHint.textContent =
     data.lastLoginDate === getLocalDateKey()
-      ? `今日吐纳 +${loginExp} EXP 已领取${multiplier > 1 ? ` · VIP ${multiplier}x` : ""}`
-      : `明日吐纳 +${loginExp} EXP`;
+      ? `今日吐纳 +${loginExp} EXP 已领取 · 连续 ${Math.max(1, Number(data.loginStreak) || 1)} 天${multiplier > 1 ? ` · VIP ${multiplier}x` : ""}`
+      : `下次吐纳 +${loginExp} EXP · 连续 ${nextStreak} 天`;
   if (els.levelDialog?.open) renderLevelDialog();
 }
 
@@ -3997,12 +4119,18 @@ async function awardExperience(action, options = {}) {
 }
 
 function getLocalDateKey() {
+  return getOffsetLocalDateKey(0);
+}
+
+function getOffsetLocalDateKey(offsetDays = 0) {
+  const date = new Date();
+  date.setDate(date.getDate() + offsetDays);
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).format(new Date());
+  }).format(date);
 }
 
 function normalizeTheme(theme) {
@@ -4652,6 +4780,22 @@ function renderSecretGallery() {
     .filter((category) => category !== "全部")
     .map((category) => `<option value="${escapeHtml(category)}"></option>`)
     .join("");
+  if (els.secretCategoryTags) {
+    const tagCategories = categories.filter((category) => category !== "全部");
+    els.secretCategoryTags.hidden = !tagCategories.length;
+    els.secretCategoryTags.innerHTML = tagCategories
+      .map(
+        (category) =>
+          `<button type="button" data-secret-category-tag="${escapeHtml(category)}">${escapeHtml(category)}</button>`
+      )
+      .join("");
+    els.secretCategoryTags.querySelectorAll("[data-secret-category-tag]").forEach((button) => {
+      button.addEventListener("click", () => {
+        els.secretCategoryInput.value = button.dataset.secretCategoryTag || "";
+        els.secretCategoryInput.focus();
+      });
+    });
+  }
   els.secretFilters.innerHTML = categories
     .map(
       (category) =>
@@ -7725,6 +7869,8 @@ els.dialogMedia.addEventListener("pointercancel", cancelDialogSwipe);
 els.dialogMedia.addEventListener("lostpointercapture", cancelDialogSwipe);
 els.editForm.addEventListener("submit", savePhotoEdit);
 els.editImageInput.addEventListener("change", replaceEditingImage);
+els.addEditImageButton?.addEventListener("click", startAppendEditingImages);
+els.editMediaManager?.addEventListener("paste", handleEditImagePaste);
 els.deleteEditingPhoto.addEventListener("click", deletePhotoFromEditor);
 els.closeEditDialog.addEventListener("click", () => {
   editingPhoto = null;

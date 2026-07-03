@@ -23,6 +23,7 @@ const TABLE_CONFIG = {
       "vip_level",
       "experience_total",
       "last_login_date",
+      "login_streak",
       "local_data_migrated",
       "theme_preference",
       "home_name",

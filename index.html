@@ -17,7 +17,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="./assets/app-icon-32.png" />
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
     <link rel="stylesheet" href="./styles.css?v=20260610-37" />
-    <link rel="stylesheet" href="./redesign.css?v=20260704-85" />
+    <link rel="stylesheet" href="./redesign.css?v=20260704-87" />
   </head>
   <body>
     <header class="topbar">
@@ -691,6 +691,7 @@
                 分类
                 <input id="secretCategoryInput" maxlength="32" list="secretCategoryList" placeholder="比如：画集、壁纸、灵感" />
                 <datalist id="secretCategoryList"></datalist>
+                <div class="secret-category-tags" id="secretCategoryTags" aria-label="常用秘藏分类"></div>
               </label>
               <label>
                 关联日记
@@ -1088,15 +1089,18 @@
             </select>
           </label>
         </div>
-        <section class="edit-media-manager">
+        <section class="edit-media-manager" id="editMediaManager" tabindex="0">
           <div class="edit-media-heading">
             <div>
               <p class="kicker">Album Images</p>
               <h3>管理图片</h3>
             </div>
-            <span id="editImageCount"></span>
+            <div class="edit-media-actions">
+              <span id="editImageCount"></span>
+              <button id="addEditImageButton" type="button">追加图片</button>
+            </div>
           </div>
-          <input id="editImageInput" type="file" accept="image/*" hidden />
+          <input id="editImageInput" type="file" accept="image/*" multiple hidden />
           <div class="edit-image-list" id="editImageList"></div>
           <p class="hint">可以替换或删除合集中的单张图片，至少保留一张。</p>
         </section>
@@ -1164,6 +1168,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260704-85"></script>
+    <script type="module" src="./app.js?v=20260704-87"></script>
   </body>
 </html>
