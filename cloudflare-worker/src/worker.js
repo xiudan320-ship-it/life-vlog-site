@@ -3,18 +3,13 @@ const SESSION_DAYS = 30;
 
 function getCorsHeaders(request, env) {
   const origin = request.headers.get("Origin") || "";
-  const allowed = String(env.ALLOWED_ORIGINS || "")
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-  const allowedOrigin = allowed.some((item) => origin === item || origin.startsWith(`${item}/`))
-    ? origin
-    : allowed[0] || "*";
+  const requestedHeaders = request.headers.get("Access-Control-Request-Headers") || "";
+  const allowedOrigin = origin || "*";
 
   return {
     "Access-Control-Allow-Origin": allowedOrigin,
     "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "Authorization, Content-Type",
+    "Access-Control-Allow-Headers": requestedHeaders || "Authorization, Content-Type",
     "Access-Control-Max-Age": "86400",
     Vary: "Origin",
   };
