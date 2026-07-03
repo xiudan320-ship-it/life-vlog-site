@@ -103,9 +103,8 @@ function getBearerToken(request) {
   return match?.[1] || "";
 }
 
-async function getD1UserFromSession(request, env) {
+async function getD1UserFromToken(token, env) {
   if (!env.DB) return null;
-  const token = getBearerToken(request);
   if (!token) return null;
   const tokenHash = await sha256Base64Url(token);
   const row = await env.DB.prepare(
@@ -120,11 +119,14 @@ async function getD1UserFromSession(request, env) {
   return { id: row.id, username: row.username, source: "d1" };
 }
 
-async function requireUser(request, env) {
-  const d1User = await getD1UserFromSession(request, env);
+async function getD1UserFromSession(request, env) {
+  return getD1UserFromToken(getBearerToken(request), env);
+}
+
+async function requireUserByToken(token, env) {
+  const d1User = await getD1UserFromToken(token, env);
   if (d1User) return d1User;
 
-  const token = getBearerToken(request);
   if (!token) return null;
 
   const response = await fetch(`${env.SUPABASE_URL}/auth/v1/user`, {
@@ -136,6 +138,15 @@ async function requireUser(request, env) {
   if (!response.ok) return null;
   const user = await response.json();
   return user?.id ? { ...user, source: "supabase" } : null;
+}
+
+async function requireUser(request, env) {
+  return requireUserByToken(getBearerToken(request), env);
+}
+
+async function readJsonRequestBody(request) {
+  const text = await request.text().catch(() => "");
+  return safeJson(text, {});
 }
 
 function publicUrl(env, key) {
@@ -332,13 +343,13 @@ async function ensurePlaceholderUser(env, userId, username = "family-member") {
     .run();
 }
 
-async function handleD1ClaimFromSupabase(request, env, user) {
+async function handleD1ClaimFromSupabase(request, env, user, parsedPayload = null) {
   const dbError = requireDb(request, env);
   if (dbError) return dbError;
   if (user.source !== "supabase") {
     return jsonResponse(request, env, { error: "This account is already using D1 auth." }, 400);
   }
-  const payload = await request.json().catch(() => ({}));
+  const payload = parsedPayload || (await readJsonRequestBody(request));
   const username = String(payload.username || user.user_metadata?.username || user.email || "").trim();
   const password = String(payload.password || "");
   if (!/^[\w.-]{2,48}$/i.test(username)) {
@@ -545,10 +556,10 @@ async function upsertRows(env, table, rows, columns, conflictColumns = null) {
   return count;
 }
 
-async function handleD1Import(request, env, user) {
+async function handleD1Import(request, env, user, parsedPayload = null) {
   const dbError = requireDb(request, env);
   if (dbError) return dbError;
-  const payload = await request.json().catch(() => ({}));
+  const payload = parsedPayload || (await readJsonRequestBody(request));
   const counts = {};
   const profilesForUsers = rowsFromAnyPayloadKey(payload, ["user_profiles", "profiles"]);
   for (const profile of profilesForUsers) {
@@ -745,7 +756,20 @@ export default {
         return handleD1Login(request, env);
       }
 
-      const user = await requireUser(request, env);
+      let parsedPayload = null;
+      let user = null;
+      const isSimpleMigrationRequest =
+        request.method === "POST" &&
+        (url.pathname === "/api/migration/claim-supabase" ||
+          url.pathname === "/api/migration/import") &&
+        !getBearerToken(request);
+      if (isSimpleMigrationRequest) {
+        parsedPayload = await readJsonRequestBody(request.clone());
+        user = await requireUserByToken(String(parsedPayload.access_token || ""), env);
+        delete parsedPayload.access_token;
+      } else {
+        user = await requireUser(request, env);
+      }
       if (!user?.id) {
         return jsonResponse(request, env, { error: "Unauthorized." }, 401);
       }
@@ -757,13 +781,13 @@ export default {
         return handleD1Me(request, env, user);
       }
       if (url.pathname === "/api/migration/claim-supabase" && request.method === "POST") {
-        return handleD1ClaimFromSupabase(request, env, user);
+        return handleD1ClaimFromSupabase(request, env, user, parsedPayload);
       }
       if (url.pathname === "/api/export" && request.method === "GET") {
         return handleD1Export(request, env, user);
       }
       if (url.pathname === "/api/migration/import" && request.method === "POST") {
-        return handleD1Import(request, env, user);
+        return handleD1Import(request, env, user, parsedPayload);
       }
       if (url.pathname === "/copy" && request.method === "POST") {
         return handleCopy(request, env, user);
