@@ -6247,6 +6247,77 @@ async function cloudflareApi(path, { token, method = "GET", body = null, simple 
   return data;
 }
 
+function cloudflareBridgeApi(path, { token, body = null } = {}) {
+  return new Promise((resolve, reject) => {
+    const bridgeId = `cf-bridge-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const iframe = document.createElement("iframe");
+    const form = document.createElement("form");
+    const input = document.createElement("input");
+    const timeout = window.setTimeout(() => {
+      cleanup();
+      reject(new Error("Cloudflare 备用迁移通道超时。"));
+    }, 120000);
+
+    const cleanup = () => {
+      window.clearTimeout(timeout);
+      window.removeEventListener("message", onMessage);
+      form.remove();
+      iframe.remove();
+    };
+
+    const onMessage = (event) => {
+      const expectedOrigin = new URL(getCloudflareApiBase()).origin;
+      if (event.origin !== expectedOrigin) return;
+      const message = event.data || {};
+      if (message.bridgeId !== bridgeId) return;
+      cleanup();
+      if (!message.ok) {
+        reject(
+          new Error(
+            message.data?.error ||
+              message.data?.detail ||
+              `Cloudflare bridge API ${message.status || "failed"}`
+          )
+        );
+        return;
+      }
+      resolve(message.data || {});
+    };
+
+    window.addEventListener("message", onMessage);
+    iframe.name = bridgeId;
+    iframe.hidden = true;
+    form.hidden = true;
+    form.method = "POST";
+    form.target = bridgeId;
+    form.action = `${getCloudflareApiBase()}${path}?bridge=1`;
+    form.enctype = "multipart/form-data";
+    input.type = "hidden";
+    input.name = "payload";
+    input.value = JSON.stringify({ ...(body || {}), access_token: token, bridge_id: bridgeId });
+    form.append(input);
+    document.body.append(iframe, form);
+    form.submit();
+  });
+}
+
+async function cloudflareMigrationApi(path, { token, body = null } = {}) {
+  try {
+    return await cloudflareApi(path, {
+      method: "POST",
+      token,
+      body,
+      simple: true,
+    });
+  } catch (error) {
+    if (!String(error.message || "").includes("Failed to fetch")) {
+      throw error;
+    }
+    setCloudD1MigrationStatus("正在切换 Cloudflare 备用迁移通道...");
+    return cloudflareBridgeApi(path, { token, body });
+  }
+}
+
 async function readSupabaseRows(table, options = {}) {
   const { order = null } = options;
   let query = supabase.from(table).select("*");
@@ -6437,11 +6508,9 @@ async function importPayloadToD1InBatches(token, payload) {
   const totals = {};
   for (const [index, batch] of batches.entries()) {
     setCloudD1MigrationStatus(`正在导入 Cloudflare D1：${batch.label}（${index + 1}/${batches.length}）`);
-    const imported = await cloudflareApi("/api/migration/import", {
-      method: "POST",
+    const imported = await cloudflareMigrationApi("/api/migration/import", {
       token,
       body: batch.body,
-      simple: true,
     });
     Object.entries(imported.counts || {}).forEach(([key, value]) => {
       totals[key] = (totals[key] || 0) + Number(value || 0);
@@ -6481,11 +6550,9 @@ async function migrateAccountToCloudflare(event) {
   els.cloudD1MigrationButton.disabled = true;
   setCloudD1MigrationStatus("正在创建 Cloudflare 登录账号...");
   try {
-    const claim = await cloudflareApi("/api/migration/claim-supabase", {
-      method: "POST",
+    const claim = await cloudflareMigrationApi("/api/migration/claim-supabase", {
       token: session.access_token,
       body: { username, password },
-      simple: true,
     });
     setCloudD1MigrationStatus("正在读取 Supabase 数据...");
     const payload = await collectSupabaseMigrationPayload();
