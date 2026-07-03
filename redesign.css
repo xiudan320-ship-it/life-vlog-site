@@ -2138,7 +2138,10 @@ body.theme-dark .favorite-chip.active {
 
 .gallery {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-flow: dense;
+  grid-auto-rows: 8px;
   gap: 24px;
+  align-items: start;
   padding: 8px 0 34px;
 }
 
@@ -2155,6 +2158,7 @@ body.theme-dark .favorite-chip.active {
   width: 100%;
   max-width: none;
   justify-self: stretch;
+  grid-row-end: span var(--masonry-span, 1);
   margin: 0;
   border-color: var(--line);
   border-radius: 8px;
@@ -2162,7 +2166,7 @@ body.theme-dark .favorite-chip.active {
 }
 
 .photo-card:nth-child(even) {
-  margin-top: 54px;
+  margin-top: 0;
 }
 
 body.theme-dark .photo-card {
@@ -3788,7 +3792,14 @@ body.theme-dark .settings-sidebar {
 
   .gallery {
     grid-template-columns: 1fr;
+    grid-auto-rows: auto;
     gap: 18px;
+  }
+
+  .photo-card,
+  .photo-card:nth-child(odd),
+  .photo-card:nth-child(even) {
+    grid-row-end: auto;
   }
 
   .photo-card:nth-child(even) {
