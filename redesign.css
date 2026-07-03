@@ -744,13 +744,13 @@ body.theme-dark .thanks-note > p {
 }
 
 #photoDialog {
-  display: grid;
-  grid-template-rows: minmax(260px, 52vh) auto minmax(140px, 1fr) auto;
-  width: min(1040px, calc(100vw - 32px));
-  height: min(880px, calc(100dvh - 32px));
+  display: block;
+  width: min(900px, calc(100vw - 32px));
+  height: auto;
   max-height: calc(100dvh - 32px);
-  overflow: hidden;
+  overflow: auto;
   border-radius: 8px;
+  overscroll-behavior: contain;
 }
 
 #photoDialog:not([open]) {
@@ -758,18 +758,23 @@ body.theme-dark .thanks-note > p {
 }
 
 #photoDialog.no-comments-dialog {
-  grid-template-rows: minmax(280px, 62vh) auto minmax(120px, 1fr);
+  max-width: min(900px, calc(100vw - 32px));
 }
 
 #photoDialog .dialog-media {
+  display: grid;
+  aspect-ratio: 16 / 10;
   min-height: 0;
+  max-height: min(56dvh, 560px);
   touch-action: pan-y;
   user-select: none;
 }
 
 #photoDialog .dialog-media img {
+  width: 100%;
   height: 100%;
-  max-height: none;
+  max-height: min(56dvh, 560px);
+  object-fit: contain;
   -webkit-user-drag: none;
 }
 
@@ -777,7 +782,7 @@ body.theme-dark .thanks-note > p {
   display: grid;
   min-height: 0;
   gap: 10px;
-  overflow: auto;
+  overflow: visible;
   padding: 18px 22px;
 }
 
@@ -794,7 +799,7 @@ body.theme-dark .thanks-note > p {
 
 #photoDialog .photo-comments {
   min-height: 0;
-  overflow: auto;
+  overflow: visible;
 }
 
 .dialog-tool-row {
@@ -2624,6 +2629,13 @@ body.theme-dark .feed-loader {
   line-height: 0.95;
 }
 
+.secret-head p:last-child {
+  max-width: 52ch;
+  color: var(--muted);
+  font-weight: 750;
+  line-height: 1.65;
+}
+
 .secret-form {
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -2653,6 +2665,10 @@ body.theme-dark .feed-loader {
   max-height: 330px;
   object-fit: contain;
   border-radius: 6px;
+}
+
+.secret-form input[type="file"] {
+  width: 100%;
 }
 
 .secret-filters {
@@ -2714,6 +2730,20 @@ body.theme-dark .feed-loader {
 
 .secret-cover:hover img {
   transform: scale(1.035);
+}
+
+.secret-album-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.secret-album-strip img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 5px;
+  background: #10140f;
 }
 
 .secret-cover span {
@@ -4005,9 +4035,13 @@ body.theme-dark .settings-sidebar {
   }
 
   #photoDialog {
-    grid-template-rows: minmax(220px, 42dvh) auto minmax(120px, 1fr) auto;
     width: calc(100vw - 14px);
-    height: calc(100dvh - 18px);
+    max-height: calc(100dvh - 18px);
+  }
+
+  #photoDialog .dialog-media,
+  #photoDialog .dialog-media img {
+    max-height: 42dvh;
   }
 
   #photoDialog > article {

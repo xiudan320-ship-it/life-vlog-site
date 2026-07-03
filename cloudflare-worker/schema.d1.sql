@@ -185,6 +185,8 @@ CREATE TABLE IF NOT EXISTS secret_items (
   title TEXT NOT NULL DEFAULT '',
   category TEXT NOT NULL DEFAULT '未分类',
   note TEXT NOT NULL DEFAULT '',
+  cover_image TEXT NOT NULL DEFAULT '',
+  cover_path TEXT NOT NULL DEFAULT '',
   images TEXT NOT NULL DEFAULT '[]',
   linked_photo_id TEXT REFERENCES photos(id) ON DELETE SET NULL,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),

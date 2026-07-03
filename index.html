@@ -17,7 +17,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="./assets/app-icon-32.png" />
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
     <link rel="stylesheet" href="./styles.css?v=20260610-37" />
-    <link rel="stylesheet" href="./redesign.css?v=20260703-84" />
+    <link rel="stylesheet" href="./redesign.css?v=20260704-85" />
   </head>
   <body>
     <header class="topbar">
@@ -36,7 +36,6 @@
         <button id="wishlistNav" type="button">心愿</button>
         <button id="weekendNav" type="button">周末</button>
         <button id="thanksNav" type="button">留言</button>
-        <button id="secretNav" type="button">秘藏</button>
       </nav>
       <div class="top-actions">
         <button class="icon-button" id="themeToggle" type="button" title="切换日夜模式">
@@ -656,8 +655,9 @@
       <section class="secret-page" id="secretPage" hidden>
         <div class="secret-head">
           <div>
-            <p class="kicker">Hidden Gallery</p>
-            <h2>秘藏</h2>
+            <p class="kicker">Secret Gallery</p>
+            <h2>秘藏图集</h2>
+            <p>私人画廊，可以创建相册、上传收藏图，并按分类展览。</p>
           </div>
           <p class="status-line" id="secretStatus"></p>
         </div>
@@ -665,8 +665,8 @@
         <section class="secret-composer" id="secretComposer" hidden>
           <div class="section-title">
             <button class="section-heading-button" id="secretToggle" type="button" aria-expanded="false">
-              <p class="kicker">Private Collection</p>
-              <h2>添加秘藏</h2>
+              <p class="kicker">Album</p>
+              <h2>新建相册 / 上传图片</h2>
             </button>
           </div>
 
@@ -678,14 +678,18 @@
               <span>选择图片，或在这里粘贴剪切板图片</span>
               <strong id="secretImageName">还没有选择图片</strong>
             </label>
+            <label>
+              自定义封面
+              <input id="secretCoverInput" type="file" accept="image/*" />
+            </label>
             <div class="form-grid">
               <label>
-                标题
-                <input id="secretTitleInput" maxlength="80" />
+                相册名
+                <input id="secretTitleInput" maxlength="80" placeholder="比如：灵感收藏" />
               </label>
               <label>
                 分类
-                <input id="secretCategoryInput" maxlength="32" list="secretCategoryList" placeholder="比如：画集、灵感、收藏" />
+                <input id="secretCategoryInput" maxlength="32" list="secretCategoryList" placeholder="比如：画集、壁纸、灵感" />
                 <datalist id="secretCategoryList"></datalist>
               </label>
               <label>
@@ -700,7 +704,7 @@
               <textarea id="secretNoteInput" rows="4"></textarea>
             </label>
             <div class="secret-form-actions">
-              <button class="primary" id="secretSubmitButton" type="submit">保存到秘藏</button>
+              <button class="primary" id="secretSubmitButton" type="submit">保存相册</button>
             </div>
           </form>
         </section>
@@ -1160,6 +1164,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260703-84"></script>
+    <script type="module" src="./app.js?v=20260704-85"></script>
   </body>
 </html>

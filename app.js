@@ -71,7 +71,7 @@ const R2_UPLOAD_ENDPOINT = "https://life-vlog-r2-upload.xiudan320-life.workers.d
 const R2_PUBLIC_URL = "https://pub-47959f26cde042c3b37bc0f8f3f441ce.r2.dev";
 const CLOUDFLARE_SESSION_KEY = "life-vlog-cloudflare-session";
 const PAGE_SIZE = 6;
-const VIP_USERS = new Set(["xiao980320"]);
+const VIP_USERS = new Set(["xiao980320", "xiudan320"]);
 const MEDIA_META_START = "<!--life-vlog-media:";
 const MEDIA_META_END = "-->";
 const WISH_MEDIA_META_START = "<!--life-vlog-wish-media:";
@@ -531,6 +531,7 @@ const els = {
   secretForm: document.querySelector("#secretForm"),
   secretImageDrop: document.querySelector("#secretImageDrop"),
   secretImageInput: document.querySelector("#secretImageInput"),
+  secretCoverInput: document.querySelector("#secretCoverInput"),
   secretImagePreview: document.querySelector("#secretImagePreview"),
   secretPreviewStrip: document.querySelector("#secretPreviewStrip"),
   secretImageName: document.querySelector("#secretImageName"),
@@ -4431,6 +4432,8 @@ function secretFromCloudRow(row) {
     title: row.title || "",
     category: row.category || "未分类",
     note: row.note || "",
+    coverImage: row.cover_image || "",
+    coverPath: row.cover_path || "",
     images: normalizeSecretImages(row.images),
     linkedPhotoId: row.linked_photo_id || "",
     createdAt: row.created_at,
@@ -4445,6 +4448,8 @@ function secretToCloudRow(item, userId = session?.user?.id) {
     title: item.title || "",
     category: item.category || "未分类",
     note: item.note || "",
+    cover_image: item.coverImage || item.images?.[0]?.image_url || "",
+    cover_path: item.coverPath || item.images?.[0]?.image_path || "",
     images: normalizeSecretImages(item.images),
     linked_photo_id: item.linkedPhotoId || null,
     created_at: item.createdAt || new Date().toISOString(),
@@ -4586,6 +4591,7 @@ async function saveSecretItem(event) {
     setSecretStatus(`当前 VIP 等级单篇最多 ${imageLimit} 张图。`);
     return;
   }
+  const coverFile = els.secretCoverInput?.files?.[0] || null;
   els.secretSubmitButton.disabled = true;
   const images = [];
   try {
@@ -4598,12 +4604,26 @@ async function saveSecretItem(event) {
       if (!uploaded) throw new Error("秘藏图片上传失败。");
       images.push(uploaded);
     }
+    let coverImage = images[0]?.image_url || "";
+    let coverPath = images[0]?.image_path || "";
+    if (coverFile) {
+      const coverBase = slugify(els.secretTitleInput.value || els.secretCategoryInput.value || "secret-cover");
+      const uploadedCover = await uploadImageFile(coverFile, `${coverBase}-cover`, 1, 1, {
+        folder: "secret-covers",
+        statusSetter: setSecretStatus,
+      });
+      if (!uploadedCover) throw new Error("秘藏封面上传失败。");
+      coverImage = uploadedCover.image_url;
+      coverPath = uploadedCover.image_path;
+    }
     const now = new Date().toISOString();
     const item = {
       id: crypto.randomUUID(),
       title: els.secretTitleInput.value.trim(),
       category: els.secretCategoryInput.value.trim() || "未分类",
       note: els.secretNoteInput.value.trim(),
+      coverImage,
+      coverPath,
       images,
       linkedPhotoId: els.secretLinkedPhotoInput.value || "",
       createdAt: now,
@@ -4614,7 +4634,7 @@ async function saveSecretItem(event) {
     els.secretForm.reset();
     updateSecretPreview();
     setSecretExpanded(false);
-    setSecretStatus("已保存到秘藏。");
+    setSecretStatus("相册已保存到秘藏。");
     await loadSecretItems();
   } catch (error) {
     setSecretStatus(error.message || "保存秘藏失败。");
@@ -4658,27 +4678,32 @@ function renderSecretGallery() {
     return;
   }
   if (!visible.length) {
-    els.secretGallery.innerHTML = `<div class="empty">这里还没有收藏，先放入第一件秘藏吧。</div>`;
+    els.secretGallery.innerHTML = `<div class="empty">这里还没有相册，先上传第一组私人收藏吧。</div>`;
     return;
   }
   els.secretGallery.innerHTML = visible
     .map((item, index) => {
-      const cover = item.images[0]?.image_url || "";
+      const cover = item.coverImage || item.images[0]?.image_url || "";
       const linkedPhoto = photos.find((photo) => photo.id === item.linkedPhotoId);
       const linkedTitle = linkedPhoto ? getDisplayTitle(linkedPhoto) || "关联日记" : "";
+      const thumbs = item.images
+        .slice(0, 4)
+        .map((image) => `<img src="${escapeHtml(image.image_url)}" alt="" loading="lazy" />`)
+        .join("");
       return `
         <article class="secret-card">
           <button class="secret-cover" type="button" data-secret-index="${index}">
             <img src="${escapeHtml(cover)}" alt="${escapeHtml(item.title || item.category)}" loading="lazy" />
             <span>${String(item.images.length).padStart(2, "0")}</span>
           </button>
+          ${thumbs ? `<div class="secret-album-strip">${thumbs}</div>` : ""}
           <div>
-            <p class="kicker">${escapeHtml(item.category || "未分类")} · ${formatDateTime(item.createdAt)}</p>
-            ${item.title ? `<h3>${escapeHtml(item.title)}</h3>` : ""}
+             <p class="kicker">${escapeHtml(item.category || "未分类")} · ${formatDateTime(item.createdAt)}</p>
+             ${item.title ? `<h3>${escapeHtml(item.title)}</h3>` : ""}
             ${item.note ? `<p>${escapeHtml(item.note)}</p>` : ""}
             ${linkedTitle ? `<small>关联：${escapeHtml(linkedTitle)}</small>` : ""}
           </div>
-          <button class="delete-secret" type="button" data-secret-delete="${index}">删除</button>
+          <button class="delete-secret" type="button" data-secret-delete="${index}">删除相册</button>
         </article>
       `;
     })
@@ -4700,8 +4725,8 @@ function openSecretItem(item) {
   dialogRandomMode = false;
   dialogImages = normalizeSecretImages(item.images);
   dialogImageIndex = 0;
-  els.dialogTitle.textContent = item.title || item.category || "秘藏";
-  els.dialogMeta.textContent = `${item.category || "未分类"} · 私人展览 · ${formatDateTime(item.createdAt)}`;
+  els.dialogTitle.textContent = item.title || item.category || "秘藏相册";
+  els.dialogMeta.textContent = `${item.category || "未分类"} · 私人图集 · ${item.images.length} 张 · ${formatDateTime(item.createdAt)}`;
   els.dialogNote.textContent = item.note || "";
   els.photoCommentsSection.hidden = true;
   if (els.dialogRandomButton) els.dialogRandomButton.hidden = true;
@@ -4741,7 +4766,10 @@ async function deleteSecretItem(item) {
     setSecretStatus(error.message || "删除失败。");
     return;
   }
-  const paths = normalizeSecretImages(item.images).map((image) => image.image_path).filter(Boolean);
+  const paths = [
+    item.coverPath,
+    ...normalizeSecretImages(item.images).map((image) => image.image_path),
+  ].filter(Boolean);
   if (paths.length) {
     cleanupStoredImagePaths(paths).catch((error) => console.warn("Secret image cleanup failed:", error));
   }
