@@ -26,6 +26,20 @@ function jsonResponse(request, env, body, status = 200) {
   });
 }
 
+function htmlResponse(body, status = 200) {
+  return new Response(body, {
+    status,
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-store",
+    },
+  });
+}
+
+function safeScriptJson(value) {
+  return JSON.stringify(value).replace(/</g, "\\u003c").replace(/>/g, "\\u003e");
+}
+
 function cleanSegment(value, fallback = "file") {
   return String(value || fallback)
     .normalize("NFKD")
@@ -729,6 +743,58 @@ async function handleDelete(request, env, user) {
   return jsonResponse(request, env, { ok: true });
 }
 
+async function readBridgePayload(request) {
+  const contentType = request.headers.get("Content-Type") || "";
+  if (
+    contentType.includes("application/x-www-form-urlencoded") ||
+    contentType.includes("multipart/form-data")
+  ) {
+    const formData = await request.formData().catch(() => null);
+    return safeJson(formData?.get("payload"), {});
+  }
+  return readJsonRequestBody(request);
+}
+
+function bridgeResponse(payload) {
+  return htmlResponse(`<!doctype html>
+<meta charset="utf-8">
+<script>
+parent.postMessage(${safeScriptJson(payload)}, "*");
+</script>`);
+}
+
+async function handleMigrationBridge(request, env, pathname) {
+  let bridgeId = "";
+  try {
+    const payload = await readBridgePayload(request);
+    bridgeId = String(payload.bridge_id || "");
+    const user = await requireUserByToken(String(payload.access_token || ""), env);
+    delete payload.access_token;
+    delete payload.bridge_id;
+    if (!user?.id) {
+      return bridgeResponse({ bridgeId, ok: false, status: 401, data: { error: "Unauthorized." } });
+    }
+    const response =
+      pathname === "/api/migration/claim-supabase"
+        ? await handleD1ClaimFromSupabase(request, env, user, payload)
+        : await handleD1Import(request, env, user, payload);
+    const text = await response.text();
+    return bridgeResponse({
+      bridgeId,
+      ok: response.ok,
+      status: response.status,
+      data: safeJson(text, {}),
+    });
+  } catch (error) {
+    return bridgeResponse({
+      bridgeId,
+      ok: false,
+      status: 500,
+      data: { error: "Worker error.", detail: error?.message || String(error) },
+    });
+  }
+}
+
 export default {
   async fetch(request, env) {
     try {
@@ -749,6 +815,15 @@ export default {
       }
       if (url.pathname === "/api/auth/login" && request.method === "POST") {
         return handleD1Login(request, env);
+      }
+
+      if (
+        request.method === "POST" &&
+        url.searchParams.get("bridge") === "1" &&
+        (url.pathname === "/api/migration/claim-supabase" ||
+          url.pathname === "/api/migration/import")
+      ) {
+        return handleMigrationBridge(request, env, url.pathname);
       }
 
       let parsedPayload = null;
