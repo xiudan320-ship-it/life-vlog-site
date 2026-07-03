@@ -1940,7 +1940,8 @@ body.theme-dark .recipe-cover-drop {
 
 .filters {
   top: calc(84px + env(safe-area-inset-top));
-  gap: 7px;
+  display: grid;
+  gap: 10px;
   margin-bottom: 20px;
   padding: 9px 0;
   background: rgba(242, 244, 239, 0.9);
@@ -1948,6 +1949,59 @@ body.theme-dark .recipe-cover-drop {
 
 body.theme-dark .filters {
   background: rgba(13, 16, 15, 0.9);
+}
+
+.diary-search {
+  display: grid;
+  grid-template-columns: auto minmax(180px, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: min(720px, 100%);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: 0 12px 28px rgba(21, 24, 22, 0.08);
+  padding: 8px 10px 8px 16px;
+}
+
+.diary-search span {
+  color: var(--accent-strong);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.diary-search input {
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 800;
+  outline: 0;
+}
+
+.diary-search input::placeholder {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.diary-search button {
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent), transparent 82%);
+  color: var(--accent-strong);
+  cursor: pointer;
+  font-weight: 900;
+  padding: 0 14px;
+}
+
+.filter-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
 }
 
 .today-posts-notice {
@@ -3643,6 +3697,16 @@ body.theme-dark .settings-sidebar {
 
   .filters {
     top: calc(136px + env(safe-area-inset-top));
+  }
+
+  .diary-search {
+    grid-template-columns: 1fr auto;
+    border-radius: 16px;
+    padding: 10px 12px;
+  }
+
+  .diary-search span {
+    grid-column: 1 / -1;
   }
 
   .today-posts-notice {
