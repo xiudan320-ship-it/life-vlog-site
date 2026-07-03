@@ -17,7 +17,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="./assets/app-icon-32.png" />
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
     <link rel="stylesheet" href="./styles.css?v=20260610-37" />
-    <link rel="stylesheet" href="./redesign.css?v=20260703-79" />
+    <link rel="stylesheet" href="./redesign.css?v=20260703-80" />
   </head>
   <body>
     <header class="topbar">
@@ -98,11 +98,12 @@
         </div>
       </section>
 
-      <section class="tool-dock" aria-label="生活小工具">
+      <section class="tool-dock" id="toolDock" aria-label="生活小工具">
         <button
           class="tool-dock-button food-wheel-launch"
           id="foodWheelOpen"
           type="button"
+          data-tool-id="food"
           aria-haspopup="dialog"
           aria-controls="foodWheelDialog"
         >
@@ -116,6 +117,7 @@
           class="tool-dock-button anniversary-launch"
           id="anniversaryOpen"
           type="button"
+          data-tool-id="anniversary"
           aria-haspopup="dialog"
           aria-controls="anniversaryDialog"
           hidden
@@ -128,7 +130,7 @@
             <small id="anniversaryPeek">设置重要日子</small>
           </span>
         </button>
-        <button class="tool-dock-button memory-button" id="memoryButton" type="button" hidden>
+        <button class="tool-dock-button memory-button" id="memoryButton" type="button" data-tool-id="memory" hidden>
           <span class="tool-dock-mark" aria-hidden="true">↻</span>
           <span>
             <strong>随机回忆</strong>
@@ -257,20 +259,12 @@
             <input id="photoInput" type="file" accept="image/*" multiple />
             <img id="photoPreview" alt="照片预览" hidden />
             <div class="preview-strip" id="previewStrip" hidden></div>
-            <span>选择多张照片，自动合成一篇合集</span>
+            <span>选择多张照片，或在这里粘贴图片</span>
             <strong id="fileName">还没有选择图片</strong>
           </label>
           <p class="compression-note">
             图片会在浏览器中自动压缩后上传，原图不会被修改。
           </p>
-
-          <div class="link-row">
-            <label>
-              图片链接
-              <input id="imageUrlInput" type="url" />
-            </label>
-            <button id="useUrlButton" type="button">使用链接</button>
-          </div>
 
           <div class="form-grid">
             <label>
@@ -960,6 +954,9 @@
         <p class="kicker" id="dialogMeta"></p>
         <h2 id="dialogTitle"></h2>
         <p id="dialogNote"></p>
+        <button class="dialog-random-button" id="dialogRandomButton" type="button" hidden>
+          再随机一篇
+        </button>
       </article>
       <section class="photo-comments" id="photoCommentsSection">
         <div class="photo-comments-head">
@@ -1095,6 +1092,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260703-79"></script>
+    <script type="module" src="./app.js?v=20260703-80"></script>
   </body>
 </html>

@@ -80,6 +80,8 @@ const WISH_MEDIA_META_END = "-->";
 const PHOTO_COMMENT_PREVIEW_LIMIT = 3;
 const PHOTO_FEED_CACHE_LIMIT = 3;
 const EAGER_IMAGE_CARD_COUNT = 8;
+const TOOL_DOCK_ORDER_KEY = "life-vlog-tool-dock-order";
+const TOOL_DOCK_DEFAULT_ORDER = ["food", "anniversary", "memory"];
 const DEFAULT_FOOD_OPTIONS = ["拉面", "寿喜烧", "咖喱饭", "烤肉", "火锅", "寿司", "麻婆豆腐", "披萨"];
 const GENERATED_TITLE_PREFIXES = ["今日小星星", "软乎乎的一天", "闪闪生活碎片", "快乐收藏夹"];
 
@@ -204,6 +206,9 @@ let editingPreviewUrls = [];
 let dialogImages = [];
 let dialogImageIndex = 0;
 let dialogSwipeStart = null;
+let dialogRandomMode = false;
+let toolDockDragState = null;
+let suppressToolDockClick = false;
 let activeVipLevel = 1;
 let recipeEditingId = null;
 let recipeExistingCover = "";
@@ -346,8 +351,6 @@ const els = {
   photoInput: document.querySelector("#photoInput"),
   photoPreview: document.querySelector("#photoPreview"),
   previewStrip: document.querySelector("#previewStrip"),
-  imageUrlInput: document.querySelector("#imageUrlInput"),
-  useUrlButton: document.querySelector("#useUrlButton"),
   fileName: document.querySelector("#fileName"),
   titleInput: document.querySelector("#titleInput"),
   dateInput: document.querySelector("#dateInput"),
@@ -376,6 +379,7 @@ const els = {
   dialogNext: document.querySelector("#dialogNext"),
   dialogCounter: document.querySelector("#dialogCounter"),
   dialogThumbs: document.querySelector("#dialogThumbs"),
+  dialogRandomButton: document.querySelector("#dialogRandomButton"),
   editDialog: document.querySelector("#editDialog"),
   closeEditDialog: document.querySelector("#closeEditDialog"),
   editForm: document.querySelector("#editForm"),
@@ -415,6 +419,7 @@ const els = {
   overviewLevel: document.querySelector("#overviewLevel"),
   overviewProgress: document.querySelector("#overviewProgress"),
   memoryButton: document.querySelector("#memoryButton"),
+  toolDock: document.querySelector("#toolDock"),
   quickPhoto: document.querySelector("#quickPhoto"),
   quickRecipe: document.querySelector("#quickRecipe"),
   quickWish: document.querySelector("#quickWish"),
@@ -695,6 +700,7 @@ function updateAuthUI() {
   els.anniversarySection.hidden = !signedIn;
   els.anniversaryOpen.hidden = !signedIn;
   els.memoryButton.hidden = !signedIn;
+  applyToolDockOrder(signedIn ? session.user.id : "guest");
   els.authCard.hidden = signedIn;
   els.userMenu.hidden = !signedIn;
   els.notificationButton.hidden = !signedIn;
@@ -1430,9 +1436,8 @@ async function uploadPhoto(event) {
   }
 
   const files = Array.from(els.photoInput.files || []);
-  const remoteUrl = normalizeImageUrl(els.imageUrlInput.value);
-  if (!files.length && !remoteUrl) {
-    setStatus("请选择图片或粘贴图片链接。");
+  if (!files.length) {
+    setStatus("请选择图片，或把剪贴板里的图片粘贴到上传框。");
     return;
   }
 
@@ -1450,15 +1455,6 @@ async function uploadPhoto(event) {
     const imageData = await uploadImageFile(file, safeName, index + 1, files.length);
     if (!imageData) return;
     images.push(imageData);
-  }
-
-  if (!files.length && remoteUrl) {
-    images.push({
-      image_path: "",
-      image_url: remoteUrl,
-      width: null,
-      height: null,
-    });
   }
 
   const insertError = await insertPhotoRecord(finalTitle, images);
@@ -2449,8 +2445,9 @@ async function deletePhoto(photo, triggerButton = null) {
   }
 }
 
-function openPhoto(photo, initialImageIndex = 0) {
+function openPhoto(photo, initialImageIndex = 0, options = {}) {
   activeDialogPhoto = photo;
+  dialogRandomMode = Boolean(options.randomMode);
   if (isPhotoPublishedToday(photo) && photo.id) {
     markTodayPostsViewed([photo.id]);
     updateTodayPostsNotice();
@@ -2465,6 +2462,9 @@ function openPhoto(photo, initialImageIndex = 0) {
   els.dialogTitle.textContent = displayTitle || "日记";
   els.dialogMeta.textContent = `${photo.category || "日常"} · 拍摄 ${formatDate(photo.taken_at)} · 发布 ${formatDateTime(photo.created_at)} · ${getAuthorName(photo.user_id)}`;
   els.dialogNote.textContent = getPlainNote(photo);
+  if (els.dialogRandomButton) {
+    els.dialogRandomButton.hidden = !dialogRandomMode;
+  }
   renderDialogMedia();
   void loadPhotoComments(photo.id);
   els.dialog.showModal();
@@ -2473,12 +2473,16 @@ function openPhoto(photo, initialImageIndex = 0) {
 function openWishImage(wish) {
   if (!wish?.imageUrl) return;
   activeDialogPhoto = null;
+  dialogRandomMode = false;
   photoComments = [];
   dialogImages = [{ image_url: wish.imageUrl }];
   dialogImageIndex = 0;
   els.dialogTitle.textContent = wish.title || "心愿图片";
   els.dialogMeta.textContent = `${wish.type || "心愿"} · ${wish.priority || "普通"} · ${getAuthorName(wish.userId)} 发布`;
   els.dialogNote.textContent = wish.note || "";
+  if (els.dialogRandomButton) {
+    els.dialogRandomButton.hidden = true;
+  }
   els.photoCommentsSection.hidden = true;
   renderDialogMedia();
   els.dialog.showModal();
@@ -4018,13 +4022,10 @@ async function restoreDefaultHomeName() {
 function updatePhotoPreview() {
   const files = Array.from(els.photoInput.files || []);
   if (!files.length) {
-    if (!normalizeImageUrl(els.imageUrlInput.value)) {
-      clearPhotoPreview();
-    }
+    clearPhotoPreview();
     return;
   }
 
-  els.imageUrlInput.value = "";
   revokePreviewUrls();
   const imageLimit = getCurrentImageLimit();
   if (files.length > imageLimit) {
@@ -4038,23 +4039,6 @@ function updatePhotoPreview() {
   els.fileName.textContent =
     files.length > 1 ? `已选择 ${files.length} 张图片` : files[0].name;
   renderPreviewStrip(files, previewUrls);
-}
-
-function useImageUrl() {
-  const url = normalizeImageUrl(els.imageUrlInput.value);
-  if (!url) {
-    setStatus("图片链接无效。");
-    return;
-  }
-
-  els.photoInput.value = "";
-  clearPhotoPreview();
-  els.imageUrlInput.value = url;
-  els.photoPreview.src = url;
-  els.photoPreview.hidden = false;
-  els.previewStrip.hidden = true;
-  els.fileName.textContent = url;
-  setStatus("已使用图片链接。");
 }
 
 function handlePasteUpload(event) {
@@ -4078,27 +4062,6 @@ function handlePasteUpload(event) {
     updatePhotoPreview();
     setStatus(files.length > 1 ? `已读取 ${files.length} 张剪贴板图片。` : "已读取剪贴板图片。");
     return;
-  }
-
-  const text = event.clipboardData?.getData("text") || "";
-  const url = normalizeImageUrl(text);
-  if (!url) return;
-
-  event.preventDefault();
-  els.imageUrlInput.value = url;
-  useImageUrl();
-}
-
-function normalizeImageUrl(value) {
-  const url = String(value || "").trim();
-  if (!url) return "";
-
-  try {
-    const parsed = new URL(url);
-    if (!["http:", "https:"].includes(parsed.protocol)) return "";
-    return parsed.toString();
-  } catch {
-    return "";
   }
 }
 
@@ -4213,6 +4176,143 @@ function renderOverview() {
 function getMemoryPhotos() {
   if (!session) return [];
   return photos.filter((photo) => photo?.image_url || getPhotoImages(photo).length);
+}
+
+function openRandomMemory() {
+  const memoryPhotos = getMemoryPhotos();
+  if (!memoryPhotos.length) return;
+  const currentId = activeDialogPhoto?.id;
+  const candidates =
+    memoryPhotos.length > 1
+      ? memoryPhotos.filter((photo) => photo.id !== currentId)
+      : memoryPhotos;
+  const randomPhoto = candidates[Math.floor(Math.random() * candidates.length)];
+  openPhoto(randomPhoto, 0, { randomMode: true });
+}
+
+function getToolDockOrderStorageKey(userId = session?.user?.id || "guest") {
+  return `${TOOL_DOCK_ORDER_KEY}:${userId}`;
+}
+
+function normalizeToolDockOrder(order) {
+  const seen = new Set();
+  const normalized = Array.isArray(order)
+    ? order.filter((id) => {
+        const valid = TOOL_DOCK_DEFAULT_ORDER.includes(id) && !seen.has(id);
+        if (valid) seen.add(id);
+        return valid;
+      })
+    : [];
+  return [
+    ...normalized,
+    ...TOOL_DOCK_DEFAULT_ORDER.filter((id) => !seen.has(id)),
+  ];
+}
+
+function loadToolDockOrder(userId = session?.user?.id || "guest") {
+  try {
+    const raw =
+      localStorage.getItem(getToolDockOrderStorageKey(userId)) ||
+      localStorage.getItem(TOOL_DOCK_ORDER_KEY);
+    return normalizeToolDockOrder(JSON.parse(raw || "[]"));
+  } catch {
+    return [...TOOL_DOCK_DEFAULT_ORDER];
+  }
+}
+
+function saveToolDockOrder(userId = session?.user?.id || "guest") {
+  if (!els.toolDock) return;
+  const order = Array.from(els.toolDock.querySelectorAll("[data-tool-id]")).map(
+    (button) => button.dataset.toolId
+  );
+  localStorage.setItem(getToolDockOrderStorageKey(userId), JSON.stringify(normalizeToolDockOrder(order)));
+}
+
+function applyToolDockOrder(userId = session?.user?.id || "guest") {
+  if (!els.toolDock) return;
+  const buttons = new Map(
+    Array.from(els.toolDock.querySelectorAll("[data-tool-id]")).map((button) => [
+      button.dataset.toolId,
+      button,
+    ])
+  );
+  loadToolDockOrder(userId).forEach((id) => {
+    const button = buttons.get(id);
+    if (button) els.toolDock.appendChild(button);
+  });
+}
+
+function startToolDockPointer(event) {
+  const button = event.target.closest(".tool-dock-button[data-tool-id]");
+  if (!button || button.disabled || !els.toolDock?.contains(button)) return;
+  if (event.pointerType === "mouse" && event.button !== 0) return;
+
+  window.clearTimeout(toolDockDragState?.timer);
+  toolDockDragState = {
+    button,
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startY: event.clientY,
+    dragging: false,
+    timer: window.setTimeout(() => beginToolDockDrag(button, event.pointerId), 420),
+  };
+}
+
+function beginToolDockDrag(button, pointerId) {
+  if (!toolDockDragState || toolDockDragState.button !== button) return;
+  toolDockDragState.dragging = true;
+  suppressToolDockClick = true;
+  els.toolDock.classList.add("sorting");
+  button.classList.add("dragging");
+  button.setPointerCapture?.(pointerId);
+}
+
+function moveToolDockPointer(event) {
+  if (!toolDockDragState) return;
+
+  const dx = Math.abs(event.clientX - toolDockDragState.startX);
+  const dy = Math.abs(event.clientY - toolDockDragState.startY);
+  if (!toolDockDragState.dragging && Math.max(dx, dy) > 10) {
+    window.clearTimeout(toolDockDragState.timer);
+    toolDockDragState = null;
+    return;
+  }
+  if (!toolDockDragState?.dragging) return;
+
+  event.preventDefault();
+  const target = document
+    .elementFromPoint(event.clientX, event.clientY)
+    ?.closest(".tool-dock-button[data-tool-id]");
+  if (!target || target === toolDockDragState.button || !els.toolDock.contains(target)) return;
+
+  const rect = target.getBoundingClientRect();
+  const insertAfter =
+    event.clientX > rect.left + rect.width / 2 || event.clientY > rect.top + rect.height / 2;
+  els.toolDock.insertBefore(
+    toolDockDragState.button,
+    insertAfter ? target.nextSibling : target
+  );
+}
+
+function finishToolDockPointer() {
+  if (!toolDockDragState) return;
+  window.clearTimeout(toolDockDragState.timer);
+  if (toolDockDragState.dragging) {
+    toolDockDragState.button.classList.remove("dragging");
+    els.toolDock.classList.remove("sorting");
+    saveToolDockOrder();
+    window.setTimeout(() => {
+      suppressToolDockClick = false;
+    }, 0);
+  }
+  toolDockDragState = null;
+}
+
+function handleToolDockClick(event) {
+  if (!suppressToolDockClick) return;
+  event.preventDefault();
+  event.stopPropagation();
+  suppressToolDockClick = false;
 }
 
 function normalizeFoodOptions(values) {
@@ -6710,6 +6810,12 @@ els.recipesNav.addEventListener("click", () => switchPage("recipes"));
 els.wishlistNav.addEventListener("click", () => switchPage("wishlist"));
 els.weekendNav.addEventListener("click", () => switchPage("weekend"));
 els.thanksNav.addEventListener("click", () => switchPage("thanks"));
+els.toolDock?.addEventListener("click", handleToolDockClick, true);
+els.toolDock?.addEventListener("pointerdown", startToolDockPointer);
+els.toolDock?.addEventListener("pointermove", moveToolDockPointer);
+els.toolDock?.addEventListener("pointerup", finishToolDockPointer);
+els.toolDock?.addEventListener("pointercancel", finishToolDockPointer);
+els.toolDock?.addEventListener("lostpointercapture", finishToolDockPointer);
 els.foodWheelOpen.addEventListener("click", openFoodWheel);
 els.foodWheelClose.addEventListener("click", closeFoodWheel);
 els.foodWheelDialog.addEventListener("click", (event) => {
@@ -6738,11 +6844,7 @@ els.anniversaryCancel.addEventListener("click", () => {
   resetAnniversaryForm();
   setAnniversaryFormExpanded(false);
 });
-els.memoryButton.addEventListener("click", () => {
-  const memoryPhotos = getMemoryPhotos();
-  if (!memoryPhotos.length) return;
-  openPhoto(memoryPhotos[Math.floor(Math.random() * memoryPhotos.length)]);
-});
+els.memoryButton.addEventListener("click", openRandomMemory);
 els.quickPhoto.addEventListener("click", () => {
   switchPage("gallery");
   setUploadExpanded(true);
@@ -6985,8 +7087,6 @@ document.addEventListener("click", (event) => {
 });
 els.uploadForm.addEventListener("submit", uploadPhoto);
 els.photoDrop.addEventListener("paste", handlePasteUpload);
-els.imageUrlInput.addEventListener("paste", handlePasteUpload);
-els.useUrlButton.addEventListener("click", useImageUrl);
 els.photoInput.addEventListener("change", () => {
   updatePhotoPreview();
 });
@@ -6998,15 +7098,20 @@ els.dialog.addEventListener("click", (event) => {
 });
 els.dialog.addEventListener("close", () => {
   activeDialogPhoto = null;
+  dialogRandomMode = false;
   photoComments = [];
   cancelDialogSwipe();
   els.photoCommentsSection.hidden = false;
+  if (els.dialogRandomButton) {
+    els.dialogRandomButton.hidden = true;
+  }
   els.photoCommentForm.reset();
   cancelCommentReply();
   els.photoCommentStatus.textContent = "";
 });
 els.photoCommentForm.addEventListener("submit", savePhotoComment);
 els.cancelCommentReply.addEventListener("click", cancelCommentReply);
+els.dialogRandomButton?.addEventListener("click", openRandomMemory);
 els.dialogPrev.addEventListener("click", () => moveDialogImage(-1));
 els.dialogNext.addEventListener("click", () => moveDialogImage(1));
 els.dialogMedia.addEventListener("pointerdown", beginDialogSwipe);
