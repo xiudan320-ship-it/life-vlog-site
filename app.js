@@ -146,6 +146,8 @@ let filteredPhotoCount = 0;
 let showingCachedFeed = false;
 let feedObserver = null;
 let feedLoading = false;
+let galleryMasonryObserver = null;
+let galleryMasonryTimer = null;
 let editingPhoto = null;
 let editingImages = [];
 let editingImageFiles = new Map();
@@ -1860,8 +1862,45 @@ function renderGallery() {
 
   prepareFeedImages(els.gallery);
   updateReadMoreHints(els.gallery);
+  observeGalleryMasonry();
+  layoutGalleryMasonry();
   warmUpcomingFeedImages(filtered, visible.length);
   updateFeedLoader(filtered.length);
+}
+
+function layoutGalleryMasonry() {
+  if (!els.gallery || els.gallery.hidden) return;
+  const cards = [...els.gallery.querySelectorAll(".photo-card")];
+  if (!cards.length) return;
+  const styles = window.getComputedStyle(els.gallery);
+  const columnCount = styles.gridTemplateColumns.split(" ").filter(Boolean).length;
+  if (columnCount < 2) {
+    cards.forEach((card) => card.style.removeProperty("--masonry-span"));
+    return;
+  }
+  const rowHeight = Number.parseFloat(styles.getPropertyValue("grid-auto-rows")) || 8;
+  const gap = Number.parseFloat(styles.getPropertyValue("row-gap")) || 24;
+  window.requestAnimationFrame(() => {
+    cards.forEach((card) => {
+      const height = card.getBoundingClientRect().height;
+      const span = Math.max(1, Math.ceil((height + gap) / (rowHeight + gap)));
+      card.style.setProperty("--masonry-span", String(span));
+    });
+  });
+}
+
+function scheduleGalleryMasonryLayout() {
+  window.clearTimeout(galleryMasonryTimer);
+  galleryMasonryTimer = window.setTimeout(layoutGalleryMasonry, 60);
+}
+
+function observeGalleryMasonry() {
+  galleryMasonryObserver?.disconnect();
+  if (!("ResizeObserver" in window) || !els.gallery) return;
+  galleryMasonryObserver = new ResizeObserver(scheduleGalleryMasonryLayout);
+  els.gallery.querySelectorAll(".photo-card").forEach((card) => {
+    galleryMasonryObserver.observe(card);
+  });
 }
 
 function normalizeDiarySearchText(value) {
@@ -7358,6 +7397,7 @@ els.clearDiarySearch?.addEventListener("click", () => {
 window.addEventListener("resize", () => {
   window.clearTimeout(updateReadMoreHints.resizeTimer);
   updateReadMoreHints.resizeTimer = window.setTimeout(() => updateReadMoreHints(els.gallery), 120);
+  scheduleGalleryMasonryLayout();
 });
 
 registerAppShellWorker();
