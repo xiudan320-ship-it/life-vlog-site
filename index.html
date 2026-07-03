@@ -17,7 +17,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="./assets/app-icon-32.png" />
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
     <link rel="stylesheet" href="./styles.css?v=20260610-37" />
-    <link rel="stylesheet" href="./redesign.css?v=20260703-82" />
+    <link rel="stylesheet" href="./redesign.css?v=20260703-83" />
   </head>
   <body>
     <header class="topbar">
@@ -222,17 +222,13 @@
       </section>
 
       <section class="setup-panel" id="setupPanel" hidden>
-        <h2>连接 Supabase</h2>
-        <p>填入 Supabase 项目的 URL 和 anon key。保存后就能登录、上传和读取日记。</p>
+        <h2>Cloudflare 已连接</h2>
+        <p>登录、数据库和图片存储现在都由 Cloudflare Worker、D1 和 R2 处理。</p>
         <label>
-          Project URL
-          <input id="supabaseUrl" placeholder="https://xxxx.supabase.co" />
+          Worker URL
+          <input id="cloudflareEndpoint" placeholder="https://life-vlog-r2-upload.xiudan320-life.workers.dev" />
         </label>
-        <label>
-          Anon public key
-          <input id="supabaseAnonKey" placeholder="eyJhbGci..." />
-        </label>
-        <button id="saveConfig" type="button">保存配置</button>
+        <button id="saveConfig" type="button">确认</button>
       </section>
 
       <section class="auth-card" id="authCard">
@@ -250,7 +246,7 @@
             忘记密码
           </button>
         </div>
-        <p class="hint" id="authHint">未配置 Supabase 时会显示演示数据。</p>
+        <p class="hint" id="authHint">输入用户名和密码登录。注册需要邀请码。</p>
       </section>
 
       <section class="composer" id="composer" hidden>
@@ -1164,6 +1160,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260703-82"></script>
+    <script type="module" src="./app.js?v=20260703-83"></script>
   </body>
 </html>

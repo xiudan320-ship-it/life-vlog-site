@@ -1,4 +1,5 @@
-const CONFIG_KEY = "life-vlog-supabase-config";
+﻿const CONFIG_KEY = "life-vlog-cloudflare-config";
+const CLOUDFLARE_AUTH_KEY = "life-vlog-cloudflare-auth";
 const THEME_KEY = "life-vlog-theme";
 const HOME_NAME_KEY = "life-vlog-home-name";
 const VIP_RECHARGE_KEY = "life-vlog-vip-recharge";
@@ -70,8 +71,6 @@ const R2_UPLOAD_ENDPOINT = "https://life-vlog-r2-upload.xiudan320-life.workers.d
 const R2_PUBLIC_URL = "https://pub-47959f26cde042c3b37bc0f8f3f441ce.r2.dev";
 const CLOUDFLARE_SESSION_KEY = "life-vlog-cloudflare-session";
 const PAGE_SIZE = 6;
-const DEFAULT_SUPABASE_URL = "https://cimejrarjcosgayfnikk.supabase.co";
-const DEFAULT_SUPABASE_ANON_KEY = "sb_publishable_G0ZHVQG0XYB2zja9VHiJiQ_HKDUt_fJ";
 const VIP_USERS = new Set(["xiao980320"]);
 const MEDIA_META_START = "<!--life-vlog-media:";
 const MEDIA_META_END = "-->";
@@ -155,8 +154,7 @@ const demoPhotos = [
   },
 ];
 
-let createClient = null;
-let supabase = null;
+let cloudDb = null;
 let session = null;
 let photos = [];
 let favoritePhotoIds = new Set();
@@ -267,8 +265,7 @@ const els = {
   closeNotificationDialog: document.querySelector("#closeNotificationDialog"),
   notificationList: document.querySelector("#notificationList"),
   notificationStatus: document.querySelector("#notificationStatus"),
-  supabaseUrl: document.querySelector("#supabaseUrl"),
-  supabaseAnonKey: document.querySelector("#supabaseAnonKey"),
+  cloudflareEndpoint: document.querySelector("#cloudflareEndpoint"),
   saveConfig: document.querySelector("#saveConfig"),
   authCard: document.querySelector("#authCard"),
   usernameInput: document.querySelector("#usernameInput"),
@@ -579,56 +576,284 @@ els.weekendDateInput.value = getNextWeekendDate();
 foodOptions = loadFoodOptions();
 applyTheme(loadTheme(null), { persist: false, userId: null });
 
-function loadConfig() {
-  if (DEFAULT_SUPABASE_URL && DEFAULT_SUPABASE_ANON_KEY) {
-    return {
-      url: DEFAULT_SUPABASE_URL,
-      anonKey: DEFAULT_SUPABASE_ANON_KEY,
-    };
-  }
+function getCloudflareEndpoint() {
+  return R2_UPLOAD_ENDPOINT.replace(/\/+$/, "");
+}
 
-  const stored = localStorage.getItem(CONFIG_KEY);
-  if (!stored) return null;
-
+function readCloudflareSession() {
   try {
-    return JSON.parse(stored);
+    const parsed = JSON.parse(localStorage.getItem(CLOUDFLARE_AUTH_KEY) || "null");
+    if (!parsed?.access_token || !parsed?.user?.id) return null;
+    if (parsed.expires_at && new Date(parsed.expires_at).getTime() <= Date.now()) {
+      localStorage.removeItem(CLOUDFLARE_AUTH_KEY);
+      return null;
+    }
+    return parsed;
   } catch {
     return null;
   }
 }
 
-function getStoredSupabaseUserId(config = loadConfig()) {
-  if (!config?.url) return "";
-  try {
-    const ref = new URL(config.url).hostname.split(".")[0];
-    const keys = [`sb-${ref}-auth-token`, "supabase.auth.token"];
-    for (const key of keys) {
-      const raw = localStorage.getItem(key);
-      if (!raw) continue;
-      const parsed = JSON.parse(raw);
-      const userId =
-        parsed?.user?.id ||
-        parsed?.currentSession?.user?.id ||
-        parsed?.session?.user?.id;
-      if (userId) return userId;
-    }
-  } catch {
-    return "";
+function writeCloudflareSession(nextSession) {
+  if (nextSession?.access_token) {
+    localStorage.setItem(CLOUDFLARE_AUTH_KEY, JSON.stringify(nextSession));
+  } else {
+    localStorage.removeItem(CLOUDFLARE_AUTH_KEY);
   }
-  return "";
+}
+
+function createCloudflareSession(data) {
+  const username = data?.user?.username || data?.profile?.username || "User";
+  return {
+    access_token: data.token,
+    expires_at: data.expires_at,
+    user: {
+      id: data.user.id,
+      email: usernameToEmail(username),
+      user_metadata: { username },
+    },
+  };
+}
+
+async function cloudflareRequest(path, options = {}) {
+  const headers = new Headers(options.headers || {});
+  if (!headers.has("Content-Type") && options.body && !(options.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
+  }
+  const activeSession = session || readCloudflareSession();
+  if (activeSession?.access_token && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${activeSession.access_token}`);
+  }
+  const response = await fetch(`${getCloudflareEndpoint()}${path}`, {
+    ...options,
+    headers,
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(data.error || `Cloudflare 返回 ${response.status}`);
+    error.status = response.status;
+    throw error;
+  }
+  return data;
+}
+
+class CloudflareQueryBuilder {
+  constructor(table) {
+    this.table = table;
+    this.action = "select";
+    this.values = null;
+    this.filters = [];
+    this.orderColumn = "created_at";
+    this.ascending = false;
+    this.limitCount = 500;
+    this.singleMode = false;
+    this.onConflict = "";
+  }
+
+  select() {
+    return this;
+  }
+
+  insert(values) {
+    this.action = "insert";
+    this.values = values;
+    return this;
+  }
+
+  upsert(values, options = {}) {
+    this.action = "upsert";
+    this.values = values;
+    this.onConflict = options.onConflict || "";
+    return this;
+  }
+
+  update(values) {
+    this.action = "update";
+    this.values = values;
+    return this;
+  }
+
+  delete() {
+    this.action = "delete";
+    return this;
+  }
+
+  eq(column, value) {
+    this.filters.push({ op: "eq", column, value });
+    return this;
+  }
+
+  neq(column, value) {
+    this.filters.push({ op: "neq", column, value });
+    return this;
+  }
+
+  order(column, options = {}) {
+    this.orderColumn = column;
+    this.ascending = Boolean(options.ascending);
+    return this;
+  }
+
+  limit(value) {
+    this.limitCount = value;
+    return this;
+  }
+
+  single() {
+    this.singleMode = true;
+    return this.execute();
+  }
+
+  maybeSingle() {
+    this.singleMode = true;
+    return this.execute({ maybe: true });
+  }
+
+  async execute() {
+    try {
+      let payload;
+      if (this.action === "select") {
+        const params = new URLSearchParams({
+          filters: JSON.stringify(this.filters),
+          order: this.orderColumn,
+          ascending: String(this.ascending),
+          limit: String(this.limitCount),
+        });
+        payload = await cloudflareRequest(`/api/table/${encodeURIComponent(this.table)}?${params}`);
+      } else {
+        payload = await cloudflareRequest(`/api/table/${encodeURIComponent(this.table)}`, {
+          method: "POST",
+          body: JSON.stringify({
+            action: this.action,
+            values: this.values,
+            filters: this.filters,
+            onConflict: this.onConflict,
+          }),
+        });
+      }
+      let data = payload.data ?? [];
+      if (this.singleMode) data = Array.isArray(data) ? data[0] || null : data;
+      return { data, error: null };
+    } catch (error) {
+      return { data: this.singleMode ? null : [], error };
+    }
+  }
+
+  then(resolve, reject) {
+    return this.execute().then(resolve, reject);
+  }
+}
+
+function createCloudflareClient() {
+  const listeners = new Set();
+  const notify = (event, nextSession) => {
+    listeners.forEach((listener) => listener(event, nextSession));
+  };
+  return {
+    auth: {
+      async getSession() {
+        return { data: { session: readCloudflareSession() } };
+      },
+      onAuthStateChange(callback) {
+        listeners.add(callback);
+        return { data: { subscription: { unsubscribe: () => listeners.delete(callback) } } };
+      },
+      async signInWithPassword({ email, password }) {
+        try {
+          const username = String(email || "").split("@")[0];
+          const data = await cloudflareRequest("/api/auth/login", {
+            method: "POST",
+            body: JSON.stringify({ username, password }),
+          });
+          const nextSession = createCloudflareSession(data);
+          writeCloudflareSession(nextSession);
+          notify("SIGNED_IN", nextSession);
+          return { data: { session: nextSession }, error: null };
+        } catch (error) {
+          return { data: null, error };
+        }
+      },
+      async signUp({ email, password, options = {} }) {
+        try {
+          const username = options.data?.username || String(email || "").split("@")[0];
+          const inviteCode = options.data?.inviteCode || options.data?.invite_code || "";
+          const data = await cloudflareRequest("/api/auth/register", {
+            method: "POST",
+            body: JSON.stringify({ username, password, invite_code: inviteCode }),
+          });
+          const nextSession = createCloudflareSession(data);
+          writeCloudflareSession(nextSession);
+          notify("SIGNED_IN", nextSession);
+          return { data: { session: nextSession }, error: null };
+        } catch (error) {
+          return { data: null, error };
+        }
+      },
+      async signOut() {
+        writeCloudflareSession(null);
+        notify("SIGNED_OUT", null);
+        return { error: null };
+      },
+      async updateUser(updates) {
+        try {
+          if (updates.password) {
+            await cloudflareRequest("/api/auth/password", {
+              method: "POST",
+              body: JSON.stringify({ password: updates.password }),
+            });
+          }
+          if (updates.data?.username && session?.user) {
+            session.user.user_metadata = {
+              ...(session.user.user_metadata || {}),
+              username: updates.data.username,
+            };
+            writeCloudflareSession(session);
+          }
+          return { data: { user: session?.user || null }, error: null };
+        } catch (error) {
+          return { data: null, error };
+        }
+      },
+    },
+    from(table) {
+      return new CloudflareQueryBuilder(table);
+    },
+    async rpc(name, payload = {}) {
+      try {
+        const path =
+          name === "reset_password_with_recovery_key"
+            ? `/api/rpc/${name}`
+            : `/api/rpc/${name}`;
+        const data = await cloudflareRequest(path, {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        return { data: data.data ?? data, error: null };
+      } catch (error) {
+        return { data: null, error };
+      }
+    },
+    storage: {
+      from() {
+        return {
+          getPublicUrl(path) {
+            return { data: { publicUrl: path ? `${R2_PUBLIC_URL}/${String(path).replace(/^r2:/, "")}` : "" } };
+          },
+          async upload() {
+            return { error: new Error("旧存储已停用，请使用 Cloudflare R2。") };
+          },
+          async remove() {
+            return { error: null };
+          },
+        };
+      },
+    },
+  };
 }
 
 function saveConfig() {
-  const url = els.supabaseUrl.value.trim();
-  const anonKey = els.supabaseAnonKey.value.trim();
-  if (!url || !anonKey) {
-    setHint("请先填 Supabase URL 和 anon key。");
-    return;
-  }
-
-  localStorage.setItem(CONFIG_KEY, JSON.stringify({ url, anonKey }));
   els.setupPanel.hidden = true;
-  initializeSupabase();
+  setHint("Cloudflare 已接管登录、数据库和图片存储。");
 }
 
 function getHomeNameStorageKey(userId = session?.user?.id || null) {
@@ -662,35 +887,18 @@ function applyHomeName(value, { persist = false, userId = session?.user?.id || n
   return homeName;
 }
 
-async function initializeSupabase() {
-  const config = loadConfig();
-  els.setupToggle.hidden = Boolean(DEFAULT_SUPABASE_URL && DEFAULT_SUPABASE_ANON_KEY);
-  if (!config) {
-    els.setupPanel.hidden = false;
-    setHint("当前是演示模式。填入 Supabase 配置后可登录上传。");
-    photos = demoPhotos;
-    renderGallery();
-    return;
-  }
+async function initializeCloudflare() {
+  els.setupToggle.hidden = true;
+  els.setupPanel.hidden = true;
+  cloudDb = createCloudflareClient();
 
-  els.supabaseUrl.value = config.url;
-  els.supabaseAnonKey.value = config.anonKey;
-  renderCachedPhotoFeed(getStoredSupabaseUserId(config) || "public");
-  if (!createClient) {
-    const supabaseModule = await import(
-      "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm"
-    );
-    createClient = supabaseModule.createClient;
-  }
-  supabase = createClient(config.url, config.anonKey);
-
-  const { data } = await supabase.auth.getSession();
+  const { data } = await cloudDb.auth.getSession();
   session = data.session;
   updateAuthUI();
   renderCachedPhotoFeed(session?.user?.id || "public");
   await loadPhotos();
 
-  supabase.auth.onAuthStateChange((_event, nextSession) => {
+  cloudDb.auth.onAuthStateChange((_event, nextSession) => {
     session = nextSession;
     updateAuthUI();
     renderCachedPhotoFeed(session?.user?.id || "public");
@@ -820,9 +1028,8 @@ function updateAuthUI() {
 }
 
 async function loginWithPassword() {
-  if (!supabase) {
-    setHint("先点右上角设置，填入 Supabase 配置。");
-    els.setupPanel.hidden = false;
+  if (!cloudDb) {
+    setHint("Cloudflare 服务正在初始化，请稍后再试。");
     return;
   }
 
@@ -837,7 +1044,7 @@ async function loginWithPassword() {
   setHint("正在登录...");
 
   try {
-    const { error } = await supabase.auth.signInWithPassword({
+    const { error } = await cloudDb.auth.signInWithPassword({
       email,
       password,
     });
@@ -868,9 +1075,8 @@ async function verifyInviteCode(inviteCode) {
 }
 
 async function signupWithPassword() {
-  if (!supabase) {
-    setHint("先点右上角设置，填入 Supabase 配置。");
-    els.setupPanel.hidden = false;
+  if (!cloudDb) {
+    setHint("Cloudflare 服务正在初始化，请稍后再试。");
     return;
   }
 
@@ -899,12 +1105,12 @@ async function signupWithPassword() {
   try {
     await verifyInviteCode(inviteCode);
     setHint("邀请码通过，正在注册...");
-    const { error } = await supabase.auth.signUp({
+    const { error } = await cloudDb.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: getRedirectUrl(),
-        data: { username },
+        data: { username, inviteCode },
       },
     });
 
@@ -915,8 +1121,8 @@ async function signupWithPassword() {
 }
 
 async function logout() {
-  if (!supabase) return;
-  await supabase.auth.signOut();
+  if (!cloudDb) return;
+  await cloudDb.auth.signOut();
 }
 
 function passwordsMatch(password, confirmation, statusElement) {
@@ -933,13 +1139,13 @@ function passwordsMatch(password, confirmation, statusElement) {
 
 async function changePassword(event) {
   event.preventDefault();
-  if (!supabase || !session) return;
+  if (!cloudDb || !session) return;
   const password = els.newPasswordInput.value;
   if (!passwordsMatch(password, els.confirmPasswordInput.value, els.changePasswordStatus)) {
     return;
   }
   els.changePasswordStatus.textContent = "正在修改密码…";
-  const { error } = await supabase.auth.updateUser({ password });
+  const { error } = await cloudDb.auth.updateUser({ password });
   if (error) {
     els.changePasswordStatus.textContent = `修改失败：${error.message}`;
     return;
@@ -951,7 +1157,7 @@ async function changePassword(event) {
 
 async function saveRecoveryKey(event) {
   event.preventDefault();
-  if (!supabase || !session) return;
+  if (!cloudDb || !session) return;
   const recoveryKey = els.recoveryKeyInput.value.trim();
   if (recoveryKey.length < 12) {
     els.recoveryKeyStatus.textContent = "恢复密钥至少需要 12 位。";
@@ -962,12 +1168,12 @@ async function saveRecoveryKey(event) {
     return;
   }
   els.recoveryKeyStatus.textContent = "正在保存恢复密钥…";
-  const { error } = await supabase.rpc("set_password_recovery_key", {
+  const { error } = await cloudDb.rpc("set_password_recovery_key", {
     p_recovery_key: recoveryKey,
   });
   if (error) {
     els.recoveryKeyStatus.textContent = isMissingCloudSchema(error)
-      ? "恢复功能尚未初始化，请先运行最新版 supabase-cloud-sync.sql。"
+      ? "恢复功能尚未初始化，请先部署最新版 Cloudflare D1 结构。"
       : `保存失败：${error.message}`;
     return;
   }
@@ -978,7 +1184,7 @@ async function saveRecoveryKey(event) {
 
 async function resetForgottenPassword(event) {
   event.preventDefault();
-  if (!supabase) return;
+  if (!cloudDb) return;
   const username = els.recoveryUsernameInput.value.trim();
   const recoveryKey = els.recoverySecretInput.value.trim();
   const password = els.recoveryNewPasswordInput.value;
@@ -996,14 +1202,14 @@ async function resetForgottenPassword(event) {
     return;
   }
   els.forgotPasswordStatus.textContent = "正在验证恢复密钥…";
-  const { data, error } = await supabase.rpc("reset_password_with_recovery_key", {
+  const { data, error } = await cloudDb.rpc("reset_password_with_recovery_key", {
     p_username: username,
     p_recovery_key: recoveryKey,
     p_new_password: password,
   });
   if (error) {
     els.forgotPasswordStatus.textContent = isMissingCloudSchema(error)
-      ? "恢复功能尚未初始化，请先运行最新版 supabase-cloud-sync.sql。"
+      ? "恢复功能尚未初始化，请先部署最新版 Cloudflare D1 结构。"
       : `重设失败：${error.message}`;
     return;
   }
@@ -1019,13 +1225,13 @@ async function resetForgottenPassword(event) {
 }
 
 async function loadPhotos() {
-  if (!supabase) {
+  if (!cloudDb) {
     photos = demoPhotos;
     renderGallery();
     return;
   }
 
-  let query = supabase.from("photos").select("*");
+  let query = cloudDb.from("photos").select("*");
   query = session ? query : query.eq("is_public", true);
 
   const { data, error } = await query
@@ -1062,8 +1268,8 @@ async function loadPhotos() {
 
 async function loadPhotoCommentPreviews() {
   photoCommentPreviewMap = new Map();
-  if (!supabase || !session) return;
-  const { data, error } = await supabase
+  if (!cloudDb || !session) return;
+  const { data, error } = await cloudDb
     .from("photo_comments")
     .select("id,photo_id,user_id,body,parent_id,created_at")
     .order("created_at", { ascending: false })
@@ -1261,12 +1467,12 @@ function renderFeedRefreshNotice() {
 }
 
 async function checkForNewPhotos() {
-  if (!supabase || !session || feedRefreshCheckInFlight) return;
+  if (!cloudDb || !session || feedRefreshCheckInFlight) return;
   if (showingCachedFeed) return;
   feedRefreshCheckInFlight = true;
   try {
     const currentIds = new Set(photos.map((photo) => photo.id).filter(Boolean));
-    const { data, error } = await supabase
+    const { data, error } = await cloudDb
       .from("photos")
       .select("id,user_id,title,category,taken_at,created_at")
       .order("created_at", { ascending: false })
@@ -1386,11 +1592,11 @@ function renderPhotoCommentPreview(photoId, visibleIndex) {
 }
 
 async function verifyPhotoFlagSchema() {
-  if (!supabase || !session) {
+  if (!cloudDb || !session) {
     photoFlagsCloudAvailable = false;
     return;
   }
-  const { error } = await supabase
+  const { error } = await cloudDb
     .from("photos")
     .select("id,is_featured,is_pinned")
     .limit(1);
@@ -1420,14 +1626,14 @@ function saveLocalFavoritePhotoIds() {
 }
 
 async function synchronizePhotoFavorites() {
-  if (!supabase || !session) return;
+  if (!cloudDb || !session) return;
   const userId = session.user.id;
   const visiblePhotoIds = new Set(photos.map((photo) => photo.id));
   const localIds = [...loadLocalFavoritePhotoIds()].filter((id) =>
     visiblePhotoIds.has(id)
   );
   try {
-    const { data, error } = await supabase
+    const { data, error } = await cloudDb
       .from("photo_favorites")
       .select("photo_id")
       .eq("user_id", userId);
@@ -1436,7 +1642,7 @@ async function synchronizePhotoFavorites() {
     const cloudIdSet = new Set((data || []).map((row) => row.photo_id));
     const missingLocalIds = localIds.filter((id) => !cloudIdSet.has(id));
     if (missingLocalIds.length) {
-      const { error: migrateError } = await supabase
+      const { error: migrateError } = await cloudDb
         .from("photo_favorites")
         .upsert(
           missingLocalIds.map((photoId) => ({ user_id: userId, photo_id: photoId })),
@@ -1460,7 +1666,7 @@ async function synchronizePhotoFavorites() {
 
 async function uploadPhoto(event) {
   event.preventDefault();
-  if (!supabase || !session) {
+  if (!cloudDb || !session) {
     setStatus("请先登录。");
     return;
   }
@@ -1532,7 +1738,7 @@ async function insertPhotoRecord(finalTitle, images) {
     height: primaryImage.height,
   };
 
-  const { error } = await supabase.from("photos").insert(record);
+  const { error } = await cloudDb.from("photos").insert(record);
   return error;
 }
 
@@ -1620,50 +1826,23 @@ async function uploadImageFile(file, safeName, index = 1, total = 1, options = {
     statusSetter(error.message || "图片压缩失败。");
     return null;
   }
-  const path = `${session.user.id}/${folder}/${Date.now()}-${safeName}.jpg`;
-
   statusSetter(
     `${prefix}已压缩 ${formatFileSize(file.size)} → ${formatFileSize(compressed.blob.size)}，正在上传...`
   );
-  if (R2_UPLOAD_ENDPOINT) {
-    try {
-      const uploaded = await uploadToR2(compressed.blob, safeName, folder);
-      return {
-        image_path: `r2:${uploaded.key}`,
-        image_url: uploaded.url,
-        width: compressed.width,
-        height: compressed.height,
-        original_size: compressed.originalBytes,
-        compressed_size: compressed.compressedBytes,
-      };
-    } catch (error) {
-      statusSetter(`R2 上传失败：${error.message}`);
-      return null;
-    }
-  }
-
-  const { error: uploadError } = await supabase.storage
-    .from(BUCKET)
-    .upload(path, compressed.blob, {
-      contentType: "image/jpeg",
-      upsert: false,
-    });
-
-  if (uploadError) {
-    statusSetter(uploadError.message);
+  try {
+    const uploaded = await uploadToR2(compressed.blob, safeName, folder);
+    return {
+      image_path: `r2:${uploaded.key}`,
+      image_url: uploaded.url,
+      width: compressed.width,
+      height: compressed.height,
+      original_size: compressed.originalBytes,
+      compressed_size: compressed.compressedBytes,
+    };
+  } catch (error) {
+    statusSetter(`R2 上传失败：${error.message}`);
     return null;
   }
-
-  const { data: publicUrlData } = supabase.storage.from(BUCKET).getPublicUrl(path);
-
-  return {
-    image_path: path,
-    image_url: publicUrlData.publicUrl,
-    width: compressed.width,
-    height: compressed.height,
-    original_size: compressed.originalBytes,
-    compressed_size: compressed.compressedBytes,
-  };
 }
 
 async function uploadToR2(blob, safeName, folder = "photos") {
@@ -1723,12 +1902,11 @@ function getR2Key(path) {
   return String(path || "").replace(/^r2:/, "");
 }
 
-function getSupabasePublicUrl(path) {
-  if (!path || isR2Path(path) || !supabase) return "";
-  return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+function getLegacyStoragePublicUrl(path) {
+  return path && !isR2Path(path) ? "" : "";
 }
 
-function getSupabasePathFromPublicUrl(url) {
+function getLegacyStoragePathFromPublicUrl(url) {
   const marker = `/storage/v1/object/public/${BUCKET}/`;
   const value = String(url || "");
   const index = value.indexOf(marker);
@@ -1736,9 +1914,9 @@ function getSupabasePathFromPublicUrl(url) {
   return decodeURIComponent(value.slice(index + marker.length).split("?")[0]);
 }
 
-function isSupabaseStorageAsset(url, path = "") {
+function isLegacyStorageAsset(url, path = "") {
   if (path && !isR2Path(path)) return true;
-  return Boolean(getSupabasePathFromPublicUrl(url));
+  return Boolean(getLegacyStoragePathFromPublicUrl(url));
 }
 
 function isDataImageUrl(url) {
@@ -1748,7 +1926,7 @@ function isDataImageUrl(url) {
 function shouldMigrateImageAsset(url, path = "") {
   if (!url && !path) return false;
   if (isR2Path(path) || isR2Url(url)) return false;
-  return isSupabaseStorageAsset(url, path) || isDataImageUrl(url);
+  return isLegacyStorageAsset(url, path) || isDataImageUrl(url);
 }
 
 async function uploadDataUrlToR2(dataUrl, safeName, folder) {
@@ -1771,7 +1949,7 @@ async function migrateImageAsset({ url = "", path = "", name = "image", folder =
   }
 
   const safeName = slugify(name || folder || "image");
-  const sourceUrl = isDataImageUrl(url) ? url : url || getSupabasePublicUrl(path);
+  const sourceUrl = isDataImageUrl(url) ? url : url || getLegacyStoragePublicUrl(path);
   if (!sourceUrl) {
     return { changed: false, image_url: url, image_path: path, oldPath: "" };
   }
@@ -1779,7 +1957,7 @@ async function migrateImageAsset({ url = "", path = "", name = "image", folder =
   const uploaded = isDataImageUrl(sourceUrl)
     ? await uploadDataUrlToR2(sourceUrl, safeName, folder)
     : await copyUrlToR2(sourceUrl, safeName, folder);
-  const oldPath = path && !isR2Path(path) ? path : getSupabasePathFromPublicUrl(url);
+  const oldPath = path && !isR2Path(path) ? path : getLegacyStoragePathFromPublicUrl(url);
   return {
     changed: true,
     image_url: uploaded.url,
@@ -1808,13 +1986,8 @@ async function deleteR2Object(path) {
 async function cleanupStoredImagePaths(paths) {
   const uniquePaths = [...new Set(paths.filter(Boolean))];
   const r2Paths = uniquePaths.filter(isR2Path);
-  const supabasePaths = uniquePaths.filter((path) => !isR2Path(path));
   const errors = [];
 
-  if (supabasePaths.length) {
-    const { error } = await supabase.storage.from(BUCKET).remove(supabasePaths);
-    if (error) errors.push(error);
-  }
   for (const path of r2Paths) {
     try {
       await deleteR2Object(path);
@@ -2056,16 +2229,16 @@ function isPhotoWithinSevenDays(photo) {
 }
 
 async function togglePhotoFlag(photo, field) {
-  if (!supabase || !session || !photo || photo.user_id !== session.user.id) return;
+  if (!cloudDb || !session || !photo || photo.user_id !== session.user.id) return;
   const label = field === "is_pinned" ? "置顶" : "精选";
   if (!photoFlagsCloudAvailable) {
-    setGlobalStatus(`数据库尚未启用${label}字段，请先运行最新版 supabase-cloud-sync.sql。`);
+    setGlobalStatus(`Cloudflare D1 尚未启用${label}字段，请先部署最新版数据库结构。`);
     return;
   }
   const nextValue = !Boolean(photo[field]);
   setGlobalStatus(`正在更新${label}状态...`);
 
-  const { data, error } = await supabase
+  const { data, error } = await cloudDb
     .from("photos")
     .update({ [field]: nextValue })
     .eq("id", photo.id)
@@ -2076,7 +2249,7 @@ async function togglePhotoFlag(photo, field) {
   if (error) {
     setGlobalStatus(
       isMissingCloudSchema(error)
-        ? `请先运行最新的 supabase-cloud-sync.sql，再使用${label}功能。`
+        ? `请先部署最新版 Cloudflare D1 结构，再使用${label}功能。`
         : `${label}更新失败：${error.message}`
     );
     return;
@@ -2094,19 +2267,19 @@ async function togglePhotoFavorite(photo, button) {
   }
 
   if (!favoritesCloudAvailable) {
-    setGlobalStatus("收藏数据库尚未启用，请先运行最新版 supabase-cloud-sync.sql。");
+    setGlobalStatus("Cloudflare D1 尚未启用收藏表，请先部署最新版数据库结构。");
     return;
   }
 
   const wasFavorite = favoritePhotoIds.has(photo.id);
   button.disabled = true;
   const request = wasFavorite
-    ? supabase
+    ? cloudDb
         .from("photo_favorites")
         .delete()
         .eq("user_id", session.user.id)
         .eq("photo_id", photo.id)
-    : supabase
+    : cloudDb
         .from("photo_favorites")
         .insert({ user_id: session.user.id, photo_id: photo.id });
   const { error } = await request;
@@ -2412,7 +2585,7 @@ function initializeFeedObserver() {
 }
 
 async function deletePhoto(photo, triggerButton = null) {
-  if (!supabase || !session || !photo) {
+  if (!cloudDb || !session || !photo) {
     setGlobalStatus("请先登录后再删除日记。");
     return false;
   }
@@ -2437,7 +2610,7 @@ async function deletePhoto(photo, triggerButton = null) {
   ];
 
   try {
-    const { data: deletedRows, error: deleteError } = await supabase
+    const { data: deletedRows, error: deleteError } = await cloudDb
       .from("photos")
       .delete()
       .eq("id", photo.id)
@@ -2448,7 +2621,7 @@ async function deletePhoto(photo, triggerButton = null) {
       throw new Error(`数据库删除失败：${deleteError.message}`);
     }
     if (!deletedRows?.length) {
-      throw new Error("数据库没有删除任何记录，请重新运行最新的 Supabase SQL 权限脚本。");
+      throw new Error("数据库没有删除任何记录，请确认 Cloudflare D1 权限和表结构已部署。");
     }
 
     photos = photos.filter((item) => item.id !== photo.id);
@@ -2551,7 +2724,7 @@ function openEditPhoto(photo) {
 
 async function savePhotoEditLegacy(event) {
   event.preventDefault();
-  if (!supabase || !session || !editingPhoto) {
+  if (!cloudDb || !session || !editingPhoto) {
     els.saveEditStatus.textContent = "请先登录后再编辑。";
     return;
   }
@@ -2567,7 +2740,7 @@ async function savePhotoEditLegacy(event) {
   };
 
   els.saveEditStatus.textContent = "正在保存...";
-  const { error } = await supabase.from("photos").update(updates).eq("id", editingPhoto.id);
+  const { error } = await cloudDb.from("photos").update(updates).eq("id", editingPhoto.id);
 
   if (error) {
     els.saveEditStatus.textContent = error.message;
@@ -2583,7 +2756,7 @@ async function savePhotoEditLegacy(event) {
 
 async function savePhotoEdit(event) {
   event.preventDefault();
-  if (!supabase || !session || !editingPhoto || !editingImages.length) {
+  if (!cloudDb || !session || !editingPhoto || !editingImages.length) {
     els.saveEditStatus.textContent = "请先登录，并至少保留一张图片。";
     return;
   }
@@ -2628,7 +2801,7 @@ async function savePhotoEdit(event) {
     };
 
     els.saveEditStatus.textContent = "正在保存...";
-    const { error } = await supabase
+    const { error } = await cloudDb
       .from("photos")
       .update(updates)
       .eq("id", editingPhoto.id)
@@ -2973,11 +3146,11 @@ async function loadFamilyContext() {
   familyMembers = [];
   familyInvitations = [];
   familyMemberMap = new Map();
-  if (!supabase || !session) return;
+  if (!cloudDb || !session) return;
 
   const [membersResult, invitationsResult] = await Promise.all([
-    supabase.rpc("get_my_family_members"),
-    supabase.rpc("get_my_family_invitations"),
+    cloudDb.rpc("get_my_family_members"),
+    cloudDb.rpc("get_my_family_invitations"),
   ]);
   if (membersResult.error || invitationsResult.error) {
     const error = membersResult.error || invitationsResult.error;
@@ -3003,20 +3176,20 @@ async function loadFamilyContext() {
 }
 
 async function loadGratitudeNotes() {
-  if (!supabase || !session) {
+  if (!cloudDb || !session) {
     gratitudeNotes = [];
     renderGratitudeNotes();
     return;
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await cloudDb
     .from("gratitude_notes")
     .select("*")
     .order("created_at", { ascending: false });
   if (error) {
     gratitudeNotes = [];
     els.thanksStatus.textContent = isMissingCloudSchema(error)
-      ? "请先运行最新版 supabase-cloud-sync.sql，启用感谢留言板。"
+      ? "请先部署最新版 Cloudflare D1 结构，启用感谢留言板。"
       : `留言读取失败：${error.message}`;
   } else {
     gratitudeNotes = data || [];
@@ -3135,9 +3308,9 @@ function weekendFromCloudRow(row) {
 }
 
 async function synchronizeWeekendPlans(userId = session?.user?.id) {
-  if (!supabase || !session || !userId) return;
+  if (!cloudDb || !session || !userId) return;
   try {
-    const { data, error } = await supabase
+    const { data, error } = await cloudDb
       .from("weekend_plans")
       .select("*")
       .order("plan_date", { ascending: true });
@@ -3150,11 +3323,11 @@ async function synchronizeWeekendPlans(userId = session?.user?.id) {
       (plan) => (!plan.userId || plan.userId === userId) && !cloudIds.has(plan.id)
     );
     if (missingLocalPlans.length) {
-      const { error: migrateError } = await supabase
+      const { error: migrateError } = await cloudDb
         .from("weekend_plans")
         .upsert(missingLocalPlans.map((plan) => weekendToCloudRow(plan, userId)), { onConflict: "id" });
       if (migrateError) throw migrateError;
-      const refreshed = await supabase
+      const refreshed = await cloudDb
         .from("weekend_plans")
         .select("*")
         .order("plan_date", { ascending: true });
@@ -3177,7 +3350,7 @@ async function synchronizeWeekendPlans(userId = session?.user?.id) {
 }
 
 async function synchronizeAccountData() {
-  if (!supabase || !session) return;
+  if (!cloudDb || !session) return;
   if (cloudSyncInFlight) return cloudSyncInFlight;
 
   const userId = session.user.id;
@@ -3187,9 +3360,9 @@ async function synchronizeAccountData() {
       setGlobalStatus("正在同步账户数据…");
       await loadFamilyContext();
       const [profileResult, recipesResult, wishesResult] = await Promise.all([
-        supabase.from("user_profiles").select("*").eq("user_id", userId).maybeSingle(),
-        supabase.from("recipes").select("*").order("created_at", { ascending: false }),
-        supabase.from("wishes").select("*").order("created_at", { ascending: false }),
+        cloudDb.from("user_profiles").select("*").eq("user_id", userId).maybeSingle(),
+        cloudDb.from("recipes").select("*").order("created_at", { ascending: false }),
+        cloudDb.from("wishes").select("*").order("created_at", { ascending: false }),
       ]);
 
       const firstError = profileResult.error || recipesResult.error || wishesResult.error;
@@ -3206,7 +3379,7 @@ async function synchronizeAccountData() {
 
       if (!profile) {
         const initialRecharge = Math.max(localRecharge, isVipUser(displayName) ? 298 : 0);
-        const { data, error } = await supabase
+        const { data, error } = await cloudDb
           .from("user_profiles")
           .insert({
             user_id: userId,
@@ -3235,18 +3408,18 @@ async function synchronizeAccountData() {
         );
         if (personalLocalRecipes.length) {
           const rows = personalLocalRecipes.map((recipe) => recipeToCloudRow(recipe, userId));
-          const { error } = await supabase.from("recipes").upsert(rows, { onConflict: "id" });
+          const { error } = await cloudDb.from("recipes").upsert(rows, { onConflict: "id" });
           if (error) throw error;
         }
         if (personalLocalWishes.length) {
           const rows = personalLocalWishes.map((wish) => wishToCloudRow(wish, userId));
-          let { error } = await supabase.from("wishes").upsert(rows, { onConflict: "id" });
+          let { error } = await cloudDb.from("wishes").upsert(rows, { onConflict: "id" });
           if (error && isMissingCloudSchema(error)) {
             wishCompletionNoteCloudAvailable = false;
             const legacyRows = personalLocalWishes.map((wish) =>
               wishToLegacyCloudRow(wish, userId)
             );
-            const retry = await supabase.from("wishes").upsert(legacyRows, {
+            const retry = await cloudDb.from("wishes").upsert(legacyRows, {
               onConflict: "id",
             });
             error = retry.error;
@@ -3255,8 +3428,8 @@ async function synchronizeAccountData() {
         }
 
         const [migratedRecipes, migratedWishes] = await Promise.all([
-          supabase.from("recipes").select("*").order("created_at", { ascending: false }),
-          supabase.from("wishes").select("*").order("created_at", { ascending: false }),
+          cloudDb.from("recipes").select("*").order("created_at", { ascending: false }),
+          cloudDb.from("wishes").select("*").order("created_at", { ascending: false }),
         ]);
         if (migratedRecipes.error || migratedWishes.error) {
           throw migratedRecipes.error || migratedWishes.error;
@@ -3336,7 +3509,7 @@ async function synchronizeAccountData() {
         profileUpdates.preferred_thanks_color = preferredThanksColor;
       }
 
-      const { data: savedProfile, error: profileError } = await supabase
+      const { data: savedProfile, error: profileError } = await cloudDb
         .from("user_profiles")
         .update(profileUpdates)
         .eq("user_id", userId)
@@ -3416,7 +3589,7 @@ async function synchronizeAccountData() {
       awardDailyExperience(displayName);
       renderExperience(displayName);
       if (isMissingCloudSchema(error)) {
-        setGlobalStatus("云同步数据库尚未初始化，请先运行 supabase-cloud-sync.sql");
+        setGlobalStatus("Cloudflare D1 尚未初始化，请先部署最新版数据库结构。");
       } else {
         setGlobalStatus(`云同步失败：${error.message || "请稍后重试"}`);
       }
@@ -3442,7 +3615,7 @@ function updateCloudSyncStatus() {
   if (!secretCloudAvailable) missing.push("秘藏");
   setGlobalStatus(
     missing.length
-      ? `数据库仍缺少：${missing.join("、")}。请运行最新版 supabase-cloud-sync.sql。`
+      ? `Cloudflare D1 仍缺少：${missing.join("、")}。请部署最新版数据库结构。`
       : "全部账户数据已同步到云端"
   );
 }
@@ -3594,14 +3767,14 @@ async function rechargeVip(amount) {
   }
   if (!cloudSyncAvailable) {
     els.vipStatus.textContent =
-      "数据库尚未升级，本次充值没有保存。请先运行最新版 supabase-cloud-sync.sql。";
+      "Cloudflare D1 尚未升级，本次充值没有保存。请先部署最新版数据库结构。";
     return;
   }
 
   const nextTotal = loadRechargeTotal() + numericAmount;
   const nextLevel = getVipLevelByRecharge(nextTotal)?.level || 0;
 
-  const { error } = await supabase
+  const { error } = await cloudDb
     .from("user_profiles")
     .update({
       recharge_total: nextTotal,
@@ -3803,8 +3976,8 @@ async function awardExperience(action, options = {}) {
   renderExperience();
   renderOverview();
 
-  if (cloudSyncAvailable && supabase) {
-    const { error } = await supabase
+  if (cloudSyncAvailable && cloudDb) {
+    const { error } = await cloudDb
       .from("user_profiles")
       .update({
         experience_total: next.total,
@@ -3872,9 +4045,9 @@ function toggleTheme() {
 
 async function persistThemeToCloud(theme) {
   const nextTheme = normalizeTheme(theme);
-  if (!nextTheme || !supabase || !session || !cloudSyncAvailable) return;
+  if (!nextTheme || !cloudDb || !session || !cloudSyncAvailable) return;
   const userId = session.user.id;
-  const { error } = await supabase
+  const { error } = await cloudDb
     .from("user_profiles")
     .update({
       theme_preference: nextTheme,
@@ -3887,8 +4060,8 @@ async function persistThemeToCloud(theme) {
 }
 
 async function persistHomeNameToCloud(homeName) {
-  if (!supabase || !session) return false;
-  const { error } = await supabase
+  if (!cloudDb || !session) return false;
+  const { error } = await cloudDb
     .from("user_profiles")
     .update({
       home_name: homeName,
@@ -3910,7 +4083,7 @@ async function persistHomeNameToCloud(homeName) {
 
 async function saveProfileNickname(event) {
   event.preventDefault();
-  if (!supabase || !session) return;
+  if (!cloudDb || !session) return;
   const nickname = normalizeNickname(els.profileNicknameInput.value);
   if (!nickname) {
     els.profileNicknameStatus.textContent = "昵称不能为空。";
@@ -3918,7 +4091,7 @@ async function saveProfileNickname(event) {
   }
 
   els.profileNicknameStatus.textContent = "正在保存昵称...";
-  const { error: authError } = await supabase.auth.updateUser({
+  const { error: authError } = await cloudDb.auth.updateUser({
     data: { username: nickname },
   });
   if (authError) {
@@ -3926,7 +4099,7 @@ async function saveProfileNickname(event) {
     return;
   }
 
-  const { error: profileError } = await supabase
+  const { error: profileError } = await cloudDb
     .from("user_profiles")
     .update({
       username: nickname,
@@ -3966,7 +4139,7 @@ function updateAvatarPreview() {
 
 async function saveAvatar(event) {
   event.preventDefault();
-  if (!supabase || !session) return;
+  if (!cloudDb || !session) return;
   const file = els.avatarInput.files?.[0];
   if (!file) {
     els.avatarStatus.textContent = "先选择一张图片。";
@@ -3999,7 +4172,7 @@ async function saveAvatar(event) {
   const avatarUrl = uploaded.url;
   const path = `r2:${uploaded.key}`;
   const previousPath = accountProfile.avatarPath;
-  const { error: profileError } = await supabase
+  const { error: profileError } = await cloudDb
     .from("user_profiles")
     .update({
       avatar_url: avatarUrl,
@@ -4293,13 +4466,13 @@ function normalizeSecretImages(images) {
 }
 
 async function loadSecretItems() {
-  if (!supabase || !session) {
+  if (!cloudDb || !session) {
     secretItems = [];
     renderSecretGallery();
     return;
   }
   try {
-    const { data, error } = await supabase
+    const { data, error } = await cloudDb
       .from("secret_items")
       .select("*")
       .order("created_at", { ascending: false });
@@ -4312,7 +4485,7 @@ async function loadSecretItems() {
     secretItems = [];
     renderSecretGallery();
     if (isMissingCloudSchema(error)) {
-      setSecretStatus("秘藏表尚未初始化，请运行最新版 supabase-cloud-sync.sql。");
+      setSecretStatus("秘藏表尚未初始化，请部署最新版 Cloudflare D1 结构。");
     } else {
       setSecretStatus(`秘藏同步失败：${error.message || "请稍后重试"}`);
     }
@@ -4395,12 +4568,12 @@ function handleSecretPaste(event) {
 
 async function saveSecretItem(event) {
   event.preventDefault();
-  if (!supabase || !session) {
+  if (!cloudDb || !session) {
     setSecretStatus("请先登录。");
     return;
   }
   if (!secretCloudAvailable) {
-    setSecretStatus("请先运行最新版 supabase-cloud-sync.sql，启用秘藏表。");
+    setSecretStatus("请先部署最新版 Cloudflare D1 结构，启用秘藏表。");
     return;
   }
   const files = Array.from(els.secretImageInput.files || []);
@@ -4436,7 +4609,7 @@ async function saveSecretItem(event) {
       createdAt: now,
       updatedAt: now,
     };
-    const { error } = await supabase.from("secret_items").insert(secretToCloudRow(item));
+    const { error } = await cloudDb.from("secret_items").insert(secretToCloudRow(item));
     if (error) throw error;
     els.secretForm.reset();
     updateSecretPreview();
@@ -4559,7 +4732,7 @@ function returnToSecretItem() {
 
 async function deleteSecretItem(item) {
   if (!item || !session || !confirm("删除这件秘藏吗？")) return;
-  const { error } = await supabase
+  const { error } = await cloudDb
     .from("secret_items")
     .delete()
     .eq("id", item.id)
@@ -4744,17 +4917,17 @@ function saveFoodOptionsCache(userId = session?.user?.id || "guest") {
 
 async function persistFoodOptions(nextOptions) {
   if (
-    !supabase ||
+    !cloudDb ||
     !session ||
     !cloudSyncAvailable ||
     !foodOptionsCloudAvailable
   ) {
     els.foodWheelResult.textContent =
-      "数据库尚未升级，候选没有保存。请先运行最新版 supabase-cloud-sync.sql。";
+      "Cloudflare D1 尚未升级，候选没有保存。请先部署最新版数据库结构。";
     return false;
   }
   const normalized = normalizeFoodOptions(nextOptions);
-  const { data, error } = await supabase
+  const { data, error } = await cloudDb
     .from("user_profiles")
     .update({
       food_options: normalized,
@@ -5030,7 +5203,7 @@ async function saveRecipe(event) {
   }
   if (!cloudSyncAvailable) {
     setRecipeStatus(
-      "数据库尚未升级，菜谱没有保存。请先运行最新版 supabase-cloud-sync.sql。"
+      "Cloudflare D1 尚未升级，菜谱没有保存。请先部署最新版数据库结构。"
     );
     return;
   }
@@ -5061,7 +5234,7 @@ async function saveRecipe(event) {
 
   const wasEditing = Boolean(recipeEditingId);
   if (cloudSyncAvailable) {
-    const { data, error } = await supabase
+    const { data, error } = await cloudDb
       .from("recipes")
       .upsert(recipeToCloudRow(recipe, recipe.userId), { onConflict: "id" })
       .select("*")
@@ -5197,7 +5370,7 @@ async function deleteRecipe(id) {
     return;
   }
 
-  const { error } = await supabase.from("recipes").delete().eq("id", id);
+  const { error } = await cloudDb.from("recipes").delete().eq("id", id);
   if (error) {
     setRecipeStatus(`删除同步失败：${error.message}`);
     return;
@@ -5336,22 +5509,11 @@ async function uploadWishImage(file, title) {
 
   setWishlistStatus("正在压缩心愿图片…");
   const compressed = await compressImage(file);
-  const path = `${session.user.id}/wishes/${Date.now()}-${slugify(title)}.jpg`;
   setWishlistStatus(
     `已压缩 ${formatFileSize(file.size)} → ${formatFileSize(compressed.blob.size)}，正在上传心愿图片…`
   );
-  if (R2_UPLOAD_ENDPOINT) {
-    const uploaded = await uploadToR2(compressed.blob, slugify(title), "wishes");
-    return { imageUrl: uploaded.url, imagePath: `r2:${uploaded.key}` };
-  }
-
-  const { error } = await supabase.storage.from(BUCKET).upload(path, compressed.blob, {
-    contentType: "image/jpeg",
-    upsert: false,
-  });
-  if (error) throw error;
-  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-  return { imageUrl: data.publicUrl, imagePath: path };
+  const uploaded = await uploadToR2(compressed.blob, slugify(title), "wishes");
+  return { imageUrl: uploaded.url, imagePath: `r2:${uploaded.key}` };
 }
 
 function resetWishForm() {
@@ -5393,7 +5555,7 @@ async function saveWish(event) {
   }
   if (!cloudSyncAvailable) {
     setWishlistStatus(
-      "数据库尚未升级，心愿没有保存。请先运行最新版 supabase-cloud-sync.sql。"
+      "Cloudflare D1 尚未升级，心愿没有保存。请先部署最新版数据库结构。"
     );
     return;
   }
@@ -5434,7 +5596,7 @@ async function saveWish(event) {
     let row = wishCompletionNoteCloudAvailable
       ? wishToCloudRow(wish, wish.userId)
       : wishToLegacyCloudRow(wish, wish.userId);
-    let { data, error } = await supabase
+    let { data, error } = await cloudDb
       .from("wishes")
       .upsert(row, { onConflict: "id" })
       .select("*")
@@ -5442,7 +5604,7 @@ async function saveWish(event) {
     if (error && isMissingCloudSchema(error)) {
       wishCompletionNoteCloudAvailable = false;
       row = wishToLegacyCloudRow(wish, wish.userId);
-      const retry = await supabase
+      const retry = await cloudDb
         .from("wishes")
         .upsert(row, { onConflict: "id" })
         .select("*")
@@ -5471,7 +5633,7 @@ async function saveWish(event) {
   if (
     previous?.imagePath &&
     previous.imagePath !== wish.imagePath &&
-    supabase &&
+    cloudDb &&
     session
   ) {
     await cleanupStoredImagePaths([previous.imagePath]);
@@ -5481,7 +5643,7 @@ async function saveWish(event) {
   const gainedExp = await awardExperience(wasEditing ? "wishEdit" : "wish");
   setWishlistStatus(
     `${!wishCompletionNoteCloudAvailable && wish.completionNote
-      ? "心愿已保存；完成感想字段还没升级，请运行 supabase-wish-completion-note-patch.sql 后再编辑同步。"
+      ? "心愿已保存；完成感想字段还没升级，请部署最新版 Cloudflare D1 结构后再编辑同步。"
       : wasEditing
         ? "心愿已更新。"
         : "心愿已保存。"}${gainedExp ? ` 修为 +${gainedExp}` : ""}`
@@ -5698,7 +5860,7 @@ async function saveWishCompletionState(current, done, completionNote = "", targe
     delete updatePayload.completion_note;
   }
   let usedLegacyCompletionNote = !wishCompletionNoteCloudAvailable && done && Boolean(completionNote);
-  let result = await supabase
+  let result = await cloudDb
     .from("wishes")
     .update(updatePayload)
     .eq("id", current.id)
@@ -5707,7 +5869,7 @@ async function saveWishCompletionState(current, done, completionNote = "", targe
 
   if (result.error && isMissingCloudSchema(result.error)) {
     wishCompletionNoteCloudAvailable = false;
-    result = await supabase
+    result = await cloudDb
       .from("wishes")
       .update({
         is_done: next.done,
@@ -5745,7 +5907,7 @@ async function saveWishCompletionState(current, done, completionNote = "", targe
   const gainedExp = await awardExperience(done ? "wishDone" : "wishEdit");
   setWishlistStatus(
     `${usedLegacyCompletionNote
-      ? "心愿已完成；数据库还缺少完成感想字段，请运行 supabase-wish-completion-note-patch.sql 后再编辑补上。"
+      ? "心愿已完成；数据库还缺少完成感想字段，请部署最新版 Cloudflare D1 结构后再编辑补上。"
       : done
         ? "心愿已完成，感想已保存。"
         : "已取消完成状态。"}${gainedExp ? ` 修为 +${gainedExp}` : ""}`
@@ -5790,14 +5952,14 @@ async function deleteWish(id) {
   }
 
   if (cloudSyncAvailable) {
-    const { error } = await supabase.from("wishes").delete().eq("id", id);
+    const { error } = await cloudDb.from("wishes").delete().eq("id", id);
     if (error) {
       setWishlistStatus(`删除同步失败：${error.message}`);
       return;
     }
   }
 
-  if (wish.imagePath && supabase && session) {
+  if (wish.imagePath && cloudDb && session) {
     await cleanupStoredImagePaths([wish.imagePath]);
   }
   wishes = wishes.filter((item) => item.id !== id);
@@ -6074,7 +6236,7 @@ async function saveAnniversary(event) {
   if (!session) return;
   if (!anniversaryCloudAvailable) {
     els.anniversaryStatus.textContent =
-      "数据库尚未升级，纪念日没有保存。请先运行最新版 supabase-cloud-sync.sql。";
+      "Cloudflare D1 尚未升级，纪念日没有保存。请先部署最新版数据库结构。";
     return;
   }
   const title = els.anniversaryTitleInput.value.trim();
@@ -6097,7 +6259,7 @@ async function saveAnniversary(event) {
   };
 
   if (anniversaryCloudAvailable) {
-    const { data, error } = await supabase
+    const { data, error } = await cloudDb
       .from("anniversaries")
       .upsert(anniversaryToCloudRow(item, item.userId), { onConflict: "id" })
       .select("*")
@@ -6128,7 +6290,7 @@ async function deleteAnniversary(id) {
     return;
   }
   if (item.date) {
-    const { error } = await supabase.from("anniversaries").delete().eq("id", id);
+    const { error } = await cloudDb.from("anniversaries").delete().eq("id", id);
     if (error) {
       els.anniversaryStatus.textContent = `删除失败：${error.message}`;
       return;
@@ -6140,9 +6302,9 @@ async function deleteAnniversary(id) {
 }
 
 async function synchronizeAnniversaries(userId = session?.user?.id) {
-  if (!supabase || !session || !userId) return;
+  if (!cloudDb || !session || !userId) return;
   try {
-    const { data, error } = await supabase
+    const { data, error } = await cloudDb
       .from("anniversaries")
       .select("*")
       .order("created_at", { ascending: true });
@@ -6158,13 +6320,13 @@ async function synchronizeAnniversaries(userId = session?.user?.id) {
         !cloudIds.has(item.id)
     );
     if (migratableItems.length) {
-      const { error: migrateError } = await supabase
+      const { error: migrateError } = await cloudDb
         .from("anniversaries")
         .upsert(migratableItems.map((item) => anniversaryToCloudRow(item, userId)), {
           onConflict: "id",
         });
       if (migrateError) throw migrateError;
-      const refreshed = await supabase
+      const refreshed = await cloudDb
         .from("anniversaries")
         .select("*")
         .order("created_at", { ascending: true });
@@ -6246,7 +6408,7 @@ async function saveWeekendPlan(event) {
   }
   if (!weekendCloudAvailable) {
     setWeekendStatus(
-      "数据库尚未升级，周末计划没有保存。请先运行最新版 supabase-cloud-sync.sql。"
+      "Cloudflare D1 尚未升级，周末计划没有保存。请先部署最新版数据库结构。"
     );
     return;
   }
@@ -6272,7 +6434,7 @@ async function saveWeekendPlan(event) {
   };
 
   if (weekendCloudAvailable) {
-    const { data, error } = await supabase
+    const { data, error } = await cloudDb
       .from("weekend_plans")
       .upsert(weekendToCloudRow(plan, plan.userId), { onConflict: "id" })
       .select("*")
@@ -6375,7 +6537,7 @@ async function toggleWeekendPlan(id) {
   }
   let next = { ...current, done: !current.done, updatedAt: new Date().toISOString() };
   if (weekendCloudAvailable) {
-    const { data, error } = await supabase
+    const { data, error } = await cloudDb
       .from("weekend_plans")
       .update({ is_done: next.done, updated_at: next.updatedAt })
       .eq("id", id)
@@ -6400,7 +6562,7 @@ async function deleteWeekendPlan(id) {
     setWeekendStatus("数据库尚未连接，不能删除周末计划。");
     return;
   }
-  const { error } = await supabase.from("weekend_plans").delete().eq("id", id);
+  const { error } = await cloudDb.from("weekend_plans").delete().eq("id", id);
   if (error) {
     setWeekendStatus(`删除同步失败：${error.message}`);
     return;
@@ -6445,9 +6607,9 @@ function saveThanksColorPreference(
 }
 
 async function persistThanksColorToCloud(color) {
-  if (!supabase || !session || !thanksColorCloudAvailable) return;
+  if (!cloudDb || !session || !thanksColorCloudAvailable) return;
   const safeColor = normalizeThanksColor(color);
-  const { error } = await supabase
+  const { error } = await cloudDb
     .from("user_profiles")
     .update({
       preferred_thanks_color: safeColor,
@@ -6524,7 +6686,7 @@ function renderGratitudeNotes() {
 
 async function saveGratitudeNote(event) {
   event.preventDefault();
-  if (!supabase || !session) return;
+  if (!cloudDb || !session) return;
   const body = els.thanksBodyInput.value.trim();
   if (!body) return;
   const selectedColor = getSelectedThanksColor();
@@ -6544,16 +6706,16 @@ async function saveGratitudeNote(event) {
   els.thanksStatus.textContent = "正在保存...";
 
   const request = gratitudeEditingId
-    ? supabase
+    ? cloudDb
         .from("gratitude_notes")
         .update(payload)
         .eq("id", gratitudeEditingId)
         .eq("user_id", session.user.id)
-    : supabase.from("gratitude_notes").insert(payload);
+    : cloudDb.from("gratitude_notes").insert(payload);
   const { error } = await request;
   if (error) {
     els.thanksStatus.textContent = isMissingCloudSchema(error)
-      ? "请先运行最新版 supabase-cloud-sync.sql。"
+      ? "请先部署最新版 Cloudflare D1 结构。"
       : `保存失败：${error.message}`;
     return;
   }
@@ -6579,7 +6741,7 @@ async function deleteGratitudeNote(id) {
   const note = gratitudeNotes.find((item) => item.id === id);
   if (!note || !canManageItem(note)) return;
   if (!window.confirm("删除这条留言？")) return;
-  const { error } = await supabase
+  const { error } = await cloudDb
     .from("gratitude_notes")
     .delete()
     .eq("id", id);
@@ -6799,10 +6961,10 @@ function closeSettingsDialog() {
 }
 
 async function refreshSharedContent() {
-  if (!supabase || !session) return;
+  if (!cloudDb || !session) return;
   const [recipesResult, wishesResult] = await Promise.all([
-    supabase.from("recipes").select("*").order("created_at", { ascending: false }),
-    supabase.from("wishes").select("*").order("created_at", { ascending: false }),
+    cloudDb.from("recipes").select("*").order("created_at", { ascending: false }),
+    cloudDb.from("wishes").select("*").order("created_at", { ascending: false }),
   ]);
   if (!recipesResult.error) recipes = (recipesResult.data || []).map(recipeFromCloudRow);
   if (!wishesResult.error) wishes = (wishesResult.data || []).map(wishFromCloudRow);
@@ -6820,14 +6982,14 @@ async function refreshSharedContent() {
 
 async function createFamily(event) {
   event.preventDefault();
-  if (!supabase || !session) return;
+  if (!cloudDb || !session) return;
   els.familyStatus.textContent = "正在创建家庭组...";
-  const { error } = await supabase.rpc("create_family", {
+  const { error } = await cloudDb.rpc("create_family", {
     p_name: els.familyNameInput.value.trim() || "我们的家",
   });
   if (error) {
     els.familyStatus.textContent = isMissingCloudSchema(error)
-      ? "请先运行最新版 supabase-cloud-sync.sql。"
+      ? "请先部署最新版 Cloudflare D1 结构。"
       : `创建失败：${error.message}`;
     return;
   }
@@ -6839,11 +7001,11 @@ async function createFamily(event) {
 
 async function addFamilyMember(event) {
   event.preventDefault();
-  if (!supabase || !session || !familyInfo?.isOwner) return;
+  if (!cloudDb || !session || !familyInfo?.isOwner) return;
   const username = els.familyUsernameInput.value.trim();
   if (!username) return;
   els.familyStatus.textContent = "正在添加家庭成员...";
-  const { error } = await supabase.rpc("add_family_member_by_username", {
+  const { error } = await cloudDb.rpc("add_family_member_by_username", {
     p_username: username,
   });
   if (error) {
@@ -6856,9 +7018,9 @@ async function addFamilyMember(event) {
 }
 
 async function respondFamilyInvitation(invitationId, accept) {
-  if (!supabase || !session) return;
+  if (!cloudDb || !session) return;
   els.familyStatus.textContent = accept ? "正在加入家庭..." : "正在拒绝邀请...";
-  const { error } = await supabase.rpc("respond_family_invitation", {
+  const { error } = await cloudDb.rpc("respond_family_invitation", {
     p_invitation_id: invitationId,
     p_accept: accept,
   });
@@ -6874,7 +7036,7 @@ async function respondFamilyInvitation(invitationId, accept) {
 async function removeFamilyMember(userId) {
   const member = familyMembers.find((item) => item.user_id === userId);
   if (!member || !window.confirm(`把 ${member.username} 移出家庭组？`)) return;
-  const { error } = await supabase.rpc("remove_family_member", { p_user_id: userId });
+  const { error } = await cloudDb.rpc("remove_family_member", { p_user_id: userId });
   if (error) {
     els.familyStatus.textContent = `移除失败：${error.message}`;
     return;
@@ -6922,12 +7084,12 @@ function getNotificationText(item) {
 }
 
 async function loadNotifications() {
-  if (!supabase || !session) {
+  if (!cloudDb || !session) {
     notifications = [];
     renderNotifications();
     return;
   }
-  const { data, error } = await supabase.rpc("get_my_notifications", { p_limit: 50 });
+  const { data, error } = await cloudDb.rpc("get_my_notifications", { p_limit: 50 });
   if (error) {
     notifications = [];
     els.notificationStatus.textContent = isMissingCloudSchema(error)
@@ -7012,8 +7174,8 @@ async function openNotificationsPanel() {
 }
 
 async function markUnreadNotificationsRead() {
-  if (!supabase || !session) return;
-  const { error } = await supabase
+  if (!cloudDb || !session) return;
+  const { error } = await cloudDb
     .from("notifications")
     .update({ is_read: true })
     .eq("user_id", session.user.id)
@@ -7038,11 +7200,11 @@ async function loadPhotoComments(photoId) {
         familyMemberMap.has(activeDialogPhoto.user_id))
   );
   els.photoCommentForm.hidden = !canComment;
-  if (!supabase || !session || !photoId) {
+  if (!cloudDb || !session || !photoId) {
     renderPhotoComments();
     return;
   }
-  const { data, error } = await supabase
+  const { data, error } = await cloudDb
     .from("photo_comments")
     .select("*")
     .eq("photo_id", photoId)
@@ -7128,11 +7290,11 @@ function cancelCommentReply() {
 
 async function savePhotoComment(event) {
   event.preventDefault();
-  if (!supabase || !session || !activeDialogPhoto) return;
+  if (!cloudDb || !session || !activeDialogPhoto) return;
   const body = els.photoCommentInput.value.trim();
   if (!body) return;
   els.photoCommentStatus.textContent = "正在发送...";
-  const { error } = await supabase.from("photo_comments").insert({
+  const { error } = await cloudDb.from("photo_comments").insert({
     photo_id: activeDialogPhoto.id,
     user_id: session.user.id,
     body,
@@ -7140,7 +7302,7 @@ async function savePhotoComment(event) {
   });
   if (error) {
     els.photoCommentStatus.textContent = isMissingCloudSchema(error)
-      ? "请先运行最新版 supabase-cloud-sync.sql。"
+      ? "请先部署最新版 Cloudflare D1 结构。"
       : `发送失败：${error.message}`;
     return;
   }
@@ -7156,7 +7318,7 @@ async function savePhotoComment(event) {
 async function deletePhotoComment(id) {
   const comment = photoComments.find((item) => item.id === id);
   if (!comment || comment.user_id !== session?.user?.id) return;
-  const { error } = await supabase
+  const { error } = await cloudDb
     .from("photo_comments")
     .delete()
     .eq("id", id)
@@ -7573,4 +7735,5 @@ registerAppShellWorker();
 updateDiarySearchUi();
 renderFoodWheel();
 initializeFeedObserver();
-initializeSupabase();
+initializeCloudflare();
+
