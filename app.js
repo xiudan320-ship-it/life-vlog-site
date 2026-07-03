@@ -49,6 +49,21 @@ const CULTIVATION_REALMS = [
 ];
 const CHINESE_NUMERALS = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十", "十一", "十二", "十三"];
 const CULTIVATION_PHASES = ["初期", "中期", "后期", "圆满"];
+const CULTIVATION_DESCRIPTIONS = {
+  炼气期: "起步洗髓，攒下第一口灵气。",
+  筑基期: "根基初成，生活记录开始成体系。",
+  结丹期: "金丹成型，长期坚持有了清晰光泽。",
+  元婴期: "回忆化婴，重要瞬间有了第二次生命。",
+  化神期: "心神通达，日常与愿望开始互相照亮。",
+  炼虚期: "能从细碎生活里炼出自己的秩序。",
+  合体期: "照片、菜谱、心愿和留言融成完整家谱。",
+  大乘期: "几乎每段时间都有可回看的坐标。",
+  真仙境: "法则初成，生活档案进入仙界篇。",
+  金仙境: "收藏圆满，回忆本身也有了重量。",
+  太乙境: "触碰更深的大道，记录成为一种审美。",
+  大罗境: "三位一体，文字、影像、关系都稳定发光。",
+  道祖境: "大道圆满，你们的家就是自己的时间宇宙。",
+};
 const BUCKET = "life-photos";
 const PRODUCTION_URL = "https://xiudan320-ship-it.github.io/life-vlog-site/";
 const R2_UPLOAD_ENDPOINT = "https://life-vlog-r2-upload.xiudan320-life.workers.dev";
@@ -71,40 +86,40 @@ const GENERATED_TITLE_PREFIXES = ["今日小星星", "软乎乎的一天", "闪�
 const VIP_LEVELS = [
   {
     level: 1,
-    name: "Spark",
-    label: "星火会员",
+    name: "小窝",
+    label: "小窝会员",
     price: 9,
     limit: 3,
     perks: ["修炼经验 +5%", "专属 VIP 标识", "一篇笔记最多 3 张图"],
   },
   {
     level: 2,
-    name: "Ribbon",
-    label: "丝带会员",
+    name: "同行",
+    label: "同行会员",
     price: 29,
     limit: 6,
     perks: ["修炼经验 +10%", "合集九宫格封面", "一篇笔记最多 6 张图"],
   },
   {
     level: 3,
-    name: "Prism",
-    label: "棱镜会员",
+    name: "珍藏",
+    label: "珍藏会员",
     price: 68,
     limit: 9,
     perks: ["修炼经验 +20%", "高质压缩上传", "9 图完整宫格"],
   },
   {
     level: 4,
-    name: "Archive",
-    label: "档案会员",
+    name: "星河",
+    label: "星河会员",
     price: 128,
     limit: 12,
     perks: ["修炼经验 +35%", "私密内容共享", "一篇笔记最多 12 张图"],
   },
   {
     level: 5,
-    name: "Director",
-    label: "导演会员",
+    name: "传说",
+    label: "传说会员",
     price: 298,
     limit: 18,
     perks: ["修炼经验 +50%", "黑金导演模式", "一篇笔记最多 18 张图"],
@@ -167,8 +182,6 @@ let dismissedFeedRefreshIds = new Set();
 let feedRefreshCheckInFlight = false;
 let returnToSettingsAfterDialog = false;
 let activeSettingsSection = "settingsGeneral";
-let storageMigrationInFlight = false;
-let cloudD1MigrationInFlight = false;
 let foodOptions = [];
 let activePage = "gallery";
 let activeFilter = "全部";
@@ -249,6 +262,7 @@ const els = {
   authCard: document.querySelector("#authCard"),
   usernameInput: document.querySelector("#usernameInput"),
   passwordInput: document.querySelector("#passwordInput"),
+  inviteCodeInput: document.querySelector("#inviteCodeInput"),
   loginButton: document.querySelector("#loginButton"),
   signupButton: document.querySelector("#signupButton"),
   logoutButton: document.querySelector("#logoutButton"),
@@ -268,6 +282,7 @@ const els = {
   settingsNicknameValue: document.querySelector("#settingsNicknameValue"),
   settingsAvatarValue: document.querySelector("#settingsAvatarValue"),
   profileName: document.querySelector("#profileName"),
+  xpPanel: document.querySelector("#xpPanel"),
   brandName: document.querySelector("#brandName"),
   heroHomeName: document.querySelector("#heroHomeName"),
   vipHomeName: document.querySelector("#vipHomeName"),
@@ -301,16 +316,6 @@ const els = {
   confirmPasswordInput: document.querySelector("#confirmPasswordInput"),
   changePasswordStatus: document.querySelector("#changePasswordStatus"),
   recoveryKeyButton: document.querySelector("#recoveryKeyButton"),
-  storageMigrationButton: document.querySelector("#storageMigrationButton"),
-  storageMigrationStatus: document.querySelector("#storageMigrationStatus"),
-  cloudD1MigrationButton: document.querySelector("#cloudD1MigrationButton"),
-  cloudD1MigrationStatus: document.querySelector("#cloudD1MigrationStatus"),
-  cloudD1MigrationDialog: document.querySelector("#cloudD1MigrationDialog"),
-  closeCloudD1Migration: document.querySelector("#closeCloudD1Migration"),
-  cloudD1MigrationForm: document.querySelector("#cloudD1MigrationForm"),
-  cloudD1UsernameInput: document.querySelector("#cloudD1UsernameInput"),
-  cloudD1PasswordInput: document.querySelector("#cloudD1PasswordInput"),
-  cloudD1MigrationDialogStatus: document.querySelector("#cloudD1MigrationDialogStatus"),
   recoveryKeyDialog: document.querySelector("#recoveryKeyDialog"),
   closeRecoveryKey: document.querySelector("#closeRecoveryKey"),
   recoveryKeyForm: document.querySelector("#recoveryKeyForm"),
@@ -386,6 +391,12 @@ const els = {
   saveEditStatus: document.querySelector("#saveEditStatus"),
   vipDialog: document.querySelector("#vipDialog"),
   closeVipDialog: document.querySelector("#closeVipDialog"),
+  levelDialog: document.querySelector("#levelDialog"),
+  closeLevelDialog: document.querySelector("#closeLevelDialog"),
+  levelSummary: document.querySelector("#levelSummary"),
+  levelCurrentTitle: document.querySelector("#levelCurrentTitle"),
+  levelUpgradeEta: document.querySelector("#levelUpgradeEta"),
+  levelList: document.querySelector("#levelList"),
   vipSummary: document.querySelector("#vipSummary"),
   vipCurrentLevel: document.querySelector("#vipCurrentLevel"),
   vipCurrentName: document.querySelector("#vipCurrentName"),
@@ -400,6 +411,7 @@ const els = {
   overviewPhotos: document.querySelector("#overviewPhotos"),
   overviewRecipes: document.querySelector("#overviewRecipes"),
   overviewWishes: document.querySelector("#overviewWishes"),
+  overviewLevelButton: document.querySelector("#overviewLevelButton"),
   overviewLevel: document.querySelector("#overviewLevel"),
   overviewProgress: document.querySelector("#overviewProgress"),
   memoryButton: document.querySelector("#memoryButton"),
@@ -690,6 +702,7 @@ function updateAuthUI() {
   els.signupButton.hidden = signedIn;
   els.usernameInput.hidden = signedIn;
   els.passwordInput.hidden = signedIn;
+  if (els.inviteCodeInput) els.inviteCodeInput.hidden = signedIn;
   els.userPopover.hidden = true;
   els.profileName.textContent = displayName;
   els.avatarInitial.textContent = getInitial(displayName);
@@ -722,7 +735,7 @@ function updateAuthUI() {
   setHint(
     signedIn
       ? ""
-      : "输入用户名和密码登录。第一次使用请先注册。"
+      : "输入用户名和密码登录。注册新账号需要 xiudan320 给的邀请码。"
   );
   setGlobalStatus("");
 
@@ -799,6 +812,25 @@ async function loginWithPassword() {
   }
 }
 
+async function verifyInviteCode(inviteCode) {
+  const endpoint = R2_UPLOAD_ENDPOINT.replace(/\/+$/, "");
+  let response;
+  try {
+    response = await fetch(`${endpoint}/api/invite/verify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ invite_code: inviteCode }),
+    });
+  } catch (error) {
+    throw new Error(`邀请码校验失败：${error.message || "无法连接服务"}`);
+  }
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.ok) {
+    throw new Error(data.error || "邀请码不正确。");
+  }
+}
+
 async function signupWithPassword() {
   if (!supabase) {
     setHint("先点右上角设置，填入 Supabase 配置。");
@@ -808,6 +840,7 @@ async function signupWithPassword() {
 
   const username = els.usernameInput.value.trim();
   const password = els.passwordInput.value;
+  const inviteCode = els.inviteCodeInput?.value.trim() || "";
   const email = usernameToEmail(username);
   if (!email || !password) {
     setHint("请输入用户名和密码。用户名只能用中文、英文、数字、下划线或短横线。");
@@ -819,9 +852,17 @@ async function signupWithPassword() {
     return;
   }
 
-  setHint("正在注册...");
+  if (!inviteCode) {
+    setHint("注册需要邀请码，请找 xiudan320 获取。");
+    els.inviteCodeInput?.focus();
+    return;
+  }
+
+  setHint("正在校验邀请码...");
 
   try {
+    await verifyInviteCode(inviteCode);
+    setHint("邀请码通过，正在注册...");
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -3426,7 +3467,7 @@ function renderVipCenter() {
     : "登录后可充值激活 5 个 VIP 档位。";
   els.vipNext.innerHTML = nextLevel
     ? `<strong>下一档 ${nextLevel.label}</strong><span>还差 ${formatMoney(nextLevel.price - rechargeTotal)}</span>`
-    : `<strong>已解锁最高档</strong><span>Director 档位已满级</span>`;
+    : `<strong>已解锁最高档</strong><span>传说档位已满级</span>`;
 
   els.vipLevels.innerHTML = VIP_LEVELS.map((level) => {
     const unlocked = rechargeTotal >= level.price;
@@ -3619,6 +3660,66 @@ function getExperienceLevel(totalExp) {
   };
 }
 
+function formatUpgradeDays(days) {
+  if (!Number.isFinite(days)) return "已到最高境界";
+  if (days <= 0) return "今天就能突破";
+  if (days === 1) return "约 1 天";
+  return `约 ${days} 天`;
+}
+
+function getUpgradeEta(progress) {
+  if (!progress || progress.nextName === "大道圆满") {
+    return "已到最高境界";
+  }
+  const dailyExp = getVipAdjustedExperience(DAILY_LOGIN_EXP);
+  const remaining = Math.max(0, progress.needed - progress.current);
+  const days = Math.ceil(remaining / Math.max(1, dailyExp));
+  return `${formatUpgradeDays(days)}到 ${progress.nextName}`;
+}
+
+function renderLevelDialog() {
+  if (!els.levelDialog) return;
+  const experience = loadExperience();
+  const progress = getExperienceLevel(experience.total);
+  const dailyExp = getVipAdjustedExperience(DAILY_LOGIN_EXP);
+  els.levelCurrentTitle.textContent = progress.title;
+  els.levelUpgradeEta.textContent = getUpgradeEta(progress);
+  els.levelSummary.textContent = `当前 ${progress.total} EXP。每天登录 +${dailyExp} EXP，发布日记、评论、菜谱、心愿和留言都会继续增加修为。`;
+  els.levelList.innerHTML = CULTIVATION_REALMS.map((realm, index) => {
+    const nextThreshold = Number.isFinite(realm.next) ? realm.next : Infinity;
+    const unlocked = experience.total >= realm.threshold;
+    const active = progress.realm === realm.name;
+    const completed = experience.total >= nextThreshold;
+    const range = Number.isFinite(nextThreshold)
+      ? `${realm.threshold.toLocaleString()} - ${(nextThreshold - 1).toLocaleString()} EXP`
+      : `${realm.threshold.toLocaleString()}+ EXP`;
+    const eta =
+      !unlocked && Number.isFinite(realm.threshold)
+        ? `${formatUpgradeDays(Math.ceil((realm.threshold - experience.total) / Math.max(1, dailyExp)))}后可达`
+        : active
+          ? getUpgradeEta(progress)
+          : completed
+            ? "已突破"
+            : "终点境界";
+    return `
+      <article class="level-row ${active ? "active" : ""} ${completed ? "completed" : ""}">
+        <span>${String(index + 1).padStart(2, "0")}</span>
+        <div>
+          <strong>${escapeHtml(realm.name)}</strong>
+          <p>${escapeHtml(CULTIVATION_DESCRIPTIONS[realm.name] || "")}</p>
+          <small>${range} · ${eta}</small>
+        </div>
+      </article>
+    `;
+  }).join("");
+}
+
+function openLevelDialog() {
+  if (!session) return;
+  renderLevelDialog();
+  els.levelDialog.showModal();
+}
+
 function getLevelNeed(level) {
   return 80 + level * 20;
 }
@@ -3635,6 +3736,7 @@ function renderExperience(displayName = getSessionDisplayName()) {
     data.lastLoginDate === getLocalDateKey()
       ? `今日吐纳 +${loginExp} EXP 已领取${multiplier > 1 ? ` · VIP ${multiplier}x` : ""}`
       : `明日吐纳 +${loginExp} EXP`;
+  if (els.levelDialog?.open) renderLevelDialog();
 }
 
 async function awardExperience(action, options = {}) {
@@ -6204,560 +6306,6 @@ function closeSettingsDialog() {
   els.settingsDialog.close();
 }
 
-function setStorageMigrationStatus(message) {
-  if (els.storageMigrationStatus) els.storageMigrationStatus.textContent = message;
-}
-
-function getRecipeCoverPathFromUrl(url) {
-  if (isR2Url(url)) {
-    return `r2:${String(url).slice(`${R2_PUBLIC_URL.replace(/\/+$/, "")}/`.length)}`;
-  }
-  return getSupabasePathFromPublicUrl(url);
-}
-
-async function migratePhotoStorage(photo, report) {
-  const images = getPhotoImages(photo);
-  if (!images.some((image) => shouldMigrateImageAsset(image.image_url, image.image_path))) {
-    return false;
-  }
-
-  const migratedImages = [];
-  const oldPaths = [];
-  for (const [index, image] of images.entries()) {
-    report(`正在迁移日记图片 ${index + 1}/${images.length}：${photo.title || "未命名日记"}`);
-    const migrated = await migrateImageAsset({
-      url: image.image_url,
-      path: image.image_path,
-      name: `${photo.title || "diary"}-${index + 1}`,
-      folder: "photos",
-    });
-    if (migrated.oldPath) oldPaths.push(migrated.oldPath);
-    migratedImages.push({
-      ...image,
-      image_url: migrated.image_url,
-      image_path: migrated.image_path,
-    });
-  }
-
-  const primary = migratedImages[0];
-  const updates = {
-    image_url: primary.image_url,
-    image_path: primary.image_path || "",
-    note: composeStoredNote(getPlainNote(photo), migratedImages),
-  };
-  const { error } = await supabase.from("photos").update(updates).eq("id", photo.id);
-  if (error) throw error;
-
-  Object.assign(photo, updates);
-  if (oldPaths.length) await cleanupStoredImagePaths(oldPaths).catch(() => {});
-  return true;
-}
-
-async function migrateWishStorage(wish, report) {
-  if (!shouldMigrateImageAsset(wish.imageUrl, wish.imagePath)) return false;
-  report(`正在迁移心愿图片：${wish.title || "未命名心愿"}`);
-  const migrated = await migrateImageAsset({
-    url: wish.imageUrl,
-    path: wish.imagePath,
-    name: wish.title || "wish",
-    folder: "wishes",
-  });
-  const nextNote = composeWishStoredNote(wish.note, migrated.image_url, migrated.image_path);
-  const { data, error } = await supabase
-    .from("wishes")
-    .update({
-      note: nextNote,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", wish.id)
-    .select("*")
-    .single();
-  if (error) throw error;
-
-  const nextWish = wishFromCloudRow(data);
-  wishes = wishes.map((item) => (item.id === wish.id ? nextWish : item));
-  if (migrated.oldPath) await cleanupStoredImagePaths([migrated.oldPath]).catch(() => {});
-  return true;
-}
-
-async function migrateRecipeStorage(recipe, report) {
-  if (!shouldMigrateImageAsset(recipe.coverImage, getRecipeCoverPathFromUrl(recipe.coverImage))) {
-    return false;
-  }
-  report(`正在迁移菜谱封面：${recipe.name || "未命名菜谱"}`);
-  const migrated = await migrateImageAsset({
-    url: recipe.coverImage,
-    path: getRecipeCoverPathFromUrl(recipe.coverImage),
-    name: recipe.name || "recipe",
-    folder: "recipes",
-  });
-  const { data, error } = await supabase
-    .from("recipes")
-    .update({
-      cover_image: migrated.image_url,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", recipe.id)
-    .select("*")
-    .single();
-  if (error) throw error;
-
-  const nextRecipe = recipeFromCloudRow(data);
-  recipes = recipes.map((item) => (item.id === recipe.id ? nextRecipe : item));
-  if (migrated.oldPath) await cleanupStoredImagePaths([migrated.oldPath]).catch(() => {});
-  return true;
-}
-
-async function migrateAvatarStorage(report) {
-  if (!shouldMigrateImageAsset(accountProfile.avatarUrl, accountProfile.avatarPath)) return false;
-  report("正在迁移头像...");
-  const migrated = await migrateImageAsset({
-    url: accountProfile.avatarUrl,
-    path: accountProfile.avatarPath,
-    name: "avatar",
-    folder: "avatars",
-  });
-  const { error } = await supabase
-    .from("user_profiles")
-    .update({
-      avatar_url: migrated.image_url,
-      avatar_path: migrated.image_path,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("user_id", session.user.id);
-  if (error) throw error;
-
-  accountProfile.avatarUrl = migrated.image_url;
-  accountProfile.avatarPath = migrated.image_path;
-  renderAccountAvatar(accountProfile.avatarUrl);
-  renderSettingsSummary();
-  if (migrated.oldPath) await cleanupStoredImagePaths([migrated.oldPath]).catch(() => {});
-  return true;
-}
-
-async function migrateLegacyStorageToR2() {
-  if (storageMigrationInFlight) return;
-  if (!supabase || !session) {
-    setStorageMigrationStatus("请先登录后再迁移旧图片。");
-    return;
-  }
-  if (!R2_UPLOAD_ENDPOINT) {
-    setStorageMigrationStatus("R2 上传服务还没有配置。");
-    return;
-  }
-
-  storageMigrationInFlight = true;
-  if (els.storageMigrationButton) els.storageMigrationButton.disabled = true;
-  let migratedCount = 0;
-  const errors = [];
-  const report = (message) => setStorageMigrationStatus(message);
-
-  try {
-    await refreshSharedContent();
-    const tasks = [
-      ...photos.map((photo) => () => migratePhotoStorage(photo, report)),
-      ...wishes.map((wish) => () => migrateWishStorage(wish, report)),
-      ...recipes.map((recipe) => () => migrateRecipeStorage(recipe, report)),
-      () => migrateAvatarStorage(report),
-    ];
-
-    for (const task of tasks) {
-      try {
-        if (await task()) migratedCount += 1;
-      } catch (error) {
-        errors.push(error);
-      }
-    }
-
-    saveRecipes();
-    saveWishes();
-    savePhotoFeedCache(session.user.id);
-    renderGallery();
-    renderRecipes();
-    renderWishes();
-    await loadFamilyContext();
-
-    if (errors.length) {
-      setStorageMigrationStatus(
-        `已迁移 ${migratedCount} 项，有 ${errors.length} 项失败：${errors[0].message}`
-      );
-    } else {
-      setStorageMigrationStatus(
-        migratedCount ? `迁移完成：已搬到 R2 ${migratedCount} 项。` : "没有发现需要迁移的旧图片。"
-      );
-    }
-  } finally {
-    storageMigrationInFlight = false;
-    if (els.storageMigrationButton) els.storageMigrationButton.disabled = false;
-  }
-}
-
-function setCloudD1MigrationStatus(message) {
-  if (els.cloudD1MigrationStatus) els.cloudD1MigrationStatus.textContent = message;
-  if (els.cloudD1MigrationDialogStatus) els.cloudD1MigrationDialogStatus.textContent = message;
-}
-
-function getCloudflareApiBase() {
-  return R2_UPLOAD_ENDPOINT.replace(/\/+$/, "");
-}
-
-function saveCloudflareSession(payload) {
-  localStorage.setItem(CLOUDFLARE_SESSION_KEY, JSON.stringify(payload));
-}
-
-async function cloudflareApi(path, { token, method = "GET", body = null, simple = false } = {}) {
-  let response;
-  const requestBody = simple && body ? { ...body, access_token: token } : body;
-  try {
-    response = await fetch(`${getCloudflareApiBase()}${path}`, {
-      method,
-      headers: {
-        ...(token && !simple ? { Authorization: `Bearer ${token}` } : {}),
-        ...(requestBody ? { "Content-Type": simple ? "text/plain;charset=UTF-8" : "application/json" } : {}),
-      },
-      body: requestBody ? JSON.stringify(requestBody) : null,
-      cache: "no-store",
-      credentials: "omit",
-      mode: "cors",
-    });
-  } catch (error) {
-    throw new Error(`无法连接 Cloudflare Worker：${error.message}`);
-  }
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data.detail || data.error || `Cloudflare API ${response.status}`);
-  }
-  return data;
-}
-
-function cloudflareBridgeApi(path, { token, body = null } = {}) {
-  return new Promise((resolve, reject) => {
-    const bridgeId = `cf-bridge-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    const iframe = document.createElement("iframe");
-    const form = document.createElement("form");
-    const input = document.createElement("input");
-    const timeout = window.setTimeout(() => {
-      cleanup();
-      reject(new Error("Cloudflare 备用迁移通道超时。"));
-    }, 120000);
-
-    const cleanup = () => {
-      window.clearTimeout(timeout);
-      window.removeEventListener("message", onMessage);
-      form.remove();
-      iframe.remove();
-    };
-
-    const onMessage = (event) => {
-      const expectedOrigin = new URL(getCloudflareApiBase()).origin;
-      if (event.origin !== expectedOrigin) return;
-      const message = event.data || {};
-      if (message.bridgeId !== bridgeId) return;
-      cleanup();
-      if (!message.ok) {
-        reject(
-          new Error(
-            message.data?.detail ||
-              message.data?.error ||
-              `Cloudflare bridge API ${message.status || "failed"}`
-          )
-        );
-        return;
-      }
-      resolve(message.data || {});
-    };
-
-    window.addEventListener("message", onMessage);
-    iframe.name = bridgeId;
-    iframe.hidden = true;
-    form.hidden = true;
-    form.method = "POST";
-    form.target = bridgeId;
-    form.action = `${getCloudflareApiBase()}${path}?bridge=1`;
-    form.enctype = "multipart/form-data";
-    input.type = "hidden";
-    input.name = "payload";
-    input.value = JSON.stringify({ ...(body || {}), access_token: token, bridge_id: bridgeId });
-    form.append(input);
-    document.body.append(iframe, form);
-    form.submit();
-  });
-}
-
-async function cloudflareMigrationApi(path, { token, body = null } = {}) {
-  try {
-    return await cloudflareApi(path, {
-      method: "POST",
-      token,
-      body,
-      simple: true,
-    });
-  } catch (error) {
-    if (!String(error.message || "").includes("Failed to fetch")) {
-      throw error;
-    }
-    setCloudD1MigrationStatus("正在切换 Cloudflare 备用迁移通道...");
-    return cloudflareBridgeApi(path, { token, body });
-  }
-}
-
-async function readSupabaseRows(table, options = {}) {
-  const { order = null } = options;
-  let query = supabase.from(table).select("*");
-  if (order) query = query.order(order.column, { ascending: order.ascending ?? false });
-  const { data, error } = await query;
-  if (error) {
-    if (isMissingCloudSchema(error)) return [];
-    throw error;
-  }
-  return data || [];
-}
-
-function buildFamilyRowsForD1() {
-  if (!familyInfo?.id || !familyMembers.length) {
-    return { families: [], family_members: [], family_invitations: [] };
-  }
-  const owner = familyMembers.find((member) => member.role === "owner") || familyMembers[0];
-  return {
-    families: [
-      {
-        id: familyInfo.id,
-        name: familyInfo.name || "我们的家",
-        owner_id: owner.user_id,
-        created_at: owner.joined_at || new Date().toISOString(),
-      },
-    ],
-    family_members: familyMembers.map((member) => ({
-      family_id: member.family_id,
-      user_id: member.user_id,
-      role: member.role || "member",
-      joined_at: member.joined_at || new Date().toISOString(),
-    })),
-    family_invitations: familyInvitations.map((invitation) => ({
-      id: invitation.invitation_id,
-      family_id: invitation.family_id,
-      invited_user_id: invitation.invited_user_id,
-      invited_by: invitation.invited_by,
-      status: "pending",
-      created_at: invitation.created_at || new Date().toISOString(),
-      responded_at: null,
-    })),
-  };
-}
-
-function buildProfileRowsForD1(rows) {
-  const byId = new Map();
-  rows.forEach((row) => {
-    if (row?.user_id) byId.set(row.user_id, row);
-  });
-  familyMembers.forEach((member) => {
-    if (!member.user_id || byId.has(member.user_id)) return;
-    byId.set(member.user_id, {
-      user_id: member.user_id,
-      username: member.username || "家庭成员",
-      recharge_total: member.username?.toLowerCase?.() === "xiao980320" ? 298 : 0,
-      vip_level: member.username?.toLowerCase?.() === "xiao980320" ? 5 : 0,
-      experience_total: 0,
-      last_login_date: null,
-      theme_preference: null,
-      home_name: accountProfile.homeName || "咻蛋之家",
-      food_options: [],
-      preferred_thanks_color: DEFAULT_THANKS_COLOR,
-      avatar_url: member.avatar_url || "",
-      avatar_path: "",
-      created_at: member.joined_at || new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    });
-  });
-  if (session?.user?.id) {
-    const existing = byId.get(session.user.id) || {};
-    byId.set(session.user.id, {
-      user_id: session.user.id,
-      username: getSessionDisplayName(),
-      recharge_total: accountProfile.rechargeTotal || existing.recharge_total || 0,
-      vip_level: accountProfile.vipLevel || existing.vip_level || 0,
-      experience_total: accountProfile.experienceTotal || existing.experience_total || 0,
-      last_login_date: accountProfile.lastLoginDate || existing.last_login_date || null,
-      theme_preference: accountProfile.themePreference || existing.theme_preference || null,
-      home_name: accountProfile.homeName || existing.home_name || "咻蛋之家",
-      food_options: foodOptions,
-      preferred_thanks_color: accountProfile.thanksColor || DEFAULT_THANKS_COLOR,
-      avatar_url: accountProfile.avatarUrl || existing.avatar_url || "",
-      avatar_path: accountProfile.avatarPath || existing.avatar_path || "",
-      created_at: existing.created_at || new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    });
-  }
-  return [...byId.values()];
-}
-
-async function collectSupabaseMigrationPayload() {
-  await Promise.all([
-    loadFamilyContext(),
-    loadPhotos(),
-    refreshSharedContent(),
-    loadGratitudeNotes(),
-    loadPhotoCommentPreviews(),
-    loadNotifications(),
-  ]);
-
-  const [
-    profileRows,
-    photoRows,
-    recipeRows,
-    wishRows,
-    weekendRows,
-    anniversaryRows,
-    gratitudeRows,
-    favoriteRows,
-    commentRows,
-    notificationRows,
-  ] = await Promise.all([
-    readSupabaseRows("user_profiles"),
-    readSupabaseRows("photos", { order: { column: "created_at" } }),
-    readSupabaseRows("recipes", { order: { column: "created_at" } }),
-    readSupabaseRows("wishes", { order: { column: "created_at" } }),
-    readSupabaseRows("weekend_plans", { order: { column: "plan_date", ascending: true } }),
-    readSupabaseRows("anniversaries", { order: { column: "event_date", ascending: true } }),
-    readSupabaseRows("gratitude_notes", { order: { column: "created_at" } }),
-    readSupabaseRows("photo_favorites", { order: { column: "created_at" } }),
-    readSupabaseRows("photo_comments", { order: { column: "created_at", ascending: true } }),
-    readSupabaseRows("notifications", { order: { column: "created_at" } }),
-  ]);
-  const familyRows = buildFamilyRowsForD1();
-  return {
-    ...familyRows,
-    user_profiles: buildProfileRowsForD1(profileRows),
-    photos: photoRows,
-    recipes: recipeRows,
-    wishes: wishRows,
-    weekend_plans: weekendRows,
-    anniversaries: anniversaryRows,
-    gratitude_notes: gratitudeRows,
-    photo_favorites: favoriteRows,
-    photo_comments: commentRows,
-    notifications: notificationRows,
-  };
-}
-
-function splitRows(rows, size = 20) {
-  const chunks = [];
-  for (let index = 0; index < rows.length; index += size) {
-    chunks.push(rows.slice(index, index + size));
-  }
-  return chunks;
-}
-
-function createD1ImportBatches(payload) {
-  const batches = [];
-  const addRows = (label, key, rows, size = 20) => {
-    splitRows(rows || [], size).forEach((chunk, index, all) => {
-      batches.push({
-        label: all.length > 1 ? `${label} ${index + 1}/${all.length}` : label,
-        body: { [key]: chunk },
-        count: chunk.length,
-      });
-    });
-  };
-
-  batches.push({
-    label: "家庭与资料",
-    body: {
-      families: payload.families || [],
-      family_members: payload.family_members || [],
-      family_invitations: payload.family_invitations || [],
-      user_profiles: payload.user_profiles || [],
-    },
-    count:
-      (payload.families || []).length +
-      (payload.family_members || []).length +
-      (payload.family_invitations || []).length +
-      (payload.user_profiles || []).length,
-  });
-  addRows("日记", "photos", payload.photos, 15);
-  addRows("菜谱", "recipes", payload.recipes, 20);
-  addRows("心愿", "wishes", payload.wishes, 20);
-  addRows("周末", "weekend_plans", payload.weekend_plans, 20);
-  addRows("纪念日", "anniversaries", payload.anniversaries, 20);
-  addRows("感谢留言", "gratitude_notes", payload.gratitude_notes, 20);
-  addRows("收藏", "photo_favorites", payload.photo_favorites, 30);
-  addRows("评论", "photo_comments", payload.photo_comments, 20);
-  addRows("通知", "notifications", payload.notifications, 20);
-  return batches.filter((batch) => batch.count > 0);
-}
-
-async function importPayloadToD1InBatches(token, payload) {
-  const batches = createD1ImportBatches(payload);
-  const totals = {};
-  for (const [index, batch] of batches.entries()) {
-    setCloudD1MigrationStatus(`正在导入 Cloudflare D1：${batch.label}（${index + 1}/${batches.length}）`);
-    const imported = await cloudflareMigrationApi("/api/migration/import", {
-      token,
-      body: batch.body,
-    });
-    Object.entries(imported.counts || {}).forEach(([key, value]) => {
-      totals[key] = (totals[key] || 0) + Number(value || 0);
-    });
-    await new Promise((resolve) => window.setTimeout(resolve, 80));
-  }
-  return totals;
-}
-
-function openCloudD1MigrationDialog() {
-  if (!session) {
-    setCloudD1MigrationStatus("请先用原来的账号登录。");
-    return;
-  }
-  els.userPopover.hidden = true;
-  els.cloudD1MigrationForm.reset();
-  els.cloudD1UsernameInput.value = getSessionDisplayName();
-  setCloudD1MigrationStatus("");
-  els.cloudD1MigrationDialog.showModal();
-}
-
-async function migrateAccountToCloudflare(event) {
-  event.preventDefault();
-  if (cloudD1MigrationInFlight) return;
-  if (!session?.access_token) {
-    setCloudD1MigrationStatus("请先用原来的 Supabase 账号登录。");
-    return;
-  }
-  const username = els.cloudD1UsernameInput.value.trim();
-  const password = els.cloudD1PasswordInput.value;
-  if (!username || password.length < 6) {
-    setCloudD1MigrationStatus("请输入用户名和至少 6 位新密码。");
-    return;
-  }
-
-  cloudD1MigrationInFlight = true;
-  els.cloudD1MigrationButton.disabled = true;
-  setCloudD1MigrationStatus("正在创建 Cloudflare 登录账号...");
-  try {
-    const claim = await cloudflareMigrationApi("/api/migration/claim-supabase", {
-      token: session.access_token,
-      body: { username, password },
-    });
-    setCloudD1MigrationStatus("正在读取 Supabase 数据...");
-    const payload = await collectSupabaseMigrationPayload();
-    const counts = await importPayloadToD1InBatches(claim.token, payload);
-    saveCloudflareSession({
-      token: claim.token,
-      expires_at: claim.expires_at,
-      user: claim.user,
-      profile: claim.profile,
-      migrated_at: new Date().toISOString(),
-    });
-    const total = Object.values(counts).reduce((sum, value) => sum + Number(value || 0), 0);
-    setCloudD1MigrationStatus(`迁移完成：已导入 D1 ${total} 条记录。`);
-    setTimeout(() => els.cloudD1MigrationDialog.close(), 900);
-  } catch (error) {
-    setCloudD1MigrationStatus(`迁移失败：${error.message}`);
-  } finally {
-    cloudD1MigrationInFlight = false;
-    els.cloudD1MigrationButton.disabled = false;
-  }
-}
-
 async function refreshSharedContent() {
   if (!supabase || !session) return;
   const [recipesResult, wishesResult] = await Promise.all([
@@ -7215,6 +6763,8 @@ els.quickWeekend.addEventListener("click", () => {
   setWeekendExpanded(true);
   els.weekendComposer.scrollIntoView({ behavior: "smooth", block: "start" });
 });
+els.overviewLevelButton?.addEventListener("click", openLevelDialog);
+els.xpPanel?.addEventListener("click", openLevelDialog);
 els.saveConfig.addEventListener("click", saveConfig);
 els.loginButton.addEventListener("click", loginWithPassword);
 els.signupButton.addEventListener("click", signupWithPassword);
@@ -7405,13 +6955,10 @@ els.recoveryKeyDialog.addEventListener("click", (event) => {
 });
 els.recoveryKeyDialog.addEventListener("close", reopenSettingsAfterChildDialog);
 els.recoveryKeyForm.addEventListener("submit", saveRecoveryKey);
-els.storageMigrationButton?.addEventListener("click", migrateLegacyStorageToR2);
-els.cloudD1MigrationButton?.addEventListener("click", openCloudD1MigrationDialog);
-els.closeCloudD1Migration?.addEventListener("click", () => els.cloudD1MigrationDialog.close());
-els.cloudD1MigrationDialog?.addEventListener("click", (event) => {
-  if (event.target === els.cloudD1MigrationDialog) els.cloudD1MigrationDialog.close();
+els.closeLevelDialog?.addEventListener("click", () => els.levelDialog.close());
+els.levelDialog?.addEventListener("click", (event) => {
+  if (event.target === els.levelDialog) els.levelDialog.close();
 });
-els.cloudD1MigrationForm?.addEventListener("submit", migrateAccountToCloudflare);
 els.closeForgotPassword.addEventListener("click", () => els.forgotPasswordDialog.close());
 els.forgotPasswordDialog.addEventListener("click", (event) => {
   if (event.target === els.forgotPasswordDialog) els.forgotPasswordDialog.close();

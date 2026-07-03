@@ -17,7 +17,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="./assets/app-icon-32.png" />
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
     <link rel="stylesheet" href="./styles.css?v=20260610-37" />
-    <link rel="stylesheet" href="./redesign.css?v=20260703-78" />
+    <link rel="stylesheet" href="./redesign.css?v=20260703-79" />
   </head>
   <body>
     <header class="topbar">
@@ -57,7 +57,7 @@
           <div class="user-popover" id="userPopover" hidden>
             <p class="user-label">已登录</p>
             <strong id="profileName">User</strong>
-            <div class="xp-panel" id="xpPanel">
+            <button class="xp-panel" id="xpPanel" type="button">
               <div class="xp-head">
                 <span id="xpLevel">炼气期 · 一层</span>
                 <strong id="xpText">0 / 1500 EXP</strong>
@@ -66,7 +66,7 @@
                 <span id="xpBar"></span>
               </div>
               <p id="xpHint">今日登录经验已领取</p>
-            </div>
+            </button>
             <button class="vip-popover-badge" id="vipPopoverBadge" type="button" hidden>
               咻蛋之家 VIP
             </button>
@@ -197,11 +197,11 @@
             <strong id="overviewWishes">0</strong>
             <small>个未完成心愿</small>
           </article>
-          <article class="overview-level">
+          <button class="overview-level" id="overviewLevelButton" type="button">
             <span>成长等级</span>
             <strong id="overviewLevel">炼气期 · 一层</strong>
             <div class="overview-progress" aria-hidden="true"><span id="overviewProgress"></span></div>
-          </article>
+          </button>
         </div>
         <div class="quick-actions">
           <button id="quickPhoto" type="button"><span>01</span>发布日记</button>
@@ -233,6 +233,7 @@
         <div class="auth-row">
           <input id="usernameInput" type="text" placeholder="用户名" autocomplete="username" />
           <input id="passwordInput" type="password" placeholder="密码" />
+          <input id="inviteCodeInput" type="text" placeholder="邀请码（注册时填写）" autocomplete="off" />
           <button id="loginButton" type="button">登录</button>
           <button id="signupButton" type="button">注册</button>
           <button class="forgot-password-button" id="forgotPasswordButton" type="button">
@@ -286,7 +287,7 @@
                 <option>日常</option>
                 <option>旅行</option>
                 <option>食物</option>
-                <option>朋友</option>
+                <option>卢浮宫</option>
                 <option>城市</option>
                 <option>家</option>
               </select>
@@ -333,7 +334,7 @@
           <button class="chip" data-filter="日常" type="button">日常</button>
           <button class="chip" data-filter="旅行" type="button">旅行</button>
           <button class="chip" data-filter="食物" type="button">食物</button>
-          <button class="chip" data-filter="朋友" type="button">朋友</button>
+          <button class="chip" data-filter="卢浮宫" type="button">卢浮宫</button>
           <button class="chip" data-filter="城市" type="button">城市</button>
         </div>
       </section>
@@ -619,7 +620,6 @@
               rows="3"
               maxlength="180"
               required
-              placeholder="✅ 谢谢你给我的牙刷充电"
             ></textarea>
           </label>
           <fieldset class="thanks-colors">
@@ -777,16 +777,6 @@
             <span>恢复密钥</span>
             <strong>忘记密码时用来重设</strong>
           </button>
-          <button id="storageMigrationButton" type="button">
-            <span>迁移旧图片</span>
-            <strong>把 Supabase 旧图片搬到 Cloudflare R2</strong>
-          </button>
-          <p class="status-line" id="storageMigrationStatus"></p>
-          <button id="cloudD1MigrationButton" type="button">
-            <span>迁移账号到 Cloudflare</span>
-            <strong>把数据库内容导入 D1，并创建新的登录密码</strong>
-          </button>
-          <p class="status-line" id="cloudD1MigrationStatus"></p>
         </section>
         <section class="settings-group" id="settingsFamily">
           <p class="kicker">Family</p>
@@ -928,27 +918,6 @@
       </form>
     </dialog>
 
-    <dialog class="account-dialog" id="cloudD1MigrationDialog">
-      <button class="dialog-close" id="closeCloudD1Migration" type="button" aria-label="关闭">×</button>
-      <form id="cloudD1MigrationForm">
-        <div>
-          <p class="kicker">Cloudflare D1</p>
-          <h2>迁移账号</h2>
-          <p>设置一个新的 Cloudflare 登录密码，然后把 Supabase 数据复制到 D1。</p>
-        </div>
-        <label>
-          用户名
-          <input id="cloudD1UsernameInput" maxlength="48" autocomplete="username" required />
-        </label>
-        <label>
-          新密码
-          <input id="cloudD1PasswordInput" type="password" minlength="6" maxlength="128" autocomplete="new-password" required />
-        </label>
-        <p class="status-line" id="cloudD1MigrationDialogStatus"></p>
-        <button class="primary" type="submit">开始迁移到 Cloudflare</button>
-      </form>
-    </dialog>
-
     <dialog class="account-dialog" id="forgotPasswordDialog">
       <button class="dialog-close" id="closeForgotPassword" type="button" aria-label="关闭">×</button>
       <form id="forgotPasswordForm">
@@ -1037,7 +1006,7 @@
               <option>日常</option>
               <option>旅行</option>
               <option>食物</option>
-              <option>朋友</option>
+              <option>卢浮宫</option>
               <option>城市</option>
               <option>家</option>
             </select>
@@ -1080,10 +1049,10 @@
         <div class="vip-hero">
           <p class="kicker">Member Center</p>
           <h2><span id="vipHomeName">咻蛋之家</span> VIP</h2>
-          <p id="vipSummary">五级会员系统，解锁合集、质感上传、私密分享和导演模式。</p>
+          <p id="vipSummary">五级会员系统，解锁合集、质感上传、私密分享和传说档位。</p>
           <div class="vip-current">
             <span id="vipCurrentLevel">LV.5</span>
-            <strong id="vipCurrentName">Director</strong>
+            <strong id="vipCurrentName">传说</strong>
           </div>
           <div class="vip-wallet">
             <article>
@@ -1104,6 +1073,28 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260703-78"></script>
+    <dialog class="account-dialog level-dialog" id="levelDialog">
+      <button class="dialog-close" id="closeLevelDialog" type="button" aria-label="关闭">×</button>
+      <section class="level-center">
+        <div class="level-hero">
+          <p class="kicker">Cultivation</p>
+          <h2>成长等级</h2>
+          <p id="levelSummary">每天登录、发布日记、留言、完成心愿都会增加修为。</p>
+        </div>
+        <div class="level-current-card">
+          <div>
+            <span>当前境界</span>
+            <strong id="levelCurrentTitle">炼气期 · 一层</strong>
+          </div>
+          <div>
+            <span>预计升级</span>
+            <strong id="levelUpgradeEta">继续记录生活</strong>
+          </div>
+        </div>
+        <div class="level-list" id="levelList"></div>
+      </section>
+    </dialog>
+
+    <script type="module" src="./app.js?v=20260703-79"></script>
   </body>
 </html>
