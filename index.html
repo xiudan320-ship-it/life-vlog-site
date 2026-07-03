@@ -17,7 +17,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="./assets/app-icon-32.png" />
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
     <link rel="stylesheet" href="./styles.css?v=20260610-37" />
-    <link rel="stylesheet" href="./redesign.css?v=20260703-81" />
+    <link rel="stylesheet" href="./redesign.css?v=20260703-82" />
   </head>
   <body>
     <header class="topbar">
@@ -36,6 +36,7 @@
         <button id="wishlistNav" type="button">心愿</button>
         <button id="weekendNav" type="button">周末</button>
         <button id="thanksNav" type="button">留言</button>
+        <button id="secretNav" type="button">秘藏</button>
       </nav>
       <div class="top-actions">
         <button class="icon-button" id="themeToggle" type="button" title="切换日夜模式">
@@ -135,6 +136,13 @@
           <span>
             <strong>随机回忆</strong>
             <small>抽一篇家庭日记</small>
+          </span>
+        </button>
+        <button class="tool-dock-button secret-button" id="secretOpen" type="button" data-tool-id="secret" hidden>
+          <span class="tool-dock-mark secret-mark" aria-hidden="true">✦</span>
+          <span>
+            <strong>秘藏</strong>
+            <small>进入里世界展览</small>
           </span>
         </button>
       </section>
@@ -648,6 +656,62 @@
 
         <section class="thanks-board" id="thanksBoard" aria-live="polite"></section>
       </section>
+
+      <section class="secret-page" id="secretPage" hidden>
+        <div class="secret-head">
+          <div>
+            <p class="kicker">Hidden Gallery</p>
+            <h2>秘藏</h2>
+          </div>
+          <p class="status-line" id="secretStatus"></p>
+        </div>
+
+        <section class="secret-composer" id="secretComposer" hidden>
+          <div class="section-title">
+            <button class="section-heading-button" id="secretToggle" type="button" aria-expanded="false">
+              <p class="kicker">Private Collection</p>
+              <h2>添加秘藏</h2>
+            </button>
+          </div>
+
+          <form class="secret-form" id="secretForm" hidden>
+            <label class="secret-image-drop" id="secretImageDrop" tabindex="0">
+              <input id="secretImageInput" type="file" accept="image/*" multiple />
+              <img id="secretImagePreview" alt="秘藏图片预览" hidden />
+              <div class="preview-strip" id="secretPreviewStrip" hidden></div>
+              <span>选择图片，或在这里粘贴剪切板图片</span>
+              <strong id="secretImageName">还没有选择图片</strong>
+            </label>
+            <div class="form-grid">
+              <label>
+                标题
+                <input id="secretTitleInput" maxlength="80" />
+              </label>
+              <label>
+                分类
+                <input id="secretCategoryInput" maxlength="32" list="secretCategoryList" placeholder="比如：画集、灵感、收藏" />
+                <datalist id="secretCategoryList"></datalist>
+              </label>
+              <label>
+                关联日记
+                <select id="secretLinkedPhotoInput">
+                  <option value="">不关联</option>
+                </select>
+              </label>
+            </div>
+            <label>
+              备注
+              <textarea id="secretNoteInput" rows="4"></textarea>
+            </label>
+            <div class="secret-form-actions">
+              <button class="primary" id="secretSubmitButton" type="submit">保存到秘藏</button>
+            </div>
+          </form>
+        </section>
+
+        <div class="secret-filters" id="secretFilters" aria-label="秘藏分类"></div>
+        <section class="secret-gallery" id="secretGallery" aria-live="polite"></section>
+      </section>
     </main>
 
     <dialog class="anniversary-dialog" id="anniversaryDialog">
@@ -954,9 +1018,17 @@
         <p class="kicker" id="dialogMeta"></p>
         <h2 id="dialogTitle"></h2>
         <p id="dialogNote"></p>
-        <button class="dialog-random-button" id="dialogRandomButton" type="button" hidden>
-          再随机一篇
-        </button>
+        <div class="dialog-tool-row">
+          <button class="dialog-random-button" id="dialogRandomButton" type="button" hidden>
+            再抽一篇
+          </button>
+          <button class="dialog-random-button" id="dialogSecretLinkButton" type="button" hidden>
+            查看关联日记
+          </button>
+          <button class="dialog-random-button secondary" id="dialogSecretReturnButton" type="button" hidden>
+            返回秘藏
+          </button>
+        </div>
       </article>
       <section class="photo-comments" id="photoCommentsSection">
         <div class="photo-comments-head">
@@ -1092,6 +1164,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260703-81"></script>
+    <script type="module" src="./app.js?v=20260703-82"></script>
   </body>
 </html>

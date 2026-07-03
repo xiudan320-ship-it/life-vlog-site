@@ -81,7 +81,7 @@ const PHOTO_COMMENT_PREVIEW_LIMIT = 3;
 const PHOTO_FEED_CACHE_LIMIT = 3;
 const EAGER_IMAGE_CARD_COUNT = 8;
 const TOOL_DOCK_ORDER_KEY = "life-vlog-tool-dock-order";
-const TOOL_DOCK_DEFAULT_ORDER = ["food", "anniversary", "memory"];
+const TOOL_DOCK_DEFAULT_ORDER = ["food", "anniversary", "memory", "secret"];
 const DEFAULT_FOOD_OPTIONS = ["拉面", "寿喜烧", "咖喱饭", "烤肉", "火锅", "寿司", "麻婆豆腐", "披萨"];
 const GENERATED_TITLE_PREFIXES = ["今日小星星", "软乎乎的一天", "闪闪生活碎片", "快乐收藏夹"];
 
@@ -166,6 +166,7 @@ let wishes = [];
 let weekendPlans = [];
 let anniversaries = [];
 let gratitudeNotes = [];
+let secretItems = [];
 let familyInfo = null;
 let familyMembers = [];
 let familyInvitations = [];
@@ -187,6 +188,7 @@ let activeSettingsSection = "settingsGeneral";
 let foodOptions = [];
 let activePage = "gallery";
 let activeFilter = "全部";
+let activeSecretFilter = "全部";
 let diarySearchQuery = "";
 let activeWishView = "open";
 let previewUrls = [];
@@ -207,6 +209,8 @@ let dialogImages = [];
 let dialogImageIndex = 0;
 let dialogSwipeStart = null;
 let dialogRandomMode = false;
+let dialogSecretSourceItem = null;
+let activeSecretDialogItem = null;
 let toolDockDragState = null;
 let suppressToolDockClick = false;
 let activeVipLevel = 1;
@@ -223,6 +227,7 @@ let weekendEditingId = null;
 let weekendCloudAvailable = false;
 let anniversaryEditingId = null;
 let anniversaryCloudAvailable = false;
+let secretCloudAvailable = false;
 let photoFlagsCloudAvailable = false;
 let foodOptionsCloudAvailable = false;
 let profilePreferencesCloudAvailable = false;
@@ -253,6 +258,7 @@ const els = {
   wishlistNav: document.querySelector("#wishlistNav"),
   weekendNav: document.querySelector("#weekendNav"),
   thanksNav: document.querySelector("#thanksNav"),
+  secretNav: document.querySelector("#secretNav"),
   setupToggle: document.querySelector("#setupToggle"),
   setupPanel: document.querySelector("#setupPanel"),
   notificationButton: document.querySelector("#notificationButton"),
@@ -380,6 +386,8 @@ const els = {
   dialogCounter: document.querySelector("#dialogCounter"),
   dialogThumbs: document.querySelector("#dialogThumbs"),
   dialogRandomButton: document.querySelector("#dialogRandomButton"),
+  dialogSecretLinkButton: document.querySelector("#dialogSecretLinkButton"),
+  dialogSecretReturnButton: document.querySelector("#dialogSecretReturnButton"),
   editDialog: document.querySelector("#editDialog"),
   closeEditDialog: document.querySelector("#closeEditDialog"),
   editForm: document.querySelector("#editForm"),
@@ -419,6 +427,7 @@ const els = {
   overviewLevel: document.querySelector("#overviewLevel"),
   overviewProgress: document.querySelector("#overviewProgress"),
   memoryButton: document.querySelector("#memoryButton"),
+  secretOpen: document.querySelector("#secretOpen"),
   toolDock: document.querySelector("#toolDock"),
   quickPhoto: document.querySelector("#quickPhoto"),
   quickRecipe: document.querySelector("#quickRecipe"),
@@ -518,6 +527,24 @@ const els = {
   weekendStatus: document.querySelector("#weekendStatus"),
   weekendList: document.querySelector("#weekendList"),
   thanksPage: document.querySelector("#thanksPage"),
+  secretPage: document.querySelector("#secretPage"),
+  secretStatus: document.querySelector("#secretStatus"),
+  secretComposer: document.querySelector("#secretComposer"),
+  secretToggle: document.querySelector("#secretToggle"),
+  secretForm: document.querySelector("#secretForm"),
+  secretImageDrop: document.querySelector("#secretImageDrop"),
+  secretImageInput: document.querySelector("#secretImageInput"),
+  secretImagePreview: document.querySelector("#secretImagePreview"),
+  secretPreviewStrip: document.querySelector("#secretPreviewStrip"),
+  secretImageName: document.querySelector("#secretImageName"),
+  secretTitleInput: document.querySelector("#secretTitleInput"),
+  secretCategoryInput: document.querySelector("#secretCategoryInput"),
+  secretCategoryList: document.querySelector("#secretCategoryList"),
+  secretLinkedPhotoInput: document.querySelector("#secretLinkedPhotoInput"),
+  secretNoteInput: document.querySelector("#secretNoteInput"),
+  secretSubmitButton: document.querySelector("#secretSubmitButton"),
+  secretFilters: document.querySelector("#secretFilters"),
+  secretGallery: document.querySelector("#secretGallery"),
   thanksForm: document.querySelector("#thanksForm"),
   thanksBodyInput: document.querySelector("#thanksBodyInput"),
   thanksStatus: document.querySelector("#thanksStatus"),
@@ -700,6 +727,7 @@ function updateAuthUI() {
   els.anniversarySection.hidden = !signedIn;
   els.anniversaryOpen.hidden = !signedIn;
   els.memoryButton.hidden = !signedIn;
+  if (els.secretOpen) els.secretOpen.hidden = !signedIn;
   applyToolDockOrder(signedIn ? session.user.id : "guest");
   els.authCard.hidden = signedIn;
   els.userMenu.hidden = !signedIn;
@@ -751,10 +779,12 @@ function updateAuthUI() {
     anniversaryCloudAvailable = false;
     favoritesCloudAvailable = false;
     photoFlagsCloudAvailable = false;
+    secretCloudAvailable = false;
     foodOptionsCloudAvailable = false;
       profilePreferencesCloudAvailable = false;
       thanksColorCloudAvailable = false;
     gratitudeNotes = [];
+    secretItems = [];
     notifications = [];
     commentReplyToId = null;
     familyInfo = null;
@@ -1578,24 +1608,26 @@ function compressImage(file, options = null) {
   });
 }
 
-async function uploadImageFile(file, safeName, index = 1, total = 1) {
+async function uploadImageFile(file, safeName, index = 1, total = 1, options = {}) {
+  const folder = options.folder || "photos";
+  const statusSetter = options.statusSetter || setStatus;
   const prefix = total > 1 ? `${index}/${total} · ` : "";
-  setStatus(`${prefix}正在自动压缩图片...`);
+  statusSetter(`${prefix}正在自动压缩图片...`);
   let compressed;
   try {
     compressed = await compressImage(file);
   } catch (error) {
-    setStatus(error.message || "图片压缩失败。");
+    statusSetter(error.message || "图片压缩失败。");
     return null;
   }
-  const path = `${session.user.id}/${Date.now()}-${safeName}.jpg`;
+  const path = `${session.user.id}/${folder}/${Date.now()}-${safeName}.jpg`;
 
-  setStatus(
+  statusSetter(
     `${prefix}已压缩 ${formatFileSize(file.size)} → ${formatFileSize(compressed.blob.size)}，正在上传...`
   );
   if (R2_UPLOAD_ENDPOINT) {
     try {
-      const uploaded = await uploadToR2(compressed.blob, safeName, "photos");
+      const uploaded = await uploadToR2(compressed.blob, safeName, folder);
       return {
         image_path: `r2:${uploaded.key}`,
         image_url: uploaded.url,
@@ -1605,7 +1637,7 @@ async function uploadImageFile(file, safeName, index = 1, total = 1) {
         compressed_size: compressed.compressedBytes,
       };
     } catch (error) {
-      setStatus(`R2 上传失败：${error.message}`);
+      statusSetter(`R2 上传失败：${error.message}`);
       return null;
     }
   }
@@ -1618,7 +1650,7 @@ async function uploadImageFile(file, safeName, index = 1, total = 1) {
     });
 
   if (uploadError) {
-    setStatus(uploadError.message);
+    statusSetter(uploadError.message);
     return null;
   }
 
@@ -2448,6 +2480,9 @@ async function deletePhoto(photo, triggerButton = null) {
 function openPhoto(photo, initialImageIndex = 0, options = {}) {
   activeDialogPhoto = photo;
   dialogRandomMode = Boolean(options.randomMode);
+  activeSecretDialogItem = null;
+  dialogSecretSourceItem = options.secretSourceItem || null;
+  els.dialog.classList.remove("no-comments-dialog");
   if (isPhotoPublishedToday(photo) && photo.id) {
     markTodayPostsViewed([photo.id]);
     updateTodayPostsNotice();
@@ -2465,15 +2500,24 @@ function openPhoto(photo, initialImageIndex = 0, options = {}) {
   if (els.dialogRandomButton) {
     els.dialogRandomButton.hidden = !dialogRandomMode;
   }
+  if (els.dialogSecretLinkButton) {
+    els.dialogSecretLinkButton.hidden = true;
+  }
+  if (els.dialogSecretReturnButton) {
+    els.dialogSecretReturnButton.hidden = !dialogSecretSourceItem;
+  }
   renderDialogMedia();
   void loadPhotoComments(photo.id);
-  els.dialog.showModal();
+  if (!els.dialog.open) els.dialog.showModal();
 }
 
 function openWishImage(wish) {
   if (!wish?.imageUrl) return;
   activeDialogPhoto = null;
   dialogRandomMode = false;
+  activeSecretDialogItem = null;
+  dialogSecretSourceItem = null;
+  els.dialog.classList.add("no-comments-dialog");
   photoComments = [];
   dialogImages = [{ image_url: wish.imageUrl }];
   dialogImageIndex = 0;
@@ -2485,7 +2529,7 @@ function openWishImage(wish) {
   }
   els.photoCommentsSection.hidden = true;
   renderDialogMedia();
-  els.dialog.showModal();
+  if (!els.dialog.open) els.dialog.showModal();
 }
 
 function openEditPhoto(photo) {
@@ -3364,6 +3408,7 @@ async function synchronizeAccountData() {
       await synchronizeAnniversaries(userId);
       await loadGratitudeNotes();
       await loadPhotos();
+      await loadSecretItems();
       await loadNotifications();
       updateCloudSyncStatus();
     } catch (error) {
@@ -3394,6 +3439,7 @@ function updateCloudSyncStatus() {
   if (!profilePreferencesCloudAvailable) missing.push("主题/主页名称");
   if (!thanksColorCloudAvailable) missing.push("留言颜色");
   if (!wishCompletionNoteCloudAvailable) missing.push("心愿完成感想");
+  if (!secretCloudAvailable) missing.push("秘藏");
   setGlobalStatus(
     missing.length
       ? `数据库仍缺少：${missing.join("、")}。请运行最新版 supabase-cloud-sync.sql。`
@@ -4112,16 +4158,18 @@ function renderPreviewStrip(files, urls) {
 }
 
 function switchPage(page) {
-  activePage = ["recipes", "wishlist", "weekend", "thanks"].includes(page) ? page : "gallery";
+  activePage = ["recipes", "wishlist", "weekend", "thanks", "secret"].includes(page) ? page : "gallery";
   const showRecipes = activePage === "recipes";
   const showWishlist = activePage === "wishlist";
   const showWeekend = activePage === "weekend";
   const showThanks = activePage === "thanks";
+  const showSecret = activePage === "secret";
   els.galleryNav.classList.toggle("active", activePage === "gallery");
   els.recipesNav.classList.toggle("active", showRecipes);
   els.wishlistNav.classList.toggle("active", showWishlist);
   els.weekendNav.classList.toggle("active", showWeekend);
   els.thanksNav.classList.toggle("active", showThanks);
+  els.secretNav?.classList.toggle("active", showSecret);
   els.composer.hidden = activePage !== "gallery" || !session;
   els.overview.hidden = activePage !== "gallery" || !session;
   els.foodWheelSection.hidden = activePage !== "gallery";
@@ -4140,14 +4188,17 @@ function switchPage(page) {
   els.wishlistPage.hidden = !showWishlist;
   els.weekendPage.hidden = !showWeekend;
   els.thanksPage.hidden = !showThanks;
+  els.secretPage.hidden = !showSecret;
   els.recipeComposer.hidden = !showRecipes || !session;
   els.wishlistComposer.hidden = !showWishlist || !session;
   els.weekendComposer.hidden = !showWeekend || !session;
   els.thanksForm.hidden = !showThanks || !session;
+  els.secretComposer.hidden = !showSecret || !session;
   if (showRecipes) renderRecipes();
   if (showWishlist) renderWishes();
   if (showWeekend) renderWeekendPlans();
   if (showThanks) renderGratitudeNotes();
+  if (showSecret) renderSecretGallery();
   if (activePage === "gallery") {
     renderFeedRefreshNotice();
     renderGallery();
@@ -4188,6 +4239,341 @@ function openRandomMemory() {
       : memoryPhotos;
   const randomPhoto = candidates[Math.floor(Math.random() * candidates.length)];
   openPhoto(randomPhoto, 0, { randomMode: true });
+}
+
+function setSecretStatus(message) {
+  if (els.secretStatus) els.secretStatus.textContent = message;
+}
+
+function setSecretExpanded(expanded) {
+  if (!els.secretForm || !els.secretToggle) return;
+  els.secretForm.hidden = !expanded;
+  els.secretToggle.setAttribute("aria-expanded", String(expanded));
+}
+
+function secretFromCloudRow(row) {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    title: row.title || "",
+    category: row.category || "未分类",
+    note: row.note || "",
+    images: normalizeSecretImages(row.images),
+    linkedPhotoId: row.linked_photo_id || "",
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function secretToCloudRow(item, userId = session?.user?.id) {
+  return {
+    id: normalizeUuid(item.id),
+    user_id: userId,
+    title: item.title || "",
+    category: item.category || "未分类",
+    note: item.note || "",
+    images: normalizeSecretImages(item.images),
+    linked_photo_id: item.linkedPhotoId || null,
+    created_at: item.createdAt || new Date().toISOString(),
+    updated_at: item.updatedAt || new Date().toISOString(),
+  };
+}
+
+function normalizeSecretImages(images) {
+  return Array.isArray(images)
+    ? images
+        .map((image) => ({
+          image_url: image?.image_url || image?.url || "",
+          image_path: image?.image_path || image?.path || "",
+          width: image?.width ?? null,
+          height: image?.height ?? null,
+        }))
+        .filter((image) => image.image_url)
+    : [];
+}
+
+async function loadSecretItems() {
+  if (!supabase || !session) {
+    secretItems = [];
+    renderSecretGallery();
+    return;
+  }
+  try {
+    const { data, error } = await supabase
+      .from("secret_items")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    secretCloudAvailable = true;
+    secretItems = (data || []).map(secretFromCloudRow);
+    renderSecretGallery();
+  } catch (error) {
+    secretCloudAvailable = false;
+    secretItems = [];
+    renderSecretGallery();
+    if (isMissingCloudSchema(error)) {
+      setSecretStatus("秘藏表尚未初始化，请运行最新版 supabase-cloud-sync.sql。");
+    } else {
+      setSecretStatus(`秘藏同步失败：${error.message || "请稍后重试"}`);
+    }
+  }
+}
+
+function renderSecretLinkedPhotoOptions() {
+  if (!els.secretLinkedPhotoInput) return;
+  const options = getSortedPhotos(photos)
+    .map((photo) => {
+      const title = getDisplayTitle(photo) || getPlainNote(photo).slice(0, 18) || "未命名日记";
+      return `<option value="${escapeHtml(photo.id || "")}">${escapeHtml(`${formatDate(photo.taken_at)} · ${title}`)}</option>`;
+    })
+    .join("");
+  els.secretLinkedPhotoInput.innerHTML = `<option value="">不关联</option>${options}`;
+}
+
+function updateSecretPreview() {
+  const files = Array.from(els.secretImageInput?.files || []);
+  revokeSecretPreviewUrls();
+  if (!files.length) {
+    els.secretImagePreview.removeAttribute("src");
+    els.secretImagePreview.hidden = true;
+    els.secretPreviewStrip.innerHTML = "";
+    els.secretPreviewStrip.hidden = true;
+    els.secretImageName.textContent = "还没有选择图片";
+    return;
+  }
+  secretPreviewUrls = files.slice(0, 9).map((file) => URL.createObjectURL(file));
+  els.secretImagePreview.src = secretPreviewUrls[0];
+  els.secretImagePreview.hidden = false;
+  els.secretImageName.textContent =
+    files.length > 1 ? `已选择 ${files.length} 张图片` : files[0].name;
+  renderSecretPreviewStrip(files, secretPreviewUrls);
+}
+
+function renderSecretPreviewStrip(files, urls) {
+  if (files.length <= 1) {
+    els.secretPreviewStrip.innerHTML = "";
+    els.secretPreviewStrip.hidden = true;
+    return;
+  }
+  els.secretPreviewStrip.hidden = false;
+  els.secretPreviewStrip.innerHTML = urls
+    .map((url, index) => `<button type="button" data-secret-preview-index="${index}"><img src="${url}" alt="" /></button>`)
+    .join("");
+  els.secretPreviewStrip.querySelectorAll("[data-secret-preview-index]").forEach((button) => {
+    button.addEventListener("click", () => {
+      els.secretImagePreview.src = urls[Number(button.dataset.secretPreviewIndex)];
+    });
+  });
+}
+
+let secretPreviewUrls = [];
+function revokeSecretPreviewUrls() {
+  secretPreviewUrls.forEach((url) => URL.revokeObjectURL(url));
+  secretPreviewUrls = [];
+}
+
+function handleSecretPaste(event) {
+  const items = Array.from(event.clipboardData?.items || []);
+  const imageItems = items.filter((item) => item.type.startsWith("image/"));
+  if (!imageItems.length) return;
+  const files = imageItems.map((item) => item.getAsFile()).filter(Boolean);
+  if (!files.length) return;
+  event.preventDefault();
+  const transfer = new DataTransfer();
+  files.forEach((file, index) => {
+    const extension = file.type?.split("/")[1] || "png";
+    transfer.items.add(
+      new File([file], `secret-pasted-${Date.now()}-${index + 1}.${extension}`, {
+        type: file.type || "image/png",
+      })
+    );
+  });
+  els.secretImageInput.files = transfer.files;
+  updateSecretPreview();
+  setSecretStatus(files.length > 1 ? `已读取 ${files.length} 张剪贴板图片。` : "已读取剪贴板图片。");
+}
+
+async function saveSecretItem(event) {
+  event.preventDefault();
+  if (!supabase || !session) {
+    setSecretStatus("请先登录。");
+    return;
+  }
+  if (!secretCloudAvailable) {
+    setSecretStatus("请先运行最新版 supabase-cloud-sync.sql，启用秘藏表。");
+    return;
+  }
+  const files = Array.from(els.secretImageInput.files || []);
+  if (!files.length) {
+    setSecretStatus("请先选择或粘贴图片。");
+    return;
+  }
+  const imageLimit = getCurrentImageLimit();
+  if (files.length > imageLimit) {
+    setSecretStatus(`当前 VIP 等级单篇最多 ${imageLimit} 张图。`);
+    return;
+  }
+  els.secretSubmitButton.disabled = true;
+  const images = [];
+  try {
+    for (const [index, file] of files.entries()) {
+      const base = slugify(els.secretTitleInput.value || els.secretCategoryInput.value || "secret");
+      const uploaded = await uploadImageFile(file, `${base}-${index + 1}`, index + 1, files.length, {
+        folder: "secrets",
+        statusSetter: setSecretStatus,
+      });
+      if (!uploaded) throw new Error("秘藏图片上传失败。");
+      images.push(uploaded);
+    }
+    const now = new Date().toISOString();
+    const item = {
+      id: crypto.randomUUID(),
+      title: els.secretTitleInput.value.trim(),
+      category: els.secretCategoryInput.value.trim() || "未分类",
+      note: els.secretNoteInput.value.trim(),
+      images,
+      linkedPhotoId: els.secretLinkedPhotoInput.value || "",
+      createdAt: now,
+      updatedAt: now,
+    };
+    const { error } = await supabase.from("secret_items").insert(secretToCloudRow(item));
+    if (error) throw error;
+    els.secretForm.reset();
+    updateSecretPreview();
+    setSecretExpanded(false);
+    setSecretStatus("已保存到秘藏。");
+    await loadSecretItems();
+  } catch (error) {
+    setSecretStatus(error.message || "保存秘藏失败。");
+  } finally {
+    els.secretSubmitButton.disabled = false;
+  }
+}
+
+function renderSecretGallery() {
+  if (!els.secretGallery) return;
+  renderSecretLinkedPhotoOptions();
+  const categories = ["全部", ...new Set(secretItems.map((item) => item.category || "未分类"))];
+  if (!categories.includes(activeSecretFilter)) activeSecretFilter = "全部";
+  els.secretCategoryList.innerHTML = categories
+    .filter((category) => category !== "全部")
+    .map((category) => `<option value="${escapeHtml(category)}"></option>`)
+    .join("");
+  els.secretFilters.innerHTML = categories
+    .map(
+      (category) =>
+        `<button class="${category === activeSecretFilter ? "active" : ""}" type="button" data-secret-filter="${escapeHtml(category)}">${escapeHtml(category)}</button>`
+    )
+    .join("");
+  els.secretFilters.querySelectorAll("[data-secret-filter]").forEach((button) => {
+    button.addEventListener("click", () => {
+      activeSecretFilter = button.dataset.secretFilter || "全部";
+      renderSecretGallery();
+    });
+  });
+
+  const visible =
+    activeSecretFilter === "全部"
+      ? secretItems
+      : secretItems.filter((item) => item.category === activeSecretFilter);
+  if (!session) {
+    els.secretGallery.innerHTML = `<div class="empty">登录后才能进入秘藏。</div>`;
+    return;
+  }
+  if (!secretCloudAvailable) {
+    els.secretGallery.innerHTML = `<div class="empty">秘藏需要先初始化数据库表。</div>`;
+    return;
+  }
+  if (!visible.length) {
+    els.secretGallery.innerHTML = `<div class="empty">这里还没有收藏，先放入第一件秘藏吧。</div>`;
+    return;
+  }
+  els.secretGallery.innerHTML = visible
+    .map((item, index) => {
+      const cover = item.images[0]?.image_url || "";
+      const linkedPhoto = photos.find((photo) => photo.id === item.linkedPhotoId);
+      const linkedTitle = linkedPhoto ? getDisplayTitle(linkedPhoto) || "关联日记" : "";
+      return `
+        <article class="secret-card">
+          <button class="secret-cover" type="button" data-secret-index="${index}">
+            <img src="${escapeHtml(cover)}" alt="${escapeHtml(item.title || item.category)}" loading="lazy" />
+            <span>${String(item.images.length).padStart(2, "0")}</span>
+          </button>
+          <div>
+            <p class="kicker">${escapeHtml(item.category || "未分类")} · ${formatDateTime(item.createdAt)}</p>
+            ${item.title ? `<h3>${escapeHtml(item.title)}</h3>` : ""}
+            ${item.note ? `<p>${escapeHtml(item.note)}</p>` : ""}
+            ${linkedTitle ? `<small>关联：${escapeHtml(linkedTitle)}</small>` : ""}
+          </div>
+          <button class="delete-secret" type="button" data-secret-delete="${index}">删除</button>
+        </article>
+      `;
+    })
+    .join("");
+  els.secretGallery.querySelectorAll("[data-secret-index]").forEach((button) => {
+    button.addEventListener("click", () => openSecretItem(visible[Number(button.dataset.secretIndex)]));
+  });
+  els.secretGallery.querySelectorAll("[data-secret-delete]").forEach((button) => {
+    button.addEventListener("click", () => deleteSecretItem(visible[Number(button.dataset.secretDelete)]));
+  });
+}
+
+function openSecretItem(item) {
+  if (!item) return;
+  activeDialogPhoto = null;
+  activeSecretDialogItem = item;
+  dialogSecretSourceItem = null;
+  els.dialog.classList.add("no-comments-dialog");
+  dialogRandomMode = false;
+  dialogImages = normalizeSecretImages(item.images);
+  dialogImageIndex = 0;
+  els.dialogTitle.textContent = item.title || item.category || "秘藏";
+  els.dialogMeta.textContent = `${item.category || "未分类"} · 私人展览 · ${formatDateTime(item.createdAt)}`;
+  els.dialogNote.textContent = item.note || "";
+  els.photoCommentsSection.hidden = true;
+  if (els.dialogRandomButton) els.dialogRandomButton.hidden = true;
+  if (els.dialogSecretReturnButton) els.dialogSecretReturnButton.hidden = true;
+  if (els.dialogSecretLinkButton) {
+    els.dialogSecretLinkButton.hidden = !item.linkedPhotoId;
+  }
+  renderDialogMedia();
+  if (!els.dialog.open) els.dialog.showModal();
+}
+
+function openSecretLinkedDiary() {
+  const item = activeSecretDialogItem;
+  if (!item?.linkedPhotoId) return;
+  const photo = photos.find((entry) => entry.id === item.linkedPhotoId);
+  if (!photo) {
+    setGlobalStatus("关联日记暂时没有加载到。");
+    return;
+  }
+  openPhoto(photo, 0, { secretSourceItem: item });
+}
+
+function returnToSecretItem() {
+  if (dialogSecretSourceItem) {
+    openSecretItem(dialogSecretSourceItem);
+  }
+}
+
+async function deleteSecretItem(item) {
+  if (!item || !session || !confirm("删除这件秘藏吗？")) return;
+  const { error } = await supabase
+    .from("secret_items")
+    .delete()
+    .eq("id", item.id)
+    .eq("user_id", session.user.id);
+  if (error) {
+    setSecretStatus(error.message || "删除失败。");
+    return;
+  }
+  const paths = normalizeSecretImages(item.images).map((image) => image.image_path).filter(Boolean);
+  if (paths.length) {
+    cleanupStoredImagePaths(paths).catch((error) => console.warn("Secret image cleanup failed:", error));
+  }
+  setSecretStatus("秘藏已删除。");
+  await loadSecretItems();
 }
 
 function getToolDockOrderStorageKey(userId = session?.user?.id || "guest") {
@@ -4254,7 +4640,7 @@ function startToolDockPointer(event) {
     startX: event.clientX,
     startY: event.clientY,
     dragging: false,
-    timer: window.setTimeout(() => beginToolDockDrag(button, event.pointerId), 420),
+    timer: window.setTimeout(() => beginToolDockDrag(button, event.pointerId), 300),
   };
 }
 
@@ -4264,6 +4650,7 @@ function beginToolDockDrag(button, pointerId) {
   suppressToolDockClick = true;
   els.toolDock.classList.add("sorting");
   button.classList.add("dragging");
+  button.style.width = `${button.getBoundingClientRect().width}px`;
   button.setPointerCapture?.(pointerId);
 }
 
@@ -4272,26 +4659,30 @@ function moveToolDockPointer(event) {
 
   const dx = Math.abs(event.clientX - toolDockDragState.startX);
   const dy = Math.abs(event.clientY - toolDockDragState.startY);
-  if (!toolDockDragState.dragging && Math.max(dx, dy) > 10) {
+  if (!toolDockDragState.dragging && Math.max(dx, dy) > 12) {
     window.clearTimeout(toolDockDragState.timer);
-    toolDockDragState = null;
-    return;
+    beginToolDockDrag(toolDockDragState.button, toolDockDragState.pointerId);
   }
   if (!toolDockDragState?.dragging) return;
 
   event.preventDefault();
-  const target = document
-    .elementFromPoint(event.clientX, event.clientY)
-    ?.closest(".tool-dock-button[data-tool-id]");
-  if (!target || target === toolDockDragState.button || !els.toolDock.contains(target)) return;
-
-  const rect = target.getBoundingClientRect();
-  const insertAfter =
-    event.clientX > rect.left + rect.width / 2 || event.clientY > rect.top + rect.height / 2;
-  els.toolDock.insertBefore(
-    toolDockDragState.button,
-    insertAfter ? target.nextSibling : target
-  );
+  const draggingButton = toolDockDragState.button;
+  const siblings = Array.from(
+    els.toolDock.querySelectorAll(".tool-dock-button[data-tool-id]:not(.dragging)")
+  ).filter((button) => !button.hidden);
+  const pointerX = event.clientX;
+  const pointerY = event.clientY;
+  const nextSibling =
+    siblings.find((button) => {
+      const rect = button.getBoundingClientRect();
+      return pointerY < rect.top + rect.height && pointerX < rect.left + rect.width / 2;
+    }) ||
+    siblings.find((button) => {
+      const rect = button.getBoundingClientRect();
+      return pointerY < rect.top + rect.height / 2;
+    }) ||
+    null;
+  els.toolDock.insertBefore(draggingButton, nextSibling);
 }
 
 function finishToolDockPointer() {
@@ -4299,6 +4690,7 @@ function finishToolDockPointer() {
   window.clearTimeout(toolDockDragState.timer);
   if (toolDockDragState.dragging) {
     toolDockDragState.button.classList.remove("dragging");
+    toolDockDragState.button.style.removeProperty("width");
     els.toolDock.classList.remove("sorting");
     saveToolDockOrder();
     window.setTimeout(() => {
@@ -6810,6 +7202,7 @@ els.recipesNav.addEventListener("click", () => switchPage("recipes"));
 els.wishlistNav.addEventListener("click", () => switchPage("wishlist"));
 els.weekendNav.addEventListener("click", () => switchPage("weekend"));
 els.thanksNav.addEventListener("click", () => switchPage("thanks"));
+els.secretNav?.addEventListener("click", () => switchPage("secret"));
 els.toolDock?.addEventListener("click", handleToolDockClick, true);
 els.toolDock?.addEventListener("pointerdown", startToolDockPointer);
 els.toolDock?.addEventListener("pointermove", moveToolDockPointer);
@@ -6845,6 +7238,10 @@ els.anniversaryCancel.addEventListener("click", () => {
   setAnniversaryFormExpanded(false);
 });
 els.memoryButton.addEventListener("click", openRandomMemory);
+els.secretOpen?.addEventListener("click", () => {
+  switchPage("secret");
+  els.secretPage?.scrollIntoView({ behavior: "smooth", block: "start" });
+});
 els.quickPhoto.addEventListener("click", () => {
   switchPage("gallery");
   setUploadExpanded(true);
@@ -6936,6 +7333,13 @@ els.thanksForm.querySelectorAll('input[name="thanksColor"]').forEach((input) => 
     }
   });
 });
+els.secretToggle?.addEventListener("click", () => {
+  renderSecretLinkedPhotoOptions();
+  setSecretExpanded(els.secretForm.hidden);
+});
+els.secretImageInput?.addEventListener("change", updateSecretPreview);
+els.secretImageDrop?.addEventListener("paste", handleSecretPaste);
+els.secretForm?.addEventListener("submit", saveSecretItem);
 els.avatarButton.addEventListener("click", () => {
   els.userPopover.hidden = !els.userPopover.hidden;
 });
@@ -7099,19 +7503,30 @@ els.dialog.addEventListener("click", (event) => {
 els.dialog.addEventListener("close", () => {
   activeDialogPhoto = null;
   dialogRandomMode = false;
+  activeSecretDialogItem = null;
+  dialogSecretSourceItem = null;
   photoComments = [];
   cancelDialogSwipe();
   els.photoCommentsSection.hidden = false;
   if (els.dialogRandomButton) {
     els.dialogRandomButton.hidden = true;
   }
+  if (els.dialogSecretLinkButton) {
+    els.dialogSecretLinkButton.hidden = true;
+  }
+  if (els.dialogSecretReturnButton) {
+    els.dialogSecretReturnButton.hidden = true;
+  }
   els.photoCommentForm.reset();
   cancelCommentReply();
   els.photoCommentStatus.textContent = "";
+  els.dialog.classList.remove("no-comments-dialog");
 });
 els.photoCommentForm.addEventListener("submit", savePhotoComment);
 els.cancelCommentReply.addEventListener("click", cancelCommentReply);
 els.dialogRandomButton?.addEventListener("click", openRandomMemory);
+els.dialogSecretLinkButton?.addEventListener("click", openSecretLinkedDiary);
+els.dialogSecretReturnButton?.addEventListener("click", returnToSecretItem);
 els.dialogPrev.addEventListener("click", () => moveDialogImage(-1));
 els.dialogNext.addEventListener("click", () => moveDialogImage(1));
 els.dialogMedia.addEventListener("pointerdown", beginDialogSwipe);

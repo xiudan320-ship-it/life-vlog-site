@@ -100,6 +100,18 @@ create table if not exists public.anniversaries (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.secret_items (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  title text not null default '',
+  category text not null default '未分类',
+  note text not null default '',
+  images jsonb not null default '[]'::jsonb,
+  linked_photo_id uuid references public.photos(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create index if not exists recipes_user_created_idx
   on public.recipes (user_id, created_at desc);
 
@@ -118,12 +130,19 @@ create index if not exists photos_featured_date_idx
 create index if not exists photos_pinned_date_idx
   on public.photos (is_pinned, taken_at desc);
 
+create index if not exists secret_items_user_created_idx
+  on public.secret_items (user_id, created_at desc);
+
+create index if not exists secret_items_user_category_idx
+  on public.secret_items (user_id, category, created_at desc);
+
 alter table public.user_profiles enable row level security;
 alter table public.recipes enable row level security;
 alter table public.wishes enable row level security;
 alter table public.weekend_plans enable row level security;
 alter table public.anniversaries enable row level security;
 alter table public.photo_favorites enable row level security;
+alter table public.secret_items enable row level security;
 
 grant usage on schema public to authenticated;
 grant select, insert, update on public.user_profiles to authenticated;
@@ -133,6 +152,7 @@ grant select, insert, update, delete on public.weekend_plans to authenticated;
 grant select, insert, update, delete on public.anniversaries to authenticated;
 grant select, insert, update, delete on public.photos to authenticated;
 grant select, insert, delete on public.photo_favorites to authenticated;
+grant select, insert, update, delete on public.secret_items to authenticated;
 
 drop policy if exists "Users can read their own profile" on public.user_profiles;
 drop policy if exists "Users can create their own profile" on public.user_profiles;
@@ -1281,6 +1301,28 @@ create policy "Users can update their own notifications"
 
 create policy "Users can delete their own notifications"
   on public.notifications for delete
+  using (auth.uid() = user_id);
+
+drop policy if exists "Users can read their own secret items" on public.secret_items;
+drop policy if exists "Users can create their own secret items" on public.secret_items;
+drop policy if exists "Users can update their own secret items" on public.secret_items;
+drop policy if exists "Users can delete their own secret items" on public.secret_items;
+
+create policy "Users can read their own secret items"
+  on public.secret_items for select
+  using (auth.uid() = user_id);
+
+create policy "Users can create their own secret items"
+  on public.secret_items for insert
+  with check (auth.uid() = user_id);
+
+create policy "Users can update their own secret items"
+  on public.secret_items for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create policy "Users can delete their own secret items"
+  on public.secret_items for delete
   using (auth.uid() = user_id);
 
 -- Ask Supabase/PostgREST to refresh its schema cache immediately so the web app
