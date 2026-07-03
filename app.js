@@ -6223,14 +6223,19 @@ function saveCloudflareSession(payload) {
 }
 
 async function cloudflareApi(path, { token, method = "GET", body = null } = {}) {
-  const response = await fetch(`${getCloudflareApiBase()}${path}`, {
-    method,
-    headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(body ? { "Content-Type": "application/json" } : {}),
-    },
-    body: body ? JSON.stringify(body) : null,
-  });
+  let response;
+  try {
+    response = await fetch(`${getCloudflareApiBase()}${path}`, {
+      method,
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(body ? { "Content-Type": "application/json" } : {}),
+      },
+      body: body ? JSON.stringify(body) : null,
+    });
+  } catch (error) {
+    throw new Error(`无法连接 Cloudflare Worker：${error.message}`);
+  }
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(data.error || data.detail || `Cloudflare API ${response.status}`);
@@ -6377,6 +6382,70 @@ async function collectSupabaseMigrationPayload() {
   };
 }
 
+function splitRows(rows, size = 20) {
+  const chunks = [];
+  for (let index = 0; index < rows.length; index += size) {
+    chunks.push(rows.slice(index, index + size));
+  }
+  return chunks;
+}
+
+function createD1ImportBatches(payload) {
+  const batches = [];
+  const addRows = (label, key, rows, size = 20) => {
+    splitRows(rows || [], size).forEach((chunk, index, all) => {
+      batches.push({
+        label: all.length > 1 ? `${label} ${index + 1}/${all.length}` : label,
+        body: { [key]: chunk },
+        count: chunk.length,
+      });
+    });
+  };
+
+  batches.push({
+    label: "家庭与资料",
+    body: {
+      families: payload.families || [],
+      family_members: payload.family_members || [],
+      family_invitations: payload.family_invitations || [],
+      user_profiles: payload.user_profiles || [],
+    },
+    count:
+      (payload.families || []).length +
+      (payload.family_members || []).length +
+      (payload.family_invitations || []).length +
+      (payload.user_profiles || []).length,
+  });
+  addRows("日记", "photos", payload.photos, 15);
+  addRows("菜谱", "recipes", payload.recipes, 20);
+  addRows("心愿", "wishes", payload.wishes, 20);
+  addRows("周末", "weekend_plans", payload.weekend_plans, 20);
+  addRows("纪念日", "anniversaries", payload.anniversaries, 20);
+  addRows("感谢留言", "gratitude_notes", payload.gratitude_notes, 20);
+  addRows("收藏", "photo_favorites", payload.photo_favorites, 30);
+  addRows("评论", "photo_comments", payload.photo_comments, 20);
+  addRows("通知", "notifications", payload.notifications, 20);
+  return batches.filter((batch) => batch.count > 0);
+}
+
+async function importPayloadToD1InBatches(token, payload) {
+  const batches = createD1ImportBatches(payload);
+  const totals = {};
+  for (const [index, batch] of batches.entries()) {
+    setCloudD1MigrationStatus(`正在导入 Cloudflare D1：${batch.label}（${index + 1}/${batches.length}）`);
+    const imported = await cloudflareApi("/api/migration/import", {
+      method: "POST",
+      token,
+      body: batch.body,
+    });
+    Object.entries(imported.counts || {}).forEach(([key, value]) => {
+      totals[key] = (totals[key] || 0) + Number(value || 0);
+    });
+    await new Promise((resolve) => window.setTimeout(resolve, 80));
+  }
+  return totals;
+}
+
 function openCloudD1MigrationDialog() {
   if (!session) {
     setCloudD1MigrationStatus("请先用原来的账号登录。");
@@ -6414,12 +6483,7 @@ async function migrateAccountToCloudflare(event) {
     });
     setCloudD1MigrationStatus("正在读取 Supabase 数据...");
     const payload = await collectSupabaseMigrationPayload();
-    setCloudD1MigrationStatus("正在导入 Cloudflare D1...");
-    const imported = await cloudflareApi("/api/migration/import", {
-      method: "POST",
-      token: claim.token,
-      body: payload,
-    });
+    const counts = await importPayloadToD1InBatches(claim.token, payload);
     saveCloudflareSession({
       token: claim.token,
       expires_at: claim.expires_at,
@@ -6427,7 +6491,7 @@ async function migrateAccountToCloudflare(event) {
       profile: claim.profile,
       migrated_at: new Date().toISOString(),
     });
-    const total = Object.values(imported.counts || {}).reduce((sum, value) => sum + Number(value || 0), 0);
+    const total = Object.values(counts).reduce((sum, value) => sum + Number(value || 0), 0);
     setCloudD1MigrationStatus(`迁移完成：已导入 D1 ${total} 条记录。`);
     setTimeout(() => els.cloudD1MigrationDialog.close(), 900);
   } catch (error) {
