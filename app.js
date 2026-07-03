@@ -138,6 +138,7 @@ let cloudD1MigrationInFlight = false;
 let foodOptions = [];
 let activePage = "gallery";
 let activeFilter = "全部";
+let diarySearchQuery = "";
 let activeWishView = "open";
 let previewUrls = [];
 let visiblePhotoCount = PAGE_SIZE;
@@ -317,6 +318,8 @@ const els = {
   feedRefreshNotice: document.querySelector("#feedRefreshNotice"),
   todayPostsNotice: document.querySelector("#todayPostsNotice"),
   galleryFilters: document.querySelector("#galleryFilters"),
+  diarySearchInput: document.querySelector("#diarySearchInput"),
+  clearDiarySearch: document.querySelector("#clearDiarySearch"),
   gallery: document.querySelector("#gallery"),
   feedLoader: document.querySelector("#feedLoader"),
   feedLoaderText: document.querySelector("#feedLoaderText"),
@@ -1720,7 +1723,7 @@ function renderGallery() {
   renderOverview();
   updateTodayPostsNotice();
   const sortedPhotos = getSortedPhotos(photos);
-  const filtered =
+  const categoryFiltered =
     activeFilter === "全部"
       ? sortedPhotos
       : activeFilter === "featured7"
@@ -1730,6 +1733,7 @@ function renderGallery() {
         : activeFilter === "favorites"
           ? sortedPhotos.filter((photo) => favoritePhotoIds.has(photo.id))
           : sortedPhotos.filter((photo) => photo.category === activeFilter);
+  const filtered = filterPhotosBySearch(categoryFiltered);
 
   filteredPhotoCount = filtered.length;
   visiblePhotoCount = Math.min(
@@ -1740,7 +1744,9 @@ function renderGallery() {
 
   if (!visible.length) {
     const emptyMessage =
-      activeFilter === "featured7"
+      diarySearchQuery
+        ? "没有找到匹配的日记。换个日期或关键词试试看。"
+        : activeFilter === "featured7"
         ? "最近七天还没有精选日记。"
         : activeFilter === "favorites"
           ? session
@@ -1856,6 +1862,44 @@ function renderGallery() {
   updateReadMoreHints(els.gallery);
   warmUpcomingFeedImages(filtered, visible.length);
   updateFeedLoader(filtered.length);
+}
+
+function normalizeDiarySearchText(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function getPhotoSearchText(photo) {
+  return [
+    getDisplayTitle(photo),
+    getPlainNote(photo),
+    photo.category,
+    photo.taken_at,
+    photo.created_at,
+    formatDate(photo.taken_at),
+    formatDateTime(photo.created_at),
+    getAuthorName(photo.user_id),
+  ]
+    .map(normalizeDiarySearchText)
+    .join(" ");
+}
+
+function filterPhotosBySearch(photoList) {
+  const query = normalizeDiarySearchText(diarySearchQuery);
+  if (!query) return photoList;
+  const terms = query.split(/\s+/).filter(Boolean);
+  return photoList.filter((photo) => {
+    const haystack = getPhotoSearchText(photo);
+    return terms.every((term) => haystack.includes(term));
+  });
+}
+
+function updateDiarySearchUi() {
+  if (els.diarySearchInput && els.diarySearchInput.value !== diarySearchQuery) {
+    els.diarySearchInput.value = diarySearchQuery;
+  }
+  if (els.clearDiarySearch) {
+    els.clearDiarySearch.hidden = !diarySearchQuery;
+  }
 }
 
 function isPhotoWithinSevenDays(photo) {
@@ -6242,7 +6286,7 @@ async function cloudflareApi(path, { token, method = "GET", body = null, simple 
   }
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.error || data.detail || `Cloudflare API ${response.status}`);
+    throw new Error(data.detail || data.error || `Cloudflare API ${response.status}`);
   }
   return data;
 }
@@ -6274,8 +6318,8 @@ function cloudflareBridgeApi(path, { token, body = null } = {}) {
       if (!message.ok) {
         reject(
           new Error(
-            message.data?.error ||
-              message.data?.detail ||
+            message.data?.detail ||
+              message.data?.error ||
               `Cloudflare bridge API ${message.status || "failed"}`
           )
         );
@@ -7298,12 +7342,26 @@ els.chips.forEach((chip) => {
     renderGallery();
   });
 });
+els.diarySearchInput?.addEventListener("input", () => {
+  diarySearchQuery = els.diarySearchInput.value;
+  visiblePhotoCount = PAGE_SIZE;
+  updateDiarySearchUi();
+  renderGallery();
+});
+els.clearDiarySearch?.addEventListener("click", () => {
+  diarySearchQuery = "";
+  visiblePhotoCount = PAGE_SIZE;
+  updateDiarySearchUi();
+  renderGallery();
+  els.diarySearchInput?.focus();
+});
 window.addEventListener("resize", () => {
   window.clearTimeout(updateReadMoreHints.resizeTimer);
   updateReadMoreHints.resizeTimer = window.setTimeout(() => updateReadMoreHints(els.gallery), 120);
 });
 
 registerAppShellWorker();
+updateDiarySearchUi();
 renderFoodWheel();
 initializeFeedObserver();
 initializeSupabase();
