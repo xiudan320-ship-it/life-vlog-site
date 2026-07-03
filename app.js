@@ -15,6 +15,40 @@ const THANKS_COLOR_KEY = "life-vlog-thanks-color";
 const THANKS_COLORS = new Set(["#2f6b3b", "#d6544d", "#2e6da4", "#81559b", "#a66b12"]);
 const DEFAULT_THANKS_COLOR = "#2f6b3b";
 const DAILY_LOGIN_EXP = 25;
+const EXPERIENCE_REWARDS = {
+  diary: 60,
+  comment: 15,
+  recipe: 40,
+  recipeEdit: 10,
+  wish: 25,
+  wishEdit: 10,
+  wishDone: 20,
+  weekend: 25,
+  weekendEdit: 10,
+  anniversary: 20,
+  anniversaryEdit: 10,
+  thanks: 15,
+  thanksEdit: 10,
+  diaryEdit: 10,
+};
+const VIP_EXP_MULTIPLIERS = [1, 1.05, 1.1, 1.2, 1.35, 1.5];
+const CULTIVATION_REALMS = [
+  { name: "炼气期", threshold: 0, next: 1500, layers: 13 },
+  { name: "筑基期", threshold: 1500, next: 4200 },
+  { name: "结丹期", threshold: 4200, next: 8200 },
+  { name: "元婴期", threshold: 8200, next: 14000 },
+  { name: "化神期", threshold: 14000, next: 22000 },
+  { name: "炼虚期", threshold: 22000, next: 33000 },
+  { name: "合体期", threshold: 33000, next: 47000 },
+  { name: "大乘期", threshold: 47000, next: 65000 },
+  { name: "真仙境", threshold: 65000, next: 88000 },
+  { name: "金仙境", threshold: 88000, next: 116000 },
+  { name: "太乙境", threshold: 116000, next: 150000 },
+  { name: "大罗境", threshold: 150000, next: 200000 },
+  { name: "道祖境", threshold: 200000, next: Infinity },
+];
+const CHINESE_NUMERALS = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十", "十一", "十二", "十三"];
+const CULTIVATION_PHASES = ["初期", "中期", "后期", "圆满"];
 const BUCKET = "life-photos";
 const PRODUCTION_URL = "https://xiudan320-ship-it.github.io/life-vlog-site/";
 const R2_UPLOAD_ENDPOINT = "https://life-vlog-r2-upload.xiudan320-life.workers.dev";
@@ -41,7 +75,7 @@ const VIP_LEVELS = [
     label: "星火会员",
     price: 9,
     limit: 3,
-    perks: ["专属 VIP 标识", "日夜模式记忆", "一篇笔记最多 3 张图"],
+    perks: ["修炼经验 +5%", "专属 VIP 标识", "一篇笔记最多 3 张图"],
   },
   {
     level: 2,
@@ -49,7 +83,7 @@ const VIP_LEVELS = [
     label: "丝带会员",
     price: 29,
     limit: 6,
-    perks: ["合集九宫格封面", "弹窗左右翻图", "一篇笔记最多 6 张图"],
+    perks: ["修炼经验 +10%", "合集九宫格封面", "一篇笔记最多 6 张图"],
   },
   {
     level: 3,
@@ -57,7 +91,7 @@ const VIP_LEVELS = [
     label: "棱镜会员",
     price: 68,
     limit: 9,
-    perks: ["高质压缩上传", "9 图完整宫格", "合集计数角标"],
+    perks: ["修炼经验 +20%", "高质压缩上传", "9 图完整宫格"],
   },
   {
     level: 4,
@@ -65,7 +99,7 @@ const VIP_LEVELS = [
     label: "档案会员",
     price: 128,
     limit: 12,
-    perks: ["私密内容共享", "编辑后保留合集", "一篇笔记最多 12 张图"],
+    perks: ["修炼经验 +35%", "私密内容共享", "一篇笔记最多 12 张图"],
   },
   {
     level: 5,
@@ -73,7 +107,7 @@ const VIP_LEVELS = [
     label: "导演会员",
     price: 298,
     limit: 18,
-    perks: ["黑金导演模式", "最高画质上传", "一篇笔记最多 18 张图"],
+    perks: ["修炼经验 +50%", "黑金导演模式", "一篇笔记最多 18 张图"],
   },
 ];
 
@@ -1404,8 +1438,9 @@ async function uploadPhoto(event) {
   const compressionSummary = originalBytes
     ? ` 自动压缩 ${formatFileSize(originalBytes)} → ${formatFileSize(uploadedBytes)}，节省 ${savings}%。`
     : "";
+  const gainedExp = await awardExperience("diary");
   setStatus(
-    `${images.length > 1 ? `已发布 1 篇合集，共 ${images.length} 张图。` : "上传完成。"}${compressionSummary}`
+    `${images.length > 1 ? `已发布 1 篇合集，共 ${images.length} 张图。` : "上传完成。"}${compressionSummary}${gainedExp ? ` 修为 +${gainedExp}` : ""}`
   );
   await loadPhotos();
   switchPage("gallery");
@@ -2453,7 +2488,8 @@ async function savePhotoEditLegacy(event) {
   els.editDialog.close();
   editingPhoto = null;
   await loadPhotos();
-  setGlobalStatus("日记信息已更新。");
+  const gainedExp = await awardExperience("diaryEdit");
+  setGlobalStatus(`日记信息已更新。${gainedExp ? ` 修为 +${gainedExp}` : ""}`);
 }
 
 async function savePhotoEdit(event) {
@@ -2524,7 +2560,8 @@ async function savePhotoEdit(event) {
     editingPhoto = null;
     resetEditImageState();
     await loadPhotos();
-    setGlobalStatus("日记和合集内容已更新。");
+    const gainedExp = await awardExperience("diaryEdit");
+    setGlobalStatus(`日记和合集内容已更新。${gainedExp ? ` 修为 +${gainedExp}` : ""}`);
   } catch (error) {
     els.saveEditStatus.textContent = error.message || "保存失败，请稍后重试。";
     if (newlyUploadedPaths.length) {
@@ -3181,14 +3218,14 @@ async function synchronizeAccountData() {
         Object.prototype.hasOwnProperty.call(profile, "theme_preference") &&
         Object.prototype.hasOwnProperty.call(profile, "home_name");
 
+      const vipLevel = getVipLevelByRecharge(rechargeTotal)?.level || 0;
       if (
         profile.last_login_date !== today &&
         (!needsLocalMigration || localExperience.lastLoginDate !== today)
       ) {
-        experienceTotal += DAILY_LOGIN_EXP;
+        experienceTotal += getVipAdjustedExperience(DAILY_LOGIN_EXP, vipLevel);
       }
       lastLoginDate = today;
-      const vipLevel = getVipLevelByRecharge(rechargeTotal)?.level || 0;
 
       const profileUpdates = {
         username: displayName,
@@ -3385,7 +3422,7 @@ function renderVipCenter() {
   els.vipRechargeTotal.textContent = formatMoney(rechargeTotal);
   els.vipTierAmount.textContent = currentLevel ? formatMoney(currentLevel.price) : "¥0";
   els.vipSummary.textContent = session
-    ? `${displayName} 累计充值 ${formatMoney(rechargeTotal)}，${currentLevel ? `当前为 ${currentLevel.label}` : "还未开通 VIP"}。`
+    ? `${displayName} 累计充值 ${formatMoney(rechargeTotal)}，${currentLevel ? `当前为 ${currentLevel.label}，修炼经验 ${getVipExpMultiplier(currentLevel.level)}x` : "还未开通 VIP"}。`
     : "登录后可充值激活 5 个 VIP 档位。";
   els.vipNext.innerHTML = nextLevel
     ? `<strong>下一档 ${nextLevel.label}</strong><span>还差 ${formatMoney(nextLevel.price - rechargeTotal)}</span>`
@@ -3400,7 +3437,7 @@ function renderVipCenter() {
         <span>LV.${level.level}</span>
         <strong>${escapeHtml(level.name)}</strong>
         <p>${escapeHtml(level.label)} · 累计 ${formatMoney(level.price)}</p>
-        <small>最多 ${level.limit} 张/篇</small>
+        <small>最多 ${level.limit} 张/篇 · 经验 ${getVipExpMultiplier(level.level)}x</small>
         <button type="button" data-top-up-level="${level.level}" ${!session || active || unlocked ? "disabled" : ""}>
           ${active ? "当前档位" : unlocked ? "已解锁" : `补 ${formatMoney(diff)}`}
         </button>
@@ -3530,13 +3567,22 @@ function saveExperience(data, displayName = getSessionDisplayName()) {
   }
 }
 
+function getVipExpMultiplier(level = activeVipLevel) {
+  return VIP_EXP_MULTIPLIERS[Math.max(0, Math.min(5, Number(level) || 0))] || 1;
+}
+
+function getVipAdjustedExperience(base, level = activeVipLevel) {
+  return Math.max(1, Math.round((Number(base) || 0) * getVipExpMultiplier(level)));
+}
+
 function awardDailyExperience(displayName = getSessionDisplayName()) {
   const today = getLocalDateKey();
   const data = loadExperience(displayName);
   if (data.lastLoginDate === today) return data;
+  const amount = getVipAdjustedExperience(DAILY_LOGIN_EXP);
 
   const next = {
-    total: data.total + DAILY_LOGIN_EXP,
+    total: data.total + amount,
     lastLoginDate: today,
     gainedToday: true,
   };
@@ -3545,21 +3591,31 @@ function awardDailyExperience(displayName = getSessionDisplayName()) {
 }
 
 function getExperienceLevel(totalExp) {
-  let level = 1;
-  let remaining = Math.max(0, Number(totalExp) || 0);
-  let needed = getLevelNeed(level);
-
-  while (remaining >= needed && level < 99) {
-    remaining -= needed;
-    level += 1;
-    needed = getLevelNeed(level);
-  }
-
+  const total = Math.max(0, Number(totalExp) || 0);
+  const realmIndex = CULTIVATION_REALMS.findIndex((realm, index) => {
+    const next = CULTIVATION_REALMS[index + 1];
+    return total >= realm.threshold && (!next || total < next.threshold);
+  });
+  const realm = CULTIVATION_REALMS[Math.max(0, realmIndex)];
+  const nextThreshold = Number.isFinite(realm.next) ? realm.next : Math.max(total, realm.threshold);
+  const span = Math.max(1, nextThreshold - realm.threshold);
+  const current = Math.min(span, Math.max(0, total - realm.threshold));
+  const percent = realm.next === Infinity ? 100 : Math.min(100, Math.round((current / span) * 100));
+  const layer =
+    realm.layers ? Math.min(realm.layers, Math.floor((current / span) * realm.layers) + 1) : 0;
+  const phase = realm.layers
+    ? `${CHINESE_NUMERALS[layer]}层`
+    : CULTIVATION_PHASES[Math.min(CULTIVATION_PHASES.length - 1, Math.floor((current / span) * CULTIVATION_PHASES.length))];
   return {
-    level,
-    current: remaining,
-    needed,
-    percent: Math.min(100, Math.round((remaining / needed) * 100)),
+    level: realmIndex + 1,
+    realm: realm.name,
+    phase,
+    title: `${realm.name}${phase ? ` · ${phase}` : ""}`,
+    current,
+    needed: span,
+    percent,
+    total,
+    nextName: CULTIVATION_REALMS[realmIndex + 1]?.name || "大道圆满",
   };
 }
 
@@ -3570,13 +3626,48 @@ function getLevelNeed(level) {
 function renderExperience(displayName = getSessionDisplayName()) {
   const data = loadExperience(displayName);
   const progress = getExperienceLevel(data.total);
-  els.xpLevel.textContent = `Lv.${progress.level}`;
+  els.xpLevel.textContent = progress.title;
   els.xpText.textContent = `${progress.current} / ${progress.needed} EXP`;
   els.xpBar.style.width = `${progress.percent}%`;
+  const loginExp = getVipAdjustedExperience(DAILY_LOGIN_EXP);
+  const multiplier = getVipExpMultiplier();
   els.xpHint.textContent =
     data.lastLoginDate === getLocalDateKey()
-      ? `今日登录 +${DAILY_LOGIN_EXP} EXP 已领取`
-      : `明日登录 +${DAILY_LOGIN_EXP} EXP`;
+      ? `今日吐纳 +${loginExp} EXP 已领取${multiplier > 1 ? ` · VIP ${multiplier}x` : ""}`
+      : `明日吐纳 +${loginExp} EXP`;
+}
+
+async function awardExperience(action, options = {}) {
+  if (!session) return 0;
+  const base = EXPERIENCE_REWARDS[action] || 0;
+  if (!base) return 0;
+  const amount = getVipAdjustedExperience(base);
+  const current = loadExperience();
+  const next = {
+    ...current,
+    total: Math.max(0, Number(current.total) || 0) + amount,
+  };
+  saveExperience(next);
+  renderExperience();
+  renderOverview();
+
+  if (cloudSyncAvailable && supabase) {
+    const { error } = await supabase
+      .from("user_profiles")
+      .update({
+        experience_total: next.total,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", session.user.id);
+    if (error) {
+      console.warn("Experience sync failed:", error);
+    }
+  }
+
+  if (options.statusElement) {
+    options.statusElement.textContent = `${options.statusElement.textContent} 修为 +${amount}`;
+  }
+  return amount;
 }
 
 function getLocalDateKey() {
@@ -4012,7 +4103,7 @@ function renderOverview() {
   els.overviewPhotos.textContent = String(familyVisiblePhotos.length);
   els.overviewRecipes.textContent = String(recipes.length);
   els.overviewWishes.textContent = String(unfinishedWishes);
-  els.overviewLevel.textContent = `Lv.${progress.level}`;
+  els.overviewLevel.textContent = progress.title;
   els.overviewProgress.style.width = `${progress.percent}%`;
   els.memoryButton.disabled = familyVisiblePhotos.length === 0;
 }
@@ -4394,7 +4485,8 @@ async function saveRecipe(event) {
   saveRecipes();
   resetRecipeForm();
   setRecipeExpanded(false);
-  setRecipeStatus(wasEditing ? "菜谱已更新。" : "菜谱已保存。");
+  const gainedExp = await awardExperience(wasEditing ? "recipeEdit" : "recipe");
+  setRecipeStatus(`${wasEditing ? "菜谱已更新。" : "菜谱已保存。"}${gainedExp ? ` 修为 +${gainedExp}` : ""}`);
   renderRecipes();
 }
 
@@ -4792,12 +4884,13 @@ async function saveWish(event) {
   }
   resetWishForm();
   setWishlistExpanded(false);
+  const gainedExp = await awardExperience(wasEditing ? "wishEdit" : "wish");
   setWishlistStatus(
-    !wishCompletionNoteCloudAvailable && wish.completionNote
+    `${!wishCompletionNoteCloudAvailable && wish.completionNote
       ? "心愿已保存；完成感想字段还没升级，请运行 supabase-wish-completion-note-patch.sql 后再编辑同步。"
       : wasEditing
         ? "心愿已更新。"
-        : "心愿已保存。"
+        : "心愿已保存。"}${gainedExp ? ` 修为 +${gainedExp}` : ""}`
   );
   renderWishes();
 }
@@ -5055,12 +5148,13 @@ async function saveWishCompletionState(current, done, completionNote = "", targe
   wishes = wishes.map((wish) => (wish.id === current.id ? next : wish));
   activeWishView = done ? "done" : "open";
   saveWishes();
+  const gainedExp = await awardExperience(done ? "wishDone" : "wishEdit");
   setWishlistStatus(
-    usedLegacyCompletionNote
+    `${usedLegacyCompletionNote
       ? "心愿已完成；数据库还缺少完成感想字段，请运行 supabase-wish-completion-note-patch.sql 后再编辑补上。"
       : done
         ? "心愿已完成，感想已保存。"
-        : "已取消完成状态。"
+        : "已取消完成状态。"}${gainedExp ? ` 修为 +${gainedExp}` : ""}`
   );
   renderWishes();
   return true;
@@ -5427,6 +5521,8 @@ async function saveAnniversary(event) {
   saveAnniversaries();
   resetAnniversaryForm();
   setAnniversaryFormExpanded(false);
+  const gainedExp = await awardExperience(previous ? "anniversaryEdit" : "anniversary");
+  els.anniversaryStatus.textContent = `${previous ? "纪念日已更新。" : "纪念日已保存。"}${gainedExp ? ` 修为 +${gainedExp}` : ""}`;
   renderAnniversaries();
 }
 
@@ -5601,7 +5697,8 @@ async function saveWeekendPlan(event) {
   saveWeekendPlans();
   resetWeekendForm();
   setWeekendExpanded(false);
-  setWeekendStatus(wasEditing ? "周末计划已更新。" : "周末计划已保存。");
+  const gainedExp = await awardExperience(wasEditing ? "weekendEdit" : "weekend");
+  setWeekendStatus(`${wasEditing ? "周末计划已更新。" : "周末计划已保存。"}${gainedExp ? ` 修为 +${gainedExp}` : ""}`);
   renderWeekendPlans();
 }
 
@@ -5838,6 +5935,7 @@ async function saveGratitudeNote(event) {
   if (!body) return;
   const selectedColor = getSelectedThanksColor();
   const previousNote = gratitudeNotes.find((item) => item.id === gratitudeEditingId);
+  const wasEditing = Boolean(gratitudeEditingId);
   saveThanksColorPreference(selectedColor, {
     userId: session.user.id,
     syncCloud: true,
@@ -5868,6 +5966,8 @@ async function saveGratitudeNote(event) {
 
   resetGratitudeForm();
   await loadGratitudeNotes();
+  const gainedExp = await awardExperience(wasEditing ? "thanksEdit" : "thanks");
+  els.thanksStatus.textContent = `${wasEditing ? "留言已更新。" : "留言已保存。"}${gainedExp ? ` 修为 +${gainedExp}` : ""}`;
 }
 
 function editGratitudeNote(id) {
@@ -7008,6 +7108,8 @@ async function savePhotoComment(event) {
   cancelCommentReply();
   await loadPhotoComments(activeDialogPhoto.id);
   await loadPhotoCommentPreviews();
+  const gainedExp = await awardExperience("comment");
+  els.photoCommentStatus.textContent = gainedExp ? `留言已发送。修为 +${gainedExp}` : "留言已发送。";
   if (activePage === "gallery") renderGallery();
 }
 

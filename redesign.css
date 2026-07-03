@@ -275,6 +275,29 @@ body.theme-dark .user-popover {
   background: rgba(50, 184, 150, 0.08);
 }
 
+.xp-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.xp-head span {
+  min-width: 0;
+  color: var(--accent-strong);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.xp-head strong {
+  white-space: nowrap;
+}
+
+.overview-level strong {
+  font-size: clamp(18px, 2vw, 28px);
+  line-height: 1.12;
+}
+
 .xp-track {
   overflow: hidden;
   border: 0;
