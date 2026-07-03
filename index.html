@@ -17,7 +17,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="./assets/app-icon-32.png" />
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
     <link rel="stylesheet" href="./styles.css?v=20260610-37" />
-    <link rel="stylesheet" href="./redesign.css?v=20260703-73" />
+    <link rel="stylesheet" href="./redesign.css?v=20260703-75" />
   </head>
   <body>
     <header class="topbar">
@@ -320,15 +320,22 @@
       <section class="today-posts-notice" id="feedRefreshNotice" hidden></section>
       <section class="today-posts-notice" id="todayPostsNotice" hidden></section>
 
-      <section class="filters" id="galleryFilters" aria-label="日记分类">
-        <button class="chip active" data-filter="全部" type="button">全部</button>
-        <button class="chip feature-chip" data-filter="featured7" type="button">七日精选</button>
-        <button class="chip favorite-chip" data-filter="favorites" type="button">我的收藏</button>
-        <button class="chip" data-filter="日常" type="button">日常</button>
-        <button class="chip" data-filter="旅行" type="button">旅行</button>
-        <button class="chip" data-filter="食物" type="button">食物</button>
-        <button class="chip" data-filter="朋友" type="button">朋友</button>
-        <button class="chip" data-filter="城市" type="button">城市</button>
+      <section class="filters" id="galleryFilters" aria-label="日记筛选">
+        <label class="diary-search" for="diarySearchInput">
+          <span>搜索日记</span>
+          <input id="diarySearchInput" type="search" placeholder="日期、标题、正文、分类" autocomplete="off" />
+          <button id="clearDiarySearch" type="button" aria-label="清空搜索" hidden>清空</button>
+        </label>
+        <div class="filter-chip-row" aria-label="日记分类">
+          <button class="chip active" data-filter="全部" type="button">全部</button>
+          <button class="chip feature-chip" data-filter="featured7" type="button">七日精选</button>
+          <button class="chip favorite-chip" data-filter="favorites" type="button">我的收藏</button>
+          <button class="chip" data-filter="日常" type="button">日常</button>
+          <button class="chip" data-filter="旅行" type="button">旅行</button>
+          <button class="chip" data-filter="食物" type="button">食物</button>
+          <button class="chip" data-filter="朋友" type="button">朋友</button>
+          <button class="chip" data-filter="城市" type="button">城市</button>
+        </div>
       </section>
 
       <section class="gallery" id="gallery" aria-live="polite"></section>
@@ -1097,6 +1104,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260703-73"></script>
+    <script type="module" src="./app.js?v=20260703-75"></script>
   </body>
 </html>
