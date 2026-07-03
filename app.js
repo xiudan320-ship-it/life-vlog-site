@@ -6222,16 +6222,20 @@ function saveCloudflareSession(payload) {
   localStorage.setItem(CLOUDFLARE_SESSION_KEY, JSON.stringify(payload));
 }
 
-async function cloudflareApi(path, { token, method = "GET", body = null } = {}) {
+async function cloudflareApi(path, { token, method = "GET", body = null, simple = false } = {}) {
   let response;
+  const requestBody = simple && body ? { ...body, access_token: token } : body;
   try {
     response = await fetch(`${getCloudflareApiBase()}${path}`, {
       method,
       headers: {
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...(body ? { "Content-Type": "application/json" } : {}),
+        ...(token && !simple ? { Authorization: `Bearer ${token}` } : {}),
+        ...(requestBody ? { "Content-Type": simple ? "text/plain;charset=UTF-8" : "application/json" } : {}),
       },
-      body: body ? JSON.stringify(body) : null,
+      body: requestBody ? JSON.stringify(requestBody) : null,
+      cache: "no-store",
+      credentials: "omit",
+      mode: "cors",
     });
   } catch (error) {
     throw new Error(`无法连接 Cloudflare Worker：${error.message}`);
@@ -6437,6 +6441,7 @@ async function importPayloadToD1InBatches(token, payload) {
       method: "POST",
       token,
       body: batch.body,
+      simple: true,
     });
     Object.entries(imported.counts || {}).forEach(([key, value]) => {
       totals[key] = (totals[key] || 0) + Number(value || 0);
@@ -6480,6 +6485,7 @@ async function migrateAccountToCloudflare(event) {
       method: "POST",
       token: session.access_token,
       body: { username, password },
+      simple: true,
     });
     setCloudD1MigrationStatus("正在读取 Supabase 数据...");
     const payload = await collectSupabaseMigrationPayload();
