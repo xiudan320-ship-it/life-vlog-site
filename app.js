@@ -2684,7 +2684,7 @@ function openPhoto(photo, initialImageIndex = 0, options = {}) {
   dialogRandomMode = Boolean(options.randomMode);
   activeSecretDialogItem = null;
   dialogSecretSourceItem = options.secretSourceItem || null;
-  els.dialog.classList.remove("no-comments-dialog", "secret-image-dialog", "mobile-page-dialog");
+  els.dialog.classList.remove("no-comments-dialog", "secret-image-dialog", "mobile-page-dialog", "secret-image-fullscreen");
   if (isPhotoPublishedToday(photo) && photo.id) {
     markTodayPostsViewed([photo.id]);
     updateTodayPostsNotice();
@@ -2726,7 +2726,7 @@ function openWishImage(wish) {
   dialogRandomMode = false;
   activeSecretDialogItem = null;
   dialogSecretSourceItem = null;
-  els.dialog.classList.remove("mobile-page-dialog");
+  els.dialog.classList.remove("mobile-page-dialog", "secret-image-dialog", "secret-image-fullscreen");
   els.dialog.classList.add("no-comments-dialog");
   document.body.classList.remove("mobile-dialog-open");
   photoComments = [];
@@ -4947,9 +4947,11 @@ function renderSecretAlbumView(item) {
     <section class="secret-album-view">
       <header class="secret-album-head">
         <div>
-          <button class="secret-back-button" type="button" data-secret-back>返回相册</button>
           <p class="kicker">${escapeHtml(item.category || "未分类")}</p>
-          <h3>${escapeHtml(item.title || "未命名相册")}</h3>
+          <div class="secret-album-title-row">
+            <h3>${escapeHtml(item.title || "未命名相册")}</h3>
+            <button class="secret-back-button" type="button" data-secret-back>返回相册</button>
+          </div>
           ${item.note ? `<p>${escapeHtml(item.note)}</p>` : ""}
           ${linkedTitle ? `<small>关联：${escapeHtml(linkedTitle)}</small>` : ""}
         </div>
@@ -5103,7 +5105,7 @@ function openSecretItem(item, initialImageIndex = 0) {
   activeDialogPhoto = null;
   activeSecretDialogItem = item;
   dialogSecretSourceItem = null;
-  els.dialog.classList.remove("mobile-page-dialog");
+  els.dialog.classList.remove("mobile-page-dialog", "secret-image-fullscreen");
   els.dialog.classList.add("no-comments-dialog", "secret-image-dialog");
   document.body.classList.remove("mobile-dialog-open");
   dialogRandomMode = false;
@@ -5123,6 +5125,11 @@ function openSecretItem(item, initialImageIndex = 0) {
   }
   renderDialogMedia();
   if (!els.dialog.open) els.dialog.showModal();
+}
+
+function toggleSecretImageFullscreen() {
+  if (!activeSecretDialogItem || !els.dialog.classList.contains("secret-image-dialog")) return;
+  els.dialog.classList.toggle("secret-image-fullscreen");
 }
 
 function openSecretLinkedDiary() {
@@ -8447,7 +8454,7 @@ els.dialog.addEventListener("close", () => {
   els.photoCommentForm.reset();
   cancelCommentReply();
   els.photoCommentStatus.textContent = "";
-  els.dialog.classList.remove("no-comments-dialog", "secret-image-dialog", "mobile-page-dialog");
+  els.dialog.classList.remove("no-comments-dialog", "secret-image-dialog", "mobile-page-dialog", "secret-image-fullscreen");
   if (restoreScroll) {
     window.setTimeout(() => window.scrollTo({ top: restoreScroll, behavior: "auto" }), 0);
   }
@@ -8457,8 +8464,9 @@ els.cancelCommentReply.addEventListener("click", cancelCommentReply);
 els.dialogRandomButton?.addEventListener("click", openRandomMemory);
 els.dialogSecretLinkButton?.addEventListener("click", openSecretLinkedDiary);
 els.dialogSecretReturnButton?.addEventListener("click", returnToSecretItem);
-els.dialogPrev.addEventListener("click", () => moveDialogImage(-1));
+  els.dialogPrev.addEventListener("click", () => moveDialogImage(-1));
 els.dialogNext.addEventListener("click", () => moveDialogImage(1));
+els.dialogImage.addEventListener("click", toggleSecretImageFullscreen);
 els.dialogMedia.addEventListener("pointerdown", beginDialogSwipe);
 els.dialogMedia.addEventListener("pointerup", finishDialogSwipe);
 els.dialogMedia.addEventListener("pointercancel", cancelDialogSwipe);
