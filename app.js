@@ -82,6 +82,14 @@ const EAGER_IMAGE_CARD_COUNT = 8;
 const SECRET_ALBUM_IMAGE_LIMIT = 80;
 const TOOL_DOCK_ORDER_KEY = "life-vlog-tool-dock-order";
 const TOOL_DOCK_DEFAULT_ORDER = ["food", "anniversary", "memory", "secret", "recipe"];
+const TOOL_DOCK_LABELS = {
+  food: { title: "今日吃什么", subtitle: "转盘" },
+  anniversary: { title: "时间纪念册", subtitle: "纪念日" },
+  memory: { title: "随机回忆", subtitle: "抽一篇日记" },
+  secret: { title: "秘藏", subtitle: "相册展览" },
+  recipe: { title: "菜谱", subtitle: "厨房收藏" },
+};
+const MOBILE_DIALOG_BREAKPOINT = 920;
 const DEFAULT_FOOD_OPTIONS = ["拉面", "寿喜烧", "咖喱饭", "烤肉", "火锅", "寿司", "麻婆豆腐", "披萨"];
 const GENERATED_TITLE_PREFIXES = ["今日小星星", "软乎乎的一天", "闪闪生活碎片", "快乐收藏夹"];
 
@@ -184,6 +192,7 @@ let dismissedFeedRefreshIds = new Set();
 let feedRefreshCheckInFlight = false;
 let returnToSettingsAfterDialog = false;
 let activeSettingsSection = "settingsGeneral";
+let dialogRestoreScrollY = 0;
 let foodOptions = [];
 let activePage = "gallery";
 let activeFilter = "全部";
@@ -292,6 +301,7 @@ const els = {
   closeSettingsDialog: document.querySelector("#closeSettingsDialog"),
   settingsNavButtons: document.querySelectorAll("[data-settings-section]"),
   settingsGroups: document.querySelectorAll(".settings-group"),
+  settingsToolOrderList: document.querySelector("#settingsToolOrderList"),
   settingsFamilyPanel: document.querySelector("#settingsFamilyPanel"),
   settingsHomeNameValue: document.querySelector("#settingsHomeNameValue"),
   settingsNicknameValue: document.querySelector("#settingsNicknameValue"),
@@ -2673,7 +2683,7 @@ function openPhoto(photo, initialImageIndex = 0, options = {}) {
   dialogRandomMode = Boolean(options.randomMode);
   activeSecretDialogItem = null;
   dialogSecretSourceItem = options.secretSourceItem || null;
-  els.dialog.classList.remove("no-comments-dialog", "secret-image-dialog");
+  els.dialog.classList.remove("no-comments-dialog", "secret-image-dialog", "mobile-page-dialog");
   if (isPhotoPublishedToday(photo) && photo.id) {
     markTodayPostsViewed([photo.id]);
     updateTodayPostsNotice();
@@ -2699,6 +2709,13 @@ function openPhoto(photo, initialImageIndex = 0, options = {}) {
   }
   renderDialogMedia();
   void loadPhotoComments(photo.id);
+  if (isMobileViewport()) {
+    dialogRestoreScrollY = window.scrollY || window.pageYOffset || 0;
+    els.dialog.classList.add("mobile-page-dialog");
+    document.body.classList.add("mobile-dialog-open");
+  } else {
+    document.body.classList.remove("mobile-dialog-open");
+  }
   if (!els.dialog.open) els.dialog.showModal();
 }
 
@@ -2708,7 +2725,9 @@ function openWishImage(wish) {
   dialogRandomMode = false;
   activeSecretDialogItem = null;
   dialogSecretSourceItem = null;
+  els.dialog.classList.remove("mobile-page-dialog");
   els.dialog.classList.add("no-comments-dialog");
+  document.body.classList.remove("mobile-dialog-open");
   photoComments = [];
   dialogImages = [{ image_url: wish.imageUrl }];
   dialogImageIndex = 0;
@@ -4558,6 +4577,37 @@ function setSecretStatus(message) {
   if (els.secretStatus) els.secretStatus.textContent = message;
 }
 
+function isMobileViewport() {
+  return window.innerWidth <= MOBILE_DIALOG_BREAKPOINT;
+}
+
+function showMiniToast(message, { kind = "info", duration = 2200, persist = false } = {}) {
+  let host = document.querySelector("#miniToastHost");
+  if (!host) {
+    host = document.createElement("div");
+    host.id = "miniToastHost";
+    host.className = "mini-toast-host";
+    document.body.appendChild(host);
+  }
+  const toast = document.createElement("div");
+  toast.className = `mini-toast mini-toast-${kind}`;
+  toast.innerHTML = `
+    <span class="mini-toast-icon" aria-hidden="true"></span>
+    <span class="mini-toast-text">${escapeHtml(message || "")}</span>
+  `;
+  host.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.add("visible"));
+  if (persist) return toast;
+  window.setTimeout(() => dismissMiniToast(toast), duration);
+  return toast;
+}
+
+function dismissMiniToast(toast) {
+  if (!toast) return;
+  toast.classList.remove("visible");
+  window.setTimeout(() => toast.remove(), 180);
+}
+
 function setSecretExpanded(expanded) {
   if (!els.secretForm || !els.secretToggle) return;
   els.secretForm.hidden = !expanded;
@@ -4733,7 +4783,12 @@ async function saveSecretItem(event) {
   const coverFile = els.secretCoverInput?.files?.[0] || null;
   els.secretSubmitButton.disabled = true;
   const images = [];
+  let loadingToast = null;
   try {
+    loadingToast = showMiniToast("秘藏上传中...", {
+      kind: "loading",
+      persist: true,
+    });
     for (const [index, file] of files.entries()) {
       const base = slugify(els.secretTitleInput.value || els.secretCategoryInput.value || "secret");
       const uploaded = await uploadImageFile(file, `${base}-${index + 1}`, index + 1, files.length, {
@@ -4774,10 +4829,15 @@ async function saveSecretItem(event) {
     updateSecretPreview();
     setSecretExpanded(false);
     setSecretStatus("相册已保存到秘藏。");
+    dismissMiniToast(loadingToast);
+    showMiniToast("秘藏已保存", { kind: "success" });
     await loadSecretItems();
   } catch (error) {
+    dismissMiniToast(loadingToast);
+    showMiniToast("上传失败", { kind: "error", duration: 2600 });
     setSecretStatus(error.message || "保存秘藏失败。");
   } finally {
+    dismissMiniToast(loadingToast);
     els.secretSubmitButton.disabled = false;
   }
 }
@@ -5021,7 +5081,9 @@ function openSecretItem(item, initialImageIndex = 0) {
   activeDialogPhoto = null;
   activeSecretDialogItem = item;
   dialogSecretSourceItem = null;
+  els.dialog.classList.remove("mobile-page-dialog");
   els.dialog.classList.add("no-comments-dialog", "secret-image-dialog");
+  document.body.classList.remove("mobile-dialog-open");
   dialogRandomMode = false;
   dialogImages = normalizeSecretImages(item.images);
   dialogImageIndex = Math.min(
@@ -5199,6 +5261,10 @@ async function appendSecretAlbumImages(options = {}) {
   const skippedCount = Math.max(0, files.length + urls.length - appendFiles.length - appendUrls.length);
   const uploadedImages = [];
   setSecretStatus(`正在追加 ${appendFiles.length + appendUrls.length} 张图片...`);
+  let loadingToast = showMiniToast("正在添加相片...", {
+    kind: "loading",
+    persist: true,
+  });
   try {
     for (const [index, file] of appendFiles.entries()) {
       const base = slugify(item.title || item.category || "secret");
@@ -5260,11 +5326,17 @@ async function appendSecretAlbumImages(options = {}) {
     await loadSecretItems();
     activeSecretAlbumId = item.id;
     renderSecretGallery();
+    dismissMiniToast(loadingToast);
+    showMiniToast("相片已加入相册", { kind: "success" });
   } catch (error) {
     if (uploadedImages.length) {
       cleanupStoredImagePaths(uploadedImages.map((image) => image.image_path).filter(Boolean)).catch(() => {});
     }
+    dismissMiniToast(loadingToast);
+    showMiniToast("追加失败", { kind: "error", duration: 2600 });
     setSecretStatus(error.message || "追加图片失败。");
+  } finally {
+    dismissMiniToast(loadingToast);
   }
 }
 
@@ -5321,12 +5393,20 @@ function loadToolDockOrder(userId = session?.user?.id || "guest") {
   }
 }
 
+function writeToolDockOrder(order, userId = session?.user?.id || "guest") {
+  localStorage.setItem(
+    getToolDockOrderStorageKey(userId),
+    JSON.stringify(normalizeToolDockOrder(order))
+  );
+}
+
 function saveToolDockOrder(userId = session?.user?.id || "guest") {
   if (!els.toolDock) return;
   const order = Array.from(els.toolDock.querySelectorAll("[data-tool-id]")).map(
     (button) => button.dataset.toolId
   );
-  localStorage.setItem(getToolDockOrderStorageKey(userId), JSON.stringify(normalizeToolDockOrder(order)));
+  writeToolDockOrder(order, userId);
+  renderSettingsToolOrderPanel();
 }
 
 function applyToolDockOrder(userId = session?.user?.id || "guest") {
@@ -5342,6 +5422,45 @@ function applyToolDockOrder(userId = session?.user?.id || "guest") {
     if (button) els.toolDock.appendChild(button);
   });
   ensureToolDockSortControls();
+  renderSettingsToolOrderPanel();
+}
+
+function renderSettingsToolOrderPanel() {
+  if (!els.settingsToolOrderList) return;
+  const order = loadToolDockOrder();
+  els.settingsToolOrderList.innerHTML = order
+    .map((id, index) => {
+      const meta = TOOL_DOCK_LABELS[id] || { title: id, subtitle: "" };
+      return `
+        <article class="settings-tool-card" data-tool-order-id="${escapeHtml(id)}">
+          <div class="settings-tool-copy">
+            <span>${String(index + 1).padStart(2, "0")}</span>
+            <strong>${escapeHtml(meta.title)}</strong>
+            <small>${escapeHtml(meta.subtitle)}</small>
+          </div>
+          <div class="settings-tool-actions">
+            <button type="button" data-tool-order-move="${escapeHtml(id)}:-1" ${index === 0 ? "disabled" : ""}>上移</button>
+            <button type="button" data-tool-order-move="${escapeHtml(id)}:1" ${index === order.length - 1 ? "disabled" : ""}>下移</button>
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+  els.settingsToolOrderList
+    .querySelectorAll("[data-tool-order-move]")
+    .forEach((button) => {
+      button.addEventListener("click", () => {
+        const [id, directionText] = String(button.dataset.toolOrderMove || "").split(":");
+        const direction = Number(directionText || 0);
+        const nextOrder = [...loadToolDockOrder()];
+        const index = nextOrder.indexOf(id);
+        const target = index + direction;
+        if (index < 0 || target < 0 || target >= nextOrder.length) return;
+        [nextOrder[index], nextOrder[target]] = [nextOrder[target], nextOrder[index]];
+        writeToolDockOrder(nextOrder);
+        applyToolDockOrder();
+      });
+    });
 }
 
 function ensureToolDockSortControls() {
@@ -5363,20 +5482,17 @@ function startToolDockPointer(event) {
   if (!button || button.disabled || !els.toolDock?.contains(button)) return;
   if (event.target.closest("[data-tool-sort]")) return;
   if (event.pointerType === "mouse" && event.button !== 0) return;
+  if (event.pointerType === "touch" || event.pointerType === "pen") return;
 
   window.clearTimeout(toolDockDragState?.timer);
-  const isTouch = event.pointerType === "touch" || event.pointerType === "pen";
   toolDockDragState = {
     button,
     pointerId: event.pointerId,
     startX: event.clientX,
     startY: event.clientY,
     dragging: false,
-    touchMode: isTouch,
-    timer: window.setTimeout(
-      () => (isTouch ? beginToolDockTouchSort(button) : beginToolDockDrag(button, event.pointerId)),
-      isTouch ? 320 : 180
-    ),
+    touchMode: false,
+    timer: window.setTimeout(() => beginToolDockDrag(button, event.pointerId), 180),
   };
   button.setPointerCapture?.(event.pointerId);
 }
@@ -7551,7 +7667,7 @@ function bindSettingsFamilyActions() {
 }
 
 function setActiveSettingsSection(sectionId = "settingsGeneral") {
-  const allowedSections = ["settingsGeneral", "settingsAccount", "settingsFamily"];
+  const allowedSections = ["settingsGeneral", "settingsTools", "settingsAccount", "settingsFamily"];
   const nextSection = allowedSections.includes(sectionId) ? sectionId : "settingsGeneral";
   activeSettingsSection = nextSection;
 
@@ -7564,6 +7680,7 @@ function setActiveSettingsSection(sectionId = "settingsGeneral") {
     button.setAttribute("aria-selected", String(active));
   });
 
+  if (nextSection === "settingsTools") renderSettingsToolOrderPanel();
   if (nextSection === "settingsFamily") renderSettingsFamilyPanel();
 }
 
@@ -8310,13 +8427,16 @@ els.dialog.addEventListener("click", (event) => {
   }
 });
 els.dialog.addEventListener("close", () => {
+  const restoreScroll = dialogRestoreScrollY;
   activeDialogPhoto = null;
   dialogRandomMode = false;
   activeSecretDialogItem = null;
   dialogSecretSourceItem = null;
+  dialogRestoreScrollY = 0;
   photoComments = [];
   cancelDialogSwipe();
   els.photoCommentsSection.hidden = false;
+  document.body.classList.remove("mobile-dialog-open");
   if (els.dialogRandomButton) {
     els.dialogRandomButton.hidden = true;
   }
@@ -8329,7 +8449,10 @@ els.dialog.addEventListener("close", () => {
   els.photoCommentForm.reset();
   cancelCommentReply();
   els.photoCommentStatus.textContent = "";
-  els.dialog.classList.remove("no-comments-dialog", "secret-image-dialog");
+  els.dialog.classList.remove("no-comments-dialog", "secret-image-dialog", "mobile-page-dialog");
+  if (restoreScroll) {
+    window.setTimeout(() => window.scrollTo({ top: restoreScroll, behavior: "auto" }), 0);
+  }
 });
 els.photoCommentForm.addEventListener("submit", savePhotoComment);
 els.cancelCommentReply.addEventListener("click", cancelCommentReply);
