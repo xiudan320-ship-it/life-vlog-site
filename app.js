@@ -201,6 +201,7 @@ let activeSecretAlbumId = "";
 let secretSelectionMode = false;
 let selectedSecretImageIndexes = new Set();
 let secretAlbumEditing = false;
+let secretAppendExpanded = false;
 let diarySearchQuery = "";
 let activeWishView = "open";
 let previewUrls = [];
@@ -4929,6 +4930,7 @@ function renderSecretGallery() {
       secretSelectionMode = false;
       selectedSecretImageIndexes = new Set();
       secretAlbumEditing = false;
+      secretAppendExpanded = false;
       renderSecretGallery();
     });
   });
@@ -4951,7 +4953,8 @@ function renderSecretAlbumView(item) {
           ${item.note ? `<p>${escapeHtml(item.note)}</p>` : ""}
           ${linkedTitle ? `<small>关联：${escapeHtml(linkedTitle)}</small>` : ""}
         </div>
-        <div class="secret-album-danger">
+        <div class="secret-album-actions">
+          <button class="primary" type="button" data-secret-toggle-append>${secretAppendExpanded ? "收起上传" : "添加相片"}</button>
           <button class="delete-secret danger" type="button" data-secret-delete-current>删除相册</button>
         </div>
       </header>
@@ -4970,17 +4973,25 @@ function renderSecretAlbumView(item) {
           `
           : ""
       }
-      <form class="secret-append-panel" data-secret-append-form>
-        <textarea data-secret-append-links rows="3" placeholder="粘贴图片链接，每行一个"></textarea>
-        <label class="secret-append-files">
-          <span>选择图片</span>
-          <input data-secret-append-files type="file" accept="image/*" multiple />
-        </label>
-        <div class="secret-append-actions">
-          <button class="primary" type="submit">添加到相册</button>
-          ${linkedPhoto ? `<button type="button" data-secret-open-linked>打开关联日记</button>` : ""}
-        </div>
-      </form>
+      ${
+        secretAppendExpanded
+          ? `
+            <form class="secret-append-panel" data-secret-append-form>
+              <textarea data-secret-append-links rows="3" placeholder="粘贴图片链接，每行一个"></textarea>
+              <label class="secret-append-files">
+                <span>选择图片</span>
+                <input data-secret-append-files type="file" accept="image/*" multiple />
+              </label>
+              <div class="secret-append-actions">
+                <button class="primary" type="submit">添加到相册</button>
+                ${linkedPhoto ? `<button type="button" data-secret-open-linked>打开关联日记</button>` : ""}
+              </div>
+            </form>
+          `
+          : linkedPhoto
+            ? `<button class="secret-linked-button" type="button" data-secret-open-linked>打开关联日记</button>`
+            : ""
+      }
       <div class="secret-album-toolbar">
         <div>
           <button type="button" data-secret-edit-album>${secretAlbumEditing ? "收起编辑" : "编辑相册"}</button>
@@ -5013,6 +5024,11 @@ function renderSecretAlbumView(item) {
     secretSelectionMode = false;
     selectedSecretImageIndexes = new Set();
     secretAlbumEditing = false;
+    secretAppendExpanded = false;
+    renderSecretGallery();
+  });
+  els.secretGallery.querySelector("[data-secret-toggle-append]")?.addEventListener("click", () => {
+    secretAppendExpanded = !secretAppendExpanded;
     renderSecretGallery();
   });
   els.secretGallery.querySelector("[data-secret-edit-album]")?.addEventListener("click", () => {
@@ -5325,6 +5341,7 @@ async function appendSecretAlbumImages(options = {}) {
     if (options.form) options.form.reset();
     await loadSecretItems();
     activeSecretAlbumId = item.id;
+    secretAppendExpanded = false;
     renderSecretGallery();
     dismissMiniToast(loadingToast);
     showMiniToast("相片已加入相册", { kind: "success" });
