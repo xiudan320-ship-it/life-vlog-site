@@ -745,12 +745,13 @@ body.theme-dark .thanks-note > p {
 
 #photoDialog {
   display: block;
-  width: min(900px, calc(100vw - 32px));
+  position: relative;
+  width: min(980px, calc(100vw - 32px));
   height: auto;
-  max-height: calc(100dvh - 32px);
+  max-height: calc(100dvh - 28px);
   overflow: auto;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 16px;
   background: var(--surface);
   color: var(--ink);
   box-shadow: 0 24px 70px rgba(9, 13, 10, 0.28);
@@ -762,13 +763,31 @@ body.theme-dark .thanks-note > p {
 }
 
 #photoDialog.no-comments-dialog {
-  max-width: min(900px, calc(100vw - 32px));
+  max-width: min(980px, calc(100vw - 32px));
 }
 
 #photoDialog.secret-image-dialog {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(180px, 260px);
-  width: min(1180px, calc(100vw - 28px));
+  grid-template-columns: minmax(0, 1fr) minmax(160px, 220px);
+  width: min(1100px, 86vw);
+  max-height: 84dvh;
+}
+
+#photoDialog > .dialog-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 4;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--line), transparent 20%);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface) 84%, #070b08 16%);
+  color: var(--ink);
+  box-shadow: 0 10px 26px rgba(7, 11, 8, 0.16);
+  backdrop-filter: blur(10px);
 }
 
 #photoDialog .dialog-media {
@@ -814,16 +833,17 @@ body.theme-dark .thanks-note > p {
 
 #photoDialog.secret-image-dialog > article {
   align-content: start;
-  gap: 7px;
-  padding: 16px;
+  gap: 6px;
+  padding: 14px 16px 16px;
 }
 
 #photoDialog.secret-image-dialog .dialog-media {
-  max-height: min(78dvh, 760px);
+  max-height: min(72dvh, 720px);
+  background: color-mix(in srgb, var(--bg), #000 12%);
 }
 
 #photoDialog.secret-image-dialog .dialog-media img {
-  max-height: min(78dvh, 760px);
+  max-height: min(72dvh, 720px);
 }
 
 #photoDialog.secret-image-dialog .dialog-thumbs,
@@ -832,11 +852,11 @@ body.theme-dark .thanks-note > p {
 }
 
 #photoDialog.secret-image-dialog #dialogTitle {
-  font-size: clamp(20px, 2vw, 28px);
+  font-size: clamp(18px, 2vw, 24px);
 }
 
 #photoDialog.secret-image-dialog #dialogMeta {
-  font-size: 12px;
+  font-size: 11px;
 }
 
 #photoDialog.secret-image-dialog #dialogNote {
@@ -4156,6 +4176,74 @@ dialog {
   color: var(--accent-strong);
 }
 
+.settings-tool-order {
+  display: grid;
+  gap: 0;
+}
+
+.settings-tool-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  min-height: 84px;
+  border-top: 1px solid var(--line);
+  padding: 12px 0;
+}
+
+.settings-tool-card:first-child {
+  border-top: 0;
+}
+
+.settings-tool-copy {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 2px 12px;
+}
+
+.settings-tool-copy span {
+  min-width: 34px;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.settings-tool-copy strong {
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 950;
+}
+
+.settings-tool-copy small {
+  grid-column: 2;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.settings-tool-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.settings-tool-actions button {
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface), var(--bg) 24%);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 950;
+  padding: 0 14px;
+}
+
+.settings-tool-actions button:disabled {
+  opacity: 0.42;
+}
+
 .settings-family-panel {
   display: grid;
   gap: 10px;
@@ -4254,6 +4342,79 @@ body.theme-dark .settings-sidebar {
   background: color-mix(in srgb, var(--surface), #000 18%);
 }
 
+.mini-toast-host {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  z-index: 120;
+  display: grid;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.mini-toast {
+  min-width: 172px;
+  max-width: min(82vw, 320px);
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  border: 1px solid color-mix(in srgb, var(--line), transparent 12%);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface) 92%, #0a0d0a 8%);
+  color: var(--ink);
+  box-shadow: 0 16px 40px rgba(7, 11, 8, 0.24);
+  padding: 12px 14px;
+  opacity: 0;
+  transform: translateY(10px) scale(0.98);
+  transition: opacity 180ms ease, transform 180ms ease;
+  backdrop-filter: blur(12px);
+}
+
+.mini-toast.visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.mini-toast-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: block;
+}
+
+.mini-toast-text {
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.mini-toast-success .mini-toast-icon {
+  background:
+    radial-gradient(circle at 50% 50%, #fff 0 18%, transparent 19%),
+    linear-gradient(135deg, #7fd653, #4ea030);
+}
+
+.mini-toast-error .mini-toast-icon {
+  background:
+    linear-gradient(135deg, transparent 42%, #fff 42% 58%, transparent 58%),
+    linear-gradient(45deg, transparent 42%, #fff 42% 58%, transparent 58%),
+    linear-gradient(135deg, #f06a57, #c84030);
+}
+
+.mini-toast-loading .mini-toast-icon {
+  border: 2px solid color-mix(in srgb, var(--accent), transparent 72%);
+  border-top-color: var(--accent);
+  background: transparent;
+  animation: mini-toast-spin 760ms linear infinite;
+}
+
+@keyframes mini-toast-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .account-dialog form {
   display: grid;
   gap: 16px;
@@ -4283,6 +4444,10 @@ body.theme-dark .settings-sidebar {
 
 .dialog-close {
   border-radius: 6px;
+}
+
+body.mobile-dialog-open {
+  overflow: hidden;
 }
 
 .vip-hero,
@@ -4486,13 +4651,15 @@ body.theme-dark .settings-sidebar {
   }
 
   #photoDialog {
-    width: calc(100vw - 14px);
-    max-height: calc(100dvh - 18px);
+    width: min(94vw, 680px);
+    max-height: 86dvh;
+    border-radius: 18px;
   }
 
   #photoDialog.secret-image-dialog {
     grid-template-columns: 1fr;
-    width: calc(100vw - 14px);
+    width: min(92vw, 560px);
+    max-height: 82dvh;
   }
 
   #photoDialog .dialog-media,
@@ -4502,7 +4669,7 @@ body.theme-dark .settings-sidebar {
 
   #photoDialog.secret-image-dialog .dialog-media,
   #photoDialog.secret-image-dialog .dialog-media img {
-    max-height: 72dvh;
+    max-height: 62dvh;
   }
 
   #photoDialog.secret-image-dialog .dialog-thumbs {
@@ -4510,24 +4677,84 @@ body.theme-dark .settings-sidebar {
   }
 
   #photoDialog.secret-image-dialog > article {
-    gap: 5px;
-    padding: 8px 12px 12px;
+    gap: 4px;
+    padding: 10px 12px 12px;
   }
 
   #photoDialog.secret-image-dialog > article h2 {
-    font-size: 22px;
+    font-size: 18px;
   }
 
   #photoDialog.secret-image-dialog #dialogMeta {
-    font-size: 12px;
+    font-size: 11px;
   }
 
   #photoDialog > article {
-    padding: 15px;
+    padding: 12px 14px 10px;
   }
 
   #photoDialog > article h2 {
-    font-size: 27px;
+    font-size: 22px;
+  }
+
+  #photoDialog > .dialog-close {
+    top: calc(10px + env(safe-area-inset-top));
+    right: 10px;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+  }
+
+  #photoDialog.mobile-page-dialog {
+    width: 100vw;
+    max-width: none;
+    min-height: 100dvh;
+    max-height: 100dvh;
+    border: 0;
+    border-radius: 0;
+    background: var(--bg);
+    box-shadow: none;
+  }
+
+  #photoDialog.mobile-page-dialog::backdrop {
+    background: var(--bg);
+  }
+
+  #photoDialog.mobile-page-dialog .dialog-media,
+  #photoDialog.mobile-page-dialog .dialog-media img {
+    max-height: min(46dvh, 420px);
+  }
+
+  #photoDialog.mobile-page-dialog > article {
+    gap: 6px;
+    padding: 12px 16px 10px;
+  }
+
+  #photoDialog.mobile-page-dialog > article h2 {
+    font-size: 20px;
+    line-height: 1.18;
+  }
+
+  #photoDialog.mobile-page-dialog #dialogNote {
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  #photoDialog.mobile-page-dialog .photo-comments {
+    padding: 14px 16px calc(22px + env(safe-area-inset-bottom));
+  }
+
+  #photoDialog.mobile-page-dialog .photo-comments-head {
+    align-items: center;
+  }
+
+  #photoDialog.mobile-page-dialog .photo-comments-head h3 {
+    font-size: 20px;
+  }
+
+  #photoDialog.mobile-page-dialog .photo-comment {
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 10px;
   }
 
   .photo-comments {
@@ -4550,6 +4777,16 @@ body.theme-dark .settings-sidebar {
 
   .secret-form {
     padding: 14px;
+  }
+
+  .mini-toast-host {
+    left: 12px;
+    right: 12px;
+    bottom: max(14px, env(safe-area-inset-bottom));
+  }
+
+  .mini-toast {
+    max-width: none;
   }
 
   .secret-append-panel {
@@ -4896,6 +5133,21 @@ body.theme-dark .settings-sidebar {
 
   .settings-group button strong em {
     max-width: min(72vw, 320px);
+  }
+
+  .settings-tool-card {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    min-height: 0;
+    padding: 14px 0;
+  }
+
+  .settings-tool-actions {
+    justify-content: stretch;
+  }
+
+  .settings-tool-actions button {
+    flex: 1 1 0;
   }
 
   .weekend-card {
