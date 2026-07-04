@@ -2123,6 +2123,23 @@ function renderGallery() {
     )
     .join("");
 
+  els.gallery.querySelectorAll(".photo-media").forEach((media) => {
+    media.addEventListener(
+      "click",
+      (event) => {
+        const button = event.target.closest("button[data-photo-index][data-image-index]");
+        if (!button) return;
+        event.preventDefault();
+        event.stopPropagation();
+        openPhoto(
+          visible[Number(button.dataset.photoIndex)],
+          Number(button.dataset.imageIndex)
+        );
+      },
+      true
+    );
+  });
+
   els.gallery.querySelectorAll("button[data-photo-index][data-image-index]").forEach((button) => {
     button.addEventListener("click", () => {
       openPhoto(
