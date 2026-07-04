@@ -227,6 +227,7 @@ let dialogImages = [];
 let dialogImageIndex = 0;
 let dialogSwipeStart = null;
 let dialogBackSwipeStart = null;
+let lockedDialogScrollY = 0;
 let dialogRandomMode = false;
 let dialogSecretSourceItem = null;
 let activeSecretDialogItem = null;
@@ -2901,8 +2902,31 @@ async function deletePhoto(photo, triggerButton = null) {
   }
 }
 
+function lockDialogBackgroundScroll(scrollY = window.scrollY || window.pageYOffset || 0) {
+  lockedDialogScrollY = Math.max(0, Number(scrollY) || 0);
+  document.documentElement.classList.add("dialog-scroll-locked");
+  document.body.classList.add("dialog-scroll-locked");
+  document.body.style.top = `-${lockedDialogScrollY}px`;
+  document.body.style.left = "0";
+  document.body.style.right = "0";
+  document.body.style.width = "100%";
+}
+
+function unlockDialogBackgroundScroll(restoreScroll = lockedDialogScrollY) {
+  const nextScroll = Math.max(0, Number(restoreScroll) || lockedDialogScrollY || 0);
+  document.documentElement.classList.remove("dialog-scroll-locked");
+  document.body.classList.remove("dialog-scroll-locked");
+  document.body.style.removeProperty("top");
+  document.body.style.removeProperty("left");
+  document.body.style.removeProperty("right");
+  document.body.style.removeProperty("width");
+  lockedDialogScrollY = 0;
+  window.scrollTo({ top: nextScroll, behavior: "auto" });
+}
+
 function openPhoto(photo, initialImageIndex = 0, options = {}) {
-  dialogRestoreScrollY = options.randomMode ? 0 : window.scrollY || window.pageYOffset || 0;
+  dialogRestoreScrollY = window.scrollY || window.pageYOffset || 0;
+  lockDialogBackgroundScroll(dialogRestoreScrollY);
   activeDialogPhoto = photo;
   dialogRandomMode = Boolean(options.randomMode);
   activeSecretDialogItem = null;
@@ -2944,6 +2968,8 @@ function openPhoto(photo, initialImageIndex = 0, options = {}) {
 
 function openWishImage(wish) {
   if (!wish?.imageUrl) return;
+  dialogRestoreScrollY = window.scrollY || window.pageYOffset || 0;
+  lockDialogBackgroundScroll(dialogRestoreScrollY);
   activeDialogPhoto = null;
   dialogRandomMode = false;
   activeSecretDialogItem = null;
@@ -5392,6 +5418,8 @@ function renderSecretAlbumView(item) {
 
 function openSecretItem(item, initialImageIndex = 0) {
   if (!item) return;
+  dialogRestoreScrollY = window.scrollY || window.pageYOffset || 0;
+  lockDialogBackgroundScroll(dialogRestoreScrollY);
   activeDialogPhoto = null;
   activeSecretDialogItem = item;
   dialogSecretSourceItem = null;
@@ -8761,9 +8789,7 @@ els.dialog.addEventListener("close", () => {
   cancelCommentReply();
   els.photoCommentStatus.textContent = "";
   els.dialog.classList.remove("no-comments-dialog", "secret-image-dialog", "mobile-page-dialog", "secret-image-fullscreen");
-  if (restoreScroll) {
-    window.setTimeout(() => window.scrollTo({ top: restoreScroll, behavior: "auto" }), 0);
-  }
+  unlockDialogBackgroundScroll(restoreScroll);
 });
 els.photoCommentForm.addEventListener("submit", savePhotoComment);
 els.cancelCommentReply.addEventListener("click", cancelCommentReply);

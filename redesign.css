@@ -45,6 +45,15 @@ body {
   scrollbar-gutter: stable;
 }
 
+html.dialog-scroll-locked {
+  overflow: hidden;
+}
+
+body.dialog-scroll-locked {
+  position: fixed;
+  overflow: hidden;
+}
+
 body.theme-dark {
   background: var(--bg);
 }
