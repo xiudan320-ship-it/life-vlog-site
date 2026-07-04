@@ -50,8 +50,11 @@ html.dialog-scroll-locked {
 }
 
 body.dialog-scroll-locked {
-  position: fixed;
   overflow: hidden;
+}
+
+body.dialog-scroll-fixed {
+  position: fixed;
 }
 
 body.theme-dark {

@@ -228,6 +228,7 @@ let dialogImageIndex = 0;
 let dialogSwipeStart = null;
 let dialogBackSwipeStart = null;
 let lockedDialogScrollY = 0;
+let dialogLockUsesFixed = false;
 let dialogRandomMode = false;
 let dialogSecretSourceItem = null;
 let activeSecretDialogItem = null;
@@ -2904,24 +2905,33 @@ async function deletePhoto(photo, triggerButton = null) {
 
 function lockDialogBackgroundScroll(scrollY = window.scrollY || window.pageYOffset || 0) {
   lockedDialogScrollY = Math.max(0, Number(scrollY) || 0);
+  dialogLockUsesFixed = isMobileViewport();
   document.documentElement.classList.add("dialog-scroll-locked");
   document.body.classList.add("dialog-scroll-locked");
-  document.body.style.top = `-${lockedDialogScrollY}px`;
-  document.body.style.left = "0";
-  document.body.style.right = "0";
-  document.body.style.width = "100%";
+  document.body.classList.toggle("dialog-scroll-fixed", dialogLockUsesFixed);
+  if (dialogLockUsesFixed) {
+    document.body.style.top = `-${lockedDialogScrollY}px`;
+    document.body.style.left = "0";
+    document.body.style.right = "0";
+    document.body.style.width = "100%";
+  }
 }
 
 function unlockDialogBackgroundScroll(restoreScroll = lockedDialogScrollY) {
   const nextScroll = Math.max(0, Number(restoreScroll) || lockedDialogScrollY || 0);
   document.documentElement.classList.remove("dialog-scroll-locked");
   document.body.classList.remove("dialog-scroll-locked");
+  document.body.classList.remove("dialog-scroll-fixed");
   document.body.style.removeProperty("top");
   document.body.style.removeProperty("left");
   document.body.style.removeProperty("right");
   document.body.style.removeProperty("width");
+  const shouldRestore = dialogLockUsesFixed;
   lockedDialogScrollY = 0;
-  window.scrollTo({ top: nextScroll, behavior: "auto" });
+  dialogLockUsesFixed = false;
+  if (shouldRestore) {
+    window.scrollTo({ top: nextScroll, behavior: "auto" });
+  }
 }
 
 function openPhoto(photo, initialImageIndex = 0, options = {}) {
@@ -2964,6 +2974,13 @@ function openPhoto(photo, initialImageIndex = 0, options = {}) {
     document.body.classList.remove("mobile-dialog-open");
   }
   if (!els.dialog.open) els.dialog.showModal();
+  if (!dialogLockUsesFixed) {
+    window.requestAnimationFrame(() => {
+      if (Math.abs((window.scrollY || window.pageYOffset || 0) - dialogRestoreScrollY) > 2) {
+        window.scrollTo({ top: dialogRestoreScrollY, behavior: "auto" });
+      }
+    });
+  }
 }
 
 function openWishImage(wish) {
@@ -2989,6 +3006,13 @@ function openWishImage(wish) {
   els.photoCommentsSection.hidden = true;
   renderDialogMedia();
   if (!els.dialog.open) els.dialog.showModal();
+  if (!dialogLockUsesFixed) {
+    window.requestAnimationFrame(() => {
+      if (Math.abs((window.scrollY || window.pageYOffset || 0) - dialogRestoreScrollY) > 2) {
+        window.scrollTo({ top: dialogRestoreScrollY, behavior: "auto" });
+      }
+    });
+  }
 }
 
 function openEditPhoto(photo) {
@@ -5443,6 +5467,13 @@ function openSecretItem(item, initialImageIndex = 0) {
   }
   renderDialogMedia();
   if (!els.dialog.open) els.dialog.showModal();
+  if (!dialogLockUsesFixed) {
+    window.requestAnimationFrame(() => {
+      if (Math.abs((window.scrollY || window.pageYOffset || 0) - dialogRestoreScrollY) > 2) {
+        window.scrollTo({ top: dialogRestoreScrollY, behavior: "auto" });
+      }
+    });
+  }
 }
 
 function toggleDialogImageFullscreen() {
