@@ -17,7 +17,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="./assets/app-icon-32.png" />
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
     <link rel="stylesheet" href="./styles.css?v=20260610-37" />
-    <link rel="stylesheet" href="./redesign.css?v=20260704-89" />
+    <link rel="stylesheet" href="./redesign.css?v=20260704-90" />
   </head>
   <body>
     <header class="topbar">
@@ -32,7 +32,6 @@
       </a>
       <nav class="main-nav" aria-label="页面切换">
         <button class="active" id="galleryNav" type="button">日记</button>
-        <button id="recipesNav" type="button">菜谱</button>
         <button id="wishlistNav" type="button">心愿</button>
         <button id="weekendNav" type="button">周末</button>
         <button id="thanksNav" type="button">留言</button>
@@ -142,6 +141,13 @@
           <span>
             <strong>秘藏</strong>
             <small>进入里世界展览</small>
+          </span>
+        </button>
+        <button class="tool-dock-button recipe-tool-button" id="recipeOpen" type="button" data-tool-id="recipe" hidden>
+          <span class="tool-dock-mark recipe-mark" aria-hidden="true">味</span>
+          <span>
+            <strong>菜谱本</strong>
+            <small>记录自己的味道</small>
           </span>
         </button>
       </section>
@@ -711,7 +717,6 @@
         </section>
 
         <div class="secret-filters" id="secretFilters" aria-label="秘藏分类"></div>
-        <input id="secretAppendInput" type="file" accept="image/*" multiple hidden />
         <section class="secret-gallery" id="secretGallery" aria-live="polite"></section>
       </section>
     </main>
@@ -1169,6 +1174,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260704-89"></script>
+    <script type="module" src="./app.js?v=20260704-90"></script>
   </body>
 </html>

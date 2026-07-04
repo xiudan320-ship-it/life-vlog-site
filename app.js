@@ -81,7 +81,7 @@ const PHOTO_FEED_CACHE_LIMIT = 3;
 const EAGER_IMAGE_CARD_COUNT = 8;
 const SECRET_ALBUM_IMAGE_LIMIT = 80;
 const TOOL_DOCK_ORDER_KEY = "life-vlog-tool-dock-order";
-const TOOL_DOCK_DEFAULT_ORDER = ["food", "anniversary", "memory", "secret"];
+const TOOL_DOCK_DEFAULT_ORDER = ["food", "anniversary", "memory", "secret", "recipe"];
 const DEFAULT_FOOD_OPTIONS = ["拉面", "寿喜烧", "咖喱饭", "烤肉", "火锅", "寿司", "麻婆豆腐", "披萨"];
 const GENERATED_TITLE_PREFIXES = ["今日小星星", "软乎乎的一天", "闪闪生活碎片", "快乐收藏夹"];
 
@@ -430,6 +430,7 @@ const els = {
   overviewProgress: document.querySelector("#overviewProgress"),
   memoryButton: document.querySelector("#memoryButton"),
   secretOpen: document.querySelector("#secretOpen"),
+  recipeOpen: document.querySelector("#recipeOpen"),
   toolDock: document.querySelector("#toolDock"),
   quickPhoto: document.querySelector("#quickPhoto"),
   quickRecipe: document.querySelector("#quickRecipe"),
@@ -548,7 +549,6 @@ const els = {
   secretNoteInput: document.querySelector("#secretNoteInput"),
   secretSubmitButton: document.querySelector("#secretSubmitButton"),
   secretFilters: document.querySelector("#secretFilters"),
-  secretAppendInput: document.querySelector("#secretAppendInput"),
   secretGallery: document.querySelector("#secretGallery"),
   thanksForm: document.querySelector("#thanksForm"),
   thanksBodyInput: document.querySelector("#thanksBodyInput"),
@@ -945,6 +945,7 @@ function updateAuthUI() {
   els.anniversaryOpen.hidden = !signedIn;
   els.memoryButton.hidden = !signedIn;
   if (els.secretOpen) els.secretOpen.hidden = !signedIn;
+  if (els.recipeOpen) els.recipeOpen.hidden = !signedIn;
   applyToolDockOrder(signedIn ? session.user.id : "guest");
   els.authCard.hidden = signedIn;
   els.userMenu.hidden = !signedIn;
@@ -4470,7 +4471,7 @@ function switchPage(page) {
   const showThanks = activePage === "thanks";
   const showSecret = activePage === "secret";
   els.galleryNav.classList.toggle("active", activePage === "gallery");
-  els.recipesNav.classList.toggle("active", showRecipes);
+  els.recipesNav?.classList.toggle("active", showRecipes);
   els.wishlistNav.classList.toggle("active", showWishlist);
   els.weekendNav.classList.toggle("active", showWeekend);
   els.thanksNav.classList.toggle("active", showThanks);
@@ -4870,19 +4871,30 @@ function renderSecretAlbumView(item) {
   els.secretGallery.innerHTML = `
     <section class="secret-album-view">
       <header class="secret-album-head">
-        <button class="ghost-button" type="button" data-secret-back>返回相册</button>
         <div>
+          <button class="secret-back-button" type="button" data-secret-back>返回相册</button>
           <p class="kicker">${escapeHtml(item.category || "未分类")}</p>
           <h3>${escapeHtml(item.title || "未命名相册")}</h3>
           ${item.note ? `<p>${escapeHtml(item.note)}</p>` : ""}
           ${linkedTitle ? `<small>关联：${escapeHtml(linkedTitle)}</small>` : ""}
         </div>
-        <div class="secret-album-actions">
-          <button class="primary" type="button" data-secret-append>继续添加相片</button>
-          ${linkedPhoto ? `<button type="button" data-secret-open-linked>打开关联日记</button>` : ""}
-          <button class="delete-secret" type="button" data-secret-delete-current>删除相册</button>
-        </div>
+        <button class="delete-secret danger" type="button" data-secret-delete-current>删除相册</button>
       </header>
+      <form class="secret-append-panel" data-secret-append-form>
+        <div>
+          <strong>添加相片</strong>
+          <p>可以批量上传图片，也可以一行一个粘贴图片链接。</p>
+        </div>
+        <textarea data-secret-append-links rows="3" placeholder="粘贴图片链接，每行一个"></textarea>
+        <label class="secret-append-files">
+          <span>选择图片</span>
+          <input data-secret-append-files type="file" accept="image/*" multiple />
+        </label>
+        <div class="secret-append-actions">
+          <button class="primary" type="submit">添加到相册</button>
+          ${linkedPhoto ? `<button type="button" data-secret-open-linked>打开关联日记</button>` : ""}
+        </div>
+      </form>
       <div class="secret-album-grid">
         ${images
           .map(
@@ -4900,9 +4912,20 @@ function renderSecretAlbumView(item) {
     activeSecretAlbumId = "";
     renderSecretGallery();
   });
-  els.secretGallery.querySelector("[data-secret-append]")?.addEventListener("click", () => {
-    els.secretAppendInput.value = "";
-    els.secretAppendInput.click();
+  els.secretGallery.querySelector("[data-secret-append-form]")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    appendSecretAlbumImages({
+      files: Array.from(form.querySelector("[data-secret-append-files]")?.files || []),
+      linksText: form.querySelector("[data-secret-append-links]")?.value || "",
+      form,
+    });
+  });
+  els.secretGallery.querySelector("[data-secret-append-form]")?.addEventListener("paste", (event) => {
+    const pastedFiles = getImageFilesFromClipboard(event, "secret-append-pasted");
+    if (!pastedFiles.length) return;
+    event.preventDefault();
+    appendSecretAlbumImages({ files: pastedFiles, form: event.currentTarget });
   });
   els.secretGallery.querySelector("[data-secret-open-linked]")?.addEventListener("click", () => {
     activeSecretDialogItem = item;
@@ -4956,12 +4979,39 @@ function returnToSecretItem() {
   }
 }
 
-async function appendSecretAlbumImages() {
+function extractImageUrls(text) {
+  const matches = String(text || "").match(/https?:\/\/[^\s"'<>，。；、]+/gi) || [];
+  return [...new Set(matches.map((url) => url.trim()).filter(Boolean))];
+}
+
+function getImageFilesFromClipboard(event, prefix = "pasted") {
+  const items = Array.from(event.clipboardData?.items || []);
+  return items
+    .filter((item) => item.type.startsWith("image/"))
+    .map((item, index) => {
+      const file = item.getAsFile();
+      if (!file) return null;
+      const extension = file.type?.split("/")[1] || "png";
+      return new File([file], `${prefix}-${Date.now()}-${index + 1}.${extension}`, {
+        type: file.type || "image/png",
+      });
+    })
+    .filter(Boolean);
+}
+
+async function appendSecretAlbumImages(options = {}) {
   const item = secretItems.find((entry) => entry.id === activeSecretAlbumId);
-  const files = Array.from(els.secretAppendInput?.files || []);
-  if (!item || !files.length) return;
+  const files = Array.isArray(options.files)
+    ? options.files
+    : [];
+  const urls = extractImageUrls(options.linksText || "");
+  if (!item) return;
   if (!cloudDb || !session) {
     setSecretStatus("请先登录。");
+    return;
+  }
+  if (!files.length && !urls.length) {
+    setSecretStatus("请选择图片，或粘贴至少一个图片链接。");
     return;
   }
   const currentImages = normalizeSecretImages(item.images);
@@ -4971,8 +5021,10 @@ async function appendSecretAlbumImages() {
     return;
   }
   const appendFiles = files.slice(0, remaining);
+  const appendUrls = urls.slice(0, Math.max(0, remaining - appendFiles.length));
+  const skippedCount = Math.max(0, files.length + urls.length - appendFiles.length - appendUrls.length);
   const uploadedImages = [];
-  setSecretStatus(`正在追加 ${appendFiles.length} 张图片...`);
+  setSecretStatus(`正在追加 ${appendFiles.length + appendUrls.length} 张图片...`);
   try {
     for (const [index, file] of appendFiles.entries()) {
       const base = slugify(item.title || item.category || "secret");
@@ -4988,6 +5040,27 @@ async function appendSecretAlbumImages() {
       );
       if (!uploaded) throw new Error("追加图片上传失败。");
       uploadedImages.push(uploaded);
+    }
+    for (const [index, url] of appendUrls.entries()) {
+      const safeName = `${slugify(item.title || item.category || "secret-link")}-link-${currentImages.length + appendFiles.length + index + 1}`;
+      setSecretStatus(`正在复制第 ${index + 1}/${appendUrls.length} 个链接到 R2...`);
+      try {
+        const copied = await copyUrlToR2(url, safeName, "secrets");
+        uploadedImages.push({
+          image_path: `r2:${copied.key}`,
+          image_url: copied.url,
+          width: 0,
+          height: 0,
+        });
+      } catch (error) {
+        console.warn("Secret image link copy failed, using remote URL:", error);
+        uploadedImages.push({
+          image_path: "",
+          image_url: url,
+          width: 0,
+          height: 0,
+        });
+      }
     }
     const nextImages = [...currentImages, ...uploadedImages];
     const updates = {
@@ -5005,10 +5078,11 @@ async function appendSecretAlbumImages() {
       .eq("user_id", session.user.id);
     if (error) throw error;
     setSecretStatus(
-      files.length > remaining
-        ? `已追加 ${appendFiles.length} 张，剩余图片超过相册上限未添加。`
-        : `已追加 ${appendFiles.length} 张图片。`
+      skippedCount
+        ? `已追加 ${uploadedImages.length} 张，另有 ${skippedCount} 张超过相册上限未添加。`
+        : `已追加 ${uploadedImages.length} 张图片。`
     );
+    if (options.form) options.form.reset();
     await loadSecretItems();
     activeSecretAlbumId = item.id;
     renderSecretGallery();
@@ -5017,8 +5091,6 @@ async function appendSecretAlbumImages() {
       cleanupStoredImagePaths(uploadedImages.map((image) => image.image_path).filter(Boolean)).catch(() => {});
     }
     setSecretStatus(error.message || "追加图片失败。");
-  } finally {
-    if (els.secretAppendInput) els.secretAppendInput.value = "";
   }
 }
 
@@ -7656,7 +7728,7 @@ els.setupToggle.addEventListener("click", () => {
 });
 els.themeToggle.addEventListener("click", toggleTheme);
 els.galleryNav.addEventListener("click", () => switchPage("gallery"));
-els.recipesNav.addEventListener("click", () => switchPage("recipes"));
+els.recipesNav?.addEventListener("click", () => switchPage("recipes"));
 els.wishlistNav.addEventListener("click", () => switchPage("wishlist"));
 els.weekendNav.addEventListener("click", () => switchPage("weekend"));
 els.thanksNav.addEventListener("click", () => switchPage("thanks"));
@@ -7699,6 +7771,10 @@ els.memoryButton.addEventListener("click", openRandomMemory);
 els.secretOpen?.addEventListener("click", () => {
   switchPage("secret");
   els.secretPage?.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+els.recipeOpen?.addEventListener("click", () => {
+  switchPage("recipes");
+  els.recipesPage?.scrollIntoView({ behavior: "smooth", block: "start" });
 });
 els.quickPhoto.addEventListener("click", () => {
   switchPage("gallery");
@@ -7798,7 +7874,6 @@ els.secretToggle?.addEventListener("click", () => {
 els.secretImageInput?.addEventListener("change", updateSecretPreview);
 els.secretImageDrop?.addEventListener("paste", handleSecretPaste);
 els.secretForm?.addEventListener("submit", saveSecretItem);
-els.secretAppendInput?.addEventListener("change", appendSecretAlbumImages);
 els.avatarButton.addEventListener("click", () => {
   els.userPopover.hidden = !els.userPopover.hidden;
 });
