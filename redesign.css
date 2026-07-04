@@ -769,8 +769,13 @@ body.theme-dark .thanks-note > p {
 #photoDialog.secret-image-dialog {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(160px, 220px);
+  position: fixed;
+  top: 50%;
+  left: 50%;
   width: min(1100px, 86vw);
   max-height: 84dvh;
+  margin: 0;
+  transform: translate(-50%, -50%);
 }
 
 #photoDialog > .dialog-close {
@@ -861,6 +866,11 @@ body.theme-dark .thanks-note > p {
 
 #photoDialog.secret-image-dialog #dialogNote {
   display: none;
+}
+
+#photoDialog.secret-image-dialog::backdrop {
+  background: rgba(7, 10, 8, 0.72);
+  backdrop-filter: blur(8px);
 }
 
 .dialog-tool-row {
@@ -3034,9 +3044,33 @@ body.theme-dark .feed-loader {
   padding: 18px;
 }
 
-.secret-album-danger {
+.secret-album-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
+  gap: 8px;
+}
+
+.secret-album-actions button,
+.secret-linked-button {
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 950;
+  padding: 0 14px;
+}
+
+.secret-album-actions .primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #10200d;
+}
+
+.secret-linked-button {
+  width: fit-content;
 }
 
 .secret-album-head h3 {
@@ -4658,8 +4692,12 @@ body.mobile-dialog-open {
 
   #photoDialog.secret-image-dialog {
     grid-template-columns: 1fr;
-    width: min(92vw, 560px);
-    max-height: 82dvh;
+    grid-template-rows: minmax(0, 1fr) auto;
+    width: min(90vw, 560px);
+    height: min(80dvh, 680px);
+    max-height: none;
+    overflow: hidden;
+    border-radius: 18px;
   }
 
   #photoDialog .dialog-media,
@@ -4669,7 +4707,19 @@ body.mobile-dialog-open {
 
   #photoDialog.secret-image-dialog .dialog-media,
   #photoDialog.secret-image-dialog .dialog-media img {
-    max-height: 62dvh;
+    max-height: none;
+  }
+
+  #photoDialog.secret-image-dialog .dialog-media {
+    aspect-ratio: auto;
+    height: 100%;
+    min-height: 0;
+  }
+
+  #photoDialog.secret-image-dialog .dialog-media img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
   }
 
   #photoDialog.secret-image-dialog .dialog-thumbs {
@@ -4678,14 +4728,39 @@ body.mobile-dialog-open {
 
   #photoDialog.secret-image-dialog > article {
     gap: 4px;
-    padding: 10px 12px 12px;
+    min-height: 0;
+    border-top: 1px solid var(--line);
+    background: color-mix(in srgb, var(--surface) 96%, var(--bg) 4%);
+    padding: 9px 12px 11px;
   }
 
   #photoDialog.secret-image-dialog > article h2 {
-    font-size: 18px;
+    font-size: 17px;
+    line-height: 1.18;
   }
 
   #photoDialog.secret-image-dialog #dialogMeta {
+    font-size: 10px;
+  }
+
+  #photoDialog.secret-image-dialog .carousel-button {
+    width: 34px;
+    height: 48px;
+    font-size: 32px;
+  }
+
+  #photoDialog.secret-image-dialog .carousel-button.prev {
+    left: 8px;
+  }
+
+  #photoDialog.secret-image-dialog .carousel-button.next {
+    right: 8px;
+  }
+
+  #photoDialog.secret-image-dialog .media-counter {
+    right: 10px;
+    bottom: 10px;
+    padding: 5px 8px;
     font-size: 11px;
   }
 
@@ -4773,6 +4848,14 @@ body.mobile-dialog-open {
   .secret-form .form-grid,
   .secret-album-head {
     grid-template-columns: 1fr;
+  }
+
+  .secret-album-actions {
+    justify-content: stretch;
+  }
+
+  .secret-album-actions button {
+    flex: 1 1 auto;
   }
 
   .secret-form {
