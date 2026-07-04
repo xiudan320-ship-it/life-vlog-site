@@ -1386,48 +1386,6 @@ body.vip-member .hero {
   transform: translateY(-4px) scale(1.025);
 }
 
-.tool-sort-controls {
-  display: none;
-}
-
-.tool-dock.touch-sorting {
-  overflow-x: visible;
-}
-
-.tool-dock.touch-sorting .tool-dock-button {
-  padding-bottom: 42px;
-}
-
-.tool-dock.touch-sorting .tool-dock-button.sort-selected {
-  border-color: var(--accent);
-  box-shadow:
-    inset 0 0 0 2px var(--accent),
-    0 14px 34px color-mix(in srgb, var(--accent) 22%, transparent);
-}
-
-.tool-dock.touch-sorting .tool-sort-controls {
-  position: absolute;
-  right: 10px;
-  bottom: 8px;
-  left: 10px;
-  z-index: 2;
-  display: flex;
-  gap: 8px;
-}
-
-.tool-sort-controls span {
-  display: grid;
-  flex: 1;
-  min-height: 28px;
-  place-items: center;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--surface) 86%, var(--accent) 14%);
-  color: var(--ink);
-  font-size: 20px;
-  font-weight: 950;
-}
-
 .secret-mark {
   background:
     radial-gradient(circle at 35% 30%, #f5e58a 0 16%, transparent 17%),
@@ -3196,7 +3154,7 @@ body.theme-dark .feed-loader {
   gap: 8px;
 }
 
-.secret-album-toolbar > div:last-child {
+.secret-selection-actions {
   justify-content: flex-end;
 }
 
@@ -4889,7 +4847,7 @@ body.mobile-dialog-open {
     grid-template-columns: 1fr;
   }
 
-  .secret-album-toolbar > div:last-child {
+  .secret-selection-actions {
     justify-content: stretch;
   }
 
@@ -5075,16 +5033,52 @@ body.mobile-dialog-open {
   }
 
   .overview-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    border: 0;
+    padding-bottom: 2px;
+    scroll-snap-type: x proximity;
   }
 
-  .overview-grid article {
-    min-height: 118px;
-    padding: 15px;
+  .overview {
+    gap: 10px;
+    margin: 12px 0 4px;
+    padding: 12px 0 14px;
+  }
+
+  .overview-head {
+    gap: 8px;
+  }
+
+  .overview-head > div {
+    gap: 2px;
+  }
+
+  .overview-head h2 {
+    font-size: 22px;
+  }
+
+  .overview-grid article,
+  .overview-grid > button {
+    flex: 0 0 118px;
+    min-height: 84px;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    scroll-snap-align: start;
+  }
+
+  .overview-grid span,
+  .overview-grid small {
+    font-size: 11px;
   }
 
   .overview-grid strong {
-    font-size: 31px;
+    font-size: 22px;
+  }
+
+  .overview-progress {
+    height: 6px;
   }
 
   .quick-actions {

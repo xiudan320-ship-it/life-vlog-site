@@ -4995,15 +4995,21 @@ function renderSecretAlbumView(item) {
       <div class="secret-album-toolbar">
         <div>
           <button type="button" data-secret-edit-album>${secretAlbumEditing ? "收起编辑" : "编辑相册"}</button>
-          <button type="button" data-secret-select-mode>${secretSelectionMode ? "退出选择" : "选择图片"}</button>
-          <button type="button" data-secret-select-all ${secretSelectionMode ? "" : "disabled"}>${selectedCount === images.length ? "取消全选" : "全选"}</button>
+          <button type="button" data-secret-select-mode>${secretSelectionMode ? "完成选择" : "选择图片"}</button>
         </div>
-        <div>
-          <button type="button" data-secret-move="-1" ${singleSelectedIndex > 0 ? "" : "disabled"}>前移</button>
-          <button type="button" data-secret-move="1" ${singleSelectedIndex >= 0 && singleSelectedIndex < images.length - 1 ? "" : "disabled"}>后移</button>
-          <button type="button" data-secret-set-cover ${singleSelectedIndex >= 0 ? "" : "disabled"}>设为封面</button>
-          <button class="delete-secret danger" type="button" data-secret-delete-selected ${selectedCount ? "" : "disabled"}>删除选中</button>
-        </div>
+        ${
+          secretSelectionMode
+            ? `
+              <div class="secret-selection-actions">
+                <button type="button" data-secret-select-all>${selectedCount === images.length ? "取消全选" : "全选"}</button>
+                <button type="button" data-secret-move="-1" ${singleSelectedIndex > 0 ? "" : "disabled"}>前移</button>
+                <button type="button" data-secret-move="1" ${singleSelectedIndex >= 0 && singleSelectedIndex < images.length - 1 ? "" : "disabled"}>后移</button>
+                <button type="button" data-secret-set-cover ${singleSelectedIndex >= 0 ? "" : "disabled"}>设为封面</button>
+                <button class="delete-secret danger" type="button" data-secret-delete-selected ${selectedCount ? "" : "disabled"}>删除选中</button>
+              </div>
+            `
+            : ""
+        }
       </div>
       <div class="secret-album-grid">
         ${images
@@ -5482,36 +5488,11 @@ function renderSettingsToolOrderPanel() {
 
 function ensureToolDockSortControls() {
   if (!els.toolDock) return;
-  els.toolDock.querySelectorAll(".tool-dock-button[data-tool-id]").forEach((button) => {
-    if (button.querySelector(".tool-sort-controls")) return;
-    button.insertAdjacentHTML(
-      "beforeend",
-      `<span class="tool-sort-controls" aria-hidden="true">
-        <span role="button" tabindex="-1" data-tool-sort="-1">‹</span>
-        <span role="button" tabindex="-1" data-tool-sort="1">›</span>
-      </span>`
-    );
-  });
+  els.toolDock.querySelectorAll(".tool-sort-controls").forEach((node) => node.remove());
 }
 
 function startToolDockPointer(event) {
-  const button = event.target.closest(".tool-dock-button[data-tool-id]");
-  if (!button || button.disabled || !els.toolDock?.contains(button)) return;
-  if (event.target.closest("[data-tool-sort]")) return;
-  if (event.pointerType === "mouse" && event.button !== 0) return;
-  if (event.pointerType === "touch" || event.pointerType === "pen") return;
-
-  window.clearTimeout(toolDockDragState?.timer);
-  toolDockDragState = {
-    button,
-    pointerId: event.pointerId,
-    startX: event.clientX,
-    startY: event.clientY,
-    dragging: false,
-    touchMode: false,
-    timer: window.setTimeout(() => beginToolDockDrag(button, event.pointerId), 180),
-  };
-  button.setPointerCapture?.(event.pointerId);
+  return;
 }
 
 function beginToolDockTouchSort(button) {

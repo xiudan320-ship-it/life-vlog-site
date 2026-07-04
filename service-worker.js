@@ -1,10 +1,10 @@
-const CACHE_NAME = "life-vlog-site-20260704-95-pwa";
+const CACHE_NAME = "life-vlog-site-20260704-96-pwa";
 const CORE_ASSETS = [
   "./",
   "./index.html",
   "./styles.css?v=20260610-37",
-  "./redesign.css?v=20260704-95",
-  "./app.js?v=20260704-95",
+  "./redesign.css?v=20260704-96",
+  "./app.js?v=20260704-96",
   "./manifest.webmanifest",
   "./assets/app-icon-192.png",
   "./assets/app-icon-512.png",
