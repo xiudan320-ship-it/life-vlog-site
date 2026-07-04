@@ -221,6 +221,7 @@ let editingPreviewUrls = [];
 let dialogImages = [];
 let dialogImageIndex = 0;
 let dialogSwipeStart = null;
+let dialogBackSwipeStart = null;
 let dialogRandomMode = false;
 let dialogSecretSourceItem = null;
 let activeSecretDialogItem = null;
@@ -2572,6 +2573,33 @@ function cancelDialogSwipe() {
   dialogSwipeStart = null;
 }
 
+function beginDialogBackSwipe(event) {
+  if (!isMobileViewport() || !els.dialog.open) return;
+  if (!els.dialog.classList.contains("mobile-page-dialog") && !els.dialog.classList.contains("secret-image-dialog")) return;
+  if (event.target.closest("button, input, textarea, select, a")) return;
+  if (event.clientX > 34) return;
+  dialogBackSwipeStart = {
+    id: event.pointerId,
+    x: event.clientX,
+    y: event.clientY,
+    time: Date.now(),
+  };
+}
+
+function finishDialogBackSwipe(event) {
+  if (!dialogBackSwipeStart || dialogBackSwipeStart.id !== event.pointerId) return;
+  const deltaX = event.clientX - dialogBackSwipeStart.x;
+  const deltaY = event.clientY - dialogBackSwipeStart.y;
+  const elapsed = Date.now() - dialogBackSwipeStart.time;
+  dialogBackSwipeStart = null;
+  const edgeBack = deltaX > 72 && Math.abs(deltaX) > Math.abs(deltaY) * 1.35 && elapsed < 1200;
+  if (edgeBack) els.dialog.close();
+}
+
+function cancelDialogBackSwipe() {
+  dialogBackSwipeStart = null;
+}
+
 function updateFeedLoader(totalItems) {
   if (!els.feedLoader) return;
   els.feedLoader.hidden = activePage !== "gallery" || totalItems === 0;
@@ -3149,6 +3177,10 @@ function getSessionLoginName() {
 
   const emailPrefix = session?.user?.email?.split("@")[0];
   return emailPrefix || getSessionDisplayName();
+}
+
+function isAdminAccount() {
+  return String(getSessionLoginName() || "").trim().toLowerCase() === "xiudan320";
 }
 
 function normalizeNickname(value) {
@@ -3731,6 +3763,10 @@ async function synchronizeAccountData() {
 
 function updateCloudSyncStatus() {
   if (!session || !cloudSyncAvailable) return;
+  if (!isAdminAccount()) {
+    setGlobalStatus("");
+    return;
+  }
   const missing = [];
   if (!photoFlagsCloudAvailable) missing.push("置顶/精选");
   if (!favoritesCloudAvailable) missing.push("收藏");
@@ -4533,6 +4569,7 @@ function switchPage(page) {
   if (showThanks) renderGratitudeNotes();
   if (showSecret) renderSecretGallery();
   if (activePage === "gallery") {
+    if (session && !isAdminAccount()) setGlobalStatus("");
     renderFeedRefreshNotice();
     renderGallery();
     updateFeedLoader(filteredPhotoCount);
@@ -4582,12 +4619,14 @@ function isMobileViewport() {
   return window.innerWidth <= MOBILE_DIALOG_BREAKPOINT;
 }
 
-function showMiniToast(message, { kind = "info", duration = 2200, persist = false } = {}) {
-  let host = document.querySelector("#miniToastHost");
+function showMiniToast(message, { kind = "info", duration = 2200, persist = false, placement = "corner" } = {}) {
+  const centered = placement === "center";
+  const hostId = centered ? "miniToastHostCenter" : "miniToastHost";
+  let host = document.querySelector(`#${hostId}`);
   if (!host) {
     host = document.createElement("div");
-    host.id = "miniToastHost";
-    host.className = "mini-toast-host";
+    host.id = hostId;
+    host.className = centered ? "mini-toast-host mini-toast-host-center" : "mini-toast-host";
     document.body.appendChild(host);
   }
   const toast = document.createElement("div");
@@ -5293,6 +5332,7 @@ async function appendSecretAlbumImages(options = {}) {
   let loadingToast = showMiniToast("正在添加相片...", {
     kind: "loading",
     persist: true,
+    placement: "center",
   });
   try {
     for (const [index, file] of appendFiles.entries()) {
@@ -5354,16 +5394,15 @@ async function appendSecretAlbumImages(options = {}) {
     if (options.form) options.form.reset();
     await loadSecretItems();
     activeSecretAlbumId = item.id;
-    secretAppendExpanded = false;
     renderSecretGallery();
     dismissMiniToast(loadingToast);
-    showMiniToast("相片已加入相册", { kind: "success" });
+    showMiniToast("相片已加入相册", { kind: "success", placement: "center" });
   } catch (error) {
     if (uploadedImages.length) {
       cleanupStoredImagePaths(uploadedImages.map((image) => image.image_path).filter(Boolean)).catch(() => {});
     }
     dismissMiniToast(loadingToast);
-    showMiniToast("追加失败", { kind: "error", duration: 2600 });
+    showMiniToast("追加失败", { kind: "error", duration: 2600, placement: "center" });
     setSecretStatus(error.message || "追加图片失败。");
   } finally {
     dismissMiniToast(loadingToast);
@@ -8097,7 +8136,9 @@ function setHint(message) {
 }
 
 function setGlobalStatus(message) {
-  els.globalStatus.textContent = message;
+  if (!els.globalStatus) return;
+  els.globalStatus.textContent = message || "";
+  els.globalStatus.hidden = !message;
 }
 
 function setStatus(message) {
@@ -8440,6 +8481,7 @@ els.dialog.addEventListener("close", () => {
   dialogRestoreScrollY = 0;
   photoComments = [];
   cancelDialogSwipe();
+  cancelDialogBackSwipe();
   els.photoCommentsSection.hidden = false;
   document.body.classList.remove("mobile-dialog-open");
   if (els.dialogRandomButton) {
@@ -8464,9 +8506,13 @@ els.cancelCommentReply.addEventListener("click", cancelCommentReply);
 els.dialogRandomButton?.addEventListener("click", openRandomMemory);
 els.dialogSecretLinkButton?.addEventListener("click", openSecretLinkedDiary);
 els.dialogSecretReturnButton?.addEventListener("click", returnToSecretItem);
-  els.dialogPrev.addEventListener("click", () => moveDialogImage(-1));
+els.dialogPrev.addEventListener("click", () => moveDialogImage(-1));
 els.dialogNext.addEventListener("click", () => moveDialogImage(1));
 els.dialogImage.addEventListener("click", toggleSecretImageFullscreen);
+els.dialog.addEventListener("pointerdown", beginDialogBackSwipe, true);
+els.dialog.addEventListener("pointerup", finishDialogBackSwipe, true);
+els.dialog.addEventListener("pointercancel", cancelDialogBackSwipe, true);
+els.dialog.addEventListener("lostpointercapture", cancelDialogBackSwipe, true);
 els.dialogMedia.addEventListener("pointerdown", beginDialogSwipe);
 els.dialogMedia.addEventListener("pointerup", finishDialogSwipe);
 els.dialogMedia.addEventListener("pointercancel", cancelDialogSwipe);

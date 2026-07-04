@@ -2270,6 +2270,19 @@ body.theme-dark .recipe-cover-drop {
   margin: 48px 0 18px;
 }
 
+#galleryHead {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+}
+
+#galleryHead .status-line {
+  margin: 0 0 7px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .filters {
   top: calc(84px + env(safe-area-inset-top));
   display: grid;
@@ -4436,6 +4449,15 @@ body.theme-dark .settings-sidebar {
   pointer-events: none;
 }
 
+.mini-toast-host-center {
+  top: 50%;
+  right: auto;
+  bottom: auto;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  justify-items: center;
+}
+
 .mini-toast {
   min-width: 172px;
   max-width: min(82vw, 320px);
@@ -5174,12 +5196,13 @@ body.mobile-dialog-open {
   }
 
   .overview-grid {
-    display: flex;
-    gap: 8px;
-    overflow-x: auto;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+    overflow: visible;
     border: 0;
-    padding-bottom: 2px;
-    scroll-snap-type: x proximity;
+    padding-bottom: 0;
+    scroll-snap-type: none;
   }
 
   .overview {
@@ -5202,24 +5225,43 @@ body.mobile-dialog-open {
 
   .overview-grid article,
   .overview-grid > button {
-    flex: 0 0 118px;
-    min-height: 84px;
-    padding: 10px 12px;
+    min-height: 58px;
+    align-content: center;
+    gap: 2px;
+    padding: 8px 10px;
     border: 1px solid var(--line);
-    scroll-snap-align: start;
   }
 
   .overview-grid span,
   .overview-grid small {
-    font-size: 11px;
+    font-size: 10px;
   }
 
   .overview-grid strong {
-    font-size: 22px;
+    font-size: 18px;
+    line-height: 1.1;
+  }
+
+  .overview-grid small {
+    display: none;
   }
 
   .overview-progress {
-    height: 6px;
+    height: 4px;
+  }
+
+  .carousel-button {
+    display: none !important;
+  }
+
+  #galleryHead {
+    flex-wrap: wrap;
+    gap: 4px 8px;
+  }
+
+  #galleryHead .status-line {
+    margin-bottom: 4px;
+    font-size: 11px;
   }
 
   .quick-actions {
