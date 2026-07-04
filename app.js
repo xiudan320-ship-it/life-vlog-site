@@ -189,6 +189,9 @@ let activePage = "gallery";
 let activeFilter = "全部";
 let activeSecretFilter = "全部";
 let activeSecretAlbumId = "";
+let secretSelectionMode = false;
+let selectedSecretImageIndexes = new Set();
+let secretAlbumEditing = false;
 let diarySearchQuery = "";
 let activeWishView = "open";
 let previewUrls = [];
@@ -253,6 +256,7 @@ let accountProfile = {
 };
 
 const els = {
+  brand: document.querySelector(".brand"),
   themeToggle: document.querySelector("#themeToggle"),
   galleryNav: document.querySelector("#galleryNav"),
   recipesNav: document.querySelector("#recipesNav"),
@@ -2489,6 +2493,9 @@ function renderDialogMedia() {
   const image = dialogImages[dialogImageIndex] || dialogImages[0] || {};
   els.dialogImage.src = image.image_url || "";
   els.dialogImage.alt = `${els.dialogTitle.textContent} ${dialogImageIndex + 1}`;
+  if (activeSecretDialogItem) {
+    els.dialogMeta.textContent = `${activeSecretDialogItem.category || "未分类"} · ${dialogImageIndex + 1} / ${dialogImages.length}`;
+  }
   const hasMultiple = dialogImages.length > 1;
   els.dialogPrev.hidden = !hasMultiple;
   els.dialogNext.hidden = !hasMultiple;
@@ -2666,7 +2673,7 @@ function openPhoto(photo, initialImageIndex = 0, options = {}) {
   dialogRandomMode = Boolean(options.randomMode);
   activeSecretDialogItem = null;
   dialogSecretSourceItem = options.secretSourceItem || null;
-  els.dialog.classList.remove("no-comments-dialog");
+  els.dialog.classList.remove("no-comments-dialog", "secret-image-dialog");
   if (isPhotoPublishedToday(photo) && photo.id) {
     markTodayPostsViewed([photo.id]);
     updateTodayPostsNotice();
@@ -4859,6 +4866,9 @@ function renderSecretGallery() {
   els.secretGallery.querySelectorAll("[data-secret-index]").forEach((button) => {
     button.addEventListener("click", () => {
       activeSecretAlbumId = visible[Number(button.dataset.secretIndex)]?.id || "";
+      secretSelectionMode = false;
+      selectedSecretImageIndexes = new Set();
+      secretAlbumEditing = false;
       renderSecretGallery();
     });
   });
@@ -4868,6 +4878,9 @@ function renderSecretAlbumView(item) {
   const images = normalizeSecretImages(item.images);
   const linkedPhoto = photos.find((photo) => photo.id === item.linkedPhotoId);
   const linkedTitle = linkedPhoto ? getDisplayTitle(linkedPhoto) || "关联日记" : "";
+  const validSelectedIndexes = [...selectedSecretImageIndexes].filter((index) => index >= 0 && index < images.length);
+  const selectedCount = validSelectedIndexes.length;
+  const singleSelectedIndex = selectedCount === 1 ? validSelectedIndexes[0] : -1;
   els.secretGallery.innerHTML = `
     <section class="secret-album-view">
       <header class="secret-album-head">
@@ -4878,12 +4891,28 @@ function renderSecretAlbumView(item) {
           ${item.note ? `<p>${escapeHtml(item.note)}</p>` : ""}
           ${linkedTitle ? `<small>关联：${escapeHtml(linkedTitle)}</small>` : ""}
         </div>
-        <button class="delete-secret danger" type="button" data-secret-delete-current>删除相册</button>
+        <div class="secret-album-danger">
+          <button class="delete-secret danger" type="button" data-secret-delete-current>删除相册</button>
+        </div>
       </header>
+      ${
+        secretAlbumEditing
+          ? `
+            <form class="secret-album-edit" data-secret-edit-form>
+              <input data-secret-edit-title maxlength="80" value="${escapeHtml(item.title || "")}" placeholder="相册名" />
+              <input data-secret-edit-category maxlength="32" value="${escapeHtml(item.category || "")}" placeholder="分类" />
+              <textarea data-secret-edit-note rows="2" placeholder="备注">${escapeHtml(item.note || "")}</textarea>
+              <div>
+                <button class="primary" type="submit">保存相册</button>
+                <button type="button" data-secret-edit-cancel>取消</button>
+              </div>
+            </form>
+          `
+          : ""
+      }
       <form class="secret-append-panel" data-secret-append-form>
         <div>
           <strong>添加相片</strong>
-          <p>可以批量上传图片，也可以一行一个粘贴图片链接。</p>
         </div>
         <textarea data-secret-append-links rows="3" placeholder="粘贴图片链接，每行一个"></textarea>
         <label class="secret-append-files">
@@ -4895,12 +4924,26 @@ function renderSecretAlbumView(item) {
           ${linkedPhoto ? `<button type="button" data-secret-open-linked>打开关联日记</button>` : ""}
         </div>
       </form>
+      <div class="secret-album-toolbar">
+        <div>
+          <button type="button" data-secret-edit-album>${secretAlbumEditing ? "收起编辑" : "编辑相册"}</button>
+          <button type="button" data-secret-select-mode>${secretSelectionMode ? "退出选择" : "选择图片"}</button>
+          <button type="button" data-secret-select-all ${secretSelectionMode ? "" : "disabled"}>${selectedCount === images.length ? "取消全选" : "全选"}</button>
+        </div>
+        <div>
+          <button type="button" data-secret-move="-1" ${singleSelectedIndex > 0 ? "" : "disabled"}>前移</button>
+          <button type="button" data-secret-move="1" ${singleSelectedIndex >= 0 && singleSelectedIndex < images.length - 1 ? "" : "disabled"}>后移</button>
+          <button type="button" data-secret-set-cover ${singleSelectedIndex >= 0 ? "" : "disabled"}>设为封面</button>
+          <button class="delete-secret danger" type="button" data-secret-delete-selected ${selectedCount ? "" : "disabled"}>删除选中</button>
+        </div>
+      </div>
       <div class="secret-album-grid">
         ${images
           .map(
             (image, index) => `
-              <button class="secret-album-photo" type="button" data-secret-photo="${index}">
+              <button class="secret-album-photo ${secretSelectionMode ? "selectable" : ""} ${selectedSecretImageIndexes.has(index) ? "selected" : ""}" type="button" data-secret-photo="${index}">
                 <img src="${escapeHtml(image.image_url)}" alt="${escapeHtml(item.title || item.category || "秘藏图片")} ${index + 1}" loading="lazy" />
+                ${secretSelectionMode ? `<span>${selectedSecretImageIndexes.has(index) ? "已选" : String(index + 1).padStart(2, "0")}</span>` : ""}
               </button>
             `
           )
@@ -4910,8 +4953,20 @@ function renderSecretAlbumView(item) {
   `;
   els.secretGallery.querySelector("[data-secret-back]")?.addEventListener("click", () => {
     activeSecretAlbumId = "";
+    secretSelectionMode = false;
+    selectedSecretImageIndexes = new Set();
+    secretAlbumEditing = false;
     renderSecretGallery();
   });
+  els.secretGallery.querySelector("[data-secret-edit-album]")?.addEventListener("click", () => {
+    secretAlbumEditing = !secretAlbumEditing;
+    renderSecretGallery();
+  });
+  els.secretGallery.querySelector("[data-secret-edit-cancel]")?.addEventListener("click", () => {
+    secretAlbumEditing = false;
+    renderSecretGallery();
+  });
+  els.secretGallery.querySelector("[data-secret-edit-form]")?.addEventListener("submit", (event) => saveSecretAlbumEdit(event, item));
   els.secretGallery.querySelector("[data-secret-append-form]")?.addEventListener("submit", (event) => {
     event.preventDefault();
     const form = event.currentTarget;
@@ -4932,8 +4987,35 @@ function renderSecretAlbumView(item) {
     openSecretLinkedDiary();
   });
   els.secretGallery.querySelector("[data-secret-delete-current]")?.addEventListener("click", () => deleteSecretItem(item));
+  els.secretGallery.querySelector("[data-secret-select-mode]")?.addEventListener("click", () => {
+    secretSelectionMode = !secretSelectionMode;
+    if (!secretSelectionMode) selectedSecretImageIndexes = new Set();
+    renderSecretGallery();
+  });
+  els.secretGallery.querySelector("[data-secret-select-all]")?.addEventListener("click", () => {
+    if (!secretSelectionMode) return;
+    selectedSecretImageIndexes =
+      selectedSecretImageIndexes.size === images.length
+        ? new Set()
+        : new Set(images.map((_, index) => index));
+    renderSecretGallery();
+  });
+  els.secretGallery.querySelector("[data-secret-delete-selected]")?.addEventListener("click", () => deleteSelectedSecretImages(item));
+  els.secretGallery.querySelector("[data-secret-set-cover]")?.addEventListener("click", () => setSelectedSecretCover(item));
+  els.secretGallery.querySelectorAll("[data-secret-move]").forEach((button) => {
+    button.addEventListener("click", () => moveSelectedSecretImage(item, Number(button.dataset.secretMove) || 0));
+  });
   els.secretGallery.querySelectorAll("[data-secret-photo]").forEach((button) => {
-    button.addEventListener("click", () => openSecretItem(item, Number(button.dataset.secretPhoto) || 0));
+    button.addEventListener("click", () => {
+      const index = Number(button.dataset.secretPhoto) || 0;
+      if (secretSelectionMode) {
+        if (selectedSecretImageIndexes.has(index)) selectedSecretImageIndexes.delete(index);
+        else selectedSecretImageIndexes.add(index);
+        renderSecretGallery();
+        return;
+      }
+      openSecretItem(item, index);
+    });
   });
 }
 
@@ -4942,7 +5024,7 @@ function openSecretItem(item, initialImageIndex = 0) {
   activeDialogPhoto = null;
   activeSecretDialogItem = item;
   dialogSecretSourceItem = null;
-  els.dialog.classList.add("no-comments-dialog");
+  els.dialog.classList.add("no-comments-dialog", "secret-image-dialog");
   dialogRandomMode = false;
   dialogImages = normalizeSecretImages(item.images);
   dialogImageIndex = Math.min(
@@ -4950,7 +5032,7 @@ function openSecretItem(item, initialImageIndex = 0) {
     Math.max(0, dialogImages.length - 1)
   );
   els.dialogTitle.textContent = item.title || item.category || "秘藏相册";
-  els.dialogMeta.textContent = `${item.category || "未分类"} · 私人图集 · ${item.images.length} 张 · ${formatDateTime(item.createdAt)}`;
+  els.dialogMeta.textContent = `${item.category || "未分类"} · ${dialogImageIndex + 1} / ${item.images.length}`;
   els.dialogNote.textContent = item.note || "";
   els.photoCommentsSection.hidden = true;
   if (els.dialogRandomButton) els.dialogRandomButton.hidden = true;
@@ -4997,6 +5079,101 @@ function getImageFilesFromClipboard(event, prefix = "pasted") {
       });
     })
     .filter(Boolean);
+}
+
+async function updateSecretAlbum(item, updates, successMessage = "相册已更新。") {
+  if (!item || !cloudDb || !session) {
+    setSecretStatus("请先登录。");
+    return false;
+  }
+  const nextUpdates = {
+    ...updates,
+    updated_at: new Date().toISOString(),
+  };
+  const { error } = await cloudDb
+    .from("secret_items")
+    .update(nextUpdates)
+    .eq("id", item.id)
+    .eq("user_id", session.user.id);
+  if (error) {
+    setSecretStatus(error.message || "相册更新失败。");
+    return false;
+  }
+  setSecretStatus(successMessage);
+  await loadSecretItems();
+  activeSecretAlbumId = item.id;
+  return true;
+}
+
+async function saveSecretAlbumEdit(event, item) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const title = form.querySelector("[data-secret-edit-title]")?.value.trim() || "";
+  const category = form.querySelector("[data-secret-edit-category]")?.value.trim() || "未分类";
+  const note = form.querySelector("[data-secret-edit-note]")?.value.trim() || "";
+  const saved = await updateSecretAlbum(item, { title, category, note }, "相册资料已保存。");
+  if (saved) {
+    secretAlbumEditing = false;
+    renderSecretGallery();
+  }
+}
+
+function getSingleSelectedSecretIndex(images) {
+  const selected = [...selectedSecretImageIndexes].filter((index) => index >= 0 && index < images.length);
+  return selected.length === 1 ? selected[0] : -1;
+}
+
+async function moveSelectedSecretImage(item, direction) {
+  const images = normalizeSecretImages(item.images);
+  const index = getSingleSelectedSecretIndex(images);
+  const target = index + direction;
+  if (index < 0 || target < 0 || target >= images.length) return;
+  const nextImages = [...images];
+  [nextImages[index], nextImages[target]] = [nextImages[target], nextImages[index]];
+  selectedSecretImageIndexes = new Set([target]);
+  const coverImage = item.coverImage === images[index]?.image_url ? nextImages[target]?.image_url : item.coverImage;
+  const coverPath = item.coverImage === images[index]?.image_url ? nextImages[target]?.image_path || "" : item.coverPath;
+  await updateSecretAlbum(item, { images: nextImages, cover_image: coverImage || "", cover_path: coverPath || "" }, "图片位置已更新。");
+  renderSecretGallery();
+}
+
+async function setSelectedSecretCover(item) {
+  const images = normalizeSecretImages(item.images);
+  const index = getSingleSelectedSecretIndex(images);
+  const image = images[index];
+  if (!image) return;
+  await updateSecretAlbum(
+    item,
+    { cover_image: image.image_url || "", cover_path: image.image_path || "" },
+    "相册封面已更新。"
+  );
+  renderSecretGallery();
+}
+
+async function deleteSelectedSecretImages(item) {
+  const images = normalizeSecretImages(item.images);
+  const selected = [...selectedSecretImageIndexes].filter((index) => index >= 0 && index < images.length);
+  if (!selected.length) return;
+  if (selected.length >= images.length) {
+    setSecretStatus("至少保留一张图片。如果要全部删除，请删除整个相册。");
+    return;
+  }
+  if (!confirm(`删除选中的 ${selected.length} 张图片？`)) return;
+  const selectedSet = new Set(selected);
+  const removedImages = images.filter((_, index) => selectedSet.has(index));
+  const nextImages = images.filter((_, index) => !selectedSet.has(index));
+  const coverStillExists = nextImages.some((image) => image.image_url === item.coverImage);
+  const cover = coverStillExists ? { cover_image: item.coverImage || "", cover_path: item.coverPath || "" } : {
+    cover_image: nextImages[0]?.image_url || "",
+    cover_path: nextImages[0]?.image_path || "",
+  };
+  const saved = await updateSecretAlbum(item, { images: nextImages, ...cover }, `已删除 ${selected.length} 张图片。`);
+  if (!saved) return;
+  selectedSecretImageIndexes = new Set();
+  secretSelectionMode = false;
+  const paths = removedImages.map((image) => image.image_path).filter(Boolean);
+  if (paths.length) cleanupStoredImagePaths(paths).catch(() => {});
+  renderSecretGallery();
 }
 
 async function appendSecretAlbumImages(options = {}) {
@@ -5181,8 +5358,9 @@ function startToolDockPointer(event) {
     startX: event.clientX,
     startY: event.clientY,
     dragging: false,
-    timer: window.setTimeout(() => beginToolDockDrag(button, event.pointerId), 300),
+    timer: window.setTimeout(() => beginToolDockDrag(button, event.pointerId), 180),
   };
+  button.setPointerCapture?.(event.pointerId);
 }
 
 function beginToolDockDrag(button, pointerId) {
@@ -7733,6 +7911,11 @@ els.wishlistNav.addEventListener("click", () => switchPage("wishlist"));
 els.weekendNav.addEventListener("click", () => switchPage("weekend"));
 els.thanksNav.addEventListener("click", () => switchPage("thanks"));
 els.secretNav?.addEventListener("click", () => switchPage("secret"));
+els.brand?.addEventListener("click", (event) => {
+  event.preventDefault();
+  switchPage("gallery");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+});
 els.toolDock?.addEventListener("click", handleToolDockClick, true);
 els.toolDock?.addEventListener("pointerdown", startToolDockPointer);
 els.toolDock?.addEventListener("pointermove", moveToolDockPointer);
@@ -8054,7 +8237,7 @@ els.dialog.addEventListener("close", () => {
   els.photoCommentForm.reset();
   cancelCommentReply();
   els.photoCommentStatus.textContent = "";
-  els.dialog.classList.remove("no-comments-dialog");
+  els.dialog.classList.remove("no-comments-dialog", "secret-image-dialog");
 });
 els.photoCommentForm.addEventListener("submit", savePhotoComment);
 els.cancelCommentReply.addEventListener("click", cancelCommentReply);
