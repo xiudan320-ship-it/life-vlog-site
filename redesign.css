@@ -757,11 +757,14 @@ body.theme-dark .thanks-note > p {
 
 #photoDialog {
   display: block;
-  position: relative;
+  position: fixed;
+  top: 50%;
+  left: 50%;
   width: min(980px, calc(100vw - 32px));
   height: auto;
   max-height: calc(100dvh - 28px);
   overflow: auto;
+  margin: 0;
   scrollbar-width: none;
   border: 1px solid var(--line);
   border-radius: 16px;
@@ -769,6 +772,7 @@ body.theme-dark .thanks-note > p {
   color: var(--ink);
   box-shadow: 0 24px 70px rgba(9, 13, 10, 0.28);
   overscroll-behavior: contain;
+  transform: translate(-50%, -50%);
 }
 
 #photoDialog::-webkit-scrollbar {
