@@ -82,7 +82,7 @@ button:not(:disabled):active {
 
 .topbar {
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) minmax(390px, 480px) minmax(180px, 1fr);
+  grid-template-columns: minmax(180px, 1fr) minmax(320px, 420px) minmax(180px, 1fr);
   align-items: center;
   position: fixed;
   top: 0;
@@ -146,7 +146,7 @@ body.theme-dark .brand-logo-wrap {
 
 .main-nav {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   justify-self: center;
   width: 100%;
   gap: 2px;
@@ -169,7 +169,7 @@ body.theme-dark .main-nav {
   color: var(--muted);
   font-size: 13px;
   font-weight: 750;
-  padding: 0 17px;
+  padding: 0 14px;
   white-space: nowrap;
 }
 
@@ -766,6 +766,8 @@ body.theme-dark .thanks-note > p {
 }
 
 #photoDialog.secret-image-dialog {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 260px);
   width: min(1180px, calc(100vw - 28px));
 }
 
@@ -811,8 +813,30 @@ body.theme-dark .thanks-note > p {
 }
 
 #photoDialog.secret-image-dialog > article {
+  align-content: start;
   gap: 7px;
-  padding: 14px 18px 18px;
+  padding: 16px;
+}
+
+#photoDialog.secret-image-dialog .dialog-media {
+  max-height: min(78dvh, 760px);
+}
+
+#photoDialog.secret-image-dialog .dialog-media img {
+  max-height: min(78dvh, 760px);
+}
+
+#photoDialog.secret-image-dialog .dialog-thumbs,
+#photoDialog.secret-image-dialog .photo-comments {
+  display: none;
+}
+
+#photoDialog.secret-image-dialog #dialogTitle {
+  font-size: clamp(20px, 2vw, 28px);
+}
+
+#photoDialog.secret-image-dialog #dialogMeta {
+  font-size: 12px;
 }
 
 #photoDialog.secret-image-dialog #dialogNote {
@@ -1330,6 +1354,48 @@ body.vip-member .hero {
   opacity: 1;
   touch-action: none;
   transform: translateY(-4px) scale(1.025);
+}
+
+.tool-sort-controls {
+  display: none;
+}
+
+.tool-dock.touch-sorting {
+  overflow-x: visible;
+}
+
+.tool-dock.touch-sorting .tool-dock-button {
+  padding-bottom: 42px;
+}
+
+.tool-dock.touch-sorting .tool-dock-button.sort-selected {
+  border-color: var(--accent);
+  box-shadow:
+    inset 0 0 0 2px var(--accent),
+    0 14px 34px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.tool-dock.touch-sorting .tool-sort-controls {
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  left: 10px;
+  z-index: 2;
+  display: flex;
+  gap: 8px;
+}
+
+.tool-sort-controls span {
+  display: grid;
+  flex: 1;
+  min-height: 28px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 86%, var(--accent) 14%);
+  color: var(--ink);
+  font-size: 20px;
+  font-weight: 950;
 }
 
 .secret-mark {
@@ -2984,7 +3050,7 @@ body.theme-dark .feed-loader {
 
 .secret-append-panel {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) auto auto;
+  grid-template-columns: minmax(420px, 1fr) minmax(190px, 0.28fr);
   align-items: stretch;
   gap: 12px;
   border: 1px solid var(--line);
@@ -2999,7 +3065,7 @@ body.theme-dark .feed-loader {
 }
 
 .secret-append-panel textarea {
-  min-height: 88px;
+  min-height: 104px;
   resize: vertical;
 }
 
@@ -4424,6 +4490,11 @@ body.theme-dark .settings-sidebar {
     max-height: calc(100dvh - 18px);
   }
 
+  #photoDialog.secret-image-dialog {
+    grid-template-columns: 1fr;
+    width: calc(100vw - 14px);
+  }
+
   #photoDialog .dialog-media,
   #photoDialog .dialog-media img {
     max-height: 42dvh;
@@ -4431,7 +4502,7 @@ body.theme-dark .settings-sidebar {
 
   #photoDialog.secret-image-dialog .dialog-media,
   #photoDialog.secret-image-dialog .dialog-media img {
-    max-height: 68dvh;
+    max-height: 72dvh;
   }
 
   #photoDialog.secret-image-dialog .dialog-thumbs {
@@ -4440,7 +4511,7 @@ body.theme-dark .settings-sidebar {
 
   #photoDialog.secret-image-dialog > article {
     gap: 5px;
-    padding: 10px 13px 14px;
+    padding: 8px 12px 12px;
   }
 
   #photoDialog.secret-image-dialog > article h2 {
@@ -4603,7 +4674,7 @@ body.theme-dark .settings-sidebar {
     order: 3;
     flex: 0 0 100%;
     width: 100%;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     overflow: hidden;
   }
 

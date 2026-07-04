@@ -4911,9 +4911,6 @@ function renderSecretAlbumView(item) {
           : ""
       }
       <form class="secret-append-panel" data-secret-append-form>
-        <div>
-          <strong>添加相片</strong>
-        </div>
         <textarea data-secret-append-links rows="3" placeholder="粘贴图片链接，每行一个"></textarea>
         <label class="secret-append-files">
           <span>选择图片</span>
@@ -5344,23 +5341,57 @@ function applyToolDockOrder(userId = session?.user?.id || "guest") {
     const button = buttons.get(id);
     if (button) els.toolDock.appendChild(button);
   });
+  ensureToolDockSortControls();
+}
+
+function ensureToolDockSortControls() {
+  if (!els.toolDock) return;
+  els.toolDock.querySelectorAll(".tool-dock-button[data-tool-id]").forEach((button) => {
+    if (button.querySelector(".tool-sort-controls")) return;
+    button.insertAdjacentHTML(
+      "beforeend",
+      `<span class="tool-sort-controls" aria-hidden="true">
+        <span role="button" tabindex="-1" data-tool-sort="-1">‹</span>
+        <span role="button" tabindex="-1" data-tool-sort="1">›</span>
+      </span>`
+    );
+  });
 }
 
 function startToolDockPointer(event) {
   const button = event.target.closest(".tool-dock-button[data-tool-id]");
   if (!button || button.disabled || !els.toolDock?.contains(button)) return;
+  if (event.target.closest("[data-tool-sort]")) return;
   if (event.pointerType === "mouse" && event.button !== 0) return;
 
   window.clearTimeout(toolDockDragState?.timer);
+  const isTouch = event.pointerType === "touch" || event.pointerType === "pen";
   toolDockDragState = {
     button,
     pointerId: event.pointerId,
     startX: event.clientX,
     startY: event.clientY,
     dragging: false,
-    timer: window.setTimeout(() => beginToolDockDrag(button, event.pointerId), 180),
+    touchMode: isTouch,
+    timer: window.setTimeout(
+      () => (isTouch ? beginToolDockTouchSort(button) : beginToolDockDrag(button, event.pointerId)),
+      isTouch ? 320 : 180
+    ),
   };
   button.setPointerCapture?.(event.pointerId);
+}
+
+function beginToolDockTouchSort(button) {
+  if (!toolDockDragState || toolDockDragState.button !== button) return;
+  ensureToolDockSortControls();
+  suppressToolDockClick = true;
+  toolDockDragState.dragging = false;
+  toolDockDragState.sortingOnly = true;
+  els.toolDock.classList.add("sorting", "touch-sorting");
+  els.toolDock
+    .querySelectorAll(".tool-dock-button.sort-selected")
+    .forEach((item) => item.classList.remove("sort-selected"));
+  button.classList.add("sort-selected");
 }
 
 function beginToolDockDrag(button, pointerId) {
@@ -5378,8 +5409,13 @@ function moveToolDockPointer(event) {
 
   const dx = Math.abs(event.clientX - toolDockDragState.startX);
   const dy = Math.abs(event.clientY - toolDockDragState.startY);
+  if (toolDockDragState.sortingOnly) {
+    event.preventDefault();
+    return;
+  }
   if (!toolDockDragState.dragging && Math.max(dx, dy) > 12) {
     window.clearTimeout(toolDockDragState.timer);
+    if (toolDockDragState.touchMode) return;
     beginToolDockDrag(toolDockDragState.button, toolDockDragState.pointerId);
   }
   if (!toolDockDragState?.dragging) return;
@@ -5420,10 +5456,61 @@ function finishToolDockPointer() {
 }
 
 function handleToolDockClick(event) {
+  const sortButton = event.target.closest("[data-tool-sort]");
+  if (sortButton && els.toolDock?.classList.contains("touch-sorting")) {
+    event.preventDefault();
+    event.stopPropagation();
+    const item = sortButton.closest(".tool-dock-button[data-tool-id]");
+    moveToolDockItem(item, Number(sortButton.dataset.toolSort) || 0);
+    suppressToolDockClick = true;
+    return;
+  }
+  if (els.toolDock?.classList.contains("touch-sorting")) {
+    const item = event.target.closest(".tool-dock-button[data-tool-id]");
+    if (item) {
+      event.preventDefault();
+      event.stopPropagation();
+      els.toolDock
+        .querySelectorAll(".tool-dock-button.sort-selected")
+        .forEach((button) => button.classList.remove("sort-selected"));
+      item.classList.add("sort-selected");
+      suppressToolDockClick = true;
+      return;
+    }
+  }
   if (!suppressToolDockClick) return;
   event.preventDefault();
   event.stopPropagation();
   suppressToolDockClick = false;
+}
+
+function moveToolDockItem(item, direction) {
+  if (!item || !direction || !els.toolDock) return;
+  const visible = Array.from(els.toolDock.querySelectorAll(".tool-dock-button[data-tool-id]")).filter(
+    (button) => !button.hidden
+  );
+  const index = visible.indexOf(item);
+  const targetIndex = index + direction;
+  if (index < 0 || targetIndex < 0 || targetIndex >= visible.length) return;
+  if (direction < 0) {
+    els.toolDock.insertBefore(item, visible[targetIndex]);
+  } else {
+    els.toolDock.insertBefore(visible[targetIndex], item);
+  }
+  item.classList.add("sort-selected");
+  saveToolDockOrder();
+}
+
+function exitToolDockTouchSort() {
+  if (!els.toolDock?.classList.contains("touch-sorting")) return;
+  els.toolDock.classList.remove("sorting", "touch-sorting");
+  els.toolDock
+    .querySelectorAll(".tool-dock-button.sort-selected")
+    .forEach((button) => button.classList.remove("sort-selected"));
+  saveToolDockOrder();
+  window.setTimeout(() => {
+    suppressToolDockClick = false;
+  }, 0);
 }
 
 function normalizeFoodOptions(values) {
@@ -7922,6 +8009,11 @@ els.toolDock?.addEventListener("pointermove", moveToolDockPointer);
 els.toolDock?.addEventListener("pointerup", finishToolDockPointer);
 els.toolDock?.addEventListener("pointercancel", finishToolDockPointer);
 els.toolDock?.addEventListener("lostpointercapture", finishToolDockPointer);
+document.addEventListener("click", (event) => {
+  if (!els.toolDock?.classList.contains("touch-sorting")) return;
+  if (els.toolDock.contains(event.target)) return;
+  exitToolDockTouchSort();
+});
 els.foodWheelOpen.addEventListener("click", openFoodWheel);
 els.foodWheelClose.addEventListener("click", closeFoodWheel);
 els.foodWheelDialog.addEventListener("click", (event) => {
