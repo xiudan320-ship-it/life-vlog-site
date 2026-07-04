@@ -79,6 +79,7 @@ const WISH_MEDIA_META_END = "-->";
 const PHOTO_COMMENT_PREVIEW_LIMIT = 3;
 const PHOTO_FEED_CACHE_LIMIT = 3;
 const EAGER_IMAGE_CARD_COUNT = 8;
+const SECRET_ALBUM_IMAGE_LIMIT = 80;
 const TOOL_DOCK_ORDER_KEY = "life-vlog-tool-dock-order";
 const TOOL_DOCK_DEFAULT_ORDER = ["food", "anniversary", "memory", "secret"];
 const DEFAULT_FOOD_OPTIONS = ["拉面", "寿喜烧", "咖喱饭", "烤肉", "火锅", "寿司", "麻婆豆腐", "披萨"];
@@ -187,6 +188,7 @@ let foodOptions = [];
 let activePage = "gallery";
 let activeFilter = "全部";
 let activeSecretFilter = "全部";
+let activeSecretAlbumId = "";
 let diarySearchQuery = "";
 let activeWishView = "open";
 let previewUrls = [];
@@ -546,6 +548,7 @@ const els = {
   secretNoteInput: document.querySelector("#secretNoteInput"),
   secretSubmitButton: document.querySelector("#secretSubmitButton"),
   secretFilters: document.querySelector("#secretFilters"),
+  secretAppendInput: document.querySelector("#secretAppendInput"),
   secretGallery: document.querySelector("#secretGallery"),
   thanksForm: document.querySelector("#thanksForm"),
   thanksBodyInput: document.querySelector("#thanksBodyInput"),
@@ -4714,9 +4717,9 @@ async function saveSecretItem(event) {
     setSecretStatus("请先选择或粘贴图片。");
     return;
   }
-  const imageLimit = getCurrentImageLimit();
+  const imageLimit = SECRET_ALBUM_IMAGE_LIMIT;
   if (files.length > imageLimit) {
-    setSecretStatus(`当前 VIP 等级单篇最多 ${imageLimit} 张图。`);
+    setSecretStatus(`一个秘藏相册最多 ${imageLimit} 张图。`);
     return;
   }
   const coverFile = els.secretCoverInput?.files?.[0] || null;
@@ -4805,6 +4808,7 @@ function renderSecretGallery() {
   els.secretFilters.querySelectorAll("[data-secret-filter]").forEach((button) => {
     button.addEventListener("click", () => {
       activeSecretFilter = button.dataset.secretFilter || "全部";
+      activeSecretAlbumId = "";
       renderSecretGallery();
     });
   });
@@ -4825,42 +4829,92 @@ function renderSecretGallery() {
     els.secretGallery.innerHTML = `<div class="empty">这里还没有相册，先上传第一组私人收藏吧。</div>`;
     return;
   }
+  const activeAlbum = secretItems.find((item) => item.id === activeSecretAlbumId);
+  if (activeAlbum) {
+    renderSecretAlbumView(activeAlbum);
+    return;
+  }
   els.secretGallery.innerHTML = visible
     .map((item, index) => {
       const cover = item.coverImage || item.images[0]?.image_url || "";
       const linkedPhoto = photos.find((photo) => photo.id === item.linkedPhotoId);
       const linkedTitle = linkedPhoto ? getDisplayTitle(linkedPhoto) || "关联日记" : "";
-      const thumbs = item.images
-        .slice(0, 4)
-        .map((image) => `<img src="${escapeHtml(image.image_url)}" alt="" loading="lazy" />`)
-        .join("");
       return `
         <article class="secret-card">
           <button class="secret-cover" type="button" data-secret-index="${index}">
             <img src="${escapeHtml(cover)}" alt="${escapeHtml(item.title || item.category)}" loading="lazy" />
             <span>${String(item.images.length).padStart(2, "0")}</span>
           </button>
-          ${thumbs ? `<div class="secret-album-strip">${thumbs}</div>` : ""}
           <div>
-             <p class="kicker">${escapeHtml(item.category || "未分类")} · ${formatDateTime(item.createdAt)}</p>
+             <p class="kicker">${escapeHtml(item.category || "未分类")}</p>
              ${item.title ? `<h3>${escapeHtml(item.title)}</h3>` : ""}
             ${item.note ? `<p>${escapeHtml(item.note)}</p>` : ""}
             ${linkedTitle ? `<small>关联：${escapeHtml(linkedTitle)}</small>` : ""}
           </div>
-          <button class="delete-secret" type="button" data-secret-delete="${index}">删除相册</button>
         </article>
       `;
     })
     .join("");
   els.secretGallery.querySelectorAll("[data-secret-index]").forEach((button) => {
-    button.addEventListener("click", () => openSecretItem(visible[Number(button.dataset.secretIndex)]));
-  });
-  els.secretGallery.querySelectorAll("[data-secret-delete]").forEach((button) => {
-    button.addEventListener("click", () => deleteSecretItem(visible[Number(button.dataset.secretDelete)]));
+    button.addEventListener("click", () => {
+      activeSecretAlbumId = visible[Number(button.dataset.secretIndex)]?.id || "";
+      renderSecretGallery();
+    });
   });
 }
 
-function openSecretItem(item) {
+function renderSecretAlbumView(item) {
+  const images = normalizeSecretImages(item.images);
+  const linkedPhoto = photos.find((photo) => photo.id === item.linkedPhotoId);
+  const linkedTitle = linkedPhoto ? getDisplayTitle(linkedPhoto) || "关联日记" : "";
+  els.secretGallery.innerHTML = `
+    <section class="secret-album-view">
+      <header class="secret-album-head">
+        <button class="ghost-button" type="button" data-secret-back>返回相册</button>
+        <div>
+          <p class="kicker">${escapeHtml(item.category || "未分类")}</p>
+          <h3>${escapeHtml(item.title || "未命名相册")}</h3>
+          ${item.note ? `<p>${escapeHtml(item.note)}</p>` : ""}
+          ${linkedTitle ? `<small>关联：${escapeHtml(linkedTitle)}</small>` : ""}
+        </div>
+        <div class="secret-album-actions">
+          <button class="primary" type="button" data-secret-append>继续添加相片</button>
+          ${linkedPhoto ? `<button type="button" data-secret-open-linked>打开关联日记</button>` : ""}
+          <button class="delete-secret" type="button" data-secret-delete-current>删除相册</button>
+        </div>
+      </header>
+      <div class="secret-album-grid">
+        ${images
+          .map(
+            (image, index) => `
+              <button class="secret-album-photo" type="button" data-secret-photo="${index}">
+                <img src="${escapeHtml(image.image_url)}" alt="${escapeHtml(item.title || item.category || "秘藏图片")} ${index + 1}" loading="lazy" />
+              </button>
+            `
+          )
+          .join("")}
+      </div>
+    </section>
+  `;
+  els.secretGallery.querySelector("[data-secret-back]")?.addEventListener("click", () => {
+    activeSecretAlbumId = "";
+    renderSecretGallery();
+  });
+  els.secretGallery.querySelector("[data-secret-append]")?.addEventListener("click", () => {
+    els.secretAppendInput.value = "";
+    els.secretAppendInput.click();
+  });
+  els.secretGallery.querySelector("[data-secret-open-linked]")?.addEventListener("click", () => {
+    activeSecretDialogItem = item;
+    openSecretLinkedDiary();
+  });
+  els.secretGallery.querySelector("[data-secret-delete-current]")?.addEventListener("click", () => deleteSecretItem(item));
+  els.secretGallery.querySelectorAll("[data-secret-photo]").forEach((button) => {
+    button.addEventListener("click", () => openSecretItem(item, Number(button.dataset.secretPhoto) || 0));
+  });
+}
+
+function openSecretItem(item, initialImageIndex = 0) {
   if (!item) return;
   activeDialogPhoto = null;
   activeSecretDialogItem = item;
@@ -4868,7 +4922,10 @@ function openSecretItem(item) {
   els.dialog.classList.add("no-comments-dialog");
   dialogRandomMode = false;
   dialogImages = normalizeSecretImages(item.images);
-  dialogImageIndex = 0;
+  dialogImageIndex = Math.min(
+    Math.max(0, Number(initialImageIndex) || 0),
+    Math.max(0, dialogImages.length - 1)
+  );
   els.dialogTitle.textContent = item.title || item.category || "秘藏相册";
   els.dialogMeta.textContent = `${item.category || "未分类"} · 私人图集 · ${item.images.length} 张 · ${formatDateTime(item.createdAt)}`;
   els.dialogNote.textContent = item.note || "";
@@ -4899,6 +4956,72 @@ function returnToSecretItem() {
   }
 }
 
+async function appendSecretAlbumImages() {
+  const item = secretItems.find((entry) => entry.id === activeSecretAlbumId);
+  const files = Array.from(els.secretAppendInput?.files || []);
+  if (!item || !files.length) return;
+  if (!cloudDb || !session) {
+    setSecretStatus("请先登录。");
+    return;
+  }
+  const currentImages = normalizeSecretImages(item.images);
+  const remaining = SECRET_ALBUM_IMAGE_LIMIT - currentImages.length;
+  if (remaining <= 0) {
+    setSecretStatus(`这个相册已经达到 ${SECRET_ALBUM_IMAGE_LIMIT} 张上限。`);
+    return;
+  }
+  const appendFiles = files.slice(0, remaining);
+  const uploadedImages = [];
+  setSecretStatus(`正在追加 ${appendFiles.length} 张图片...`);
+  try {
+    for (const [index, file] of appendFiles.entries()) {
+      const base = slugify(item.title || item.category || "secret");
+      const uploaded = await uploadImageFile(
+        file,
+        `${base}-append-${currentImages.length + index + 1}`,
+        index + 1,
+        appendFiles.length,
+        {
+          folder: "secrets",
+          statusSetter: setSecretStatus,
+        }
+      );
+      if (!uploaded) throw new Error("追加图片上传失败。");
+      uploadedImages.push(uploaded);
+    }
+    const nextImages = [...currentImages, ...uploadedImages];
+    const updates = {
+      images: nextImages,
+      updated_at: new Date().toISOString(),
+    };
+    if (!item.coverImage && nextImages[0]?.image_url) {
+      updates.cover_image = nextImages[0].image_url;
+      updates.cover_path = nextImages[0].image_path || "";
+    }
+    const { error } = await cloudDb
+      .from("secret_items")
+      .update(updates)
+      .eq("id", item.id)
+      .eq("user_id", session.user.id);
+    if (error) throw error;
+    setSecretStatus(
+      files.length > remaining
+        ? `已追加 ${appendFiles.length} 张，剩余图片超过相册上限未添加。`
+        : `已追加 ${appendFiles.length} 张图片。`
+    );
+    await loadSecretItems();
+    activeSecretAlbumId = item.id;
+    renderSecretGallery();
+  } catch (error) {
+    if (uploadedImages.length) {
+      cleanupStoredImagePaths(uploadedImages.map((image) => image.image_path).filter(Boolean)).catch(() => {});
+    }
+    setSecretStatus(error.message || "追加图片失败。");
+  } finally {
+    if (els.secretAppendInput) els.secretAppendInput.value = "";
+  }
+}
+
 async function deleteSecretItem(item) {
   if (!item || !session || !confirm("删除这件秘藏吗？")) return;
   const { error } = await cloudDb
@@ -4917,6 +5040,7 @@ async function deleteSecretItem(item) {
   if (paths.length) {
     cleanupStoredImagePaths(paths).catch((error) => console.warn("Secret image cleanup failed:", error));
   }
+  if (activeSecretAlbumId === item.id) activeSecretAlbumId = "";
   setSecretStatus("秘藏已删除。");
   await loadSecretItems();
 }
@@ -7674,6 +7798,7 @@ els.secretToggle?.addEventListener("click", () => {
 els.secretImageInput?.addEventListener("change", updateSecretPreview);
 els.secretImageDrop?.addEventListener("paste", handleSecretPaste);
 els.secretForm?.addEventListener("submit", saveSecretItem);
+els.secretAppendInput?.addEventListener("change", appendSecretAlbumImages);
 els.avatarButton.addEventListener("click", () => {
   els.userPopover.hidden = !els.userPopover.hidden;
 });
