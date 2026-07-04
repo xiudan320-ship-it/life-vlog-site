@@ -232,6 +232,7 @@ let dialogLockUsesFixed = false;
 let dialogRandomMode = false;
 let dialogSecretSourceItem = null;
 let activeSecretDialogItem = null;
+let photoDialogBackdrop = null;
 let toolDockDragState = null;
 let suppressToolDockClick = false;
 let activeVipLevel = 1;
@@ -2789,7 +2790,7 @@ function finishDialogBackSwipe(event) {
   const elapsed = Date.now() - dialogBackSwipeStart.time;
   dialogBackSwipeStart = null;
   const edgeBack = deltaX > 72 && Math.abs(deltaX) > Math.abs(deltaY) * 1.35 && elapsed < 1200;
-  if (edgeBack) els.dialog.close();
+  if (edgeBack) closePhotoDialog();
 }
 
 function cancelDialogBackSwipe() {
@@ -2933,9 +2934,36 @@ function unlockDialogBackgroundScroll(restoreScroll = lockedDialogScrollY) {
   }
 }
 
+function ensurePhotoDialogBackdrop() {
+  if (photoDialogBackdrop) return photoDialogBackdrop;
+  photoDialogBackdrop = document.createElement("div");
+  photoDialogBackdrop.className = "photo-dialog-backdrop";
+  photoDialogBackdrop.hidden = true;
+  photoDialogBackdrop.addEventListener("click", closePhotoDialog);
+  photoDialogBackdrop.addEventListener(
+    "wheel",
+    (event) => {
+      event.preventDefault();
+    },
+    { passive: false }
+  );
+  document.body.append(photoDialogBackdrop);
+  return photoDialogBackdrop;
+}
+
+function closePhotoDialog() {
+  if (!els.dialog.open) return;
+  els.dialog.removeAttribute("open");
+  ensurePhotoDialogBackdrop().hidden = true;
+  document.body.classList.remove("photo-dialog-open");
+  els.dialog.dispatchEvent(new Event("close"));
+}
+
 function showPhotoDialogPreservingScroll() {
   const restoreScroll = dialogRestoreScrollY;
-  if (!els.dialog.open) els.dialog.showModal();
+  ensurePhotoDialogBackdrop().hidden = false;
+  document.body.classList.add("photo-dialog-open");
+  if (!els.dialog.open) els.dialog.setAttribute("open", "");
   if (!dialogLockUsesFixed && Math.abs((window.scrollY || window.pageYOffset || 0) - restoreScroll) > 2) {
     window.scrollTo({ top: restoreScroll, behavior: "auto" });
   }
@@ -8770,15 +8798,21 @@ document.addEventListener("click", (event) => {
     els.userPopover.hidden = true;
   }
 });
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && els.dialog.open) {
+    event.preventDefault();
+    closePhotoDialog();
+  }
+});
 els.uploadForm.addEventListener("submit", uploadPhoto);
 els.photoDrop.addEventListener("paste", handlePasteUpload);
 els.photoInput.addEventListener("change", () => {
   updatePhotoPreview();
 });
-els.closeDialog.addEventListener("click", () => els.dialog.close());
+els.closeDialog.addEventListener("click", closePhotoDialog);
 els.dialog.addEventListener("click", (event) => {
   if (event.target === els.dialog) {
-    els.dialog.close();
+    closePhotoDialog();
   }
 });
 els.dialog.addEventListener("close", () => {
@@ -8806,6 +8840,8 @@ els.dialog.addEventListener("close", () => {
   cancelCommentReply();
   els.photoCommentStatus.textContent = "";
   els.dialog.classList.remove("no-comments-dialog", "secret-image-dialog", "mobile-page-dialog", "secret-image-fullscreen");
+  if (photoDialogBackdrop) photoDialogBackdrop.hidden = true;
+  document.body.classList.remove("photo-dialog-open");
   unlockDialogBackgroundScroll(restoreScroll);
 });
 els.photoCommentForm.addEventListener("submit", savePhotoComment);

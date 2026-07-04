@@ -755,6 +755,14 @@ body.theme-dark .thanks-note > p {
   padding: 22px 24px 26px;
 }
 
+.photo-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 210;
+  background: rgba(7, 10, 8, 0.62);
+  backdrop-filter: blur(8px);
+}
+
 #photoDialog {
   display: block;
   position: fixed;
@@ -773,6 +781,7 @@ body.theme-dark .thanks-note > p {
   box-shadow: 0 24px 70px rgba(9, 13, 10, 0.28);
   overscroll-behavior: contain;
   transform: translate(-50%, -50%);
+  z-index: 220;
 }
 
 #photoDialog::-webkit-scrollbar {
