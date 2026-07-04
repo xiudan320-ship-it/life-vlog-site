@@ -899,6 +899,17 @@ body.theme-dark .thanks-note > p {
 
 #photoDialog.secret-image-fullscreen .dialog-media {
   cursor: zoom-out;
+  height: 100dvh;
+  max-height: none;
+  aspect-ratio: auto;
+  background: #050706;
+}
+
+#photoDialog.secret-image-fullscreen .dialog-media img {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  object-fit: contain;
 }
 
 #photoDialog.secret-image-fullscreen > article {
@@ -4920,6 +4931,14 @@ body.mobile-dialog-open {
 
   #photoDialog.secret-image-fullscreen .dialog-media {
     padding-top: 0;
+    height: 100dvh;
+    max-height: none;
+  }
+
+  #photoDialog.secret-image-fullscreen .dialog-media img {
+    height: 100%;
+    max-height: none;
+    object-fit: contain;
   }
 
   #photoDialog.mobile-page-dialog .photo-comments-head {
@@ -5306,36 +5325,47 @@ body.mobile-dialog-open {
 
   .wish-card {
     gap: 12px;
-    padding: 14px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
   }
 
   .wish-card-top {
     align-items: flex-start;
     flex-direction: column;
-    gap: 10px;
+    gap: 6px;
   }
 
   .wish-actions {
     width: 100%;
-    justify-content: flex-start;
-    gap: 6px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-content: stretch;
+    gap: 7px;
+    margin-top: auto;
   }
 
   .wish-actions button {
-    flex: 1 1 calc(50% - 6px);
-    min-height: 32px;
-    padding-inline: 10px;
+    width: 100%;
+    min-height: 34px;
+    padding-inline: 8px;
     font-size: 11px;
+  }
+
+  .wish-actions .danger {
+    grid-column: 1 / -1;
   }
 
   .wish-card-layout,
   .wish-complete-body {
     grid-template-columns: 1fr;
+    gap: 10px;
   }
 
   .wish-card h3 {
-    font-size: 24px;
-    line-height: 1.08;
+    font-size: 19px;
+    line-height: 1.16;
+    word-break: break-word;
   }
 
   .wish-meta {
@@ -5356,6 +5386,34 @@ body.mobile-dialog-open {
 
   .wish-card-image-button,
   .wish-card-image-button .wish-card-image,
+  .wish-card-placeholder {
+    min-height: 156px;
+  }
+
+  .wish-card-image-button {
+    order: 1;
+  }
+
+  .wish-card-content {
+    order: 0;
+    gap: 8px;
+  }
+
+  .wish-card-content .kicker {
+    font-size: 10px;
+    line-height: 1.35;
+  }
+
+  .wish-meta {
+    order: -1;
+    gap: 5px;
+  }
+
+  .wish-meta span {
+    padding: 4px 8px;
+    font-size: 10px;
+  }
+
   .wish-card-placeholder,
   .wish-complete-preview,
   .wish-complete-preview img,

@@ -11,6 +11,8 @@ const FOOD_OPTIONS_KEY = "life-vlog-food-options";
 const PHOTO_FAVORITES_KEY = "life-vlog-photo-favorites";
 const TODAY_POSTS_SEEN_KEY = "life-vlog-today-posts-seen";
 const PHOTO_FEED_CACHE_KEY = "life-vlog-photo-feed-cache";
+const SECRET_ITEMS_CACHE_KEY = "life-vlog-secret-items-cache";
+const CACHE_LIMIT_KEY = "life-vlog-cache-limit";
 const EXPERIENCE_KEY = "life-vlog-experience";
 const THANKS_COLOR_KEY = "life-vlog-thanks-color";
 const MOBILE_FEED_LAYOUT_KEY = "life-vlog-mobile-feed-layout";
@@ -78,7 +80,9 @@ const MEDIA_META_END = "-->";
 const WISH_MEDIA_META_START = "<!--life-vlog-wish-media:";
 const WISH_MEDIA_META_END = "-->";
 const PHOTO_COMMENT_PREVIEW_LIMIT = 3;
-const PHOTO_FEED_CACHE_LIMIT = 3;
+const DEFAULT_CACHE_LIMIT = 80;
+const MIN_CACHE_LIMIT = 20;
+const MAX_CACHE_LIMIT = 300;
 const EAGER_IMAGE_CARD_COUNT = 8;
 const SECRET_ALBUM_IMAGE_LIMIT = 80;
 const TOOL_DOCK_ORDER_KEY = "life-vlog-tool-dock-order";
@@ -311,6 +315,12 @@ const els = {
   settingsAvatarValue: document.querySelector("#settingsAvatarValue"),
   settingsFeedLayoutButton: document.querySelector("#settingsFeedLayoutButton"),
   settingsFeedLayoutValue: document.querySelector("#settingsFeedLayoutValue"),
+  refreshCacheInfoButton: document.querySelector("#refreshCacheInfoButton"),
+  cacheLimitButton: document.querySelector("#cacheLimitButton"),
+  clearAppCacheButton: document.querySelector("#clearAppCacheButton"),
+  settingsCacheValue: document.querySelector("#settingsCacheValue"),
+  settingsCacheLimitValue: document.querySelector("#settingsCacheLimitValue"),
+  settingsCacheStatus: document.querySelector("#settingsCacheStatus"),
   profileName: document.querySelector("#profileName"),
   xpPanel: document.querySelector("#xpPanel"),
   brandName: document.querySelector("#brandName"),
@@ -1291,7 +1301,10 @@ async function loadPhotos() {
     savePhotoFeedCache(session?.user?.id || "public");
   }
 
-  visiblePhotoCount = PAGE_SIZE;
+  visiblePhotoCount = Math.min(
+    Math.max(PAGE_SIZE, visiblePhotoCount || PAGE_SIZE),
+    Math.max(PAGE_SIZE, photos.length)
+  );
   renderFeedRefreshNotice();
   renderGallery();
   if (cloudSyncAvailable) updateCloudSyncStatus();
@@ -1321,6 +1334,26 @@ async function loadPhotoCommentPreviews() {
 
 function getPhotoFeedCacheStorageKey(userId = session?.user?.id || "public") {
   return `${PHOTO_FEED_CACHE_KEY}:${userId || "public"}`;
+}
+
+function normalizeCacheLimit(value) {
+  const numeric = Number.parseInt(value, 10);
+  if (!Number.isFinite(numeric)) return DEFAULT_CACHE_LIMIT;
+  return Math.min(MAX_CACHE_LIMIT, Math.max(MIN_CACHE_LIMIT, numeric));
+}
+
+function getCacheLimitStorageKey(userId = session?.user?.id || "guest") {
+  return `${CACHE_LIMIT_KEY}:${userId || "guest"}`;
+}
+
+function loadCacheLimit(userId = session?.user?.id || "guest") {
+  return normalizeCacheLimit(localStorage.getItem(getCacheLimitStorageKey(userId)));
+}
+
+function saveCacheLimit(value, userId = session?.user?.id || "guest") {
+  const limit = normalizeCacheLimit(value);
+  localStorage.setItem(getCacheLimitStorageKey(userId), String(limit));
+  return limit;
 }
 
 function sanitizePhotoForCache(photo) {
@@ -1355,7 +1388,8 @@ function sanitizeCommentForCache(comment) {
 
 function savePhotoFeedCache(userId = session?.user?.id || "public") {
   if (!photos.length) return;
-  const cachedPhotos = getSortedPhotos(photos).slice(0, PHOTO_FEED_CACHE_LIMIT);
+  const cacheLimit = loadCacheLimit(userId);
+  const cachedPhotos = getSortedPhotos(photos).slice(0, cacheLimit);
   const cachedIds = new Set(cachedPhotos.map((photo) => photo.id).filter(Boolean));
   const comments = [];
   cachedIds.forEach((photoId) => {
@@ -1392,13 +1426,152 @@ function renderCachedPhotoFeed(userId = session?.user?.id || "public") {
       photoCommentPreviewMap.set(comment.photo_id, list);
     });
     showingCachedFeed = true;
-    visiblePhotoCount = Math.max(PAGE_SIZE, PHOTO_FEED_CACHE_LIMIT);
+    visiblePhotoCount = Math.max(PAGE_SIZE, Math.min(loadCacheLimit(userId), cached.photos.length));
     renderGallery();
     setGlobalStatus("先显示上次缓存，正在同步最新内容…");
     return true;
   } catch {
     return false;
   }
+}
+
+function getSecretItemsCacheStorageKey(userId = session?.user?.id || "guest") {
+  return `${SECRET_ITEMS_CACHE_KEY}:${userId || "guest"}`;
+}
+
+function sanitizeSecretItemForCache(item) {
+  return {
+    id: item.id,
+    userId: item.userId || item.user_id || "",
+    title: item.title || "",
+    category: item.category || "未分类",
+    note: item.note || "",
+    coverImage: item.coverImage || "",
+    coverPath: item.coverPath || "",
+    images: normalizeSecretImages(item.images),
+    linkedPhotoId: item.linkedPhotoId || "",
+    createdAt: item.createdAt || "",
+    updatedAt: item.updatedAt || "",
+  };
+}
+
+function saveSecretItemsCache(userId = session?.user?.id || "guest") {
+  if (!secretItems.length) return;
+  const cacheLimit = loadCacheLimit(userId);
+  try {
+    localStorage.setItem(
+      getSecretItemsCacheStorageKey(userId),
+      JSON.stringify({
+        savedAt: new Date().toISOString(),
+        items: secretItems.slice(0, cacheLimit).map(sanitizeSecretItemForCache),
+      })
+    );
+  } catch {
+    // The cloud copy remains the source of truth if local storage is full.
+  }
+}
+
+function renderCachedSecretItems(userId = session?.user?.id || "guest") {
+  try {
+    const raw = localStorage.getItem(getSecretItemsCacheStorageKey(userId));
+    if (!raw) return false;
+    const cached = JSON.parse(raw);
+    if (!Array.isArray(cached.items) || !cached.items.length) return false;
+    secretItems = cached.items.map((item) => ({ ...item, __cached: true }));
+    secretCloudAvailable = true;
+    renderSecretGallery();
+    setSecretStatus("先显示上次缓存，正在同步秘藏...");
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function getLocalStorageUsageBytes(prefixes = ["life-vlog-"]) {
+  let total = 0;
+  for (let index = 0; index < localStorage.length; index += 1) {
+    const key = localStorage.key(index) || "";
+    if (!prefixes.some((prefix) => key.startsWith(prefix))) continue;
+    total += new Blob([key, localStorage.getItem(key) || ""]).size;
+  }
+  return total;
+}
+
+async function getCacheStorageUsageBytes() {
+  if (!("caches" in window)) return 0;
+  let total = 0;
+  const names = await caches.keys();
+  for (const name of names.filter((entry) => entry.startsWith("life-vlog-site-"))) {
+    const cache = await caches.open(name);
+    const requests = await cache.keys();
+    for (const request of requests) {
+      const response = await cache.match(request);
+      if (!response) continue;
+      const blob = await response.clone().blob().catch(() => null);
+      total += blob?.size || 0;
+    }
+  }
+  return total;
+}
+
+async function getAppCacheStats() {
+  const [cacheBytes, storageEstimate] = await Promise.all([
+    getCacheStorageUsageBytes().catch(() => 0),
+    navigator.storage?.estimate?.().catch(() => null) || Promise.resolve(null),
+  ]);
+  const localBytes = getLocalStorageUsageBytes();
+  return {
+    localBytes,
+    cacheBytes,
+    totalBytes: localBytes + cacheBytes,
+    browserUsageBytes: Number(storageEstimate?.usage) || 0,
+    browserQuotaBytes: Number(storageEstimate?.quota) || 0,
+  };
+}
+
+function renderCacheStats(stats) {
+  if (!els.settingsCacheValue) return;
+  const appTotal = formatFileSize(stats.totalBytes);
+  const browserUsage = stats.browserUsageBytes ? formatFileSize(stats.browserUsageBytes) : "";
+  els.settingsCacheValue.textContent = browserUsage
+    ? `${appTotal} / 浏览器 ${browserUsage}`
+    : appTotal;
+  if (els.settingsCacheStatus) {
+    els.settingsCacheStatus.textContent = `本地 ${formatFileSize(stats.localBytes)} · 离线 ${formatFileSize(stats.cacheBytes)}`;
+  }
+}
+
+async function refreshCacheInfo() {
+  if (els.settingsCacheValue) els.settingsCacheValue.textContent = "计算中...";
+  const stats = await getAppCacheStats();
+  renderCacheStats(stats);
+}
+
+async function clearAppCache() {
+  if (els.settingsCacheStatus) els.settingsCacheStatus.textContent = "正在清除...";
+  const keysToRemove = [];
+  for (let index = 0; index < localStorage.length; index += 1) {
+    const key = localStorage.key(index) || "";
+    if (
+      key.startsWith(`${PHOTO_FEED_CACHE_KEY}:`) ||
+      key.startsWith(`${SECRET_ITEMS_CACHE_KEY}:`)
+    ) {
+      keysToRemove.push(key);
+    }
+  }
+  keysToRemove.forEach((key) => localStorage.removeItem(key));
+
+  if ("caches" in window) {
+    const cacheNames = await caches.keys();
+    await Promise.all(
+      cacheNames
+        .filter((name) => name.startsWith("life-vlog-site-"))
+        .map((name) => caches.delete(name))
+    );
+  }
+
+  await refreshCacheInfo();
+  if (els.settingsCacheStatus) els.settingsCacheStatus.textContent = "缓存已清除，账号和设置已保留";
 }
 
 function getLocalDateKeyFromValue(value) {
@@ -2729,6 +2902,7 @@ async function deletePhoto(photo, triggerButton = null) {
 }
 
 function openPhoto(photo, initialImageIndex = 0, options = {}) {
+  dialogRestoreScrollY = options.randomMode ? 0 : window.scrollY || window.pageYOffset || 0;
   activeDialogPhoto = photo;
   dialogRandomMode = Boolean(options.randomMode);
   activeSecretDialogItem = null;
@@ -2760,7 +2934,6 @@ function openPhoto(photo, initialImageIndex = 0, options = {}) {
   renderDialogMedia();
   void loadPhotoComments(photo.id);
   if (isMobileViewport()) {
-    dialogRestoreScrollY = window.scrollY || window.pageYOffset || 0;
     els.dialog.classList.add("mobile-page-dialog");
     document.body.classList.add("mobile-dialog-open");
   } else {
@@ -3299,6 +3472,18 @@ function setMobileFeedLayout(layout) {
   renderSettingsSummary();
 }
 
+function changeCacheLimit() {
+  const current = loadCacheLimit();
+  const value = window.prompt(`设置本地缓存上限（${MIN_CACHE_LIMIT}-${MAX_CACHE_LIMIT} 条）`, String(current));
+  if (value === null) return;
+  const limit = saveCacheLimit(value);
+  renderSettingsSummary();
+  void refreshCacheInfo();
+  if (els.settingsCacheStatus) {
+    els.settingsCacheStatus.textContent = `缓存上限已设为 ${limit} 条`;
+  }
+}
+
 function renderSettingsSummary() {
   if (els.settingsHomeNameValue) {
     els.settingsHomeNameValue.textContent =
@@ -3313,6 +3498,9 @@ function renderSettingsSummary() {
   if (els.settingsFeedLayoutValue) {
     els.settingsFeedLayoutValue.textContent =
       loadMobileFeedLayout() === "single" ? "单列" : "双列";
+  }
+  if (els.settingsCacheLimitValue) {
+    els.settingsCacheLimitValue.textContent = `${loadCacheLimit()} 条`;
   }
 }
 
@@ -4617,7 +4805,11 @@ function switchPage(page) {
   if (showWishlist) renderWishes();
   if (showWeekend) renderWeekendPlans();
   if (showThanks) renderGratitudeNotes();
-  if (showSecret) renderSecretGallery();
+  if (showSecret) {
+    if (!secretItems.length && session) renderCachedSecretItems(session.user.id);
+    renderSecretGallery();
+    if (session && cloudDb) void loadSecretItems();
+  }
   if (activePage === "gallery") {
     if (session && !isAdminAccount()) setGlobalStatus("");
     renderFeedRefreshNotice();
@@ -4755,6 +4947,9 @@ async function loadSecretItems() {
     renderSecretGallery();
     return;
   }
+  if (!secretItems.length) {
+    renderCachedSecretItems(session.user.id);
+  }
   try {
     const { data, error } = await cloudDb
       .from("secret_items")
@@ -4763,15 +4958,21 @@ async function loadSecretItems() {
     if (error) throw error;
     secretCloudAvailable = true;
     secretItems = (data || []).map(secretFromCloudRow);
+    saveSecretItemsCache(session.user.id);
     renderSecretGallery();
   } catch (error) {
     secretCloudAvailable = false;
-    secretItems = [];
+    const usedCache = renderCachedSecretItems(session.user.id);
+    if (!usedCache) secretItems = [];
     renderSecretGallery();
     if (isMissingCloudSchema(error)) {
       setSecretStatus("秘藏表尚未初始化，请部署最新版 Cloudflare D1 结构。");
     } else {
-      setSecretStatus(`秘藏同步失败：${error.message || "请稍后重试"}`);
+      setSecretStatus(
+        usedCache
+          ? `秘藏同步失败，先显示上次缓存：${error.message || "请稍后重试"}`
+          : `秘藏同步失败：${error.message || "请稍后重试"}`
+      );
     }
   }
 }
@@ -5216,8 +5417,8 @@ function openSecretItem(item, initialImageIndex = 0) {
   if (!els.dialog.open) els.dialog.showModal();
 }
 
-function toggleSecretImageFullscreen() {
-  if (!activeSecretDialogItem || !els.dialog.classList.contains("secret-image-dialog")) return;
+function toggleDialogImageFullscreen() {
+  if (!dialogImages.length || !els.dialog.open) return;
   els.dialog.classList.toggle("secret-image-fullscreen");
 }
 
@@ -6534,13 +6735,6 @@ function renderWishes() {
               <span class="wish-seq">Wish ${String(index + 1).padStart(2, "0")}</span>
               <span class="wish-state-pill ${wish.done ? "done" : "open"}">${stateText}</span>
             </div>
-            ${canManage ? `<div class="wish-actions">
-              <button type="button" data-edit-wish="${escapeHtml(wish.id)}">编辑</button>
-              <button class="complete" type="button" data-toggle-wish="${escapeHtml(wish.id)}">
-                ${wish.done ? "取消完成" : "写完成感想"}
-              </button>
-              <button class="danger" type="button" data-delete-wish="${escapeHtml(wish.id)}">删除</button>
-            </div>` : ""}
           </div>
           <div class="wish-card-layout">
             ${
@@ -6576,6 +6770,13 @@ function renderWishes() {
               }
             </div>
           </div>
+          ${canManage ? `<div class="wish-actions">
+            <button type="button" data-edit-wish="${escapeHtml(wish.id)}">编辑</button>
+            <button class="complete" type="button" data-toggle-wish="${escapeHtml(wish.id)}">
+              ${wish.done ? "取消完成" : "写完成感想"}
+            </button>
+            <button class="danger" type="button" data-delete-wish="${escapeHtml(wish.id)}">删除</button>
+          </div>` : ""}
         </article>
       `;
     })
@@ -7779,6 +7980,8 @@ function setActiveSettingsSection(sectionId = "settingsGeneral") {
 }
 
 function openSettingsDialog(sectionId = activeSettingsSection || "settingsGeneral") {
+  renderSettingsSummary();
+  void refreshCacheInfo();
   setActiveSettingsSection(sectionId);
   if (!els.settingsDialog.open) els.settingsDialog.showModal();
 }
@@ -7817,6 +8020,7 @@ async function refreshSharedContent() {
     synchronizeWeekendPlans(session.user.id),
     synchronizeAnniversaries(session.user.id),
     loadGratitudeNotes(),
+    loadSecretItems(),
   ]);
   renderRecipes();
   renderWishes();
@@ -8435,6 +8639,13 @@ els.changeAvatarButton.addEventListener("click", () => {
 els.settingsFeedLayoutButton?.addEventListener("click", () => {
   setMobileFeedLayout(loadMobileFeedLayout() === "single" ? "double" : "single");
 });
+els.refreshCacheInfoButton?.addEventListener("click", () => {
+  void refreshCacheInfo();
+});
+els.cacheLimitButton?.addEventListener("click", changeCacheLimit);
+els.clearAppCacheButton?.addEventListener("click", () => {
+  void clearAppCache();
+});
 els.closeAvatarDialog.addEventListener("click", () => els.avatarDialog.close());
 els.avatarDialog.addEventListener("click", (event) => {
   if (event.target === els.avatarDialog) els.avatarDialog.close();
@@ -8561,7 +8772,7 @@ els.dialogSecretLinkButton?.addEventListener("click", openSecretLinkedDiary);
 els.dialogSecretReturnButton?.addEventListener("click", returnToSecretItem);
 els.dialogPrev.addEventListener("click", () => moveDialogImage(-1));
 els.dialogNext.addEventListener("click", () => moveDialogImage(1));
-els.dialogImage.addEventListener("click", toggleSecretImageFullscreen);
+els.dialogImage.addEventListener("click", toggleDialogImageFullscreen);
 els.dialog.addEventListener("pointerdown", beginDialogBackSwipe, true);
 els.dialog.addEventListener("pointerup", finishDialogBackSwipe, true);
 els.dialog.addEventListener("pointercancel", cancelDialogBackSwipe, true);

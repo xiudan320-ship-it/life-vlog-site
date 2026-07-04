@@ -17,7 +17,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="./assets/app-icon-32.png" />
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
     <link rel="stylesheet" href="./styles.css?v=20260610-37" />
-    <link rel="stylesheet" href="./redesign.css?v=20260704-101" />
+    <link rel="stylesheet" href="./redesign.css?v=20260704-102" />
   </head>
   <body>
     <header class="topbar">
@@ -830,6 +830,18 @@
             <span>手机列表布局</span>
             <strong><em id="settingsFeedLayoutValue">双列</em><small>点击切换单列/双列</small></strong>
           </button>
+          <button id="refreshCacheInfoButton" type="button">
+            <span>缓存占用</span>
+            <strong><em id="settingsCacheValue">计算中</em><small>点击刷新缓存大小</small></strong>
+          </button>
+          <button id="cacheLimitButton" type="button">
+            <span>缓存上限</span>
+            <strong><em id="settingsCacheLimitValue">80 条</em><small>日记和秘藏超过上限会自动替换旧缓存</small></strong>
+          </button>
+          <button id="clearAppCacheButton" type="button">
+            <span>清除缓存</span>
+            <strong><em id="settingsCacheStatus">保留账号和设置</em><small>清除日记缓存和离线资源</small></strong>
+          </button>
         </section>
         <section class="settings-group" id="settingsTools" hidden>
           <p class="kicker">Toolbar</p>
@@ -1179,6 +1191,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260704-101"></script>
+    <script type="module" src="./app.js?v=20260704-102"></script>
   </body>
 </html>
