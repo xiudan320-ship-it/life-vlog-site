@@ -13,6 +13,7 @@ const TODAY_POSTS_SEEN_KEY = "life-vlog-today-posts-seen";
 const PHOTO_FEED_CACHE_KEY = "life-vlog-photo-feed-cache";
 const EXPERIENCE_KEY = "life-vlog-experience";
 const THANKS_COLOR_KEY = "life-vlog-thanks-color";
+const MOBILE_FEED_LAYOUT_KEY = "life-vlog-mobile-feed-layout";
 const THANKS_COLORS = new Set(["#2f6b3b", "#d6544d", "#2e6da4", "#81559b", "#a66b12"]);
 const DEFAULT_THANKS_COLOR = "#2f6b3b";
 const DAILY_LOGIN_EXP = 25;
@@ -308,6 +309,8 @@ const els = {
   settingsHomeNameValue: document.querySelector("#settingsHomeNameValue"),
   settingsNicknameValue: document.querySelector("#settingsNicknameValue"),
   settingsAvatarValue: document.querySelector("#settingsAvatarValue"),
+  settingsFeedLayoutButton: document.querySelector("#settingsFeedLayoutButton"),
+  settingsFeedLayoutValue: document.querySelector("#settingsFeedLayoutValue"),
   profileName: document.querySelector("#profileName"),
   xpPanel: document.querySelector("#xpPanel"),
   brandName: document.querySelector("#brandName"),
@@ -950,6 +953,7 @@ function updateAuthUI() {
     persist: false,
     userId: signedIn ? session.user.id : null,
   });
+  applyMobileFeedLayout(loadMobileFeedLayout(signedIn ? session.user.id : "guest"));
   const rechargeTotal = signedIn ? loadRechargeTotal(displayName) : 0;
   activeVipLevel = signedIn ? getVipLevelByRecharge(rechargeTotal)?.level || 0 : 0;
   const vip = signedIn && activeVipLevel > 0;
@@ -3253,6 +3257,31 @@ function renderAccountAvatar(avatarUrl = "", displayName = getSessionDisplayName
   els.avatarInitial.textContent = getInitial(displayName);
 }
 
+function getMobileFeedLayoutKey(userId = session?.user?.id || "guest") {
+  return `${MOBILE_FEED_LAYOUT_KEY}:${userId || "guest"}`;
+}
+
+function loadMobileFeedLayout(userId = session?.user?.id || "guest") {
+  return localStorage.getItem(getMobileFeedLayoutKey(userId)) === "single" ? "single" : "double";
+}
+
+function applyMobileFeedLayout(layout = loadMobileFeedLayout()) {
+  const nextLayout = layout === "single" ? "single" : "double";
+  document.body.classList.toggle("mobile-feed-single", nextLayout === "single");
+  document.body.classList.toggle("mobile-feed-double", nextLayout === "double");
+  if (els.settingsFeedLayoutValue) {
+    els.settingsFeedLayoutValue.textContent = nextLayout === "single" ? "单列" : "双列";
+  }
+  scheduleGalleryMasonryLayout();
+}
+
+function setMobileFeedLayout(layout) {
+  const nextLayout = layout === "single" ? "single" : "double";
+  localStorage.setItem(getMobileFeedLayoutKey(), nextLayout);
+  applyMobileFeedLayout(nextLayout);
+  renderSettingsSummary();
+}
+
 function renderSettingsSummary() {
   if (els.settingsHomeNameValue) {
     els.settingsHomeNameValue.textContent =
@@ -3263,6 +3292,10 @@ function renderSettingsSummary() {
   }
   if (els.settingsAvatarValue) {
     els.settingsAvatarValue.textContent = accountProfile.avatarUrl ? "已设置头像" : "文字头像";
+  }
+  if (els.settingsFeedLayoutValue) {
+    els.settingsFeedLayoutValue.textContent =
+      loadMobileFeedLayout() === "single" ? "单列" : "双列";
   }
 }
 
@@ -8382,6 +8415,9 @@ els.changeAvatarButton.addEventListener("click", () => {
     setAvatarPreview(accountProfile.avatarUrl);
   });
 });
+els.settingsFeedLayoutButton?.addEventListener("click", () => {
+  setMobileFeedLayout(loadMobileFeedLayout() === "single" ? "double" : "single");
+});
 els.closeAvatarDialog.addEventListener("click", () => els.avatarDialog.close());
 els.avatarDialog.addEventListener("click", (event) => {
   if (event.target === els.avatarDialog) els.avatarDialog.close();
@@ -8559,5 +8595,6 @@ registerAppShellWorker();
 updateDiarySearchUi();
 renderFoodWheel();
 initializeFeedObserver();
+applyMobileFeedLayout();
 initializeCloudflare();
 
