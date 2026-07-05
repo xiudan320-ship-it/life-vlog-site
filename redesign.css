@@ -778,8 +778,19 @@ body.theme-dark .thanks-note > p {
 .photo-comments {
   display: grid;
   gap: 14px;
-  border-top: 1px solid var(--line);
-  padding: 22px 24px 26px;
+  position: relative;
+  border-top: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line));
+  padding: 30px 24px 26px;
+}
+
+.photo-comments::before {
+  position: absolute;
+  top: -1px;
+  left: 0;
+  width: min(220px, 44%);
+  height: 1px;
+  background: linear-gradient(90deg, var(--accent), transparent);
+  content: "";
 }
 
 .photo-dialog-backdrop {
@@ -1258,6 +1269,74 @@ body.theme-dark .dialog-random-button {
 .avatar-picker img[hidden],
 .avatar-picker > span[hidden] {
   display: none;
+}
+
+.cache-limit-dialog form {
+  gap: 18px;
+}
+
+.cache-limit-field {
+  display: grid;
+  gap: 8px;
+}
+
+.cache-limit-field span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.cache-limit-field input {
+  width: 100%;
+  min-height: 58px;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 92%, var(--accent) 8%);
+  color: var(--ink);
+  font-size: 28px;
+  font-weight: 950;
+  padding: 0 16px;
+}
+
+.cache-limit-field input:focus {
+  border-color: var(--accent);
+  outline: 3px solid color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.cache-limit-presets {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.cache-limit-presets button {
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 900;
+  padding: 0 10px;
+}
+
+.cache-limit-presets button:hover,
+.cache-limit-presets button:focus-visible {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+}
+
+.cache-limit-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.cache-limit-actions {
+  display: grid;
+  grid-template-columns: 0.7fr 1fr;
+  gap: 10px;
 }
 
 .notification-dialog {
@@ -2116,6 +2195,52 @@ body.theme-dark .wheel-pointer {
   color: var(--accent-strong);
   font-size: 11px;
   font-weight: 800;
+}
+
+.diary-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.diary-card-author {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.diary-card-author::before {
+  width: 3px;
+  height: 3px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 68%, var(--muted));
+  content: "";
+}
+
+.diary-card-author-avatar {
+  display: inline-grid;
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--accent) 36%, var(--line));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  color: var(--accent-strong);
+  font-size: 10px;
+  font-weight: 950;
+}
+
+.diary-card-author-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 h2 {
@@ -6085,6 +6210,14 @@ body.mobile-dialog-open {
 
   .settings-tool-actions button {
     flex: 1 1 0;
+  }
+
+  .cache-limit-presets {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cache-limit-actions {
+    grid-template-columns: 1fr;
   }
 
   .weekend-card {

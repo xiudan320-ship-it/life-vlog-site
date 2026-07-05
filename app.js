@@ -329,6 +329,12 @@ const els = {
   settingsFeedLayoutValue: document.querySelector("#settingsFeedLayoutValue"),
   refreshCacheInfoButton: document.querySelector("#refreshCacheInfoButton"),
   cacheLimitButton: document.querySelector("#cacheLimitButton"),
+  cacheLimitDialog: document.querySelector("#cacheLimitDialog"),
+  closeCacheLimitDialog: document.querySelector("#closeCacheLimitDialog"),
+  cacheLimitForm: document.querySelector("#cacheLimitForm"),
+  cacheLimitInput: document.querySelector("#cacheLimitInput"),
+  cacheLimitStatus: document.querySelector("#cacheLimitStatus"),
+  cancelCacheLimit: document.querySelector("#cancelCacheLimit"),
   clearAppCacheButton: document.querySelector("#clearAppCacheButton"),
   settingsCacheValue: document.querySelector("#settingsCacheValue"),
   settingsCacheLimitValue: document.querySelector("#settingsCacheLimitValue"),
@@ -2276,7 +2282,13 @@ function renderGallery() {
           <div class="photo-open">
             ${renderPhotoMedia(images, displayTitle, index)}
             <button class="photo-copy-open" type="button" data-photo-index="${index}" data-image-index="0">
-              <p class="kicker">${formatDate(photo.taken_at || photo.created_at)}</p>
+              <p class="kicker diary-card-meta">
+                <span>${formatDate(photo.taken_at || photo.created_at)}</span>
+                <span class="diary-card-author">
+                  ${renderAvatarMarkup(photo.user_id, "diary-card-author-avatar")}
+                  <span>${escapeHtml(getAuthorName(photo.user_id))}</span>
+                </span>
+              </p>
               ${titleMarkup}
               ${noteMarkup}
             </button>
@@ -3765,13 +3777,42 @@ function updateSecretToolbarTop() {
 
 function changeCacheLimit() {
   const current = loadCacheLimit();
-  const value = window.prompt(`设置本地缓存上限（${MIN_CACHE_LIMIT}-${MAX_CACHE_LIMIT} 条）`, String(current));
-  if (value === null) return;
-  const limit = saveCacheLimit(value);
+  if (!els.cacheLimitDialog || !els.cacheLimitInput) return;
+  els.cacheLimitInput.min = String(MIN_CACHE_LIMIT);
+  els.cacheLimitInput.max = String(MAX_CACHE_LIMIT);
+  els.cacheLimitInput.value = String(current);
+  if (els.cacheLimitStatus) {
+    els.cacheLimitStatus.textContent = `当前缓存上限：${current} 条`;
+  }
+  openSettingsChildDialog(els.cacheLimitDialog, () => {
+    requestAnimationFrame(() => {
+      els.cacheLimitInput.focus();
+      els.cacheLimitInput.select();
+    });
+  });
+}
+
+function saveCacheLimitFromDialog(event) {
+  event.preventDefault();
+  const limit = saveCacheLimit(els.cacheLimitInput?.value);
   renderSettingsSummary();
   void refreshCacheInfo();
+  if (els.cacheLimitStatus) {
+    els.cacheLimitStatus.textContent = `已保存为 ${limit} 条`;
+  }
   if (els.settingsCacheStatus) {
     els.settingsCacheStatus.textContent = `缓存上限已设为 ${limit} 条`;
+  }
+  window.setTimeout(() => {
+    if (els.cacheLimitDialog?.open) els.cacheLimitDialog.close();
+  }, 420);
+}
+
+function applyCacheLimitPreset(value) {
+  if (!els.cacheLimitInput) return;
+  els.cacheLimitInput.value = String(normalizeCacheLimit(value));
+  if (els.cacheLimitStatus) {
+    els.cacheLimitStatus.textContent = `已选择 ${els.cacheLimitInput.value} 条，点击保存后生效。`;
   }
 }
 
@@ -9070,6 +9111,16 @@ els.refreshCacheInfoButton?.addEventListener("click", () => {
   void refreshCacheInfo();
 });
 els.cacheLimitButton?.addEventListener("click", changeCacheLimit);
+els.closeCacheLimitDialog?.addEventListener("click", () => els.cacheLimitDialog.close());
+els.cancelCacheLimit?.addEventListener("click", () => els.cacheLimitDialog.close());
+els.cacheLimitDialog?.addEventListener("click", (event) => {
+  if (event.target === els.cacheLimitDialog) els.cacheLimitDialog.close();
+});
+els.cacheLimitDialog?.addEventListener("close", reopenSettingsAfterChildDialog);
+els.cacheLimitForm?.addEventListener("submit", saveCacheLimitFromDialog);
+els.cacheLimitDialog?.querySelectorAll("[data-cache-limit-preset]").forEach((button) => {
+  button.addEventListener("click", () => applyCacheLimitPreset(button.dataset.cacheLimitPreset));
+});
 els.clearAppCacheButton?.addEventListener("click", () => {
   void clearAppCache();
 });

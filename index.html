@@ -17,7 +17,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="./assets/app-icon-32.png" />
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
     <link rel="stylesheet" href="./styles.css?v=20260610-37" />
-    <link rel="stylesheet" href="./redesign.css?v=20260705-126" />
+    <link rel="stylesheet" href="./redesign.css?v=20260705-127" />
   </head>
   <body>
     <header class="topbar">
@@ -872,6 +872,33 @@
       </section>
     </dialog>
 
+    <dialog class="account-dialog cache-limit-dialog" id="cacheLimitDialog">
+      <button class="dialog-close" id="closeCacheLimitDialog" type="button" aria-label="关闭">×</button>
+      <form id="cacheLimitForm">
+        <div>
+          <p class="kicker">Local Cache</p>
+          <h2>本地缓存上限</h2>
+          <p>用于控制日记和秘藏在本机保留多少条缓存。超过上限会自动替换更旧的内容，云端数据不会被删除。</p>
+        </div>
+        <label class="cache-limit-field">
+          <span>缓存条数</span>
+          <input id="cacheLimitInput" type="number" min="20" max="300" step="10" inputmode="numeric" required />
+        </label>
+        <div class="cache-limit-presets" aria-label="缓存上限快捷选择">
+          <button type="button" data-cache-limit-preset="40">轻量 40</button>
+          <button type="button" data-cache-limit-preset="80">标准 80</button>
+          <button type="button" data-cache-limit-preset="160">充裕 160</button>
+          <button type="button" data-cache-limit-preset="300">最大 300</button>
+        </div>
+        <p class="cache-limit-hint">可设置范围：20 - 300 条。数值越大，离线打开越快，占用空间也会更高。</p>
+        <p class="status-line" id="cacheLimitStatus"></p>
+        <div class="cache-limit-actions">
+          <button class="ghost-button" id="cancelCacheLimit" type="button">取消</button>
+          <button class="primary" type="submit">保存上限</button>
+        </div>
+      </form>
+    </dialog>
+
     <dialog class="account-dialog" id="renameProfileDialog">
       <button class="dialog-close" id="closeRenameProfile" type="button" aria-label="关闭">×</button>
       <form id="renameProfileForm">
@@ -1191,6 +1218,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260705-126"></script>
+    <script type="module" src="./app.js?v=20260705-127"></script>
   </body>
 </html>
