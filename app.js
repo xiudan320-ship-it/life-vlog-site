@@ -5473,6 +5473,7 @@ function renderSecretAlbumView(item) {
       </div>
     </section>
   `;
+  requestAnimationFrame(updateSecretAlbumHeadSpace);
   els.secretGallery.querySelector("[data-secret-back]")?.addEventListener("click", () => {
     activeSecretAlbumId = "";
     secretSelectionMode = false;
@@ -5550,6 +5551,13 @@ function renderSecretAlbumView(item) {
       openSecretItem(item, index);
     });
   });
+}
+
+function updateSecretAlbumHeadSpace() {
+  const view = els.secretGallery?.querySelector(".secret-album-view");
+  const head = els.secretGallery?.querySelector(".secret-album-head");
+  if (!view || !head) return;
+  view.style.setProperty("--secret-album-head-space", `${Math.ceil(head.offsetHeight + 18)}px`);
 }
 
 function openSecretItem(item, initialImageIndex = 0) {
@@ -9006,6 +9014,7 @@ window.addEventListener("resize", () => {
   window.clearTimeout(updateReadMoreHints.resizeTimer);
   updateReadMoreHints.resizeTimer = window.setTimeout(() => updateReadMoreHints(els.gallery), 120);
   scheduleGalleryMasonryLayout();
+  updateSecretAlbumHeadSpace();
 });
 
 registerAppShellWorker();
