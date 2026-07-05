@@ -823,6 +823,45 @@ body.theme-dark .thanks-note > p {
   max-width: min(980px, calc(100vw - 32px));
 }
 
+#photoDialog:not(.secret-image-dialog):not(.mobile-page-dialog) {
+  --dialog-content-width: min(900px, calc(100vw - 96px));
+  width: min(1040px, calc(100vw - 48px));
+}
+
+#photoDialog:not(.secret-image-dialog):not(.mobile-page-dialog) .dialog-media,
+#photoDialog:not(.secret-image-dialog):not(.mobile-page-dialog) .dialog-thumbs,
+#photoDialog:not(.secret-image-dialog):not(.mobile-page-dialog) > article,
+#photoDialog:not(.secret-image-dialog):not(.mobile-page-dialog) .photo-comments {
+  width: var(--dialog-content-width);
+  max-width: calc(100% - 48px);
+  margin-right: auto;
+  margin-left: auto;
+}
+
+#photoDialog:not(.secret-image-dialog):not(.mobile-page-dialog) .dialog-media {
+  aspect-ratio: auto;
+  max-height: min(72dvh, 720px);
+}
+
+#photoDialog:not(.secret-image-dialog):not(.mobile-page-dialog) .dialog-media img {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: min(72dvh, 720px);
+}
+
+#photoDialog:not(.secret-image-dialog):not(.mobile-page-dialog) > article {
+  box-sizing: border-box;
+  padding-right: 0;
+  padding-left: 0;
+}
+
+#photoDialog:not(.secret-image-dialog):not(.mobile-page-dialog) .photo-comments {
+  box-sizing: border-box;
+  padding-right: 0;
+  padding-left: 0;
+}
+
 #photoDialog.secret-image-dialog {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(160px, 220px);

@@ -2276,7 +2276,7 @@ function renderGallery() {
           <div class="photo-open">
             ${renderPhotoMedia(images, displayTitle, index)}
             <button class="photo-copy-open" type="button" data-photo-index="${index}" data-image-index="0">
-              <p class="kicker">${escapeHtml(photo.category || "日常")} · ${formatDate(photo.taken_at)} · 发布：${formatDateTime(photo.created_at)} · ${escapeHtml(getAuthorName(photo.user_id))}</p>
+              <p class="kicker">${formatDate(photo.taken_at || photo.created_at)}</p>
               ${titleMarkup}
               ${noteMarkup}
             </button>
@@ -3151,7 +3151,7 @@ function openPhoto(photo, initialImageIndex = 0, options = {}) {
     Math.max(0, dialogImages.length - 1)
   );
   els.dialogTitle.textContent = displayTitle || "日记";
-  els.dialogMeta.textContent = `${photo.category || "日常"} · 发布 ${formatDateTime(photo.created_at)} · ${getAuthorName(photo.user_id)}`;
+  els.dialogMeta.textContent = `${photo.category || "日常"} · ${formatDateTime(photo.created_at)} · ${getAuthorName(photo.user_id)}`;
   els.dialogNote.textContent = getPlainNote(photo);
   if (els.dialogRandomButton) {
     els.dialogRandomButton.hidden = !dialogRandomMode;
