@@ -21,20 +21,20 @@ const THANKS_COLORS = new Set(["#2f6b3b", "#d6544d", "#2e6da4", "#81559b", "#a66
 const DEFAULT_THANKS_COLOR = "#2f6b3b";
 const DAILY_LOGIN_EXP = 25;
 const EXPERIENCE_REWARDS = {
-  diary: 60,
-  comment: 15,
-  recipe: 40,
-  recipeEdit: 10,
-  wish: 25,
-  wishEdit: 10,
-  wishDone: 20,
-  weekend: 25,
-  weekendEdit: 10,
-  anniversary: 20,
-  anniversaryEdit: 10,
-  thanks: 15,
-  thanksEdit: 10,
-  diaryEdit: 10,
+  diary: 20,
+  comment: 5,
+  recipe: 14,
+  recipeEdit: 3,
+  wish: 10,
+  wishEdit: 3,
+  wishDone: 8,
+  weekend: 10,
+  weekendEdit: 3,
+  anniversary: 8,
+  anniversaryEdit: 3,
+  thanks: 5,
+  thanksEdit: 3,
+  diaryEdit: 4,
 };
 const VIP_EXP_MULTIPLIERS = [1, 1.05, 1.1, 1.2, 1.35, 1.5];
 const CULTIVATION_REALMS = [
@@ -211,6 +211,7 @@ let secretAppendExpanded = false;
 let diarySearchQuery = "";
 let activeWishView = "open";
 let previewUrls = [];
+let selectedUploadFiles = [];
 let visiblePhotoCount = PAGE_SIZE;
 let filteredPhotoCount = 0;
 let showingCachedFeed = false;
@@ -1879,7 +1880,7 @@ async function uploadPhoto(event) {
     return;
   }
 
-  const files = Array.from(els.photoInput.files || []);
+  const files = selectedUploadFiles.length ? selectedUploadFiles : Array.from(els.photoInput.files || []);
   if (!files.length) {
     setStatus("请选择图片，或把剪贴板里的图片粘贴到上传框。");
     return;
@@ -4783,8 +4784,27 @@ async function restoreDefaultHomeName() {
   }
 }
 
+function initializePhotoDropHint() {
+  const hint = els.photoDrop?.querySelector("span");
+  if (!hint) return;
+  hint.classList.add("upload-pick-button");
+  hint.textContent = "选择图片";
+  hint.setAttribute("role", "button");
+  hint.setAttribute("tabindex", "0");
+  hint.addEventListener("click", (event) => {
+    event.preventDefault();
+    els.photoInput.click();
+  });
+  hint.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    els.photoInput.click();
+  });
+  els.fileName.textContent = "展开后直接粘贴图片，或点上面选择";
+}
+
 function updatePhotoPreview() {
-  const files = Array.from(els.photoInput.files || []);
+  const files = selectedUploadFiles;
   if (!files.length) {
     clearPhotoPreview();
     return;
@@ -4797,7 +4817,8 @@ function updatePhotoPreview() {
   } else {
     setStatus(files.length > 1 ? `将发布为 1 篇合集，共 ${files.length} 张图。` : "");
   }
-  previewUrls = files.slice(0, 9).map((file) => URL.createObjectURL(file));
+  syncPhotoInputFiles();
+  previewUrls = files.map((file) => URL.createObjectURL(file));
   els.photoPreview.src = previewUrls[0];
   els.photoPreview.hidden = false;
   els.fileName.textContent =
@@ -4814,15 +4835,13 @@ function handlePasteUpload(event) {
     if (!files.length) return;
 
     event.preventDefault();
-    const transfer = new DataTransfer();
-    files.forEach((file, index) => {
+    const pastedFiles = files.map((file, index) => {
       const extension = file.type?.split("/")[1] || "png";
-      const pastedFile = new File([file], `pasted-${Date.now()}-${index + 1}.${extension}`, {
+      return new File([file], `pasted-${Date.now()}-${index + 1}.${extension}`, {
         type: file.type || "image/png",
       });
-      transfer.items.add(pastedFile);
     });
-    els.photoInput.files = transfer.files;
+    selectedUploadFiles = [...selectedUploadFiles, ...pastedFiles];
     updatePhotoPreview();
     setStatus(files.length > 1 ? `已读取 ${files.length} 张剪贴板图片。` : "已读取剪贴板图片。");
     return;
@@ -4831,6 +4850,8 @@ function handlePasteUpload(event) {
 
 function clearPhotoPreview() {
   revokePreviewUrls();
+  selectedUploadFiles = [];
+  els.photoInput.value = "";
 
   els.photoPreview.removeAttribute("src");
   els.photoPreview.hidden = true;
@@ -4844,8 +4865,14 @@ function revokePreviewUrls() {
   previewUrls = [];
 }
 
+function syncPhotoInputFiles() {
+  const transfer = new DataTransfer();
+  selectedUploadFiles.forEach((file) => transfer.items.add(file));
+  els.photoInput.files = transfer.files;
+}
+
 function renderPreviewStrip(files, urls) {
-  if (files.length <= 1) {
+  if (!files.length) {
     els.previewStrip.innerHTML = "";
     els.previewStrip.hidden = true;
     return;
@@ -4856,6 +4883,7 @@ function renderPreviewStrip(files, urls) {
       (url, index) => `
         <span class="preview-thumb" data-preview-index="${index}" role="button" tabindex="0" aria-label="预览第 ${index + 1} 张">
           <img src="${url}" alt="" />
+          <button class="preview-remove" type="button" data-remove-preview="${index}" aria-label="删除第 ${index + 1} 张">×</button>
         </span>
       `
     )
@@ -4873,6 +4901,25 @@ function renderPreviewStrip(files, urls) {
       if (event.key === "Enter" || event.key === " ") showPreview(event);
     });
   });
+  els.previewStrip.querySelectorAll("[data-remove-preview]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      removeUploadPreview(Number(button.dataset.removePreview));
+    });
+  });
+}
+
+function removeUploadPreview(index) {
+  if (index < 0 || index >= selectedUploadFiles.length) return;
+  selectedUploadFiles = selectedUploadFiles.filter((_, itemIndex) => itemIndex !== index);
+  if (!selectedUploadFiles.length) {
+    clearPhotoPreview();
+    setStatus("已移除图片。");
+    return;
+  }
+  updatePhotoPreview();
+  setStatus("已移除图片。");
 }
 
 function switchPage(page) {
@@ -4890,10 +4937,7 @@ function switchPage(page) {
   els.secretNav?.classList.toggle("active", showSecret);
   els.composer.hidden = activePage !== "gallery" || !session;
   els.overview.hidden = activePage !== "gallery" || !session;
-  els.foodWheelSection.hidden = activePage !== "gallery";
-  if (activePage !== "gallery" && els.foodWheelDialog.open) {
-    els.foodWheelDialog.close();
-  }
+  els.foodWheelSection.hidden = !session;
   els.galleryHead.hidden = activePage !== "gallery";
   els.feedRefreshNotice.hidden = activePage !== "gallery" || !pendingNewPhotos.length;
   els.todayPostsNotice.hidden = activePage !== "gallery";
@@ -6224,10 +6268,11 @@ function spinFoodWheel() {
 }
 
 function openFoodWheel() {
+  els.foodWheelSection.hidden = false;
+  if (els.dialog?.open) closePhotoDialog();
+  if (els.foodWheelDialog.open) return;
   renderFoodWheel();
-  if (!els.foodWheelDialog.open) {
-    els.foodWheelDialog.showModal();
-  }
+  els.foodWheelDialog.showModal();
 }
 
 function closeFoodWheel() {
@@ -8855,10 +8900,17 @@ document.addEventListener("keydown", (event) => {
     closePhotoDialog();
   }
 });
+initializePhotoDropHint();
 els.uploadForm.addEventListener("submit", uploadPhoto);
 els.photoDrop.addEventListener("paste", handlePasteUpload);
 els.photoInput.addEventListener("change", () => {
+  selectedUploadFiles = Array.from(els.photoInput.files || []);
   updatePhotoPreview();
+});
+document.addEventListener("paste", (event) => {
+  if (!session || els.uploadForm.hidden) return;
+  if (!Array.from(event.clipboardData?.items || []).some((item) => item.type.startsWith("image/"))) return;
+  handlePasteUpload(event);
 });
 els.closeDialog.addEventListener("click", closePhotoDialog);
 els.dialog.addEventListener("click", (event) => {

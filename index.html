@@ -17,7 +17,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="./assets/app-icon-32.png" />
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
     <link rel="stylesheet" href="./styles.css?v=20260610-37" />
-    <link rel="stylesheet" href="./redesign.css?v=20260705-108" />
+    <link rel="stylesheet" href="./redesign.css?v=20260705-109" />
   </head>
   <body>
     <header class="topbar">
@@ -259,13 +259,13 @@
         </div>
 
         <form id="uploadForm" hidden>
-          <label class="file-drop" id="photoDrop" tabindex="0">
+          <div class="file-drop" id="photoDrop" tabindex="0">
             <input id="photoInput" type="file" accept="image/*" multiple />
             <img id="photoPreview" alt="照片预览" hidden />
             <div class="preview-strip" id="previewStrip" hidden></div>
             <span>选择多张照片，或在这里粘贴图片</span>
             <strong id="fileName">还没有选择图片</strong>
-          </label>
+          </div>
           <p class="compression-note">
             图片会在浏览器中自动压缩后上传，原图不会被修改。
           </p>
@@ -1191,6 +1191,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260705-108"></script>
+    <script type="module" src="./app.js?v=20260705-109"></script>
   </body>
 </html>
