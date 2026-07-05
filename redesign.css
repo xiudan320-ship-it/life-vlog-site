@@ -3228,11 +3228,13 @@ body.theme-dark .feed-loader {
 .secret-album-view {
   display: grid;
   grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1fr) 172px;
+  align-items: start;
   gap: 18px;
-  padding-top: 82px;
 }
 
 .secret-album-head {
+  grid-column: 1;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
@@ -3276,6 +3278,7 @@ body.theme-dark .feed-loader {
 }
 
 .secret-linked-button {
+  grid-column: 1;
   width: fit-content;
 }
 
@@ -3359,6 +3362,7 @@ body.theme-dark .feed-loader {
 }
 
 .secret-append-panel {
+  grid-column: 1;
   display: grid;
   grid-template-columns: minmax(420px, 1fr) minmax(190px, 0.28fr);
   align-items: stretch;
@@ -3416,6 +3420,7 @@ body.theme-dark .feed-loader {
 }
 
 .secret-album-edit {
+  grid-column: 1;
   grid-template-columns: minmax(0, 1fr) minmax(140px, 0.45fr);
 }
 
@@ -3443,25 +3448,25 @@ body.theme-dark .feed-loader {
 }
 
 .secret-album-toolbar {
-  position: fixed;
-  top: calc(84px + env(safe-area-inset-top));
-  right: max(clamp(16px, 4vw, 48px), calc((100vw - 1320px) / 2 + clamp(16px, 4vw, 48px)));
-  left: max(clamp(16px, 4vw, 48px), calc((100vw - 1320px) / 2 + clamp(16px, 4vw, 48px)));
+  position: sticky;
+  top: calc(96px + env(safe-area-inset-top));
   z-index: 72;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-column: 2;
+  grid-row: 1 / span 5;
+  grid-template-columns: 1fr;
+  align-self: start;
   background: color-mix(in srgb, var(--surface) 90%, var(--accent) 10%);
   box-shadow: 0 14px 34px rgba(15, 24, 13, 0.16);
   backdrop-filter: blur(16px) saturate(130%);
 }
 
 .secret-album-toolbar > div {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   gap: 8px;
 }
 
 .secret-selection-actions {
-  justify-content: flex-end;
+  justify-content: stretch;
 }
 
 .secret-back-top {
@@ -3501,6 +3506,7 @@ body.theme-dark .secret-album-toolbar {
 }
 
 .secret-album-grid {
+  grid-column: 1;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
@@ -5346,6 +5352,7 @@ body.mobile-dialog-open {
   }
 
   .secret-album-view {
+    grid-template-columns: 1fr;
     padding-top: 0;
     padding-bottom: 0;
   }
