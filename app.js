@@ -208,6 +208,8 @@ let secretSelectionMode = false;
 let selectedSecretImageIndexes = new Set();
 let secretAlbumEditing = false;
 let secretAppendExpanded = false;
+let secretPhotoLongPressTimer = null;
+let secretPhotoLongPressTriggered = false;
 let diarySearchQuery = "";
 let activeWishView = "open";
 let previewUrls = [];
@@ -5408,12 +5410,13 @@ function renderSecretAlbumView(item) {
       <div class="secret-album-toolbar">
         <div>
           <button type="button" data-secret-edit-album>${secretAlbumEditing ? "收起编辑" : "编辑相册"}</button>
-          <button type="button" data-secret-select-mode>${secretSelectionMode ? "完成选择" : "选择图片"}</button>
+          <button type="button" data-secret-select-mode>${secretSelectionMode ? "取消选择" : "选择图片"}</button>
         </div>
         ${
           secretSelectionMode
             ? `
               <div class="secret-selection-actions">
+                <button type="button" data-secret-cancel-selection>取消选择</button>
                 <button type="button" data-secret-select-all>${selectedCount === images.length ? "取消全选" : "全选"}</button>
                 <button type="button" data-secret-move="-1" ${singleSelectedIndex > 0 ? "" : "disabled"}>前移</button>
                 <button type="button" data-secret-move="1" ${singleSelectedIndex >= 0 && singleSelectedIndex < images.length - 1 ? "" : "disabled"}>后移</button>
@@ -5519,6 +5522,11 @@ function renderSecretAlbumView(item) {
     if (!secretSelectionMode) selectedSecretImageIndexes = new Set();
     renderSecretGallery();
   });
+  els.secretGallery.querySelector("[data-secret-cancel-selection]")?.addEventListener("click", () => {
+    secretSelectionMode = false;
+    selectedSecretImageIndexes = new Set();
+    renderSecretGallery();
+  });
   els.secretGallery.querySelector("[data-secret-select-all]")?.addEventListener("click", () => {
     if (!secretSelectionMode) return;
     selectedSecretImageIndexes =
@@ -5539,7 +5547,34 @@ function renderSecretAlbumView(item) {
     button.addEventListener("click", () => moveSelectedSecretImage(item, Number(button.dataset.secretMove) || 0));
   });
   els.secretGallery.querySelectorAll("[data-secret-photo]").forEach((button) => {
+    const clearLongPress = () => {
+      if (!secretPhotoLongPressTimer) return;
+      window.clearTimeout(secretPhotoLongPressTimer);
+      secretPhotoLongPressTimer = null;
+    };
+    button.addEventListener("pointerdown", () => {
+      clearLongPress();
+      secretPhotoLongPressTriggered = false;
+      const index = Number(button.dataset.secretPhoto) || 0;
+      secretPhotoLongPressTimer = window.setTimeout(() => {
+        secretPhotoLongPressTriggered = true;
+        secretPhotoLongPressTimer = null;
+        secretSelectionMode = true;
+        selectedSecretImageIndexes = new Set([index]);
+        renderSecretGallery();
+      }, 450);
+    });
+    button.addEventListener("pointerup", clearLongPress);
+    button.addEventListener("pointercancel", clearLongPress);
+    button.addEventListener("pointerleave", clearLongPress);
+    button.addEventListener("contextmenu", (event) => {
+      if (secretSelectionMode || secretPhotoLongPressTriggered) event.preventDefault();
+    });
     button.addEventListener("click", () => {
+      if (secretPhotoLongPressTriggered) {
+        secretPhotoLongPressTriggered = false;
+        return;
+      }
       const index = Number(button.dataset.secretPhoto) || 0;
       if (secretSelectionMode) {
         if (selectedSecretImageIndexes.has(index)) selectedSecretImageIndexes.delete(index);

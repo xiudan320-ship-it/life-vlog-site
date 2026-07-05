@@ -3507,6 +3507,8 @@ body.theme-dark .secret-album-toolbar {
   border-radius: 8px;
   background: #10140f;
   padding: 0;
+  -webkit-touch-callout: none;
+  user-select: none;
 }
 
 .secret-album-photo span {
