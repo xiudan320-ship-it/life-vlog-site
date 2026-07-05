@@ -5391,7 +5391,7 @@ function renderSecretAlbumView(item) {
   const selectedCount = validSelectedIndexes.length;
   const singleSelectedIndex = selectedCount === 1 ? validSelectedIndexes[0] : -1;
   els.secretGallery.innerHTML = `
-    <section class="secret-album-view">
+    <section class="secret-album-view ${secretSelectionMode ? "selection-active" : ""}">
       <header class="secret-album-head">
         <div>
           <p class="kicker">${escapeHtml(item.category || "未分类")}</p>
@@ -5416,7 +5416,6 @@ function renderSecretAlbumView(item) {
           secretSelectionMode
             ? `
               <div class="secret-selection-actions">
-                <button type="button" data-secret-cancel-selection>取消选择</button>
                 <button type="button" data-secret-select-all>${selectedCount === images.length ? "取消全选" : "全选"}</button>
                 <button type="button" data-secret-move="-1" ${singleSelectedIndex > 0 ? "" : "disabled"}>前移</button>
                 <button type="button" data-secret-move="1" ${singleSelectedIndex >= 0 && singleSelectedIndex < images.length - 1 ? "" : "disabled"}>后移</button>
@@ -5520,11 +5519,6 @@ function renderSecretAlbumView(item) {
   els.secretGallery.querySelector("[data-secret-select-mode]")?.addEventListener("click", () => {
     secretSelectionMode = !secretSelectionMode;
     if (!secretSelectionMode) selectedSecretImageIndexes = new Set();
-    renderSecretGallery();
-  });
-  els.secretGallery.querySelector("[data-secret-cancel-selection]")?.addEventListener("click", () => {
-    secretSelectionMode = false;
-    selectedSecretImageIndexes = new Set();
     renderSecretGallery();
   });
   els.secretGallery.querySelector("[data-secret-select-all]")?.addEventListener("click", () => {
