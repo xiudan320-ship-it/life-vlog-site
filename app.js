@@ -5458,6 +5458,7 @@ function renderSecretAlbumView(item) {
             : ""
         }
       </div>
+      <button class="secret-back-top" type="button" data-secret-back-top aria-label="回到秘藏相册顶部">↑</button>
       <div class="secret-album-grid">
         ${images
           .map(
@@ -5528,6 +5529,12 @@ function renderSecretAlbumView(item) {
   });
   els.secretGallery.querySelector("[data-secret-delete-selected]")?.addEventListener("click", () => deleteSelectedSecretImages(item));
   els.secretGallery.querySelector("[data-secret-set-cover]")?.addEventListener("click", () => setSelectedSecretCover(item));
+  els.secretGallery.querySelector("[data-secret-back-top]")?.addEventListener("click", () => {
+    els.secretGallery.querySelector(".secret-album-head")?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  });
   els.secretGallery.querySelectorAll("[data-secret-move]").forEach((button) => {
     button.addEventListener("click", () => moveSelectedSecretImage(item, Number(button.dataset.secretMove) || 0));
   });
