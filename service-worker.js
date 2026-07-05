@@ -1,10 +1,10 @@
-const CACHE_NAME = "life-vlog-site-20260705-111-pwa";
+﻿const CACHE_NAME = "life-vlog-site-20260705-112-pwa";
 const CORE_ASSETS = [
   "./",
   "./index.html",
   "./styles.css?v=20260610-37",
-  "./redesign.css?v=20260705-111",
-  "./app.js?v=20260705-111",
+  "./redesign.css?v=20260705-112",
+  "./app.js?v=20260705-112",
   "./manifest.webmanifest",
   "./assets/food-wheel-icon.png",
   "./assets/app-icon-192.png",
@@ -68,3 +68,4 @@ self.addEventListener("fetch", (event) => {
     })
   );
 });
+

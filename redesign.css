@@ -3413,6 +3413,11 @@ body.theme-dark .feed-loader {
   padding: 12px;
 }
 
+.secret-album-head .secret-album-toolbar {
+  grid-column: 1 / -1;
+  margin-top: -2px;
+}
+
 .secret-album-edit {
   grid-template-columns: minmax(0, 1fr) minmax(140px, 0.45fr);
 }
@@ -3441,13 +3446,8 @@ body.theme-dark .feed-loader {
 }
 
 .secret-album-toolbar {
-  position: sticky;
-  top: calc(178px + env(safe-area-inset-top));
-  z-index: 7;
   grid-template-columns: minmax(0, 1fr) auto;
-  background: color-mix(in srgb, var(--surface) 94%, transparent);
-  box-shadow: 0 14px 36px rgba(15, 24, 13, 0.12);
-  backdrop-filter: blur(16px) saturate(130%);
+  background: color-mix(in srgb, var(--surface) 90%, var(--accent) 10%);
 }
 
 .secret-album-toolbar > div {
@@ -3483,7 +3483,7 @@ body.theme-dark .feed-loader {
 }
 
 body.theme-dark .secret-album-toolbar {
-  background: color-mix(in srgb, var(--surface) 90%, #0d100f 10%);
+  background: color-mix(in srgb, var(--surface) 88%, var(--accent) 12%);
 }
 
 .secret-append-actions button {
@@ -5273,9 +5273,8 @@ body.mobile-dialog-open {
   }
 
   .secret-album-toolbar {
-    top: calc(150px + env(safe-area-inset-top));
-    max-height: 36dvh;
-    overflow: auto;
+    max-height: none;
+    overflow: visible;
   }
 
   .secret-selection-actions {

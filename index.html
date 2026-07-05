@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
@@ -6,9 +6,9 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
     />
-    <title>咻蛋之家</title>
-    <meta name="application-name" content="咻蛋之家" />
-    <meta name="apple-mobile-web-app-title" content="咻蛋之家" />
+    <title>鍜昏泲涔嬪</title>
+    <meta name="application-name" content="鍜昏泲涔嬪" />
+    <meta name="apple-mobile-web-app-title" content="鍜昏泲涔嬪" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="theme-color" content="#5b9834" />
@@ -17,62 +17,62 @@
     <link rel="icon" type="image/png" sizes="32x32" href="./assets/app-icon-32.png" />
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
     <link rel="stylesheet" href="./styles.css?v=20260610-37" />
-    <link rel="stylesheet" href="./redesign.css?v=20260705-111" />
+    <link rel="stylesheet" href="./redesign.css?v=20260705-112" />
   </head>
   <body>
     <header class="topbar">
-      <a class="brand" href="#gallery" aria-label="回到日记">
+      <a class="brand" href="#gallery" aria-label="鍥炲埌鏃ヨ">
         <span class="brand-logo-wrap">
           <img class="brand-logo" src="./assets/home-logo.jpg" alt="" />
         </span>
         <span>
-          <strong id="brandName">咻蛋之家</strong>
+          <strong id="brandName">鍜昏泲涔嬪</strong>
           <small>Life Archive</small>
         </span>
       </a>
-      <nav class="main-nav" aria-label="页面切换">
-        <button class="active" id="galleryNav" type="button">日记</button>
-        <button id="wishlistNav" type="button">心愿</button>
-        <button id="weekendNav" type="button">周末</button>
-        <button id="thanksNav" type="button">留言</button>
+      <nav class="main-nav" aria-label="椤甸潰鍒囨崲">
+        <button class="active" id="galleryNav" type="button">鏃ヨ</button>
+        <button id="wishlistNav" type="button">蹇冩効</button>
+        <button id="weekendNav" type="button">鍛ㄦ湯</button>
+        <button id="thanksNav" type="button">鐣欒█</button>
       </nav>
       <div class="top-actions">
-        <button class="icon-button" id="themeToggle" type="button" title="切换日夜模式">
-          <span aria-hidden="true">◐</span>
+        <button class="icon-button" id="themeToggle" type="button" title="鍒囨崲鏃ュ妯″紡">
+          <span aria-hidden="true">鈼?/span>
         </button>
-        <button class="icon-button" id="setupToggle" type="button" title="设置">
-          <span aria-hidden="true">⚙</span>
+        <button class="icon-button" id="setupToggle" type="button" title="璁剧疆">
+          <span aria-hidden="true">鈿?/span>
         </button>
-        <button class="icon-button notification-button" id="notificationButton" type="button" title="互动通知" hidden>
-          <span aria-hidden="true">♢</span>
+        <button class="icon-button notification-button" id="notificationButton" type="button" title="浜掑姩閫氱煡" hidden>
+          <span aria-hidden="true">鈾?/span>
           <strong id="notificationBadge" hidden>0</strong>
         </button>
         <div class="user-menu" id="userMenu" hidden>
           <button class="vip-badge" id="vipBadge" type="button" hidden>VIP</button>
-          <button class="avatar-button" id="avatarButton" type="button" title="账号">
-            <img id="avatarImage" alt="我的头像" hidden />
+          <button class="avatar-button" id="avatarButton" type="button" title="璐﹀彿">
+            <img id="avatarImage" alt="鎴戠殑澶村儚" hidden />
             <span id="avatarInitial">U</span>
           </button>
           <div class="user-popover" id="userPopover" hidden>
-            <p class="user-label">已登录</p>
+            <p class="user-label">宸茬櫥褰?/p>
             <strong id="profileName">User</strong>
             <button class="xp-panel" id="xpPanel" type="button">
               <div class="xp-head">
-                <span id="xpLevel">炼气期 · 一层</span>
+                <span id="xpLevel">鐐兼皵鏈?路 涓€灞?/span>
                 <strong id="xpText">0 / 1500 EXP</strong>
               </div>
               <div class="xp-track" aria-hidden="true">
                 <span id="xpBar"></span>
               </div>
-              <p id="xpHint">今日登录经验已领取</p>
+              <p id="xpHint">浠婃棩鐧诲綍缁忛獙宸查鍙?/p>
             </button>
             <button class="vip-popover-badge" id="vipPopoverBadge" type="button" hidden>
-              咻蛋之家 VIP
+              鍜昏泲涔嬪 VIP
             </button>
             <button class="rename-home-button" id="accountSettingsButton" type="button">
-              设置
+              璁剧疆
             </button>
-            <button id="logoutButton" type="button">退出登录</button>
+            <button id="logoutButton" type="button">閫€鍑虹櫥褰?/button>
           </div>
         </div>
       </div>
@@ -83,16 +83,16 @@
         <img
           class="hero-cover"
           src="./assets/black-cat-cover.jpg"
-          alt="绿色花园里舒展身体的黑猫插画"
+          alt="缁胯壊鑺卞洯閲岃垝灞曡韩浣撶殑榛戠尗鎻掔敾"
         />
         <div class="hero-copy">
           <p class="kicker">Life, collected carefully</p>
-          <h1 id="heroHomeName">咻蛋之家</h1>
-          <p>收藏生活里值得回看的照片、味道和还没完成的小愿望。</p>
+          <h1 id="heroHomeName">鍜昏泲涔嬪</h1>
+          <p>鏀惰棌鐢熸椿閲屽€煎緱鍥炵湅鐨勭収鐗囥€佸懗閬撳拰杩樻病瀹屾垚鐨勫皬鎰挎湜銆?/p>
         </div>
       </section>
 
-      <section class="tool-dock" id="toolDock" aria-label="生活小工具">
+      <section class="tool-dock" id="toolDock" aria-label="鐢熸椿灏忓伐鍏?>
         <button
           class="tool-dock-button food-wheel-launch"
           id="foodWheelOpen"
@@ -103,8 +103,8 @@
         >
           <span class="food-wheel-launch-mark" aria-hidden="true"></span>
           <span>
-            <strong>今日吃什么</strong>
-            <small id="foodWheelPeek">打开转盘</small>
+            <strong>浠婃棩鍚冧粈涔?/strong>
+            <small id="foodWheelPeek">鎵撳紑杞洏</small>
           </span>
         </button>
         <button
@@ -120,29 +120,29 @@
             <img src="./assets/anniversary-icon.jpg" alt="" />
           </span>
           <span>
-            <strong>时间纪念册</strong>
-            <small id="anniversaryPeek">设置重要日子</small>
+            <strong>鏃堕棿绾康鍐?/strong>
+            <small id="anniversaryPeek">璁剧疆閲嶈鏃ュ瓙</small>
           </span>
         </button>
         <button class="tool-dock-button memory-button" id="memoryButton" type="button" data-tool-id="memory" hidden>
-          <span class="tool-dock-mark" aria-hidden="true">↻</span>
+          <span class="tool-dock-mark" aria-hidden="true">鈫?/span>
           <span>
-            <strong>随机回忆</strong>
-            <small>抽一篇家庭日记</small>
+            <strong>闅忔満鍥炲繂</strong>
+            <small>鎶戒竴绡囧搴棩璁?/small>
           </span>
         </button>
         <button class="tool-dock-button secret-button" id="secretOpen" type="button" data-tool-id="secret" hidden>
-          <span class="tool-dock-mark secret-mark" aria-hidden="true">✦</span>
+          <span class="tool-dock-mark secret-mark" aria-hidden="true">鉁?/span>
           <span>
-            <strong>秘藏</strong>
-            <small>进入里世界展览</small>
+            <strong>绉樿棌</strong>
+            <small>杩涘叆閲屼笘鐣屽睍瑙?/small>
           </span>
         </button>
         <button class="tool-dock-button recipe-tool-button" id="recipeOpen" type="button" data-tool-id="recipe" hidden>
-          <span class="tool-dock-mark recipe-mark" aria-hidden="true">味</span>
+          <span class="tool-dock-mark recipe-mark" aria-hidden="true">鍛?/span>
           <span>
-            <strong>菜谱本</strong>
-            <small>记录自己的味道</small>
+            <strong>鑿滆氨鏈?/strong>
+            <small>璁板綍鑷繁鐨勫懗閬?/small>
           </span>
         </button>
       </section>
@@ -152,18 +152,18 @@
           <div class="food-wheel-dialog-head">
             <div>
               <p class="kicker">Dinner Roulette</p>
-              <h2>今日吃什么</h2>
+              <h2>浠婃棩鍚冧粈涔?/h2>
             </div>
-            <button class="food-wheel-close" id="foodWheelClose" type="button" aria-label="关闭">
-              ×
+            <button class="food-wheel-close" id="foodWheelClose" type="button" aria-label="鍏抽棴">
+              脳
             </button>
           </div>
           <div class="food-wheel-dialog-grid">
             <div class="food-wheel-copy">
-              <p>把选择困难交给转盘。你的菜谱会自动加入候选，也可以临时添加今天想吃的。</p>
+              <p>鎶婇€夋嫨鍥伴毦浜ょ粰杞洏銆備綘鐨勮彍璋变細鑷姩鍔犲叆鍊欓€夛紝涔熷彲浠ヤ复鏃舵坊鍔犱粖澶╂兂鍚冪殑銆?/p>
               <div class="food-option-row">
-                <input id="foodOptionInput" maxlength="20" placeholder="加一个候选，比如寿喜烧" />
-                <button id="addFoodOption" type="button">加入转盘</button>
+                <input id="foodOptionInput" maxlength="20" placeholder="鍔犱竴涓€欓€夛紝姣斿瀵垮枩鐑? />
+                <button id="addFoodOption" type="button">鍔犲叆杞洏</button>
               </div>
               <div class="food-options" id="foodOptions"></div>
             </div>
@@ -171,11 +171,11 @@
               <div class="wheel-disc">
                 <span class="wheel-pointer" aria-hidden="true"></span>
                 <div class="wheel-viewport">
-                  <canvas id="foodWheel" width="640" height="640" aria-label="今日吃什么转盘"></canvas>
+                  <canvas id="foodWheel" width="640" height="640" aria-label="浠婃棩鍚冧粈涔堣浆鐩?></canvas>
                 </div>
-                <button class="spin-button" id="spinFoodWheel" type="button">开始转</button>
+                <button class="spin-button" id="spinFoodWheel" type="button">寮€濮嬭浆</button>
               </div>
-              <p class="wheel-result" id="foodWheelResult">今天吃点什么？</p>
+              <p class="wheel-result" id="foodWheelResult">浠婂ぉ鍚冪偣浠€涔堬紵</p>
             </div>
           </div>
         </dialog>
@@ -188,72 +188,72 @@
         <div class="overview-head">
           <div>
             <p class="kicker">Today</p>
-            <h2>今日概览</h2>
+            <h2>浠婃棩姒傝</h2>
           </div>
         </div>
         <div class="overview-grid">
           <article>
-            <span>日记记录</span>
+            <span>鏃ヨ璁板綍</span>
             <strong id="overviewPhotos">0</strong>
-            <small>篇影像笔记</small>
+            <small>绡囧奖鍍忕瑪璁?/small>
           </article>
           <article>
-            <span>私人菜谱</span>
+            <span>绉佷汉鑿滆氨</span>
             <strong id="overviewRecipes">0</strong>
-            <small>道收藏味道</small>
+            <small>閬撴敹钘忓懗閬?/small>
           </article>
           <article>
-            <span>待实现</span>
+            <span>寰呭疄鐜?/span>
             <strong id="overviewWishes">0</strong>
-            <small>个未完成心愿</small>
+            <small>涓湭瀹屾垚蹇冩効</small>
           </article>
           <button class="overview-level" id="overviewLevelButton" type="button">
-            <span>成长等级</span>
-            <strong id="overviewLevel">炼气期 · 一层</strong>
+            <span>鎴愰暱绛夌骇</span>
+            <strong id="overviewLevel">鐐兼皵鏈?路 涓€灞?/strong>
             <div class="overview-progress" aria-hidden="true"><span id="overviewProgress"></span></div>
           </button>
         </div>
         <div class="quick-actions">
-          <button id="quickPhoto" type="button"><span>01</span>发布日记</button>
-          <button id="quickRecipe" type="button"><span>02</span>添加菜谱</button>
-          <button id="quickWish" type="button"><span>03</span>写下心愿</button>
-          <button id="quickWeekend" type="button"><span>04</span>安排周末</button>
+          <button id="quickPhoto" type="button"><span>01</span>鍙戝竷鏃ヨ</button>
+          <button id="quickRecipe" type="button"><span>02</span>娣诲姞鑿滆氨</button>
+          <button id="quickWish" type="button"><span>03</span>鍐欎笅蹇冩効</button>
+          <button id="quickWeekend" type="button"><span>04</span>瀹夋帓鍛ㄦ湯</button>
         </div>
       </section>
 
       <section class="setup-panel" id="setupPanel" hidden>
-        <h2>Cloudflare 已连接</h2>
-        <p>登录、数据库和图片存储现在都由 Cloudflare Worker、D1 和 R2 处理。</p>
+        <h2>Cloudflare 宸茶繛鎺?/h2>
+        <p>鐧诲綍銆佹暟鎹簱鍜屽浘鐗囧瓨鍌ㄧ幇鍦ㄩ兘鐢?Cloudflare Worker銆丏1 鍜?R2 澶勭悊銆?/p>
         <label>
           Worker URL
           <input id="cloudflareEndpoint" placeholder="https://life-vlog-r2-upload.xiudan320-life.workers.dev" />
         </label>
-        <button id="saveConfig" type="button">确认</button>
+        <button id="saveConfig" type="button">纭</button>
       </section>
 
       <section class="auth-card" id="authCard">
         <div>
           <p class="kicker">Account</p>
-          <h2>进入你的日记本</h2>
+          <h2>杩涘叆浣犵殑鏃ヨ鏈?/h2>
         </div>
         <div class="auth-row">
-          <input id="usernameInput" type="text" placeholder="用户名" autocomplete="username" />
-          <input id="passwordInput" type="password" placeholder="密码" />
-          <input id="inviteCodeInput" type="text" placeholder="邀请码（注册时填写）" autocomplete="off" />
-          <button id="loginButton" type="button">登录</button>
-          <button id="signupButton" type="button">注册</button>
+          <input id="usernameInput" type="text" placeholder="鐢ㄦ埛鍚? autocomplete="username" />
+          <input id="passwordInput" type="password" placeholder="瀵嗙爜" />
+          <input id="inviteCodeInput" type="text" placeholder="閭€璇风爜锛堟敞鍐屾椂濉啓锛? autocomplete="off" />
+          <button id="loginButton" type="button">鐧诲綍</button>
+          <button id="signupButton" type="button">娉ㄥ唽</button>
           <button class="forgot-password-button" id="forgotPasswordButton" type="button">
-            忘记密码
+            蹇樿瀵嗙爜
           </button>
         </div>
-        <p class="hint" id="authHint">输入用户名和密码登录。注册需要邀请码。</p>
+        <p class="hint" id="authHint">杈撳叆鐢ㄦ埛鍚嶅拰瀵嗙爜鐧诲綍銆傛敞鍐岄渶瑕侀個璇风爜銆?/p>
       </section>
 
       <section class="composer" id="composer" hidden>
         <div class="section-title">
           <button class="section-heading-button" id="uploadToggle" type="button" aria-expanded="false">
             <p class="kicker">Upload</p>
-            <h2>发布新日记</h2>
+            <h2>鍙戝竷鏂版棩璁?/h2>
           </button>
           <span id="uploadStatus"></span>
         </div>
@@ -261,57 +261,56 @@
         <form id="uploadForm" hidden>
           <div class="file-drop" id="photoDrop" tabindex="0">
             <input id="photoInput" type="file" accept="image/*" multiple />
-            <img id="photoPreview" alt="照片预览" hidden />
+            <img id="photoPreview" alt="鐓х墖棰勮" hidden />
             <div class="preview-strip" id="previewStrip" hidden></div>
-            <span>选择多张照片，或在这里粘贴图片</span>
-            <strong id="fileName">还没有选择图片</strong>
+            <span>閫夋嫨澶氬紶鐓х墖锛屾垨鍦ㄨ繖閲岀矘璐村浘鐗?/span>
+            <strong id="fileName">杩樻病鏈夐€夋嫨鍥剧墖</strong>
           </div>
           <p class="compression-note">
-            图片会在浏览器中自动压缩后上传，原图不会被修改。
-          </p>
+            鍥剧墖浼氬湪娴忚鍣ㄤ腑鑷姩鍘嬬缉鍚庝笂浼狅紝鍘熷浘涓嶄細琚慨鏀广€?          </p>
 
           <div class="form-grid">
             <label>
-              标题
+              鏍囬
               <input id="titleInput" maxlength="80" />
             </label>
             <label>
-              日期
+              鏃ユ湡
               <input id="dateInput" type="date" required />
             </label>
             <label>
-              分类
+              鍒嗙被
               <select id="categoryInput">
-                <option>日常</option>
-                <option>旅行</option>
-                <option>食物</option>
-                <option>卢浮宫</option>
-                <option>城市</option>
-                <option>家</option>
+                <option>鏃ュ父</option>
+                <option>鏃呰</option>
+                <option>椋熺墿</option>
+                <option>鍗㈡诞瀹?/option>
+                <option>鍩庡競</option>
+                <option>瀹?/option>
               </select>
             </label>
             <label>
-              是否公开
+              鏄惁鍏紑
               <select id="publicInput">
-                <option value="true">公开展示</option>
-                <option value="false">只保存在库里</option>
+                <option value="true">鍏紑灞曠ず</option>
+                <option value="false">鍙繚瀛樺湪搴撻噷</option>
               </select>
             </label>
           </div>
 
           <label>
-            文字记录
+            鏂囧瓧璁板綍
             <textarea id="noteInput" rows="4"></textarea>
           </label>
 
-          <button class="primary" type="submit">上传并发布</button>
+          <button class="primary" type="submit">涓婁紶骞跺彂甯?/button>
         </form>
       </section>
 
       <section class="feed-head" id="galleryHead">
         <div>
           <p class="kicker">Gallery</p>
-          <h2>时计流</h2>
+          <h2>鏃惰娴?/h2>
         </div>
         <p class="status-line" id="globalStatus"></p>
       </section>
@@ -319,21 +318,21 @@
       <section class="today-posts-notice" id="feedRefreshNotice" hidden></section>
       <section class="today-posts-notice" id="todayPostsNotice" hidden></section>
 
-      <section class="filters" id="galleryFilters" aria-label="日记筛选">
+      <section class="filters" id="galleryFilters" aria-label="鏃ヨ绛涢€?>
         <label class="diary-search" for="diarySearchInput">
-          <span>搜索日记</span>
-          <input id="diarySearchInput" type="search" placeholder="日期、标题、正文、分类" autocomplete="off" />
-          <button id="clearDiarySearch" type="button" aria-label="清空搜索" hidden>清空</button>
+          <span>鎼滅储鏃ヨ</span>
+          <input id="diarySearchInput" type="search" placeholder="鏃ユ湡銆佹爣棰樸€佹鏂囥€佸垎绫? autocomplete="off" />
+          <button id="clearDiarySearch" type="button" aria-label="娓呯┖鎼滅储" hidden>娓呯┖</button>
         </label>
-        <div class="filter-chip-row" aria-label="日记分类">
-          <button class="chip active" data-filter="全部" type="button">全部</button>
-          <button class="chip feature-chip" data-filter="featured7" type="button">七日精选</button>
-          <button class="chip favorite-chip" data-filter="favorites" type="button">我的收藏</button>
-          <button class="chip" data-filter="日常" type="button">日常</button>
-          <button class="chip" data-filter="旅行" type="button">旅行</button>
-          <button class="chip" data-filter="食物" type="button">食物</button>
-          <button class="chip" data-filter="卢浮宫" type="button">卢浮宫</button>
-          <button class="chip" data-filter="城市" type="button">城市</button>
+        <div class="filter-chip-row" aria-label="鏃ヨ鍒嗙被">
+          <button class="chip active" data-filter="鍏ㄩ儴" type="button">鍏ㄩ儴</button>
+          <button class="chip feature-chip" data-filter="featured7" type="button">涓冩棩绮鹃€?/button>
+          <button class="chip favorite-chip" data-filter="favorites" type="button">鎴戠殑鏀惰棌</button>
+          <button class="chip" data-filter="鏃ュ父" type="button">鏃ュ父</button>
+          <button class="chip" data-filter="鏃呰" type="button">鏃呰</button>
+          <button class="chip" data-filter="椋熺墿" type="button">椋熺墿</button>
+          <button class="chip" data-filter="鍗㈡诞瀹? type="button">鍗㈡诞瀹?/button>
+          <button class="chip" data-filter="鍩庡競" type="button">鍩庡競</button>
         </div>
       </section>
 
@@ -341,14 +340,14 @@
 
       <div class="feed-loader" id="feedLoader" aria-live="polite" hidden>
         <span class="feed-loader-mark" aria-hidden="true"></span>
-        <span id="feedLoaderText">继续下滑加载</span>
+        <span id="feedLoaderText">缁х画涓嬫粦鍔犺浇</span>
       </div>
 
       <section class="recipes-page" id="recipesPage" hidden>
         <div class="feed-head">
           <div>
             <p class="kicker">Cookbook</p>
-            <h2>我的菜谱</h2>
+            <h2>鎴戠殑鑿滆氨</h2>
           </div>
           <p class="status-line" id="recipeStatus"></p>
         </div>
@@ -357,77 +356,77 @@
           <div class="section-title">
             <button class="section-heading-button" id="recipeToggle" type="button" aria-expanded="false">
               <p class="kicker">New Recipe</p>
-              <h2 id="recipeFormTitle">添加菜谱</h2>
+              <h2 id="recipeFormTitle">娣诲姞鑿滆氨</h2>
             </button>
           </div>
 
           <form class="recipe-form" id="recipeForm" hidden>
             <label class="recipe-cover-drop" id="recipeCoverDrop" tabindex="0">
               <input id="recipeCoverInput" type="file" accept="image/*" />
-              <img id="recipeCoverPreview" alt="菜谱封面预览" hidden />
-              <span>上传封面</span>
-              <strong id="recipeCoverName">还没有选择封面</strong>
+              <img id="recipeCoverPreview" alt="鑿滆氨灏侀潰棰勮" hidden />
+              <span>涓婁紶灏侀潰</span>
+              <strong id="recipeCoverName">杩樻病鏈夐€夋嫨灏侀潰</strong>
             </label>
 
             <div class="form-grid">
               <label>
-                菜名
+                鑿滃悕
                 <input id="recipeNameInput" maxlength="80" required />
               </label>
               <label>
-                分类
+                鍒嗙被
                 <select id="recipeCategoryInput">
-                  <option>家常菜</option>
-                  <option>甜品</option>
-                  <option>早餐</option>
-                  <option>汤</option>
-                  <option>便当</option>
-                  <option>饮品</option>
+                  <option>瀹跺父鑿?/option>
+                  <option>鐢滃搧</option>
+                  <option>鏃╅</option>
+                  <option>姹?/option>
+                  <option>渚垮綋</option>
+                  <option>楗搧</option>
                 </select>
               </label>
               <label>
-                用时
-                <input id="recipeTimeInput" maxlength="30" placeholder="比如 30 分钟" />
+                鐢ㄦ椂
+                <input id="recipeTimeInput" maxlength="30" placeholder="姣斿 30 鍒嗛挓" />
               </label>
               <label>
-                份量
-                <input id="recipeServingsInput" maxlength="30" placeholder="比如 2 人份" />
+                浠介噺
+                <input id="recipeServingsInput" maxlength="30" placeholder="姣斿 2 浜轰唤" />
               </label>
             </div>
 
             <fieldset class="seasoning-panel">
-              <legend>调味料</legend>
-              <label><input type="checkbox" name="recipeSeasoning" value="盐" /> 盐</label>
-              <label><input type="checkbox" name="recipeSeasoning" value="糖" /> 糖</label>
-              <label><input type="checkbox" name="recipeSeasoning" value="生抽" /> 生抽</label>
-              <label><input type="checkbox" name="recipeSeasoning" value="老抽" /> 老抽</label>
-              <label><input type="checkbox" name="recipeSeasoning" value="蚝油" /> 蚝油</label>
-              <label><input type="checkbox" name="recipeSeasoning" value="料酒" /> 料酒</label>
-              <label><input type="checkbox" name="recipeSeasoning" value="醋" /> 醋</label>
-              <label><input type="checkbox" name="recipeSeasoning" value="胡椒" /> 胡椒</label>
-              <label><input type="checkbox" name="recipeSeasoning" value="辣椒" /> 辣椒</label>
-              <label><input type="checkbox" name="recipeSeasoning" value="葱" /> 葱</label>
-              <label><input type="checkbox" name="recipeSeasoning" value="姜" /> 姜</label>
-              <label><input type="checkbox" name="recipeSeasoning" value="蒜" /> 蒜</label>
-              <label><input type="checkbox" name="recipeSeasoning" value="香油" /> 香油</label>
-              <label><input type="checkbox" name="recipeSeasoning" value="淀粉" /> 淀粉</label>
+              <legend>璋冨懗鏂?/legend>
+              <label><input type="checkbox" name="recipeSeasoning" value="鐩? /> 鐩?/label>
+              <label><input type="checkbox" name="recipeSeasoning" value="绯? /> 绯?/label>
+              <label><input type="checkbox" name="recipeSeasoning" value="鐢熸娊" /> 鐢熸娊</label>
+              <label><input type="checkbox" name="recipeSeasoning" value="鑰佹娊" /> 鑰佹娊</label>
+              <label><input type="checkbox" name="recipeSeasoning" value="铓濇补" /> 铓濇补</label>
+              <label><input type="checkbox" name="recipeSeasoning" value="鏂欓厭" /> 鏂欓厭</label>
+              <label><input type="checkbox" name="recipeSeasoning" value="閱? /> 閱?/label>
+              <label><input type="checkbox" name="recipeSeasoning" value="鑳℃" /> 鑳℃</label>
+              <label><input type="checkbox" name="recipeSeasoning" value="杈ｆ" /> 杈ｆ</label>
+              <label><input type="checkbox" name="recipeSeasoning" value="钁? /> 钁?/label>
+              <label><input type="checkbox" name="recipeSeasoning" value="濮? /> 濮?/label>
+              <label><input type="checkbox" name="recipeSeasoning" value="钂? /> 钂?/label>
+              <label><input type="checkbox" name="recipeSeasoning" value="棣欐补" /> 棣欐补</label>
+              <label><input type="checkbox" name="recipeSeasoning" value="娣€绮? /> 娣€绮?/label>
             </fieldset>
 
             <label>
-              食材
-              <textarea id="recipeIngredientsInput" rows="4" maxlength="1000" placeholder="每行写一种食材"></textarea>
+              椋熸潗
+              <textarea id="recipeIngredientsInput" rows="4" maxlength="1000" placeholder="姣忚鍐欎竴绉嶉鏉?></textarea>
             </label>
             <label>
-              步骤
-              <textarea id="recipeStepsInput" rows="5" maxlength="1600" placeholder="每行写一步"></textarea>
+              姝ラ
+              <textarea id="recipeStepsInput" rows="5" maxlength="1600" placeholder="姣忚鍐欎竴姝?></textarea>
             </label>
             <label>
-              备注
+              澶囨敞
               <textarea id="recipeNoteInput" rows="3" maxlength="500"></textarea>
             </label>
             <div class="recipe-form-actions">
-              <button class="primary" id="recipeSubmitButton" type="submit">保存菜谱</button>
-              <button class="ghost-button" id="recipeCancelEdit" type="button" hidden>取消编辑</button>
+              <button class="primary" id="recipeSubmitButton" type="submit">淇濆瓨鑿滆氨</button>
+              <button class="ghost-button" id="recipeCancelEdit" type="button" hidden>鍙栨秷缂栬緫</button>
             </div>
           </form>
         </section>
@@ -439,7 +438,7 @@
         <div class="feed-head">
           <div>
             <p class="kicker">Wishlist</p>
-            <h2>心愿单</h2>
+            <h2>蹇冩効鍗?/h2>
           </div>
           <p class="status-line" id="wishlistStatus"></p>
         </div>
@@ -448,69 +447,67 @@
           <div class="section-title">
             <button class="section-heading-button" id="wishlistToggle" type="button" aria-expanded="false">
               <p class="kicker">New Wish</p>
-              <h2 id="wishlistFormTitle">添加心愿</h2>
+              <h2 id="wishlistFormTitle">娣诲姞蹇冩効</h2>
             </button>
           </div>
 
           <form class="wishlist-form" id="wishlistForm" hidden>
             <label class="wish-image-drop" id="wishImageDrop" tabindex="0">
               <input id="wishImageInput" type="file" accept="image/*" />
-              <img id="wishImagePreview" alt="心愿图片预览" hidden />
-              <span>添加一张心愿图片，也可以直接粘贴剪切板图片</span>
-              <strong id="wishImageName">还没有选择图片</strong>
+              <img id="wishImagePreview" alt="蹇冩効鍥剧墖棰勮" hidden />
+              <span>娣诲姞涓€寮犲績鎰垮浘鐗囷紝涔熷彲浠ョ洿鎺ョ矘璐村壀鍒囨澘鍥剧墖</span>
+              <strong id="wishImageName">杩樻病鏈夐€夋嫨鍥剧墖</strong>
             </label>
             <button class="wish-remove-image" id="wishRemoveImage" type="button" hidden>
-              移除图片
+              绉婚櫎鍥剧墖
             </button>
             <div class="form-grid">
               <label>
-                想做什么
-                <input id="wishTitleInput" maxlength="80" required />
+                鎯冲仛浠€涔?                <input id="wishTitleInput" maxlength="80" required />
               </label>
               <label>
-                类型
+                绫诲瀷
                 <select id="wishTypeInput">
-                  <option>想做</option>
-                  <option>想吃</option>
-                  <option>想去</option>
-                  <option>想买</option>
-                  <option>想学</option>
+                  <option>鎯冲仛</option>
+                  <option>鎯冲悆</option>
+                  <option>鎯冲幓</option>
+                  <option>鎯充拱</option>
+                  <option>鎯冲</option>
                 </select>
               </label>
               <label>
-                计划时间
+                璁″垝鏃堕棿
                 <input id="wishDateInput" type="date" />
               </label>
               <label>
-                优先级
-                <select id="wishPriorityInput">
-                  <option>普通</option>
-                  <option>想尽快</option>
-                  <option>一定要做</option>
+                浼樺厛绾?                <select id="wishPriorityInput">
+                  <option>鏅€?/option>
+                  <option>鎯冲敖蹇?/option>
+                  <option>涓€瀹氳鍋?/option>
                 </select>
               </label>
             </div>
             <label>
-              备注
+              澶囨敞
               <textarea id="wishNoteInput" rows="3" maxlength="500"></textarea>
             </label>
             <label>
-              完成后的留言感想
+              瀹屾垚鍚庣殑鐣欒█鎰熸兂
               <textarea id="wishCompletionNoteInput" rows="3" maxlength="500"></textarea>
             </label>
             <div class="wish-form-actions">
-              <button class="primary" id="wishSubmitButton" type="submit">保存心愿</button>
-              <button class="ghost-button" id="wishCancelEdit" type="button" hidden>取消编辑</button>
+              <button class="primary" id="wishSubmitButton" type="submit">淇濆瓨蹇冩効</button>
+              <button class="ghost-button" id="wishCancelEdit" type="button" hidden>鍙栨秷缂栬緫</button>
             </div>
           </form>
         </section>
 
-        <div class="wish-tabs" id="wishTabs" role="tablist" aria-label="心愿状态">
+        <div class="wish-tabs" id="wishTabs" role="tablist" aria-label="蹇冩効鐘舵€?>
           <button class="active" type="button" data-wish-view="open" role="tab" aria-selected="true">
-            未完成 <span id="wishOpenCount">0</span>
+            鏈畬鎴?<span id="wishOpenCount">0</span>
           </button>
           <button type="button" data-wish-view="done" role="tab" aria-selected="false">
-            已完成 <span id="wishDoneCount">0</span>
+            宸插畬鎴?<span id="wishDoneCount">0</span>
           </button>
         </div>
 
@@ -518,29 +515,29 @@
       </section>
 
       <dialog class="wish-complete-dialog" id="wishCompleteDialog">
-        <button class="dialog-close" id="wishCompleteClose" type="button" aria-label="关闭">×</button>
+        <button class="dialog-close" id="wishCompleteClose" type="button" aria-label="鍏抽棴">脳</button>
         <form id="wishCompleteForm">
           <div class="wish-complete-hero">
             <p class="kicker">Wish Complete</p>
-            <h2 id="wishCompleteTitle">完成心愿</h2>
+            <h2 id="wishCompleteTitle">瀹屾垚蹇冩効</h2>
             <p id="wishCompleteMeta"></p>
           </div>
           <div class="wish-complete-body">
             <div class="wish-complete-preview" id="wishCompletePreview"></div>
             <label>
-              完成后的留言感想
+              瀹屾垚鍚庣殑鐣欒█鎰熸兂
               <textarea
                 id="wishCompleteNoteInput"
                 rows="5"
                 maxlength="500"
-                placeholder="比如：终于一起去了，天气很好，值得再来一次。"
+                placeholder="姣斿锛氱粓浜庝竴璧峰幓浜嗭紝澶╂皵寰堝ソ锛屽€煎緱鍐嶆潵涓€娆°€?
               ></textarea>
             </label>
           </div>
           <p class="status-line" id="wishCompleteStatus"></p>
           <div class="wish-complete-actions">
-            <button class="ghost-button" id="wishCompleteCancel" type="button">先不完成</button>
-            <button class="primary" id="wishCompleteSubmit" type="submit">保存完成感想</button>
+            <button class="ghost-button" id="wishCompleteCancel" type="button">鍏堜笉瀹屾垚</button>
+            <button class="primary" id="wishCompleteSubmit" type="submit">淇濆瓨瀹屾垚鎰熸兂</button>
           </div>
         </form>
       </dialog>
@@ -549,7 +546,7 @@
         <div class="feed-head">
           <div>
             <p class="kicker">Weekend Planner</p>
-            <h2>周末去哪</h2>
+            <h2>鍛ㄦ湯鍘诲摢</h2>
           </div>
           <p class="status-line" id="weekendStatus"></p>
         </div>
@@ -558,42 +555,41 @@
           <div class="section-title">
             <button class="section-heading-button" id="weekendToggle" type="button" aria-expanded="false">
               <p class="kicker">New Plan</p>
-              <h2 id="weekendFormTitle">安排周末</h2>
+              <h2 id="weekendFormTitle">瀹夋帓鍛ㄦ湯</h2>
             </button>
           </div>
           <form class="weekend-form" id="weekendForm" hidden>
             <div class="form-grid">
               <label>
-                想做什么
-                <input id="weekendTitleInput" maxlength="80" required placeholder="比如：去镰仓看海" />
+                鎯冲仛浠€涔?                <input id="weekendTitleInput" maxlength="80" required placeholder="姣斿锛氬幓闀颁粨鐪嬫捣" />
               </label>
               <label>
-                日期
+                鏃ユ湡
                 <input id="weekendDateInput" type="date" required />
               </label>
               <label>
-                地点
-                <input id="weekendLocationInput" maxlength="80" placeholder="城市、店名或集合地点" />
+                鍦扮偣
+                <input id="weekendLocationInput" maxlength="80" placeholder="鍩庡競銆佸簵鍚嶆垨闆嗗悎鍦扮偣" />
               </label>
               <label>
-                类型
+                绫诲瀷
                 <select id="weekendTypeInput">
-                  <option>出门玩</option>
-                  <option>吃好吃的</option>
-                  <option>宅家</option>
-                  <option>运动</option>
-                  <option>约朋友</option>
-                  <option>学习充电</option>
+                  <option>鍑洪棬鐜?/option>
+                  <option>鍚冨ソ鍚冪殑</option>
+                  <option>瀹呭</option>
+                  <option>杩愬姩</option>
+                  <option>绾︽湅鍙?/option>
+                  <option>瀛︿範鍏呯數</option>
                 </select>
               </label>
             </div>
             <label>
-              计划备注
-              <textarea id="weekendNoteInput" rows="4" maxlength="600" placeholder="交通、预约、想带的东西……"></textarea>
+              璁″垝澶囨敞
+              <textarea id="weekendNoteInput" rows="4" maxlength="600" placeholder="浜ら€氥€侀绾︺€佹兂甯︾殑涓滆タ鈥︹€?></textarea>
             </label>
             <div class="weekend-form-actions">
-              <button class="primary" id="weekendSubmitButton" type="submit">保存计划</button>
-              <button class="ghost-button" id="weekendCancelEdit" type="button" hidden>取消编辑</button>
+              <button class="primary" id="weekendSubmitButton" type="submit">淇濆瓨璁″垝</button>
+              <button class="ghost-button" id="weekendCancelEdit" type="button" hidden>鍙栨秷缂栬緫</button>
             </div>
           </form>
         </section>
@@ -605,14 +601,14 @@
         <div class="thanks-head">
           <div>
             <p class="kicker">Little Notes</p>
-            <h2>感谢留言板</h2>
+            <h2>鎰熻阿鐣欒█鏉?/h2>
           </div>
-          <p>随时留一句想记住的话。</p>
+          <p>闅忔椂鐣欎竴鍙ユ兂璁颁綇鐨勮瘽銆?/p>
         </div>
 
         <form class="thanks-composer" id="thanksForm" hidden>
           <label>
-            留一句话
+            鐣欎竴鍙ヨ瘽
             <textarea
               id="thanksBodyInput"
               rows="3"
@@ -621,32 +617,32 @@
             ></textarea>
           </label>
           <fieldset class="thanks-colors">
-            <legend>字的颜色</legend>
+            <legend>瀛楃殑棰滆壊</legend>
             <label class="active" style="--note-color:#2f6b3b">
               <input type="radio" name="thanksColor" value="#2f6b3b" checked />
-              <span>森林绿</span>
+              <span>妫灄缁?/span>
             </label>
             <label style="--note-color:#d6544d">
               <input type="radio" name="thanksColor" value="#d6544d" />
-              <span>珊瑚红</span>
+              <span>鐝婄憵绾?/span>
             </label>
             <label style="--note-color:#2e6da4">
               <input type="radio" name="thanksColor" value="#2e6da4" />
-              <span>晴空蓝</span>
+              <span>鏅寸┖钃?/span>
             </label>
             <label style="--note-color:#81559b">
               <input type="radio" name="thanksColor" value="#81559b" />
-              <span>葡萄紫</span>
+              <span>钁¤悇绱?/span>
             </label>
             <label style="--note-color:#a66b12">
               <input type="radio" name="thanksColor" value="#a66b12" />
-              <span>麦穗金</span>
+              <span>楹︾閲?/span>
             </label>
           </fieldset>
           <div class="thanks-form-actions">
             <p class="status-line" id="thanksStatus"></p>
-            <button class="primary" id="thanksSubmitButton" type="submit">贴到留言板</button>
-            <button class="ghost-button" id="thanksCancelEdit" type="button" hidden>取消编辑</button>
+            <button class="primary" id="thanksSubmitButton" type="submit">璐村埌鐣欒█鏉?/button>
+            <button class="ghost-button" id="thanksCancelEdit" type="button" hidden>鍙栨秷缂栬緫</button>
           </div>
         </form>
 
@@ -657,8 +653,8 @@
         <div class="secret-head">
           <div>
             <p class="kicker">Secret Gallery</p>
-            <h2>秘藏图集</h2>
-            <p>私人画廊，可以创建相册、上传收藏图，并按分类展览。</p>
+            <h2>绉樿棌鍥鹃泦</h2>
+            <p>绉佷汉鐢诲粖锛屽彲浠ュ垱寤虹浉鍐屻€佷笂浼犳敹钘忓浘锛屽苟鎸夊垎绫诲睍瑙堛€?/p>
           </div>
           <p class="status-line" id="secretStatus"></p>
         </div>
@@ -667,51 +663,49 @@
           <div class="section-title">
             <button class="section-heading-button" id="secretToggle" type="button" aria-expanded="false">
               <p class="kicker">Album</p>
-              <h2>新建相册 / 上传图片</h2>
+              <h2>鏂板缓鐩稿唽 / 涓婁紶鍥剧墖</h2>
             </button>
           </div>
 
           <form class="secret-form" id="secretForm" hidden>
             <label class="secret-image-drop" id="secretImageDrop" tabindex="0">
               <input id="secretImageInput" type="file" accept="image/*" multiple />
-              <img id="secretImagePreview" alt="秘藏图片预览" hidden />
+              <img id="secretImagePreview" alt="绉樿棌鍥剧墖棰勮" hidden />
               <div class="preview-strip" id="secretPreviewStrip" hidden></div>
-              <span>选择图片，或在这里粘贴剪切板图片</span>
-              <strong id="secretImageName">还没有选择图片</strong>
+              <span>閫夋嫨鍥剧墖锛屾垨鍦ㄨ繖閲岀矘璐村壀鍒囨澘鍥剧墖</span>
+              <strong id="secretImageName">杩樻病鏈夐€夋嫨鍥剧墖</strong>
             </label>
             <label>
-              自定义封面
-              <input id="secretCoverInput" type="file" accept="image/*" />
+              鑷畾涔夊皝闈?              <input id="secretCoverInput" type="file" accept="image/*" />
             </label>
             <div class="form-grid">
               <label>
-                相册名
-                <input id="secretTitleInput" maxlength="80" placeholder="比如：灵感收藏" />
+                鐩稿唽鍚?                <input id="secretTitleInput" maxlength="80" placeholder="姣斿锛氱伒鎰熸敹钘? />
               </label>
               <label>
-                分类
-                <input id="secretCategoryInput" maxlength="32" list="secretCategoryList" placeholder="比如：画集、壁纸、灵感" />
+                鍒嗙被
+                <input id="secretCategoryInput" maxlength="32" list="secretCategoryList" placeholder="姣斿锛氱敾闆嗐€佸绾搞€佺伒鎰? />
                 <datalist id="secretCategoryList"></datalist>
-                <div class="secret-category-tags" id="secretCategoryTags" aria-label="常用秘藏分类"></div>
+                <div class="secret-category-tags" id="secretCategoryTags" aria-label="甯哥敤绉樿棌鍒嗙被"></div>
               </label>
               <label>
-                关联日记
+                鍏宠仈鏃ヨ
                 <select id="secretLinkedPhotoInput">
-                  <option value="">不关联</option>
+                  <option value="">涓嶅叧鑱?/option>
                 </select>
               </label>
             </div>
             <label>
-              备注
+              澶囨敞
               <textarea id="secretNoteInput" rows="4"></textarea>
             </label>
             <div class="secret-form-actions">
-              <button class="primary" id="secretSubmitButton" type="submit">保存相册</button>
+              <button class="primary" id="secretSubmitButton" type="submit">淇濆瓨鐩稿唽</button>
             </div>
           </form>
         </section>
 
-        <div class="secret-filters" id="secretFilters" aria-label="秘藏分类"></div>
+        <div class="secret-filters" id="secretFilters" aria-label="绉樿棌鍒嗙被"></div>
         <section class="secret-gallery" id="secretGallery" aria-live="polite"></section>
       </section>
     </main>
@@ -720,11 +714,11 @@
       <div class="anniversary-dialog-head">
         <div>
           <p class="kicker">Days Together</p>
-          <h2>时间纪念册</h2>
-          <p>记录相遇、成长和每一个值得等待的日子。</p>
+          <h2>鏃堕棿绾康鍐?/h2>
+          <p>璁板綍鐩搁亣銆佹垚闀垮拰姣忎竴涓€煎緱绛夊緟鐨勬棩瀛愩€?/p>
         </div>
-        <button class="anniversary-close" id="anniversaryClose" type="button" aria-label="关闭">
-          ×
+        <button class="anniversary-close" id="anniversaryClose" type="button" aria-label="鍏抽棴">
+          脳
         </button>
       </div>
 
@@ -738,35 +732,32 @@
             type="button"
             aria-expanded="false"
           >
-            添加纪念日
-          </button>
+            娣诲姞绾康鏃?          </button>
           <form id="anniversaryForm" hidden>
             <div class="form-grid">
               <label>
-                名称
-                <input id="anniversaryTitleInput" maxlength="40" required placeholder="比如：呱呱" />
+                鍚嶇О
+                <input id="anniversaryTitleInput" maxlength="40" required placeholder="姣斿锛氬懕鍛? />
               </label>
               <label>
-                计算方式
+                璁＄畻鏂瑰紡
                 <select id="anniversaryTypeInput">
-                  <option value="pet">宠物年龄</option>
-                  <option value="together">累计相伴天数</option>
-                  <option value="annual">年度纪念日倒计时</option>
+                  <option value="pet">瀹犵墿骞撮緞</option>
+                  <option value="together">绱鐩镐即澶╂暟</option>
+                  <option value="annual">骞村害绾康鏃ュ€掕鏃?/option>
                 </select>
               </label>
               <label>
-                开始日期
-                <input id="anniversaryDateInput" type="date" required />
+                寮€濮嬫棩鏈?                <input id="anniversaryDateInput" type="date" required />
               </label>
               <label>
-                简短备注
-                <input id="anniversaryNoteInput" maxlength="80" placeholder="比如：来到我们家的日子" />
+                绠€鐭娉?                <input id="anniversaryNoteInput" maxlength="80" placeholder="姣斿锛氭潵鍒版垜浠鐨勬棩瀛? />
               </label>
             </div>
             <p class="status-line" id="anniversaryStatus"></p>
             <div class="anniversary-form-actions">
-              <button class="primary" id="anniversarySubmit" type="submit">保存</button>
-              <button class="ghost-button" id="anniversaryCancel" type="button">取消</button>
+              <button class="primary" id="anniversarySubmit" type="submit">淇濆瓨</button>
+              <button class="ghost-button" id="anniversaryCancel" type="button">鍙栨秷</button>
             </div>
           </form>
         </section>
@@ -774,146 +765,146 @@
     </dialog>
 
     <dialog class="rename-home-dialog" id="renameHomeDialog">
-      <button class="dialog-close" id="closeRenameHome" type="button" aria-label="关闭">×</button>
+      <button class="dialog-close" id="closeRenameHome" type="button" aria-label="鍏抽棴">脳</button>
       <form id="renameHomeForm">
         <div>
           <p class="kicker">Home Name</p>
-          <h2>给这里取个名字</h2>
-          <p>会同步显示在左上角、封面和浏览器标签。</p>
+          <h2>缁欒繖閲屽彇涓悕瀛?/h2>
+          <p>浼氬悓姝ユ樉绀哄湪宸︿笂瑙掋€佸皝闈㈠拰娴忚鍣ㄦ爣绛俱€?/p>
         </div>
         <label>
-          主页名称
+          涓婚〉鍚嶇О
           <input
             id="homeNameInput"
             maxlength="20"
             required
-            placeholder="比如：呱噗之家"
+            placeholder="姣斿锛氬懕鍣椾箣瀹?
           />
         </label>
         <p class="status-line" id="homeNameStatus"></p>
         <div class="rename-home-actions">
-          <button class="ghost-button" id="resetHomeName" type="button">恢复默认</button>
-          <button class="primary" type="submit">保存名称</button>
+          <button class="ghost-button" id="resetHomeName" type="button">鎭㈠榛樿</button>
+          <button class="primary" type="submit">淇濆瓨鍚嶇О</button>
         </div>
       </form>
     </dialog>
 
     <dialog class="settings-dialog" id="settingsDialog">
-      <button class="dialog-close" id="closeSettingsDialog" type="button" aria-label="关闭">×</button>
+      <button class="dialog-close" id="closeSettingsDialog" type="button" aria-label="鍏抽棴">脳</button>
       <aside class="settings-sidebar">
         <p class="kicker">Settings</p>
-        <h2>设置</h2>
-        <nav aria-label="设置分类">
-          <button class="active" type="button" data-settings-section="settingsGeneral" aria-selected="true">常规</button>
-          <button type="button" data-settings-section="settingsTools" aria-selected="false">工具栏</button>
-          <button type="button" data-settings-section="settingsAccount" aria-selected="false">账户</button>
-          <button type="button" data-settings-section="settingsFamily" aria-selected="false">家庭</button>
+        <h2>璁剧疆</h2>
+        <nav aria-label="璁剧疆鍒嗙被">
+          <button class="active" type="button" data-settings-section="settingsGeneral" aria-selected="true">甯歌</button>
+          <button type="button" data-settings-section="settingsTools" aria-selected="false">宸ュ叿鏍?/button>
+          <button type="button" data-settings-section="settingsAccount" aria-selected="false">璐︽埛</button>
+          <button type="button" data-settings-section="settingsFamily" aria-selected="false">瀹跺涵</button>
         </nav>
       </aside>
       <section class="settings-content">
         <section class="settings-group" id="settingsGeneral">
           <p class="kicker">General</p>
-          <h3>常规</h3>
+          <h3>甯歌</h3>
           <button id="renameHomeButton" type="button">
-            <span>主页名称</span>
-            <strong><em id="settingsHomeNameValue">咻蛋之家</em><small>点击修改</small></strong>
+            <span>涓婚〉鍚嶇О</span>
+            <strong><em id="settingsHomeNameValue">鍜昏泲涔嬪</em><small>鐐瑰嚮淇敼</small></strong>
           </button>
           <button id="renameProfileButton" type="button">
-            <span>昵称</span>
-            <strong><em id="settingsNicknameValue">User</em><small>点击修改</small></strong>
+            <span>鏄电О</span>
+            <strong><em id="settingsNicknameValue">User</em><small>鐐瑰嚮淇敼</small></strong>
           </button>
           <button id="changeAvatarButton" type="button">
-            <span>头像</span>
-            <strong><em id="settingsAvatarValue">文字头像</em><small>点击更换</small></strong>
+            <span>澶村儚</span>
+            <strong><em id="settingsAvatarValue">鏂囧瓧澶村儚</em><small>鐐瑰嚮鏇存崲</small></strong>
           </button>
           <button id="settingsFeedLayoutButton" type="button">
-            <span>手机列表布局</span>
-            <strong><em id="settingsFeedLayoutValue">双列</em><small>点击切换单列/双列</small></strong>
+            <span>鎵嬫満鍒楄〃甯冨眬</span>
+            <strong><em id="settingsFeedLayoutValue">鍙屽垪</em><small>鐐瑰嚮鍒囨崲鍗曞垪/鍙屽垪</small></strong>
           </button>
           <button id="refreshCacheInfoButton" type="button">
-            <span>缓存占用</span>
-            <strong><em id="settingsCacheValue">计算中</em><small>点击刷新缓存大小</small></strong>
+            <span>缂撳瓨鍗犵敤</span>
+            <strong><em id="settingsCacheValue">璁＄畻涓?/em><small>鐐瑰嚮鍒锋柊缂撳瓨澶у皬</small></strong>
           </button>
           <button id="cacheLimitButton" type="button">
-            <span>缓存上限</span>
-            <strong><em id="settingsCacheLimitValue">80 条</em><small>日记和秘藏超过上限会自动替换旧缓存</small></strong>
+            <span>缂撳瓨涓婇檺</span>
+            <strong><em id="settingsCacheLimitValue">80 鏉?/em><small>鏃ヨ鍜岀钘忚秴杩囦笂闄愪細鑷姩鏇挎崲鏃х紦瀛?/small></strong>
           </button>
           <button id="clearAppCacheButton" type="button">
-            <span>清除缓存</span>
-            <strong><em id="settingsCacheStatus">保留账号和设置</em><small>清除日记缓存和离线资源</small></strong>
+            <span>娓呴櫎缂撳瓨</span>
+            <strong><em id="settingsCacheStatus">淇濈暀璐﹀彿鍜岃缃?/em><small>娓呴櫎鏃ヨ缂撳瓨鍜岀绾胯祫婧?/small></strong>
           </button>
         </section>
         <section class="settings-group" id="settingsTools" hidden>
           <p class="kicker">Toolbar</p>
-          <h3>组件排序</h3>
+          <h3>缁勪欢鎺掑簭</h3>
           <div class="settings-tool-order" id="settingsToolOrderList"></div>
         </section>
         <section class="settings-group" id="settingsAccount">
           <p class="kicker">Security</p>
-          <h3>账户安全</h3>
+          <h3>璐︽埛瀹夊叏</h3>
           <button id="changePasswordButton" type="button">
-            <span>修改密码</span>
-            <strong>更新当前登录密码</strong>
+            <span>淇敼瀵嗙爜</span>
+            <strong>鏇存柊褰撳墠鐧诲綍瀵嗙爜</strong>
           </button>
           <button id="recoveryKeyButton" type="button">
-            <span>恢复密钥</span>
-            <strong>忘记密码时用来重设</strong>
+            <span>鎭㈠瀵嗛挜</span>
+            <strong>蹇樿瀵嗙爜鏃剁敤鏉ラ噸璁?/strong>
           </button>
         </section>
         <section class="settings-group" id="settingsFamily">
           <p class="kicker">Family</p>
-          <h3>家庭与会员</h3>
+          <h3>瀹跺涵涓庝細鍛?/h3>
           <div class="settings-family-panel" id="settingsFamilyPanel"></div>
           <button id="familyAccountButton" type="button">
-            <span>管理家庭</span>
-            <strong>创建家庭、邀请成员或处理邀请</strong>
+            <span>绠＄悊瀹跺涵</span>
+            <strong>鍒涘缓瀹跺涵銆侀個璇锋垚鍛樻垨澶勭悊閭€璇?/strong>
           </button>
         </section>
       </section>
     </dialog>
 
     <dialog class="account-dialog" id="renameProfileDialog">
-      <button class="dialog-close" id="closeRenameProfile" type="button" aria-label="关闭">×</button>
+      <button class="dialog-close" id="closeRenameProfile" type="button" aria-label="鍏抽棴">脳</button>
       <form id="renameProfileForm">
         <div>
           <p class="kicker">Display Name</p>
-          <h2>修改昵称</h2>
-          <p>家庭账户、留言、评论和你发布的内容都会显示这个名字。</p>
+          <h2>淇敼鏄电О</h2>
+          <p>瀹跺涵璐︽埛銆佺暀瑷€銆佽瘎璁哄拰浣犲彂甯冪殑鍐呭閮戒細鏄剧ず杩欎釜鍚嶅瓧銆?/p>
         </div>
         <label>
-          昵称
-          <input id="profileNicknameInput" maxlength="24" required placeholder="比如：咻蛋" />
+          鏄电О
+          <input id="profileNicknameInput" maxlength="24" required placeholder="姣斿锛氬捇铔? />
         </label>
         <p class="status-line" id="profileNicknameStatus"></p>
-        <button class="primary" type="submit">保存昵称</button>
+        <button class="primary" type="submit">淇濆瓨鏄电О</button>
       </form>
     </dialog>
 
     <dialog class="account-dialog avatar-dialog" id="avatarDialog">
-      <button class="dialog-close" id="closeAvatarDialog" type="button" aria-label="关闭">×</button>
+      <button class="dialog-close" id="closeAvatarDialog" type="button" aria-label="鍏抽棴">脳</button>
       <form id="avatarForm">
         <div>
           <p class="kicker">Profile Image</p>
-          <h2>修改头像</h2>
-          <p>会显示在家庭成员、评论和互动通知中。</p>
+          <h2>淇敼澶村儚</h2>
+          <p>浼氭樉绀哄湪瀹跺涵鎴愬憳銆佽瘎璁哄拰浜掑姩閫氱煡涓€?/p>
         </div>
         <label class="avatar-picker">
           <input id="avatarInput" type="file" accept="image/*" />
-          <img id="avatarPreview" alt="头像预览" hidden />
+          <img id="avatarPreview" alt="澶村儚棰勮" hidden />
           <span id="avatarPreviewInitial">U</span>
-          <strong>选择一张图片</strong>
+          <strong>閫夋嫨涓€寮犲浘鐗?/strong>
         </label>
         <p class="status-line" id="avatarStatus"></p>
-        <button class="primary" type="submit">保存头像</button>
+        <button class="primary" type="submit">淇濆瓨澶村儚</button>
       </form>
     </dialog>
 
     <dialog class="notification-dialog" id="notificationDialog">
-      <button class="dialog-close" id="closeNotificationDialog" type="button" aria-label="关闭">×</button>
+      <button class="dialog-close" id="closeNotificationDialog" type="button" aria-label="鍏抽棴">脳</button>
       <header>
         <div>
           <p class="kicker">Activity</p>
-          <h2>互动通知</h2>
+          <h2>浜掑姩閫氱煡</h2>
         </div>
       </header>
       <section class="notification-list" id="notificationList"></section>
@@ -921,57 +912,55 @@
     </dialog>
 
     <dialog class="account-dialog" id="changePasswordDialog">
-      <button class="dialog-close" id="closeChangePassword" type="button" aria-label="关闭">×</button>
+      <button class="dialog-close" id="closeChangePassword" type="button" aria-label="鍏抽棴">脳</button>
       <form id="changePasswordForm">
         <div>
           <p class="kicker">Account Security</p>
-          <h2>修改密码</h2>
-          <p>修改成功后，下次登录请使用新密码。</p>
+          <h2>淇敼瀵嗙爜</h2>
+          <p>淇敼鎴愬姛鍚庯紝涓嬫鐧诲綍璇蜂娇鐢ㄦ柊瀵嗙爜銆?/p>
         </div>
         <label>
-          新密码
-          <input id="newPasswordInput" type="password" minlength="6" autocomplete="new-password" required />
+          鏂板瘑鐮?          <input id="newPasswordInput" type="password" minlength="6" autocomplete="new-password" required />
         </label>
         <label>
-          再输入一次
-          <input id="confirmPasswordInput" type="password" minlength="6" autocomplete="new-password" required />
+          鍐嶈緭鍏ヤ竴娆?          <input id="confirmPasswordInput" type="password" minlength="6" autocomplete="new-password" required />
         </label>
         <p class="status-line" id="changePasswordStatus"></p>
-        <button class="primary" type="submit">保存新密码</button>
+        <button class="primary" type="submit">淇濆瓨鏂板瘑鐮?/button>
       </form>
     </dialog>
 
     <dialog class="family-dialog" id="familyDialog">
-      <button class="dialog-close" id="closeFamilyDialog" type="button" aria-label="关闭">×</button>
+      <button class="dialog-close" id="closeFamilyDialog" type="button" aria-label="鍏抽棴">脳</button>
       <div class="family-dialog-head">
         <p class="kicker">Family Account</p>
-        <h2>家庭账户</h2>
-        <p>加入同一个家庭后，可以共享日记、菜谱、心愿、周末计划、纪念日和留言。</p>
+        <h2>瀹跺涵璐︽埛</h2>
+        <p>鍔犲叆鍚屼竴涓搴悗锛屽彲浠ュ叡浜棩璁般€佽彍璋便€佸績鎰裤€佸懆鏈鍒掋€佺邯蹇垫棩鍜岀暀瑷€銆?/p>
       </div>
       <section class="family-empty" id="familyEmpty">
         <div class="family-invitations" id="familyInvitations"></div>
         <form id="createFamilyForm">
           <label>
-            家庭名称
-            <input id="familyNameInput" maxlength="30" required placeholder="比如：咻蛋之家" />
+            瀹跺涵鍚嶇О
+            <input id="familyNameInput" maxlength="30" required placeholder="姣斿锛氬捇铔嬩箣瀹? />
           </label>
-          <button class="primary" type="submit">创建家庭组</button>
+          <button class="primary" type="submit">鍒涘缓瀹跺涵缁?/button>
         </form>
       </section>
       <section class="family-content" id="familyContent" hidden>
         <div class="family-summary">
           <div>
-            <span>当前家庭</span>
-            <strong id="familyName">我们的家</strong>
+            <span>褰撳墠瀹跺涵</span>
+            <strong id="familyName">鎴戜滑鐨勫</strong>
           </div>
-          <small>每个人只能修改自己发布的内容</small>
+          <small>姣忎釜浜哄彧鑳戒慨鏀硅嚜宸卞彂甯冪殑鍐呭</small>
         </div>
         <form class="family-invite" id="familyInviteForm" hidden>
           <label>
-            添加成员的用户名
-            <input id="familyUsernameInput" maxlength="48" required placeholder="输入对方登录用的用户名" />
+            娣诲姞鎴愬憳鐨勭敤鎴峰悕
+            <input id="familyUsernameInput" maxlength="48" required placeholder="杈撳叆瀵规柟鐧诲綍鐢ㄧ殑鐢ㄦ埛鍚? />
           </label>
-          <button class="primary" type="submit">发送邀请</button>
+          <button class="primary" type="submit">鍙戦€侀個璇?/button>
         </form>
         <div class="family-members" id="familyMembers"></div>
         <div class="family-invitations" id="familyOutgoingInvitations"></div>
@@ -980,61 +969,57 @@
     </dialog>
 
     <dialog class="account-dialog" id="recoveryKeyDialog">
-      <button class="dialog-close" id="closeRecoveryKey" type="button" aria-label="关闭">×</button>
+      <button class="dialog-close" id="closeRecoveryKey" type="button" aria-label="鍏抽棴">脳</button>
       <form id="recoveryKeyForm">
         <div>
           <p class="kicker">Recovery Key</p>
-          <h2>设置恢复密钥</h2>
-          <p>忘记密码时使用。至少 12 位，请保存在只有你能看到的地方。</p>
+          <h2>璁剧疆鎭㈠瀵嗛挜</h2>
+          <p>蹇樿瀵嗙爜鏃朵娇鐢ㄣ€傝嚦灏?12 浣嶏紝璇蜂繚瀛樺湪鍙湁浣犺兘鐪嬪埌鐨勫湴鏂广€?/p>
         </div>
         <label>
-          恢复密钥
+          鎭㈠瀵嗛挜
           <input id="recoveryKeyInput" type="password" minlength="12" autocomplete="new-password" required />
         </label>
         <label>
-          再输入一次
-          <input id="confirmRecoveryKeyInput" type="password" minlength="12" autocomplete="new-password" required />
+          鍐嶈緭鍏ヤ竴娆?          <input id="confirmRecoveryKeyInput" type="password" minlength="12" autocomplete="new-password" required />
         </label>
         <p class="status-line" id="recoveryKeyStatus"></p>
-        <button class="primary" type="submit">保存恢复密钥</button>
+        <button class="primary" type="submit">淇濆瓨鎭㈠瀵嗛挜</button>
       </form>
     </dialog>
 
     <dialog class="account-dialog" id="forgotPasswordDialog">
-      <button class="dialog-close" id="closeForgotPassword" type="button" aria-label="关闭">×</button>
+      <button class="dialog-close" id="closeForgotPassword" type="button" aria-label="鍏抽棴">脳</button>
       <form id="forgotPasswordForm">
         <div>
           <p class="kicker">Password Recovery</p>
-          <h2>重设密码</h2>
-          <p>输入用户名和之前设置的恢复密钥。</p>
+          <h2>閲嶈瀵嗙爜</h2>
+          <p>杈撳叆鐢ㄦ埛鍚嶅拰涔嬪墠璁剧疆鐨勬仮澶嶅瘑閽ャ€?/p>
         </div>
         <label>
-          用户名
-          <input id="recoveryUsernameInput" maxlength="48" autocomplete="username" required />
+          鐢ㄦ埛鍚?          <input id="recoveryUsernameInput" maxlength="48" autocomplete="username" required />
         </label>
         <label>
-          恢复密钥
+          鎭㈠瀵嗛挜
           <input id="recoverySecretInput" type="password" minlength="12" autocomplete="off" required />
         </label>
         <label>
-          新密码
-          <input id="recoveryNewPasswordInput" type="password" minlength="6" autocomplete="new-password" required />
+          鏂板瘑鐮?          <input id="recoveryNewPasswordInput" type="password" minlength="6" autocomplete="new-password" required />
         </label>
         <label>
-          再输入一次
-          <input id="recoveryConfirmPasswordInput" type="password" minlength="6" autocomplete="new-password" required />
+          鍐嶈緭鍏ヤ竴娆?          <input id="recoveryConfirmPasswordInput" type="password" minlength="6" autocomplete="new-password" required />
         </label>
         <p class="status-line" id="forgotPasswordStatus"></p>
-        <button class="primary" type="submit">重设密码</button>
+        <button class="primary" type="submit">閲嶈瀵嗙爜</button>
       </form>
     </dialog>
 
     <dialog id="photoDialog">
-      <button class="dialog-close" id="closeDialog" type="button" aria-label="关闭">×</button>
+      <button class="dialog-close" id="closeDialog" type="button" aria-label="鍏抽棴">脳</button>
       <div class="dialog-media">
-        <button class="carousel-button prev" id="dialogPrev" type="button" aria-label="上一张">‹</button>
+        <button class="carousel-button prev" id="dialogPrev" type="button" aria-label="涓婁竴寮?>鈥?/button>
         <img id="dialogImage" alt="" />
-        <button class="carousel-button next" id="dialogNext" type="button" aria-label="下一张">›</button>
+        <button class="carousel-button next" id="dialogNext" type="button" aria-label="涓嬩竴寮?>鈥?/button>
         <span class="media-counter" id="dialogCounter"></span>
       </div>
       <div class="dialog-thumbs" id="dialogThumbs" hidden></div>
@@ -1044,71 +1029,70 @@
         <p id="dialogNote"></p>
         <div class="dialog-tool-row">
           <button class="dialog-random-button" id="dialogRandomButton" type="button" hidden>
-            再抽一篇
-          </button>
+            鍐嶆娊涓€绡?          </button>
           <button class="dialog-random-button" id="dialogSecretLinkButton" type="button" hidden>
-            查看关联日记
+            鏌ョ湅鍏宠仈鏃ヨ
           </button>
           <button class="dialog-random-button secondary" id="dialogSecretReturnButton" type="button" hidden>
-            返回秘藏
+            杩斿洖绉樿棌
           </button>
         </div>
       </article>
       <section class="photo-comments" id="photoCommentsSection">
         <div class="photo-comments-head">
           <p class="kicker">Family Comments</p>
-          <h3>留言</h3>
+          <h3>鐣欒█</h3>
         </div>
         <div class="photo-comments-list" id="photoCommentsList"></div>
         <form id="photoCommentForm" hidden>
           <div class="comment-replying" id="commentReplying" hidden>
             <span id="commentReplyingText"></span>
-            <button id="cancelCommentReply" type="button" aria-label="取消回复">×</button>
+            <button id="cancelCommentReply" type="button" aria-label="鍙栨秷鍥炲">脳</button>
           </div>
           <input
             id="photoCommentInput"
             maxlength="300"
             required
-            placeholder="给这篇日记留句话"
+            placeholder="缁欒繖绡囨棩璁扮暀鍙ヨ瘽"
           />
-          <button type="submit">发送</button>
+          <button type="submit">鍙戦€?/button>
         </form>
         <p class="status-line" id="photoCommentStatus"></p>
       </section>
     </dialog>
 
     <dialog class="edit-dialog" id="editDialog">
-      <button class="dialog-close" id="closeEditDialog" type="button" aria-label="关闭">×</button>
+      <button class="dialog-close" id="closeEditDialog" type="button" aria-label="鍏抽棴">脳</button>
       <form id="editForm">
         <div>
           <p class="kicker">Edit</p>
-          <h2>编辑日记</h2>
+          <h2>缂栬緫鏃ヨ</h2>
         </div>
         <div class="form-grid">
           <label>
-            标题
+            鏍囬
             <input id="editTitleInput" maxlength="80" />
           </label>
           <label>
-            日期
+            鏃ユ湡
             <input id="editDateInput" type="date" required />
           </label>
           <label>
-            分类
+            鍒嗙被
             <select id="editCategoryInput">
-              <option>日常</option>
-              <option>旅行</option>
-              <option>食物</option>
-              <option>卢浮宫</option>
-              <option>城市</option>
-              <option>家</option>
+              <option>鏃ュ父</option>
+              <option>鏃呰</option>
+              <option>椋熺墿</option>
+              <option>鍗㈡诞瀹?/option>
+              <option>鍩庡競</option>
+              <option>瀹?/option>
             </select>
           </label>
           <label>
-            是否公开
+            鏄惁鍏紑
             <select id="editPublicInput">
-              <option value="true">公开展示</option>
-              <option value="false">只保存在库里</option>
+              <option value="true">鍏紑灞曠ず</option>
+              <option value="false">鍙繚瀛樺湪搴撻噷</option>
             </select>
           </label>
         </div>
@@ -1116,48 +1100,48 @@
           <div class="edit-media-heading">
             <div>
               <p class="kicker">Album Images</p>
-              <h3>管理图片</h3>
+              <h3>绠＄悊鍥剧墖</h3>
             </div>
             <div class="edit-media-actions">
               <span id="editImageCount"></span>
-              <button id="addEditImageButton" type="button">追加图片</button>
+              <button id="addEditImageButton" type="button">杩藉姞鍥剧墖</button>
             </div>
           </div>
           <input id="editImageInput" type="file" accept="image/*" multiple hidden />
           <div class="edit-image-list" id="editImageList"></div>
-          <p class="hint">可以替换或删除合集中的单张图片，至少保留一张。</p>
+          <p class="hint">鍙互鏇挎崲鎴栧垹闄ゅ悎闆嗕腑鐨勫崟寮犲浘鐗囷紝鑷冲皯淇濈暀涓€寮犮€?/p>
         </section>
         <label>
-          文字记录
+          鏂囧瓧璁板綍
           <textarea id="editNoteInput" rows="4"></textarea>
         </label>
         <p class="hint" id="saveEditStatus"></p>
         <div class="edit-form-actions">
-          <button class="danger-button" id="deleteEditingPhoto" type="button">删除整篇</button>
-          <button class="primary" type="submit">保存修改</button>
+          <button class="danger-button" id="deleteEditingPhoto" type="button">鍒犻櫎鏁寸瘒</button>
+          <button class="primary" type="submit">淇濆瓨淇敼</button>
         </div>
       </form>
     </dialog>
 
     <dialog class="vip-dialog" id="vipDialog">
-      <button class="dialog-close" id="closeVipDialog" type="button" aria-label="关闭">×</button>
+      <button class="dialog-close" id="closeVipDialog" type="button" aria-label="鍏抽棴">脳</button>
       <section class="vip-center">
         <div class="vip-hero">
           <p class="kicker">Member Center</p>
-          <h2><span id="vipHomeName">咻蛋之家</span> VIP</h2>
-          <p id="vipSummary">五级会员系统，解锁合集、质感上传、私密分享和传说档位。</p>
+          <h2><span id="vipHomeName">鍜昏泲涔嬪</span> VIP</h2>
+          <p id="vipSummary">浜旂骇浼氬憳绯荤粺锛岃В閿佸悎闆嗐€佽川鎰熶笂浼犮€佺瀵嗗垎浜拰浼犺妗ｄ綅銆?/p>
           <div class="vip-current">
             <span id="vipCurrentLevel">LV.5</span>
-            <strong id="vipCurrentName">传说</strong>
+            <strong id="vipCurrentName">浼犺</strong>
           </div>
           <div class="vip-wallet">
             <article>
-              <span>累计充值</span>
-              <strong id="vipRechargeTotal">¥298</strong>
+              <span>绱鍏呭€?/span>
+              <strong id="vipRechargeTotal">楼298</strong>
             </article>
             <article>
-              <span>当前档位</span>
-              <strong id="vipTierAmount">¥298</strong>
+              <span>褰撳墠妗ｄ綅</span>
+              <strong id="vipTierAmount">楼298</strong>
             </article>
           </div>
           <div class="vip-next" id="vipNext"></div>
@@ -1170,27 +1154,28 @@
     </dialog>
 
     <dialog class="account-dialog level-dialog" id="levelDialog">
-      <button class="dialog-close" id="closeLevelDialog" type="button" aria-label="关闭">×</button>
+      <button class="dialog-close" id="closeLevelDialog" type="button" aria-label="鍏抽棴">脳</button>
       <section class="level-center">
         <div class="level-hero">
           <p class="kicker">Cultivation</p>
-          <h2>成长等级</h2>
-          <p id="levelSummary">每天登录、发布日记、留言、完成心愿都会增加修为。</p>
+          <h2>鎴愰暱绛夌骇</h2>
+          <p id="levelSummary">姣忓ぉ鐧诲綍銆佸彂甯冩棩璁般€佺暀瑷€銆佸畬鎴愬績鎰块兘浼氬鍔犱慨涓恒€?/p>
         </div>
         <div class="level-current-card">
           <div>
-            <span>当前境界</span>
-            <strong id="levelCurrentTitle">炼气期 · 一层</strong>
+            <span>褰撳墠澧冪晫</span>
+            <strong id="levelCurrentTitle">鐐兼皵鏈?路 涓€灞?/strong>
           </div>
           <div>
-            <span>预计升级</span>
-            <strong id="levelUpgradeEta">继续记录生活</strong>
+            <span>棰勮鍗囩骇</span>
+            <strong id="levelUpgradeEta">缁х画璁板綍鐢熸椿</strong>
           </div>
         </div>
         <div class="level-list" id="levelList"></div>
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260705-111"></script>
+    <script type="module" src="./app.js?v=20260705-112"></script>
   </body>
 </html>
+
