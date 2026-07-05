@@ -943,14 +943,18 @@ body.theme-dark .thanks-note > p {
   height: 100%;
   max-height: none;
   aspect-ratio: auto;
+  overflow: auto;
   background: color-mix(in srgb, var(--bg), #000 12%);
   cursor: zoom-in;
+  overscroll-behavior: contain;
+  touch-action: pan-x pan-y pinch-zoom;
 }
 
 #photoDialog.secret-image-dialog .dialog-media img {
-  width: 100%;
-  height: 100%;
-  max-height: none;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
   object-fit: contain;
 }
 
@@ -992,13 +996,17 @@ body.theme-dark .thanks-note > p {
   height: 100dvh;
   max-height: none;
   aspect-ratio: auto;
+  overflow: auto;
   background: #050706;
+  overscroll-behavior: contain;
+  touch-action: pan-x pan-y pinch-zoom;
 }
 
 #photoDialog.secret-image-fullscreen .dialog-media img {
-  width: 100%;
-  height: 100%;
-  max-height: none;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
   object-fit: contain;
 }
 
@@ -3356,6 +3364,14 @@ body.theme-dark .feed-loader {
   }
 }
 
+.secret-album-head,
+.secret-album-head h3,
+.secret-album-head p,
+.secret-album-head small,
+.secret-album-head .kicker {
+  animation: none !important;
+}
+
 .secret-back-button:hover {
   border-color: var(--accent);
   color: var(--accent-strong);
@@ -5078,11 +5094,16 @@ body.mobile-dialog-open {
     aspect-ratio: auto;
     height: 100%;
     min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    touch-action: pan-x pan-y pinch-zoom;
   }
 
   #photoDialog.secret-image-dialog .dialog-media img {
-    width: 100%;
-    height: 100%;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
     object-fit: contain;
   }
 
@@ -5231,11 +5252,16 @@ body.mobile-dialog-open {
     padding-top: 0;
     height: 100dvh;
     max-height: none;
+    overflow: auto;
+    overscroll-behavior: contain;
+    touch-action: pan-x pan-y pinch-zoom;
   }
 
   #photoDialog.secret-image-fullscreen .dialog-media img {
-    height: 100%;
-    max-height: none;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
     object-fit: contain;
   }
 
@@ -5366,6 +5392,10 @@ body.mobile-dialog-open {
     top: calc(78px + env(safe-area-inset-top));
     right: auto;
     left: auto;
+    width: auto;
+    grid-column: 1;
+    grid-row: auto;
+    align-self: auto;
     max-height: none;
     overflow: visible;
   }

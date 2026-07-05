@@ -3602,7 +3602,7 @@ function updateSecretToolbarTop() {
     return;
   }
   const topbarBottom = document.querySelector(".topbar")?.getBoundingClientRect().bottom || 76;
-  const pinnedTop = Math.ceil(topbarBottom + 20);
+  const pinnedTop = Math.ceil(topbarBottom + 78);
   const headTop = Math.ceil(head.getBoundingClientRect().top);
   toolbar.style.setProperty("--secret-toolbar-top", `${Math.max(pinnedTop, headTop)}px`);
 }
