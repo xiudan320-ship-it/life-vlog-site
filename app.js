@@ -235,6 +235,7 @@ let dialogBackSwipeStart = null;
 let secretImageGesture = null;
 let secretImageZoom = { scale: 1, x: 0, y: 0 };
 let suppressDialogImageClickUntil = 0;
+let suppressDialogSwipeUntil = 0;
 let lockedDialogScrollY = 0;
 let dialogLockUsesFixed = false;
 let dialogRandomMode = false;
@@ -2724,6 +2725,19 @@ function applySecretImageZoom() {
   els.dialogMedia?.classList.toggle("is-zoomed", scale > 1.01);
 }
 
+function normalizeSecretImageZoom(zoom) {
+  const scale = clampNumber(Number(zoom.scale) || 1, 1, 3);
+  if (scale <= 1.03) return { scale: 1, x: 0, y: 0 };
+  const rect = els.dialogMedia?.getBoundingClientRect();
+  const maxX = rect ? Math.max(80, (rect.width * (scale - 1)) / 2 + 80) : 320;
+  const maxY = rect ? Math.max(80, (rect.height * (scale - 1)) / 2 + 80) : 320;
+  return {
+    scale,
+    x: clampNumber(Number(zoom.x) || 0, -maxX, maxX),
+    y: clampNumber(Number(zoom.y) || 0, -maxY, maxY),
+  };
+}
+
 function resetSecretImageZoom() {
   secretImageGesture = null;
   secretImageZoom = { scale: 1, x: 0, y: 0 };
@@ -2747,6 +2761,7 @@ function beginSecretImageTouch(event) {
   if (!isSecretImageDialogOpen()) return;
   if (event.touches.length === 2) {
     const touches = Array.from(event.touches);
+    dialogSwipeStart = null;
     secretImageGesture = {
       type: "pinch",
       startDistance: getTouchDistance(touches),
@@ -2756,11 +2771,13 @@ function beginSecretImageTouch(event) {
       startY: secretImageZoom.y,
     };
     suppressDialogImageClickUntil = Date.now() + 450;
+    suppressDialogSwipeUntil = Date.now() + 700;
     event.preventDefault();
     return;
   }
   if (event.touches.length === 1 && secretImageZoom.scale > 1.01) {
     const touch = event.touches[0];
+    dialogSwipeStart = null;
     secretImageGesture = {
       type: "pan",
       startTouchX: touch.clientX,
@@ -2768,6 +2785,7 @@ function beginSecretImageTouch(event) {
       startX: secretImageZoom.x,
       startY: secretImageZoom.y,
     };
+    suppressDialogSwipeUntil = Date.now() + 500;
     event.preventDefault();
   }
 }
@@ -2781,27 +2799,29 @@ function moveSecretImageTouch(event) {
     const nextScale = clampNumber(
       secretImageGesture.startScale * (distance / Math.max(1, secretImageGesture.startDistance)),
       1,
-      4
+      3
     );
-    secretImageZoom = {
+    secretImageZoom = normalizeSecretImageZoom({
       scale: nextScale,
       x: secretImageGesture.startX + (center.x - secretImageGesture.startCenter.x),
       y: secretImageGesture.startY + (center.y - secretImageGesture.startCenter.y),
-    };
+    });
     applySecretImageZoom();
     suppressDialogImageClickUntil = Date.now() + 450;
+    suppressDialogSwipeUntil = Date.now() + 800;
     event.preventDefault();
     return;
   }
   if (secretImageGesture.type === "pan" && event.touches.length === 1) {
     const touch = event.touches[0];
-    secretImageZoom = {
+    secretImageZoom = normalizeSecretImageZoom({
       ...secretImageZoom,
       x: secretImageGesture.startX + touch.clientX - secretImageGesture.startTouchX,
       y: secretImageGesture.startY + touch.clientY - secretImageGesture.startTouchY,
-    };
+    });
     applySecretImageZoom();
     suppressDialogImageClickUntil = Date.now() + 250;
+    suppressDialogSwipeUntil = Date.now() + 500;
     event.preventDefault();
   }
 }
@@ -2824,6 +2844,7 @@ function endSecretImageTouch(event) {
     return;
   }
   secretImageGesture = null;
+  suppressDialogSwipeUntil = Date.now() + 600;
   if (secretImageZoom.scale <= 1.03) resetSecretImageZoom();
 }
 
@@ -2875,6 +2896,9 @@ function moveDialogImage(step) {
 
 function beginDialogSwipe(event) {
   if (dialogImages.length <= 1 || event.target.closest("button")) return;
+  if (isSecretImageDialogOpen()) {
+    if (secretImageGesture || secretImageZoom.scale > 1.01 || Date.now() < suppressDialogSwipeUntil) return;
+  }
   dialogSwipeStart = {
     id: event.pointerId,
     x: event.clientX,
@@ -2886,12 +2910,20 @@ function beginDialogSwipe(event) {
 
 function finishDialogSwipe(event) {
   if (!dialogSwipeStart || dialogSwipeStart.id !== event.pointerId) return;
+  if (isSecretImageDialogOpen()) {
+    if (secretImageGesture || secretImageZoom.scale > 1.01 || Date.now() < suppressDialogSwipeUntil) {
+      dialogSwipeStart = null;
+      return;
+    }
+  }
   const deltaX = event.clientX - dialogSwipeStart.x;
   const deltaY = event.clientY - dialogSwipeStart.y;
   const elapsed = Date.now() - dialogSwipeStart.time;
   dialogSwipeStart = null;
 
-  const horizontal = Math.abs(deltaX) > 48 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25;
+  const swipeThreshold = isSecretImageDialogOpen() ? 92 : 48;
+  const swipeRatio = isSecretImageDialogOpen() ? 1.75 : 1.25;
+  const horizontal = Math.abs(deltaX) > swipeThreshold && Math.abs(deltaX) > Math.abs(deltaY) * swipeRatio;
   if (!horizontal || elapsed > 1200) return;
   moveDialogImage(deltaX < 0 ? 1 : -1);
 }

@@ -964,11 +964,6 @@ body.theme-dark .thanks-note > p {
   cursor: grab;
 }
 
-#photoDialog.secret-image-dialog .dialog-media.is-zoomed img {
-  max-width: none;
-  max-height: none;
-}
-
 #photoDialog.secret-image-dialog .dialog-thumbs,
 #photoDialog.secret-image-dialog .photo-comments {
   display: none;
