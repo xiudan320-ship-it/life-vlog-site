@@ -943,11 +943,11 @@ body.theme-dark .thanks-note > p {
   height: 100%;
   max-height: none;
   aspect-ratio: auto;
-  overflow: auto;
+  overflow: hidden;
   background: color-mix(in srgb, var(--bg), #000 12%);
   cursor: zoom-in;
   overscroll-behavior: contain;
-  touch-action: pan-x pan-y pinch-zoom;
+  touch-action: none;
 }
 
 #photoDialog.secret-image-dialog .dialog-media img {
@@ -956,6 +956,17 @@ body.theme-dark .thanks-note > p {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
+  transform-origin: center center;
+  will-change: transform;
+}
+
+#photoDialog.secret-image-dialog .dialog-media.is-zoomed {
+  cursor: grab;
+}
+
+#photoDialog.secret-image-dialog .dialog-media.is-zoomed img {
+  max-width: none;
+  max-height: none;
 }
 
 #photoDialog.secret-image-dialog .dialog-thumbs,
@@ -982,12 +993,15 @@ body.theme-dark .thanks-note > p {
 
 #photoDialog.secret-image-fullscreen {
   grid-template-columns: 1fr;
-  top: 0;
-  left: 0;
-  width: 100vw;
+  inset: 0 !important;
+  width: 100dvw;
   height: 100dvh;
+  max-width: none;
+  max-height: none;
   border: 0;
   border-radius: 0;
+  margin: 0;
+  overflow: hidden;
   transform: none;
 }
 
@@ -996,10 +1010,10 @@ body.theme-dark .thanks-note > p {
   height: 100dvh;
   max-height: none;
   aspect-ratio: auto;
-  overflow: auto;
+  overflow: hidden;
   background: #050706;
   overscroll-behavior: contain;
-  touch-action: pan-x pan-y pinch-zoom;
+  touch-action: none;
 }
 
 #photoDialog.secret-image-fullscreen .dialog-media img {
@@ -5094,9 +5108,9 @@ body.mobile-dialog-open {
     aspect-ratio: auto;
     height: 100%;
     min-height: 0;
-    overflow: auto;
+    overflow: hidden;
     overscroll-behavior: contain;
-    touch-action: pan-x pan-y pinch-zoom;
+    touch-action: none;
   }
 
   #photoDialog.secret-image-dialog .dialog-media img {
@@ -5243,18 +5257,23 @@ body.mobile-dialog-open {
   }
 
   #photoDialog.secret-image-fullscreen {
-    width: 100vw;
+    inset: 0 !important;
+    width: 100dvw;
     height: 100dvh;
+    max-width: none;
+    max-height: none;
+    margin: 0;
     border-radius: 0;
+    transform: none;
   }
 
   #photoDialog.secret-image-fullscreen .dialog-media {
     padding-top: 0;
     height: 100dvh;
     max-height: none;
-    overflow: auto;
+    overflow: hidden;
     overscroll-behavior: contain;
-    touch-action: pan-x pan-y pinch-zoom;
+    touch-action: none;
   }
 
   #photoDialog.secret-image-fullscreen .dialog-media img {

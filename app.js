@@ -232,6 +232,9 @@ let dialogImages = [];
 let dialogImageIndex = 0;
 let dialogSwipeStart = null;
 let dialogBackSwipeStart = null;
+let secretImageGesture = null;
+let secretImageZoom = { scale: 1, x: 0, y: 0 };
+let suppressDialogImageClickUntil = 0;
 let lockedDialogScrollY = 0;
 let dialogLockUsesFixed = false;
 let dialogRandomMode = false;
@@ -2704,7 +2707,128 @@ function stripMediaMeta(note) {
   return `${text.slice(0, start)}${text.slice(end + MEDIA_META_END.length)}`.trim();
 }
 
+function clampNumber(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function isSecretImageDialogOpen() {
+  return Boolean(els.dialog?.open && els.dialog.classList.contains("secret-image-dialog"));
+}
+
+function applySecretImageZoom() {
+  if (!els.dialogImage) return;
+  const { scale, x, y } = secretImageZoom;
+  els.dialogImage.style.transform =
+    scale > 1.01 ? `translate3d(${x}px, ${y}px, 0) scale(${scale})` : "";
+  els.dialogImage.classList.toggle("is-zoomed", scale > 1.01);
+  els.dialogMedia?.classList.toggle("is-zoomed", scale > 1.01);
+}
+
+function resetSecretImageZoom() {
+  secretImageGesture = null;
+  secretImageZoom = { scale: 1, x: 0, y: 0 };
+  applySecretImageZoom();
+}
+
+function getTouchDistance(touches) {
+  const [first, second] = touches;
+  return Math.hypot(first.clientX - second.clientX, first.clientY - second.clientY);
+}
+
+function getTouchCenter(touches) {
+  const [first, second] = touches;
+  return {
+    x: (first.clientX + second.clientX) / 2,
+    y: (first.clientY + second.clientY) / 2,
+  };
+}
+
+function beginSecretImageTouch(event) {
+  if (!isSecretImageDialogOpen()) return;
+  if (event.touches.length === 2) {
+    const touches = Array.from(event.touches);
+    secretImageGesture = {
+      type: "pinch",
+      startDistance: getTouchDistance(touches),
+      startCenter: getTouchCenter(touches),
+      startScale: secretImageZoom.scale,
+      startX: secretImageZoom.x,
+      startY: secretImageZoom.y,
+    };
+    suppressDialogImageClickUntil = Date.now() + 450;
+    event.preventDefault();
+    return;
+  }
+  if (event.touches.length === 1 && secretImageZoom.scale > 1.01) {
+    const touch = event.touches[0];
+    secretImageGesture = {
+      type: "pan",
+      startTouchX: touch.clientX,
+      startTouchY: touch.clientY,
+      startX: secretImageZoom.x,
+      startY: secretImageZoom.y,
+    };
+    event.preventDefault();
+  }
+}
+
+function moveSecretImageTouch(event) {
+  if (!isSecretImageDialogOpen() || !secretImageGesture) return;
+  if (secretImageGesture.type === "pinch" && event.touches.length >= 2) {
+    const touches = Array.from(event.touches);
+    const distance = getTouchDistance(touches);
+    const center = getTouchCenter(touches);
+    const nextScale = clampNumber(
+      secretImageGesture.startScale * (distance / Math.max(1, secretImageGesture.startDistance)),
+      1,
+      4
+    );
+    secretImageZoom = {
+      scale: nextScale,
+      x: secretImageGesture.startX + (center.x - secretImageGesture.startCenter.x),
+      y: secretImageGesture.startY + (center.y - secretImageGesture.startCenter.y),
+    };
+    applySecretImageZoom();
+    suppressDialogImageClickUntil = Date.now() + 450;
+    event.preventDefault();
+    return;
+  }
+  if (secretImageGesture.type === "pan" && event.touches.length === 1) {
+    const touch = event.touches[0];
+    secretImageZoom = {
+      ...secretImageZoom,
+      x: secretImageGesture.startX + touch.clientX - secretImageGesture.startTouchX,
+      y: secretImageGesture.startY + touch.clientY - secretImageGesture.startTouchY,
+    };
+    applySecretImageZoom();
+    suppressDialogImageClickUntil = Date.now() + 250;
+    event.preventDefault();
+  }
+}
+
+function endSecretImageTouch(event) {
+  if (!isSecretImageDialogOpen()) return;
+  if (event.touches.length >= 2) {
+    beginSecretImageTouch(event);
+    return;
+  }
+  if (event.touches.length === 1 && secretImageZoom.scale > 1.01) {
+    const touch = event.touches[0];
+    secretImageGesture = {
+      type: "pan",
+      startTouchX: touch.clientX,
+      startTouchY: touch.clientY,
+      startX: secretImageZoom.x,
+      startY: secretImageZoom.y,
+    };
+    return;
+  }
+  secretImageGesture = null;
+  if (secretImageZoom.scale <= 1.03) resetSecretImageZoom();
+}
+
 function renderDialogMedia() {
+  resetSecretImageZoom();
   const image = dialogImages[dialogImageIndex] || dialogImages[0] || {};
   els.dialogImage.src = image.image_url || "";
   els.dialogImage.alt = `${els.dialogTitle.textContent} ${dialogImageIndex + 1}`;
@@ -5675,6 +5799,8 @@ function openSecretItem(item, initialImageIndex = 0) {
 
 function toggleDialogImageFullscreen() {
   if (!dialogImages.length || !els.dialog.open) return;
+  if (Date.now() < suppressDialogImageClickUntil) return;
+  resetSecretImageZoom();
   els.dialog.classList.toggle("secret-image-fullscreen");
 }
 
@@ -9027,6 +9153,7 @@ els.dialog.addEventListener("close", () => {
   photoComments = [];
   cancelDialogSwipe();
   cancelDialogBackSwipe();
+  resetSecretImageZoom();
   els.photoCommentsSection.hidden = false;
   document.body.classList.remove("mobile-dialog-open");
   if (els.dialogRandomButton) {
@@ -9054,6 +9181,10 @@ els.dialogSecretReturnButton?.addEventListener("click", returnToSecretItem);
 els.dialogPrev.addEventListener("click", () => moveDialogImage(-1));
 els.dialogNext.addEventListener("click", () => moveDialogImage(1));
 els.dialogImage.addEventListener("click", toggleDialogImageFullscreen);
+els.dialogMedia.addEventListener("touchstart", beginSecretImageTouch, { passive: false });
+els.dialogMedia.addEventListener("touchmove", moveSecretImageTouch, { passive: false });
+els.dialogMedia.addEventListener("touchend", endSecretImageTouch, { passive: false });
+els.dialogMedia.addEventListener("touchcancel", endSecretImageTouch, { passive: false });
 els.dialog.addEventListener("pointerdown", beginDialogBackSwipe, true);
 els.dialog.addEventListener("pointerup", finishDialogBackSwipe, true);
 els.dialog.addEventListener("pointercancel", cancelDialogBackSwipe, true);
