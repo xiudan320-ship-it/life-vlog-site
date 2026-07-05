@@ -5404,26 +5404,26 @@ function renderSecretAlbumView(item) {
           <button class="primary" type="button" data-secret-toggle-append>${secretAppendExpanded ? "收起上传" : "添加相片"}</button>
           <button class="delete-secret danger" type="button" data-secret-delete-current>删除相册</button>
         </div>
-        <div class="secret-album-toolbar">
-          <div>
-            <button type="button" data-secret-edit-album>${secretAlbumEditing ? "收起编辑" : "编辑相册"}</button>
-            <button type="button" data-secret-select-mode>${secretSelectionMode ? "完成选择" : "选择图片"}</button>
-          </div>
-          ${
-            secretSelectionMode
-              ? `
-                <div class="secret-selection-actions">
-                  <button type="button" data-secret-select-all>${selectedCount === images.length ? "取消全选" : "全选"}</button>
-                  <button type="button" data-secret-move="-1" ${singleSelectedIndex > 0 ? "" : "disabled"}>前移</button>
-                  <button type="button" data-secret-move="1" ${singleSelectedIndex >= 0 && singleSelectedIndex < images.length - 1 ? "" : "disabled"}>后移</button>
-                  <button type="button" data-secret-set-cover ${singleSelectedIndex >= 0 ? "" : "disabled"}>设为封面</button>
-                  <button class="delete-secret danger" type="button" data-secret-delete-selected ${selectedCount ? "" : "disabled"}>删除选中</button>
-                </div>
-              `
-              : ""
-          }
-        </div>
       </header>
+      <div class="secret-album-toolbar">
+        <div>
+          <button type="button" data-secret-edit-album>${secretAlbumEditing ? "收起编辑" : "编辑相册"}</button>
+          <button type="button" data-secret-select-mode>${secretSelectionMode ? "完成选择" : "选择图片"}</button>
+        </div>
+        ${
+          secretSelectionMode
+            ? `
+              <div class="secret-selection-actions">
+                <button type="button" data-secret-select-all>${selectedCount === images.length ? "取消全选" : "全选"}</button>
+                <button type="button" data-secret-move="-1" ${singleSelectedIndex > 0 ? "" : "disabled"}>前移</button>
+                <button type="button" data-secret-move="1" ${singleSelectedIndex >= 0 && singleSelectedIndex < images.length - 1 ? "" : "disabled"}>后移</button>
+                <button type="button" data-secret-set-cover ${singleSelectedIndex >= 0 ? "" : "disabled"}>设为封面</button>
+                <button class="delete-secret danger" type="button" data-secret-delete-selected ${selectedCount ? "" : "disabled"}>删除选中</button>
+              </div>
+            `
+            : ""
+        }
+      </div>
       ${
         secretAlbumEditing
           ? `
@@ -5473,7 +5473,6 @@ function renderSecretAlbumView(item) {
       </div>
     </section>
   `;
-  requestAnimationFrame(updateSecretAlbumHeadSpace);
   els.secretGallery.querySelector("[data-secret-back]")?.addEventListener("click", () => {
     activeSecretAlbumId = "";
     secretSelectionMode = false;
@@ -5551,13 +5550,6 @@ function renderSecretAlbumView(item) {
       openSecretItem(item, index);
     });
   });
-}
-
-function updateSecretAlbumHeadSpace() {
-  const view = els.secretGallery?.querySelector(".secret-album-view");
-  const head = els.secretGallery?.querySelector(".secret-album-head");
-  if (!view || !head) return;
-  view.style.setProperty("--secret-album-head-space", `${Math.ceil(head.offsetHeight + 18)}px`);
 }
 
 function openSecretItem(item, initialImageIndex = 0) {
@@ -9014,7 +9006,6 @@ window.addEventListener("resize", () => {
   window.clearTimeout(updateReadMoreHints.resizeTimer);
   updateReadMoreHints.resizeTimer = window.setTimeout(() => updateReadMoreHints(els.gallery), 120);
   scheduleGalleryMasonryLayout();
-  updateSecretAlbumHeadSpace();
 });
 
 registerAppShellWorker();

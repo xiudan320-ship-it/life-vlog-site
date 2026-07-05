@@ -3225,15 +3225,9 @@ body.theme-dark .feed-loader {
   display: grid;
   grid-column: 1 / -1;
   gap: 18px;
-  padding-top: var(--secret-album-head-space, 190px);
 }
 
 .secret-album-head {
-  position: fixed;
-  top: calc(84px + env(safe-area-inset-top));
-  right: max(clamp(16px, 4vw, 48px), calc((100vw - 1320px) / 2 + clamp(16px, 4vw, 48px)));
-  left: max(clamp(16px, 4vw, 48px), calc((100vw - 1320px) / 2 + clamp(16px, 4vw, 48px)));
-  z-index: 72;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
@@ -3242,8 +3236,6 @@ body.theme-dark .feed-loader {
   border-radius: 8px;
   background: var(--surface);
   padding: 18px;
-  box-shadow: 0 18px 44px rgba(15, 24, 13, 0.14);
-  backdrop-filter: blur(18px) saturate(130%);
 }
 
 .secret-album-title-row {
@@ -3418,11 +3410,6 @@ body.theme-dark .feed-loader {
   padding: 12px;
 }
 
-.secret-album-head .secret-album-toolbar {
-  grid-column: 1 / -1;
-  margin-top: -2px;
-}
-
 .secret-album-edit {
   grid-template-columns: minmax(0, 1fr) minmax(140px, 0.45fr);
 }
@@ -3451,8 +3438,13 @@ body.theme-dark .feed-loader {
 }
 
 .secret-album-toolbar {
+  position: sticky;
+  top: calc(84px + env(safe-area-inset-top));
+  z-index: 72;
   grid-template-columns: minmax(0, 1fr) auto;
   background: color-mix(in srgb, var(--surface) 90%, var(--accent) 10%);
+  box-shadow: 0 14px 34px rgba(15, 24, 13, 0.16);
+  backdrop-filter: blur(16px) saturate(130%);
 }
 
 .secret-album-toolbar > div {
@@ -5278,6 +5270,7 @@ body.mobile-dialog-open {
   }
 
   .secret-album-toolbar {
+    top: calc(78px + env(safe-area-inset-top));
     max-height: none;
     overflow: visible;
   }
