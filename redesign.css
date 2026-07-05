@@ -256,17 +256,44 @@ body.theme-dark .icon-button {
 }
 
 .vip-badge {
-  min-height: 30px;
-  border-color: rgba(177, 132, 30, 0.42);
-  border-radius: 5px;
-  background: #fff8df;
-  color: #765616;
-  padding: 0 10px;
+  display: grid;
+  min-width: 118px;
+  min-height: 40px;
+  align-content: center;
+  justify-items: start;
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--line));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  color: var(--ink);
+  padding: 4px 10px;
+  line-height: 1.1;
+  text-align: left;
+}
+
+.vip-badge span {
+  max-width: 138px;
+  overflow: hidden;
+  color: var(--accent-strong);
+  font-size: 12px;
+  font-weight: 950;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vip-badge small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 850;
 }
 
 body.theme-dark .vip-badge {
-  background: rgba(232, 185, 74, 0.12);
-  color: var(--gold);
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  color: var(--ink);
+}
+
+body.theme-dark .vip-badge span {
+  color: color-mix(in srgb, var(--accent) 86%, #fff 14%);
 }
 
 .user-popover {
@@ -4308,15 +4335,17 @@ dialog {
 
 .settings-group button span {
   min-width: 96px;
-  font-size: 16px;
+  color: color-mix(in srgb, var(--ink) 82%, var(--accent) 18%);
+  font-size: 15px;
   font-weight: 950;
+  letter-spacing: 0.01em;
 }
 
 .settings-group button strong {
   display: grid;
   justify-items: end;
   gap: 3px;
-  color: var(--muted);
+  color: color-mix(in srgb, var(--muted) 86%, var(--ink) 14%);
   font-size: 14px;
   font-weight: 750;
   text-align: right;
@@ -4325,7 +4354,7 @@ dialog {
 .settings-group button strong em {
   max-width: 320px;
   overflow: hidden;
-  color: var(--ink);
+  color: var(--accent-strong);
   font-style: normal;
   font-size: 15px;
   font-weight: 900;
@@ -4344,7 +4373,19 @@ dialog {
 }
 
 .settings-group button:hover strong em {
-  color: var(--accent-strong);
+  color: var(--ink);
+}
+
+body.theme-dark .settings-group button span {
+  color: color-mix(in srgb, var(--ink) 78%, var(--accent) 22%);
+}
+
+body.theme-dark .settings-group button strong em {
+  color: color-mix(in srgb, var(--accent) 84%, #fff 16%);
+}
+
+body.theme-dark .settings-group button:hover strong em {
+  color: #fff;
 }
 
 .settings-tool-order {
@@ -5196,6 +5237,21 @@ body.mobile-dialog-open {
     flex: 0 0 auto;
   }
 
+  .vip-badge {
+    min-width: 88px;
+    min-height: 38px;
+    padding: 4px 8px;
+  }
+
+  .vip-badge span {
+    max-width: 96px;
+    font-size: 11px;
+  }
+
+  .vip-badge small {
+    font-size: 9px;
+  }
+
   .brand-logo-wrap {
     width: 42px;
     height: 42px;
@@ -5712,8 +5768,7 @@ body.mobile-dialog-open {
 }
 
 @media (max-width: 390px) {
-  .brand small,
-  .vip-badge {
+  .brand small {
     display: none;
   }
 

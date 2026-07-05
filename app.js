@@ -14,6 +14,7 @@ const PHOTO_FEED_CACHE_KEY = "life-vlog-photo-feed-cache";
 const SECRET_ITEMS_CACHE_KEY = "life-vlog-secret-items-cache";
 const CACHE_LIMIT_KEY = "life-vlog-cache-limit";
 const EXPERIENCE_KEY = "life-vlog-experience";
+const TODAY_EXPERIENCE_KEY = "life-vlog-today-experience";
 const THANKS_COLOR_KEY = "life-vlog-thanks-color";
 const MOBILE_FEED_LAYOUT_KEY = "life-vlog-mobile-feed-layout";
 const THANKS_COLORS = new Set(["#2f6b3b", "#d6544d", "#2e6da4", "#81559b", "#a66b12"]);
@@ -69,7 +70,7 @@ const CULTIVATION_DESCRIPTIONS = {
   道祖境: "大道圆满，你们的家就是自己的时间宇宙。",
 };
 const BUCKET = "life-photos";
-const PRODUCTION_URL = "https://xiudan320-ship-it.github.io/life-vlog-site/";
+const PRODUCTION_URL = "https://life-vlog-site.pages.dev/";
 const R2_UPLOAD_ENDPOINT = "https://life-vlog-r2-upload.xiudan320-life.workers.dev";
 const R2_PUBLIC_URL = "https://pub-47959f26cde042c3b37bc0f8f3f441ce.r2.dev";
 const CLOUDFLARE_SESSION_KEY = "life-vlog-cloudflare-session";
@@ -999,10 +1000,10 @@ function updateAuthUI() {
   }
   els.vipBadge.hidden = !signedIn;
   els.vipPopoverBadge.hidden = !signedIn;
-  els.vipBadge.textContent = vip ? `VIP LV.${activeVipLevel}` : "开通 VIP";
   els.vipPopoverBadge.textContent = vip
     ? `${localHomeName} ${getVipLevel(activeVipLevel).label}`
     : `开通 ${localHomeName} VIP`;
+  if (signedIn) renderTopLevelBadge();
   renderVipCenter();
   recipes = signedIn ? loadRecipes() : [];
   wishes = signedIn ? loadWishes() : [];
@@ -3944,12 +3945,14 @@ async function synchronizeAccountData() {
         "login_streak"
       );
       const previousLoginDate = lastLoginDate;
+      let loginRewardGained = 0;
       if (
         profile.last_login_date !== today &&
         (!needsLocalMigration || localExperience.lastLoginDate !== today)
       ) {
         loginStreak = previousLoginDate === getOffsetLocalDateKey(-1) ? loginStreak + 1 : 1;
-        experienceTotal += getDailyLoginReward(loginStreak, vipLevel);
+        loginRewardGained = getDailyLoginReward(loginStreak, vipLevel);
+        experienceTotal += loginRewardGained;
       }
       lastLoginDate = today;
 
@@ -4029,6 +4032,7 @@ async function synchronizeAccountData() {
         },
         preferredDisplayName
       );
+      if (loginRewardGained) addTodayExperience(loginRewardGained, userId);
       saveRecipes();
       saveWishes();
       saveFoodOptionsCache(userId);
@@ -4036,7 +4040,6 @@ async function synchronizeAccountData() {
       activeVipLevel = accountProfile.vipLevel;
       document.body.classList.toggle("vip-member", activeVipLevel > 0);
       document.body.dataset.vipLevel = String(activeVipLevel);
-      els.vipBadge.textContent = activeVipLevel > 0 ? `VIP LV.${activeVipLevel}` : "开通 VIP";
       els.vipPopoverBadge.textContent =
         activeVipLevel > 0
           ? `${preferredHomeName} ${getVipLevel(activeVipLevel).label}`
@@ -4307,6 +4310,30 @@ function saveExperience(data, displayName = getSessionDisplayName()) {
   }
 }
 
+function getTodayExperienceStorageKey(userId = session?.user?.id || getSessionLoginName()) {
+  return `${TODAY_EXPERIENCE_KEY}:${userId || "guest"}`;
+}
+
+function loadTodayExperience(userId = session?.user?.id || getSessionLoginName()) {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(getTodayExperienceStorageKey(userId)) || "{}");
+    return parsed.date === getLocalDateKey() ? Math.max(0, Number(parsed.amount) || 0) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function addTodayExperience(amount, userId = session?.user?.id || getSessionLoginName()) {
+  const numericAmount = Math.max(0, Number(amount) || 0);
+  if (!numericAmount) return loadTodayExperience(userId);
+  const nextAmount = loadTodayExperience(userId) + numericAmount;
+  localStorage.setItem(
+    getTodayExperienceStorageKey(userId),
+    JSON.stringify({ date: getLocalDateKey(), amount: nextAmount })
+  );
+  return nextAmount;
+}
+
 function getVipExpMultiplier(level = activeVipLevel) {
   return VIP_EXP_MULTIPLIERS[Math.max(0, Math.min(5, Number(level) || 0))] || 1;
 }
@@ -4340,6 +4367,7 @@ function awardDailyExperience(displayName = getSessionDisplayName()) {
   if (data.lastLoginDate === today) return data;
   const streak = data.lastLoginDate === getOffsetLocalDateKey(-1) ? (Number(data.loginStreak) || 0) + 1 : 1;
   const amount = getDailyLoginReward(streak);
+  addTodayExperience(amount);
 
   const next = {
     total: data.total + amount,
@@ -4458,7 +4486,18 @@ function renderExperience(displayName = getSessionDisplayName()) {
     data.lastLoginDate === getLocalDateKey()
       ? `今日吐纳 +${loginExp} EXP 已领取 · 连续 ${Math.max(1, Number(data.loginStreak) || 1)} 天${multiplier > 1 ? ` · VIP ${multiplier}x` : ""}`
       : `下次吐纳 +${loginExp} EXP · 连续 ${nextStreak} 天`;
+  renderTopLevelBadge(progress);
   if (els.levelDialog?.open) renderLevelDialog();
+}
+
+function renderTopLevelBadge(progress = getExperienceLevel(loadExperience().total)) {
+  if (!els.vipBadge) return;
+  const todayExp = loadTodayExperience();
+  els.vipBadge.innerHTML = `
+    <span>${escapeHtml(progress.title)}</span>
+    <small>今日 +${todayExp} EXP</small>
+  `;
+  els.vipBadge.title = `当前等级：${progress.title}，今日获得 ${todayExp} EXP`;
 }
 
 async function awardExperience(action, options = {}) {
@@ -4471,6 +4510,7 @@ async function awardExperience(action, options = {}) {
     ...current,
     total: Math.max(0, Number(current.total) || 0) + amount,
   };
+  addTodayExperience(amount);
   saveExperience(next);
   renderExperience();
   renderOverview();
@@ -8196,12 +8236,22 @@ async function syncAppIconBadge(count = 0) {
 }
 
 function getNotificationText(item) {
-  const actor = item.actor_username || "有人";
+  const actor = getNotificationActorName(item);
   if (item.type === "diary") return `${actor} 发布了新日记`;
   if (item.type === "thanks") return `${actor} 写了一句感谢留言`;
   if (item.type === "favorite") return `${actor} 收藏了你的日记`;
   if (item.type === "reply") return `${actor} 回复了你的留言`;
   return `${actor} 评论了你的日记`;
+}
+
+function getNotificationActorName(item) {
+  const fromFamily = item?.actor_id ? familyMemberMap.get(item.actor_id)?.username : "";
+  return item?.actor_username || fromFamily || "有人";
+}
+
+function getNotificationActorAvatar(item) {
+  const fromFamily = item?.actor_id ? familyMemberMap.get(item.actor_id)?.avatar_url : "";
+  return item?.actor_avatar_url || fromFamily || "";
 }
 
 async function loadNotifications() {
@@ -8235,9 +8285,11 @@ function renderNotifications() {
   }
   els.notificationList.innerHTML = notifications
     .map((item) => {
-      const avatar = item.actor_avatar_url
-        ? `<span class="notification-avatar"><img src="${escapeHtml(item.actor_avatar_url)}" alt="" /></span>`
-        : `<span class="notification-avatar">${escapeHtml(getInitial(item.actor_username))}</span>`;
+      const actorName = getNotificationActorName(item);
+      const actorAvatar = getNotificationActorAvatar(item);
+      const avatar = actorAvatar
+        ? `<span class="notification-avatar"><img src="${escapeHtml(actorAvatar)}" alt="" /></span>`
+        : `<span class="notification-avatar">${escapeHtml(getInitial(actorName))}</span>`;
       const stateClass = item.just_seen ? "just-seen" : item.is_read ? "" : "unread";
       return `
         <button class="notification-item ${stateClass}" type="button" data-notification-id="${escapeHtml(item.notification_id)}" data-notification-type="${escapeHtml(item.type || "")}" data-notification-photo="${escapeHtml(item.photo_id || "")}">
@@ -8780,8 +8832,7 @@ els.forgotPasswordDialog.addEventListener("click", (event) => {
 });
 els.forgotPasswordForm.addEventListener("submit", resetForgottenPassword);
 els.vipBadge.addEventListener("click", () => {
-  renderVipCenter();
-  els.vipDialog.showModal();
+  openLevelDialog();
 });
 els.vipPopoverBadge.addEventListener("click", () => {
   renderVipCenter();

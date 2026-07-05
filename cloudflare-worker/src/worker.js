@@ -643,11 +643,27 @@ async function handleRpc(request, env, user, name) {
 
   if (name === "get_my_notifications") {
     const limit = Math.min(100, Math.max(1, Number(payload.p_limit || 50)));
-    const rows = await env.DB.prepare("select * from notifications where user_id=? order by created_at desc limit ?")
+    const rows = await env.DB.prepare(
+      `select notifications.*,
+              user_profiles.username as actor_username,
+              user_profiles.avatar_url as actor_avatar_url,
+              photos.image_url as photo_image_url
+         from notifications
+         left join user_profiles on user_profiles.user_id = notifications.actor_id
+         left join photos on photos.id = notifications.photo_id
+        where notifications.user_id=?
+        order by notifications.created_at desc
+        limit ?`
+    )
       .bind(user.id, limit)
       .all();
     return jsonResponse(request, env, {
-      data: (rows.results || []).map((row) => denormalizeRow("notifications", row)),
+      data: (rows.results || []).map((row) => ({
+        ...denormalizeRow("notifications", row),
+        actor_username: row.actor_username || "",
+        actor_avatar_url: row.actor_avatar_url || "",
+        photo_image_url: row.photo_image_url || "",
+      })),
     });
   }
 
