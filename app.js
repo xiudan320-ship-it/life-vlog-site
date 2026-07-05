@@ -17,6 +17,7 @@ const EXPERIENCE_KEY = "life-vlog-experience";
 const TODAY_EXPERIENCE_KEY = "life-vlog-today-experience";
 const THANKS_COLOR_KEY = "life-vlog-thanks-color";
 const MOBILE_FEED_LAYOUT_KEY = "life-vlog-mobile-feed-layout";
+const MOBILE_SECRET_LAYOUT_KEY = "life-vlog-mobile-secret-layout";
 const THANKS_COLORS = new Set(["#2f6b3b", "#d6544d", "#2e6da4", "#81559b", "#a66b12"]);
 const DEFAULT_THANKS_COLOR = "#2f6b3b";
 const DAILY_LOGIN_EXP = 25;
@@ -971,6 +972,7 @@ function updateAuthUI() {
     userId: signedIn ? session.user.id : null,
   });
   applyMobileFeedLayout(loadMobileFeedLayout(signedIn ? session.user.id : "guest"));
+  applyMobileSecretLayout(loadMobileSecretLayout(signedIn ? session.user.id : "guest"));
   const rechargeTotal = signedIn ? loadRechargeTotal(displayName) : 0;
   activeVipLevel = signedIn ? getVipLevelByRecharge(rechargeTotal)?.level || 0 : 0;
   const vip = signedIn && activeVipLevel > 0;
@@ -3547,6 +3549,50 @@ function setMobileFeedLayout(layout) {
   renderSettingsSummary();
 }
 
+function getMobileSecretLayoutKey(userId = session?.user?.id || "guest") {
+  return `${MOBILE_SECRET_LAYOUT_KEY}:${userId || "guest"}`;
+}
+
+function loadMobileSecretLayout(userId = session?.user?.id || "guest") {
+  return localStorage.getItem(getMobileSecretLayoutKey(userId)) === "single" ? "single" : "double";
+}
+
+function ensureSecretLayoutToggle() {
+  if (!els.secretPage) return null;
+  let button = els.secretPage.querySelector("[data-secret-layout-toggle]");
+  if (button) return button;
+  const head = els.secretPage.querySelector(".secret-head");
+  if (!head) return null;
+  button = document.createElement("button");
+  button.className = "secret-layout-toggle";
+  button.type = "button";
+  button.dataset.secretLayoutToggle = "true";
+  button.addEventListener("click", () => {
+    setMobileSecretLayout(loadMobileSecretLayout() === "single" ? "double" : "single");
+  });
+  head.append(button);
+  return button;
+}
+
+function applyMobileSecretLayout(layout = loadMobileSecretLayout()) {
+  const nextLayout = layout === "single" ? "single" : "double";
+  document.body.classList.toggle("mobile-secret-single", nextLayout === "single");
+  document.body.classList.toggle("mobile-secret-double", nextLayout === "double");
+  const button = ensureSecretLayoutToggle();
+  if (button) {
+    button.textContent = nextLayout === "single" ? "单列" : "双列";
+    button.title = nextLayout === "single" ? "秘藏当前为单列显示" : "秘藏当前为双列显示";
+    button.setAttribute("aria-label", button.title);
+    button.setAttribute("aria-pressed", nextLayout === "single" ? "true" : "false");
+  }
+}
+
+function setMobileSecretLayout(layout) {
+  const nextLayout = layout === "single" ? "single" : "double";
+  localStorage.setItem(getMobileSecretLayoutKey(), nextLayout);
+  applyMobileSecretLayout(nextLayout);
+}
+
 function changeCacheLimit() {
   const current = loadCacheLimit();
   const value = window.prompt(`设置本地缓存上限（${MIN_CACHE_LIMIT}-${MAX_CACHE_LIMIT} 条）`, String(current));
@@ -4963,6 +5009,7 @@ function switchPage(page) {
   if (showWeekend) renderWeekendPlans();
   if (showThanks) renderGratitudeNotes();
   if (showSecret) {
+    applyMobileSecretLayout();
     if (!secretItems.length && session) renderCachedSecretItems(session.user.id);
     renderSecretGallery();
     if (session && cloudDb) void loadSecretItems();
@@ -9042,5 +9089,6 @@ updateDiarySearchUi();
 renderFoodWheel();
 initializeFeedObserver();
 applyMobileFeedLayout();
+applyMobileSecretLayout();
 initializeCloudflare();
 
