@@ -3448,8 +3448,12 @@ body.theme-dark .feed-loader {
 }
 
 .secret-album-toolbar {
-  position: sticky;
+  position: fixed;
   top: calc(96px + env(safe-area-inset-top));
+  right: max(clamp(16px, 4vw, 48px), calc((100vw - 1320px) / 2 + clamp(16px, 4vw, 48px)));
+  width: 172px;
+  max-height: calc(100dvh - 128px - env(safe-area-inset-top));
+  overflow: auto;
   z-index: 72;
   grid-column: 2;
   grid-row: 1 / span 5;
