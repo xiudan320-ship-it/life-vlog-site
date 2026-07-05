@@ -4857,7 +4857,7 @@ function clearPhotoPreview() {
   els.photoPreview.hidden = true;
   els.previewStrip.innerHTML = "";
   els.previewStrip.hidden = true;
-  els.fileName.textContent = "还没有选择图片";
+  els.fileName.textContent = "展开后直接粘贴图片，或点上面选择";
 }
 
 function revokePreviewUrls() {

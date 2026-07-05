@@ -2347,11 +2347,18 @@ textarea:focus {
 }
 
 .file-drop {
+  display: grid;
+  min-height: auto;
+  align-content: center;
+  justify-items: center;
+  gap: 12px;
   cursor: default;
+  padding: 24px;
 }
 
 .upload-pick-button {
   display: inline-grid;
+  width: fit-content;
   min-height: 42px;
   align-items: center;
   border: 1px solid color-mix(in srgb, var(--accent) 72%, var(--line));
@@ -2362,6 +2369,31 @@ textarea:focus {
   font-size: 14px;
   font-weight: 950;
   padding: 0 18px;
+}
+
+.file-drop > span.upload-pick-button {
+  display: inline-grid;
+  margin: 0;
+  color: #10200d;
+}
+
+.file-drop > strong {
+  margin-top: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.file-drop #photoPreview:not([hidden]) {
+  width: min(100%, 460px);
+  max-height: 260px;
+  margin: 0;
+  border-radius: 6px;
+  object-fit: contain;
+}
+
+.file-drop .preview-strip {
+  margin: 0;
 }
 
 .upload-pick-button:hover,
