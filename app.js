@@ -3593,6 +3593,20 @@ function setMobileSecretLayout(layout) {
   applyMobileSecretLayout(nextLayout);
 }
 
+function updateSecretToolbarTop() {
+  const toolbar = els.secretGallery?.querySelector(".secret-album-toolbar");
+  const head = els.secretGallery?.querySelector(".secret-album-head");
+  if (!toolbar || !head) return;
+  if (window.matchMedia(`(max-width: ${MOBILE_DIALOG_BREAKPOINT}px)`).matches) {
+    toolbar.style.removeProperty("--secret-toolbar-top");
+    return;
+  }
+  const topbarBottom = document.querySelector(".topbar")?.getBoundingClientRect().bottom || 76;
+  const pinnedTop = Math.ceil(topbarBottom + 20);
+  const headTop = Math.ceil(head.getBoundingClientRect().top);
+  toolbar.style.setProperty("--secret-toolbar-top", `${Math.max(pinnedTop, headTop)}px`);
+}
+
 function changeCacheLimit() {
   const current = loadCacheLimit();
   const value = window.prompt(`设置本地缓存上限（${MIN_CACHE_LIMIT}-${MAX_CACHE_LIMIT} 条）`, String(current));
@@ -5522,6 +5536,8 @@ function renderSecretAlbumView(item) {
       </div>
     </section>
   `;
+  updateSecretToolbarTop();
+  requestAnimationFrame(updateSecretToolbarTop);
   els.secretGallery.querySelector("[data-secret-back]")?.addEventListener("click", () => {
     activeSecretAlbumId = "";
     secretSelectionMode = false;
@@ -9082,7 +9098,9 @@ window.addEventListener("resize", () => {
   window.clearTimeout(updateReadMoreHints.resizeTimer);
   updateReadMoreHints.resizeTimer = window.setTimeout(() => updateReadMoreHints(els.gallery), 120);
   scheduleGalleryMasonryLayout();
+  updateSecretToolbarTop();
 });
+window.addEventListener("scroll", updateSecretToolbarTop, { passive: true });
 
 registerAppShellWorker();
 updateDiarySearchUi();
