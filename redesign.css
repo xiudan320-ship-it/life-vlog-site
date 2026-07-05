@@ -3150,7 +3150,7 @@ body.theme-dark .feed-loader {
 
 .secret-gallery {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
   padding-bottom: 34px;
 }
@@ -5316,7 +5316,8 @@ body.mobile-dialog-open {
   }
 
   .secret-gallery {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
   }
 
   .secret-form .form-grid,
