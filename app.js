@@ -188,6 +188,12 @@ let familyInvitations = [];
 let familyMemberMap = new Map();
 let gratitudeEditingId = null;
 let activeDialogPhoto = null;
+let mobileDiaryPhoto = null;
+let mobileDiaryPage = null;
+let mobileDiaryRestoreScrollY = 0;
+let mobileDiaryImageIndex = 0;
+let mobileDiaryReplyToId = null;
+let mobileDiaryBackSwipeStart = null;
 let photoComments = [];
 let photoCommentPreviewMap = new Map();
 let notifications = [];
@@ -1185,6 +1191,7 @@ async function signupWithPassword() {
 
 async function logout() {
   if (!cloudDb) return;
+  closeMobileDiaryPage();
   await cloudDb.auth.signOut();
 }
 
@@ -3129,6 +3136,10 @@ function ensurePhotoDialogBackdrop() {
 }
 
 function closePhotoDialog() {
+  if (mobileDiaryPage && !mobileDiaryPage.hidden) {
+    closeMobileDiaryPage();
+    return;
+  }
   if (!els.dialog.open) return;
   els.dialog.removeAttribute("open");
   ensurePhotoDialogBackdrop().hidden = true;
@@ -3181,7 +3192,274 @@ function restoreDialogReturnTarget(restoreScroll = dialogRestoreScrollY) {
   });
 }
 
+function ensureMobileDiaryPage() {
+  if (mobileDiaryPage) return mobileDiaryPage;
+  mobileDiaryPage = document.createElement("section");
+  mobileDiaryPage.className = "mobile-diary-page";
+  mobileDiaryPage.hidden = true;
+  mobileDiaryPage.addEventListener("click", (event) => {
+    const closeButton = event.target.closest("[data-mobile-diary-close]");
+    if (closeButton) {
+      closeMobileDiaryPage();
+      return;
+    }
+    const imageButton = event.target.closest("[data-mobile-diary-image]");
+    if (imageButton) {
+      mobileDiaryImageIndex = Number(imageButton.dataset.mobileDiaryImage) || 0;
+      renderMobileDiaryPage();
+      return;
+    }
+    const replyButton = event.target.closest("[data-mobile-diary-reply]");
+    if (replyButton) {
+      startMobileDiaryReply(replyButton.dataset.mobileDiaryReply);
+      return;
+    }
+    const deleteButton = event.target.closest("[data-mobile-diary-delete-comment]");
+    if (deleteButton) {
+      void deletePhotoComment(deleteButton.dataset.mobileDiaryDeleteComment);
+      return;
+    }
+    const cancelReply = event.target.closest("[data-mobile-diary-cancel-reply]");
+    if (cancelReply) {
+      cancelMobileDiaryReply();
+    }
+  });
+  mobileDiaryPage.addEventListener("submit", (event) => {
+    if (event.target.matches("[data-mobile-diary-comment-form]")) {
+      void saveMobileDiaryComment(event);
+    }
+  });
+  mobileDiaryPage.addEventListener("pointerdown", beginMobileDiaryBackSwipe, { passive: true });
+  mobileDiaryPage.addEventListener("pointerup", endMobileDiaryBackSwipe, { passive: true });
+  mobileDiaryPage.addEventListener("pointercancel", () => {
+    mobileDiaryBackSwipeStart = null;
+  });
+  document.body.append(mobileDiaryPage);
+  return mobileDiaryPage;
+}
+
+function renderMobileDiaryCommentTree() {
+  if (!photoComments.length) return `<p class="photo-comments-empty">还没有留言。</p>`;
+  const byParent = new Map();
+  photoComments.forEach((comment) => {
+    const parentId = comment.parent_id || "root";
+    if (!byParent.has(parentId)) byParent.set(parentId, []);
+    byParent.get(parentId).push(comment);
+  });
+  const renderBranch = (parentId = "root", depth = 0) =>
+    (byParent.get(parentId) || [])
+      .map((comment) => {
+        const replyTarget = comment.parent_id
+          ? photoComments.find((item) => item.id === comment.parent_id)
+          : null;
+        return `
+          <div class="photo-comment-thread" style="--comment-depth:${Math.min(depth, 3)}">
+            <article class="photo-comment">
+              ${renderAvatarMarkup(comment.user_id)}
+              <div>
+                <header>
+                  <strong>${escapeHtml(getAuthorName(comment.user_id))}</strong>
+                  <time>${formatCommentTime(comment.created_at)}</time>
+                </header>
+                ${replyTarget ? `<small class="reply-target">回复 ${escapeHtml(getAuthorName(replyTarget.user_id))}</small>` : ""}
+                <p>${escapeHtml(comment.body)}</p>
+                <div class="photo-comment-actions">
+                  <button type="button" data-mobile-diary-reply="${escapeHtml(comment.id)}">回复</button>
+                  ${comment.user_id === session?.user?.id ? `<button type="button" data-mobile-diary-delete-comment="${escapeHtml(comment.id)}">删除</button>` : ""}
+                </div>
+              </div>
+            </article>
+            ${renderBranch(comment.id, depth + 1)}
+          </div>
+        `;
+      })
+      .join("");
+  return renderBranch();
+}
+
+function renderMobileDiaryComments() {
+  if (!mobileDiaryPage || mobileDiaryPage.hidden) return;
+  const list = mobileDiaryPage.querySelector("[data-mobile-diary-comments]");
+  if (list) list.innerHTML = renderMobileDiaryCommentTree();
+  const replyBar = mobileDiaryPage.querySelector("[data-mobile-diary-replying]");
+  const replyText = mobileDiaryPage.querySelector("[data-mobile-diary-replying-text]");
+  const input = mobileDiaryPage.querySelector("[data-mobile-diary-comment-input]");
+  const replyComment = photoComments.find((item) => item.id === mobileDiaryReplyToId);
+  if (replyBar) replyBar.hidden = !replyComment;
+  if (replyText) replyText.textContent = replyComment ? `正在回复 ${getAuthorName(replyComment.user_id)}` : "";
+  if (input) input.placeholder = replyComment ? `回复 ${getAuthorName(replyComment.user_id)}` : "给这篇日记留句话";
+}
+
+function renderMobileDiaryPage() {
+  const page = ensureMobileDiaryPage();
+  const photo = mobileDiaryPhoto;
+  if (!photo) return;
+  const images = getPhotoImages(photo);
+  mobileDiaryImageIndex = Math.min(Math.max(0, mobileDiaryImageIndex), Math.max(0, images.length - 1));
+  const image = images[mobileDiaryImageIndex] || images[0] || {};
+  const canComment = Boolean(
+    session &&
+      photo &&
+      (photo.user_id === session.user.id || familyMemberMap.has(photo.user_id))
+  );
+  page.innerHTML = `
+    <button class="mobile-diary-close" type="button" data-mobile-diary-close aria-label="返回">返回</button>
+    <div class="mobile-diary-media">
+      <img src="${escapeHtml(image.image_url || "")}" alt="${escapeHtml(getDisplayTitle(photo) || "日记图片")}" />
+      ${images.length > 1 ? `<span>${mobileDiaryImageIndex + 1} / ${images.length}</span>` : ""}
+    </div>
+    ${
+      images.length > 1
+        ? `<div class="mobile-diary-thumbs">
+            ${images
+              .map(
+                (thumb, index) => `
+                  <button class="${index === mobileDiaryImageIndex ? "active" : ""}" type="button" data-mobile-diary-image="${index}">
+                    <img src="${escapeHtml(thumb.image_url)}" alt="" />
+                  </button>
+                `
+              )
+              .join("")}
+          </div>`
+        : ""
+    }
+    <article class="mobile-diary-article">
+      <p class="kicker mobile-diary-meta">
+        <span>${escapeHtml(photo.category || "日常")} · ${formatDateTime(photo.created_at)}</span>
+        <span class="diary-card-author">
+          ${renderAvatarMarkup(photo.user_id, "diary-card-author-avatar")}
+          <span>${escapeHtml(getAuthorName(photo.user_id))}</span>
+        </span>
+      </p>
+      ${getDisplayTitle(photo) ? `<h1>${escapeHtml(getDisplayTitle(photo))}</h1>` : ""}
+      ${getPlainNote(photo) ? `<p class="mobile-diary-note">${escapeHtml(getPlainNote(photo))}</p>` : ""}
+    </article>
+    <section class="mobile-diary-comments">
+      <div class="photo-comments-head">
+        <p class="kicker">Family Comments</p>
+        <h3>留言</h3>
+      </div>
+      <div class="photo-comments-list" data-mobile-diary-comments>${renderMobileDiaryCommentTree()}</div>
+      ${
+        canComment
+          ? `<form data-mobile-diary-comment-form>
+              <div class="comment-replying" data-mobile-diary-replying hidden>
+                <span data-mobile-diary-replying-text></span>
+                <button type="button" data-mobile-diary-cancel-reply aria-label="取消回复">×</button>
+              </div>
+              <input data-mobile-diary-comment-input maxlength="300" required placeholder="给这篇日记留句话" />
+              <button type="submit">发送</button>
+              <p class="status-line" data-mobile-diary-comment-status></p>
+            </form>`
+          : ""
+      }
+    </section>
+  `;
+  renderMobileDiaryComments();
+}
+
+function openMobileDiaryPage(photo, initialImageIndex = 0, options = {}) {
+  if (!photo) return;
+  mobileDiaryRestoreScrollY = window.scrollY || window.pageYOffset || 0;
+  mobileDiaryPhoto = photo;
+  mobileDiaryImageIndex = Math.max(0, Number(initialImageIndex) || 0);
+  mobileDiaryReplyToId = null;
+  activeDialogPhoto = photo;
+  dialogRandomMode = Boolean(options.randomMode);
+  dialogSecretSourceItem = options.secretSourceItem || null;
+  photoComments = [];
+  if (isPhotoPublishedToday(photo) && photo.id) {
+    markTodayPostsViewed([photo.id]);
+    updateTodayPostsNotice();
+  }
+  ensureMobileDiaryPage().hidden = false;
+  document.body.classList.add("mobile-diary-page-open");
+  document.querySelector(".topbar")?.setAttribute("hidden", "");
+  document.querySelector("main")?.setAttribute("hidden", "");
+  renderMobileDiaryPage();
+  window.scrollTo({ top: 0, behavior: "auto" });
+  void loadPhotoComments(photo.id);
+}
+
+function closeMobileDiaryPage() {
+  if (!mobileDiaryPage || mobileDiaryPage.hidden) return;
+  const restoreY = Math.max(0, Number(mobileDiaryRestoreScrollY) || 0);
+  mobileDiaryPage.hidden = true;
+  mobileDiaryPhoto = null;
+  mobileDiaryReplyToId = null;
+  mobileDiaryBackSwipeStart = null;
+  photoComments = [];
+  activeDialogPhoto = null;
+  dialogRandomMode = false;
+  dialogSecretSourceItem = null;
+  document.body.classList.remove("mobile-diary-page-open");
+  document.querySelector(".topbar")?.removeAttribute("hidden");
+  document.querySelector("main")?.removeAttribute("hidden");
+  requestAnimationFrame(() => {
+    window.scrollTo({ top: restoreY, behavior: "auto" });
+    window.setTimeout(() => window.scrollTo({ top: restoreY, behavior: "auto" }), 90);
+  });
+}
+
+function startMobileDiaryReply(commentId) {
+  const comment = photoComments.find((item) => item.id === commentId);
+  if (!comment) return;
+  mobileDiaryReplyToId = comment.id;
+  renderMobileDiaryComments();
+  mobileDiaryPage?.querySelector("[data-mobile-diary-comment-input]")?.focus();
+}
+
+function cancelMobileDiaryReply() {
+  mobileDiaryReplyToId = null;
+  renderMobileDiaryComments();
+}
+
+async function saveMobileDiaryComment(event) {
+  event.preventDefault();
+  if (!cloudDb || !session || !mobileDiaryPhoto) return;
+  const input = mobileDiaryPage?.querySelector("[data-mobile-diary-comment-input]");
+  const status = mobileDiaryPage?.querySelector("[data-mobile-diary-comment-status]");
+  const body = input?.value.trim() || "";
+  if (!body) return;
+  if (status) status.textContent = "正在发送...";
+  const { error } = await cloudDb.from("photo_comments").insert({
+    photo_id: mobileDiaryPhoto.id,
+    user_id: session.user.id,
+    body,
+    parent_id: mobileDiaryReplyToId,
+  });
+  if (error) {
+    if (status) status.textContent = isMissingCloudSchema(error) ? "请先部署最新版 Cloudflare D1 结构。" : `发送失败：${error.message}`;
+    return;
+  }
+  if (input) input.value = "";
+  mobileDiaryReplyToId = null;
+  await loadPhotoComments(mobileDiaryPhoto.id);
+  await loadPhotoCommentPreviews();
+  const gainedExp = await awardExperience("comment");
+  if (status) status.textContent = gainedExp ? `留言已发送。修为 +${gainedExp}` : "留言已发送。";
+}
+
+function beginMobileDiaryBackSwipe(event) {
+  if (!mobileDiaryPage || mobileDiaryPage.hidden || event.pointerType === "mouse") return;
+  if (event.clientX > 32) return;
+  mobileDiaryBackSwipeStart = { x: event.clientX, y: event.clientY, time: Date.now() };
+}
+
+function endMobileDiaryBackSwipe(event) {
+  if (!mobileDiaryBackSwipeStart) return;
+  const deltaX = event.clientX - mobileDiaryBackSwipeStart.x;
+  const deltaY = Math.abs(event.clientY - mobileDiaryBackSwipeStart.y);
+  const elapsed = Date.now() - mobileDiaryBackSwipeStart.time;
+  mobileDiaryBackSwipeStart = null;
+  if (deltaX > 86 && deltaY < 70 && elapsed < 700) closeMobileDiaryPage();
+}
+
 function openPhoto(photo, initialImageIndex = 0, options = {}) {
+  if (isMobileViewport() && !options.forceDialog) {
+    openMobileDiaryPage(photo, initialImageIndex, options);
+    return;
+  }
   captureDialogReturnTarget(photo);
   lockDialogBackgroundScroll(dialogRestoreScrollY);
   activeDialogPhoto = photo;
@@ -5227,6 +5505,7 @@ function removeUploadPreview(index) {
 }
 
 function switchPage(page) {
+  closeMobileDiaryPage();
   activePage = ["recipes", "wishlist", "weekend", "thanks", "secret"].includes(page) ? page : "gallery";
   const showRecipes = activePage === "recipes";
   const showWishlist = activePage === "wishlist";
@@ -6676,6 +6955,7 @@ function spinFoodWheel() {
 
 function openFoodWheel() {
   els.foodWheelSection.hidden = false;
+  closeMobileDiaryPage();
   if (els.dialog?.open) closePhotoDialog();
   if (els.foodWheelDialog.open) return;
   renderFoodWheel();
@@ -8842,6 +9122,7 @@ async function loadPhotoComments(photoId) {
     photoComments = data || [];
   }
   renderPhotoComments();
+  renderMobileDiaryComments();
 }
 
 function renderPhotoComments() {
