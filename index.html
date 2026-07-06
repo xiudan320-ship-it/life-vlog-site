@@ -17,7 +17,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="./assets/app-icon-32.png" />
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
     <link rel="stylesheet" href="./styles.css?v=20260610-37" />
-    <link rel="stylesheet" href="./redesign.css?v=20260705-127" />
+    <link rel="stylesheet" href="./redesign.css?v=20260705-128" />
   </head>
   <body>
     <header class="topbar">
@@ -658,7 +658,7 @@
           <div>
             <p class="kicker">Secret Gallery</p>
             <h2>秘藏图集</h2>
-            <p>私人画廊，可以创建相册、上传收藏图，并按分类展览。</p>
+            <p>私人画廊，可以创建相册、上传收藏图，并按照片 tag 展览。</p>
           </div>
           <p class="status-line" id="secretStatus"></p>
         </div>
@@ -689,10 +689,10 @@
                 <input id="secretTitleInput" maxlength="80" placeholder="比如：灵感收藏" />
               </label>
               <label>
-                分类
-                <input id="secretCategoryInput" maxlength="32" list="secretCategoryList" placeholder="比如：画集、壁纸、灵感" />
+                相册分组（可选）
+                <input id="secretCategoryInput" maxlength="32" list="secretCategoryList" placeholder="可不填，照片 tag 可之后批量设置" />
                 <datalist id="secretCategoryList"></datalist>
-                <div class="secret-category-tags" id="secretCategoryTags" aria-label="常用秘藏分类"></div>
+                <div class="secret-category-tags" id="secretCategoryTags" aria-label="常用照片 tag"></div>
               </label>
               <label>
                 关联日记
@@ -711,7 +711,7 @@
           </form>
         </section>
 
-        <div class="secret-filters" id="secretFilters" aria-label="秘藏分类"></div>
+        <div class="secret-filters" id="secretFilters" aria-label="秘藏照片 tag"></div>
         <section class="secret-gallery" id="secretGallery" aria-live="polite"></section>
       </section>
     </main>
@@ -1218,6 +1218,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260705-127"></script>
+    <script type="module" src="./app.js?v=20260705-128"></script>
   </body>
 </html>

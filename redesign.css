@@ -3730,6 +3730,54 @@ body.theme-dark .secret-album-toolbar {
   padding: 5px 8px;
 }
 
+.secret-photo-tag {
+  position: absolute;
+  left: 9px;
+  bottom: 9px;
+  max-width: calc(100% - 18px);
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--accent) 52%, rgba(255, 255, 255, 0.22));
+  border-radius: 999px;
+  background: rgba(10, 16, 12, 0.72);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 950;
+  padding: 5px 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.secret-photo-tag-editor {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  padding-top: 6px;
+}
+
+.secret-photo-tag-editor input {
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 850;
+  padding: 0 10px;
+}
+
+.secret-photo-tag-picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.secret-photo-tag-picks button {
+  min-height: 28px;
+  border-radius: 999px;
+  padding-inline: 10px;
+}
+
 .secret-album-photo.selectable {
   cursor: pointer;
 }
@@ -5598,6 +5646,17 @@ body.mobile-dialog-open {
 
   .secret-selection-actions {
     justify-content: stretch;
+  }
+
+  .secret-photo-tag-editor {
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .secret-photo-tag-picks {
+    grid-column: 1 / -1;
+    max-height: 72px;
+    overflow: auto;
   }
 
   .secret-album-toolbar button {
