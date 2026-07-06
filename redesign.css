@@ -5523,7 +5523,7 @@ body.mobile-dialog-open {
     min-height: 100dvh;
     background: var(--bg);
     color: var(--ink);
-    padding-top: calc(58px + env(safe-area-inset-top));
+    padding-top: calc(50px + env(safe-area-inset-top));
     padding-bottom: calc(28px + env(safe-area-inset-bottom));
   }
 
@@ -5537,7 +5537,7 @@ body.mobile-dialog-open {
     top: 0;
     right: 0;
     left: 0;
-    height: calc(58px + env(safe-area-inset-top));
+    height: calc(50px + env(safe-area-inset-top));
     border-bottom: 1px solid var(--line);
     background: color-mix(in srgb, var(--surface) 92%, var(--bg) 8%);
     backdrop-filter: blur(18px) saturate(140%);
@@ -5546,12 +5546,12 @@ body.mobile-dialog-open {
 
   .mobile-diary-close {
     position: fixed;
-    top: calc(9px + env(safe-area-inset-top));
+    top: calc(6px + env(safe-area-inset-top));
     right: 14px;
     left: auto;
     z-index: 20;
     display: inline-flex;
-    min-height: 40px;
+    min-height: 38px;
     align-items: center;
     gap: 6px;
     border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--line));
@@ -5573,25 +5573,26 @@ body.mobile-dialog-open {
     border-radius: 999px;
     background: var(--accent);
     color: #10200d;
-    content: "‹";
+    content: "\2039";
     font-size: 23px;
     line-height: 1;
   }
 
   .mobile-diary-media {
     position: relative;
-    display: grid;
+    display: block;
     margin-top: 0;
     min-height: 0;
-    place-items: start center;
-    background: #050705;
+    line-height: 0;
+    background: var(--surface);
   }
 
   .mobile-diary-media img {
     display: block;
     width: 100%;
-    max-height: 72dvh;
+    max-height: calc(100dvh - 50px - env(safe-area-inset-top));
     object-fit: contain;
+    object-position: top center;
   }
 
   .mobile-diary-media span {
