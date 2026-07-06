@@ -3378,6 +3378,10 @@ function openMobileDiaryPage(photo, initialImageIndex = 0, options = {}) {
   document.querySelector("main")?.setAttribute("hidden", "");
   renderMobileDiaryPage();
   window.scrollTo({ top: 0, behavior: "auto" });
+  requestAnimationFrame(() => {
+    window.scrollTo({ top: 0, behavior: "auto" });
+    window.setTimeout(() => window.scrollTo({ top: 0, behavior: "auto" }), 60);
+  });
   void loadPhotoComments(photo.id);
 }
 
