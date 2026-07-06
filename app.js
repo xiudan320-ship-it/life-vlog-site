@@ -5636,7 +5636,7 @@ function renderSecretGallery() {
   els.secretFilters.querySelectorAll("[data-secret-filter]").forEach((button) => {
     button.addEventListener("click", () => {
       activeSecretFilter = button.dataset.secretFilter || "全部";
-      activeSecretAlbumId = "";
+      selectedSecretImageIndexes = new Set();
       renderSecretGallery();
     });
   });
