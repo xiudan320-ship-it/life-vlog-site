@@ -1,10 +1,11 @@
-const CACHE_NAME = "life-vlog-site-20260707-132-pwa";
+const CACHE_NAME = "life-vlog-site-20260707-133-pwa";
+const MEDIA_CACHE_NAME = "life-vlog-media-cache";
 const CORE_ASSETS = [
   "./",
   "./index.html",
   "./styles.css?v=20260610-37",
-  "./redesign.css?v=20260707-132",
-  "./app.js?v=20260707-132",
+  "./redesign.css?v=20260707-133",
+  "./app.js?v=20260707-133",
   "./manifest.webmanifest",
   "./assets/food-wheel-icon.png",
   "./assets/app-icon-192.png",
@@ -27,7 +28,11 @@ self.addEventListener("activate", (event) => {
     caches
       .keys()
       .then((keys) =>
-        Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))
+        Promise.all(
+          keys
+            .filter((key) => key !== CACHE_NAME && key !== MEDIA_CACHE_NAME)
+            .map((key) => caches.delete(key))
+        )
       )
       .then(() => self.clients.claim())
   );
@@ -38,7 +43,9 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
 
   const url = new URL(request.url);
-  if (url.origin !== self.location.origin) return;
+  const isSameOrigin = url.origin === self.location.origin;
+  const isImageRequest = request.destination === "image";
+  if (!isSameOrigin && !isImageRequest) return;
 
   if (request.mode === "navigate") {
     event.respondWith(
@@ -57,9 +64,9 @@ self.addEventListener("fetch", (event) => {
     caches.match(request).then((cached) => {
       const network = fetch(request)
         .then((response) => {
-          if (response.ok) {
+          if (response.ok || response.type === "opaque") {
             const copy = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+            caches.open(isImageRequest ? MEDIA_CACHE_NAME : CACHE_NAME).then((cache) => cache.put(request, copy));
           }
           return response;
         })
