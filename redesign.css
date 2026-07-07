@@ -6506,9 +6506,66 @@ body.mobile-dialog-open {
     -webkit-line-clamp: 2;
   }
 
-  body:not(.mobile-feed-single) .read-more-hint,
-  body:not(.mobile-feed-single) .photo-card-comments {
+  body:not(.mobile-feed-single) .read-more-hint {
     display: none;
+  }
+
+  body:not(.mobile-feed-single) .photo-card-comments {
+    display: grid;
+    gap: 6px;
+    margin: 0 8px 9px;
+    border: 0;
+    border-top: 1px solid color-mix(in srgb, var(--line), transparent 35%);
+    border-radius: 0;
+    background: transparent;
+    padding: 8px 0 0;
+  }
+
+  body:not(.mobile-feed-single) .photo-card-comments header {
+    gap: 6px;
+  }
+
+  body:not(.mobile-feed-single) .photo-card-comments header span {
+    font-size: 11px;
+    line-height: 1.2;
+  }
+
+  body:not(.mobile-feed-single) .photo-card-comments header button {
+    min-height: 24px;
+    border-radius: 5px;
+    font-size: 11px;
+    padding: 0 8px;
+  }
+
+  body:not(.mobile-feed-single) .photo-card-comments article {
+    grid-template-columns: 22px minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  body:not(.mobile-feed-single) .photo-card-comments article:nth-of-type(n + 2) {
+    display: none;
+  }
+
+  body:not(.mobile-feed-single) .photo-card-comment-avatar {
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+    font-size: 10px;
+  }
+
+  body:not(.mobile-feed-single) .photo-card-comments strong {
+    display: inline;
+    margin-right: 4px;
+    font-size: 11px;
+  }
+
+  body:not(.mobile-feed-single) .photo-card-comments p {
+    display: inline;
+    overflow: hidden;
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.35;
+    -webkit-line-clamp: unset;
   }
 
   body:not(.mobile-feed-single) .card-actions {
