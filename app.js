@@ -12,6 +12,7 @@ const PHOTO_FAVORITES_KEY = "life-vlog-photo-favorites";
 const TODAY_POSTS_SEEN_KEY = "life-vlog-today-posts-seen";
 const PHOTO_FEED_CACHE_KEY = "life-vlog-photo-feed-cache";
 const SECRET_ITEMS_CACHE_KEY = "life-vlog-secret-items-cache";
+const MEDIA_CACHE_NAME = "life-vlog-media-cache";
 const CACHE_LIMIT_KEY = "life-vlog-cache-limit";
 const EXPERIENCE_KEY = "life-vlog-experience";
 const TODAY_EXPERIENCE_KEY = "life-vlog-today-experience";
@@ -90,6 +91,7 @@ const MIN_CACHE_LIMIT = 20;
 const MAX_CACHE_LIMIT = 300;
 const EAGER_IMAGE_CARD_COUNT = 8;
 const SECRET_ALBUM_IMAGE_LIMIT = 80;
+const DEFAULT_SECRET_SORT_STEP = 1000;
 const TOOL_DOCK_ORDER_KEY = "life-vlog-tool-dock-order";
 const TOOL_DOCK_DEFAULT_ORDER = ["food", "anniversary", "memory", "secret", "recipe"];
 const TOOL_DOCK_LABELS = {
@@ -1406,6 +1408,89 @@ function sanitizePhotoForCache(photo) {
   };
 }
 
+function getPhotoCacheImages(photo) {
+  const images = getPhotoImages(photo);
+  if (images.length) return images.map((image) => image.image_url).filter(Boolean);
+  return [photo?.image_url].filter(Boolean);
+}
+
+function getSecretItemCacheImages(item) {
+  return [
+    item?.coverImage || item?.cover_image || "",
+    ...normalizeSecretImages(item?.images).map((image) => image.image_url),
+  ].filter(Boolean);
+}
+
+function normalizeMediaCacheUrl(url) {
+  const value = String(url || "").trim();
+  if (!value || value.startsWith("blob:") || value.startsWith("data:")) return "";
+  try {
+    return new URL(value, window.location.href).toString();
+  } catch {
+    return "";
+  }
+}
+
+function collectOfflineMediaUrls(userId = session?.user?.id || "public") {
+  const limit = loadCacheLimit(userId);
+  const urls = [];
+  getSortedPhotos(photos)
+    .slice(0, limit)
+    .forEach((photo) => urls.push(...getPhotoCacheImages(photo)));
+  secretItems
+    .slice(0, limit)
+    .forEach((item) => urls.push(...getSecretItemCacheImages(item)));
+  return [...new Set(urls.map(normalizeMediaCacheUrl).filter(Boolean))];
+}
+
+async function fetchMediaForCache(url) {
+  try {
+    return await fetch(url, { mode: "cors", cache: "reload" });
+  } catch {
+    return fetch(url, { mode: "no-cors", cache: "reload" });
+  }
+}
+
+let mediaCacheTimer = 0;
+function scheduleOfflineMediaCache(userId = session?.user?.id || "public") {
+  if (!("caches" in window)) return;
+  window.clearTimeout(mediaCacheTimer);
+  mediaCacheTimer = window.setTimeout(() => {
+    cacheOfflineMedia(userId).catch((error) => {
+      console.warn("Offline media cache failed:", error);
+    });
+  }, 900);
+}
+
+async function cacheOfflineMedia(userId = session?.user?.id || "public") {
+  if (!("caches" in window)) return;
+  const urls = collectOfflineMediaUrls(userId);
+  const keep = new Set(urls);
+  const cache = await caches.open(MEDIA_CACHE_NAME);
+  const existing = await cache.keys();
+  await Promise.all(
+    existing
+      .filter((request) => !keep.has(request.url))
+      .map((request) => cache.delete(request))
+  );
+  const missing = [];
+  for (const url of urls) {
+    const hit = await cache.match(url);
+    if (!hit) missing.push(url);
+  }
+  for (const url of missing.slice(0, Math.max(6, loadCacheLimit(userId) * 4))) {
+    try {
+      const response = await fetchMediaForCache(url);
+      if (response && (response.ok || response.type === "opaque")) {
+        await cache.put(new Request(url, { mode: "no-cors" }), response.clone());
+      }
+    } catch (error) {
+      console.warn("Media cache put failed:", url, error);
+    }
+  }
+  await refreshCacheInfo();
+}
+
 function sanitizeCommentForCache(comment) {
   return {
     id: comment.id,
@@ -1435,6 +1520,7 @@ function savePhotoFeedCache(userId = session?.user?.id || "public") {
   };
   try {
     localStorage.setItem(getPhotoFeedCacheStorageKey(userId), JSON.stringify(payload));
+    scheduleOfflineMediaCache(userId);
   } catch {
     // Local storage can be full or unavailable; the live cloud feed still works.
   }
@@ -1481,6 +1567,7 @@ function sanitizeSecretItemForCache(item) {
     coverPath: item.coverPath || "",
     images: normalizeSecretImages(item.images),
     linkedPhotoId: item.linkedPhotoId || "",
+    sortOrder: Number.isFinite(Number(item.sortOrder)) ? Number(item.sortOrder) : getDefaultSecretSortOrder(item.createdAt),
     createdAt: item.createdAt || "",
     updatedAt: item.updatedAt || "",
   };
@@ -1497,6 +1584,7 @@ function saveSecretItemsCache(userId = session?.user?.id || "guest") {
         items: secretItems.slice(0, cacheLimit).map(sanitizeSecretItemForCache),
       })
     );
+    scheduleOfflineMediaCache(userId);
   } catch {
     // The cloud copy remains the source of truth if local storage is full.
   }
@@ -1532,7 +1620,7 @@ async function getCacheStorageUsageBytes() {
   if (!("caches" in window)) return 0;
   let total = 0;
   const names = await caches.keys();
-  for (const name of names.filter((entry) => entry.startsWith("life-vlog-site-"))) {
+  for (const name of names.filter((entry) => entry.startsWith("life-vlog-site-") || entry === MEDIA_CACHE_NAME)) {
     const cache = await caches.open(name);
     const requests = await cache.keys();
     for (const request of requests) {
@@ -1596,7 +1684,7 @@ async function clearAppCache() {
     const cacheNames = await caches.keys();
     await Promise.all(
       cacheNames
-        .filter((name) => name.startsWith("life-vlog-site-"))
+        .filter((name) => name.startsWith("life-vlog-site-") || name === MEDIA_CACHE_NAME)
         .map((name) => caches.delete(name))
     );
   }
@@ -4173,6 +4261,7 @@ function changeCacheLimit() {
 function saveCacheLimitFromDialog(event) {
   event.preventDefault();
   const limit = saveCacheLimit(els.cacheLimitInput?.value);
+  scheduleOfflineMediaCache();
   renderSettingsSummary();
   void refreshCacheInfo();
   if (els.cacheLimitStatus) {
@@ -5701,6 +5790,9 @@ function secretFromCloudRow(row) {
     coverPath: row.cover_path || "",
     images: normalizeSecretImages(row.images),
     linkedPhotoId: row.linked_photo_id || "",
+    sortOrder: Number.isFinite(Number(row.sort_order))
+      ? Number(row.sort_order)
+      : getDefaultSecretSortOrder(row.created_at),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -5717,9 +5809,26 @@ function secretToCloudRow(item, userId = session?.user?.id) {
     cover_path: item.coverPath || item.images?.[0]?.image_path || "",
     images: normalizeSecretImages(item.images),
     linked_photo_id: item.linkedPhotoId || null,
+    sort_order: Number.isFinite(Number(item.sortOrder))
+      ? Number(item.sortOrder)
+      : getDefaultSecretSortOrder(item.createdAt),
     created_at: item.createdAt || new Date().toISOString(),
     updated_at: item.updatedAt || new Date().toISOString(),
   };
+}
+
+function getDefaultSecretSortOrder(createdAt = "") {
+  const time = new Date(createdAt || Date.now()).getTime();
+  return Number.isFinite(time) ? -time : -Date.now();
+}
+
+function sortSecretItems(items = secretItems) {
+  return [...items].sort((a, b) => {
+    const orderA = Number.isFinite(Number(a.sortOrder)) ? Number(a.sortOrder) : getDefaultSecretSortOrder(a.createdAt);
+    const orderB = Number.isFinite(Number(b.sortOrder)) ? Number(b.sortOrder) : getDefaultSecretSortOrder(b.createdAt);
+    if (orderA !== orderB) return orderA - orderB;
+    return new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0);
+  });
 }
 
 function normalizeSecretImages(images) {
@@ -5785,7 +5894,7 @@ async function loadSecretItems() {
       .order("created_at", { ascending: false });
     if (error) throw error;
     secretCloudAvailable = true;
-    secretItems = (data || []).map(secretFromCloudRow);
+    secretItems = sortSecretItems((data || []).map(secretFromCloudRow));
     saveSecretItemsCache(session.user.id);
     renderSecretGallery();
   } catch (error) {
@@ -5964,9 +6073,9 @@ async function saveSecretItem(event) {
 function renderSecretGallery() {
   if (!els.secretGallery) return;
   renderSecretLinkedPhotoOptions();
-  const photoTags = ["全部", ...getSecretPhotoTags()];
-  if (!photoTags.includes(activeSecretFilter)) activeSecretFilter = "全部";
-  els.secretCategoryList.innerHTML = photoTags
+  const activeAlbum = secretItems.find((item) => item.id === activeSecretAlbumId);
+  const allPhotoTags = ["全部", ...getSecretPhotoTags()];
+  els.secretCategoryList.innerHTML = allPhotoTags
     .filter((tag) => tag !== "全部")
     .map((tag) => `<option value="${escapeHtml(tag)}"></option>`)
     .join("");
@@ -5974,46 +6083,49 @@ function renderSecretGallery() {
     els.secretCategoryTags.hidden = true;
     els.secretCategoryTags.innerHTML = "";
   }
-  els.secretFilters.innerHTML = photoTags
-    .map(
-      (tag) =>
-        `<button class="${tag === activeSecretFilter ? "active" : ""}" type="button" data-secret-filter="${escapeHtml(tag)}">${escapeHtml(tag)}</button>`
-    )
-    .join("");
-  els.secretFilters.querySelectorAll("[data-secret-filter]").forEach((button) => {
-    button.addEventListener("click", () => {
-      activeSecretFilter = button.dataset.secretFilter || "全部";
-      selectedSecretImageIndexes = new Set();
-      renderSecretGallery();
-    });
-  });
-
-  const visible =
-    activeSecretFilter === "全部"
-      ? secretItems
-      : secretItems.filter((item) => normalizeSecretImages(item.images).some(imageMatchesSecretFilter));
   if (!session) {
+    els.secretFilters.hidden = true;
     els.secretGallery.innerHTML = `<div class="empty">登录后才能进入秘藏。</div>`;
     return;
   }
   if (!secretCloudAvailable) {
+    els.secretFilters.hidden = true;
     els.secretGallery.innerHTML = `<div class="empty">秘藏需要先初始化数据库表。</div>`;
     return;
   }
-  if (!visible.length) {
-    els.secretGallery.innerHTML = `<div class="empty">这里还没有相册，先上传第一组私人收藏吧。</div>`;
+  if (activeAlbum) {
+    const photoTags = ["全部", ...getSecretPhotoTags([activeAlbum])];
+    if (!photoTags.includes(activeSecretFilter)) activeSecretFilter = "全部";
+    els.secretFilters.hidden = false;
+    els.secretFilters.innerHTML = photoTags
+      .map(
+        (tag) =>
+          `<button class="${tag === activeSecretFilter ? "active" : ""}" type="button" data-secret-filter="${escapeHtml(tag)}">${escapeHtml(tag)}</button>`
+      )
+      .join("");
+    els.secretFilters.querySelectorAll("[data-secret-filter]").forEach((button) => {
+      button.addEventListener("click", () => {
+        activeSecretFilter = button.dataset.secretFilter || "全部";
+        selectedSecretImageIndexes = new Set();
+        renderSecretGallery();
+      });
+    });
+    renderSecretAlbumView(activeAlbum);
     return;
   }
-  const activeAlbum = secretItems.find((item) => item.id === activeSecretAlbumId);
-  if (activeAlbum) {
-    renderSecretAlbumView(activeAlbum);
+
+  activeSecretFilter = "全部";
+  els.secretFilters.hidden = true;
+  els.secretFilters.innerHTML = "";
+  const visible = sortSecretItems(secretItems);
+  if (!visible.length) {
+    els.secretGallery.innerHTML = `<div class="empty">这里还没有相册，先上传第一组私人收藏吧。</div>`;
     return;
   }
   els.secretGallery.innerHTML = visible
     .map((item, index) => {
       const itemImages = normalizeSecretImages(item.images);
-      const matchedImages = activeSecretFilter === "全部" ? itemImages : itemImages.filter(imageMatchesSecretFilter);
-      const cover = matchedImages[0]?.image_url || item.coverImage || itemImages[0]?.image_url || "";
+      const cover = item.coverImage || itemImages[0]?.image_url || "";
       const linkedPhoto = photos.find((photo) => photo.id === item.linkedPhotoId);
       const linkedTitle = linkedPhoto ? getDisplayTitle(linkedPhoto) || "关联日记" : "";
       const tagSummary = [...new Set(itemImages.map((image) => normalizeSecretPhotoTag(image.tag)))].slice(0, 3).join(" · ");
@@ -6021,13 +6133,17 @@ function renderSecretGallery() {
         <article class="secret-card">
           <button class="secret-cover" type="button" data-secret-index="${index}">
             <img src="${escapeHtml(cover)}" alt="${escapeHtml(item.title || item.category)}" loading="lazy" />
-            <span>${String(matchedImages.length || itemImages.length).padStart(2, "0")}</span>
+            <span>${String(itemImages.length).padStart(2, "0")}</span>
           </button>
           <div>
              <p class="kicker">${escapeHtml(tagSummary || DEFAULT_SECRET_PHOTO_TAG)}</p>
              ${item.title ? `<h3>${escapeHtml(item.title)}</h3>` : ""}
             ${item.note ? `<p>${escapeHtml(item.note)}</p>` : ""}
             ${linkedTitle ? `<small>关联：${escapeHtml(linkedTitle)}</small>` : ""}
+            <div class="secret-card-sort">
+              <button type="button" data-secret-album-move="${escapeHtml(item.id)}:-1" ${index === 0 ? "disabled" : ""}>上移</button>
+              <button type="button" data-secret-album-move="${escapeHtml(item.id)}:1" ${index === visible.length - 1 ? "disabled" : ""}>下移</button>
+            </div>
           </div>
         </article>
       `;
@@ -6036,11 +6152,19 @@ function renderSecretGallery() {
   els.secretGallery.querySelectorAll("[data-secret-index]").forEach((button) => {
     button.addEventListener("click", () => {
       activeSecretAlbumId = visible[Number(button.dataset.secretIndex)]?.id || "";
+      activeSecretFilter = "全部";
       secretSelectionMode = false;
       selectedSecretImageIndexes = new Set();
       secretAlbumEditing = false;
       secretAppendExpanded = false;
       renderSecretGallery();
+    });
+  });
+  els.secretGallery.querySelectorAll("[data-secret-album-move]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const [id, direction] = String(button.dataset.secretAlbumMove || "").split(":");
+      moveSecretAlbum(id, Number(direction) || 0, visible);
     });
   });
 }
@@ -6055,7 +6179,11 @@ function renderSecretAlbumView(item) {
   const validSelectedIndexes = [...selectedSecretImageIndexes].filter((index) => index >= 0 && index < images.length);
   const selectedCount = validSelectedIndexes.length;
   const singleSelectedIndex = selectedCount === 1 ? validSelectedIndexes[0] : -1;
-  const knownTags = getSecretPhotoTags();
+  const knownTags = getSecretPhotoTags([item]);
+  const moveTargetOptions = sortSecretItems(secretItems)
+    .filter((entry) => entry.id !== item.id)
+    .map((entry) => `<option value="${escapeHtml(entry.id)}">${escapeHtml(entry.title || entry.category || "未命名相册")}</option>`)
+    .join("");
   els.secretGallery.innerHTML = `
     <section class="secret-album-view ${secretSelectionMode ? "selection-active" : ""}">
       <header class="secret-album-head">
@@ -6087,6 +6215,13 @@ function renderSecretAlbumView(item) {
                 <button type="button" data-secret-move="1" ${singleSelectedIndex >= 0 && singleSelectedIndex < images.length - 1 ? "" : "disabled"}>后移</button>
                 <button type="button" data-secret-set-cover ${singleSelectedIndex >= 0 ? "" : "disabled"}>设为封面</button>
                 <button class="delete-secret danger" type="button" data-secret-delete-selected ${selectedCount ? "" : "disabled"}>删除选中</button>
+                <div class="secret-photo-move-editor">
+                  <select data-secret-move-album-select ${selectedCount && moveTargetOptions ? "" : "disabled"}>
+                    <option value="">移动到其它相册</option>
+                    ${moveTargetOptions}
+                  </select>
+                  <button type="button" data-secret-move-album ${selectedCount && moveTargetOptions ? "" : "disabled"}>移动</button>
+                </div>
                 <div class="secret-photo-tag-editor">
                   <input data-secret-photo-tag-input maxlength="32" list="secretCategoryList" placeholder="${DEFAULT_SECRET_PHOTO_TAG}" />
                   <button type="button" data-secret-apply-photo-tag ${selectedCount ? "" : "disabled"}>保存 tag</button>
@@ -6184,6 +6319,14 @@ function renderSecretAlbumView(item) {
       form,
     });
   });
+  els.secretGallery.querySelector("[data-secret-append-files]")?.addEventListener("click", (event) => {
+    event.currentTarget.value = "";
+  });
+  els.secretGallery.querySelector("[data-secret-append-files]")?.addEventListener("change", (event) => {
+    const files = Array.from(event.currentTarget.files || []);
+    if (!files.length) return;
+    appendSecretAlbumImages({ files, form: event.currentTarget.closest("[data-secret-append-form]") });
+  });
   els.secretGallery.querySelector("[data-secret-append-form]")?.addEventListener("paste", (event) => {
     const pastedFiles = getImageFilesFromClipboard(event, "secret-append-pasted");
     if (!pastedFiles.length) return;
@@ -6212,6 +6355,10 @@ function renderSecretAlbumView(item) {
   });
   els.secretGallery.querySelector("[data-secret-delete-selected]")?.addEventListener("click", () => deleteSelectedSecretImages(item));
   els.secretGallery.querySelector("[data-secret-set-cover]")?.addEventListener("click", () => setSelectedSecretCover(item));
+  els.secretGallery.querySelector("[data-secret-move-album]")?.addEventListener("click", () => {
+    const select = els.secretGallery.querySelector("[data-secret-move-album-select]");
+    moveSelectedSecretImagesToAlbum(item, select?.value || "");
+  });
   els.secretGallery.querySelector("[data-secret-apply-photo-tag]")?.addEventListener("click", () => {
     const input = els.secretGallery.querySelector("[data-secret-photo-tag-input]");
     applySecretPhotoTag(item, input?.value || "");
@@ -6372,6 +6519,47 @@ async function updateSecretAlbum(item, updates, successMessage = "相册已更�
   return true;
 }
 
+async function moveSecretAlbum(itemId, direction, visibleItems = sortSecretItems(secretItems)) {
+  if (!itemId || !direction || !cloudDb || !session) return;
+  const ordered = sortSecretItems(visibleItems);
+  const index = ordered.findIndex((item) => item.id === itemId);
+  const target = index + direction;
+  if (index < 0 || target < 0 || target >= ordered.length) return;
+  const current = ordered[index];
+  const targetItem = ordered[target];
+  const currentOrder = Number.isFinite(Number(current.sortOrder))
+    ? Number(current.sortOrder)
+    : getDefaultSecretSortOrder(current.createdAt);
+  const targetOrder = Number.isFinite(Number(targetItem.sortOrder))
+    ? Number(targetItem.sortOrder)
+    : getDefaultSecretSortOrder(targetItem.createdAt);
+  setSecretStatus("正在保存相册顺序...");
+  const now = new Date().toISOString();
+  const [first, second] = await Promise.all([
+    cloudDb
+      .from("secret_items")
+      .update({ sort_order: targetOrder, updated_at: now })
+      .eq("id", current.id)
+      .eq("user_id", session.user.id),
+    cloudDb
+      .from("secret_items")
+      .update({ sort_order: currentOrder, updated_at: now })
+      .eq("id", targetItem.id)
+      .eq("user_id", session.user.id),
+  ]);
+  const error = first.error || second.error;
+  if (error) {
+    setSecretStatus(error.message || "相册排序保存失败。");
+    return;
+  }
+  current.sortOrder = targetOrder;
+  targetItem.sortOrder = currentOrder;
+  secretItems = sortSecretItems(secretItems);
+  saveSecretItemsCache(session.user.id);
+  renderSecretGallery();
+  setSecretStatus("相册顺序已保存。");
+}
+
 async function saveSecretAlbumEdit(event, item) {
   event.preventDefault();
   const form = event.currentTarget;
@@ -6510,6 +6698,69 @@ async function deleteSelectedSecretImages(item) {
   const paths = removedImages.map((image) => image.image_path).filter(Boolean);
   if (paths.length) cleanupStoredImagePaths(paths).catch(() => {});
   renderSecretGallery();
+}
+
+async function moveSelectedSecretImagesToAlbum(sourceItem, targetId) {
+  if (!sourceItem || !targetId || !cloudDb || !session) return;
+  const targetItem = secretItems.find((entry) => entry.id === targetId);
+  if (!targetItem || targetItem.id === sourceItem.id) return;
+  const sourceImages = normalizeSecretImages(sourceItem.images);
+  const targetImages = normalizeSecretImages(targetItem.images);
+  const selected = [...selectedSecretImageIndexes].filter((index) => index >= 0 && index < sourceImages.length);
+  if (!selected.length) {
+    setSecretStatus("先选择要移动的图片。");
+    return;
+  }
+  if (selected.length >= sourceImages.length) {
+    setSecretStatus("至少给当前相册保留一张图片。");
+    return;
+  }
+  if (targetImages.length + selected.length > SECRET_ALBUM_IMAGE_LIMIT) {
+    setSecretStatus(`目标相册最多 ${SECRET_ALBUM_IMAGE_LIMIT} 张图。`);
+    return;
+  }
+  const selectedSet = new Set(selected);
+  const movingImages = sourceImages.filter((_, index) => selectedSet.has(index));
+  const nextSourceImages = sourceImages.filter((_, index) => !selectedSet.has(index));
+  const nextTargetImages = [...targetImages, ...movingImages];
+  const sourceCoverStillExists = nextSourceImages.some((image) => image.image_url === sourceItem.coverImage);
+  const sourceCover = sourceCoverStillExists
+    ? { cover_image: sourceItem.coverImage || "", cover_path: sourceItem.coverPath || "" }
+    : {
+        cover_image: nextSourceImages[0]?.image_url || "",
+        cover_path: nextSourceImages[0]?.image_path || "",
+      };
+  const targetCover = targetItem.coverImage
+    ? { cover_image: targetItem.coverImage || "", cover_path: targetItem.coverPath || "" }
+    : {
+        cover_image: nextTargetImages[0]?.image_url || "",
+        cover_path: nextTargetImages[0]?.image_path || "",
+      };
+  setSecretStatus("正在移动图片...");
+  const now = new Date().toISOString();
+  const [sourceResult, targetResult] = await Promise.all([
+    cloudDb
+      .from("secret_items")
+      .update({ images: nextSourceImages, ...sourceCover, updated_at: now })
+      .eq("id", sourceItem.id)
+      .eq("user_id", session.user.id),
+    cloudDb
+      .from("secret_items")
+      .update({ images: nextTargetImages, ...targetCover, updated_at: now })
+      .eq("id", targetItem.id)
+      .eq("user_id", session.user.id),
+  ]);
+  const error = sourceResult.error || targetResult.error;
+  if (error) {
+    setSecretStatus(error.message || "移动图片失败。");
+    return;
+  }
+  selectedSecretImageIndexes = new Set();
+  secretSelectionMode = false;
+  await loadSecretItems();
+  activeSecretAlbumId = sourceItem.id;
+  renderSecretGallery();
+  setSecretStatus(`已移动 ${movingImages.length} 张到「${targetItem.title || targetItem.category || "目标相册"}」。`);
 }
 
 async function appendSecretAlbumImages(options = {}) {
@@ -9538,6 +9789,10 @@ els.secretToggle?.addEventListener("click", () => {
   renderSecretLinkedPhotoOptions();
   setSecretExpanded(els.secretForm.hidden);
 });
+els.secretImageInput?.addEventListener("click", () => {
+  els.secretImageInput.value = "";
+});
+els.secretImageInput?.addEventListener("input", updateSecretPreview);
 els.secretImageInput?.addEventListener("change", updateSecretPreview);
 els.secretImageDrop?.addEventListener("paste", handleSecretPaste);
 els.secretForm?.addEventListener("submit", saveSecretItem);
