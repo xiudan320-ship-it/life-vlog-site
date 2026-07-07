@@ -19,6 +19,8 @@ const THANKS_COLOR_KEY = "life-vlog-thanks-color";
 const MOBILE_FEED_LAYOUT_KEY = "life-vlog-mobile-feed-layout";
 const MOBILE_SECRET_LAYOUT_KEY = "life-vlog-mobile-secret-layout";
 const DEFAULT_SECRET_PHOTO_TAG = "未标记";
+const STORY_SECRET_PHOTO_TAG = "故事集";
+const FAVORITE_SECRET_PHOTO_TAG = "收藏";
 const THANKS_COLORS = new Set(["#2f6b3b", "#d6544d", "#2e6da4", "#81559b", "#a66b12"]);
 const DEFAULT_THANKS_COLOR = "#2f6b3b";
 const DAILY_LOGIN_EXP = 25;
@@ -2877,6 +2879,9 @@ function renderDialogMedia() {
   els.dialogImage.alt = `${els.dialogTitle.textContent} ${dialogImageIndex + 1}`;
   if (activeSecretDialogItem) {
     els.dialogMeta.textContent = `${normalizeSecretPhotoTag(image.tag)} · ${dialogImageIndex + 1} / ${dialogImages.length}`;
+    els.dialogNote.innerHTML = renderSecretDialogControls(image);
+  } else {
+    els.dialogNote.textContent = els.dialogNote.textContent || "";
   }
   const hasMultiple = dialogImages.length > 1;
   els.dialogPrev.hidden = !hasMultiple;
@@ -2889,6 +2894,7 @@ function renderDialogMedia() {
 
   if (!hasMultiple) {
     els.dialogThumbs.innerHTML = "";
+    bindSecretDialogControls();
     return;
   }
 
@@ -2906,6 +2912,51 @@ function renderDialogMedia() {
     button.addEventListener("click", () => {
       dialogImageIndex = Number(button.dataset.dialogThumb);
       renderDialogMedia();
+    });
+  });
+  bindSecretDialogControls();
+}
+
+function renderSecretDialogControls(image) {
+  const tag = normalizeSecretPhotoTag(image?.tag);
+  const favorite = Boolean(image?.favorite);
+  const tags = getSecretPhotoTags().filter((entry) => entry !== FAVORITE_SECRET_PHOTO_TAG);
+  return `
+    <div class="secret-dialog-tools">
+      <label>
+        <span>照片 tag</span>
+        <input data-secret-dialog-tag-input maxlength="32" list="secretCategoryList" value="${escapeHtml(tag)}" />
+      </label>
+      <button type="button" data-secret-dialog-save-tag>保存 tag</button>
+      <button class="secret-dialog-favorite ${favorite ? "active" : ""}" type="button" data-secret-dialog-favorite>
+        ${favorite ? "♥ 已收藏" : "♡ 收藏"}
+      </button>
+      <div class="secret-dialog-tag-picks">
+        ${tags
+          .map((entry) => `<button type="button" data-secret-dialog-pick-tag="${escapeHtml(entry)}">${escapeHtml(entry)}</button>`)
+          .join("")}
+      </div>
+      <p data-secret-dialog-status></p>
+    </div>
+  `;
+}
+
+function bindSecretDialogControls() {
+  if (!activeSecretDialogItem || !els.dialog.open) return;
+  els.dialogNote.querySelector("[data-secret-dialog-save-tag]")?.addEventListener("click", () => {
+    const input = els.dialogNote.querySelector("[data-secret-dialog-tag-input]");
+    void updateSecretDialogImage({ tag: input?.value || "" });
+  });
+  els.dialogNote.querySelector("[data-secret-dialog-favorite]")?.addEventListener("click", () => {
+    const current = dialogImages[dialogImageIndex] || {};
+    void updateSecretDialogImage({ favorite: !current.favorite });
+  });
+  els.dialogNote.querySelectorAll("[data-secret-dialog-pick-tag]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const tag = button.dataset.secretDialogPickTag || DEFAULT_SECRET_PHOTO_TAG;
+      const input = els.dialogNote.querySelector("[data-secret-dialog-tag-input]");
+      if (input) input.value = tag;
+      void updateSecretDialogImage({ tag });
     });
   });
 }
@@ -5680,6 +5731,7 @@ function normalizeSecretImages(images) {
           width: image?.width ?? null,
           height: image?.height ?? null,
           tag: normalizeSecretPhotoTag(image?.tag || image?.category || image?.tags?.[0]),
+          favorite: Boolean(image?.favorite || image?.is_favorite || image?.tags?.includes?.(FAVORITE_SECRET_PHOTO_TAG)),
         }))
         .filter((image) => image.image_url)
     : [];
@@ -5698,11 +5750,23 @@ function getSecretPhotoTags(items = secretItems) {
       if (!tags.includes(tag)) tags.push(tag);
     });
   });
-  return [DEFAULT_SECRET_PHOTO_TAG, ...tags.filter((tag) => tag !== DEFAULT_SECRET_PHOTO_TAG)];
+  return [
+    FAVORITE_SECRET_PHOTO_TAG,
+    STORY_SECRET_PHOTO_TAG,
+    DEFAULT_SECRET_PHOTO_TAG,
+    ...tags.filter(
+      (tag) =>
+        tag !== FAVORITE_SECRET_PHOTO_TAG &&
+        tag !== STORY_SECRET_PHOTO_TAG &&
+        tag !== DEFAULT_SECRET_PHOTO_TAG
+    ),
+  ];
 }
 
 function imageMatchesSecretFilter(image) {
-  return activeSecretFilter === "全部" || normalizeSecretPhotoTag(image?.tag) === activeSecretFilter;
+  if (activeSecretFilter === "全部") return true;
+  if (activeSecretFilter === FAVORITE_SECRET_PHOTO_TAG) return Boolean(image?.favorite);
+  return normalizeSecretPhotoTag(image?.tag) === activeSecretFilter;
 }
 
 async function loadSecretItems() {
@@ -6079,6 +6143,7 @@ function renderSecretAlbumView(item) {
               <button class="secret-album-photo ${secretSelectionMode ? "selectable" : ""} ${selectedSecretImageIndexes.has(index) ? "selected" : ""}" type="button" data-secret-photo="${index}">
                 <img src="${escapeHtml(image.image_url)}" alt="${escapeHtml(item.title || item.category || "秘藏图片")} ${index + 1}" loading="lazy" />
                 <small class="secret-photo-tag">${escapeHtml(normalizeSecretPhotoTag(image.tag))}</small>
+                ${image.favorite ? `<strong class="secret-photo-favorite">♥</strong>` : ""}
                 ${secretSelectionMode ? `<span>${selectedSecretImageIndexes.has(index) ? "已选" : String(index + 1).padStart(2, "0")}</span>` : ""}
               </button>
             `
@@ -6371,6 +6436,54 @@ async function applySecretPhotoTag(item, rawTag) {
     secretSelectionMode = true;
     renderSecretGallery();
   }
+}
+
+async function updateSecretDialogImage(updates = {}) {
+  const item = activeSecretDialogItem;
+  if (!item || !cloudDb || !session) return;
+  const status = els.dialogNote?.querySelector("[data-secret-dialog-status]");
+  const images = normalizeSecretImages(item.images);
+  const index = Math.min(Math.max(0, dialogImageIndex), Math.max(0, images.length - 1));
+  if (!images[index]) return;
+  const nextImage = { ...images[index] };
+  if (Object.prototype.hasOwnProperty.call(updates, "tag")) {
+    nextImage.tag = normalizeSecretPhotoTag(updates.tag);
+  }
+  if (Object.prototype.hasOwnProperty.call(updates, "favorite")) {
+    nextImage.favorite = Boolean(updates.favorite);
+  }
+  const nextImages = images.map((image, imageIndex) => (imageIndex === index ? nextImage : image));
+  if (status) status.textContent = "正在保存...";
+  const { error } = await cloudDb
+    .from("secret_items")
+    .update({
+      images: nextImages,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", item.id)
+    .eq("user_id", session.user.id);
+  if (error) {
+    if (status) status.textContent = error.message || "保存失败。";
+    return;
+  }
+  item.images = nextImages;
+  item.updatedAt = new Date().toISOString();
+  const itemIndex = secretItems.findIndex((entry) => entry.id === item.id);
+  if (itemIndex >= 0) {
+    secretItems[itemIndex] = { ...secretItems[itemIndex], images: nextImages, updatedAt: item.updatedAt };
+    activeSecretDialogItem = secretItems[itemIndex];
+  }
+  dialogImages = normalizeSecretImages(nextImages);
+  if (session?.user?.id) saveSecretItemsCache(session.user.id);
+  renderSecretGallery();
+  renderDialogMedia();
+  const message = Object.prototype.hasOwnProperty.call(updates, "favorite")
+    ? nextImage.favorite
+      ? "已加入收藏。"
+      : "已取消收藏。"
+    : `已标记为「${nextImage.tag}」。`;
+  const nextStatus = els.dialogNote?.querySelector("[data-secret-dialog-status]");
+  if (nextStatus) nextStatus.textContent = message;
 }
 
 async function deleteSelectedSecretImages(item) {
