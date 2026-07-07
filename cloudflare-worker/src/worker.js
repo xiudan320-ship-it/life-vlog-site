@@ -150,7 +150,7 @@ const TABLE_CONFIG = {
     booleanColumns: ["is_read"],
   },
   secret_items: {
-    columns: ["id", "user_id", "title", "category", "note", "cover_image", "cover_path", "images", "linked_photo_id", "created_at", "updated_at"],
+    columns: ["id", "user_id", "title", "category", "note", "cover_image", "cover_path", "images", "linked_photo_id", "sort_order", "created_at", "updated_at"],
     scope: "own",
     writeScope: "own",
     ownerColumn: "user_id",
