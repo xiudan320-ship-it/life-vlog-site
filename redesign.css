@@ -1028,7 +1028,81 @@ body.theme-dark .thanks-note > p {
 }
 
 #photoDialog.secret-image-dialog #dialogNote {
-  display: none;
+  display: block;
+  margin-top: 8px;
+}
+
+.secret-dialog-tools {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: end;
+}
+
+.secret-dialog-tools label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.secret-dialog-tools input {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 850;
+  padding: 0 10px;
+}
+
+.secret-dialog-tools button {
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 950;
+  padding: 0 12px;
+}
+
+.secret-dialog-tools button:hover,
+.secret-dialog-tools button.active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #10200d;
+}
+
+.secret-dialog-favorite.active {
+  border-color: var(--coral) !important;
+  background: color-mix(in srgb, var(--coral) 20%, var(--surface)) !important;
+  color: var(--coral) !important;
+}
+
+.secret-dialog-tag-picks {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.secret-dialog-tag-picks button {
+  min-height: 28px;
+  border-radius: 999px;
+  padding-inline: 10px;
+}
+
+.secret-dialog-tools p {
+  grid-column: 1 / -1;
+  min-height: 16px;
+  color: var(--accent-strong);
+  font-size: 12px;
+  font-weight: 850;
 }
 
 #photoDialog.secret-image-dialog::backdrop {
@@ -3747,6 +3821,23 @@ body.theme-dark .secret-album-toolbar {
   white-space: nowrap;
 }
 
+.secret-photo-favorite {
+  position: absolute;
+  left: 9px;
+  top: 9px;
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--coral) 70%, #fff 12%);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--coral) 26%, rgba(10, 16, 12, 0.72));
+  color: #ffd6d1;
+  font-size: 15px;
+  font-weight: 950;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+}
+
 .secret-photo-tag-editor {
   display: grid;
   grid-template-columns: 1fr;
@@ -5351,6 +5442,18 @@ body.mobile-dialog-open {
 
   #photoDialog.secret-image-dialog #dialogMeta {
     font-size: 10px;
+  }
+
+  .secret-dialog-tools {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .secret-dialog-tools label {
+    grid-column: 1 / -1;
+  }
+
+  .secret-dialog-tools > button {
+    width: 100%;
   }
 
   #photoDialog.secret-image-dialog .carousel-button {
