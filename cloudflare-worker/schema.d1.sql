@@ -190,10 +190,12 @@ CREATE TABLE IF NOT EXISTS secret_items (
   cover_path TEXT NOT NULL DEFAULT '',
   images TEXT NOT NULL DEFAULT '[]',
   linked_photo_id TEXT REFERENCES photos(id) ON DELETE SET NULL,
+  sort_order INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
 
+CREATE INDEX IF NOT EXISTS secret_items_user_sort_idx ON secret_items (user_id, sort_order ASC);
 CREATE INDEX IF NOT EXISTS secret_items_user_created_idx ON secret_items (user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS secret_items_user_category_idx ON secret_items (user_id, category, created_at DESC);
 
