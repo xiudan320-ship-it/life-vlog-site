@@ -228,6 +228,7 @@ let secretSelectionMode = false;
 let selectedSecretImageIndexes = new Set();
 let secretAlbumEditing = false;
 let secretAppendExpanded = false;
+let secretMobileToolsExpanded = false;
 let secretPhotoLongPressTimer = null;
 let secretPhotoLongPressTriggered = false;
 let diarySearchQuery = "";
@@ -3183,10 +3184,11 @@ function endSecretImageTouch(event) {
 function renderDialogMedia() {
   resetSecretImageZoom();
   const image = dialogImages[dialogImageIndex] || dialogImages[0] || {};
+  const secretTags = normalizeSecretPhotoTags(image);
   els.dialogImage.src = image.image_url || "";
   els.dialogImage.alt = `${els.dialogTitle.textContent} ${dialogImageIndex + 1}`;
   if (activeSecretDialogItem) {
-    els.dialogMeta.textContent = `${normalizeSecretPhotoTag(image.tag)} · ${dialogImageIndex + 1} / ${dialogImages.length}`;
+    els.dialogMeta.textContent = `${secretTags.slice(0, 2).join(" · ")} · ${dialogImageIndex + 1} / ${dialogImages.length}`;
     els.dialogNote.innerHTML = renderSecretDialogControls(image);
   } else {
     els.dialogNote.textContent = els.dialogNote.textContent || "";
@@ -3226,25 +3228,26 @@ function renderDialogMedia() {
 }
 
 function renderSecretDialogControls(image) {
-  const tag = normalizeSecretPhotoTag(image?.tag);
+  const tags = normalizeSecretPhotoTags(image);
   const favorite = Boolean(image?.favorite);
-  const tags = activeSecretDialogItem
-    ? getSecretAlbumFilterTags(activeSecretDialogItem).filter((entry) => entry !== FAVORITE_SECRET_PHOTO_TAG)
-    : [];
   return `
-    <div class="secret-dialog-tools">
-      <label>
-        <span>照片 tag</span>
-        <input data-secret-dialog-tag-input maxlength="32" list="secretCategoryList" value="${escapeHtml(tag)}" />
-      </label>
-      <button type="button" data-secret-dialog-save-tag>保存 tag</button>
+    <div class="secret-dialog-tools secret-dialog-readonly-tools">
       <button class="secret-dialog-favorite ${favorite ? "active" : ""}" type="button" data-secret-dialog-favorite>
         ${favorite ? "♥ 已收藏" : "♡ 收藏"}
       </button>
-      <div class="secret-dialog-tag-picks">
+      <div class="secret-dialog-current-tags">
+        <span>当前 tag</span>
+        <div>
         ${tags
-          .map((entry) => `<button type="button" data-secret-dialog-pick-tag="${escapeHtml(entry)}">${escapeHtml(entry)}</button>`)
+          .map(
+            (tag) => `
+              <button type="button" data-secret-dialog-remove-tag="${escapeHtml(tag)}" ${tags.length <= 1 ? "disabled" : ""}>
+                ${escapeHtml(tag)} <b>×</b>
+              </button>
+            `
+          )
           .join("")}
+        </div>
       </div>
       <p data-secret-dialog-status></p>
     </div>
@@ -3253,20 +3256,13 @@ function renderSecretDialogControls(image) {
 
 function bindSecretDialogControls() {
   if (!activeSecretDialogItem || !els.dialog.open) return;
-  els.dialogNote.querySelector("[data-secret-dialog-save-tag]")?.addEventListener("click", () => {
-    const input = els.dialogNote.querySelector("[data-secret-dialog-tag-input]");
-    void updateSecretDialogImage({ tag: input?.value || "" });
-  });
   els.dialogNote.querySelector("[data-secret-dialog-favorite]")?.addEventListener("click", () => {
     const current = dialogImages[dialogImageIndex] || {};
     void updateSecretDialogImage({ favorite: !current.favorite });
   });
-  els.dialogNote.querySelectorAll("[data-secret-dialog-pick-tag]").forEach((button) => {
+  els.dialogNote.querySelectorAll("[data-secret-dialog-remove-tag]").forEach((button) => {
     button.addEventListener("click", () => {
-      const tag = button.dataset.secretDialogPickTag || DEFAULT_SECRET_PHOTO_TAG;
-      const input = els.dialogNote.querySelector("[data-secret-dialog-tag-input]");
-      if (input) input.value = tag;
-      void updateSecretDialogImage({ tag });
+      void updateSecretDialogImage({ removeTag: button.dataset.secretDialogRemoveTag || "" });
     });
   });
 }
@@ -6176,15 +6172,19 @@ function sortSecretItems(items = secretItems) {
 function normalizeSecretImages(images) {
   return Array.isArray(images)
     ? images
-        .map((image) => ({
-          image_url: image?.image_url || image?.url || "",
-          image_path: image?.image_path || image?.path || "",
-          width: image?.width ?? null,
-          height: image?.height ?? null,
-          tag: normalizeSecretPhotoTag(image?.tag || image?.category || image?.tags?.[0]),
-          favorite: Boolean(image?.favorite || image?.is_favorite || image?.tags?.includes?.(FAVORITE_SECRET_PHOTO_TAG)),
-          uploadedAt: image?.uploadedAt || image?.uploaded_at || image?.createdAt || image?.created_at || "",
-        }))
+        .map((image) => {
+          const tags = normalizeSecretPhotoTags(image);
+          return {
+            image_url: image?.image_url || image?.url || "",
+            image_path: image?.image_path || image?.path || "",
+            width: image?.width ?? null,
+            height: image?.height ?? null,
+            tag: tags[0] || DEFAULT_SECRET_PHOTO_TAG,
+            tags,
+            favorite: Boolean(image?.favorite || image?.is_favorite || image?.tags?.includes?.(FAVORITE_SECRET_PHOTO_TAG)),
+            uploadedAt: image?.uploadedAt || image?.uploaded_at || image?.createdAt || image?.created_at || "",
+          };
+        })
         .filter((image) => image.image_url)
     : [];
 }
@@ -6209,12 +6209,65 @@ function normalizeSecretPhotoTag(value) {
   return tag || DEFAULT_SECRET_PHOTO_TAG;
 }
 
+function normalizeSecretPhotoTags(imageOrTags) {
+  const rawTags = Array.isArray(imageOrTags)
+    ? imageOrTags
+    : [
+        ...(Array.isArray(imageOrTags?.tags) ? imageOrTags.tags : []),
+        imageOrTags?.tag,
+        imageOrTags?.category,
+      ];
+  const tags = rawTags
+    .map((entry) => normalizeSecretPhotoTag(entry))
+    .filter((tag) => tag && tag !== FAVORITE_SECRET_PHOTO_TAG);
+  const unique = [...new Set(tags)];
+  return unique.length ? unique : [DEFAULT_SECRET_PHOTO_TAG];
+}
+
+function setSecretImageTags(image, tags) {
+  const normalized = [
+    ...new Set(
+      (Array.isArray(tags) ? tags : [tags])
+        .map((entry) => normalizeSecretPhotoTag(entry))
+        .filter((tag) => tag && tag !== FAVORITE_SECRET_PHOTO_TAG)
+    ),
+  ];
+  const nextTags = normalized.length ? normalized : [DEFAULT_SECRET_PHOTO_TAG];
+  return {
+    ...image,
+    tag: nextTags[0],
+    tags: nextTags,
+  };
+}
+
+function addSecretImageTag(image, rawTag) {
+  const nextTag = normalizeSecretPhotoTag(rawTag);
+  const existing = normalizeSecretPhotoTags(image).filter(
+    (tag) => tag !== DEFAULT_SECRET_PHOTO_TAG || nextTag === DEFAULT_SECRET_PHOTO_TAG
+  );
+  return setSecretImageTags(image, [...existing, nextTag]);
+}
+
+function removeSecretImageTag(image, rawTag) {
+  const removeTag = normalizeSecretPhotoTag(rawTag);
+  return setSecretImageTags(
+    image,
+    normalizeSecretPhotoTags(image).filter((tag) => tag !== removeTag)
+  );
+}
+
+function secretImageHasTag(image, tag) {
+  const target = normalizeSecretPhotoTag(tag);
+  return normalizeSecretPhotoTags(image).includes(target);
+}
+
 function getSecretPhotoTags(items = secretItems) {
   const tags = [];
   items.forEach((item) => {
     normalizeSecretImages(item.images).forEach((image) => {
-      const tag = normalizeSecretPhotoTag(image.tag);
-      if (!tags.includes(tag)) tags.push(tag);
+      normalizeSecretPhotoTags(image).forEach((tag) => {
+        if (!tags.includes(tag)) tags.push(tag);
+      });
     });
   });
   return [
@@ -6235,8 +6288,9 @@ function getSecretAlbumFilterTags(item) {
   const tags = [];
   if (images.some((image) => image.favorite)) tags.push(FAVORITE_SECRET_PHOTO_TAG);
   images.forEach((image) => {
-    const tag = normalizeSecretPhotoTag(image.tag);
-    if (!tags.includes(tag)) tags.push(tag);
+    normalizeSecretPhotoTags(image).forEach((tag) => {
+      if (!tags.includes(tag)) tags.push(tag);
+    });
   });
   return tags;
 }
@@ -6244,7 +6298,7 @@ function getSecretAlbumFilterTags(item) {
 function imageMatchesSecretFilter(image) {
   if (activeSecretFilter === "全部") return true;
   if (activeSecretFilter === FAVORITE_SECRET_PHOTO_TAG) return Boolean(image?.favorite);
-  return normalizeSecretPhotoTag(image?.tag) === activeSecretFilter;
+  return secretImageHasTag(image, activeSecretFilter);
 }
 
 async function loadSecretItems() {
@@ -6393,7 +6447,12 @@ async function saveSecretItem(event) {
         statusSetter: setSecretStatus,
       });
       if (!uploaded) throw new Error("秘藏图片上传失败。");
-      images.push({ ...uploaded, tag: DEFAULT_SECRET_PHOTO_TAG, uploadedAt: new Date().toISOString() });
+      images.push({
+        ...uploaded,
+        tag: DEFAULT_SECRET_PHOTO_TAG,
+        tags: [DEFAULT_SECRET_PHOTO_TAG],
+        uploadedAt: new Date().toISOString(),
+      });
     }
     let coverImage = images[0]?.image_url || "";
     let coverPath = images[0]?.image_path || "";
@@ -6501,7 +6560,9 @@ function renderSecretGallery() {
       const cover = item.coverImage || itemImages[0]?.image_url || "";
       const linkedPhoto = photos.find((photo) => photo.id === item.linkedPhotoId);
       const linkedTitle = linkedPhoto ? getDisplayTitle(linkedPhoto) || "关联日记" : "";
-      const tagSummary = [...new Set(itemImages.map((image) => normalizeSecretPhotoTag(image.tag)))].slice(0, 3).join(" · ");
+      const tagSummary = [
+        ...new Set(itemImages.flatMap((image) => normalizeSecretPhotoTags(image))),
+      ].slice(0, 3).join(" · ");
       return `
         <article class="secret-card">
           <button class="secret-cover" type="button" data-secret-index="${index}">
@@ -6530,6 +6591,7 @@ function renderSecretGallery() {
       selectedSecretImageIndexes = new Set();
       secretAlbumEditing = false;
       secretAppendExpanded = false;
+      secretMobileToolsExpanded = false;
       renderSecretGallery();
     });
   });
@@ -6560,7 +6622,7 @@ function renderSecretAlbumView(item) {
     .map((entry) => `<option value="${escapeHtml(entry.id)}">${escapeHtml(entry.title || entry.category || "未命名相册")}</option>`)
     .join("");
   els.secretGallery.innerHTML = `
-    <section class="secret-album-view ${secretSelectionMode ? "selection-active" : ""}">
+    <section class="secret-album-view ${secretSelectionMode ? "selection-active" : ""} ${secretSelectionMode && secretMobileToolsExpanded ? "tools-expanded" : ""}">
       <header class="secret-album-head">
         <div>
           <p class="kicker">${escapeHtml(item.category || "未分类")}</p>
@@ -6576,7 +6638,7 @@ function renderSecretAlbumView(item) {
           <button class="delete-secret danger" type="button" data-secret-delete-current>删除相册</button>
         </div>
       </header>
-      <div class="secret-album-toolbar">
+      <div class="secret-album-toolbar ${secretSelectionMode && secretMobileToolsExpanded ? "tools-expanded" : ""}">
         <div>
           <button type="button" data-secret-edit-album>${secretAlbumEditing ? "收起编辑" : "编辑相册"}</button>
           <button type="button" data-secret-select-mode>${secretSelectionMode ? "取消选择" : "选择图片"}</button>
@@ -6584,6 +6646,9 @@ function renderSecretAlbumView(item) {
         ${
           secretSelectionMode
             ? `
+              <button class="secret-tools-toggle" type="button" data-secret-tools-toggle>
+                ${secretMobileToolsExpanded ? "收起工具" : `编辑工具 · 已选 ${selectedCount}`}
+              </button>
               <div class="secret-selection-actions">
                 <button type="button" data-secret-select-all>${displayEntries.length && displayEntries.every(({ index }) => selectedSecretImageIndexes.has(index)) ? "取消全选" : "全选"}</button>
                 <button type="button" data-secret-move="-1" ${singleSelectedIndex > 0 ? "" : "disabled"}>前移</button>
@@ -6662,7 +6727,7 @@ function renderSecretAlbumView(item) {
             ({ image, index }) => `
               <button class="secret-album-photo ${secretSelectionMode ? "selectable" : ""} ${selectedSecretImageIndexes.has(index) ? "selected" : ""}" type="button" data-secret-photo="${index}">
                 <img src="${escapeHtml(image.image_url)}" alt="${escapeHtml(item.title || item.category || "秘藏图片")} ${index + 1}" loading="lazy" />
-                <small class="secret-photo-tag">${escapeHtml(normalizeSecretPhotoTag(image.tag))}</small>
+                <small class="secret-photo-tag">${escapeHtml(normalizeSecretPhotoTags(image).slice(0, 2).join(" · "))}</small>
                 ${image.favorite ? `<strong class="secret-photo-favorite">♥</strong>` : ""}
                 ${secretSelectionMode ? `<span>${selectedSecretImageIndexes.has(index) ? "已选" : String(index + 1).padStart(2, "0")}</span>` : ""}
               </button>
@@ -6680,6 +6745,7 @@ function renderSecretAlbumView(item) {
     selectedSecretImageIndexes = new Set();
     secretAlbumEditing = false;
     secretAppendExpanded = false;
+    secretMobileToolsExpanded = false;
     renderSecretGallery();
   });
   els.secretGallery.querySelector("[data-secret-toggle-append]")?.addEventListener("click", () => {
@@ -6737,7 +6803,12 @@ function renderSecretAlbumView(item) {
   els.secretGallery.querySelector("[data-secret-delete-tag]")?.addEventListener("click", () => deleteCurrentSecretTag(item));
   els.secretGallery.querySelector("[data-secret-select-mode]")?.addEventListener("click", () => {
     secretSelectionMode = !secretSelectionMode;
+    secretMobileToolsExpanded = false;
     if (!secretSelectionMode) selectedSecretImageIndexes = new Set();
+    renderSecretGallery();
+  });
+  els.secretGallery.querySelector("[data-secret-tools-toggle]")?.addEventListener("click", () => {
+    secretMobileToolsExpanded = !secretMobileToolsExpanded;
     renderSecretGallery();
   });
   els.secretGallery.querySelector("[data-secret-select-all]")?.addEventListener("click", () => {
@@ -6787,6 +6858,7 @@ function renderSecretAlbumView(item) {
         secretPhotoLongPressTriggered = true;
         secretPhotoLongPressTimer = null;
         secretSelectionMode = true;
+        secretMobileToolsExpanded = false;
         selectedSecretImageIndexes = new Set([index]);
         renderSecretGallery();
       }, 450);
@@ -6833,7 +6905,7 @@ function openSecretItem(item, initialImageIndex = 0) {
     Math.max(0, dialogImages.length - 1)
   );
   els.dialogTitle.textContent = item.title || item.category || "秘藏相册";
-  els.dialogMeta.textContent = `${normalizeSecretPhotoTag(dialogImages[dialogImageIndex]?.tag)} · ${dialogImageIndex + 1} / ${dialogImages.length}`;
+  els.dialogMeta.textContent = `${normalizeSecretPhotoTags(dialogImages[dialogImageIndex]).slice(0, 2).join(" · ")} · ${dialogImageIndex + 1} / ${dialogImages.length}`;
   els.dialogNote.textContent = item.note || "";
   els.photoCommentsSection.hidden = true;
   if (els.dialogRandomButton) els.dialogRandomButton.hidden = true;
@@ -7023,9 +7095,9 @@ async function applySecretPhotoTag(item, rawTag) {
   const nextTag = normalizeSecretPhotoTag(rawTag);
   const selectedSet = new Set(selected);
   const nextImages = images.map((image, index) =>
-    selectedSet.has(index) ? { ...image, tag: nextTag } : image
+    selectedSet.has(index) ? addSecretImageTag(image, nextTag) : image
   );
-  const saved = await updateSecretAlbum(item, { images: nextImages }, `已给 ${selected.length} 张图片标记为「${nextTag}」。`);
+  const saved = await updateSecretAlbum(item, { images: nextImages }, `已给 ${selected.length} 张图片添加「${nextTag}」tag。`);
   if (saved) {
     activeSecretFilter = nextTag;
     selectedSecretImageIndexes = new Set(selected);
@@ -7038,20 +7110,20 @@ async function deleteCurrentSecretTag(item) {
   const tag = normalizeSecretPhotoTag(activeSecretFilter);
   if (!item || ["全部", DEFAULT_SECRET_PHOTO_TAG, FAVORITE_SECRET_PHOTO_TAG].includes(tag)) return;
   const images = normalizeSecretImages(item.images);
-  const affectedCount = images.filter((image) => normalizeSecretPhotoTag(image.tag) === tag).length;
+  const affectedCount = images.filter((image) => secretImageHasTag(image, tag)).length;
   if (!affectedCount) {
     activeSecretFilter = "全部";
     renderSecretGallery();
     return;
   }
-  if (!confirm(`删除当前相册里的「${tag}」tag？${affectedCount} 张照片会改为「${DEFAULT_SECRET_PHOTO_TAG}」。`)) return;
+  if (!confirm(`删除当前相册里的「${tag}」tag？会从 ${affectedCount} 张照片上移除。`)) return;
   const nextImages = images.map((image) =>
-    normalizeSecretPhotoTag(image.tag) === tag ? { ...image, tag: DEFAULT_SECRET_PHOTO_TAG } : image
+    secretImageHasTag(image, tag) ? removeSecretImageTag(image, tag) : image
   );
   const saved = await updateSecretAlbum(
     item,
     { images: nextImages },
-    `已删除「${tag}」tag，${affectedCount} 张照片改为「${DEFAULT_SECRET_PHOTO_TAG}」。`
+    `已从 ${affectedCount} 张照片移除「${tag}」tag。`
   );
   if (!saved) return;
   activeSecretFilter = DEFAULT_SECRET_PHOTO_TAG;
@@ -7067,9 +7139,15 @@ async function updateSecretDialogImage(updates = {}) {
   const images = normalizeSecretImages(item.images);
   const index = Math.min(Math.max(0, dialogImageIndex), Math.max(0, images.length - 1));
   if (!images[index]) return;
-  const nextImage = { ...images[index] };
+  let nextImage = { ...images[index] };
   if (Object.prototype.hasOwnProperty.call(updates, "tag")) {
-    nextImage.tag = normalizeSecretPhotoTag(updates.tag);
+    nextImage = setSecretImageTags(nextImage, [updates.tag]);
+  }
+  if (Object.prototype.hasOwnProperty.call(updates, "addTag")) {
+    nextImage = addSecretImageTag(nextImage, updates.addTag);
+  }
+  if (Object.prototype.hasOwnProperty.call(updates, "removeTag")) {
+    nextImage = removeSecretImageTag(nextImage, updates.removeTag);
   }
   if (Object.prototype.hasOwnProperty.call(updates, "favorite")) {
     nextImage.favorite = Boolean(updates.favorite);
@@ -7103,7 +7181,9 @@ async function updateSecretDialogImage(updates = {}) {
     ? nextImage.favorite
       ? "已加入收藏。"
       : "已取消收藏。"
-    : `已标记为「${nextImage.tag}」。`;
+    : Object.prototype.hasOwnProperty.call(updates, "removeTag")
+      ? `已移除「${normalizeSecretPhotoTag(updates.removeTag)}」。`
+      : `已更新 tag。`;
   const nextStatus = els.dialogNote?.querySelector("[data-secret-dialog-status]");
   if (nextStatus) nextStatus.textContent = message;
 }
@@ -7242,7 +7322,12 @@ async function appendSecretAlbumImages(options = {}) {
         }
       );
       if (!uploaded) throw new Error("追加图片上传失败。");
-      uploadedImages.push({ ...uploaded, tag: DEFAULT_SECRET_PHOTO_TAG, uploadedAt: new Date().toISOString() });
+      uploadedImages.push({
+        ...uploaded,
+        tag: DEFAULT_SECRET_PHOTO_TAG,
+        tags: [DEFAULT_SECRET_PHOTO_TAG],
+        uploadedAt: new Date().toISOString(),
+      });
     }
     for (const [index, url] of appendUrls.entries()) {
       const safeName = `${slugify(item.title || item.category || "secret-link")}-link-${currentImages.length + appendFiles.length + index + 1}`;
@@ -7255,6 +7340,7 @@ async function appendSecretAlbumImages(options = {}) {
           width: 0,
           height: 0,
           tag: DEFAULT_SECRET_PHOTO_TAG,
+          tags: [DEFAULT_SECRET_PHOTO_TAG],
           uploadedAt: new Date().toISOString(),
         });
       } catch (error) {
@@ -7265,6 +7351,7 @@ async function appendSecretAlbumImages(options = {}) {
           width: 0,
           height: 0,
           tag: DEFAULT_SECRET_PHOTO_TAG,
+          tags: [DEFAULT_SECRET_PHOTO_TAG],
           uploadedAt: new Date().toISOString(),
         });
       }
