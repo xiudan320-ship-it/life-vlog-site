@@ -14,6 +14,9 @@ const PHOTO_FEED_CACHE_KEY = "life-vlog-photo-feed-cache";
 const SECRET_ITEMS_CACHE_KEY = "life-vlog-secret-items-cache";
 const MEDIA_CACHE_NAME = "life-vlog-media-cache";
 const CACHE_LIMIT_KEY = "life-vlog-cache-limit";
+const DIARY_DRAFT_KEY = "life-vlog-diary-draft";
+const UPLOAD_QUEUE_DB = "life-vlog-upload-queue";
+const UPLOAD_QUEUE_STORE = "diary-uploads";
 const EXPERIENCE_KEY = "life-vlog-experience";
 const TODAY_EXPERIENCE_KEY = "life-vlog-today-experience";
 const THANKS_COLOR_KEY = "life-vlog-thanks-color";
@@ -228,6 +231,8 @@ let diarySearchQuery = "";
 let activeWishView = "open";
 let previewUrls = [];
 let selectedUploadFiles = [];
+let uploadInFlight = false;
+let uploadQueueProcessing = false;
 let visiblePhotoCount = PAGE_SIZE;
 let filteredPhotoCount = 0;
 let showingCachedFeed = false;
@@ -966,6 +971,8 @@ async function initializeCloudflare() {
   updateAuthUI();
   renderCachedPhotoFeed(session?.user?.id || "public");
   await loadPhotos();
+  syncMobileComposerPlacement();
+  void processDiaryUploadQueue();
 
   cloudDb.auth.onAuthStateChange((_event, nextSession) => {
     session = nextSession;
@@ -974,6 +981,7 @@ async function initializeCloudflare() {
     loadPhotos();
     if (session) {
       void loadNotifications();
+      void processDiaryUploadQueue();
     }
   });
   if (notificationPollTimer) clearInterval(notificationPollTimer);
@@ -1989,6 +1997,10 @@ async function synchronizePhotoFavorites() {
 
 async function uploadPhoto(event) {
   event.preventDefault();
+  if (uploadInFlight) {
+    setStatus("正在上传，先别连点。");
+    return;
+  }
   if (!cloudDb || !session) {
     setStatus("请先登录。");
     return;
@@ -2006,26 +2018,80 @@ async function uploadPhoto(event) {
     return;
   }
 
-  const images = [];
   const finalTitle = getFinalTitle();
+  const payload = getDiaryUploadPayload(finalTitle, files);
+  uploadInFlight = true;
+  setUploadSubmitting(true);
+  try {
+    if (!navigator.onLine) {
+      await enqueueDiaryUpload(payload);
+      clearDiaryDraft();
+      clearPhotoPreview();
+      setStatus("网络不稳定，已加入上传队列。恢复网络后会自动上传。");
+      return;
+    }
+    await publishDiaryPayload(payload);
+  } catch (error) {
+    if (isNetworkLikeError(error)) {
+      await enqueueDiaryUpload(payload);
+      clearDiaryDraft();
+      clearPhotoPreview();
+      setStatus("上传中断，已加入上传队列。恢复网络后会自动上传。");
+      return;
+    }
+    setStatus(error.message || "上传失败。");
+  } finally {
+    uploadInFlight = false;
+    setUploadSubmitting(false);
+    void processDiaryUploadQueue();
+  }
+}
+
+function getDiaryUploadPayload(finalTitle, files) {
+  return {
+    id: crypto.randomUUID(),
+    userId: session?.user?.id || "",
+    title: finalTitle,
+    rawTitle: els.titleInput.value.trim(),
+    note: els.noteInput.value.trim(),
+    category: els.categoryInput.value,
+    takenAt: els.dateInput.value,
+    isPublic: els.publicInput.value === "true",
+    createdAt: new Date().toISOString(),
+    files: files.map((file) => ({
+      file,
+      name: file.name || "diary-image",
+      type: file.type || "image/jpeg",
+      size: file.size || 0,
+      lastModified: file.lastModified || Date.now(),
+    })),
+  };
+}
+
+async function publishDiaryPayload(payload, { queued = false } = {}) {
+  const images = [];
+  const files = payload.files.map((entry) => entry.file);
+  const finalTitle = payload.title || "";
 
   for (const [index, file] of files.entries()) {
     const safeName = getUploadFileNameBase(finalTitle, index, files.length);
     const imageData = await uploadImageFile(file, safeName, index + 1, files.length);
-    if (!imageData) return;
+    if (!imageData) throw new Error("图片上传失败。");
     images.push(imageData);
   }
 
-  const insertError = await insertPhotoRecord(finalTitle, images);
+  const insertError = await insertPhotoRecordFromPayload(payload, images);
   if (insertError) {
-    setStatus(insertError.message);
-    return;
+    throw new Error(insertError.message);
   }
 
-  els.uploadForm.reset();
-  els.dateInput.valueAsDate = new Date();
-  clearPhotoPreview();
-  setUploadExpanded(false);
+  if (!queued) {
+    els.uploadForm.reset();
+    els.dateInput.valueAsDate = new Date();
+    clearDiaryDraft();
+    clearPhotoPreview();
+    setUploadExpanded(false);
+  }
   const localImages = images.filter((image) => Number.isFinite(image.original_size));
   const originalBytes = localImages.reduce((sum, image) => sum + image.original_size, 0);
   const uploadedBytes = localImages.reduce((sum, image) => sum + image.compressed_size, 0);
@@ -2036,7 +2102,7 @@ async function uploadPhoto(event) {
     : "";
   const gainedExp = await awardExperience("diary");
   setStatus(
-    `${images.length > 1 ? `已发布 1 篇合集，共 ${images.length} 张图。` : "上传完成。"}${compressionSummary}${gainedExp ? ` 修为 +${gainedExp}` : ""}`
+    `${queued ? "队列日记已发布。" : images.length > 1 ? `已发布 1 篇合集，共 ${images.length} 张图。` : "上传完成。"}${compressionSummary}${gainedExp ? ` 修为 +${gainedExp}` : ""}`
   );
   await loadPhotos();
   switchPage("gallery");
@@ -2047,14 +2113,27 @@ async function uploadPhoto(event) {
 }
 
 async function insertPhotoRecord(finalTitle, images) {
+  return insertPhotoRecordFromPayload(
+    {
+      title: finalTitle,
+      note: els.noteInput.value.trim(),
+      category: els.categoryInput.value,
+      takenAt: els.dateInput.value,
+      isPublic: els.publicInput.value === "true",
+    },
+    images
+  );
+}
+
+async function insertPhotoRecordFromPayload(payload, images) {
   const primaryImage = images[0];
   const record = {
     user_id: session.user.id,
-    title: finalTitle,
-    note: composeStoredNote(els.noteInput.value.trim(), images),
-    category: els.categoryInput.value,
-    taken_at: els.dateInput.value,
-    is_public: els.publicInput.value === "true",
+    title: payload.title || "",
+    note: composeStoredNote(payload.note || "", images),
+    category: payload.category || "日常",
+    taken_at: payload.takenAt || new Date().toISOString().slice(0, 10),
+    is_public: payload.isPublic !== false,
     image_path: primaryImage.image_path,
     image_url: primaryImage.image_url,
     width: primaryImage.width,
@@ -2063,6 +2142,144 @@ async function insertPhotoRecord(finalTitle, images) {
 
   const { error } = await cloudDb.from("photos").insert(record);
   return error;
+}
+
+function setUploadSubmitting(isSubmitting) {
+  const submitButton = els.uploadForm?.querySelector('button[type="submit"]');
+  if (submitButton) {
+    submitButton.disabled = Boolean(isSubmitting);
+    submitButton.textContent = isSubmitting ? "上传中..." : "上传并发布";
+  }
+  els.uploadToggle.disabled = Boolean(isSubmitting);
+}
+
+function getDiaryDraftStorageKey(userId = session?.user?.id || "guest") {
+  return `${DIARY_DRAFT_KEY}:${userId}`;
+}
+
+function getDiaryDraftPayload() {
+  return {
+    title: els.titleInput.value,
+    note: els.noteInput.value,
+    category: els.categoryInput.value,
+    takenAt: els.dateInput.value,
+    isPublic: els.publicInput.value,
+    savedAt: new Date().toISOString(),
+  };
+}
+
+function saveDiaryDraft() {
+  if (!session || !els.uploadForm || els.uploadForm.hidden) return;
+  const draft = getDiaryDraftPayload();
+  const hasText = [draft.title, draft.note].some((value) => String(value || "").trim());
+  const hasNonDefault =
+    draft.category !== "日常" ||
+    draft.isPublic !== "true" ||
+    draft.takenAt !== new Date().toISOString().slice(0, 10);
+  if (!hasText && !hasNonDefault) return;
+  localStorage.setItem(getDiaryDraftStorageKey(), JSON.stringify(draft));
+}
+
+function restoreDiaryDraft() {
+  if (!session) return;
+  try {
+    const raw = localStorage.getItem(getDiaryDraftStorageKey());
+    if (!raw) return;
+    const draft = JSON.parse(raw);
+    els.titleInput.value = draft.title || "";
+    els.noteInput.value = draft.note || "";
+    els.categoryInput.value = draft.category || "日常";
+    els.dateInput.value = draft.takenAt || els.dateInput.value || new Date().toISOString().slice(0, 10);
+    els.publicInput.value = draft.isPublic || "true";
+    setStatus("已恢复上次未发布的日记草稿。");
+  } catch {
+    localStorage.removeItem(getDiaryDraftStorageKey());
+  }
+}
+
+function clearDiaryDraft() {
+  localStorage.removeItem(getDiaryDraftStorageKey());
+}
+
+function isNetworkLikeError(error) {
+  const message = String(error?.message || error || "").toLowerCase();
+  return !navigator.onLine || message.includes("failed to fetch") || message.includes("network");
+}
+
+function openUploadQueueDb() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(UPLOAD_QUEUE_DB, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(UPLOAD_QUEUE_STORE)) {
+        const store = db.createObjectStore(UPLOAD_QUEUE_STORE, { keyPath: "id" });
+        store.createIndex("userId", "userId", { unique: false });
+        store.createIndex("createdAt", "createdAt", { unique: false });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error || new Error("上传队列打开失败。"));
+  });
+}
+
+async function enqueueDiaryUpload(payload) {
+  if (!("indexedDB" in window)) throw new Error("当前浏览器不支持上传队列。");
+  const db = await openUploadQueueDb();
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction(UPLOAD_QUEUE_STORE, "readwrite");
+    tx.objectStore(UPLOAD_QUEUE_STORE).put({
+      ...payload,
+      queuedAt: new Date().toISOString(),
+    });
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error || new Error("写入上传队列失败。"));
+  });
+  db.close();
+}
+
+async function getQueuedDiaryUploads(userId = session?.user?.id || "") {
+  if (!("indexedDB" in window) || !userId) return [];
+  const db = await openUploadQueueDb();
+  const items = await new Promise((resolve, reject) => {
+    const tx = db.transaction(UPLOAD_QUEUE_STORE, "readonly");
+    const request = tx.objectStore(UPLOAD_QUEUE_STORE).getAll();
+    request.onsuccess = () => resolve(request.result || []);
+    request.onerror = () => reject(request.error || new Error("读取上传队列失败。"));
+  });
+  db.close();
+  return items
+    .filter((item) => item.userId === userId)
+    .sort((a, b) => String(a.createdAt || "").localeCompare(String(b.createdAt || "")));
+}
+
+async function removeQueuedDiaryUpload(id) {
+  const db = await openUploadQueueDb();
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction(UPLOAD_QUEUE_STORE, "readwrite");
+    tx.objectStore(UPLOAD_QUEUE_STORE).delete(id);
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error || new Error("删除上传队列失败。"));
+  });
+  db.close();
+}
+
+async function processDiaryUploadQueue() {
+  if (uploadQueueProcessing || !session || !cloudDb || !navigator.onLine) return;
+  uploadQueueProcessing = true;
+  try {
+    const queuedItems = await getQueuedDiaryUploads(session.user.id);
+    if (!queuedItems.length) return;
+    setStatus(`正在补传队列中的 ${queuedItems.length} 篇日记...`);
+    for (const item of queuedItems) {
+      await publishDiaryPayload(item, { queued: true });
+      await removeQueuedDiaryUpload(item.id);
+    }
+    setStatus("上传队列已清空。");
+  } catch (error) {
+    setStatus(`上传队列等待网络恢复：${error.message || "稍后重试"}`);
+  } finally {
+    uploadQueueProcessing = false;
+  }
 }
 
 function canvasToBlob(canvas, type, quality) {
@@ -4241,6 +4458,19 @@ function updateSecretToolbarTop() {
   toolbar.style.setProperty("--secret-toolbar-top", `${Math.max(pinnedTop, headTop)}px`);
 }
 
+function syncMobileComposerPlacement() {
+  if (!els.composer || !els.galleryHead) return;
+  const isMobile = window.matchMedia(`(max-width: ${MOBILE_DIALOG_BREAKPOINT}px)`).matches;
+  const isInsideHead = els.composer.parentElement === els.galleryHead;
+  if (isMobile && !isInsideHead) {
+    els.galleryHead.append(els.composer);
+    return;
+  }
+  if (!isMobile && isInsideHead) {
+    els.galleryHead.parentElement?.insertBefore(els.composer, els.galleryHead);
+  }
+}
+
 function changeCacheLimit() {
   const current = loadCacheLimit();
   if (!els.cacheLimitDialog || !els.cacheLimitInput) return;
@@ -5569,6 +5799,7 @@ function handlePasteUpload(event) {
     });
     selectedUploadFiles = [...selectedUploadFiles, ...pastedFiles];
     updatePhotoPreview();
+    saveDiaryDraft();
     setStatus(files.length > 1 ? `已读取 ${files.length} 张剪贴板图片。` : "已读取剪贴板图片。");
     return;
   }
@@ -5872,6 +6103,17 @@ function getSecretPhotoTags(items = secretItems) {
   ];
 }
 
+function getSecretAlbumFilterTags(item) {
+  const images = normalizeSecretImages(item?.images);
+  const tags = [];
+  if (images.some((image) => image.favorite)) tags.push(FAVORITE_SECRET_PHOTO_TAG);
+  images.forEach((image) => {
+    const tag = normalizeSecretPhotoTag(image.tag);
+    if (!tags.includes(tag)) tags.push(tag);
+  });
+  return tags;
+}
+
 function imageMatchesSecretFilter(image) {
   if (activeSecretFilter === "全部") return true;
   if (activeSecretFilter === FAVORITE_SECRET_PHOTO_TAG) return Boolean(image?.favorite);
@@ -6074,7 +6316,9 @@ function renderSecretGallery() {
   if (!els.secretGallery) return;
   renderSecretLinkedPhotoOptions();
   const activeAlbum = secretItems.find((item) => item.id === activeSecretAlbumId);
-  const allPhotoTags = ["全部", ...getSecretPhotoTags()];
+  const allPhotoTags = activeAlbum
+    ? ["全部", ...getSecretAlbumFilterTags(activeAlbum)]
+    : ["全部", DEFAULT_SECRET_PHOTO_TAG];
   els.secretCategoryList.innerHTML = allPhotoTags
     .filter((tag) => tag !== "全部")
     .map((tag) => `<option value="${escapeHtml(tag)}"></option>`)
@@ -6094,7 +6338,7 @@ function renderSecretGallery() {
     return;
   }
   if (activeAlbum) {
-    const photoTags = ["全部", ...getSecretPhotoTags([activeAlbum])];
+    const photoTags = ["全部", ...getSecretAlbumFilterTags(activeAlbum)];
     if (!photoTags.includes(activeSecretFilter)) activeSecretFilter = "全部";
     els.secretFilters.hidden = false;
     els.secretFilters.innerHTML = photoTags
@@ -6179,7 +6423,7 @@ function renderSecretAlbumView(item) {
   const validSelectedIndexes = [...selectedSecretImageIndexes].filter((index) => index >= 0 && index < images.length);
   const selectedCount = validSelectedIndexes.length;
   const singleSelectedIndex = selectedCount === 1 ? validSelectedIndexes[0] : -1;
-  const knownTags = getSecretPhotoTags([item]);
+  const knownTags = getSecretAlbumFilterTags(item).filter((tag) => tag !== FAVORITE_SECRET_PHOTO_TAG);
   const moveTargetOptions = sortSecretItems(secretItems)
     .filter((entry) => entry.id !== item.id)
     .map((entry) => `<option value="${escapeHtml(entry.id)}">${escapeHtml(entry.title || entry.category || "未命名相册")}</option>`)
@@ -6261,6 +6505,13 @@ function renderSecretAlbumView(item) {
                 <input data-secret-append-files type="file" accept="image/*" multiple />
               </label>
               <div class="secret-append-actions">
+                <label class="secret-append-position">
+                  新图位置
+                  <select data-secret-append-position>
+                    <option value="top">放在最上面</option>
+                    <option value="bottom">放在最下面</option>
+                  </select>
+                </label>
                 <button class="primary" type="submit">添加到相册</button>
                 ${linkedPhoto ? `<button type="button" data-secret-open-linked>打开关联日记</button>` : ""}
               </div>
@@ -6316,6 +6567,7 @@ function renderSecretAlbumView(item) {
     appendSecretAlbumImages({
       files: Array.from(form.querySelector("[data-secret-append-files]")?.files || []),
       linksText: form.querySelector("[data-secret-append-links]")?.value || "",
+      position: form.querySelector("[data-secret-append-position]")?.value || "top",
       form,
     });
   });
@@ -6325,13 +6577,22 @@ function renderSecretAlbumView(item) {
   els.secretGallery.querySelector("[data-secret-append-files]")?.addEventListener("change", (event) => {
     const files = Array.from(event.currentTarget.files || []);
     if (!files.length) return;
-    appendSecretAlbumImages({ files, form: event.currentTarget.closest("[data-secret-append-form]") });
+    const form = event.currentTarget.closest("[data-secret-append-form]");
+    appendSecretAlbumImages({
+      files,
+      position: form?.querySelector("[data-secret-append-position]")?.value || "top",
+      form,
+    });
   });
   els.secretGallery.querySelector("[data-secret-append-form]")?.addEventListener("paste", (event) => {
     const pastedFiles = getImageFilesFromClipboard(event, "secret-append-pasted");
     if (!pastedFiles.length) return;
     event.preventDefault();
-    appendSecretAlbumImages({ files: pastedFiles, form: event.currentTarget });
+    appendSecretAlbumImages({
+      files: pastedFiles,
+      position: event.currentTarget.querySelector("[data-secret-append-position]")?.value || "top",
+      form: event.currentTarget,
+    });
   });
   els.secretGallery.querySelector("[data-secret-open-linked]")?.addEventListener("click", () => {
     activeSecretDialogItem = item;
@@ -6371,10 +6632,7 @@ function renderSecretAlbumView(item) {
     });
   });
   els.secretGallery.querySelector("[data-secret-back-top]")?.addEventListener("click", () => {
-    els.secretGallery.querySelector(".secret-album-head")?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
+    scrollSecretAlbumToTop();
   });
   els.secretGallery.querySelectorAll("[data-secret-move]").forEach((button) => {
     button.addEventListener("click", () => moveSelectedSecretImage(item, Number(button.dataset.secretMove) || 0));
@@ -6473,6 +6731,20 @@ function returnToSecretItem() {
   if (dialogSecretSourceItem) {
     openSecretItem(dialogSecretSourceItem);
   }
+}
+
+function scrollSecretAlbumToTop() {
+  const target = els.secretGallery?.querySelector(".secret-album-head");
+  if (!target) return;
+  const topbarHeight = document.querySelector(".topbar")?.getBoundingClientRect().height || 0;
+  const mobileOffset = window.matchMedia(`(max-width: ${MOBILE_DIALOG_BREAKPOINT}px)`).matches
+    ? 10
+    : topbarHeight + 14;
+  const targetY = target.getBoundingClientRect().top + window.scrollY - mobileOffset;
+  window.scrollTo({
+    top: Math.max(0, targetY),
+    behavior: "smooth",
+  });
 }
 
 function extractImageUrls(text) {
@@ -6833,7 +7105,10 @@ async function appendSecretAlbumImages(options = {}) {
         });
       }
     }
-    const nextImages = [...currentImages, ...uploadedImages];
+    const insertAtTop = options.position !== "bottom";
+    const nextImages = insertAtTop
+      ? [...uploadedImages, ...currentImages]
+      : [...currentImages, ...uploadedImages];
     const updates = {
       images: nextImages,
       updated_at: new Date().toISOString(),
@@ -9629,6 +9904,7 @@ function setUploadExpanded(expanded) {
   els.composer.classList.toggle("expanded", expanded);
   els.uploadForm.hidden = !expanded;
   els.uploadToggle.setAttribute("aria-expanded", String(expanded));
+  if (expanded) restoreDiaryDraft();
 }
 
 els.setupToggle.addEventListener("click", () => {
@@ -9823,13 +10099,22 @@ document.addEventListener("visibilitychange", () => {
   if (session && document.visibilityState === "visible") {
     void loadNotifications();
     void checkForNewPhotos();
+    void processDiaryUploadQueue();
   }
 });
 window.addEventListener("focus", () => {
   if (session) {
     void loadNotifications();
     void checkForNewPhotos();
+    void processDiaryUploadQueue();
   }
+});
+window.addEventListener("online", () => {
+  void processDiaryUploadQueue();
+});
+window.addEventListener("resize", () => {
+  syncMobileComposerPlacement();
+  updateSecretToolbarTop();
 });
 els.renameHomeButton.addEventListener("click", () => {
   openSettingsChildDialog(els.renameHomeDialog, () => {
@@ -9972,6 +10257,8 @@ document.addEventListener("keydown", (event) => {
 });
 initializePhotoDropHint();
 els.uploadForm.addEventListener("submit", uploadPhoto);
+els.uploadForm.addEventListener("input", saveDiaryDraft);
+els.uploadForm.addEventListener("change", saveDiaryDraft);
 els.photoDrop.addEventListener("paste", handlePasteUpload);
 els.photoInput.addEventListener("change", () => {
   selectedUploadFiles = Array.from(els.photoInput.files || []);
@@ -10091,5 +10378,6 @@ renderFoodWheel();
 initializeFeedObserver();
 applyMobileFeedLayout();
 applyMobileSecretLayout();
+syncMobileComposerPlacement();
 initializeCloudflare();
 
