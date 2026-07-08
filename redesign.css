@@ -3694,6 +3694,30 @@ body.theme-dark .feed-loader {
   gap: 8px;
 }
 
+.secret-append-position {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--surface) 92%, var(--accent) 8%);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  padding: 0 10px;
+}
+
+.secret-append-position select {
+  width: auto;
+  min-height: 28px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-weight: 950;
+  padding: 0;
+}
+
 .secret-album-edit,
 .secret-album-toolbar {
   display: grid;
@@ -3871,6 +3895,7 @@ body.theme-dark .secret-album-toolbar {
 .secret-photo-tag-editor {
   display: grid;
   grid-template-columns: 1fr;
+  min-width: 0;
   gap: 8px;
   padding-top: 6px;
 }
@@ -5664,7 +5689,7 @@ body.mobile-dialog-open {
     min-height: 100dvh;
     background: var(--bg);
     color: var(--ink);
-    padding-top: calc(50px + env(safe-area-inset-top));
+    padding-top: calc(38px + env(safe-area-inset-top));
     padding-bottom: calc(28px + env(safe-area-inset-bottom));
   }
 
@@ -5678,7 +5703,7 @@ body.mobile-dialog-open {
     top: 0;
     right: 0;
     left: 0;
-    height: calc(50px + env(safe-area-inset-top));
+    height: calc(38px + env(safe-area-inset-top));
     border-bottom: 1px solid var(--line);
     background: color-mix(in srgb, var(--surface) 92%, var(--bg) 8%);
     backdrop-filter: blur(18px) saturate(140%);
@@ -5687,21 +5712,21 @@ body.mobile-dialog-open {
 
   .mobile-diary-close {
     position: fixed;
-    top: calc(6px + env(safe-area-inset-top));
+    top: calc(4px + env(safe-area-inset-top));
     right: 14px;
     left: auto;
     z-index: 20;
     display: inline-flex;
-    min-height: 38px;
+    min-height: 32px;
     align-items: center;
     gap: 6px;
     border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--line));
     border-radius: 999px;
     background: color-mix(in srgb, var(--surface) 96%, var(--accent) 4%);
     color: var(--ink);
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 950;
-    padding: 0 16px 0 12px;
+    padding: 0 12px 0 9px;
     box-shadow: 0 10px 26px rgba(0, 0, 0, 0.16);
     backdrop-filter: blur(16px) saturate(130%);
   }
@@ -5731,7 +5756,7 @@ body.mobile-dialog-open {
   .mobile-diary-media img {
     display: block;
     width: 100%;
-    max-height: calc(100dvh - 50px - env(safe-area-inset-top));
+    max-height: calc(100dvh - 38px - env(safe-area-inset-top));
     object-fit: contain;
     object-position: top center;
   }
@@ -6284,7 +6309,81 @@ body.mobile-dialog-open {
     gap: 4px 8px;
   }
 
+  #galleryHead > div:first-child {
+    min-width: 0;
+  }
+
+  #galleryHead .composer {
+    order: 2;
+    flex: 0 0 auto;
+    margin: 0 0 0 auto;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
+  }
+
+  #galleryHead .composer.expanded {
+    flex-basis: 100%;
+    margin-top: 8px;
+  }
+
+  #galleryHead .composer .section-title {
+    display: block;
+  }
+
+  #galleryHead .composer .section-heading-button {
+    min-height: 34px;
+    border: 1px solid color-mix(in srgb, var(--accent) 52%, var(--line));
+    border-radius: 999px;
+    background: var(--accent);
+    color: #10200d;
+    padding: 0 12px;
+  }
+
+  #galleryHead .composer .section-heading-button .kicker {
+    display: none;
+  }
+
+  #galleryHead .composer .section-heading-button h2 {
+    font-size: 13px;
+    line-height: 1;
+  }
+
+  #galleryHead .composer .section-heading-button h2::after {
+    display: none;
+  }
+
+  #galleryHead .composer .section-heading-button h2::before {
+    content: "+";
+    margin-right: 4px;
+    font-weight: 950;
+  }
+
+  #galleryHead .composer #uploadStatus {
+    display: block;
+    margin-top: 4px;
+    max-width: 44vw;
+    overflow: hidden;
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 800;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  #galleryHead .composer.expanded #uploadForm {
+    display: grid;
+    margin-top: 10px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface);
+    padding: 12px;
+  }
+
   #galleryHead .status-line {
+    order: 3;
+    flex-basis: 100%;
     margin-bottom: 4px;
     font-size: 11px;
   }
