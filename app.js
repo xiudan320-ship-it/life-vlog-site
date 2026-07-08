@@ -221,6 +221,7 @@ let activePage = "gallery";
 let activeFilter = "全部";
 let activeSecretFilter = "全部";
 let activeSecretAlbumId = "";
+let secretPhotoSortDescending = true;
 let secretSelectionMode = false;
 let selectedSecretImageIndexes = new Set();
 let secretAlbumEditing = false;
@@ -3225,7 +3226,9 @@ function renderDialogMedia() {
 function renderSecretDialogControls(image) {
   const tag = normalizeSecretPhotoTag(image?.tag);
   const favorite = Boolean(image?.favorite);
-  const tags = getSecretPhotoTags().filter((entry) => entry !== FAVORITE_SECRET_PHOTO_TAG);
+  const tags = activeSecretDialogItem
+    ? getSecretAlbumFilterTags(activeSecretDialogItem).filter((entry) => entry !== FAVORITE_SECRET_PHOTO_TAG)
+    : [];
   return `
     <div class="secret-dialog-tools">
       <label>
@@ -3565,6 +3568,11 @@ function ensureMobileDiaryPage() {
       renderMobileDiaryPage();
       return;
     }
+    const openImageButton = event.target.closest("[data-mobile-diary-open-image]");
+    if (openImageButton && mobileDiaryPhoto) {
+      openPhoto(mobileDiaryPhoto, mobileDiaryImageIndex, { forceDialog: true });
+      return;
+    }
     const replyButton = event.target.closest("[data-mobile-diary-reply]");
     if (replyButton) {
       startMobileDiaryReply(replyButton.dataset.mobileDiaryReply);
@@ -3661,7 +3669,9 @@ function renderMobileDiaryPage() {
   page.innerHTML = `
     <button class="mobile-diary-close" type="button" data-mobile-diary-close aria-label="返回">返回</button>
     <div class="mobile-diary-media">
-      <img src="${escapeHtml(image.image_url || "")}" alt="${escapeHtml(getDisplayTitle(photo) || "日记图片")}" />
+      <button class="mobile-diary-image-button" type="button" data-mobile-diary-open-image aria-label="放大查看日记图片">
+        <img src="${escapeHtml(image.image_url || "")}" alt="${escapeHtml(getDisplayTitle(photo) || "日记图片")}" />
+      </button>
       ${images.length > 1 ? `<span>${mobileDiaryImageIndex + 1} / ${images.length}</span>` : ""}
     </div>
     ${
@@ -6072,9 +6082,25 @@ function normalizeSecretImages(images) {
           height: image?.height ?? null,
           tag: normalizeSecretPhotoTag(image?.tag || image?.category || image?.tags?.[0]),
           favorite: Boolean(image?.favorite || image?.is_favorite || image?.tags?.includes?.(FAVORITE_SECRET_PHOTO_TAG)),
+          uploadedAt: image?.uploadedAt || image?.uploaded_at || image?.createdAt || image?.created_at || "",
         }))
         .filter((image) => image.image_url)
     : [];
+}
+
+function getSecretImageSortTime(image, fallbackIndex = 0) {
+  const value = image?.uploadedAt || image?.uploaded_at || image?.createdAt || image?.created_at || "";
+  const time = value ? new Date(value).getTime() : Number.NaN;
+  return Number.isFinite(time) ? time : fallbackIndex;
+}
+
+function sortSecretDisplayEntries(entries) {
+  return [...entries].sort((a, b) => {
+    const timeA = getSecretImageSortTime(a.image, a.index);
+    const timeB = getSecretImageSortTime(b.image, b.index);
+    if (timeA !== timeB) return secretPhotoSortDescending ? timeB - timeA : timeA - timeB;
+    return secretPhotoSortDescending ? b.index - a.index : a.index - b.index;
+  });
 }
 
 function normalizeSecretPhotoTag(value) {
@@ -6266,7 +6292,7 @@ async function saveSecretItem(event) {
         statusSetter: setSecretStatus,
       });
       if (!uploaded) throw new Error("秘藏图片上传失败。");
-      images.push({ ...uploaded, tag: DEFAULT_SECRET_PHOTO_TAG });
+      images.push({ ...uploaded, tag: DEFAULT_SECRET_PHOTO_TAG, uploadedAt: new Date().toISOString() });
     }
     let coverImage = images[0]?.image_url || "";
     let coverPath = images[0]?.image_path || "";
@@ -6316,6 +6342,8 @@ function renderSecretGallery() {
   if (!els.secretGallery) return;
   renderSecretLinkedPhotoOptions();
   const activeAlbum = secretItems.find((item) => item.id === activeSecretAlbumId);
+  const layoutToggle = els.secretPage?.querySelector("[data-secret-layout-toggle]");
+  if (layoutToggle) layoutToggle.hidden = Boolean(activeAlbum);
   const allPhotoTags = activeAlbum
     ? ["全部", ...getSecretAlbumFilterTags(activeAlbum)]
     : ["全部", DEFAULT_SECRET_PHOTO_TAG];
@@ -6415,9 +6443,11 @@ function renderSecretGallery() {
 
 function renderSecretAlbumView(item) {
   const images = normalizeSecretImages(item.images);
-  const displayEntries = images
-    .map((image, index) => ({ image, index }))
-    .filter(({ image }) => imageMatchesSecretFilter(image));
+  const displayEntries = sortSecretDisplayEntries(
+    images
+      .map((image, index) => ({ image, index }))
+      .filter(({ image }) => imageMatchesSecretFilter(image))
+  );
   const linkedPhoto = photos.find((photo) => photo.id === item.linkedPhotoId);
   const linkedTitle = linkedPhoto ? getDisplayTitle(linkedPhoto) || "关联日记" : "";
   const validSelectedIndexes = [...selectedSecretImageIndexes].filter((index) => index >= 0 && index < images.length);
@@ -6505,13 +6535,6 @@ function renderSecretAlbumView(item) {
                 <input data-secret-append-files type="file" accept="image/*" multiple />
               </label>
               <div class="secret-append-actions">
-                <label class="secret-append-position">
-                  新图位置
-                  <select data-secret-append-position>
-                    <option value="top">放在最上面</option>
-                    <option value="bottom">放在最下面</option>
-                  </select>
-                </label>
                 <button class="primary" type="submit">添加到相册</button>
                 ${linkedPhoto ? `<button type="button" data-secret-open-linked>打开关联日记</button>` : ""}
               </div>
@@ -6522,6 +6545,16 @@ function renderSecretAlbumView(item) {
             : ""
       }
       <button class="secret-back-top" type="button" data-secret-back-top aria-label="回到秘藏相册顶部">↑</button>
+      <div class="secret-photo-filter-row">
+        <button class="secret-photo-sort" type="button" data-secret-photo-sort aria-label="按上传时间排序">
+          上传时间 <span>${secretPhotoSortDescending ? "↓" : "↑"}</span>
+        </button>
+        ${
+          !["全部", DEFAULT_SECRET_PHOTO_TAG, FAVORITE_SECRET_PHOTO_TAG].includes(activeSecretFilter)
+            ? `<button class="secret-delete-tag" type="button" data-secret-delete-tag>删除当前 tag</button>`
+            : ""
+        }
+      </div>
       <div class="secret-album-grid">
         ${displayEntries
           .map(
@@ -6567,7 +6600,6 @@ function renderSecretAlbumView(item) {
     appendSecretAlbumImages({
       files: Array.from(form.querySelector("[data-secret-append-files]")?.files || []),
       linksText: form.querySelector("[data-secret-append-links]")?.value || "",
-      position: form.querySelector("[data-secret-append-position]")?.value || "top",
       form,
     });
   });
@@ -6580,7 +6612,6 @@ function renderSecretAlbumView(item) {
     const form = event.currentTarget.closest("[data-secret-append-form]");
     appendSecretAlbumImages({
       files,
-      position: form?.querySelector("[data-secret-append-position]")?.value || "top",
       form,
     });
   });
@@ -6590,7 +6621,6 @@ function renderSecretAlbumView(item) {
     event.preventDefault();
     appendSecretAlbumImages({
       files: pastedFiles,
-      position: event.currentTarget.querySelector("[data-secret-append-position]")?.value || "top",
       form: event.currentTarget,
     });
   });
@@ -6599,6 +6629,11 @@ function renderSecretAlbumView(item) {
     openSecretLinkedDiary();
   });
   els.secretGallery.querySelector("[data-secret-delete-current]")?.addEventListener("click", () => deleteSecretItem(item));
+  els.secretGallery.querySelector("[data-secret-photo-sort]")?.addEventListener("click", () => {
+    secretPhotoSortDescending = !secretPhotoSortDescending;
+    renderSecretGallery();
+  });
+  els.secretGallery.querySelector("[data-secret-delete-tag]")?.addEventListener("click", () => deleteCurrentSecretTag(item));
   els.secretGallery.querySelector("[data-secret-select-mode]")?.addEventListener("click", () => {
     secretSelectionMode = !secretSelectionMode;
     if (!secretSelectionMode) selectedSecretImageIndexes = new Set();
@@ -6898,6 +6933,32 @@ async function applySecretPhotoTag(item, rawTag) {
   }
 }
 
+async function deleteCurrentSecretTag(item) {
+  const tag = normalizeSecretPhotoTag(activeSecretFilter);
+  if (!item || ["全部", DEFAULT_SECRET_PHOTO_TAG, FAVORITE_SECRET_PHOTO_TAG].includes(tag)) return;
+  const images = normalizeSecretImages(item.images);
+  const affectedCount = images.filter((image) => normalizeSecretPhotoTag(image.tag) === tag).length;
+  if (!affectedCount) {
+    activeSecretFilter = "全部";
+    renderSecretGallery();
+    return;
+  }
+  if (!confirm(`删除当前相册里的「${tag}」tag？${affectedCount} 张照片会改为「${DEFAULT_SECRET_PHOTO_TAG}」。`)) return;
+  const nextImages = images.map((image) =>
+    normalizeSecretPhotoTag(image.tag) === tag ? { ...image, tag: DEFAULT_SECRET_PHOTO_TAG } : image
+  );
+  const saved = await updateSecretAlbum(
+    item,
+    { images: nextImages },
+    `已删除「${tag}」tag，${affectedCount} 张照片改为「${DEFAULT_SECRET_PHOTO_TAG}」。`
+  );
+  if (!saved) return;
+  activeSecretFilter = DEFAULT_SECRET_PHOTO_TAG;
+  selectedSecretImageIndexes = new Set();
+  secretSelectionMode = false;
+  renderSecretGallery();
+}
+
 async function updateSecretDialogImage(updates = {}) {
   const item = activeSecretDialogItem;
   if (!item || !cloudDb || !session) return;
@@ -7080,7 +7141,7 @@ async function appendSecretAlbumImages(options = {}) {
         }
       );
       if (!uploaded) throw new Error("追加图片上传失败。");
-      uploadedImages.push({ ...uploaded, tag: DEFAULT_SECRET_PHOTO_TAG });
+      uploadedImages.push({ ...uploaded, tag: DEFAULT_SECRET_PHOTO_TAG, uploadedAt: new Date().toISOString() });
     }
     for (const [index, url] of appendUrls.entries()) {
       const safeName = `${slugify(item.title || item.category || "secret-link")}-link-${currentImages.length + appendFiles.length + index + 1}`;
@@ -7093,6 +7154,7 @@ async function appendSecretAlbumImages(options = {}) {
           width: 0,
           height: 0,
           tag: DEFAULT_SECRET_PHOTO_TAG,
+          uploadedAt: new Date().toISOString(),
         });
       } catch (error) {
         console.warn("Secret image link copy failed, using remote URL:", error);
@@ -7102,13 +7164,11 @@ async function appendSecretAlbumImages(options = {}) {
           width: 0,
           height: 0,
           tag: DEFAULT_SECRET_PHOTO_TAG,
+          uploadedAt: new Date().toISOString(),
         });
       }
     }
-    const insertAtTop = options.position !== "bottom";
-    const nextImages = insertAtTop
-      ? [...uploadedImages, ...currentImages]
-      : [...currentImages, ...uploadedImages];
+    const nextImages = [...uploadedImages, ...currentImages];
     const updates = {
       images: nextImages,
       updated_at: new Date().toISOString(),
@@ -10319,7 +10379,10 @@ els.dialogSecretLinkButton?.addEventListener("click", openSecretLinkedDiary);
 els.dialogSecretReturnButton?.addEventListener("click", returnToSecretItem);
 els.dialogPrev.addEventListener("click", () => moveDialogImage(-1));
 els.dialogNext.addEventListener("click", () => moveDialogImage(1));
-els.dialogImage.addEventListener("click", toggleDialogImageFullscreen);
+els.dialogMedia.addEventListener("click", (event) => {
+  if (!activeSecretDialogItem || event.target.closest("button")) return;
+  toggleDialogImageFullscreen();
+});
 els.dialogMedia.addEventListener("touchstart", beginSecretImageTouch, { passive: false });
 els.dialogMedia.addEventListener("touchmove", moveSecretImageTouch, { passive: false });
 els.dialogMedia.addEventListener("touchend", endSecretImageTouch, { passive: false });
