@@ -193,6 +193,8 @@ let familyInfo = null;
 let familyMembers = [];
 let familyInvitations = [];
 let familyMemberMap = new Map();
+let familyLevelProfiles = new Map();
+let levelGuideVisible = false;
 let gratitudeEditingId = null;
 let activeDialogPhoto = null;
 let mobileDiaryPhoto = null;
@@ -5392,6 +5394,78 @@ function getUpgradeEta(progress) {
   return `${formatUpgradeDays(days)}到 ${progress.nextName}`;
 }
 
+function getLevelRankProfiles() {
+  if (!session) return [];
+  const ownProfile = {
+    user_id: session.user.id,
+    username: getSessionDisplayName(),
+    avatar_url: accountProfile.avatarUrl || "",
+    role: familyInfo?.isOwner ? "owner" : familyMemberMap.get(session.user.id)?.role || "member",
+    experience_total: loadExperience().total,
+    login_streak: accountProfile.loginStreak || loadExperience().loginStreak || 0,
+  };
+  const profiles = new Map([[ownProfile.user_id, ownProfile]]);
+  familyMembers.forEach((member) => {
+    const cloudProfile = familyLevelProfiles.get(member.user_id) || {};
+    profiles.set(member.user_id, {
+      ...member,
+      username: cloudProfile.username || member.username || "家庭成员",
+      avatar_url: cloudProfile.avatar_url || member.avatar_url || "",
+      experience_total: Number(cloudProfile.experience_total) || (member.user_id === session.user.id ? ownProfile.experience_total : 0),
+      login_streak: Number(cloudProfile.login_streak) || 0,
+    });
+  });
+  return [...profiles.values()]
+    .map((profile) => ({
+      ...profile,
+      progress: getExperienceLevel(profile.experience_total),
+    }))
+    .sort((a, b) => {
+      if (b.experience_total !== a.experience_total) return b.experience_total - a.experience_total;
+      return String(a.username || "").localeCompare(String(b.username || ""), "zh-Hans-CN");
+    });
+}
+
+async function loadFamilyLevelProfiles() {
+  if (!cloudDb || !session) return;
+  const ids = [...new Set([session.user.id, ...familyMembers.map((member) => member.user_id).filter(Boolean)])];
+  const entries = await Promise.all(
+    ids.map(async (userId) => {
+      const { data, error } = await cloudDb.from("user_profiles").select("*").eq("user_id", userId).maybeSingle();
+      if (error || !data) return null;
+      return [userId, data];
+    })
+  );
+  familyLevelProfiles = new Map(entries.filter(Boolean));
+}
+
+function renderLevelLeaderboard() {
+  const ranks = getLevelRankProfiles();
+  if (!ranks.length) return `<div class="level-rank-empty">登录后显示家庭修为排行。</div>`;
+  return `
+    <div class="level-rank-list">
+      ${ranks
+        .map((profile, index) => {
+          const isCurrent = profile.user_id === session?.user?.id;
+          return `
+            <article class="level-rank-row ${isCurrent ? "current" : ""}">
+              <span class="level-rank-index">${index + 1}</span>
+              ${profile.avatar_url
+                ? `<span class="level-rank-avatar"><img src="${escapeHtml(profile.avatar_url)}" alt="${escapeHtml(profile.username)}的头像" /></span>`
+                : `<span class="level-rank-avatar">${escapeHtml(getInitial(profile.username))}</span>`}
+              <div>
+                <strong>${escapeHtml(profile.username || "家庭成员")}${isCurrent ? "（我）" : ""}</strong>
+                <small>${escapeHtml(profile.progress.title)} · ${Number(profile.experience_total || 0).toLocaleString()} EXP</small>
+              </div>
+              <em>${profile.role === "owner" ? "创始人" : "成员"}</em>
+            </article>
+          `;
+        })
+        .join("")}
+    </div>
+  `;
+}
+
 function renderLevelDialog() {
   if (!els.levelDialog) return;
   const experience = loadExperience();
@@ -5399,9 +5473,28 @@ function renderLevelDialog() {
   const nextStreak = getNextLoginStreak(experience);
   const dailyExp = getDailyLoginReward(nextStreak);
   els.levelCurrentTitle.textContent = progress.title;
+  els.levelCurrentTitle.title = levelGuideVisible ? "收起境界说明" : "查看境界说明";
   els.levelUpgradeEta.textContent = getUpgradeEta(progress);
-  els.levelSummary.textContent = `当前 ${progress.total} EXP。连续签到 ${Math.max(0, Number(experience.loginStreak) || 0)} 天，下次登录预计 +${dailyExp} EXP，发布日记、评论、菜谱、心愿和留言都会继续增加修为。`;
-  els.levelList.innerHTML = CULTIVATION_REALMS.map((realm, index) => {
+  els.levelSummary.textContent = `当前 ${progress.total.toLocaleString()} EXP。连续签到 ${Math.max(0, Number(experience.loginStreak) || 0)} 天，下次登录预计 +${dailyExp} EXP。`;
+  els.levelCurrentTitle.closest(".level-current-card")?.classList.toggle("guide-open", levelGuideVisible);
+  const guideButton = `
+    <button class="level-guide-toggle" type="button" data-level-guide-toggle>
+      ${levelGuideVisible ? "收起境界说明" : "查看境界说明"}
+    </button>
+  `;
+  const leaderboard = `
+    <section class="level-rank-panel">
+      <div class="level-rank-head">
+        <div>
+          <span>家庭排行榜</span>
+          <strong>修为榜</strong>
+        </div>
+        ${guideButton}
+      </div>
+      ${renderLevelLeaderboard()}
+    </section>
+  `;
+  const guide = CULTIVATION_REALMS.map((realm, index) => {
     const nextThreshold = Number.isFinite(realm.next) ? realm.next : Infinity;
     const unlocked = experience.total >= realm.threshold;
     const active = progress.realm === realm.name;
@@ -5428,10 +5521,16 @@ function renderLevelDialog() {
       </article>
     `;
   }).join("");
+  els.levelList.innerHTML = `${leaderboard}${levelGuideVisible ? `<section class="level-guide-list">${guide}</section>` : ""}`;
+  els.levelList.querySelector("[data-level-guide-toggle]")?.addEventListener("click", () => {
+    levelGuideVisible = !levelGuideVisible;
+    renderLevelDialog();
+  });
 }
 
-function openLevelDialog() {
+async function openLevelDialog() {
   if (!session) return;
+  await loadFamilyLevelProfiles();
   renderLevelDialog();
   els.levelDialog.showModal();
 }
@@ -5460,9 +5559,11 @@ function renderExperience(displayName = getSessionDisplayName()) {
 function renderTopLevelBadge(progress = getExperienceLevel(loadExperience().total)) {
   if (!els.vipBadge) return;
   const todayExp = loadTodayExperience();
+  const ranks = getLevelRankProfiles();
+  const myRank = ranks.findIndex((profile) => profile.user_id === session?.user?.id) + 1;
   els.vipBadge.innerHTML = `
     <span>${escapeHtml(progress.title)}</span>
-    <small>今日 +${todayExp} EXP</small>
+    <small>${myRank ? `第 ${myRank} 名 · ` : ""}今日 +${todayExp} EXP</small>
   `;
   els.vipBadge.title = `当前等级：${progress.title}，今日获得 ${todayExp} EXP`;
 }
@@ -10285,6 +10386,10 @@ els.recoveryKeyForm.addEventListener("submit", saveRecoveryKey);
 els.closeLevelDialog?.addEventListener("click", () => els.levelDialog.close());
 els.levelDialog?.addEventListener("click", (event) => {
   if (event.target === els.levelDialog) els.levelDialog.close();
+});
+els.levelCurrentTitle?.addEventListener("click", () => {
+  levelGuideVisible = !levelGuideVisible;
+  renderLevelDialog();
 });
 els.closeForgotPassword.addEventListener("click", () => els.forgotPasswordDialog.close());
 els.forgotPasswordDialog.addEventListener("click", (event) => {
