@@ -12,8 +12,11 @@ const PHOTO_FAVORITES_KEY = "life-vlog-photo-favorites";
 const TODAY_POSTS_SEEN_KEY = "life-vlog-today-posts-seen";
 const PHOTO_FEED_CACHE_KEY = "life-vlog-photo-feed-cache";
 const SECRET_ITEMS_CACHE_KEY = "life-vlog-secret-items-cache";
-const MEDIA_CACHE_NAME = "life-vlog-media-cache";
-const CACHE_LIMIT_KEY = "life-vlog-cache-limit";
+const LEGACY_MEDIA_CACHE_NAME = "life-vlog-media-cache";
+const DIARY_MEDIA_CACHE_NAME = "life-vlog-diary-media-cache";
+const SECRET_MEDIA_CACHE_NAME = "life-vlog-secret-media-cache";
+const DIARY_CACHE_MB_KEY = "life-vlog-diary-cache-mb";
+const SECRET_CACHE_MB_KEY = "life-vlog-secret-cache-mb";
 const DIARY_DRAFT_KEY = "life-vlog-diary-draft";
 const UPLOAD_QUEUE_DB = "life-vlog-upload-queue";
 const UPLOAD_QUEUE_STORE = "diary-uploads";
@@ -89,9 +92,11 @@ const MEDIA_META_END = "-->";
 const WISH_MEDIA_META_START = "<!--life-vlog-wish-media:";
 const WISH_MEDIA_META_END = "-->";
 const PHOTO_COMMENT_PREVIEW_LIMIT = 3;
-const DEFAULT_CACHE_LIMIT = 80;
-const MIN_CACHE_LIMIT = 20;
-const MAX_CACHE_LIMIT = 300;
+const METADATA_CACHE_ITEM_LIMIT = 120;
+const DEFAULT_DIARY_CACHE_MB = 100;
+const DEFAULT_SECRET_CACHE_MB = 300;
+const MIN_CACHE_MB = 20;
+const MAX_CACHE_MB = 2000;
 const EAGER_IMAGE_CARD_COUNT = 8;
 const SECRET_ALBUM_IMAGE_LIMIT = 80;
 const DEFAULT_SECRET_SORT_STEP = 1000;
@@ -1386,24 +1391,27 @@ function getPhotoFeedCacheStorageKey(userId = session?.user?.id || "public") {
   return `${PHOTO_FEED_CACHE_KEY}:${userId || "public"}`;
 }
 
-function normalizeCacheLimit(value) {
+function normalizeCacheMb(value, fallback) {
   const numeric = Number.parseInt(value, 10);
-  if (!Number.isFinite(numeric)) return DEFAULT_CACHE_LIMIT;
-  return Math.min(MAX_CACHE_LIMIT, Math.max(MIN_CACHE_LIMIT, numeric));
+  if (!Number.isFinite(numeric)) return fallback;
+  return Math.min(MAX_CACHE_MB, Math.max(MIN_CACHE_MB, numeric));
 }
 
-function getCacheLimitStorageKey(userId = session?.user?.id || "guest") {
-  return `${CACHE_LIMIT_KEY}:${userId || "guest"}`;
+function getCacheCapacityStorageKey(type, userId = session?.user?.id || "guest") {
+  const prefix = type === "secret" ? SECRET_CACHE_MB_KEY : DIARY_CACHE_MB_KEY;
+  return `${prefix}:${userId || "guest"}`;
 }
 
-function loadCacheLimit(userId = session?.user?.id || "guest") {
-  return normalizeCacheLimit(localStorage.getItem(getCacheLimitStorageKey(userId)));
+function loadCacheCapacityMb(type, userId = session?.user?.id || "guest") {
+  const fallback = type === "secret" ? DEFAULT_SECRET_CACHE_MB : DEFAULT_DIARY_CACHE_MB;
+  return normalizeCacheMb(localStorage.getItem(getCacheCapacityStorageKey(type, userId)), fallback);
 }
 
-function saveCacheLimit(value, userId = session?.user?.id || "guest") {
-  const limit = normalizeCacheLimit(value);
-  localStorage.setItem(getCacheLimitStorageKey(userId), String(limit));
-  return limit;
+function saveCacheCapacityMb(type, value, userId = session?.user?.id || "guest") {
+  const fallback = type === "secret" ? DEFAULT_SECRET_CACHE_MB : DEFAULT_DIARY_CACHE_MB;
+  const capacity = normalizeCacheMb(value, fallback);
+  localStorage.setItem(getCacheCapacityStorageKey(type, userId), String(capacity));
+  return capacity;
 }
 
 function sanitizePhotoForCache(photo) {
@@ -1448,15 +1456,15 @@ function normalizeMediaCacheUrl(url) {
   }
 }
 
-function collectOfflineMediaUrls(userId = session?.user?.id || "public") {
-  const limit = loadCacheLimit(userId);
+function collectDiaryOfflineMediaUrls() {
   const urls = [];
-  getSortedPhotos(photos)
-    .slice(0, limit)
-    .forEach((photo) => urls.push(...getPhotoCacheImages(photo)));
-  secretItems
-    .slice(0, limit)
-    .forEach((item) => urls.push(...getSecretItemCacheImages(item)));
+  getSortedPhotos(photos).forEach((photo) => urls.push(...getPhotoCacheImages(photo)));
+  return [...new Set(urls.map(normalizeMediaCacheUrl).filter(Boolean))];
+}
+
+function collectSecretOfflineMediaUrls() {
+  const urls = [];
+  secretItems.forEach((item) => urls.push(...getSecretItemCacheImages(item)));
   return [...new Set(urls.map(normalizeMediaCacheUrl).filter(Boolean))];
 }
 
@@ -1481,31 +1489,65 @@ function scheduleOfflineMediaCache(userId = session?.user?.id || "public") {
 
 async function cacheOfflineMedia(userId = session?.user?.id || "public") {
   if (!("caches" in window)) return;
-  const urls = collectOfflineMediaUrls(userId);
-  const keep = new Set(urls);
-  const cache = await caches.open(MEDIA_CACHE_NAME);
-  const existing = await cache.keys();
+  await Promise.all([
+    fillMediaCacheWithinCapacity(
+      DIARY_MEDIA_CACHE_NAME,
+      collectDiaryOfflineMediaUrls(),
+      loadCacheCapacityMb("diary", userId) * 1024 * 1024
+    ),
+    fillMediaCacheWithinCapacity(
+      SECRET_MEDIA_CACHE_NAME,
+      collectSecretOfflineMediaUrls(),
+      loadCacheCapacityMb("secret", userId) * 1024 * 1024
+    ),
+  ]);
+  await caches.delete(LEGACY_MEDIA_CACHE_NAME);
+  await refreshCacheInfo();
+}
+
+async function getCachedResponseBytes(response) {
+  if (!response) return 0;
+  const headerBytes = Number(response.headers.get("content-length")) || 0;
+  if (headerBytes) return headerBytes;
+  const blob = await response.clone().blob().catch(() => null);
+  return blob?.size || 512 * 1024;
+}
+
+async function fillMediaCacheWithinCapacity(cacheName, urls, maxBytes) {
+  const cache = await caches.open(cacheName);
+  const existingRequests = await cache.keys();
+  const existingByUrl = new Map(existingRequests.map((request) => [request.url, request]));
+  const keep = new Set();
+  let usedBytes = 0;
+  let downloads = 0;
+
+  for (const url of urls) {
+    if (usedBytes >= maxBytes) break;
+    let response = await cache.match(url);
+    if (!response) {
+      if (downloads >= 6) continue;
+      try {
+        response = await fetchMediaForCache(url);
+        downloads += 1;
+      } catch {
+        continue;
+      }
+    }
+    if (!response || (!response.ok && response.type !== "opaque")) continue;
+    const bytes = await getCachedResponseBytes(response);
+    if (usedBytes + bytes > maxBytes) continue;
+    if (!existingByUrl.has(url)) {
+      await cache.put(new Request(url, { mode: "no-cors" }), response.clone());
+    }
+    keep.add(url);
+    usedBytes += bytes;
+  }
+
   await Promise.all(
-    existing
+    existingRequests
       .filter((request) => !keep.has(request.url))
       .map((request) => cache.delete(request))
   );
-  const missing = [];
-  for (const url of urls) {
-    const hit = await cache.match(url);
-    if (!hit) missing.push(url);
-  }
-  for (const url of missing.slice(0, Math.max(6, loadCacheLimit(userId) * 4))) {
-    try {
-      const response = await fetchMediaForCache(url);
-      if (response && (response.ok || response.type === "opaque")) {
-        await cache.put(new Request(url, { mode: "no-cors" }), response.clone());
-      }
-    } catch (error) {
-      console.warn("Media cache put failed:", url, error);
-    }
-  }
-  await refreshCacheInfo();
 }
 
 function sanitizeCommentForCache(comment) {
@@ -1521,8 +1563,7 @@ function sanitizeCommentForCache(comment) {
 
 function savePhotoFeedCache(userId = session?.user?.id || "public") {
   if (!photos.length) return;
-  const cacheLimit = loadCacheLimit(userId);
-  const cachedPhotos = getSortedPhotos(photos).slice(0, cacheLimit);
+  const cachedPhotos = getSortedPhotos(photos).slice(0, METADATA_CACHE_ITEM_LIMIT);
   const cachedIds = new Set(cachedPhotos.map((photo) => photo.id).filter(Boolean));
   const comments = [];
   cachedIds.forEach((photoId) => {
@@ -1560,7 +1601,7 @@ function renderCachedPhotoFeed(userId = session?.user?.id || "public") {
       photoCommentPreviewMap.set(comment.photo_id, list);
     });
     showingCachedFeed = true;
-    visiblePhotoCount = Math.max(PAGE_SIZE, Math.min(loadCacheLimit(userId), cached.photos.length));
+    visiblePhotoCount = Math.max(PAGE_SIZE, Math.min(METADATA_CACHE_ITEM_LIMIT, cached.photos.length));
     renderGallery();
     setGlobalStatus("先显示上次缓存，正在同步最新内容…");
     return true;
@@ -1592,13 +1633,12 @@ function sanitizeSecretItemForCache(item) {
 
 function saveSecretItemsCache(userId = session?.user?.id || "guest") {
   if (!secretItems.length) return;
-  const cacheLimit = loadCacheLimit(userId);
   try {
     localStorage.setItem(
       getSecretItemsCacheStorageKey(userId),
       JSON.stringify({
         savedAt: new Date().toISOString(),
-        items: secretItems.slice(0, cacheLimit).map(sanitizeSecretItemForCache),
+        items: secretItems.slice(0, METADATA_CACHE_ITEM_LIMIT).map(sanitizeSecretItemForCache),
       })
     );
     scheduleOfflineMediaCache(userId);
@@ -1637,7 +1677,7 @@ async function getCacheStorageUsageBytes() {
   if (!("caches" in window)) return 0;
   let total = 0;
   const names = await caches.keys();
-  for (const name of names.filter((entry) => entry.startsWith("life-vlog-site-") || entry === MEDIA_CACHE_NAME)) {
+  for (const name of names.filter((entry) => entry.startsWith("life-vlog-site-") || [LEGACY_MEDIA_CACHE_NAME, DIARY_MEDIA_CACHE_NAME, SECRET_MEDIA_CACHE_NAME].includes(entry))) {
     const cache = await caches.open(name);
     const requests = await cache.keys();
     for (const request of requests) {
@@ -1651,40 +1691,50 @@ async function getCacheStorageUsageBytes() {
 }
 
 async function getCacheStorageBreakdown() {
-  if (!("caches" in window)) return { appBytes: 0, mediaBytes: 0, entries: 0 };
+  if (!("caches" in window)) return { appBytes: 0, diaryBytes: 0, secretBytes: 0, appEntries: 0, diaryEntries: 0, secretEntries: 0 };
   let appBytes = 0;
-  let mediaBytes = 0;
-  let entries = 0;
+  let diaryBytes = 0;
+  let secretBytes = 0;
+  let appEntries = 0;
+  let diaryEntries = 0;
+  let secretEntries = 0;
   const names = await caches.keys();
-  for (const name of names.filter((entry) => entry.startsWith("life-vlog-site-") || entry === MEDIA_CACHE_NAME)) {
+  for (const name of names.filter((entry) => entry.startsWith("life-vlog-site-") || [LEGACY_MEDIA_CACHE_NAME, DIARY_MEDIA_CACHE_NAME, SECRET_MEDIA_CACHE_NAME].includes(entry))) {
     const cache = await caches.open(name);
     const requests = await cache.keys();
-    entries += requests.length;
+    if (name === DIARY_MEDIA_CACHE_NAME) diaryEntries += requests.length;
+    else if (name === SECRET_MEDIA_CACHE_NAME || name === LEGACY_MEDIA_CACHE_NAME) secretEntries += requests.length;
+    else appEntries += requests.length;
     for (const request of requests) {
       const response = await cache.match(request);
       if (!response) continue;
       const blob = await response.clone().blob().catch(() => null);
       const bytes = blob?.size || Number(response.headers.get("content-length")) || 0;
-      if (name === MEDIA_CACHE_NAME) mediaBytes += bytes;
+      if (name === DIARY_MEDIA_CACHE_NAME) diaryBytes += bytes;
+      else if (name === SECRET_MEDIA_CACHE_NAME || name === LEGACY_MEDIA_CACHE_NAME) secretBytes += bytes;
       else appBytes += bytes;
     }
   }
-  return { appBytes, mediaBytes, entries };
+  return { appBytes, diaryBytes, secretBytes, appEntries, diaryEntries, secretEntries };
 }
 
 async function getAppCacheStats() {
   const [cacheBreakdown, storageEstimate] = await Promise.all([
-    getCacheStorageBreakdown().catch(() => ({ appBytes: 0, mediaBytes: 0, entries: 0 })),
+    getCacheStorageBreakdown().catch(() => ({ appBytes: 0, diaryBytes: 0, secretBytes: 0, appEntries: 0, diaryEntries: 0, secretEntries: 0 })),
     navigator.storage?.estimate?.().catch(() => null) || Promise.resolve(null),
   ]);
   const localBytes = getLocalStorageUsageBytes();
-  const cacheBytes = cacheBreakdown.appBytes + cacheBreakdown.mediaBytes;
+  const cacheBytes = cacheBreakdown.appBytes + cacheBreakdown.diaryBytes + cacheBreakdown.secretBytes;
   return {
     localBytes,
     cacheBytes,
     appShellBytes: cacheBreakdown.appBytes,
-    mediaBytes: cacheBreakdown.mediaBytes,
-    cacheEntries: cacheBreakdown.entries,
+    diaryBytes: cacheBreakdown.diaryBytes,
+    secretBytes: cacheBreakdown.secretBytes,
+    appEntries: cacheBreakdown.appEntries,
+    diaryEntries: cacheBreakdown.diaryEntries,
+    secretEntries: cacheBreakdown.secretEntries,
+    cacheEntries: cacheBreakdown.appEntries + cacheBreakdown.diaryEntries + cacheBreakdown.secretEntries,
     totalBytes: localBytes + cacheBytes,
     browserUsageBytes: Number(storageEstimate?.usage) || 0,
     browserQuotaBytes: Number(storageEstimate?.quota) || 0,
@@ -1693,13 +1743,13 @@ async function getAppCacheStats() {
 
 function renderCacheStats(stats) {
   if (!els.settingsCacheValue) return;
-  const actualTotal = Math.max(stats.totalBytes, stats.browserUsageBytes);
-  const quota = stats.browserQuotaBytes ? formatFileSize(stats.browserQuotaBytes) : "设备自动管理";
-  els.settingsCacheValue.textContent = `${formatFileSize(actualTotal)} 已用`;
+  els.settingsCacheValue.textContent = `${formatFileSize(stats.totalBytes)} 受管缓存`;
   const cacheHelp = els.settingsCacheValue.nextElementSibling;
-  if (cacheHelp) cacheHelp.textContent = `设备配额 ${quota} · ${stats.cacheEntries} 个离线资源`;
+  if (cacheHelp) {
+    cacheHelp.textContent = `日记 ${stats.diaryEntries} 项 / ${loadCacheCapacityMb("diary")} MB · 秘藏 ${stats.secretEntries} 项 / ${loadCacheCapacityMb("secret")} MB`;
+  }
   if (els.settingsCacheStatus) {
-    els.settingsCacheStatus.textContent = `内容 ${formatFileSize(stats.localBytes)} · 图片 ${formatFileSize(stats.mediaBytes)} · 应用 ${formatFileSize(stats.appShellBytes)}`;
+    els.settingsCacheStatus.textContent = `日记 ${formatFileSize(stats.diaryBytes)} · 秘藏 ${formatFileSize(stats.secretBytes)} · 应用 ${formatFileSize(stats.appShellBytes)} · 文字 ${formatFileSize(stats.localBytes)}`;
     const clearHelp = els.settingsCacheStatus.nextElementSibling;
     if (clearHelp) clearHelp.textContent = "清除以上离线内容，账号和个人设置仍保留";
   }
@@ -1729,7 +1779,7 @@ async function clearAppCache() {
     const cacheNames = await caches.keys();
     await Promise.all(
       cacheNames
-        .filter((name) => name.startsWith("life-vlog-site-") || name === MEDIA_CACHE_NAME)
+        .filter((name) => name.startsWith("life-vlog-site-") || [LEGACY_MEDIA_CACHE_NAME, DIARY_MEDIA_CACHE_NAME, SECRET_MEDIA_CACHE_NAME].includes(name))
         .map((name) => caches.delete(name))
     );
   }
@@ -4802,13 +4852,13 @@ function syncMobileComposerPlacement() {
 }
 
 function changeCacheLimit() {
-  const current = loadCacheLimit();
+  ensureCacheManagementUi();
   if (!els.cacheLimitDialog || !els.cacheLimitInput) return;
-  els.cacheLimitInput.min = String(MIN_CACHE_LIMIT);
-  els.cacheLimitInput.max = String(MAX_CACHE_LIMIT);
-  els.cacheLimitInput.value = String(current);
+  const secretInput = document.querySelector("#secretCacheLimitInput");
+  els.cacheLimitInput.value = String(loadCacheCapacityMb("diary"));
+  if (secretInput) secretInput.value = String(loadCacheCapacityMb("secret"));
   if (els.cacheLimitStatus) {
-    els.cacheLimitStatus.textContent = `当前缓存上限：${current} 条`;
+    els.cacheLimitStatus.textContent = `日记 ${els.cacheLimitInput.value} MB · 秘藏 ${secretInput?.value || DEFAULT_SECRET_CACHE_MB} MB`;
   }
   openSettingsChildDialog(els.cacheLimitDialog, () => {
     requestAnimationFrame(() => {
@@ -4820,15 +4870,16 @@ function changeCacheLimit() {
 
 function saveCacheLimitFromDialog(event) {
   event.preventDefault();
-  const limit = saveCacheLimit(els.cacheLimitInput?.value);
+  const diaryMb = saveCacheCapacityMb("diary", els.cacheLimitInput?.value);
+  const secretMb = saveCacheCapacityMb("secret", document.querySelector("#secretCacheLimitInput")?.value);
   scheduleOfflineMediaCache();
   renderSettingsSummary();
   void refreshCacheInfo();
   if (els.cacheLimitStatus) {
-    els.cacheLimitStatus.textContent = `已保存为 ${limit} 条`;
+    els.cacheLimitStatus.textContent = `已保存：日记 ${diaryMb} MB · 秘藏 ${secretMb} MB`;
   }
   if (els.settingsCacheStatus) {
-    els.settingsCacheStatus.textContent = `缓存上限已设为 ${limit} 条`;
+    els.settingsCacheStatus.textContent = `容量上限：日记 ${diaryMb} MB · 秘藏 ${secretMb} MB`;
   }
   window.setTimeout(() => {
     if (els.cacheLimitDialog?.open) els.cacheLimitDialog.close();
@@ -4837,13 +4888,84 @@ function saveCacheLimitFromDialog(event) {
 
 function applyCacheLimitPreset(value) {
   if (!els.cacheLimitInput) return;
-  els.cacheLimitInput.value = String(normalizeCacheLimit(value));
+  const diaryMb = normalizeCacheMb(value, DEFAULT_DIARY_CACHE_MB);
+  const secretMb = normalizeCacheMb(diaryMb * 3, DEFAULT_SECRET_CACHE_MB);
+  els.cacheLimitInput.value = String(diaryMb);
+  const secretInput = document.querySelector("#secretCacheLimitInput");
+  if (secretInput) secretInput.value = String(secretMb);
   if (els.cacheLimitStatus) {
-    els.cacheLimitStatus.textContent = `已选择 ${els.cacheLimitInput.value} 条，点击保存后生效。`;
+    els.cacheLimitStatus.textContent = `已选择：日记 ${diaryMb} MB · 秘藏 ${secretMb} MB`;
   }
 }
 
+function ensureCacheManagementUi() {
+  if (!els.cacheLimitDialog || !els.cacheLimitInput || !els.cacheLimitButton) return;
+  els.cacheLimitButton.querySelector("span").textContent = "缓存容量上限";
+  const summary = els.cacheLimitButton.querySelector("small");
+  if (summary) summary.textContent = "日记和秘藏分别按容量自动淘汰旧图片";
+
+  const form = els.cacheLimitForm;
+  const heading = form?.querySelector("h2");
+  const intro = heading?.nextElementSibling;
+  if (heading) heading.textContent = "本地缓存容量";
+  if (intro) intro.textContent = "分别设置日记和秘藏图片在本机可占用的空间。达到上限后自动淘汰较旧图片，不影响云端原图。";
+  const diaryLabel = els.cacheLimitInput.closest("label");
+  if (diaryLabel?.querySelector("span")) diaryLabel.querySelector("span").textContent = "日记图片（MB）";
+  els.cacheLimitInput.min = String(MIN_CACHE_MB);
+  els.cacheLimitInput.max = String(MAX_CACHE_MB);
+  els.cacheLimitInput.step = "10";
+
+  if (!document.querySelector("#secretCacheLimitInput") && diaryLabel) {
+    const label = document.createElement("label");
+    label.className = "cache-limit-field";
+    label.innerHTML = `<span>秘藏图片（MB）</span><input id="secretCacheLimitInput" type="number" min="${MIN_CACHE_MB}" max="${MAX_CACHE_MB}" step="10" inputmode="numeric" required />`;
+    diaryLabel.after(label);
+  }
+  const presets = form?.querySelectorAll("[data-cache-limit-preset]") || [];
+  const presetValues = [50, 100, 200, 500];
+  presets.forEach((button, index) => {
+    const value = presetValues[index] || 100;
+    button.dataset.cacheLimitPreset = String(value);
+    button.textContent = `${value} / ${value * 3} MB`;
+  });
+  const hint = form?.querySelector(".cache-limit-hint");
+  if (hint) hint.textContent = "前一个数字是日记容量，后一个是秘藏容量。仅在缺少图片时补缓存，每次最多下载 6 张。";
+
+  const group = els.cacheLimitButton.parentElement;
+  if (group && !document.querySelector("#clearDiaryCacheButton")) {
+    const diaryClear = document.createElement("button");
+    diaryClear.id = "clearDiaryCacheButton";
+    diaryClear.type = "button";
+    diaryClear.innerHTML = "<span>清除日记缓存</span><strong>只清除日记文字与图片</strong>";
+    diaryClear.addEventListener("click", () => clearCachePool("diary"));
+    group.insertBefore(diaryClear, els.clearAppCacheButton);
+
+    const secretClear = document.createElement("button");
+    secretClear.id = "clearSecretCacheButton";
+    secretClear.type = "button";
+    secretClear.innerHTML = "<span>清除秘藏缓存</span><strong>只清除秘藏相册与图片</strong>";
+    secretClear.addEventListener("click", () => clearCachePool("secret"));
+    group.insertBefore(secretClear, els.clearAppCacheButton);
+  }
+}
+
+async function clearCachePool(type) {
+  const isSecret = type === "secret";
+  const cacheName = isSecret ? SECRET_MEDIA_CACHE_NAME : DIARY_MEDIA_CACHE_NAME;
+  if ("caches" in window) await caches.delete(cacheName);
+  const prefix = isSecret ? `${SECRET_ITEMS_CACHE_KEY}:` : `${PHOTO_FEED_CACHE_KEY}:`;
+  const keys = [];
+  for (let index = 0; index < localStorage.length; index += 1) {
+    const key = localStorage.key(index) || "";
+    if (key.startsWith(prefix)) keys.push(key);
+  }
+  keys.forEach((key) => localStorage.removeItem(key));
+  await refreshCacheInfo();
+  if (els.settingsCacheStatus) els.settingsCacheStatus.textContent = `${isSecret ? "秘藏" : "日记"}缓存已清除`;
+}
+
 function renderSettingsSummary() {
+  ensureCacheManagementUi();
   if (els.settingsHomeNameValue) {
     els.settingsHomeNameValue.textContent =
       accountProfile.homeName || loadHomeName(session?.user?.id) || "咻蛋之家";
@@ -4859,7 +4981,7 @@ function renderSettingsSummary() {
       loadMobileFeedLayout() === "single" ? "单列" : "双列";
   }
   if (els.settingsCacheLimitValue) {
-    els.settingsCacheLimitValue.textContent = `${loadCacheLimit()} 条`;
+    els.settingsCacheLimitValue.textContent = `日记 ${loadCacheCapacityMb("diary")} MB · 秘藏 ${loadCacheCapacityMb("secret")} MB`;
   }
 }
 
