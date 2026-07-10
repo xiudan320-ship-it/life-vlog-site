@@ -3223,7 +3223,19 @@ function endSecretImageTouch(event) {
   if (secretImageZoom.scale <= 1.03) resetSecretImageZoom();
 }
 
-function renderDialogMedia() {
+function preloadDialogNeighbors() {
+  if (dialogImages.length <= 1) return;
+  [-1, 1].forEach((step) => {
+    const index = (dialogImageIndex + step + dialogImages.length) % dialogImages.length;
+    const url = dialogImages[index]?.image_url;
+    if (!url) return;
+    const preloader = new Image();
+    preloader.decoding = "async";
+    preloader.src = url;
+  });
+}
+
+function renderDialogMedia(entryDirection = 0) {
   resetSecretImageZoom();
   const image = dialogImages[dialogImageIndex] || dialogImages[0] || {};
   const secretTags = normalizeSecretPhotoTags(image);
@@ -3231,6 +3243,19 @@ function renderDialogMedia() {
   els.dialogImage.style.removeProperty("transition");
   els.dialogImage.style.removeProperty("opacity");
   els.dialogImage.alt = `${els.dialogTitle.textContent} ${dialogImageIndex + 1}`;
+  if (entryDirection) {
+    els.dialogImage.style.transition = "none";
+    els.dialogImage.style.transform = `translate3d(${entryDirection * 24}vw, 0, 0)`;
+    els.dialogImage.style.opacity = "0.6";
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        els.dialogImage.style.transition = "transform 190ms cubic-bezier(0.22, 0.78, 0.2, 1), opacity 170ms ease";
+        els.dialogImage.style.transform = "translate3d(0, 0, 0)";
+        els.dialogImage.style.opacity = "1";
+      });
+    });
+  }
+  preloadDialogNeighbors();
   if (activeSecretDialogItem) {
     els.dialogMeta.textContent = `${secretTags.slice(0, 2).join(" · ")} · ${dialogImageIndex + 1} / ${dialogImages.length}`;
     els.dialogNote.innerHTML = renderSecretDialogControls(image);
@@ -3311,10 +3336,10 @@ function bindSecretDialogControls() {
   });
 }
 
-function moveDialogImage(step) {
+function moveDialogImage(step, animate = false) {
   if (dialogImages.length <= 1) return;
   dialogImageIndex = (dialogImageIndex + step + dialogImages.length) % dialogImages.length;
-  renderDialogMedia();
+  renderDialogMedia(animate ? (step > 0 ? 1 : -1) : 0);
 }
 
 function isEdgeBackSwipe(start, event, { threshold = 72, ratio = 1.35, maxElapsed = 1200 } = {}) {
@@ -3394,7 +3419,7 @@ function finishDialogSwipe(event) {
   els.dialogImage.style.transition = "transform 140ms ease, opacity 140ms ease";
   els.dialogImage.style.transform = `translate3d(${deltaX < 0 ? "-36vw" : "36vw"}, 0, 0)`;
   els.dialogImage.style.opacity = "0.55";
-  window.setTimeout(() => moveDialogImage(deltaX < 0 ? 1 : -1), 120);
+  window.setTimeout(() => moveDialogImage(deltaX < 0 ? 1 : -1, true), 120);
 }
 
 function cancelDialogSwipe() {
@@ -3898,7 +3923,6 @@ function openMobileDiaryPage(photo, initialImageIndex = 0, options = {}) {
 
 function closeMobileDiaryPage() {
   if (!mobileDiaryPage || mobileDiaryPage.hidden) return;
-  const restoreY = Math.max(0, Number(mobileDiaryRestoreScrollY) || 0);
   mobileDiaryPage.hidden = true;
   mobileDiaryPhoto = null;
   mobileDiaryReplyToId = null;
@@ -3910,7 +3934,6 @@ function closeMobileDiaryPage() {
   document.body.classList.remove("mobile-diary-page-open");
   mobileDiaryPage.classList.remove("is-back-swiping", "is-back-committing");
   mobileDiaryPage.style.removeProperty("--back-swipe-x");
-  if (Math.abs((window.scrollY || 0) - restoreY) > 2) window.scrollTo({ top: restoreY, behavior: "auto" });
 }
 
 function startMobileDiaryReply(commentId) {
@@ -3990,7 +4013,7 @@ function endMobileDiaryBackSwipe(event) {
       "--back-swipe-x",
       closingEdge === "right" ? "-100vw" : "100vw"
     );
-    window.setTimeout(closeMobileDiaryPage, 180);
+    window.setTimeout(closeMobileDiaryPage, 220);
     return;
   }
   mobileDiaryPage.style.setProperty("--back-swipe-x", "0px");
@@ -7209,6 +7232,7 @@ function openSecretItem(item, initialImageIndex = 0) {
   dialogSecretSourceItem = null;
   els.dialog.classList.remove("mobile-page-dialog", "secret-image-fullscreen");
   els.dialog.classList.add("no-comments-dialog", "secret-image-dialog");
+  if (isMobileViewport()) els.dialog.classList.add("secret-image-fullscreen");
   document.body.classList.remove("mobile-dialog-open");
   dialogRandomMode = false;
   dialogImages = normalizeSecretImages(item.images);
@@ -7232,6 +7256,7 @@ function openSecretItem(item, initialImageIndex = 0) {
 function toggleDialogImageFullscreen() {
   if (!dialogImages.length || !els.dialog.open) return;
   if (Date.now() < suppressDialogImageClickUntil) return;
+  if (isMobileViewport() && activeSecretDialogItem) return;
   resetSecretImageZoom();
   els.dialog.classList.toggle("secret-image-fullscreen");
 }
