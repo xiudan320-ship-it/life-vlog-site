@@ -158,12 +158,26 @@ const TABLE_CONFIG = {
     ownerColumn: "user_id",
     jsonColumns: ["images"],
   },
+  trash_items: {
+    columns: ["id", "user_id", "item_type", "item_id", "label", "payload", "deleted_at", "expires_at"],
+    scope: "own",
+    writeScope: "own",
+    ownerColumn: "user_id",
+    jsonColumns: ["payload"],
+  },
 };
 
 function getCorsHeaders(request, env) {
   const origin = request.headers.get("Origin") || "";
   const requestedHeaders = request.headers.get("Access-Control-Request-Headers") || "";
-  const allowedOrigin = origin || "*";
+  const configuredOrigins = String(env.ALLOWED_ORIGINS || "")
+    .split(",")
+    .map((value) => value.trim().replace(/\/$/, ""))
+    .filter(Boolean);
+  const normalizedOrigin = origin.replace(/\/$/, "");
+  const allowedOrigin = !origin || configuredOrigins.includes(normalizedOrigin)
+    ? origin || configuredOrigins[0] || "*"
+    : "null";
 
   return {
     "Access-Control-Allow-Origin": allowedOrigin,
@@ -339,6 +353,9 @@ async function handleUpload(request, env, user) {
   }
   if (file.size > MAX_UPLOAD_BYTES) {
     return jsonResponse(request, env, { error: "File is too large." }, 413);
+  }
+  if (!String(file.type || "").startsWith("image/")) {
+    return jsonResponse(request, env, { error: "Only image files are allowed." }, 415);
   }
 
   const folder = cleanSegment(formData.get("folder"), "photos");
