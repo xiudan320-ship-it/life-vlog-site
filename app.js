@@ -3694,6 +3694,7 @@ function ensureMobileDiaryPage() {
     }
   });
   mobileDiaryPage.addEventListener("pointerdown", beginMobileDiaryBackSwipe, { passive: true });
+  mobileDiaryPage.addEventListener("pointermove", moveMobileDiaryBackSwipe, { passive: true });
   mobileDiaryPage.addEventListener("pointerup", endMobileDiaryBackSwipe, { passive: true });
   mobileDiaryPage.addEventListener("pointerdown", beginMobileDiaryImageSwipe, { passive: true });
   mobileDiaryPage.addEventListener("pointerup", endMobileDiaryImageSwipe, { passive: true });
@@ -3850,13 +3851,10 @@ function openMobileDiaryPage(photo, initialImageIndex = 0, options = {}) {
   }
   ensureMobileDiaryPage().hidden = false;
   document.body.classList.add("mobile-diary-page-open");
-  document.querySelector(".topbar")?.setAttribute("hidden", "");
-  document.querySelector("main")?.setAttribute("hidden", "");
   renderMobileDiaryPage();
-  window.scrollTo({ top: 0, behavior: "auto" });
+  mobileDiaryPage.scrollTop = 0;
   requestAnimationFrame(() => {
-    window.scrollTo({ top: 0, behavior: "auto" });
-    window.setTimeout(() => window.scrollTo({ top: 0, behavior: "auto" }), 60);
+    mobileDiaryPage.scrollTop = 0;
   });
   void loadPhotoComments(photo.id);
 }
@@ -3873,12 +3871,9 @@ function closeMobileDiaryPage() {
   dialogRandomMode = false;
   dialogSecretSourceItem = null;
   document.body.classList.remove("mobile-diary-page-open");
-  document.querySelector(".topbar")?.removeAttribute("hidden");
-  document.querySelector("main")?.removeAttribute("hidden");
-  requestAnimationFrame(() => {
-    window.scrollTo({ top: restoreY, behavior: "auto" });
-    window.setTimeout(() => window.scrollTo({ top: restoreY, behavior: "auto" }), 90);
-  });
+  mobileDiaryPage.classList.remove("is-back-swiping", "is-back-committing");
+  mobileDiaryPage.style.removeProperty("--back-swipe-x");
+  if (Math.abs((window.scrollY || 0) - restoreY) > 2) window.scrollTo({ top: restoreY, behavior: "auto" });
 }
 
 function startMobileDiaryReply(commentId) {
@@ -3925,14 +3920,37 @@ function beginMobileDiaryBackSwipe(event) {
   if (event.target.closest(".mobile-diary-media, .mobile-diary-thumbs, button, input, textarea, select, a")) return;
   const edge = getMobileBackEdge(event.clientX);
   if (!edge) return;
-  mobileDiaryBackSwipeStart = { edge, x: event.clientX, y: event.clientY, time: Date.now() };
+  if (edge !== "left") return;
+  mobileDiaryBackSwipeStart = { id: event.pointerId, edge, x: event.clientX, y: event.clientY, time: Date.now(), tracking: false };
+}
+
+function moveMobileDiaryBackSwipe(event) {
+  if (!mobileDiaryBackSwipeStart || mobileDiaryBackSwipeStart.id !== event.pointerId) return;
+  const deltaX = Math.max(0, event.clientX - mobileDiaryBackSwipeStart.x);
+  const deltaY = Math.abs(event.clientY - mobileDiaryBackSwipeStart.y);
+  if (!mobileDiaryBackSwipeStart.tracking && deltaX < 8) return;
+  if (!mobileDiaryBackSwipeStart.tracking && deltaY > deltaX) {
+    mobileDiaryBackSwipeStart = null;
+    return;
+  }
+  mobileDiaryBackSwipeStart.tracking = true;
+  mobileDiaryPage.classList.add("is-back-swiping");
+  mobileDiaryPage.style.setProperty("--back-swipe-x", `${Math.min(window.innerWidth, deltaX)}px`);
 }
 
 function endMobileDiaryBackSwipe(event) {
   if (!mobileDiaryBackSwipeStart) return;
   const shouldClose = isEdgeBackSwipe(mobileDiaryBackSwipeStart, event, { threshold: 68, ratio: 1.25, maxElapsed: 1000 });
   mobileDiaryBackSwipeStart = null;
-  if (shouldClose) closeMobileDiaryPage();
+  mobileDiaryPage.classList.remove("is-back-swiping");
+  if (shouldClose) {
+    mobileDiaryPage.classList.add("is-back-committing");
+    mobileDiaryPage.style.setProperty("--back-swipe-x", "100vw");
+    window.setTimeout(closeMobileDiaryPage, 180);
+    return;
+  }
+  mobileDiaryPage.style.setProperty("--back-swipe-x", "0px");
+  window.setTimeout(() => mobileDiaryPage.style.removeProperty("--back-swipe-x"), 200);
 }
 
 function beginMobileDiaryImageSwipe(event) {
@@ -3993,7 +4011,23 @@ function beginGlobalMobileBackSwipe(event) {
     x: event.clientX,
     y: event.clientY,
     time: Date.now(),
+    tracking: false,
   };
+}
+
+function moveGlobalMobileBackSwipe(event) {
+  if (!globalMobileBackSwipeStart || globalMobileBackSwipeStart.id !== event.pointerId) return;
+  if (globalMobileBackSwipeStart.edge !== "left") return;
+  const deltaX = Math.max(0, event.clientX - globalMobileBackSwipeStart.x);
+  const deltaY = Math.abs(event.clientY - globalMobileBackSwipeStart.y);
+  if (!globalMobileBackSwipeStart.tracking && deltaX < 8) return;
+  if (!globalMobileBackSwipeStart.tracking && deltaY > deltaX) {
+    cancelGlobalMobileBackSwipe();
+    return;
+  }
+  globalMobileBackSwipeStart.tracking = true;
+  document.body.classList.add("mobile-global-back-swiping");
+  document.documentElement.style.setProperty("--global-back-swipe-x", `${Math.min(window.innerWidth, deltaX)}px`);
 }
 
 function finishGlobalMobileBackSwipe(event) {
@@ -4004,11 +4038,25 @@ function finishGlobalMobileBackSwipe(event) {
     maxElapsed: 1100,
   });
   globalMobileBackSwipeStart = null;
-  if (shouldGoBack) performGlobalMobileBack();
+  document.body.classList.remove("mobile-global-back-swiping");
+  if (shouldGoBack) {
+    document.body.classList.add("mobile-global-back-committing");
+    document.documentElement.style.setProperty("--global-back-swipe-x", "100vw");
+    window.setTimeout(() => {
+      performGlobalMobileBack();
+      document.body.classList.remove("mobile-global-back-committing");
+      document.documentElement.style.removeProperty("--global-back-swipe-x");
+    }, 170);
+    return;
+  }
+  document.documentElement.style.setProperty("--global-back-swipe-x", "0px");
+  window.setTimeout(() => document.documentElement.style.removeProperty("--global-back-swipe-x"), 190);
 }
 
 function cancelGlobalMobileBackSwipe() {
   globalMobileBackSwipeStart = null;
+  document.body.classList.remove("mobile-global-back-swiping", "mobile-global-back-committing");
+  document.documentElement.style.removeProperty("--global-back-swipe-x");
 }
 
 function openPhoto(photo, initialImageIndex = 0, options = {}) {
@@ -6828,6 +6876,7 @@ function renderSecretAlbumView(item) {
           <button class="delete-secret danger" type="button" data-secret-delete-current>删除相册</button>
         </div>
       </header>
+      <button class="secret-mobile-back" type="button" data-secret-back aria-label="返回相册">‹ <span>返回相册</span></button>
       <div class="secret-album-toolbar ${secretSelectionMode && secretMobileToolsExpanded ? "tools-expanded" : ""}">
         <div class="secret-toolbar-primary">
           ${
@@ -6937,14 +6986,16 @@ function renderSecretAlbumView(item) {
   `;
   updateSecretToolbarTop();
   requestAnimationFrame(updateSecretToolbarTop);
-  els.secretGallery.querySelector("[data-secret-back]")?.addEventListener("click", () => {
-    activeSecretAlbumId = "";
-    secretSelectionMode = false;
-    selectedSecretImageIndexes = new Set();
-    secretAlbumEditing = false;
-    secretAppendExpanded = false;
-    secretMobileToolsExpanded = false;
-    renderSecretGallery();
+  els.secretGallery.querySelectorAll("[data-secret-back]").forEach((button) => {
+    button.addEventListener("click", () => {
+      activeSecretAlbumId = "";
+      secretSelectionMode = false;
+      selectedSecretImageIndexes = new Set();
+      secretAlbumEditing = false;
+      secretAppendExpanded = false;
+      secretMobileToolsExpanded = false;
+      renderSecretGallery();
+    });
   });
   els.secretGallery.querySelector("[data-secret-toggle-append]")?.addEventListener("click", () => {
     secretAppendExpanded = !secretAppendExpanded;
@@ -10395,6 +10446,7 @@ document.addEventListener("click", (event) => {
   exitToolDockTouchSort();
 });
 document.addEventListener("pointerdown", beginGlobalMobileBackSwipe, { passive: true, capture: true });
+document.addEventListener("pointermove", moveGlobalMobileBackSwipe, { passive: true, capture: true });
 document.addEventListener("pointerup", finishGlobalMobileBackSwipe, { passive: true, capture: true });
 document.addEventListener("pointercancel", cancelGlobalMobileBackSwipe, { passive: true, capture: true });
 els.foodWheelOpen.addEventListener("click", openFoodWheel);
