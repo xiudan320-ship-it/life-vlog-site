@@ -264,6 +264,7 @@ let dialogRandomMode = false;
 let dialogSecretSourceItem = null;
 let activeSecretDialogItem = null;
 let photoDialogBackdrop = null;
+let mobileDiaryImageViewerOpen = false;
 let toolDockDragState = null;
 let suppressToolDockClick = false;
 let activeVipLevel = 1;
@@ -3493,6 +3494,10 @@ function ensurePhotoDialogBackdrop() {
 }
 
 function closePhotoDialog() {
+  if (mobileDiaryImageViewerOpen) {
+    closeMobileDiaryImageViewer();
+    return;
+  }
   if (mobileDiaryPage && !mobileDiaryPage.hidden) {
     closeMobileDiaryPage();
     return;
@@ -3502,6 +3507,40 @@ function closePhotoDialog() {
   ensurePhotoDialogBackdrop().hidden = true;
   document.body.classList.remove("photo-dialog-open");
   els.dialog.dispatchEvent(new Event("close"));
+}
+
+function openMobileDiaryImageViewer() {
+  if (!mobileDiaryPhoto) return;
+  mobileDiaryImageViewerOpen = true;
+  if (mobileDiaryPage) mobileDiaryPage.hidden = true;
+  activeDialogPhoto = mobileDiaryPhoto;
+  activeSecretDialogItem = null;
+  dialogImages = getPhotoImages(mobileDiaryPhoto);
+  dialogImageIndex = Math.min(Math.max(0, mobileDiaryImageIndex), Math.max(0, dialogImages.length - 1));
+  els.dialog.classList.remove("secret-image-dialog", "mobile-page-dialog", "secret-image-fullscreen");
+  els.dialog.classList.add("no-comments-dialog", "mobile-diary-image-viewer");
+  els.dialogTitle.textContent = getDisplayTitle(mobileDiaryPhoto) || "日记图片";
+  els.dialogMeta.textContent = `${dialogImageIndex + 1} / ${dialogImages.length}`;
+  els.dialogNote.textContent = "";
+  els.photoCommentsSection.hidden = true;
+  if (els.dialogRandomButton) els.dialogRandomButton.hidden = true;
+  if (els.dialogSecretReturnButton) els.dialogSecretReturnButton.hidden = true;
+  if (els.dialogSecretLinkButton) els.dialogSecretLinkButton.hidden = true;
+  renderDialogMedia();
+  ensurePhotoDialogBackdrop().hidden = true;
+  els.dialog.setAttribute("open", "");
+}
+
+function closeMobileDiaryImageViewer() {
+  if (!mobileDiaryImageViewerOpen) return;
+  mobileDiaryImageViewerOpen = false;
+  mobileDiaryImageIndex = dialogImageIndex;
+  els.dialog.removeAttribute("open");
+  els.dialog.classList.remove("mobile-diary-image-viewer", "no-comments-dialog");
+  if (mobileDiaryPage) {
+    mobileDiaryPage.hidden = false;
+    renderMobileDiaryPage();
+  }
 }
 
 function showPhotoDialogPreservingScroll() {
@@ -3568,7 +3607,7 @@ function ensureMobileDiaryPage() {
     }
     const openImageButton = event.target.closest("[data-mobile-diary-open-image]");
     if (openImageButton && mobileDiaryPhoto) {
-      openPhoto(mobileDiaryPhoto, mobileDiaryImageIndex, { forceDialog: true });
+      openMobileDiaryImageViewer();
       return;
     }
     const replyButton = event.target.closest("[data-mobile-diary-reply]");
@@ -6210,13 +6249,15 @@ function normalizeSecretPhotoTag(value) {
 }
 
 function normalizeSecretPhotoTags(imageOrTags) {
+  // `tags` is the canonical field. Falling back to the old single `tag`
+  // field only when a multi-tag list does not exist prevents an old
+  // “未标记” value from returning after it was removed.
+  const hasTagList = !Array.isArray(imageOrTags) && Array.isArray(imageOrTags?.tags);
   const rawTags = Array.isArray(imageOrTags)
     ? imageOrTags
-    : [
-        ...(Array.isArray(imageOrTags?.tags) ? imageOrTags.tags : []),
-        imageOrTags?.tag,
-        imageOrTags?.category,
-      ];
+    : hasTagList
+      ? imageOrTags.tags
+      : [imageOrTags?.tag, imageOrTags?.category];
   const tags = rawTags
     .map((entry) => normalizeSecretPhotoTag(entry))
     .filter((tag) => tag && tag !== FAVORITE_SECRET_PHOTO_TAG);
@@ -6639,20 +6680,28 @@ function renderSecretAlbumView(item) {
         </div>
       </header>
       <div class="secret-album-toolbar ${secretSelectionMode && secretMobileToolsExpanded ? "tools-expanded" : ""}">
-        <div>
-          <button type="button" data-secret-edit-album>${secretAlbumEditing ? "收起编辑" : "编辑相册"}</button>
-          <button type="button" data-secret-select-mode>${secretSelectionMode ? "取消选择" : "选择图片"}</button>
+        <div class="secret-toolbar-primary">
+          ${
+            secretSelectionMode
+              ? `<button type="button" data-secret-select-mode>取消选择</button>`
+              : `
+                <button type="button" data-secret-edit-album>${secretAlbumEditing ? "收起编辑" : "编辑相册"}</button>
+                <button type="button" data-secret-select-mode>选择图片</button>
+              `
+          }
         </div>
         ${
           secretSelectionMode
             ? `
+              <div class="secret-quick-move-actions">
+                <button type="button" data-secret-move="-1" ${singleSelectedIndex > 0 ? "" : "disabled"}>前移</button>
+                <button type="button" data-secret-move="1" ${singleSelectedIndex >= 0 && singleSelectedIndex < images.length - 1 ? "" : "disabled"}>后移</button>
+              </div>
               <button class="secret-tools-toggle" type="button" data-secret-tools-toggle>
                 ${secretMobileToolsExpanded ? "收起工具" : `编辑工具 · 已选 ${selectedCount}`}
               </button>
               <div class="secret-selection-actions">
                 <button type="button" data-secret-select-all>${displayEntries.length && displayEntries.every(({ index }) => selectedSecretImageIndexes.has(index)) ? "取消全选" : "全选"}</button>
-                <button type="button" data-secret-move="-1" ${singleSelectedIndex > 0 ? "" : "disabled"}>前移</button>
-                <button type="button" data-secret-move="1" ${singleSelectedIndex >= 0 && singleSelectedIndex < images.length - 1 ? "" : "disabled"}>后移</button>
                 <button type="button" data-secret-set-cover ${singleSelectedIndex >= 0 ? "" : "disabled"}>设为封面</button>
                 <button class="delete-secret danger" type="button" data-secret-delete-selected ${selectedCount ? "" : "disabled"}>删除选中</button>
                 <div class="secret-photo-move-editor">
@@ -6987,8 +7036,7 @@ async function updateSecretAlbum(item, updates, successMessage = "相册已更�
   const { error } = await cloudDb
     .from("secret_items")
     .update(nextUpdates)
-    .eq("id", item.id)
-    .eq("user_id", session.user.id);
+    .eq("id", item.id);
   if (error) {
     setSecretStatus(error.message || "相册更新失败。");
     return false;
@@ -7160,8 +7208,7 @@ async function updateSecretDialogImage(updates = {}) {
       images: nextImages,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", item.id)
-    .eq("user_id", session.user.id);
+    .eq("id", item.id);
   if (error) {
     if (status) status.textContent = error.message || "保存失败。";
     return;
