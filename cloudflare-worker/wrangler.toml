@@ -7,7 +7,7 @@ preview_urls = false
 
 [vars]
 PUBLIC_R2_URL = "https://pub-47959f26cde042c3b37bc0f8f3f441ce.r2.dev"
-ALLOWED_ORIGINS = "https://xiudan320-ship-it.github.io,http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000"
+ALLOWED_ORIGINS = "https://life-vlog-site.pages.dev,https://xiudan320-ship-it.github.io,http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000,http://127.0.0.1:4175"
 
 [[r2_buckets]]
 binding = "R2_BUCKET"
