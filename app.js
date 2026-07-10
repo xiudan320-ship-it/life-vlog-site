@@ -3583,6 +3583,80 @@ function initializeFeedObserver() {
   feedObserver.observe(els.feedLoader);
 }
 
+async function createTrashItem(itemType, itemId, label, payload) {
+  if (!cloudDb || !session || !itemId) return false;
+  const deletedAt = new Date();
+  const expiresAt = new Date(deletedAt.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const { error } = await cloudDb.from("trash_items").insert({
+    id: crypto.randomUUID(),
+    user_id: session.user.id,
+    item_type: itemType,
+    item_id: itemId,
+    label: String(label || "").slice(0, 120),
+    payload,
+    deleted_at: deletedAt.toISOString(),
+    expires_at: expiresAt.toISOString(),
+  });
+  if (error) {
+    console.warn("Trash write failed:", error);
+    return false;
+  }
+  return true;
+}
+
+function getTrashImagePaths(item) {
+  const payload = item?.payload || {};
+  if (item?.item_type === "photo") {
+    return getPhotoImages(payload).map((image) => image.image_path).filter(Boolean);
+  }
+  if (item?.item_type === "secret") {
+    return [
+      payload.cover_path,
+      ...normalizeSecretImages(payload.images).map((image) => image.image_path),
+    ].filter(Boolean);
+  }
+  return [];
+}
+
+async function loadTrashItems() {
+  if (!cloudDb || !session) return [];
+  const { data, error } = await cloudDb
+    .from("trash_items")
+    .select("*")
+    .order("deleted_at", { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+async function restoreTrashItem(item) {
+  if (!item || !cloudDb || !session) return;
+  const table = item.item_type === "photo" ? "photos" : item.item_type === "secret" ? "secret_items" : "";
+  if (!table) return;
+  const payload = { ...(item.payload || {}), user_id: session.user.id };
+  const { error: restoreError } = await cloudDb.from(table).insert(payload);
+  if (restoreError) {
+    showMiniToast(`恢复失败：${restoreError.message}`, { kind: "error", duration: 3200 });
+    return;
+  }
+  await cloudDb.from("trash_items").delete().eq("id", item.id).eq("user_id", session.user.id);
+  showMiniToast("已恢复", { kind: "success" });
+  await Promise.all([loadPhotos(), loadSecretItems()]);
+  await renderTrashItems();
+}
+
+async function permanentlyDeleteTrashItem(item) {
+  if (!item || !confirm("永久删除后无法恢复，确定继续？")) return;
+  const { error } = await cloudDb.from("trash_items").delete().eq("id", item.id).eq("user_id", session.user.id);
+  if (error) {
+    showMiniToast(`永久删除失败：${error.message}`, { kind: "error" });
+    return;
+  }
+  const paths = [...new Set(getTrashImagePaths(item))];
+  if (paths.length) cleanupStoredImagePaths(paths).catch(() => {});
+  showMiniToast("已永久删除", { kind: "success" });
+  await renderTrashItems();
+}
+
 async function deletePhoto(photo, triggerButton = null) {
   if (!cloudDb || !session || !photo) {
     setGlobalStatus("请先登录后再删除日记。");
@@ -3594,7 +3668,7 @@ async function deletePhoto(photo, triggerButton = null) {
     return false;
   }
 
-  const ok = window.confirm(`删除“${getPhotoLabel(photo)}”？删除后无法恢复。`);
+  const ok = window.confirm(`把“${getPhotoLabel(photo)}”移到回收站？30 天内可以恢复。`);
   if (!ok) return false;
 
   setGlobalStatus("正在删除日记...");
@@ -3604,11 +3678,9 @@ async function deletePhoto(photo, triggerButton = null) {
     triggerButton.textContent = "删除中";
   }
 
-  const storagePaths = [
-    ...new Set(getPhotoImages(photo).map((image) => image.image_path).filter(Boolean)),
-  ];
-
   try {
+    const trashSaved = await createTrashItem("photo", photo.id, getPhotoLabel(photo), photo);
+    if (!trashSaved) throw new Error("无法写入回收站，已取消删除。");
     const { data: deletedRows, error: deleteError } = await cloudDb
       .from("photos")
       .delete()
@@ -3627,15 +3699,8 @@ async function deletePhoto(photo, triggerButton = null) {
     favoritePhotoIds.delete(photo.id);
     saveLocalFavoritePhotoIds();
     renderGallery();
-    setGlobalStatus("日记已删除。");
-
-    if (storagePaths.length) {
-      const storageError = await cleanupStoredImagePaths(storagePaths).then(() => null).catch((error) => error);
-      if (storageError) {
-        console.warn("Photo record deleted, but storage cleanup failed:", storageError);
-        setGlobalStatus("日记已删除，云端图片清理稍后再试，不影响浏览。");
-      }
-    }
+    setGlobalStatus("日记已移到回收站，可在设置中恢复。");
+    showMiniToast("已移到回收站", { kind: "success" });
 
     await loadPhotos();
     return true;
@@ -5010,6 +5075,93 @@ function ensureCacheManagementUi() {
   cacheGroup.append(els.clearAppCacheButton);
 }
 
+async function downloadFamilyBackup() {
+  if (!session) return;
+  const button = document.querySelector("#downloadFamilyBackupButton");
+  if (button) button.disabled = true;
+  showMiniToast("正在整理家庭数据…", { kind: "loading", duration: 1600 });
+  try {
+    const data = await cloudflareRequest("/api/export");
+    const blob = new Blob([JSON.stringify({ exported_at: new Date().toISOString(), ...data }, null, 2)], {
+      type: "application/json;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `life-vlog-backup-${getLocalDateKey()}.json`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    showMiniToast("家庭数据备份已下载", { kind: "success" });
+  } catch (error) {
+    showMiniToast(`备份失败：${error.message}`, { kind: "error", duration: 3200 });
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
+async function renderTrashItems() {
+  const list = document.querySelector("#trashItemsList");
+  if (!list) return;
+  if (!session) {
+    list.innerHTML = '<p class="settings-empty">登录后可以查看回收站。</p>';
+    return;
+  }
+  list.innerHTML = '<p class="settings-empty">正在读取回收站…</p>';
+  try {
+    const items = await loadTrashItems();
+    if (!items.length) {
+      list.innerHTML = '<p class="settings-empty">回收站是空的。</p>';
+      return;
+    }
+    list.innerHTML = items.map((item) => `
+      <article class="trash-item" data-trash-id="${escapeHtml(item.id)}">
+        <div><small>${item.item_type === "photo" ? "日记" : "秘藏"} · ${formatDateTime(item.deleted_at)}</small><strong>${escapeHtml(item.label || "未命名")}</strong><span>${Math.max(0, Math.ceil((new Date(item.expires_at) - Date.now()) / 86400000))} 天后过期</span></div>
+        <div><button type="button" data-trash-restore>恢复</button><button class="danger" type="button" data-trash-delete>永久删除</button></div>
+      </article>`).join("");
+    list.querySelectorAll("[data-trash-id]").forEach((row) => {
+      const item = items.find((entry) => entry.id === row.dataset.trashId);
+      row.querySelector("[data-trash-restore]")?.addEventListener("click", () => restoreTrashItem(item));
+      row.querySelector("[data-trash-delete]")?.addEventListener("click", () => permanentlyDeleteTrashItem(item));
+    });
+  } catch (error) {
+    list.innerHTML = `<p class="settings-empty">读取失败：${escapeHtml(error.message || "请稍后重试")}</p>`;
+  }
+}
+
+function ensureDataSafetyUi() {
+  const settingsNav = els.settingsDialog?.querySelector(".settings-sidebar nav");
+  const content = els.settingsDialog?.querySelector(".settings-content");
+  if (!settingsNav || !content) return;
+  let nav = settingsNav.querySelector('[data-settings-section="settingsSafety"]');
+  if (!nav) {
+    nav = document.createElement("button");
+    nav.type = "button";
+    nav.dataset.settingsSection = "settingsSafety";
+    nav.setAttribute("aria-selected", "false");
+    nav.textContent = "数据安全";
+    nav.addEventListener("click", () => {
+      setActiveSettingsSection("settingsSafety");
+      void renderTrashItems();
+    });
+    settingsNav.append(nav);
+  }
+  if (document.querySelector("#settingsSafety")) return;
+  const group = document.createElement("section");
+  group.className = "settings-group settings-safety";
+  group.id = "settingsSafety";
+  group.hidden = true;
+  group.innerHTML = `
+    <p class="kicker">Data Safety</p><h3>备份与回收站</h3>
+    <button id="downloadFamilyBackupButton" type="button"><span>下载家庭备份</span><strong>导出 D1 中的日记、评论、心愿、菜谱和秘藏索引</strong></button>
+    <div class="trash-head"><div><strong>回收站</strong><small>日记和秘藏保留 30 天，原图在永久删除前不会清理</small></div><button type="button" data-refresh-trash aria-label="刷新回收站">↻</button></div>
+    <div class="trash-items" id="trashItemsList"></div>`;
+  content.append(group);
+  group.querySelector("#downloadFamilyBackupButton").addEventListener("click", downloadFamilyBackup);
+  group.querySelector("[data-refresh-trash]").addEventListener("click", renderTrashItems);
+}
+
 function ensureFamilySignatureUi() {
   const general = document.querySelector("#settingsGeneral");
   if (!general || document.querySelector("#familyTaglineButton")) return;
@@ -5082,6 +5234,7 @@ async function clearCachePool(type) {
 function renderSettingsSummary() {
   ensureCacheManagementUi();
   ensureFamilySignatureUi();
+  ensureDataSafetyUi();
   if (els.settingsHomeNameValue) {
     els.settingsHomeNameValue.textContent =
       accountProfile.homeName || loadHomeName(session?.user?.id) || "咻蛋之家";
@@ -6694,6 +6847,22 @@ function dismissMiniToast(toast) {
   window.setTimeout(() => toast.remove(), 180);
 }
 
+function updateNetworkStatus() {
+  let badge = document.querySelector("#offlineStatusBadge");
+  if (!navigator.onLine) {
+    if (!badge) {
+      badge = document.createElement("div");
+      badge.id = "offlineStatusBadge";
+      badge.className = "offline-status-badge";
+      badge.textContent = "离线模式 · 正在显示本地缓存";
+      document.body.append(badge);
+    }
+    badge.hidden = false;
+    return;
+  }
+  if (badge) badge.hidden = true;
+}
+
 function setSecretExpanded(expanded) {
   if (!els.secretForm || !els.secretToggle) return;
   els.secretForm.hidden = !expanded;
@@ -7024,6 +7193,7 @@ async function saveSecretItem(event) {
     loadingToast = showMiniToast("秘藏上传中...", {
       kind: "loading",
       persist: true,
+      placement: "center",
     });
     for (const [index, file] of files.entries()) {
       const base = slugify(els.secretTitleInput.value || els.secretCategoryInput.value || "secret");
@@ -8007,7 +8177,17 @@ async function appendSecretAlbumImages(options = {}) {
 }
 
 async function deleteSecretItem(item) {
-  if (!item || !session || !confirm("删除这件秘藏吗？")) return;
+  if (!item || !session || !confirm("把这个秘藏相册移到回收站？30 天内可以恢复。")) return;
+  const trashSaved = await createTrashItem(
+    "secret",
+    item.id,
+    item.title || item.category || "秘藏相册",
+    secretToCloudRow(item)
+  );
+  if (!trashSaved) {
+    setSecretStatus("无法写入回收站，已取消删除。");
+    return;
+  }
   const { error } = await cloudDb
     .from("secret_items")
     .delete()
@@ -8017,15 +8197,9 @@ async function deleteSecretItem(item) {
     setSecretStatus(error.message || "删除失败。");
     return;
   }
-  const paths = [
-    item.coverPath,
-    ...normalizeSecretImages(item.images).map((image) => image.image_path),
-  ].filter(Boolean);
-  if (paths.length) {
-    cleanupStoredImagePaths(paths).catch((error) => console.warn("Secret image cleanup failed:", error));
-  }
   if (activeSecretAlbumId === item.id) activeSecretAlbumId = "";
-  setSecretStatus("秘藏已删除。");
+  setSecretStatus("秘藏已移到回收站，可在设置中恢复。");
+  showMiniToast("秘藏已移到回收站", { kind: "success" });
   await loadSecretItems();
 }
 
@@ -10327,7 +10501,7 @@ function bindSettingsFamilyActions() {
 }
 
 function setActiveSettingsSection(sectionId = "settingsGeneral") {
-  const allowedSections = ["settingsGeneral", "settingsCache", "settingsTools", "settingsAccount", "settingsFamily"];
+  const allowedSections = ["settingsGeneral", "settingsCache", "settingsTools", "settingsAccount", "settingsFamily", "settingsSafety"];
   const nextSection = allowedSections.includes(sectionId) ? sectionId : "settingsGeneral";
   activeSettingsSection = nextSection;
 
@@ -10991,8 +11165,12 @@ window.addEventListener("focus", () => {
   }
 });
 window.addEventListener("online", () => {
+  updateNetworkStatus();
+  showMiniToast("网络已恢复，正在同步", { kind: "success" });
   void processDiaryUploadQueue();
 });
+window.addEventListener("offline", updateNetworkStatus);
+updateNetworkStatus();
 window.addEventListener("resize", () => {
   syncMobileComposerPlacement();
   updateSecretToolbarTop();
