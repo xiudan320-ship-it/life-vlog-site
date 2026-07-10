@@ -655,6 +655,17 @@ async function handleRpc(request, env, user, name) {
     return jsonResponse(request, env, { data: { tagline } });
   }
 
+  if (name === "update_family_name") {
+    const family = await getFamilyContext(env, user.id);
+    if (!family) return jsonResponse(request, env, { error: "Family not found." }, 404);
+    const familyName = String(payload.p_name || payload.name || "").trim().slice(0, 24);
+    if (!familyName) return jsonResponse(request, env, { error: "Family name is required." }, 400);
+    await env.DB.prepare("update families set name=? where id=?")
+      .bind(familyName, family.id)
+      .run();
+    return jsonResponse(request, env, { data: { name: familyName } });
+  }
+
   if (name === "get_my_notifications") {
     const limit = Math.min(100, Math.max(1, Number(payload.p_limit || 50)));
     const rows = await env.DB.prepare(
