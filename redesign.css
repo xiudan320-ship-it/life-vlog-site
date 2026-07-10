@@ -7258,13 +7258,12 @@ body.mobile-dialog-open {
   }
 
   #photoDialog.mobile-diary-image-viewer .dialog-media {
-    display: flex !important;
+    display: grid !important;
     width: 100% !important;
     height: 100dvh !important;
     max-height: none !important;
-    overflow: auto !important;
-    align-items: flex-start !important;
-    justify-content: center !important;
+    overflow: hidden !important;
+    place-items: center !important;
     padding: 0 !important;
     background: #070907 !important;
     touch-action: pan-x pan-y pinch-zoom;
@@ -7274,13 +7273,18 @@ body.mobile-dialog-open {
   #photoDialog.mobile-diary-image-viewer .dialog-media img {
     display: block !important;
     width: 100% !important;
-    height: auto !important;
+    height: 100% !important;
     min-height: 0 !important;
     max-width: 100% !important;
-    max-height: none !important;
+    max-height: 100% !important;
     object-fit: contain !important;
-    object-position: top center !important;
+    object-position: center !important;
     transform: none !important;
+  }
+
+  #photoDialog.mobile-page-dialog .carousel-button,
+  #photoDialog.mobile-diary-image-viewer .carousel-button {
+    display: none !important;
   }
 
   #photoDialog.mobile-diary-image-viewer > .dialog-close {
