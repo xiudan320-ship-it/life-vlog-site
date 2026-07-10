@@ -1,11 +1,14 @@
-const CACHE_NAME = "life-vlog-site-20260710-145-pwa";
-const MEDIA_CACHE_NAME = "life-vlog-media-cache";
+const CACHE_NAME = "life-vlog-site-20260710-146-pwa";
+const APP_MEDIA_CACHES = new Set([
+  "life-vlog-diary-media-cache",
+  "life-vlog-secret-media-cache",
+]);
 const CORE_ASSETS = [
   "./",
   "./index.html",
   "./styles.css?v=20260610-37",
-  "./redesign.css?v=20260710-145",
-  "./app.js?v=20260710-145",
+  "./redesign.css?v=20260710-146",
+  "./app.js?v=20260710-146",
   "./manifest.webmanifest",
   "./assets/food-wheel-icon.png",
   "./assets/app-icon-192.png",
@@ -30,7 +33,7 @@ self.addEventListener("activate", (event) => {
       .then((keys) =>
         Promise.all(
           keys
-            .filter((key) => key !== CACHE_NAME && key !== MEDIA_CACHE_NAME)
+            .filter((key) => key !== CACHE_NAME && !APP_MEDIA_CACHES.has(key))
             .map((key) => caches.delete(key))
         )
       )
@@ -45,7 +48,9 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   const isSameOrigin = url.origin === self.location.origin;
   const isImageRequest = request.destination === "image";
-  if (!isSameOrigin && !isImageRequest) return;
+  // Cross-origin R2 images are cached only by app.js, where diary and secret
+  // gallery capacity limits can be enforced. Never auto-cache every viewed image.
+  if (!isSameOrigin) return;
 
   if (request.mode === "navigate") {
     event.respondWith(
@@ -66,7 +71,7 @@ self.addEventListener("fetch", (event) => {
         .then((response) => {
           if (response.ok || response.type === "opaque") {
             const copy = response.clone();
-            caches.open(isImageRequest ? MEDIA_CACHE_NAME : CACHE_NAME).then((cache) => cache.put(request, copy));
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
           }
           return response;
         })
