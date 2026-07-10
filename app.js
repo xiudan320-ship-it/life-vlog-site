@@ -3537,6 +3537,10 @@ function closeMobileDiaryImageViewer() {
   mobileDiaryImageIndex = dialogImageIndex;
   els.dialog.removeAttribute("open");
   els.dialog.classList.remove("mobile-diary-image-viewer", "no-comments-dialog");
+  els.dialogImage.style.transform = "";
+  els.dialogMedia?.classList.remove("is-zoomed");
+  document.body.classList.remove("photo-dialog-open", "mobile-dialog-open");
+  if (photoDialogBackdrop) photoDialogBackdrop.hidden = true;
   if (mobileDiaryPage) {
     mobileDiaryPage.hidden = false;
     renderMobileDiaryPage();
