@@ -3228,6 +3228,8 @@ function renderDialogMedia() {
   const image = dialogImages[dialogImageIndex] || dialogImages[0] || {};
   const secretTags = normalizeSecretPhotoTags(image);
   els.dialogImage.src = image.image_url || "";
+  els.dialogImage.style.removeProperty("transition");
+  els.dialogImage.style.removeProperty("opacity");
   els.dialogImage.alt = `${els.dialogTitle.textContent} ${dialogImageIndex + 1}`;
   if (activeSecretDialogItem) {
     els.dialogMeta.textContent = `${secretTags.slice(0, 2).join(" · ")} · ${dialogImageIndex + 1} / ${dialogImages.length}`;
@@ -3343,8 +3345,27 @@ function beginDialogSwipe(event) {
     x: event.clientX,
     y: event.clientY,
     time: Date.now(),
+    tracking: false,
   };
   els.dialogMedia?.setPointerCapture?.(event.pointerId);
+}
+
+function moveDialogSwipe(event) {
+  if (!dialogSwipeStart || dialogSwipeStart.id !== event.pointerId) return;
+  if (isSecretImageDialogOpen() && (secretImageGesture || secretImageZoom.scale > 1.01)) return;
+  const deltaX = event.clientX - dialogSwipeStart.x;
+  const deltaY = Math.abs(event.clientY - dialogSwipeStart.y);
+  if (!dialogSwipeStart.tracking && Math.abs(deltaX) < 7) return;
+  if (!dialogSwipeStart.tracking && deltaY > Math.abs(deltaX)) {
+    cancelDialogSwipe();
+    return;
+  }
+  dialogSwipeStart.tracking = true;
+  suppressDialogImageClickUntil = Date.now() + 450;
+  els.dialogMedia?.classList.add("is-image-swiping");
+  els.dialogImage.style.transition = "none";
+  els.dialogImage.style.transform = `translate3d(${deltaX * 0.82}px, 0, 0)`;
+  els.dialogImage.style.opacity = String(Math.max(0.72, 1 - Math.abs(deltaX) / Math.max(1, window.innerWidth * 1.8)));
 }
 
 function finishDialogSwipe(event) {
@@ -3360,15 +3381,30 @@ function finishDialogSwipe(event) {
   const elapsed = Date.now() - dialogSwipeStart.time;
   dialogSwipeStart = null;
 
-  const swipeThreshold = isSecretImageDialogOpen() ? 92 : 48;
-  const swipeRatio = isSecretImageDialogOpen() ? 1.75 : 1.25;
+  const swipeThreshold = isSecretImageDialogOpen() ? 52 : 48;
+  const swipeRatio = isSecretImageDialogOpen() ? 1.2 : 1.25;
   const horizontal = Math.abs(deltaX) > swipeThreshold && Math.abs(deltaX) > Math.abs(deltaY) * swipeRatio;
-  if (!horizontal || elapsed > 1200) return;
-  moveDialogImage(deltaX < 0 ? 1 : -1);
+  els.dialogMedia?.classList.remove("is-image-swiping");
+  if (!horizontal || elapsed > 1200) {
+    els.dialogImage.style.transition = "transform 180ms cubic-bezier(0.22, 0.78, 0.2, 1), opacity 180ms ease";
+    els.dialogImage.style.transform = "translate3d(0, 0, 0)";
+    els.dialogImage.style.opacity = "1";
+    return;
+  }
+  els.dialogImage.style.transition = "transform 140ms ease, opacity 140ms ease";
+  els.dialogImage.style.transform = `translate3d(${deltaX < 0 ? "-36vw" : "36vw"}, 0, 0)`;
+  els.dialogImage.style.opacity = "0.55";
+  window.setTimeout(() => moveDialogImage(deltaX < 0 ? 1 : -1), 120);
 }
 
 function cancelDialogSwipe() {
   dialogSwipeStart = null;
+  els.dialogMedia?.classList.remove("is-image-swiping");
+  if (secretImageZoom.scale <= 1.01) {
+    els.dialogImage.style.transition = "transform 180ms cubic-bezier(0.22, 0.78, 0.2, 1), opacity 180ms ease";
+    els.dialogImage.style.transform = "translate3d(0, 0, 0)";
+    els.dialogImage.style.opacity = "1";
+  }
 }
 
 function beginDialogBackSwipe(event) {
@@ -3699,9 +3735,10 @@ function ensureMobileDiaryPage() {
   mobileDiaryPage.addEventListener("pointerdown", beginMobileDiaryImageSwipe, { passive: true });
   mobileDiaryPage.addEventListener("pointerup", endMobileDiaryImageSwipe, { passive: true });
   mobileDiaryPage.addEventListener("pointercancel", () => {
-    mobileDiaryBackSwipeStart = null;
+    cancelMobileDiaryBackSwipe();
     mobileDiaryImageSwipeStart = null;
   });
+  mobileDiaryPage.addEventListener("lostpointercapture", cancelMobileDiaryBackSwipe);
   document.body.append(mobileDiaryPage);
   return mobileDiaryPage;
 }
@@ -3920,37 +3957,60 @@ function beginMobileDiaryBackSwipe(event) {
   if (event.target.closest(".mobile-diary-media, .mobile-diary-thumbs, button, input, textarea, select, a")) return;
   const edge = getMobileBackEdge(event.clientX);
   if (!edge) return;
-  if (edge !== "left") return;
   mobileDiaryBackSwipeStart = { id: event.pointerId, edge, x: event.clientX, y: event.clientY, time: Date.now(), tracking: false };
 }
 
 function moveMobileDiaryBackSwipe(event) {
   if (!mobileDiaryBackSwipeStart || mobileDiaryBackSwipeStart.id !== event.pointerId) return;
-  const deltaX = Math.max(0, event.clientX - mobileDiaryBackSwipeStart.x);
+  const rawDeltaX = event.clientX - mobileDiaryBackSwipeStart.x;
+  const deltaX = mobileDiaryBackSwipeStart.edge === "left" ? Math.max(0, rawDeltaX) : Math.min(0, rawDeltaX);
   const deltaY = Math.abs(event.clientY - mobileDiaryBackSwipeStart.y);
-  if (!mobileDiaryBackSwipeStart.tracking && deltaX < 8) return;
-  if (!mobileDiaryBackSwipeStart.tracking && deltaY > deltaX) {
+  if (!mobileDiaryBackSwipeStart.tracking && Math.abs(deltaX) < 8) return;
+  if (!mobileDiaryBackSwipeStart.tracking && deltaY > Math.abs(deltaX)) {
     mobileDiaryBackSwipeStart = null;
     return;
   }
   mobileDiaryBackSwipeStart.tracking = true;
   mobileDiaryPage.classList.add("is-back-swiping");
-  mobileDiaryPage.style.setProperty("--back-swipe-x", `${Math.min(window.innerWidth, deltaX)}px`);
+  mobileDiaryPage.style.setProperty(
+    "--back-swipe-x",
+    `${clampNumber(deltaX, -window.innerWidth, window.innerWidth)}px`
+  );
 }
 
 function endMobileDiaryBackSwipe(event) {
   if (!mobileDiaryBackSwipeStart) return;
+  const closingEdge = mobileDiaryBackSwipeStart.edge;
   const shouldClose = isEdgeBackSwipe(mobileDiaryBackSwipeStart, event, { threshold: 68, ratio: 1.25, maxElapsed: 1000 });
   mobileDiaryBackSwipeStart = null;
   mobileDiaryPage.classList.remove("is-back-swiping");
   if (shouldClose) {
     mobileDiaryPage.classList.add("is-back-committing");
-    mobileDiaryPage.style.setProperty("--back-swipe-x", "100vw");
+    mobileDiaryPage.style.setProperty(
+      "--back-swipe-x",
+      closingEdge === "right" ? "-100vw" : "100vw"
+    );
     window.setTimeout(closeMobileDiaryPage, 180);
     return;
   }
   mobileDiaryPage.style.setProperty("--back-swipe-x", "0px");
-  window.setTimeout(() => mobileDiaryPage.style.removeProperty("--back-swipe-x"), 200);
+  window.setTimeout(() => {
+    if (!mobileDiaryBackSwipeStart && !mobileDiaryPage.classList.contains("is-back-swiping")) {
+      mobileDiaryPage.style.removeProperty("--back-swipe-x");
+    }
+  }, 200);
+}
+
+function cancelMobileDiaryBackSwipe() {
+  mobileDiaryBackSwipeStart = null;
+  if (!mobileDiaryPage) return;
+  mobileDiaryPage.classList.remove("is-back-swiping", "is-back-committing");
+  mobileDiaryPage.style.setProperty("--back-swipe-x", "0px");
+  window.setTimeout(() => {
+    if (mobileDiaryPage && !mobileDiaryBackSwipeStart && !mobileDiaryPage.classList.contains("is-back-swiping")) {
+      mobileDiaryPage.style.removeProperty("--back-swipe-x");
+    }
+  }, 200);
 }
 
 function beginMobileDiaryImageSwipe(event) {
@@ -4694,6 +4754,9 @@ function updateSecretToolbarTop() {
   if (!toolbar || !head) return;
   if (window.matchMedia(`(max-width: ${MOBILE_DIALOG_BREAKPOINT}px)`).matches) {
     toolbar.style.removeProperty("--secret-toolbar-top");
+    const albumView = head.closest(".secret-album-view");
+    const topbarBottom = document.querySelector(".topbar")?.getBoundingClientRect().bottom || 136;
+    albumView?.classList.toggle("show-mobile-back", head.getBoundingClientRect().bottom < topbarBottom + 8);
     return;
   }
   const topbarBottom = document.querySelector(".topbar")?.getBoundingClientRect().bottom || 76;
@@ -10852,6 +10915,7 @@ els.dialog.addEventListener("pointerup", finishDialogBackSwipe, true);
 els.dialog.addEventListener("pointercancel", cancelDialogBackSwipe, true);
 els.dialog.addEventListener("lostpointercapture", cancelDialogBackSwipe, true);
 els.dialogMedia.addEventListener("pointerdown", beginDialogSwipe);
+els.dialogMedia.addEventListener("pointermove", moveDialogSwipe);
 els.dialogMedia.addEventListener("pointerup", finishDialogSwipe);
 els.dialogMedia.addEventListener("pointercancel", cancelDialogSwipe);
 els.dialogMedia.addEventListener("lostpointercapture", cancelDialogSwipe);
