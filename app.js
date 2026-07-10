@@ -5137,12 +5137,13 @@ async function loadFamilyContext() {
   if (familyMembers.length) {
     familyInfo = {
       id: familyMembers[0].family_id,
-      name: familyMembers[0].family_name,
+      name: normalizeHomeName(familyMembers[0].family_name) || loadHomeName(),
       tagline: normalizeFamilyTagline(familyMembers[0].family_tagline) || loadFamilyTagline(),
       isOwner: familyMembers.some(
         (member) => member.user_id === session.user.id && member.role === "owner"
       ),
     };
+    applyHomeName(familyInfo.name, { persist: true });
     applyFamilyTagline(familyInfo.tagline, { persist: true });
   } else {
     applyFamilyTagline(loadFamilyTagline(), { persist: false });
@@ -5448,7 +5449,7 @@ async function synchronizeAccountData() {
         : localFoodOptions;
       const cloudTheme = normalizeTheme(profile.theme_preference);
       const preferredTheme = cloudTheme || loadTheme(userId);
-      const cloudHomeName = normalizeHomeName(profile.home_name);
+      const cloudHomeName = normalizeHomeName(familyInfo?.name || profile.home_name);
       const localHomeName = loadHomeName(userId);
       const preferredHomeName =
         cloudHomeName && (cloudHomeName !== "咻蛋之家" || localHomeName === "咻蛋之家")
@@ -6261,23 +6262,14 @@ async function persistThemeToCloud(theme) {
 
 async function persistHomeNameToCloud(homeName) {
   if (!cloudDb || !session) return false;
-  const { error } = await cloudDb
-    .from("user_profiles")
-    .update({
-      home_name: homeName,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("user_id", session.user.id);
+  const { error } = await cloudDb.rpc("update_family_name", { p_name: homeName });
   if (error) {
-    if (isMissingCloudSchema(error) || String(error.message || "").includes("home_name")) {
-      els.homeNameStatus.textContent =
-        "名称已保存在此浏览器。运行最新数据库脚本后即可跨设备同步。";
-      return false;
-    }
     els.homeNameStatus.textContent = `云端保存失败：${error.message}`;
     return false;
   }
   accountProfile.homeName = homeName;
+  if (familyInfo) familyInfo.name = homeName;
+  familyMembers = familyMembers.map((member) => ({ ...member, family_name: homeName }));
   return true;
 }
 
