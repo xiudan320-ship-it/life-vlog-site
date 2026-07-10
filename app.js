@@ -2,6 +2,8 @@
 const CLOUDFLARE_AUTH_KEY = "life-vlog-cloudflare-auth";
 const THEME_KEY = "life-vlog-theme";
 const HOME_NAME_KEY = "life-vlog-home-name";
+const FAMILY_TAGLINE_KEY = "life-vlog-family-tagline";
+const DEFAULT_FAMILY_TAGLINE = "收藏生活里值得回看的照片、味道和还没完成的小愿望。";
 const VIP_RECHARGE_KEY = "life-vlog-vip-recharge";
 const RECIPES_KEY = "life-vlog-recipes";
 const WISHLIST_KEY = "life-vlog-wishlist";
@@ -306,8 +308,11 @@ let accountProfile = {
   experienceTotal: 0,
   lastLoginDate: "",
   loginStreak: 0,
+  todayExperienceDate: "",
+  todayExperienceAmount: 0,
   themePreference: "",
   homeName: "咻蛋之家",
+  familyTagline: DEFAULT_FAMILY_TAGLINE,
   thanksColor: DEFAULT_THANKS_COLOR,
   avatarUrl: "",
   avatarPath: "",
@@ -374,6 +379,7 @@ const els = {
   xpPanel: document.querySelector("#xpPanel"),
   brandName: document.querySelector("#brandName"),
   heroHomeName: document.querySelector("#heroHomeName"),
+  heroSignature: document.querySelector(".hero-copy > p:last-child"),
   vipHomeName: document.querySelector("#vipHomeName"),
   renameHomeButton: document.querySelector("#renameHomeButton"),
   renameProfileButton: document.querySelector("#renameProfileButton"),
@@ -955,6 +961,28 @@ function normalizeHomeName(value) {
     .slice(0, 20);
 }
 
+function normalizeFamilyTagline(value) {
+  return String(value || "").trim().replace(/\s+/g, " ").slice(0, 120);
+}
+
+function getFamilyTaglineStorageKey(familyId = familyInfo?.id || session?.user?.id || "guest") {
+  return `${FAMILY_TAGLINE_KEY}:${familyId || "guest"}`;
+}
+
+function loadFamilyTagline() {
+  return normalizeFamilyTagline(localStorage.getItem(getFamilyTaglineStorageKey())) || DEFAULT_FAMILY_TAGLINE;
+}
+
+function applyFamilyTagline(value, { persist = false } = {}) {
+  const tagline = normalizeFamilyTagline(value) || DEFAULT_FAMILY_TAGLINE;
+  if (els.heroSignature) els.heroSignature.textContent = tagline;
+  accountProfile.familyTagline = tagline;
+  if (persist) localStorage.setItem(getFamilyTaglineStorageKey(), tagline);
+  const settingsValue = document.querySelector("#settingsFamilyTaglineValue");
+  if (settingsValue) settingsValue.textContent = tagline;
+  return tagline;
+}
+
 function loadHomeName(userId = session?.user?.id || null) {
   return normalizeHomeName(localStorage.getItem(getHomeNameStorageKey(userId))) || "咻蛋之家";
 }
@@ -1012,6 +1040,7 @@ function updateAuthUI() {
   const displayName = signedIn ? getSessionDisplayName() : "";
   const localHomeName = signedIn ? loadHomeName(session.user.id) : "咻蛋之家";
   applyHomeName(localHomeName, { persist: false, userId: signedIn ? session.user.id : null });
+  applyFamilyTagline(loadFamilyTagline(), { persist: false });
   applyTheme(loadTheme(signedIn ? session.user.id : null), {
     persist: false,
     userId: signedIn ? session.user.id : null,
@@ -1103,8 +1132,11 @@ function updateAuthUI() {
       experienceTotal: 0,
       lastLoginDate: "",
       loginStreak: 0,
+      todayExperienceDate: "",
+      todayExperienceAmount: 0,
       themePreference: "",
       homeName: "咻蛋之家",
+      familyTagline: DEFAULT_FAMILY_TAGLINE,
       thanksColor: DEFAULT_THANKS_COLOR,
       avatarUrl: "",
       avatarPath: "",
@@ -3360,7 +3392,7 @@ function renderSecretDialogControls(image) {
         ${tags
           .map(
             (tag) => `
-              <button type="button" data-secret-dialog-remove-tag="${escapeHtml(tag)}" ${tags.length <= 1 ? "disabled" : ""}>
+              <button type="button" data-secret-dialog-remove-tag="${escapeHtml(tag)}">
                 ${escapeHtml(tag)} <b>×</b>
               </button>
             `
@@ -4900,6 +4932,29 @@ function applyCacheLimitPreset(value) {
 
 function ensureCacheManagementUi() {
   if (!els.cacheLimitDialog || !els.cacheLimitInput || !els.cacheLimitButton) return;
+  const settingsNav = els.settingsDialog?.querySelector(".settings-sidebar nav");
+  let cacheNav = settingsNav?.querySelector('[data-settings-section="settingsCache"]');
+  if (settingsNav && !cacheNav) {
+    cacheNav = document.createElement("button");
+    cacheNav.type = "button";
+    cacheNav.dataset.settingsSection = "settingsCache";
+    cacheNav.setAttribute("aria-selected", "false");
+    cacheNav.textContent = "缓存";
+    cacheNav.addEventListener("click", () => setActiveSettingsSection("settingsCache"));
+    settingsNav.insertBefore(cacheNav, settingsNav.querySelector('[data-settings-section="settingsAccount"]'));
+  }
+  let cacheGroup = document.querySelector("#settingsCache");
+  if (!cacheGroup) {
+    cacheGroup = document.createElement("section");
+    cacheGroup.className = "settings-group";
+    cacheGroup.id = "settingsCache";
+    cacheGroup.hidden = true;
+    cacheGroup.innerHTML = '<p class="kicker">Offline</p><h3>缓存与离线</h3>';
+    document.querySelector("#settingsTools")?.before(cacheGroup);
+  }
+  [els.refreshCacheInfoButton, els.cacheLimitButton, document.querySelector("#clearDiaryCacheButton"), document.querySelector("#clearSecretCacheButton"), els.clearAppCacheButton]
+    .filter(Boolean)
+    .forEach((button) => cacheGroup.append(button));
   els.cacheLimitButton.querySelector("span").textContent = "缓存容量上限";
   const summary = els.cacheLimitButton.querySelector("small");
   if (summary) summary.textContent = "日记和秘藏分别按容量自动淘汰旧图片";
@@ -4947,6 +5002,64 @@ function ensureCacheManagementUi() {
     secretClear.addEventListener("click", () => clearCachePool("secret"));
     group.insertBefore(secretClear, els.clearAppCacheButton);
   }
+  [document.querySelector("#clearDiaryCacheButton"), document.querySelector("#clearSecretCacheButton")]
+    .filter(Boolean)
+    .forEach((button) => cacheGroup.append(button));
+  cacheGroup.append(els.clearAppCacheButton);
+}
+
+function ensureFamilySignatureUi() {
+  const general = document.querySelector("#settingsGeneral");
+  if (!general || document.querySelector("#familyTaglineButton")) return;
+  const button = document.createElement("button");
+  button.id = "familyTaglineButton";
+  button.type = "button";
+  button.innerHTML = `<span>家庭签名</span><strong><em id="settingsFamilyTaglineValue"></em><small>所有家庭成员共享可见</small></strong>`;
+  document.querySelector("#renameProfileButton")?.before(button);
+
+  const dialog = document.createElement("dialog");
+  dialog.className = "account-dialog";
+  dialog.id = "familyTaglineDialog";
+  dialog.innerHTML = `
+    <button class="dialog-close" type="button" data-close-family-tagline aria-label="关闭">×</button>
+    <form id="familyTaglineForm">
+      <div><p class="kicker">Family Signature</p><h2>家庭签名</h2><p>会显示在封面上，并同步给当前家庭的所有成员。</p></div>
+      <label>签名<textarea id="familyTaglineInput" rows="3" maxlength="120" required></textarea></label>
+      <p class="status-line" id="familyTaglineStatus"></p>
+      <div class="rename-home-actions"><button class="ghost-button" type="button" data-reset-family-tagline>恢复默认</button><button class="primary" type="submit">保存签名</button></div>
+    </form>`;
+  document.body.append(dialog);
+  const input = dialog.querySelector("#familyTaglineInput");
+  const status = dialog.querySelector("#familyTaglineStatus");
+  button.addEventListener("click", () => openSettingsChildDialog(dialog, () => {
+    input.value = accountProfile.familyTagline || loadFamilyTagline();
+    status.textContent = "";
+    input.focus();
+  }));
+  dialog.querySelector("[data-close-family-tagline]").addEventListener("click", () => dialog.close());
+  dialog.querySelector("[data-reset-family-tagline]").addEventListener("click", () => {
+    input.value = DEFAULT_FAMILY_TAGLINE;
+  });
+  dialog.addEventListener("close", reopenSettingsAfterChildDialog);
+  dialog.addEventListener("click", (event) => {
+    if (event.target === dialog) dialog.close();
+  });
+  dialog.querySelector("form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const tagline = normalizeFamilyTagline(input.value);
+    if (!tagline || !cloudDb || !session) return;
+    status.textContent = "正在同步...";
+    const { error } = await cloudDb.rpc("update_family_tagline", { p_tagline: tagline });
+    if (error) {
+      status.textContent = `保存失败：${error.message}`;
+      return;
+    }
+    if (familyInfo) familyInfo.tagline = tagline;
+    applyFamilyTagline(tagline, { persist: true });
+    status.textContent = "家庭签名已同步。";
+    window.setTimeout(() => dialog.close(), 380);
+  });
+  applyFamilyTagline(accountProfile.familyTagline || loadFamilyTagline());
 }
 
 async function clearCachePool(type) {
@@ -4966,6 +5079,7 @@ async function clearCachePool(type) {
 
 function renderSettingsSummary() {
   ensureCacheManagementUi();
+  ensureFamilySignatureUi();
   if (els.settingsHomeNameValue) {
     els.settingsHomeNameValue.textContent =
       accountProfile.homeName || loadHomeName(session?.user?.id) || "咻蛋之家";
@@ -5022,10 +5136,14 @@ async function loadFamilyContext() {
     familyInfo = {
       id: familyMembers[0].family_id,
       name: familyMembers[0].family_name,
+      tagline: normalizeFamilyTagline(familyMembers[0].family_tagline) || loadFamilyTagline(),
       isOwner: familyMembers.some(
         (member) => member.user_id === session.user.id && member.role === "owner"
       ),
     };
+    applyFamilyTagline(familyInfo.tagline, { persist: true });
+  } else {
+    applyFamilyTagline(loadFamilyTagline(), { persist: false });
   }
   renderFamilyDialog();
 }
@@ -5318,6 +5436,10 @@ async function synchronizeAccountData() {
       let lastLoginDate =
         profile.last_login_date || (needsLocalMigration ? localExperience.lastLoginDate : "") || "";
       let loginStreak = Math.max(0, Number(profile.login_streak) || 0);
+      let todayExperienceDate = profile.today_experience_date || "";
+      let todayExperienceAmount = todayExperienceDate === today
+        ? Math.max(0, Number(profile.today_experience_amount) || 0)
+        : 0;
       const cloudFoodOptions = normalizeFoodOptions(profile.food_options);
       const preferredFoodOptions = cloudFoodOptions.length
         ? cloudFoodOptions
@@ -5362,8 +5484,10 @@ async function synchronizeAccountData() {
         loginStreak = previousLoginDate === getOffsetLocalDateKey(-1) ? loginStreak + 1 : 1;
         loginRewardGained = getDailyLoginReward(loginStreak, vipLevel);
         experienceTotal += loginRewardGained;
+        todayExperienceAmount += loginRewardGained;
       }
       lastLoginDate = today;
+      todayExperienceDate = today;
 
       const profileUpdates = {
         username: preferredDisplayName,
@@ -5372,6 +5496,8 @@ async function synchronizeAccountData() {
         experience_total: experienceTotal,
         last_login_date: lastLoginDate,
         local_data_migrated: true,
+        today_experience_date: todayExperienceDate,
+        today_experience_amount: todayExperienceAmount,
         updated_at: new Date().toISOString(),
       };
       if (loginStreakCloudAvailable) {
@@ -5409,8 +5535,11 @@ async function synchronizeAccountData() {
         experienceTotal: Number(savedProfile.experience_total) || 0,
         lastLoginDate: savedProfile.last_login_date || "",
         loginStreak: Math.max(0, Number(savedProfile.login_streak) || loginStreak || 0),
+        todayExperienceDate: savedProfile.today_experience_date || todayExperienceDate,
+        todayExperienceAmount: Math.max(0, Number(savedProfile.today_experience_amount) || 0),
         themePreference: preferredTheme,
         homeName: preferredHomeName,
+        familyTagline: loadFamilyTagline(),
         thanksColor: thanksColorCloudAvailable
           ? normalizeThanksColor(savedProfile.preferred_thanks_color)
           : preferredThanksColor,
@@ -5441,7 +5570,10 @@ async function synchronizeAccountData() {
         },
         preferredDisplayName
       );
-      if (loginRewardGained) addTodayExperience(loginRewardGained, userId);
+      localStorage.setItem(
+        getTodayExperienceStorageKey(userId),
+        JSON.stringify({ date: accountProfile.todayExperienceDate, amount: accountProfile.todayExperienceAmount })
+      );
       saveRecipes();
       saveWishes();
       saveFoodOptionsCache(userId);
@@ -5724,6 +5856,13 @@ function getTodayExperienceStorageKey(userId = session?.user?.id || getSessionLo
 }
 
 function loadTodayExperience(userId = session?.user?.id || getSessionLoginName()) {
+  if (
+    cloudSyncAvailable &&
+    session &&
+    accountProfile.todayExperienceDate === getLocalDateKey()
+  ) {
+    return Math.max(0, Number(accountProfile.todayExperienceAmount) || 0);
+  }
   try {
     const parsed = JSON.parse(localStorage.getItem(getTodayExperienceStorageKey(userId)) || "{}");
     return parsed.date === getLocalDateKey() ? Math.max(0, Number(parsed.amount) || 0) : 0;
@@ -5740,6 +5879,10 @@ function addTodayExperience(amount, userId = session?.user?.id || getSessionLogi
     getTodayExperienceStorageKey(userId),
     JSON.stringify({ date: getLocalDateKey(), amount: nextAmount })
   );
+  if (session && userId === session.user.id) {
+    accountProfile.todayExperienceDate = getLocalDateKey();
+    accountProfile.todayExperienceAmount = nextAmount;
+  }
   return nextAmount;
 }
 
@@ -6018,7 +6161,7 @@ async function awardExperience(action, options = {}) {
     ...current,
     total: Math.max(0, Number(current.total) || 0) + amount,
   };
-  addTodayExperience(amount);
+  const todayAmount = addTodayExperience(amount);
   saveExperience(next);
   renderExperience();
   renderOverview();
@@ -6028,6 +6171,8 @@ async function awardExperience(action, options = {}) {
       .from("user_profiles")
       .update({
         experience_total: next.total,
+        today_experience_date: getLocalDateKey(),
+        today_experience_amount: todayAmount,
         updated_at: new Date().toISOString(),
       })
       .eq("user_id", session.user.id);
@@ -7338,12 +7483,15 @@ function renderSecretAlbumView(item) {
         renderSecretGallery();
         return;
       }
-      openSecretItem(item, index);
+      const visibleIndex = displayEntries.findIndex((entry) => entry.index === index);
+      openSecretItem(item, Math.max(0, visibleIndex), {
+        images: displayEntries.map((entry) => entry.image),
+      });
     });
   });
 }
 
-function openSecretItem(item, initialImageIndex = 0) {
+function openSecretItem(item, initialImageIndex = 0, options = {}) {
   if (!item) return;
   dialogRestoreScrollY = window.scrollY || window.pageYOffset || 0;
   dialogRestorePhotoId = "";
@@ -7357,7 +7505,9 @@ function openSecretItem(item, initialImageIndex = 0) {
   if (isMobileViewport()) els.dialog.classList.add("secret-image-fullscreen");
   document.body.classList.remove("mobile-dialog-open");
   dialogRandomMode = false;
-  dialogImages = normalizeSecretImages(item.images);
+  dialogImages = Array.isArray(options.images) && options.images.length
+    ? options.images
+    : normalizeSecretImages(item.images);
   dialogImageIndex = Math.min(
     Math.max(0, Number(initialImageIndex) || 0),
     Math.max(0, dialogImages.length - 1)
@@ -7595,7 +7745,14 @@ async function updateSecretDialogImage(updates = {}) {
   if (!item || !cloudDb || !session) return;
   const status = els.dialogNote?.querySelector("[data-secret-dialog-status]");
   const images = normalizeSecretImages(item.images);
-  const index = Math.min(Math.max(0, dialogImageIndex), Math.max(0, images.length - 1));
+  const displayedImage = dialogImages[dialogImageIndex] || {};
+  const matchedIndex = images.findIndex((image) =>
+    (displayedImage.image_path && image.image_path === displayedImage.image_path) ||
+    image.image_url === displayedImage.image_url
+  );
+  const index = matchedIndex >= 0
+    ? matchedIndex
+    : Math.min(Math.max(0, dialogImageIndex), Math.max(0, images.length - 1));
   if (!images[index]) return;
   let nextImage = { ...images[index] };
   if (Object.prototype.hasOwnProperty.call(updates, "tag")) {
@@ -7630,7 +7787,11 @@ async function updateSecretDialogImage(updates = {}) {
     secretItems[itemIndex] = { ...secretItems[itemIndex], images: nextImages, updatedAt: item.updatedAt };
     activeSecretDialogItem = secretItems[itemIndex];
   }
-  dialogImages = normalizeSecretImages(nextImages);
+  dialogImages = dialogImages.map((image) =>
+    ((displayedImage.image_path && image.image_path === displayedImage.image_path) || image.image_url === displayedImage.image_url)
+      ? nextImage
+      : image
+  );
   if (session?.user?.id) saveSecretItemsCache(session.user.id);
   renderSecretGallery();
   renderDialogMedia();
@@ -10172,14 +10333,14 @@ function bindSettingsFamilyActions() {
 }
 
 function setActiveSettingsSection(sectionId = "settingsGeneral") {
-  const allowedSections = ["settingsGeneral", "settingsTools", "settingsAccount", "settingsFamily"];
+  const allowedSections = ["settingsGeneral", "settingsCache", "settingsTools", "settingsAccount", "settingsFamily"];
   const nextSection = allowedSections.includes(sectionId) ? sectionId : "settingsGeneral";
   activeSettingsSection = nextSection;
 
-  els.settingsGroups.forEach((group) => {
+  els.settingsDialog.querySelectorAll(".settings-group").forEach((group) => {
     group.hidden = group.id !== nextSection;
   });
-  els.settingsNavButtons.forEach((button) => {
+  els.settingsDialog.querySelectorAll("[data-settings-section]").forEach((button) => {
     const active = button.dataset.settingsSection === nextSection;
     button.classList.toggle("active", active);
     button.setAttribute("aria-selected", String(active));
