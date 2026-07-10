@@ -203,6 +203,8 @@ let mobileDiaryRestoreScrollY = 0;
 let mobileDiaryImageIndex = 0;
 let mobileDiaryReplyToId = null;
 let mobileDiaryBackSwipeStart = null;
+let mobileDiaryImageSwipeStart = null;
+let mobileDiarySuppressImageClickUntil = 0;
 let photoComments = [];
 let photoCommentPreviewMap = new Map();
 let notifications = [];
@@ -254,6 +256,7 @@ let dialogImages = [];
 let dialogImageIndex = 0;
 let dialogSwipeStart = null;
 let dialogBackSwipeStart = null;
+let globalMobileBackSwipeStart = null;
 let secretImageGesture = null;
 let secretImageZoom = { scale: 1, x: 0, y: 0 };
 let suppressDialogImageClickUntil = 0;
@@ -3274,6 +3277,24 @@ function moveDialogImage(step) {
   renderDialogMedia();
 }
 
+function isEdgeBackSwipe(start, event, { threshold = 72, ratio = 1.35, maxElapsed = 1200 } = {}) {
+  if (!start) return false;
+  const deltaX = event.clientX - start.x;
+  const deltaY = Math.abs(event.clientY - start.y);
+  const elapsed = Date.now() - start.time;
+  const fromLeft = start.edge === "left" && deltaX > threshold;
+  const fromRight = start.edge === "right" && deltaX < -threshold;
+  return (fromLeft || fromRight) && Math.abs(deltaX) > deltaY * ratio && elapsed < maxElapsed;
+}
+
+function getMobileBackEdge(clientX) {
+  if (!isMobileViewport()) return "";
+  const edgeSize = 38;
+  if (clientX <= edgeSize) return "left";
+  if (clientX >= window.innerWidth - edgeSize) return "right";
+  return "";
+}
+
 function beginDialogSwipe(event) {
   if (dialogImages.length <= 1 || event.target.closest("button")) return;
   if (isSecretImageDialogOpen()) {
@@ -3316,9 +3337,11 @@ function beginDialogBackSwipe(event) {
   if (!isMobileViewport() || !els.dialog.open) return;
   if (!els.dialog.classList.contains("mobile-page-dialog") && !els.dialog.classList.contains("secret-image-dialog")) return;
   if (event.target.closest("button, input, textarea, select, a")) return;
-  if (event.clientX > 34) return;
+  const edge = getMobileBackEdge(event.clientX);
+  if (!edge) return;
   dialogBackSwipeStart = {
     id: event.pointerId,
+    edge,
     x: event.clientX,
     y: event.clientY,
     time: Date.now(),
@@ -3327,11 +3350,8 @@ function beginDialogBackSwipe(event) {
 
 function finishDialogBackSwipe(event) {
   if (!dialogBackSwipeStart || dialogBackSwipeStart.id !== event.pointerId) return;
-  const deltaX = event.clientX - dialogBackSwipeStart.x;
-  const deltaY = event.clientY - dialogBackSwipeStart.y;
-  const elapsed = Date.now() - dialogBackSwipeStart.time;
+  const edgeBack = isEdgeBackSwipe(dialogBackSwipeStart, event);
   dialogBackSwipeStart = null;
-  const edgeBack = deltaX > 72 && Math.abs(deltaX) > Math.abs(deltaY) * 1.35 && elapsed < 1200;
   if (edgeBack) closePhotoDialog();
 }
 
@@ -3611,6 +3631,7 @@ function ensureMobileDiaryPage() {
     }
     const openImageButton = event.target.closest("[data-mobile-diary-open-image]");
     if (openImageButton && mobileDiaryPhoto) {
+      if (Date.now() < mobileDiarySuppressImageClickUntil) return;
       openMobileDiaryImageViewer();
       return;
     }
@@ -3636,8 +3657,11 @@ function ensureMobileDiaryPage() {
   });
   mobileDiaryPage.addEventListener("pointerdown", beginMobileDiaryBackSwipe, { passive: true });
   mobileDiaryPage.addEventListener("pointerup", endMobileDiaryBackSwipe, { passive: true });
+  mobileDiaryPage.addEventListener("pointerdown", beginMobileDiaryImageSwipe, { passive: true });
+  mobileDiaryPage.addEventListener("pointerup", endMobileDiaryImageSwipe, { passive: true });
   mobileDiaryPage.addEventListener("pointercancel", () => {
     mobileDiaryBackSwipeStart = null;
+    mobileDiaryImageSwipeStart = null;
   });
   document.body.append(mobileDiaryPage);
   return mobileDiaryPage;
@@ -3765,6 +3789,13 @@ function renderMobileDiaryPage() {
   renderMobileDiaryComments();
 }
 
+function moveMobileDiaryImage(step) {
+  const images = getPhotoImages(mobileDiaryPhoto);
+  if (images.length <= 1) return;
+  mobileDiaryImageIndex = (mobileDiaryImageIndex + step + images.length) % images.length;
+  renderMobileDiaryPage();
+}
+
 function openMobileDiaryPage(photo, initialImageIndex = 0, options = {}) {
   if (!photo) return;
   mobileDiaryRestoreScrollY = window.scrollY || window.pageYOffset || 0;
@@ -3853,17 +3884,93 @@ async function saveMobileDiaryComment(event) {
 
 function beginMobileDiaryBackSwipe(event) {
   if (!mobileDiaryPage || mobileDiaryPage.hidden || event.pointerType === "mouse") return;
-  if (event.clientX > 32) return;
-  mobileDiaryBackSwipeStart = { x: event.clientX, y: event.clientY, time: Date.now() };
+  if (event.target.closest(".mobile-diary-media, .mobile-diary-thumbs, button, input, textarea, select, a")) return;
+  const edge = getMobileBackEdge(event.clientX);
+  if (!edge) return;
+  mobileDiaryBackSwipeStart = { edge, x: event.clientX, y: event.clientY, time: Date.now() };
 }
 
 function endMobileDiaryBackSwipe(event) {
   if (!mobileDiaryBackSwipeStart) return;
-  const deltaX = event.clientX - mobileDiaryBackSwipeStart.x;
-  const deltaY = Math.abs(event.clientY - mobileDiaryBackSwipeStart.y);
-  const elapsed = Date.now() - mobileDiaryBackSwipeStart.time;
+  const shouldClose = isEdgeBackSwipe(mobileDiaryBackSwipeStart, event, { threshold: 68, ratio: 1.25, maxElapsed: 1000 });
   mobileDiaryBackSwipeStart = null;
-  if (deltaX > 86 && deltaY < 70 && elapsed < 700) closeMobileDiaryPage();
+  if (shouldClose) closeMobileDiaryPage();
+}
+
+function beginMobileDiaryImageSwipe(event) {
+  if (!mobileDiaryPage || mobileDiaryPage.hidden || event.pointerType === "mouse") return;
+  if (!event.target.closest(".mobile-diary-media")) return;
+  if (getPhotoImages(mobileDiaryPhoto).length <= 1) return;
+  mobileDiaryImageSwipeStart = {
+    id: event.pointerId,
+    x: event.clientX,
+    y: event.clientY,
+    time: Date.now(),
+  };
+}
+
+function endMobileDiaryImageSwipe(event) {
+  if (!mobileDiaryImageSwipeStart || mobileDiaryImageSwipeStart.id !== event.pointerId) return;
+  const deltaX = event.clientX - mobileDiaryImageSwipeStart.x;
+  const deltaY = Math.abs(event.clientY - mobileDiaryImageSwipeStart.y);
+  const elapsed = Date.now() - mobileDiaryImageSwipeStart.time;
+  mobileDiaryImageSwipeStart = null;
+  const horizontal = Math.abs(deltaX) > 48 && Math.abs(deltaX) > deltaY * 1.25 && elapsed < 900;
+  if (!horizontal) return;
+  mobileDiarySuppressImageClickUntil = Date.now() + 450;
+  moveMobileDiaryImage(deltaX < 0 ? 1 : -1);
+}
+
+function canStartGlobalMobileBackSwipe(event) {
+  if (!isMobileViewport() || event.pointerType === "mouse") return false;
+  if (mobileDiaryImageViewerOpen) return false;
+  if (mobileDiaryPage && !mobileDiaryPage.hidden) return false;
+  if (els.dialog?.open) return false;
+  if (event.target.closest("button, input, textarea, select, a, .dialog-media, .mobile-diary-media, .secret-photo-grid, .diary-card-media")) return false;
+  return Boolean(getMobileBackEdge(event.clientX));
+}
+
+function performGlobalMobileBack() {
+  if (!els.setupPanel.hidden) {
+    els.setupPanel.hidden = true;
+    return true;
+  }
+  if (activePage !== "gallery") {
+    switchPage("gallery");
+    window.scrollTo({ top: 0, behavior: "auto" });
+    return true;
+  }
+  if (window.history.length > 1) {
+    window.history.back();
+    return true;
+  }
+  return false;
+}
+
+function beginGlobalMobileBackSwipe(event) {
+  if (!canStartGlobalMobileBackSwipe(event)) return;
+  globalMobileBackSwipeStart = {
+    id: event.pointerId,
+    edge: getMobileBackEdge(event.clientX),
+    x: event.clientX,
+    y: event.clientY,
+    time: Date.now(),
+  };
+}
+
+function finishGlobalMobileBackSwipe(event) {
+  if (!globalMobileBackSwipeStart || globalMobileBackSwipeStart.id !== event.pointerId) return;
+  const shouldGoBack = isEdgeBackSwipe(globalMobileBackSwipeStart, event, {
+    threshold: 74,
+    ratio: 1.35,
+    maxElapsed: 1100,
+  });
+  globalMobileBackSwipeStart = null;
+  if (shouldGoBack) performGlobalMobileBack();
+}
+
+function cancelGlobalMobileBackSwipe() {
+  globalMobileBackSwipeStart = null;
 }
 
 function openPhoto(photo, initialImageIndex = 0, options = {}) {
@@ -10232,6 +10339,9 @@ document.addEventListener("click", (event) => {
   if (els.toolDock.contains(event.target)) return;
   exitToolDockTouchSort();
 });
+document.addEventListener("pointerdown", beginGlobalMobileBackSwipe, { passive: true, capture: true });
+document.addEventListener("pointerup", finishGlobalMobileBackSwipe, { passive: true, capture: true });
+document.addEventListener("pointercancel", cancelGlobalMobileBackSwipe, { passive: true, capture: true });
 els.foodWheelOpen.addEventListener("click", openFoodWheel);
 els.foodWheelClose.addEventListener("click", closeFoodWheel);
 els.foodWheelDialog.addEventListener("click", (event) => {
