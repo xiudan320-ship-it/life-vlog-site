@@ -7447,3 +7447,105 @@ body.mobile-dialog-open {
     color: #f7fff3;
   }
 }
+
+/* Final mobile viewer geometry: stable diary media and a true zoomable canvas. */
+@media (max-width: 700px) {
+  body.mobile-diary-page-open main {
+    display: block !important;
+    visibility: visible !important;
+  }
+
+  body.mobile-diary-page-open .topbar {
+    display: flex !important;
+    visibility: visible !important;
+  }
+
+  .mobile-diary-page {
+    position: fixed !important;
+    inset: 0 !important;
+    height: 100dvh !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    transition: transform 220ms cubic-bezier(0.2, 0.76, 0.18, 1) !important;
+  }
+
+  .mobile-diary-page.is-back-swiping {
+    transition: none !important;
+  }
+
+  .mobile-diary-page.is-back-committing {
+    transition: transform 220ms cubic-bezier(0.2, 0.76, 0.18, 1) !important;
+  }
+
+  .mobile-diary-media {
+    display: grid !important;
+    width: 100% !important;
+    height: clamp(360px, 54dvh, 520px) !important;
+    min-height: clamp(360px, 54dvh, 520px) !important;
+    overflow: hidden !important;
+    place-items: center;
+  }
+
+  .mobile-diary-image-button {
+    display: grid !important;
+    width: 100% !important;
+    height: 100% !important;
+    place-items: center;
+  }
+
+  .mobile-diary-media img {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    object-fit: contain !important;
+    object-position: center !important;
+  }
+
+  #photoDialog.secret-image-dialog.secret-image-fullscreen {
+    display: grid !important;
+    position: fixed !important;
+    inset: 0 !important;
+    grid-template: 1fr / 1fr !important;
+    width: 100dvw !important;
+    height: 100dvh !important;
+    max-width: none !important;
+    max-height: none !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: #050706 !important;
+    transform: none !important;
+  }
+
+  #photoDialog.secret-image-dialog.secret-image-fullscreen .dialog-media {
+    display: grid !important;
+    width: 100dvw !important;
+    height: 100dvh !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: hidden !important;
+    place-items: center !important;
+    padding: 0 !important;
+    touch-action: none !important;
+  }
+
+  #photoDialog.secret-image-dialog.secret-image-fullscreen .dialog-media img {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    object-fit: contain !important;
+    object-position: center !important;
+    transform-origin: center center !important;
+  }
+
+  #photoDialog.secret-image-dialog.secret-image-fullscreen > article,
+  #photoDialog.secret-image-dialog.secret-image-fullscreen .dialog-thumbs {
+    display: none !important;
+  }
+}
