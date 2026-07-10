@@ -3406,7 +3406,9 @@ function renderSecretDialogControls(image) {
 }
 
 function bindSecretDialogControls() {
-  if (!activeSecretDialogItem || !els.dialog.open) return;
+  // Controls are rendered before showModal() opens the dialog, so checking
+  // dialog.open here prevents every tag/favorite handler from being attached.
+  if (!activeSecretDialogItem) return;
   els.dialogNote.querySelector("[data-secret-dialog-favorite]")?.addEventListener("click", () => {
     const current = dialogImages[dialogImageIndex] || {};
     void updateSecretDialogImage({ favorite: !current.favorite });
