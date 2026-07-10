@@ -666,8 +666,9 @@ function readCloudflareSession() {
     const parsed = JSON.parse(localStorage.getItem(CLOUDFLARE_AUTH_KEY) || "null");
     if (!parsed?.access_token || !parsed?.user?.id) return null;
     if (parsed.expires_at && new Date(parsed.expires_at).getTime() <= Date.now()) {
-      localStorage.removeItem(CLOUDFLARE_AUTH_KEY);
-      return null;
+      // Preserve the last local identity for offline, read-only access. The
+      // Worker still rejects expired tokens for online reads and writes.
+      parsed.offline_only = true;
     }
     return parsed;
   } catch {
@@ -1649,15 +1650,41 @@ async function getCacheStorageUsageBytes() {
   return total;
 }
 
+async function getCacheStorageBreakdown() {
+  if (!("caches" in window)) return { appBytes: 0, mediaBytes: 0, entries: 0 };
+  let appBytes = 0;
+  let mediaBytes = 0;
+  let entries = 0;
+  const names = await caches.keys();
+  for (const name of names.filter((entry) => entry.startsWith("life-vlog-site-") || entry === MEDIA_CACHE_NAME)) {
+    const cache = await caches.open(name);
+    const requests = await cache.keys();
+    entries += requests.length;
+    for (const request of requests) {
+      const response = await cache.match(request);
+      if (!response) continue;
+      const blob = await response.clone().blob().catch(() => null);
+      const bytes = blob?.size || Number(response.headers.get("content-length")) || 0;
+      if (name === MEDIA_CACHE_NAME) mediaBytes += bytes;
+      else appBytes += bytes;
+    }
+  }
+  return { appBytes, mediaBytes, entries };
+}
+
 async function getAppCacheStats() {
-  const [cacheBytes, storageEstimate] = await Promise.all([
-    getCacheStorageUsageBytes().catch(() => 0),
+  const [cacheBreakdown, storageEstimate] = await Promise.all([
+    getCacheStorageBreakdown().catch(() => ({ appBytes: 0, mediaBytes: 0, entries: 0 })),
     navigator.storage?.estimate?.().catch(() => null) || Promise.resolve(null),
   ]);
   const localBytes = getLocalStorageUsageBytes();
+  const cacheBytes = cacheBreakdown.appBytes + cacheBreakdown.mediaBytes;
   return {
     localBytes,
     cacheBytes,
+    appShellBytes: cacheBreakdown.appBytes,
+    mediaBytes: cacheBreakdown.mediaBytes,
+    cacheEntries: cacheBreakdown.entries,
     totalBytes: localBytes + cacheBytes,
     browserUsageBytes: Number(storageEstimate?.usage) || 0,
     browserQuotaBytes: Number(storageEstimate?.quota) || 0,
@@ -1666,13 +1693,15 @@ async function getAppCacheStats() {
 
 function renderCacheStats(stats) {
   if (!els.settingsCacheValue) return;
-  const appTotal = formatFileSize(stats.totalBytes);
-  const browserUsage = stats.browserUsageBytes ? formatFileSize(stats.browserUsageBytes) : "";
-  els.settingsCacheValue.textContent = browserUsage
-    ? `${appTotal} / 浏览器 ${browserUsage}`
-    : appTotal;
+  const actualTotal = Math.max(stats.totalBytes, stats.browserUsageBytes);
+  const quota = stats.browserQuotaBytes ? formatFileSize(stats.browserQuotaBytes) : "设备自动管理";
+  els.settingsCacheValue.textContent = `${formatFileSize(actualTotal)} 已用`;
+  const cacheHelp = els.settingsCacheValue.nextElementSibling;
+  if (cacheHelp) cacheHelp.textContent = `设备配额 ${quota} · ${stats.cacheEntries} 个离线资源`;
   if (els.settingsCacheStatus) {
-    els.settingsCacheStatus.textContent = `本地 ${formatFileSize(stats.localBytes)} · 离线 ${formatFileSize(stats.cacheBytes)}`;
+    els.settingsCacheStatus.textContent = `内容 ${formatFileSize(stats.localBytes)} · 图片 ${formatFileSize(stats.mediaBytes)} · 应用 ${formatFileSize(stats.appShellBytes)}`;
+    const clearHelp = els.settingsCacheStatus.nextElementSibling;
+    if (clearHelp) clearHelp.textContent = "清除以上离线内容，账号和个人设置仍保留";
   }
 }
 
@@ -2311,9 +2340,12 @@ function compressImage(file, options = null) {
       URL.revokeObjectURL(objectUrl);
       try {
         const settings = options || getUploadQuality();
-        const scale = Math.min(1, settings.maxSide / Math.max(image.width, image.height));
-        let width = Math.max(1, Math.round(image.width * scale));
-        let height = Math.max(1, Math.round(image.height * scale));
+        const rotatePortrait = Boolean(settings.rotatePortrait && image.height > image.width);
+        const sourceWidth = rotatePortrait ? image.height : image.width;
+        const sourceHeight = rotatePortrait ? image.width : image.height;
+        const scale = Math.min(1, settings.maxSide / Math.max(sourceWidth, sourceHeight));
+        let width = Math.max(1, Math.round(sourceWidth * scale));
+        let height = Math.max(1, Math.round(sourceHeight * scale));
         let quality = settings.jpeg;
         let blob;
 
@@ -2324,7 +2356,13 @@ function compressImage(file, options = null) {
           const context = canvas.getContext("2d");
           context.fillStyle = "#ffffff";
           context.fillRect(0, 0, width, height);
-          context.drawImage(image, 0, 0, width, height);
+          if (rotatePortrait) {
+            context.translate(width, 0);
+            context.rotate(Math.PI / 2);
+            context.drawImage(image, 0, 0, height, width);
+          } else {
+            context.drawImage(image, 0, 0, width, height);
+          }
 
           quality = settings.jpeg;
           blob = await canvasToBlob(canvas, "image/jpeg", quality);
@@ -8082,6 +8120,7 @@ async function compressRecipeCover(file) {
     jpeg: 0.82,
     minJpeg: 0.62,
     targetBytes: 360_000,
+    rotatePortrait: true,
   });
   if (R2_UPLOAD_ENDPOINT) {
     const uploaded = await uploadToR2(compressed.blob, slugify(file.name || "recipe-cover"), "recipes");
@@ -8100,6 +8139,12 @@ function updateRecipeCoverPreview() {
   if (recipeCoverPreviewUrl) URL.revokeObjectURL(recipeCoverPreviewUrl);
   recipeCoverPreviewUrl = URL.createObjectURL(file);
   els.recipeCoverPreview.src = recipeCoverPreviewUrl;
+  els.recipeCoverPreview.onload = () => {
+    els.recipeCoverPreview.classList.toggle(
+      "portrait-recipe-preview",
+      els.recipeCoverPreview.naturalHeight > els.recipeCoverPreview.naturalWidth
+    );
+  };
   els.recipeCoverPreview.hidden = false;
   els.recipeCoverName.textContent = file.name;
 }
@@ -8251,6 +8296,16 @@ function renderRecipes() {
   });
   els.recipesList.querySelectorAll("button[data-delete-recipe]").forEach((button) => {
     button.addEventListener("click", () => deleteRecipe(button.dataset.deleteRecipe));
+  });
+  els.recipesList.querySelectorAll(".recipe-cover img").forEach((image) => {
+    const updateOrientation = () => {
+      image.closest(".recipe-cover")?.classList.toggle(
+        "portrait-cover",
+        image.naturalHeight > image.naturalWidth
+      );
+    };
+    if (image.complete) updateOrientation();
+    else image.addEventListener("load", updateOrientation, { once: true });
   });
 }
 
