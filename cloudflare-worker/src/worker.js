@@ -24,6 +24,8 @@ const TABLE_CONFIG = {
       "experience_total",
       "last_login_date",
       "login_streak",
+      "today_experience_date",
+      "today_experience_amount",
       "local_data_migrated",
       "theme_preference",
       "home_name",
@@ -539,6 +541,7 @@ async function handleRpc(request, env, user, name) {
             ...member,
             family_id: family.id,
             family_name: family.name,
+            family_tagline: family.tagline || "",
           }))
         : [],
     });
@@ -639,6 +642,17 @@ async function handleRpc(request, env, user, name) {
       .bind(family.id, targetUserId)
       .run();
     return jsonResponse(request, env, { data: true });
+  }
+
+  if (name === "update_family_tagline") {
+    const family = await getFamilyContext(env, user.id);
+    if (!family) return jsonResponse(request, env, { error: "Family not found." }, 404);
+    const tagline = String(payload.p_tagline || payload.tagline || "").trim().slice(0, 120);
+    if (!tagline) return jsonResponse(request, env, { error: "Tagline is required." }, 400);
+    await env.DB.prepare("update families set tagline=? where id=?")
+      .bind(tagline, family.id)
+      .run();
+    return jsonResponse(request, env, { data: { tagline } });
   }
 
   if (name === "get_my_notifications") {
