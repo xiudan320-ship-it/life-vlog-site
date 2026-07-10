@@ -37,6 +37,8 @@ CREATE TABLE IF NOT EXISTS user_profiles (
   experience_total INTEGER NOT NULL DEFAULT 0 CHECK (experience_total >= 0),
   last_login_date TEXT,
   login_streak INTEGER NOT NULL DEFAULT 0 CHECK (login_streak >= 0),
+  today_experience_date TEXT,
+  today_experience_amount INTEGER NOT NULL DEFAULT 0 CHECK (today_experience_amount >= 0),
   local_data_migrated INTEGER NOT NULL DEFAULT 0,
   theme_preference TEXT CHECK (theme_preference IN ('light', 'dark') OR theme_preference IS NULL),
   home_name TEXT NOT NULL DEFAULT '咻蛋之家',
@@ -50,6 +52,7 @@ CREATE TABLE IF NOT EXISTS user_profiles (
 
 CREATE TABLE IF NOT EXISTS families (
   id TEXT PRIMARY KEY,
+  tagline TEXT NOT NULL DEFAULT '收藏生活里值得回看的照片、味道和还没完成的小愿望。',
   name TEXT NOT NULL DEFAULT '我们的家',
   owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
