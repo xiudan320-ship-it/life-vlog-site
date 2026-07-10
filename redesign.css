@@ -7712,3 +7712,125 @@ body.mobile-dialog-open {
     background: #090c0a !important;
   }
 }
+
+/* Stable feedback layer: never inherit page or mobile inset geometry. */
+.mini-toast-host,
+.mini-toast-host-center {
+  z-index: 1000 !important;
+}
+
+.mini-toast-host-center {
+  position: fixed !important;
+  top: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
+  left: 50% !important;
+  width: max-content !important;
+  max-width: calc(100vw - 32px) !important;
+  transform: translate(-50%, -50%) !important;
+  pointer-events: none !important;
+}
+
+.offline-status-badge {
+  position: fixed;
+  z-index: 900;
+  top: calc(76px + env(safe-area-inset-top));
+  left: 50%;
+  max-width: calc(100vw - 28px);
+  border: 1px solid color-mix(in srgb, var(--gold) 65%, var(--line));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 90%, var(--gold) 10%);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+  padding: 8px 13px;
+  font-size: 12px;
+  font-weight: 900;
+  transform: translateX(-50%);
+}
+
+.trash-head,
+.trash-item,
+.trash-item > div:last-child {
+  display: flex;
+  align-items: center;
+}
+
+.trash-head {
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 18px;
+  padding: 14px 0 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.trash-head > div,
+.trash-item > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.trash-head small,
+.trash-item small,
+.trash-item span,
+.settings-empty {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.trash-head > button {
+  width: 38px;
+  min-height: 38px;
+  padding: 0;
+}
+
+.trash-items {
+  display: grid;
+}
+
+.trash-item {
+  justify-content: space-between;
+  gap: 18px;
+  min-height: 82px;
+  border-bottom: 1px solid var(--line);
+  padding: 12px 0;
+}
+
+.trash-item > div:last-child {
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.trash-item button {
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  padding: 0 12px;
+  font-weight: 900;
+}
+
+.trash-item button.danger {
+  border-color: color-mix(in srgb, var(--coral) 66%, var(--line));
+  color: var(--coral);
+}
+
+@media (max-width: 700px) {
+  .mini-toast-host-center {
+    right: auto !important;
+    bottom: auto !important;
+    left: 50% !important;
+  }
+
+  .offline-status-badge {
+    top: calc(70px + env(safe-area-inset-top));
+  }
+
+  .trash-item {
+    align-items: flex-start;
+  }
+
+  .trash-item > div:last-child {
+    display: grid;
+  }
+}
