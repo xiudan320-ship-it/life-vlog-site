@@ -7783,8 +7783,54 @@ body.mobile-dialog-open {
   padding: 0;
 }
 
+.backup-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.settings-group .backup-head-actions button {
+  display: grid;
+  width: auto;
+  min-width: 38px;
+  min-height: 38px;
+  height: 38px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
 .trash-items {
   display: grid;
+}
+
+.cloud-backup-list {
+  display: grid;
+}
+
+.settings-group .cloud-backup-item {
+  min-height: 54px;
+  border-bottom: 1px solid var(--line);
+}
+
+.settings-group .cloud-backup-item > span {
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.settings-group .cloud-backup-item strong {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+}
+
+.settings-group .cloud-backup-item small {
+  color: var(--muted);
+  font-size: 11px;
 }
 
 .trash-item {
@@ -7986,5 +8032,97 @@ body.mobile-dialog-open {
   .settings-account-avatar img {
     width: 46px;
     height: 46px;
+  }
+}
+
+/* Diary detail header: one stable app row, no page navigation. */
+@media (max-width: 700px) {
+  body.mobile-diary-page-open .topbar {
+    display: flex !important;
+    box-sizing: border-box !important;
+    min-height: calc(64px + env(safe-area-inset-top)) !important;
+    height: calc(64px + env(safe-area-inset-top)) !important;
+    gap: 8px !important;
+    padding: env(safe-area-inset-top) 10px 0 !important;
+  }
+
+  body.mobile-diary-page-open .topbar .main-nav {
+    display: none !important;
+  }
+
+  body.mobile-diary-page-open .brand {
+    display: flex !important;
+    min-width: 0 !important;
+    flex: 1 1 auto !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+
+  body.mobile-diary-page-open .brand-logo-wrap {
+    display: grid !important;
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
+    flex: 0 0 40px !important;
+    box-sizing: border-box !important;
+    padding: 2px !important;
+  }
+
+  body.mobile-diary-page-open .brand-logo {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+  }
+
+  body.mobile-diary-page-open .brand > span:last-child {
+    display: block !important;
+    min-width: 0 !important;
+  }
+
+  body.mobile-diary-page-open .brand strong {
+    display: block;
+    overflow: hidden;
+    font-size: 13px !important;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  body.mobile-diary-page-open .brand small {
+    display: none !important;
+  }
+
+  body.mobile-diary-page-open .top-actions {
+    display: flex !important;
+    min-width: 0 !important;
+    flex: 0 0 auto !important;
+    align-items: center !important;
+    gap: 5px !important;
+    margin-left: auto !important;
+  }
+
+  body.mobile-diary-page-open .top-actions .icon-button,
+  body.mobile-diary-page-open .top-actions .avatar-button {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+  }
+
+  body.mobile-diary-page-open .top-actions .vip-badge {
+    min-width: 72px !important;
+    min-height: 36px !important;
+  }
+
+  .mobile-diary-page {
+    top: calc(64px + env(safe-area-inset-top)) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #photoDialog,
+  #photoDialog .dialog-media img,
+  .mobile-diary-page {
+    transition: none !important;
+    animation: none !important;
   }
 }
