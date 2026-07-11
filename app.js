@@ -19,6 +19,7 @@ const DIARY_MEDIA_CACHE_NAME = "life-vlog-diary-media-cache";
 const SECRET_MEDIA_CACHE_NAME = "life-vlog-secret-media-cache";
 const DIARY_CACHE_MB_KEY = "life-vlog-diary-cache-mb";
 const SECRET_CACHE_MB_KEY = "life-vlog-secret-cache-mb";
+const MEDIA_CACHE_POLICY_KEY = "life-vlog-media-cache-policy";
 const DIARY_DRAFT_KEY = "life-vlog-diary-draft";
 const UPLOAD_QUEUE_DB = "life-vlog-upload-queue";
 const UPLOAD_QUEUE_STORE = "diary-uploads";
@@ -1467,14 +1468,16 @@ function sanitizePhotoForCache(photo) {
 
 function getPhotoCacheImages(photo) {
   const images = getPhotoImages(photo);
-  if (images.length) return images.map((image) => image.image_url).filter(Boolean);
+  if (images.length) {
+    return images.flatMap((image) => [image.thumbnail_url, image.image_url]).filter(Boolean);
+  }
   return [photo?.image_url].filter(Boolean);
 }
 
 function getSecretItemCacheImages(item) {
   return [
     item?.coverImage || item?.cover_image || "",
-    ...normalizeSecretImages(item?.images).map((image) => image.image_url),
+    ...normalizeSecretImages(item?.images).flatMap((image) => [image.thumbnail_url, image.image_url]),
   ].filter(Boolean);
 }
 
@@ -1509,32 +1512,76 @@ async function fetchMediaForCache(url) {
 }
 
 let mediaCacheTimer = 0;
+function getMediaCachePolicyKey(userId = session?.user?.id || "guest") {
+  return `${MEDIA_CACHE_POLICY_KEY}:${userId || "guest"}`;
+}
+
+function loadMediaCachePolicy(userId = session?.user?.id || "guest") {
+  return localStorage.getItem(getMediaCachePolicyKey(userId)) === "off" ? "off" : "wifi";
+}
+
+function saveMediaCachePolicy(policy, userId = session?.user?.id || "guest") {
+  const next = policy === "off" ? "off" : "wifi";
+  localStorage.setItem(getMediaCachePolicyKey(userId), next);
+  renderSettingsSummary();
+  return next;
+}
+
+function isClearlyUnmeteredConnection() {
+  const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  if (!connection) return false;
+  if (connection.saveData) return false;
+  if (connection.type) return connection.type === "wifi" || connection.type === "ethernet";
+  // effectiveType describes speed, not billing. Do not assume 4g means Wi-Fi.
+  return false;
+}
+
+function shouldAutoCacheMedia(userId = session?.user?.id || "guest") {
+  return navigator.onLine && loadMediaCachePolicy(userId) === "wifi" && isClearlyUnmeteredConnection();
+}
+
 function scheduleOfflineMediaCache(userId = session?.user?.id || "public") {
   if (!("caches" in window)) return;
+  if (!shouldAutoCacheMedia(userId)) return;
   window.clearTimeout(mediaCacheTimer);
   mediaCacheTimer = window.setTimeout(() => {
-    cacheOfflineMedia(userId).catch((error) => {
+    cacheOfflineMedia(userId, { explicit: false }).catch((error) => {
       console.warn("Offline media cache failed:", error);
     });
   }, 900);
 }
 
-async function cacheOfflineMedia(userId = session?.user?.id || "public") {
+async function cacheOfflineMedia(userId = session?.user?.id || "public", options = {}) {
   if (!("caches" in window)) return;
-  await Promise.all([
-    fillMediaCacheWithinCapacity(
+  const explicit = Boolean(options.explicit);
+  const type = options.type || "all";
+  if (!explicit && !shouldAutoCacheMedia(userId)) return;
+  const maxDownloads = explicit ? 40 : 4;
+  const tasks = [];
+  if (type === "all" || type === "diary") {
+    tasks.push(fillMediaCacheWithinCapacity(
       DIARY_MEDIA_CACHE_NAME,
       collectDiaryOfflineMediaUrls(),
-      loadCacheCapacityMb("diary", userId) * 1024 * 1024
-    ),
-    fillMediaCacheWithinCapacity(
+      loadCacheCapacityMb("diary", userId) * 1024 * 1024,
+      maxDownloads
+    ));
+  }
+  if (type === "all" || type === "secret") {
+    tasks.push(fillMediaCacheWithinCapacity(
       SECRET_MEDIA_CACHE_NAME,
       collectSecretOfflineMediaUrls(),
-      loadCacheCapacityMb("secret", userId) * 1024 * 1024
-    ),
-  ]);
+      loadCacheCapacityMb("secret", userId) * 1024 * 1024,
+      maxDownloads
+    ));
+  }
+  const results = await Promise.all(tasks);
   await caches.delete(LEGACY_MEDIA_CACHE_NAME);
   await refreshCacheInfo();
+  return results.reduce((summary, result) => ({
+    cached: summary.cached + result.cached,
+    downloaded: summary.downloaded + result.downloaded,
+    bytes: summary.bytes + result.bytes,
+  }), { cached: 0, downloaded: 0, bytes: 0 });
 }
 
 async function getCachedResponseBytes(response) {
@@ -1545,7 +1592,7 @@ async function getCachedResponseBytes(response) {
   return blob?.size || 512 * 1024;
 }
 
-async function fillMediaCacheWithinCapacity(cacheName, urls, maxBytes) {
+async function fillMediaCacheWithinCapacity(cacheName, urls, maxBytes, maxDownloads = 4) {
   const cache = await caches.open(cacheName);
   const existingRequests = await cache.keys();
   const existingByUrl = new Map(existingRequests.map((request) => [request.url, request]));
@@ -1557,7 +1604,7 @@ async function fillMediaCacheWithinCapacity(cacheName, urls, maxBytes) {
     if (usedBytes >= maxBytes) break;
     let response = await cache.match(url);
     if (!response) {
-      if (downloads >= 6) continue;
+      if (downloads >= maxDownloads) continue;
       try {
         response = await fetchMediaForCache(url);
         downloads += 1;
@@ -1580,6 +1627,7 @@ async function fillMediaCacheWithinCapacity(cacheName, urls, maxBytes) {
       .filter((request) => !keep.has(request.url))
       .map((request) => cache.delete(request))
   );
+  return { cached: keep.size, downloaded: downloads, bytes: usedBytes };
 }
 
 function sanitizeCommentForCache(comment) {
@@ -5051,6 +5099,35 @@ function ensureCacheManagementUi() {
   const summary = els.cacheLimitButton.querySelector("small");
   if (summary) summary.textContent = "日记和秘藏分别按容量自动淘汰旧图片";
 
+  let policyButton = document.querySelector("#mediaCachePolicyButton");
+  if (!policyButton) {
+    policyButton = document.createElement("button");
+    policyButton.id = "mediaCachePolicyButton";
+    policyButton.type = "button";
+    policyButton.addEventListener("click", () => {
+      const next = loadMediaCachePolicy() === "wifi" ? "off" : "wifi";
+      saveMediaCachePolicy(next);
+      showMiniToast(next === "wifi" ? "仅在明确识别为 Wi-Fi 时自动缓存" : "已关闭自动缓存", { kind: "success" });
+    });
+    cacheGroup.insertBefore(policyButton, els.cacheLimitButton);
+  }
+
+  if (!document.querySelector("#downloadDiaryOfflineButton")) {
+    const diaryDownload = document.createElement("button");
+    diaryDownload.id = "downloadDiaryOfflineButton";
+    diaryDownload.type = "button";
+    diaryDownload.innerHTML = "<span>下载日记离线包</span><strong>手动缓存当前日记文字和图片</strong>";
+    diaryDownload.addEventListener("click", () => downloadOfflinePool("diary"));
+    cacheGroup.insertBefore(diaryDownload, els.clearAppCacheButton);
+
+    const secretDownload = document.createElement("button");
+    secretDownload.id = "downloadSecretOfflineButton";
+    secretDownload.type = "button";
+    secretDownload.innerHTML = "<span>下载秘藏离线包</span><strong>手动缓存当前秘藏相册和图片</strong>";
+    secretDownload.addEventListener("click", () => downloadOfflinePool("secret"));
+    cacheGroup.insertBefore(secretDownload, els.clearAppCacheButton);
+  }
+
   const form = els.cacheLimitForm;
   const heading = form?.querySelector("h2");
   const intro = heading?.nextElementSibling;
@@ -5098,6 +5175,42 @@ function ensureCacheManagementUi() {
     .filter(Boolean)
     .forEach((button) => cacheGroup.append(button));
   cacheGroup.append(els.clearAppCacheButton);
+}
+
+async function downloadOfflinePool(type) {
+  if (!navigator.onLine) {
+    showMiniToast("当前离线，无法补充缓存", { kind: "error" });
+    return;
+  }
+  const isSecret = type === "secret";
+  const urls = isSecret ? collectSecretOfflineMediaUrls() : collectDiaryOfflineMediaUrls();
+  if (!urls.length) {
+    showMiniToast(isSecret ? "请先打开秘藏并同步相册" : "请先打开日记并同步内容", { kind: "error" });
+    return;
+  }
+  const button = document.querySelector(isSecret ? "#downloadSecretOfflineButton" : "#downloadDiaryOfflineButton");
+  if (button) button.disabled = true;
+  const toast = showMiniToast(`正在下载${isSecret ? "秘藏" : "日记"}离线包…`, {
+    kind: "loading",
+    persist: true,
+    placement: "center",
+  });
+  try {
+    await navigator.storage?.persist?.().catch(() => false);
+    const result = await cacheOfflineMedia(session?.user?.id || "public", { explicit: true, type });
+    dismissMiniToast(toast);
+    showMiniToast(`已保存 ${result.cached} 张 · ${formatFileSize(result.bytes)}`, {
+      kind: "success",
+      duration: 3200,
+      placement: "center",
+    });
+  } catch (error) {
+    dismissMiniToast(toast);
+    showMiniToast(`离线包下载失败：${error.message}`, { kind: "error", duration: 3600, placement: "center" });
+  } finally {
+    dismissMiniToast(toast);
+    if (button) button.disabled = false;
+  }
 }
 
 async function downloadFamilyBackup() {
@@ -5419,6 +5532,11 @@ function renderSettingsSummary() {
   }
   if (els.settingsCacheLimitValue) {
     els.settingsCacheLimitValue.textContent = `日记 ${loadCacheCapacityMb("diary")} MB · 秘藏 ${loadCacheCapacityMb("secret")} MB`;
+  }
+  const policyButton = document.querySelector("#mediaCachePolicyButton");
+  if (policyButton) {
+    const wifiOnly = loadMediaCachePolicy() === "wifi";
+    policyButton.innerHTML = `<span>自动缓存</span><strong><em>${wifiOnly ? "仅明确 Wi-Fi" : "已关闭"}</em><small>${wifiOnly ? "蜂窝网络和无法识别的网络不会后台下载" : "只通过下面按钮手动下载"}</small></strong>`;
   }
 }
 
@@ -11362,6 +11480,9 @@ window.addEventListener("online", () => {
 });
 window.addEventListener("offline", updateNetworkStatus);
 updateNetworkStatus();
+(navigator.connection || navigator.mozConnection || navigator.webkitConnection)?.addEventListener?.("change", () => {
+  if (shouldAutoCacheMedia()) scheduleOfflineMediaCache();
+});
 window.addEventListener("resize", () => {
   syncMobileComposerPlacement();
   updateSecretToolbarTop();
