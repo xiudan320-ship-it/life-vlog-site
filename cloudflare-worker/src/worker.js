@@ -1149,6 +1149,72 @@ async function handleDelete(request, env, user) {
   return jsonResponse(request, env, { ok: true });
 }
 
+const BACKUP_TABLES = [
+  "families",
+  "family_members",
+  "family_invitations",
+  "user_profiles",
+  "photos",
+  "photo_favorites",
+  "photo_comments",
+  "recipes",
+  "wishes",
+  "weekend_plans",
+  "anniversaries",
+  "gratitude_notes",
+  "notifications",
+  "secret_items",
+  "trash_items",
+];
+
+function extractR2KeysFromTrashPayload(payload) {
+  let text = JSON.stringify(payload || {});
+  try {
+    text = decodeURIComponent(text);
+  } catch {
+    // The payload can contain ordinary percent signs; direct fields still work.
+  }
+  return [...new Set((text.match(/r2:[^"'\s,}\]]+/g) || []).map((value) => value.slice(3)))];
+}
+
+async function cleanupExpiredTrash(env) {
+  const expired = await env.DB.prepare("select * from trash_items where expires_at <= ? limit 200")
+    .bind(nowIso())
+    .all();
+  for (const item of expired.results || []) {
+    const payload = safeJson(item.payload, {});
+    const keys = extractR2KeysFromTrashPayload(payload);
+    if (keys.length) await env.R2_BUCKET.delete(keys);
+    await env.DB.prepare("delete from trash_items where id=?").bind(item.id).run();
+  }
+  return expired.results?.length || 0;
+}
+
+async function createDailyBackup(env) {
+  const backup = { version: 1, exported_at: nowIso(), tables: {} };
+  for (const table of BACKUP_TABLES) {
+    const rows = await env.DB.prepare(`select * from ${table}`).all();
+    backup.tables[table] = (rows.results || []).map((row) => denormalizeRow(table, row));
+  }
+  const date = new Date().toISOString().slice(0, 10);
+  const key = `system-backups/d1-${date}.json`;
+  await env.R2_BUCKET.put(key, JSON.stringify(backup), {
+    httpMetadata: { contentType: "application/json", cacheControl: "private, no-store" },
+  });
+
+  const oldBefore = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  let cursor;
+  do {
+    const listed = await env.R2_BUCKET.list({ prefix: "system-backups/", cursor });
+    const oldKeys = listed.objects
+      .filter((object) => new Date(object.uploaded).getTime() < oldBefore)
+      .map((object) => object.key);
+    if (oldKeys.length) await env.R2_BUCKET.delete(oldKeys);
+    cursor = listed.truncated ? listed.cursor : undefined;
+  } while (cursor);
+  return key;
+}
+
 export default {
   async fetch(request, env) {
     try {
@@ -1222,5 +1288,13 @@ export default {
         500
       );
     }
+  },
+  async scheduled(_controller, env, ctx) {
+    ctx.waitUntil(
+      Promise.all([
+        cleanupExpiredTrash(env),
+        createDailyBackup(env),
+      ])
+    );
   },
 };
