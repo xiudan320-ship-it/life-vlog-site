@@ -7834,3 +7834,157 @@ body.mobile-dialog-open {
     display: grid;
   }
 }
+
+.settings-account-overview {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  margin: 2px 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 88%, var(--accent) 12%);
+  padding: 14px;
+}
+
+.settings-group {
+  align-content: start;
+}
+
+.settings-account-overview > div:last-child {
+  display: grid;
+  gap: 2px;
+}
+
+.settings-account-overview strong {
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 950;
+}
+
+.settings-account-overview span,
+.settings-account-overview small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.settings-account-avatar,
+.settings-account-avatar-image,
+.settings-account-avatar img {
+  display: grid;
+  width: 54px;
+  height: 54px;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 7px;
+  object-fit: cover;
+}
+
+@media (max-width: 700px) {
+  .settings-dialog .settings-sidebar {
+    min-height: 112px;
+    padding: 12px 14px 10px;
+  }
+
+  .settings-dialog .settings-sidebar > .kicker,
+  .settings-dialog .settings-sidebar > h2 {
+    display: none;
+  }
+
+  .settings-dialog .settings-sidebar nav {
+    margin-top: 54px;
+  }
+
+  .settings-dialog > .dialog-close {
+    top: 10px;
+    left: 14px;
+    width: 42px;
+    height: 42px;
+  }
+
+  .settings-dialog .settings-content {
+    padding-top: 14px;
+  }
+
+  #settingsTools .settings-tool-order {
+    gap: 4px;
+  }
+
+  #settingsTools .settings-tool-card {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    min-height: 48px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    padding: 5px 7px 5px 9px;
+  }
+
+  #settingsTools .settings-tool-copy {
+    grid-template-columns: 24px minmax(0, 1fr);
+    gap: 0 7px;
+  }
+
+  #settingsTools .settings-tool-copy span {
+    min-width: 0;
+    font-size: 10px;
+  }
+
+  #settingsTools .settings-tool-copy strong {
+    font-size: 14px;
+  }
+
+  #settingsTools .settings-tool-copy small {
+    display: none;
+  }
+
+  #settingsTools .settings-tool-actions {
+    display: grid;
+    grid-template-columns: repeat(2, 32px);
+    gap: 4px;
+  }
+
+  #settingsTools .settings-tool-actions button {
+    display: grid;
+    width: 32px;
+    min-width: 32px;
+    min-height: 32px;
+    height: 32px;
+    place-items: center;
+    border-radius: 6px;
+    padding: 0;
+    font-size: 16px;
+    line-height: 1;
+  }
+
+  #settingsAccount {
+    gap: 6px;
+  }
+
+  #settingsAccount > button {
+    min-height: 54px;
+    align-items: center;
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0 2px;
+  }
+
+  #settingsAccount > button strong {
+    justify-items: end;
+    text-align: right;
+    font-size: 12px;
+  }
+
+  .settings-account-overview {
+    grid-template-columns: 46px minmax(0, 1fr);
+    padding: 10px;
+  }
+
+  .settings-account-avatar,
+  .settings-account-avatar-image,
+  .settings-account-avatar img {
+    width: 46px;
+    height: 46px;
+  }
+}
