@@ -1,14 +1,13 @@
-const CACHE_NAME = "life-vlog-site-20260711-155-pwa";
+const CACHE_NAME = "life-vlog-site-20260711-156-pwa";
 const APP_MEDIA_CACHES = new Set([
   "life-vlog-diary-media-cache",
   "life-vlog-secret-media-cache",
 ]);
 const CORE_ASSETS = [
   "./",
-  "./index.html",
   "./styles.css?v=20260610-37",
-  "./redesign.css?v=20260711-155",
-  "./app.js?v=20260711-155",
+  "./redesign.css?v=20260711-156",
+  "./app.js?v=20260711-156",
   "./manifest.webmanifest",
   "./assets/food-wheel-icon.png",
   "./assets/app-icon-192.png",
@@ -19,9 +18,20 @@ const CORE_ASSETS = [
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches
-      .open(CACHE_NAME)
-      .then((cache) => cache.addAll(CORE_ASSETS))
+    caches.open(CACHE_NAME)
+      .then(async (cache) => {
+        // One optional asset must not prevent the whole offline shell from
+        // installing. The root document is the canonical navigation fallback.
+        await Promise.allSettled(
+          CORE_ASSETS.map(async (asset) => {
+            const response = await fetch(asset, { cache: "reload" });
+            if (!response.ok) throw new Error(`Unable to cache ${asset}`);
+            await cache.put(asset, response);
+          })
+        );
+        const root = await cache.match("./");
+        if (!root) throw new Error("Offline app shell was not cached");
+      })
       .then(() => self.skipWaiting())
   );
 });
@@ -66,10 +76,12 @@ self.addEventListener("fetch", (event) => {
       fetch(request)
         .then((response) => {
           const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put("./index.html", copy));
+          caches.open(CACHE_NAME).then((cache) => cache.put("./", copy));
           return response;
         })
-        .catch(() => caches.match("./index.html"))
+        .catch(async () => {
+          return (await caches.match(request)) || (await caches.match("./"));
+        })
     );
     return;
   }
