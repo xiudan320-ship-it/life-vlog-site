@@ -5155,6 +5155,141 @@ async function renderTrashItems() {
   }
 }
 
+async function downloadCloudBackup(key) {
+  if (!session?.access_token || !key) return;
+  try {
+    const endpoint = R2_UPLOAD_ENDPOINT.replace(/\/+$/, "");
+    const response = await fetch(`${endpoint}/api/backups/${encodeURIComponent(key)}`, {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || `下载失败（${response.status}）`);
+    }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = key.split("/").pop().replace(/\.backup$/, ".json");
+    document.body.append(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    showMiniToast("加密备份已解密下载", { kind: "success" });
+  } catch (error) {
+    showMiniToast(error.message || "备份下载失败", { kind: "error", duration: 3200 });
+  }
+}
+
+async function renderCloudBackups() {
+  const list = document.querySelector("#cloudBackupList");
+  if (!list) return;
+  list.innerHTML = '<p class="settings-empty">正在读取加密备份…</p>';
+  try {
+    const result = await cloudflareRequest("/api/backups");
+    const backups = Array.isArray(result.data) ? result.data : [];
+    if (!backups.length) {
+      list.innerHTML = '<p class="settings-empty">自动备份将在每天凌晨生成。</p>';
+      return;
+    }
+    list.innerHTML = backups.slice(0, 30).map((backup) => `
+      <button class="cloud-backup-item" type="button" data-backup-key="${escapeHtml(backup.key)}">
+        <span>${escapeHtml(String(backup.key).split("/").pop().replace(/^d1-|\.backup$/g, ""))}</span>
+        <strong>${formatFileSize(backup.size)}<small>下载解密副本</small></strong>
+      </button>`).join("");
+    list.querySelectorAll("[data-backup-key]").forEach((button) => {
+      button.addEventListener("click", () => downloadCloudBackup(button.dataset.backupKey));
+    });
+  } catch (error) {
+    list.innerHTML = `<p class="settings-empty">${escapeHtml(error.message || "仅家庭创始人可以查看自动备份")}</p>`;
+  }
+}
+
+async function createCloudBackupNow() {
+  const button = document.querySelector("[data-create-backup]");
+  if (button) button.disabled = true;
+  const toast = showMiniToast("正在生成加密备份…", { kind: "loading", persist: true, placement: "center" });
+  try {
+    await cloudflareRequest("/api/backups/run", { method: "POST", body: "{}" });
+    dismissMiniToast(toast);
+    showMiniToast("加密备份已生成", { kind: "success", placement: "center" });
+    await renderCloudBackups();
+  } catch (error) {
+    dismissMiniToast(toast);
+    showMiniToast(error.message || "备份生成失败", { kind: "error", duration: 3200, placement: "center" });
+  } finally {
+    dismissMiniToast(toast);
+    if (button) button.disabled = false;
+  }
+}
+
+async function createThumbnailForExistingImage(image, safeName, folder) {
+  const response = await fetch(image.image_url, { mode: "cors" });
+  if (!response.ok) throw new Error(`读取旧图失败（${response.status}）`);
+  const source = await response.blob();
+  const compressed = await compressImage(
+    new File([source], `${safeName}.jpg`, { type: source.type || "image/jpeg" }),
+    { maxSide: 640, targetBytes: 140 * 1024, jpeg: 0.76, minJpeg: 0.5, rotatePortrait: false }
+  );
+  const uploaded = await uploadToR2(compressed.blob, `${safeName}-thumb`, `${folder}-thumbs`);
+  return { ...image, thumbnail_url: uploaded.url, thumbnail_path: `r2:${uploaded.key}` };
+}
+
+async function backfillLegacyThumbnails() {
+  if (!cloudDb || !session || !navigator.onLine) {
+    showMiniToast("需要登录并联网后执行", { kind: "error" });
+    return;
+  }
+  const button = document.querySelector("#backfillThumbnailsButton");
+  if (button) button.disabled = true;
+  let completed = 0;
+  const limit = 20;
+  const toast = showMiniToast("正在补齐旧图缩略图…", { kind: "loading", persist: true, placement: "center" });
+  try {
+    for (const photo of photos.filter((item) => item.user_id === session.user.id)) {
+      if (completed >= limit) break;
+      const images = getPhotoImages(photo);
+      let changed = false;
+      for (let index = 0; index < images.length && completed < limit; index += 1) {
+        if (images[index].thumbnail_path) continue;
+        images[index] = await createThumbnailForExistingImage(images[index], `legacy-photo-${photo.id}-${index + 1}`, "photos");
+        completed += 1;
+        changed = true;
+      }
+      if (changed) {
+        await cloudDb.from("photos").update({
+          note: composeStoredNote(getPlainNote(photo), images),
+          updated_at: new Date().toISOString(),
+        }).eq("id", photo.id).eq("user_id", session.user.id);
+      }
+    }
+    for (const item of secretItems.filter((entry) => entry.userId === session.user.id)) {
+      if (completed >= limit) break;
+      const images = normalizeSecretImages(item.images);
+      let changed = false;
+      for (let index = 0; index < images.length && completed < limit; index += 1) {
+        if (images[index].thumbnail_path) continue;
+        images[index] = await createThumbnailForExistingImage(images[index], `legacy-secret-${item.id}-${index + 1}`, "secrets");
+        completed += 1;
+        changed = true;
+      }
+      if (changed) {
+        await cloudDb.from("secret_items").update({ images, updated_at: new Date().toISOString() })
+          .eq("id", item.id).eq("user_id", session.user.id);
+      }
+    }
+    await Promise.all([loadPhotos(), loadSecretItems()]);
+    dismissMiniToast(toast);
+    showMiniToast(completed ? `已补齐 ${completed} 张缩略图` : "旧图缩略图已经齐全", { kind: "success", placement: "center" });
+  } catch (error) {
+    dismissMiniToast(toast);
+    showMiniToast(`处理暂停：${error.message}`, { kind: "error", duration: 3600, placement: "center" });
+  } finally {
+    dismissMiniToast(toast);
+    if (button) button.disabled = false;
+  }
+}
+
 function ensureDataSafetyUi() {
   const settingsNav = els.settingsDialog?.querySelector(".settings-sidebar nav");
   const content = els.settingsDialog?.querySelector(".settings-content");
@@ -5168,6 +5303,7 @@ function ensureDataSafetyUi() {
     nav.textContent = "数据安全";
     nav.addEventListener("click", () => {
       setActiveSettingsSection("settingsSafety");
+      void renderCloudBackups();
       void renderTrashItems();
     });
     settingsNav.append(nav);
@@ -5180,10 +5316,16 @@ function ensureDataSafetyUi() {
   group.innerHTML = `
     <p class="kicker">Data Safety</p><h3>备份与回收站</h3>
     <button id="downloadFamilyBackupButton" type="button"><span>下载家庭备份</span><strong>导出 D1 中的日记、评论、心愿、菜谱和秘藏索引</strong></button>
+    <button id="backfillThumbnailsButton" type="button"><span>优化旧图片</span><strong>每次为最多 20 张旧图生成列表缩略图</strong></button>
+    <div class="trash-head"><div><strong>加密自动备份</strong><small>每天生成，保留最近 30 天，仅家庭创始人可下载</small></div><div class="backup-head-actions"><button type="button" data-create-backup>立即备份</button><button type="button" data-refresh-backups aria-label="刷新备份">↻</button></div></div>
+    <div class="cloud-backup-list" id="cloudBackupList"></div>
     <div class="trash-head"><div><strong>回收站</strong><small>日记和秘藏保留 30 天，原图在永久删除前不会清理</small></div><button type="button" data-refresh-trash aria-label="刷新回收站">↻</button></div>
     <div class="trash-items" id="trashItemsList"></div>`;
   content.append(group);
   group.querySelector("#downloadFamilyBackupButton").addEventListener("click", downloadFamilyBackup);
+  group.querySelector("#backfillThumbnailsButton").addEventListener("click", backfillLegacyThumbnails);
+  group.querySelector("[data-create-backup]").addEventListener("click", createCloudBackupNow);
+  group.querySelector("[data-refresh-backups]").addEventListener("click", renderCloudBackups);
   group.querySelector("[data-refresh-trash]").addEventListener("click", renderTrashItems);
 }
 
@@ -7688,7 +7830,12 @@ function openSecretItem(item, initialImageIndex = 0, options = {}) {
   dialogRestoreScrollY = window.scrollY || window.pageYOffset || 0;
   dialogRestorePhotoId = "";
   dialogRestorePhotoTop = 0;
-  lockDialogBackgroundScroll(dialogRestoreScrollY);
+  // A full-screen secret viewer does not need the body to be shifted to a
+  // negative top offset. Keeping the page in place avoids a visible jump.
+  lockedDialogScrollY = dialogRestoreScrollY;
+  dialogLockUsesFixed = false;
+  document.documentElement.classList.add("dialog-scroll-locked");
+  document.body.classList.add("dialog-scroll-locked");
   activeDialogPhoto = null;
   activeSecretDialogItem = item;
   dialogSecretSourceItem = null;
@@ -11383,6 +11530,7 @@ els.dialog.addEventListener("click", (event) => {
   }
 });
 els.dialog.addEventListener("close", () => {
+  const wasSecretDialog = els.dialog.classList.contains("secret-image-dialog");
   const restoreScroll = dialogRestoreScrollY;
   const restorePhotoId = dialogRestorePhotoId;
   const restorePhotoTop = dialogRestorePhotoTop;
@@ -11414,7 +11562,7 @@ els.dialog.addEventListener("close", () => {
   unlockDialogBackgroundScroll(restoreScroll);
   dialogRestorePhotoId = restorePhotoId;
   dialogRestorePhotoTop = restorePhotoTop;
-  restoreDialogReturnTarget(restoreScroll);
+  if (!wasSecretDialog) restoreDialogReturnTarget(restoreScroll);
   dialogRestoreScrollY = 0;
   dialogRestorePhotoId = "";
   dialogRestorePhotoTop = 0;
