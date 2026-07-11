@@ -1556,7 +1556,7 @@ async function cacheOfflineMedia(userId = session?.user?.id || "public", options
   const explicit = Boolean(options.explicit);
   const type = options.type || "all";
   if (!explicit && !shouldAutoCacheMedia(userId)) return;
-  const maxDownloads = explicit ? 40 : 4;
+  const maxDownloads = explicit && type === "secret" ? Number.POSITIVE_INFINITY : explicit ? 40 : 4;
   const tasks = [];
   if (type === "all" || type === "diary") {
     tasks.push(fillMediaCacheWithinCapacity(
@@ -1581,7 +1581,9 @@ async function cacheOfflineMedia(userId = session?.user?.id || "public", options
     cached: summary.cached + result.cached,
     downloaded: summary.downloaded + result.downloaded,
     bytes: summary.bytes + result.bytes,
-  }), { cached: 0, downloaded: 0, bytes: 0 });
+    requested: summary.requested + result.requested,
+    complete: summary.complete && result.complete,
+  }), { cached: 0, downloaded: 0, bytes: 0, requested: 0, complete: true });
 }
 
 async function getCachedResponseBytes(response) {
@@ -1627,7 +1629,13 @@ async function fillMediaCacheWithinCapacity(cacheName, urls, maxBytes, maxDownlo
       .filter((request) => !keep.has(request.url))
       .map((request) => cache.delete(request))
   );
-  return { cached: keep.size, downloaded: downloads, bytes: usedBytes };
+  return {
+    cached: keep.size,
+    downloaded: downloads,
+    bytes: usedBytes,
+    requested: urls.length,
+    complete: keep.size >= urls.length,
+  };
 }
 
 function sanitizeCommentForCache(comment) {
@@ -1763,8 +1771,7 @@ async function getCacheStorageUsageBytes() {
     for (const request of requests) {
       const response = await cache.match(request);
       if (!response) continue;
-      const blob = await response.clone().blob().catch(() => null);
-      total += blob?.size || 0;
+      total += await getCachedResponseBytes(response);
     }
   }
   return total;
@@ -1788,8 +1795,7 @@ async function getCacheStorageBreakdown() {
     for (const request of requests) {
       const response = await cache.match(request);
       if (!response) continue;
-      const blob = await response.clone().blob().catch(() => null);
-      const bytes = blob?.size || Number(response.headers.get("content-length")) || 0;
+      const bytes = await getCachedResponseBytes(response);
       if (name === DIARY_MEDIA_CACHE_NAME) diaryBytes += bytes;
       else if (name === SECRET_MEDIA_CACHE_NAME || name === LEGACY_MEDIA_CACHE_NAME) secretBytes += bytes;
       else appBytes += bytes;
@@ -1823,13 +1829,13 @@ async function getAppCacheStats() {
 
 function renderCacheStats(stats) {
   if (!els.settingsCacheValue) return;
-  els.settingsCacheValue.textContent = `${formatFileSize(stats.totalBytes)} 受管缓存`;
+  els.settingsCacheValue.textContent = `${formatFileSize(stats.totalBytes)} 本地离线缓存`;
   const cacheHelp = els.settingsCacheValue.nextElementSibling;
   if (cacheHelp) {
     cacheHelp.textContent = `日记 ${stats.diaryEntries} 项 / ${loadCacheCapacityMb("diary")} MB · 秘藏 ${stats.secretEntries} 项 / ${loadCacheCapacityMb("secret")} MB`;
   }
   if (els.settingsCacheStatus) {
-    els.settingsCacheStatus.textContent = `日记 ${formatFileSize(stats.diaryBytes)} · 秘藏 ${formatFileSize(stats.secretBytes)} · 应用 ${formatFileSize(stats.appShellBytes)} · 文字 ${formatFileSize(stats.localBytes)}`;
+    els.settingsCacheStatus.textContent = `日记 ${formatFileSize(stats.diaryBytes)} · 秘藏 ${formatFileSize(stats.secretBytes)} · 应用外壳 ${formatFileSize(stats.appShellBytes)} · 文字索引 ${formatFileSize(stats.localBytes)}`;
     const clearHelp = els.settingsCacheStatus.nextElementSibling;
     if (clearHelp) clearHelp.textContent = "清除以上离线内容，账号和个人设置仍保留";
   }
@@ -5123,7 +5129,7 @@ function ensureCacheManagementUi() {
     const secretDownload = document.createElement("button");
     secretDownload.id = "downloadSecretOfflineButton";
     secretDownload.type = "button";
-    secretDownload.innerHTML = "<span>下载秘藏离线包</span><strong>手动缓存当前秘藏相册和图片</strong>";
+    secretDownload.innerHTML = "<span>下载全部秘藏离线包</span><strong>缓存全部秘藏相册和图片，直到达到容量上限</strong>";
     secretDownload.addEventListener("click", () => downloadOfflinePool("secret"));
     cacheGroup.insertBefore(secretDownload, els.clearAppCacheButton);
   }
@@ -5199,7 +5205,10 @@ async function downloadOfflinePool(type) {
     await navigator.storage?.persist?.().catch(() => false);
     const result = await cacheOfflineMedia(session?.user?.id || "public", { explicit: true, type });
     dismissMiniToast(toast);
-    showMiniToast(`已保存 ${result.cached} 张 · ${formatFileSize(result.bytes)}`, {
+    const completion = result.complete
+      ? `已完整缓存 ${result.cached} 个资源`
+      : `已缓存 ${result.cached}/${result.requested} 个资源，已达到容量上限`;
+    showMiniToast(`${completion} · ${formatFileSize(result.bytes)}`, {
       kind: "success",
       duration: 3200,
       placement: "center",
