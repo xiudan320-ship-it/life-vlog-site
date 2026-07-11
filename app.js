@@ -1368,8 +1368,15 @@ async function loadPhotos() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    setGlobalStatus(`读取日记失败：${error.message}`);
-    if (!photos.length) photos = [];
+    if (!navigator.onLine || /failed to fetch|network/i.test(error.message || "")) {
+      // Keep the locally rendered feed during an offline cold start. Replacing
+      // it with an empty network result makes a valid offline cache look broken.
+      renderCachedPhotoFeed(session?.user?.id || "public");
+      setGlobalStatus("当前离线，正在显示本机缓存。");
+    } else {
+      setGlobalStatus(`读取日记失败：${error.message}`);
+      if (!photos.length) photos = [];
+    }
     photoFlagsCloudAvailable = false;
   } else {
     setGlobalStatus("");
