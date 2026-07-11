@@ -1,4 +1,4 @@
-const CACHE_NAME = "life-vlog-site-20260711-153-pwa";
+const CACHE_NAME = "life-vlog-site-20260711-154-pwa";
 const APP_MEDIA_CACHES = new Set([
   "life-vlog-diary-media-cache",
   "life-vlog-secret-media-cache",
@@ -7,8 +7,8 @@ const CORE_ASSETS = [
   "./",
   "./index.html",
   "./styles.css?v=20260610-37",
-  "./redesign.css?v=20260711-153",
-  "./app.js?v=20260711-153",
+  "./redesign.css?v=20260711-154",
+  "./app.js?v=20260711-154",
   "./manifest.webmanifest",
   "./assets/food-wheel-icon.png",
   "./assets/app-icon-192.png",
@@ -48,8 +48,17 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   const isSameOrigin = url.origin === self.location.origin;
   const isImageRequest = request.destination === "image";
-  // Cross-origin R2 images are cached only by app.js, where diary and secret
-  // gallery capacity limits can be enforced. Never auto-cache every viewed image.
+  // R2 media is written into the capacity-managed diary/secret caches by
+  // app.js. Serve those entries offline, but never add viewed images here.
+  if (!isSameOrigin && isImageRequest) {
+    event.respondWith(
+      caches.match(request, { ignoreVary: true }).then((cached) => {
+        if (cached) return cached;
+        return fetch(request);
+      })
+    );
+    return;
+  }
   if (!isSameOrigin) return;
 
   if (request.mode === "navigate") {
