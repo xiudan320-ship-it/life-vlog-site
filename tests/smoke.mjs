@@ -32,5 +32,7 @@ assert.match(serviceWorker, /!isSameOrigin && isImageRequest/);
 assert.match(serviceWorker, /caches\.match\(request, \{ ignoreVary: true \}\)/);
 assert.match(app, /shouldAutoCacheMedia/);
 assert.match(app, /downloadOfflinePool/);
+assert.match(app, /Number\.POSITIVE_INFINITY/);
+assert.match(app, /await getCachedResponseBytes\(response\)/);
 
 console.log("Smoke checks passed.");
