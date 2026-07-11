@@ -1197,9 +1197,10 @@ async function createDailyBackup(env) {
     backup.tables[table] = (rows.results || []).map((row) => denormalizeRow(table, row));
   }
   const date = new Date().toISOString().slice(0, 10);
-  const key = `system-backups/d1-${date}.json`;
-  await env.R2_BUCKET.put(key, JSON.stringify(backup), {
-    httpMetadata: { contentType: "application/json", cacheControl: "private, no-store" },
+  const key = `system-backups/d1-${date}.backup`;
+  const encrypted = await encryptBackupPayload(env, backup);
+  await env.R2_BUCKET.put(key, encrypted, {
+    httpMetadata: { contentType: "application/octet-stream", cacheControl: "private, no-store" },
   });
 
   const oldBefore = Date.now() - 30 * 24 * 60 * 60 * 1000;
@@ -1213,6 +1214,82 @@ async function createDailyBackup(env) {
     cursor = listed.truncated ? listed.cursor : undefined;
   } while (cursor);
   return key;
+}
+
+async function getBackupCryptoKey(env) {
+  const secret = String(env.BACKUP_ENCRYPTION_KEY || "");
+  if (!secret) throw new Error("BACKUP_ENCRYPTION_KEY is not configured.");
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(secret));
+  return crypto.subtle.importKey("raw", digest, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
+}
+
+async function encryptBackupPayload(env, payload) {
+  const key = await getBackupCryptoKey(env);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const plain = new TextEncoder().encode(JSON.stringify(payload));
+  const encrypted = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, plain));
+  const output = new Uint8Array(iv.length + encrypted.length);
+  output.set(iv, 0);
+  output.set(encrypted, iv.length);
+  return output;
+}
+
+async function decryptBackupPayload(env, buffer) {
+  const bytes = new Uint8Array(buffer);
+  if (bytes.length < 13) throw new Error("Invalid backup file.");
+  const key = await getBackupCryptoKey(env);
+  const plain = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: bytes.slice(0, 12) },
+    key,
+    bytes.slice(12)
+  );
+  return JSON.parse(new TextDecoder().decode(plain));
+}
+
+async function requireFamilyOwner(env, user) {
+  const family = await getFamilyContext(env, user.id);
+  return family?.owner_id === user.id ? family : null;
+}
+
+async function handleBackupList(request, env, user) {
+  if (!(await requireFamilyOwner(env, user))) {
+    return jsonResponse(request, env, { error: "Only the family owner can access backups." }, 403);
+  }
+  const listed = await env.R2_BUCKET.list({ prefix: "system-backups/", limit: 100 });
+  const data = listed.objects
+    .filter((object) => object.key.endsWith(".backup"))
+    .sort((a, b) => new Date(b.uploaded) - new Date(a.uploaded))
+    .map((object) => ({ key: object.key, size: object.size, uploaded: object.uploaded }));
+  return jsonResponse(request, env, { data });
+}
+
+async function handleBackupDownload(request, env, user, key) {
+  if (!(await requireFamilyOwner(env, user))) {
+    return jsonResponse(request, env, { error: "Only the family owner can access backups." }, 403);
+  }
+  if (!key.startsWith("system-backups/") || !key.endsWith(".backup")) {
+    return jsonResponse(request, env, { error: "Invalid backup key." }, 400);
+  }
+  const object = await env.R2_BUCKET.get(key);
+  if (!object) return jsonResponse(request, env, { error: "Backup not found." }, 404);
+  const payload = await decryptBackupPayload(env, await object.arrayBuffer());
+  const filename = key.split("/").pop().replace(/\.backup$/, ".json");
+  return new Response(JSON.stringify(payload, null, 2), {
+    headers: {
+      ...getCorsHeaders(request, env),
+      "Content-Type": "application/json; charset=utf-8",
+      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Cache-Control": "private, no-store",
+    },
+  });
+}
+
+async function handleBackupRun(request, env, user) {
+  if (!(await requireFamilyOwner(env, user))) {
+    return jsonResponse(request, env, { error: "Only the family owner can create backups." }, 403);
+  }
+  const key = await createDailyBackup(env);
+  return jsonResponse(request, env, { data: { key, created_at: nowIso() } });
 }
 
 export default {
@@ -1262,6 +1339,16 @@ export default {
       }
       if (url.pathname === "/api/export" && request.method === "GET") {
         return handleD1Export(request, env, user);
+      }
+      if (url.pathname === "/api/backups" && request.method === "GET") {
+        return handleBackupList(request, env, user);
+      }
+      if (url.pathname === "/api/backups/run" && request.method === "POST") {
+        return handleBackupRun(request, env, user);
+      }
+      if (url.pathname.startsWith("/api/backups/") && request.method === "GET") {
+        const key = decodeURIComponent(url.pathname.replace("/api/backups/", ""));
+        return handleBackupDownload(request, env, user, key);
       }
       if (url.pathname.startsWith("/api/rpc/") && request.method === "POST") {
         const name = decodeURIComponent(url.pathname.replace("/api/rpc/", ""));
