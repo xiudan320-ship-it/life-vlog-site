@@ -22,5 +22,10 @@ assert.match(app, /settings-account-overview/);
 assert.match(css, /#settingsTools \.settings-tool-card/);
 assert.match(worker, /createDailyBackup/);
 assert.match(worker, /cleanupExpiredTrash/);
+assert.match(worker, /AES-GCM/);
+assert.match(worker, /handleBackupDownload/);
+assert.match(worker, /handleBackupRun/);
+assert.match(app, /backfillLegacyThumbnails/);
+assert.match(css, /body\.mobile-diary-page-open \.topbar \.main-nav/);
 
 console.log("Smoke checks passed.");
