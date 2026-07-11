@@ -17,5 +17,10 @@ assert.match(css, /body\.mobile-diary-page-open \.topbar/);
 assert.match(worker, /Only image files are allowed/);
 assert.match(worker, /configuredOrigins\.includes/);
 assert.match(schema, /CREATE TABLE IF NOT EXISTS trash_items/);
+assert.match(app, /thumbnail_url/);
+assert.match(app, /settings-account-overview/);
+assert.match(css, /#settingsTools \.settings-tool-card/);
+assert.match(worker, /createDailyBackup/);
+assert.match(worker, /cleanupExpiredTrash/);
 
 console.log("Smoke checks passed.");
