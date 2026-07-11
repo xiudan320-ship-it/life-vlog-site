@@ -7,6 +7,7 @@ const [app, css, worker, schema] = await Promise.all([
   readFile(new URL("../cloudflare-worker/src/worker.js", import.meta.url), "utf8"),
   readFile(new URL("../cloudflare-worker/schema.d1.sql", import.meta.url), "utf8"),
 ]);
+const serviceWorker = await readFile(new URL("../service-worker.js", import.meta.url), "utf8");
 
 assert.match(app, /createTrashItem\("photo"/);
 assert.match(app, /createTrashItem\(\s*"secret"/);
@@ -27,5 +28,9 @@ assert.match(worker, /handleBackupDownload/);
 assert.match(worker, /handleBackupRun/);
 assert.match(app, /backfillLegacyThumbnails/);
 assert.match(css, /body\.mobile-diary-page-open \.topbar \.main-nav/);
+assert.match(serviceWorker, /!isSameOrigin && isImageRequest/);
+assert.match(serviceWorker, /caches\.match\(request, \{ ignoreVary: true \}\)/);
+assert.match(app, /shouldAutoCacheMedia/);
+assert.match(app, /downloadOfflinePool/);
 
 console.log("Smoke checks passed.");
