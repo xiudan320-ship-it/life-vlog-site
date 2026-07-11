@@ -2499,9 +2499,26 @@ async function uploadImageFile(file, safeName, index = 1, total = 1, options = {
   );
   try {
     const uploaded = await uploadToR2(compressed.blob, safeName, folder);
+    let thumbnail = null;
+    if (options.thumbnail !== false && Math.max(compressed.width, compressed.height) > 720) {
+      try {
+        const thumbCompressed = await compressImage(file, {
+          maxSide: 640,
+          targetBytes: 140 * 1024,
+          jpeg: 0.76,
+          minJpeg: 0.5,
+          rotatePortrait: false,
+        });
+        thumbnail = await uploadToR2(thumbCompressed.blob, `${safeName}-thumb`, `${folder}-thumbs`);
+      } catch (error) {
+        console.warn("Thumbnail upload skipped:", error);
+      }
+    }
     return {
       image_path: `r2:${uploaded.key}`,
       image_url: uploaded.url,
+      thumbnail_path: thumbnail?.key ? `r2:${thumbnail.key}` : "",
+      thumbnail_url: thumbnail?.url || uploaded.url,
       width: compressed.width,
       height: compressed.height,
       original_size: compressed.originalBytes,
@@ -3025,7 +3042,7 @@ function renderFeedImage(image, altText, photoIndex, imageIndex) {
   const widthAttr = Number.isFinite(width) && width > 0 ? ` width="${Math.round(width)}"` : "";
   const heightAttr = Number.isFinite(height) && height > 0 ? ` height="${Math.round(height)}"` : "";
 
-  return `<img class="feed-image" src="${escapeHtml(image?.image_url || "")}" alt="${escapeHtml(altText)}" loading="${loading}" decoding="async" fetchpriority="${fetchPriority}"${widthAttr}${heightAttr} />`;
+  return `<img class="feed-image" src="${escapeHtml(image?.thumbnail_url || image?.image_url || "")}" data-full-src="${escapeHtml(image?.image_url || "")}" alt="${escapeHtml(altText)}" loading="${loading}" decoding="async" fetchpriority="${fetchPriority}"${widthAttr}${heightAttr} />`;
 }
 
 function getPhotoAspectStyle(image) {
@@ -3098,6 +3115,8 @@ function getPhotoImages(photo) {
     image_path: photo.image_path || "",
     width: photo.width ?? null,
     height: photo.height ?? null,
+    thumbnail_url: photo.thumbnail_url || "",
+    thumbnail_path: photo.thumbnail_path || "",
   };
   const images = storedImages.length ? storedImages : [primary];
   const seen = new Set();
@@ -3109,6 +3128,8 @@ function getPhotoImages(photo) {
       image_path: image.image_path || image.path || "",
       width: image.width ?? null,
       height: image.height ?? null,
+      thumbnail_url: image.thumbnail_url || image.thumb_url || "",
+      thumbnail_path: image.thumbnail_path || image.thumb_path || "",
     }))
     .filter((image) => {
       if (seen.has(image.image_url)) return false;
@@ -3128,9 +3149,11 @@ function composeStoredNote(noteText, images) {
     image_path: image.image_path || "",
     width: image.width ?? null,
     height: image.height ?? null,
+    thumbnail_url: image.thumbnail_url || "",
+    thumbnail_path: image.thumbnail_path || "",
   }));
 
-  if (normalizedImages.length <= 1) return cleanNote;
+  if (normalizedImages.length <= 1 && !normalizedImages[0]?.thumbnail_path) return cleanNote;
 
   const payload = encodeURIComponent(JSON.stringify(normalizedImages));
   return `${cleanNote}${cleanNote ? "\n\n" : ""}${MEDIA_META_START}${payload}${MEDIA_META_END}`;
@@ -3607,12 +3630,12 @@ async function createTrashItem(itemType, itemId, label, payload) {
 function getTrashImagePaths(item) {
   const payload = item?.payload || {};
   if (item?.item_type === "photo") {
-    return getPhotoImages(payload).map((image) => image.image_path).filter(Boolean);
+    return getPhotoImages(payload).flatMap((image) => [image.image_path, image.thumbnail_path]).filter(Boolean);
   }
   if (item?.item_type === "secret") {
     return [
       payload.cover_path,
-      ...normalizeSecretImages(payload.images).map((image) => image.image_path),
+      ...normalizeSecretImages(payload.images).flatMap((image) => [image.image_path, image.thumbnail_path]),
     ].filter(Boolean);
   }
   return [];
@@ -4444,6 +4467,7 @@ async function savePhotoEdit(event) {
       nextImages.push(uploaded);
       if (uploaded.image_path) newlyUploadedPaths.push(uploaded.image_path);
       if (image.image_path) editingRemovedPaths.add(image.image_path);
+      if (image.thumbnail_path) editingRemovedPaths.add(image.thumbnail_path);
     }
 
     const primaryImage = nextImages[0];
@@ -4607,6 +4631,7 @@ function removeEditingImage(index) {
   const image = editingImages[index];
   if (!image || !window.confirm(`删除合集中的第 ${index + 1} 张图片？`)) return;
   if (image.image_path) editingRemovedPaths.add(image.image_path);
+  if (image.thumbnail_path) editingRemovedPaths.add(image.thumbnail_path);
   if (editingPreviewUrls[index]) URL.revokeObjectURL(editingPreviewUrls[index]);
   editingImages.splice(index, 1);
   editingPreviewUrls.splice(index, 1);
@@ -5235,6 +5260,7 @@ function renderSettingsSummary() {
   ensureCacheManagementUi();
   ensureFamilySignatureUi();
   ensureDataSafetyUi();
+  renderSettingsAccountOverview();
   if (els.settingsHomeNameValue) {
     els.settingsHomeNameValue.textContent =
       accountProfile.homeName || loadHomeName(session?.user?.id) || "咻蛋之家";
@@ -6931,6 +6957,8 @@ function normalizeSecretImages(images) {
             image_path: image?.image_path || image?.path || "",
             width: image?.width ?? null,
             height: image?.height ?? null,
+            thumbnail_url: image?.thumbnail_url || image?.thumb_url || image?.image_url || image?.url || "",
+            thumbnail_path: image?.thumbnail_path || image?.thumb_path || "",
             tag: tags[0] || DEFAULT_SECRET_PHOTO_TAG,
             tags,
             favorite: Boolean(image?.favorite || image?.is_favorite || image?.tags?.includes?.(FAVORITE_SECRET_PHOTO_TAG)),
@@ -7490,7 +7518,7 @@ function renderSecretAlbumView(item) {
           .map(
             ({ image, index }) => `
               <button class="secret-album-photo ${secretSelectionMode ? "selectable" : ""} ${selectedSecretImageIndexes.has(index) ? "selected" : ""}" type="button" data-secret-photo="${index}">
-                <img src="${escapeHtml(image.image_url)}" alt="${escapeHtml(item.title || item.category || "秘藏图片")} ${index + 1}" loading="lazy" />
+                <img src="${escapeHtml(image.thumbnail_url || image.image_url)}" data-full-src="${escapeHtml(image.image_url)}" alt="${escapeHtml(item.title || item.category || "秘藏图片")} ${index + 1}" loading="lazy" decoding="async" />
                 <small class="secret-photo-tag">${escapeHtml(normalizeSecretPhotoTags(image).slice(0, 2).join(" · "))}</small>
                 ${image.favorite ? `<strong class="secret-photo-favorite">♥</strong>` : ""}
                 ${secretSelectionMode ? `<span>${selectedSecretImageIndexes.has(index) ? "已选" : String(index + 1).padStart(2, "0")}</span>` : ""}
@@ -7991,7 +8019,7 @@ async function deleteSelectedSecretImages(item) {
   if (!saved) return;
   selectedSecretImageIndexes = new Set();
   secretSelectionMode = false;
-  const paths = removedImages.map((image) => image.image_path).filter(Boolean);
+  const paths = removedImages.flatMap((image) => [image.image_path, image.thumbnail_path]).filter(Boolean);
   if (paths.length) cleanupStoredImagePaths(paths).catch(() => {});
   renderSecretGallery();
 }
@@ -8279,8 +8307,8 @@ function renderSettingsToolOrderPanel() {
             <small>${escapeHtml(meta.subtitle)}</small>
           </div>
           <div class="settings-tool-actions">
-            <button type="button" data-tool-order-move="${escapeHtml(id)}:-1" ${index === 0 ? "disabled" : ""}>上移</button>
-            <button type="button" data-tool-order-move="${escapeHtml(id)}:1" ${index === order.length - 1 ? "disabled" : ""}>下移</button>
+            <button type="button" data-tool-order-move="${escapeHtml(id)}:-1" aria-label="上移${escapeHtml(meta.title)}" title="上移" ${index === 0 ? "disabled" : ""}>↑</button>
+            <button type="button" data-tool-order-move="${escapeHtml(id)}:1" aria-label="下移${escapeHtml(meta.title)}" title="下移" ${index === order.length - 1 ? "disabled" : ""}>↓</button>
           </div>
         </article>
       `;
@@ -8301,6 +8329,22 @@ function renderSettingsToolOrderPanel() {
         applyToolDockOrder();
       });
     });
+}
+
+function renderSettingsAccountOverview() {
+  const group = document.querySelector("#settingsAccount");
+  if (!group) return;
+  let overview = group.querySelector(".settings-account-overview");
+  if (!overview) {
+    overview = document.createElement("div");
+    overview.className = "settings-account-overview";
+    group.querySelector("h3")?.after(overview);
+  }
+  const displayName = session ? getSessionDisplayName() : "未登录";
+  const username = session?.user?.user_metadata?.username || session?.user?.email?.split("@")[0] || "";
+  overview.innerHTML = `
+    <div class="settings-account-avatar">${renderAvatarMarkup(session?.user?.id, "settings-account-avatar-image")}</div>
+    <div><strong>${escapeHtml(displayName)}</strong><span>@${escapeHtml(username || displayName)}</span><small>${session ? "账户已安全同步到 Cloudflare" : "请先登录"}</small></div>`;
 }
 
 function ensureToolDockSortControls() {
