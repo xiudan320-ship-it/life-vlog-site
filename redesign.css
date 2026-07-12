@@ -3944,6 +3944,40 @@ body.theme-dark .feed-loader {
   transform: translateY(-2px);
 }
 
+.secret-album-merge {
+  display: grid;
+  grid-template-columns: auto minmax(180px, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.secret-album-merge span { color: var(--muted); font-size: 12px; font-weight: 850; }
+.secret-album-merge select, .secret-album-merge button { min-height: 38px; }
+
+.diary-back-top {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 38;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border: 1px solid color-mix(in srgb, var(--accent) 58%, var(--line));
+  border-radius: 50%;
+  background: var(--accent);
+  color: #10200d;
+  font-size: 22px;
+  font-weight: 950;
+  box-shadow: 0 16px 38px color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+.diary-back-top:hover { transform: translateY(-2px); }
+
 body.theme-dark .secret-album-toolbar {
   background: color-mix(in srgb, var(--surface) 88%, var(--accent) 12%);
 }
@@ -5109,6 +5143,27 @@ dialog {
 
 .cultivation-panel-head span { color: var(--muted); font-size: 12px; font-weight: 800; }
 .cultivation-panel-head strong { color: var(--accent); font-size: 14px; }
+.cultivation-panel-head button { border: 0; background: transparent; color: var(--accent); font-weight: 850; cursor: pointer; }
+
+.achievement-dialog { width: min(920px, calc(100vw - 28px)); max-height: min(820px, calc(100dvh - 28px)); padding: 0; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+.achievement-center { padding: 28px; }
+.achievement-center h2 { margin: 4px 0 6px; font-size: clamp(30px, 5vw, 56px); }
+.achievement-center > p:not(.kicker) { color: var(--muted); }
+.achievement-filters { display: flex; gap: 8px; overflow-x: auto; margin: 22px 0 16px; }
+.achievement-filters button { flex: 0 0 auto; min-height: 38px; padding: 0 16px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-weight: 800; }
+.achievement-filters button.active { border-color: var(--accent); background: var(--accent); color: #10200d; }
+.achievement-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.achievement-card { position: relative; display: grid; grid-template-columns: 46px 1fr auto; gap: 11px; min-height: 116px; padding: 15px; overflow: hidden; border: 1px solid var(--line); background: var(--surface); }
+.achievement-card > i { display: grid; place-items: center; width: 42px; height: 42px; border: 1px solid currentColor; border-radius: 50%; color: var(--accent); font-style: normal; font-size: 18px; font-weight: 950; }
+.achievement-card div { min-width: 0; }
+.achievement-card small, .achievement-card strong, .achievement-card p { display: block; }
+.achievement-card small { color: var(--accent); font-size: 10px; font-weight: 900; }
+.achievement-card strong { margin-top: 3px; }
+.achievement-card p { margin: 5px 0 0; color: var(--muted); font-size: 11px; }
+.achievement-card em { color: var(--muted); font-size: 11px; font-style: normal; }
+.achievement-card > span { position: absolute; right: 0; bottom: 0; left: 0; height: 4px; background: var(--bg); }
+.achievement-card > span b { display: block; height: 100%; background: var(--accent); }
+.achievement-card.locked { opacity: 0.58; }
 
 .cultivation-badge-grid {
   display: grid;
@@ -5623,6 +5678,13 @@ body.mobile-dialog-open {
 }
 
 @media (max-width: 920px) {
+  .achievement-center { padding: 20px 14px; }
+  .achievement-grid { grid-template-columns: 1fr 1fr; }
+  .achievement-card { grid-template-columns: 38px 1fr; padding: 12px; }
+  .achievement-card > i { width: 34px; height: 34px; }
+  .achievement-card > em { grid-column: 2; }
+  .secret-album-merge { grid-template-columns: 1fr; }
+  .diary-back-top { display: none !important; }
   .cultivation-archive { grid-template-columns: 1fr; }
   .cultivation-roots { grid-column: auto; }
   .cultivation-badge-grid { grid-template-columns: 1fr 1fr; }
