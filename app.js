@@ -6525,6 +6525,104 @@ function renderLevelLeaderboard() {
   `;
 }
 
+function belongsToCurrentUser(item) {
+  const ownerId = item?.user_id || item?.userId || "";
+  return !ownerId || ownerId === session?.user?.id;
+}
+
+function isDateInCurrentMonth(value) {
+  if (!value) return false;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return false;
+  const now = new Date();
+  return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
+}
+
+function getCultivationArchive() {
+  const ownPhotos = photos.filter(belongsToCurrentUser);
+  const ownRecipes = recipes.filter(belongsToCurrentUser);
+  const ownWishes = wishes.filter(belongsToCurrentUser);
+  const ownWeekendPlans = weekendPlans.filter(belongsToCurrentUser);
+  const ownSecrets = secretItems.filter(belongsToCurrentUser);
+  const ownComments = [...photoCommentPreviewMap.values()]
+    .flat()
+    .filter((comment) => comment?.user_id === session?.user?.id);
+  const streak = Math.max(0, Number(accountProfile.loginStreak) || Number(loadExperience().loginStreak) || 0);
+  const favoriteCount = favoritePhotoIds.size;
+  const completedWishes = ownWishes.filter((wish) => wish.is_done || wish.isDone).length;
+  const secretPhotoCount = ownSecrets.reduce((total, album) => total + normalizeSecretImages(album.images).length, 0);
+  const travelCount = ownPhotos.filter((photo) => ["旅行", "城市", "卢浮宫"].includes(photo.category)).length + ownWeekendPlans.length;
+
+  const badgeRules = [
+    { icon: "记", title: "执笔人", detail: "发布 10 篇日记", unlocked: ownPhotos.length >= 10 },
+    { icon: "恒", title: "恒心修士", detail: "连续签到 7 天", unlocked: streak >= 7 },
+    { icon: "愿", title: "圆梦者", detail: "完成 5 个心愿", unlocked: completedWishes >= 5 },
+    { icon: "藏", title: "藏珍客", detail: "收藏 20 张影像", unlocked: favoriteCount + secretPhotoCount >= 20 },
+    { icon: "味", title: "百味仙", detail: "记录 10 道菜谱", unlocked: ownRecipes.length >= 10 },
+    { icon: "游", title: "云游者", detail: "留下 10 次旅行记录", unlocked: travelCount >= 10 },
+  ];
+
+  const rootScores = [
+    { key: "记录", score: ownPhotos.length * 3 + ownComments.length },
+    { key: "料理", score: ownRecipes.length * 4 + ownPhotos.filter((photo) => photo.category === "食物").length * 2 },
+    { key: "探索", score: travelCount * 3 },
+    { key: "收藏", score: favoriteCount * 2 + secretPhotoCount },
+    { key: "陪伴", score: completedWishes * 2 + ownComments.length * 2 + gratitudeNotes.length },
+  ];
+  const rootTotal = Math.max(1, rootScores.reduce((sum, root) => sum + root.score, 0));
+  const primaryRoot = [...rootScores].sort((a, b) => b.score - a.score)[0];
+
+  return {
+    badges: badgeRules,
+    roots: rootScores.map((root) => ({ ...root, percent: Math.round((root.score / rootTotal) * 100) })),
+    primaryRoot: primaryRoot?.score ? primaryRoot.key : "尚未显现",
+    month: {
+      diaries: ownPhotos.filter((item) => isDateInCurrentMonth(item.created_at || item.createdAt)).length,
+      comments: ownComments.filter((item) => isDateInCurrentMonth(item.created_at || item.createdAt)).length,
+      wishes: ownWishes.filter((item) => (item.is_done || item.isDone) && isDateInCurrentMonth(item.completed_at || item.completedAt || item.updated_at || item.updatedAt)).length,
+      recipes: ownRecipes.filter((item) => isDateInCurrentMonth(item.created_at || item.createdAt)).length,
+      secrets: ownSecrets.reduce(
+        (total, album) => total + normalizeSecretImages(album.images).filter((image) => isDateInCurrentMonth(image.created_at || image.createdAt || image.uploadedAt)).length,
+        0
+      ),
+    },
+  };
+}
+
+function renderCultivationArchive() {
+  const archive = getCultivationArchive();
+  const monthLabel = new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "long" }).format(new Date());
+  return `
+    <section class="cultivation-archive">
+      <div class="cultivation-panel cultivation-badges">
+        <div class="cultivation-panel-head"><span>称号与徽章</span><strong>${archive.badges.filter((badge) => badge.unlocked).length} / ${archive.badges.length}</strong></div>
+        <div class="cultivation-badge-grid">
+          ${archive.badges.map((badge) => `
+            <article class="cultivation-badge ${badge.unlocked ? "unlocked" : "locked"}">
+              <i>${badge.icon}</i><div><strong>${badge.title}</strong><small>${badge.unlocked ? "已解锁" : badge.detail}</small></div>
+            </article>`).join("")}
+        </div>
+      </div>
+      <div class="cultivation-panel cultivation-monthly">
+        <div class="cultivation-panel-head"><span>修行月报</span><strong>${monthLabel}</strong></div>
+        <div class="cultivation-month-grid">
+          <span><b>${archive.month.diaries}</b><small>日记</small></span>
+          <span><b>${archive.month.comments}</b><small>留言</small></span>
+          <span><b>${archive.month.wishes}</b><small>圆梦</small></span>
+          <span><b>${archive.month.recipes}</b><small>菜谱</small></span>
+          <span><b>${archive.month.secrets}</b><small>秘藏</small></span>
+        </div>
+      </div>
+      <div class="cultivation-panel cultivation-roots">
+        <div class="cultivation-panel-head"><span>灵根谱</span><strong>主灵根 · ${archive.primaryRoot}</strong></div>
+        <div class="cultivation-root-list">
+          ${archive.roots.map((root) => `<div><span>${root.key}</span><i><b style="width:${root.percent}%"></b></i><em>${root.percent}%</em></div>`).join("")}
+        </div>
+      </div>
+    </section>
+  `;
+}
+
 function renderLevelDialog() {
   if (!els.levelDialog) return;
   const experience = loadExperience();
@@ -6580,7 +6678,7 @@ function renderLevelDialog() {
       </article>
     `;
   }).join("");
-  els.levelList.innerHTML = `${leaderboard}${levelGuideVisible ? `<section class="level-guide-list">${guide}</section>` : ""}`;
+  els.levelList.innerHTML = `${leaderboard}${renderCultivationArchive()}${levelGuideVisible ? `<section class="level-guide-list">${guide}</section>` : ""}`;
   els.levelList.querySelector("[data-level-guide-toggle]")?.addEventListener("click", () => {
     levelGuideVisible = !levelGuideVisible;
     renderLevelDialog();
@@ -7711,6 +7809,7 @@ function renderSecretAlbumView(item) {
           ${linkedTitle ? `<small>关联：${escapeHtml(linkedTitle)}</small>` : ""}
         </div>
         <div class="secret-album-actions">
+          <button type="button" data-secret-new-album>新建相册</button>
           <button class="primary" type="button" data-secret-toggle-append>${secretAppendExpanded ? "收起上传" : "添加相片"}</button>
           <button class="delete-secret danger" type="button" data-secret-delete-current>删除相册</button>
         </div>
@@ -7839,6 +7938,18 @@ function renderSecretAlbumView(item) {
   els.secretGallery.querySelector("[data-secret-toggle-append]")?.addEventListener("click", () => {
     secretAppendExpanded = !secretAppendExpanded;
     renderSecretGallery();
+  });
+  els.secretGallery.querySelector("[data-secret-new-album]")?.addEventListener("click", () => {
+    activeSecretAlbumId = "";
+    activeSecretFilter = "全部";
+    secretSelectionMode = false;
+    selectedSecretImageIndexes = new Set();
+    setSecretExpanded(true);
+    renderSecretGallery();
+    window.requestAnimationFrame(() => {
+      els.secretComposer?.scrollIntoView({ behavior: "smooth", block: "start" });
+      els.secretTitleInput?.focus({ preventScroll: true });
+    });
   });
   els.secretGallery.querySelector("[data-secret-edit-album]")?.addEventListener("click", () => {
     secretAlbumEditing = !secretAlbumEditing;
