@@ -274,6 +274,8 @@ let dialogLockUsesFixed = false;
 let dialogRandomMode = false;
 let dialogSecretSourceItem = null;
 let activeSecretDialogItem = null;
+let secretWheelDelta = 0;
+let secretWheelLockedUntil = 0;
 let photoDialogBackdrop = null;
 let mobileDiaryImageViewerOpen = false;
 let toolDockDragState = null;
@@ -3387,6 +3389,22 @@ function endSecretImageTouch(event) {
   secretImageGesture = null;
   suppressDialogSwipeUntil = Date.now() + 600;
   if (secretImageZoom.scale <= 1.03) resetSecretImageZoom();
+}
+
+function handleSecretViewerWheel(event) {
+  if (!isSecretImageDialogOpen() || isMobileViewport() || dialogImages.length <= 1) return;
+  if (secretImageZoom.scale > 1.01 || Date.now() < secretWheelLockedUntil) return;
+
+  const delta = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
+  if (!delta) return;
+  event.preventDefault();
+  secretWheelDelta += delta;
+  if (Math.abs(secretWheelDelta) < 48) return;
+
+  const direction = secretWheelDelta > 0 ? 1 : -1;
+  secretWheelDelta = 0;
+  secretWheelLockedUntil = Date.now() + 420;
+  moveDialogImage(direction);
 }
 
 function preloadDialogNeighbors() {
@@ -11719,6 +11737,7 @@ els.dialogMedia.addEventListener("touchstart", beginSecretImageTouch, { passive:
 els.dialogMedia.addEventListener("touchmove", moveSecretImageTouch, { passive: false });
 els.dialogMedia.addEventListener("touchend", endSecretImageTouch, { passive: false });
 els.dialogMedia.addEventListener("touchcancel", endSecretImageTouch, { passive: false });
+els.dialogMedia.addEventListener("wheel", handleSecretViewerWheel, { passive: false });
 els.dialog.addEventListener("pointerdown", beginDialogBackSwipe, true);
 els.dialog.addEventListener("pointerup", finishDialogBackSwipe, true);
 els.dialog.addEventListener("pointercancel", cancelDialogBackSwipe, true);
