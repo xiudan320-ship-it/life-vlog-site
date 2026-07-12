@@ -6564,6 +6564,16 @@ function getCultivationArchive() {
     percent: Math.min(100, Math.round((current / Math.max(1, target)) * 100)),
   });
   const collectedCount = favoriteCount + secretPhotoCount;
+  const photoHour = (photo) => new Date(photo.created_at || photo.createdAt || 0).getHours();
+  const nightDiaryCount = ownPhotos.filter((photo) => photoHour(photo) >= 0 && photoHour(photo) < 5).length;
+  const earlyDiaryCount = ownPhotos.filter((photo) => photoHour(photo) >= 5 && photoHour(photo) < 8).length;
+  const catDiaryCount = ownPhotos.filter((photo) => /猫|呱呱|噗噗|喵/i.test(`${photo.title || ""} ${photo.note || ""}`)).length;
+  const longDiaryCount = ownPhotos.filter((photo) => String(photo.note || "").length >= 800).length;
+  const nineImageCount = ownPhotos.filter((photo) => normalizePhotoImages(photo).length >= 9).length;
+  const pinnedCount = ownPhotos.filter((photo) => photo.is_pinned).length;
+  const featuredCount = ownPhotos.filter((photo) => photo.is_featured).length;
+  const foodDiaryCount = ownPhotos.filter((photo) => photo.category === "食物").length;
+  const completedWeekendCount = ownWeekendPlans.filter((plan) => plan.is_done || plan.isDone).length;
   const badgeRules = [
     makeBadge("记录", "初", "初次落笔", "发布第一篇日记", ownPhotos.length, 1),
     makeBadge("记录", "记", "执笔人", "发布 10 篇日记", ownPhotos.length, 10),
@@ -6583,6 +6593,16 @@ function getCultivationArchive() {
     makeBadge("探索", "迹", "行遍山河", "留下 30 次探索记录", travelCount, 30),
     makeBadge("收藏", "藏", "藏珍客", "收藏 20 张影像", collectedCount, 20),
     makeBadge("收藏", "阁", "万象阁主", "收藏 100 张影像", collectedCount, 100),
+    makeBadge("记录", "夜", "凌晨修仙", "在凌晨记录 3 篇日记", nightDiaryCount, 3),
+    makeBadge("记录", "晨", "早起采气", "在早晨 8 点前记录 5 篇日记", earlyDiaryCount, 5),
+    makeBadge("记录", "言", "千字真言", "写下 3 篇八百字长日记", longDiaryCount, 3),
+    makeBadge("记录", "阵", "九图阵法", "发布 3 篇九图日记", nineImageCount, 3),
+    makeBadge("陪伴", "喵", "猫德圆满", "留下 20 篇猫咪记录", catDiaryCount, 20),
+    makeBadge("陪伴", "谢", "感恩有你", "写下 10 条感谢留言", gratitudeNotes.length, 10),
+    makeBadge("探索", "周", "周末行动派", "完成 10 个周末计划", completedWeekendCount, 10),
+    makeBadge("料理", "食", "深夜食堂", "留下 20 篇食物日记", foodDiaryCount, 20),
+    makeBadge("收藏", "星", "精选策展人", "设置 7 篇精选日记", featuredCount, 7),
+    makeBadge("收藏", "顶", "镇馆之宝", "置顶 5 篇日记", pinnedCount, 5),
   ];
 
   const rootScores = [
@@ -6614,13 +6634,17 @@ function getCultivationArchive() {
 
 function renderCultivationArchive() {
   const archive = getCultivationArchive();
+  const previewBadges = [
+    ...archive.badges.filter((badge) => badge.unlocked),
+    ...archive.badges.filter((badge) => !badge.unlocked).sort((a, b) => b.percent - a.percent),
+  ].slice(0, 4);
   const monthLabel = new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "long" }).format(new Date());
   return `
     <section class="cultivation-archive">
       <div class="cultivation-panel cultivation-badges">
         <div class="cultivation-panel-head"><span>称号与徽章</span><button type="button" data-open-achievements>查看全部 · ${archive.badges.filter((badge) => badge.unlocked).length}/${archive.badges.length}</button></div>
         <div class="cultivation-badge-grid">
-          ${archive.badges.map((badge) => `
+          ${previewBadges.map((badge) => `
             <article class="cultivation-badge ${badge.unlocked ? "unlocked" : "locked"}">
               <i>${badge.icon}</i><div><strong>${badge.title}</strong><small>${badge.unlocked ? "已解锁" : badge.detail}</small></div>
             </article>`).join("")}
@@ -7871,16 +7895,6 @@ function renderSecretAlbumView(item) {
           <button class="delete-secret danger" type="button" data-secret-delete-current>删除相册</button>
         </div>
       </header>
-      ${moveTargetOptions ? `
-        <div class="secret-album-merge">
-          <span>移动整个相册</span>
-          <select data-secret-merge-target>
-            <option value="">选择目标相册</option>
-            ${moveTargetOptions}
-          </select>
-          <button type="button" data-secret-merge-album>移动并合并</button>
-        </div>
-      ` : ""}
       <button class="secret-mobile-back" type="button" data-secret-back aria-label="返回相册">‹ <span>返回相册</span></button>
       <div class="secret-album-toolbar ${secretSelectionMode && secretMobileToolsExpanded ? "tools-expanded" : ""}">
         <div class="secret-toolbar-primary">
@@ -7939,6 +7953,16 @@ function renderSecretAlbumView(item) {
                 <button class="primary" type="submit">保存相册</button>
                 <button type="button" data-secret-edit-cancel>取消</button>
               </div>
+              ${moveTargetOptions ? `
+                <div class="secret-album-merge">
+                  <span><strong>移动整个相册</strong><small>全部图片将并入目标相册，完成后删除当前空相册。</small></span>
+                  <select data-secret-merge-target>
+                    <option value="">选择目标相册</option>
+                    ${moveTargetOptions}
+                  </select>
+                  <button class="danger" type="button" data-secret-merge-album>移动并合并</button>
+                </div>
+              ` : ""}
             </form>
           `
           : ""
