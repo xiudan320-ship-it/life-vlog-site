@@ -3946,16 +3946,20 @@ body.theme-dark .feed-loader {
 
 .secret-album-merge {
   display: grid;
-  grid-template-columns: auto minmax(180px, 1fr) auto;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(180px, 1fr) minmax(180px, 0.7fr) auto;
   align-items: center;
   gap: 10px;
-  margin: 10px 0 14px;
+  margin-top: 4px;
   padding: 10px 12px;
   border: 1px solid var(--line);
   background: var(--surface);
 }
 
+.secret-album-merge span strong, .secret-album-merge span small { display: block; }
 .secret-album-merge span { color: var(--muted); font-size: 12px; font-weight: 850; }
+.secret-album-merge span strong { color: var(--ink); font-size: 13px; }
+.secret-album-merge span small { margin-top: 3px; font-weight: 600; }
 .secret-album-merge select, .secret-album-merge button { min-height: 38px; }
 
 .diary-back-top {
