@@ -203,6 +203,7 @@ let familyInvitations = [];
 let familyMemberMap = new Map();
 let familyLevelProfiles = new Map();
 let levelGuideVisible = false;
+let achievementFilter = "全部";
 let gratitudeEditingId = null;
 let activeDialogPhoto = null;
 let mobileDiaryPhoto = null;
@@ -498,6 +499,11 @@ const els = {
   levelCurrentTitle: document.querySelector("#levelCurrentTitle"),
   levelUpgradeEta: document.querySelector("#levelUpgradeEta"),
   levelList: document.querySelector("#levelList"),
+  achievementDialog: document.querySelector("#achievementDialog"),
+  closeAchievementDialog: document.querySelector("#closeAchievementDialog"),
+  achievementSummary: document.querySelector("#achievementSummary"),
+  achievementFilters: document.querySelector("#achievementFilters"),
+  achievementGrid: document.querySelector("#achievementGrid"),
   vipSummary: document.querySelector("#vipSummary"),
   vipCurrentLevel: document.querySelector("#vipCurrentLevel"),
   vipCurrentName: document.querySelector("#vipCurrentName"),
@@ -6553,13 +6559,30 @@ function getCultivationArchive() {
   const secretPhotoCount = ownSecrets.reduce((total, album) => total + normalizeSecretImages(album.images).length, 0);
   const travelCount = ownPhotos.filter((photo) => ["旅行", "城市", "卢浮宫"].includes(photo.category)).length + ownWeekendPlans.length;
 
+  const makeBadge = (category, icon, title, detail, current, target) => ({
+    category, icon, title, detail, current, target, unlocked: current >= target,
+    percent: Math.min(100, Math.round((current / Math.max(1, target)) * 100)),
+  });
+  const collectedCount = favoriteCount + secretPhotoCount;
   const badgeRules = [
-    { icon: "记", title: "执笔人", detail: "发布 10 篇日记", unlocked: ownPhotos.length >= 10 },
-    { icon: "恒", title: "恒心修士", detail: "连续签到 7 天", unlocked: streak >= 7 },
-    { icon: "愿", title: "圆梦者", detail: "完成 5 个心愿", unlocked: completedWishes >= 5 },
-    { icon: "藏", title: "藏珍客", detail: "收藏 20 张影像", unlocked: favoriteCount + secretPhotoCount >= 20 },
-    { icon: "味", title: "百味仙", detail: "记录 10 道菜谱", unlocked: ownRecipes.length >= 10 },
-    { icon: "游", title: "云游者", detail: "留下 10 次旅行记录", unlocked: travelCount >= 10 },
+    makeBadge("记录", "初", "初次落笔", "发布第一篇日记", ownPhotos.length, 1),
+    makeBadge("记录", "记", "执笔人", "发布 10 篇日记", ownPhotos.length, 10),
+    makeBadge("记录", "卷", "生活编年史", "发布 50 篇日记", ownPhotos.length, 50),
+    makeBadge("记录", "典", "人间典藏", "发布 100 篇日记", ownPhotos.length, 100),
+    makeBadge("陪伴", "恒", "恒心修士", "连续签到 7 天", streak, 7),
+    makeBadge("陪伴", "月", "月轮不息", "连续签到 30 天", streak, 30),
+    makeBadge("陪伴", "年", "百日同心", "连续签到 100 天", streak, 100),
+    makeBadge("陪伴", "愿", "初次圆梦", "完成第一个心愿", completedWishes, 1),
+    makeBadge("陪伴", "圆", "圆梦者", "完成 10 个心愿", completedWishes, 10),
+    makeBadge("陪伴", "声", "有来有往", "留下 10 条评论", ownComments.length, 10),
+    makeBadge("陪伴", "知", "知音常伴", "留下 50 条评论", ownComments.length, 50),
+    makeBadge("料理", "味", "初尝百味", "记录第一道菜谱", ownRecipes.length, 1),
+    makeBadge("料理", "膳", "百味仙", "记录 10 道菜谱", ownRecipes.length, 10),
+    makeBadge("料理", "宴", "家宴宗师", "记录 30 道菜谱", ownRecipes.length, 30),
+    makeBadge("探索", "游", "云游者", "留下 10 次探索记录", travelCount, 10),
+    makeBadge("探索", "迹", "行遍山河", "留下 30 次探索记录", travelCount, 30),
+    makeBadge("收藏", "藏", "藏珍客", "收藏 20 张影像", collectedCount, 20),
+    makeBadge("收藏", "阁", "万象阁主", "收藏 100 张影像", collectedCount, 100),
   ];
 
   const rootScores = [
@@ -6595,7 +6618,7 @@ function renderCultivationArchive() {
   return `
     <section class="cultivation-archive">
       <div class="cultivation-panel cultivation-badges">
-        <div class="cultivation-panel-head"><span>称号与徽章</span><strong>${archive.badges.filter((badge) => badge.unlocked).length} / ${archive.badges.length}</strong></div>
+        <div class="cultivation-panel-head"><span>称号与徽章</span><button type="button" data-open-achievements>查看全部 · ${archive.badges.filter((badge) => badge.unlocked).length}/${archive.badges.length}</button></div>
         <div class="cultivation-badge-grid">
           ${archive.badges.map((badge) => `
             <article class="cultivation-badge ${badge.unlocked ? "unlocked" : "locked"}">
@@ -6683,6 +6706,40 @@ function renderLevelDialog() {
     levelGuideVisible = !levelGuideVisible;
     renderLevelDialog();
   });
+  els.levelList.querySelector("[data-open-achievements]")?.addEventListener("click", openAchievementDialog);
+}
+
+function renderAchievementDialog() {
+  if (!els.achievementGrid) return;
+  const badges = getCultivationArchive().badges;
+  const unlocked = badges.filter((badge) => badge.unlocked).length;
+  const categories = ["全部", "记录", "陪伴", "探索", "料理", "收藏"];
+  els.achievementSummary.textContent = `已解锁 ${unlocked} / ${badges.length} · 成就只记录生活，不影响境界强弱。`;
+  els.achievementFilters.innerHTML = categories.map((category) => `
+    <button class="${achievementFilter === category ? "active" : ""}" type="button" data-achievement-filter="${category}">${category}</button>
+  `).join("");
+  const visible = achievementFilter === "全部" ? badges : badges.filter((badge) => badge.category === achievementFilter);
+  els.achievementGrid.innerHTML = visible.map((badge) => `
+    <article class="achievement-card ${badge.unlocked ? "unlocked" : "locked"}">
+      <i>${badge.icon}</i>
+      <div><small>${badge.category}</small><strong>${badge.title}</strong><p>${badge.unlocked ? "已经达成" : badge.detail}</p></div>
+      <em>${Math.min(badge.current, badge.target)} / ${badge.target}</em>
+      <span><b style="width:${badge.percent}%"></b></span>
+    </article>
+  `).join("");
+  els.achievementFilters.querySelectorAll("[data-achievement-filter]").forEach((button) => {
+    button.addEventListener("click", () => {
+      achievementFilter = button.dataset.achievementFilter || "全部";
+      renderAchievementDialog();
+    });
+  });
+}
+
+function openAchievementDialog() {
+  if (!els.achievementDialog) return;
+  achievementFilter = "全部";
+  renderAchievementDialog();
+  els.achievementDialog.showModal();
 }
 
 async function openLevelDialog() {
@@ -7814,6 +7871,16 @@ function renderSecretAlbumView(item) {
           <button class="delete-secret danger" type="button" data-secret-delete-current>删除相册</button>
         </div>
       </header>
+      ${moveTargetOptions ? `
+        <div class="secret-album-merge">
+          <span>移动整个相册</span>
+          <select data-secret-merge-target>
+            <option value="">选择目标相册</option>
+            ${moveTargetOptions}
+          </select>
+          <button type="button" data-secret-merge-album>移动并合并</button>
+        </div>
+      ` : ""}
       <button class="secret-mobile-back" type="button" data-secret-back aria-label="返回相册">‹ <span>返回相册</span></button>
       <div class="secret-album-toolbar ${secretSelectionMode && secretMobileToolsExpanded ? "tools-expanded" : ""}">
         <div class="secret-toolbar-primary">
@@ -7950,6 +8017,10 @@ function renderSecretAlbumView(item) {
       els.secretComposer?.scrollIntoView({ behavior: "smooth", block: "start" });
       els.secretTitleInput?.focus({ preventScroll: true });
     });
+  });
+  els.secretGallery.querySelector("[data-secret-merge-album]")?.addEventListener("click", () => {
+    const targetId = els.secretGallery.querySelector("[data-secret-merge-target]")?.value || "";
+    mergeSecretAlbumInto(item, targetId);
   });
   els.secretGallery.querySelector("[data-secret-edit-album]")?.addEventListener("click", () => {
     secretAlbumEditing = !secretAlbumEditing;
@@ -8495,6 +8566,62 @@ async function moveSelectedSecretImagesToAlbum(sourceItem, targetId) {
   activeSecretAlbumId = sourceItem.id;
   renderSecretGallery();
   setSecretStatus(`已移动 ${movingImages.length} 张到「${targetItem.title || targetItem.category || "目标相册"}」。`);
+}
+
+async function mergeSecretAlbumInto(sourceItem, targetId) {
+  if (!sourceItem || !targetId || !cloudDb || !session) return;
+  const targetItem = secretItems.find((entry) => entry.id === targetId);
+  if (!targetItem || targetItem.id === sourceItem.id) return;
+  const sourceImages = normalizeSecretImages(sourceItem.images);
+  const targetImages = normalizeSecretImages(targetItem.images);
+  if (targetImages.length + sourceImages.length > SECRET_ALBUM_IMAGE_LIMIT) {
+    setSecretStatus(`合并后会超过每个相册 ${SECRET_ALBUM_IMAGE_LIMIT} 张的上限。`);
+    return;
+  }
+  const targetName = targetItem.title || targetItem.category || "目标相册";
+  if (!confirm(`把「${sourceItem.title || sourceItem.category || "当前相册"}」的 ${sourceImages.length} 张照片全部移动到「${targetName}」？原相册随后会被删除。`)) return;
+
+  const originalTargetImages = [...targetImages];
+  const mergedImages = [...targetImages, ...sourceImages];
+  const now = new Date().toISOString();
+  setSecretStatus("正在合并相册...");
+  const targetUpdates = {
+    images: mergedImages,
+    cover_image: targetItem.coverImage || mergedImages[0]?.image_url || "",
+    cover_path: targetItem.coverPath || mergedImages[0]?.image_path || "",
+    updated_at: now,
+  };
+  const targetResult = await cloudDb
+    .from("secret_items")
+    .update(targetUpdates)
+    .eq("id", targetItem.id)
+    .eq("user_id", session.user.id);
+  if (targetResult.error) {
+    setSecretStatus(targetResult.error.message || "无法写入目标相册。");
+    return;
+  }
+
+  const deleteResult = await cloudDb
+    .from("secret_items")
+    .delete()
+    .eq("id", sourceItem.id)
+    .eq("user_id", session.user.id);
+  if (deleteResult.error) {
+    await cloudDb
+      .from("secret_items")
+      .update({ images: originalTargetImages, updated_at: targetItem.updatedAt || now })
+      .eq("id", targetItem.id)
+      .eq("user_id", session.user.id);
+    setSecretStatus(deleteResult.error.message || "删除原相册失败，合并已回滚。");
+    return;
+  }
+
+  activeSecretAlbumId = targetItem.id;
+  activeSecretFilter = "全部";
+  await loadSecretItems();
+  renderSecretGallery();
+  setSecretStatus(`已合并到「${targetName}」。`);
+  showMiniToast("相册移动完成", { kind: "success" });
 }
 
 async function appendSecretAlbumImages(options = {}) {
@@ -11401,6 +11528,23 @@ function setGlobalStatus(message) {
   els.globalStatus.hidden = !message;
 }
 
+function updateDiaryBackTopButton() {
+  let button = document.querySelector("#diaryBackTop");
+  const shouldShow = !isMobileViewport() && activePage === "gallery" && window.scrollY > 720;
+  if (!button && shouldShow) {
+    button = document.createElement("button");
+    button.id = "diaryBackTop";
+    button.className = "diary-back-top";
+    button.type = "button";
+    button.textContent = "↑";
+    button.setAttribute("aria-label", "回到日记顶部");
+    button.title = "回到顶部";
+    button.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
+    document.body.append(button);
+  }
+  if (button) button.hidden = !shouldShow;
+}
+
 function setStatus(message) {
   els.uploadStatus.textContent = message;
 }
@@ -11739,6 +11883,10 @@ els.recoveryKeyDialog.addEventListener("click", (event) => {
 els.recoveryKeyDialog.addEventListener("close", reopenSettingsAfterChildDialog);
 els.recoveryKeyForm.addEventListener("submit", saveRecoveryKey);
 els.closeLevelDialog?.addEventListener("click", () => els.levelDialog.close());
+els.closeAchievementDialog?.addEventListener("click", () => els.achievementDialog.close());
+els.achievementDialog?.addEventListener("click", (event) => {
+  if (event.target === els.achievementDialog) els.achievementDialog.close();
+});
 els.levelDialog?.addEventListener("click", (event) => {
   if (event.target === els.levelDialog) els.levelDialog.close();
 });
@@ -11895,8 +12043,12 @@ window.addEventListener("resize", () => {
   updateReadMoreHints.resizeTimer = window.setTimeout(() => updateReadMoreHints(els.gallery), 120);
   scheduleGalleryMasonryLayout();
   updateSecretToolbarTop();
+  updateDiaryBackTopButton();
 });
-window.addEventListener("scroll", updateSecretToolbarTop, { passive: true });
+window.addEventListener("scroll", () => {
+  updateSecretToolbarTop();
+  updateDiaryBackTopButton();
+}, { passive: true });
 
 registerAppShellWorker();
 updateDiarySearchUi();
