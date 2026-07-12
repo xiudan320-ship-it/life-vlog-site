@@ -6569,7 +6569,7 @@ function getCultivationArchive() {
   const earlyDiaryCount = ownPhotos.filter((photo) => photoHour(photo) >= 5 && photoHour(photo) < 8).length;
   const catDiaryCount = ownPhotos.filter((photo) => /猫|呱呱|噗噗|喵/i.test(`${photo.title || ""} ${photo.note || ""}`)).length;
   const longDiaryCount = ownPhotos.filter((photo) => String(photo.note || "").length >= 800).length;
-  const nineImageCount = ownPhotos.filter((photo) => normalizePhotoImages(photo).length >= 9).length;
+  const nineImageCount = ownPhotos.filter((photo) => getPhotoImages(photo).length >= 9).length;
   const pinnedCount = ownPhotos.filter((photo) => photo.is_pinned).length;
   const featuredCount = ownPhotos.filter((photo) => photo.is_featured).length;
   const foodDiaryCount = ownPhotos.filter((photo) => photo.category === "食物").length;
