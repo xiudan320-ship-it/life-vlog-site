@@ -17,7 +17,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="./assets/app-icon-32.png" />
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
     <link rel="stylesheet" href="./styles.css?v=20260610-37" />
-    <link rel="stylesheet" href="./redesign.css?v=20260712-158" />
+    <link rel="stylesheet" href="./redesign.css?v=20260712-159" />
   </head>
   <body>
     <header class="topbar">
@@ -1217,7 +1217,17 @@
         <div class="level-list" id="levelList"></div>
       </section>
     </dialog>
+    <dialog class="account-dialog achievement-dialog" id="achievementDialog">
+      <button class="dialog-close" id="closeAchievementDialog" type="button" aria-label="关闭">×</button>
+      <section class="achievement-center">
+        <p class="kicker">CULTIVATION ARCHIVE</p>
+        <h2>修行成就录</h2>
+        <p id="achievementSummary"></p>
+        <nav class="achievement-filters" id="achievementFilters" aria-label="成就分类"></nav>
+        <div class="achievement-grid" id="achievementGrid"></div>
+      </section>
+    </dialog>
 
-    <script type="module" src="./app.js?v=20260712-158"></script>
+    <script type="module" src="./app.js?v=20260712-159"></script>
   </body>
 </html>
