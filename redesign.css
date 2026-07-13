@@ -5682,6 +5682,8 @@ body.mobile-dialog-open {
 }
 
 @media (max-width: 920px) {
+  .diagnostic-row { grid-template-columns: 30px minmax(0, 1fr); }
+  .diagnostic-row > em { grid-column: 2; text-align: left; }
   .achievement-center { padding: 20px 14px; }
   .achievement-grid { grid-template-columns: 1fr 1fr; }
   .achievement-card { grid-template-columns: 38px 1fr; padding: 12px; }
@@ -7957,6 +7959,19 @@ body.mobile-dialog-open {
 .cloud-backup-list {
   display: grid;
 }
+
+#latestBackupStatus { display: block; margin-top: 5px; color: var(--accent); font-size: 11px; font-style: normal; }
+.diagnostic-results, .upload-center-list { display: grid; gap: 8px; margin-top: 14px; }
+.diagnostic-row, .upload-queue-item { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; align-items: center; gap: 11px; padding: 12px; border: 1px solid var(--line); background: var(--surface); }
+.diagnostic-row > i { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: #10200d; font-style: normal; font-weight: 950; }
+.diagnostic-row.warn > i { background: var(--gold); }
+.diagnostic-row.bad > i { background: var(--coral); color: #fff; }
+.diagnostic-row strong, .diagnostic-row small, .upload-queue-item strong, .upload-queue-item small { display: block; }
+.diagnostic-row small, .upload-queue-item small { margin-top: 3px; color: var(--muted); font-size: 11px; }
+.diagnostic-row em { color: var(--muted); font-size: 12px; font-style: normal; font-weight: 850; text-align: right; }
+.upload-queue-item { grid-template-columns: minmax(0, 1fr) auto; }
+.upload-center-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; }
+.upload-center-head button, .upload-queue-item button { min-height: 36px; }
 
 .settings-group .cloud-backup-item {
   min-height: 54px;
