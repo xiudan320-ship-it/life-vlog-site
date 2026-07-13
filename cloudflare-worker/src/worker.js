@@ -811,6 +811,61 @@ async function getFamilyContext(env, userId) {
   return { ...family, members: members.results || [] };
 }
 
+async function createActivityNotifications(env, table, rows, actorId) {
+  const insertNotification = async ({ userId, type, photoId = null, commentId = null, body = "" }) => {
+    if (!userId || userId === actorId) return;
+    await env.DB.prepare(
+      `insert into notifications (id, user_id, actor_id, type, photo_id, comment_id, body, is_read, created_at)
+       values (?, ?, ?, ?, ?, ?, ?, 0, ?)`
+    )
+      .bind(randomId(), userId, actorId, type, photoId, commentId, String(body || "").slice(0, 240), nowIso())
+      .run();
+  };
+
+  for (const row of rows) {
+    if (table === "photos" || table === "gratitude_notes") {
+      const familyUserIds = await getFamilyUserIds(env, actorId);
+      await Promise.all(
+        familyUserIds
+          .filter((userId) => userId !== actorId)
+          .map((userId) =>
+            insertNotification({
+              userId,
+              type: table === "photos" ? "diary" : "thanks",
+              photoId: table === "photos" ? row.id : null,
+              body: table === "photos" ? row.title || row.note : row.body,
+            })
+          )
+      );
+      continue;
+    }
+
+    if (table === "photo_favorites") {
+      const photo = await env.DB.prepare("select user_id from photos where id=?").bind(row.photo_id).first();
+      await insertNotification({ userId: photo?.user_id, type: "favorite", photoId: row.photo_id });
+      continue;
+    }
+
+    if (table === "photo_comments") {
+      const photo = await env.DB.prepare("select user_id from photos where id=?").bind(row.photo_id).first();
+      let recipientId = photo?.user_id;
+      let type = "comment";
+      if (row.parent_id) {
+        const parent = await env.DB.prepare("select user_id from photo_comments where id=?").bind(row.parent_id).first();
+        recipientId = parent?.user_id || recipientId;
+        type = "reply";
+      }
+      await insertNotification({
+        userId: recipientId,
+        type,
+        photoId: row.photo_id,
+        commentId: row.id,
+        body: row.body,
+      });
+    }
+  }
+}
+
 async function selectVisibleRows(env, table, userId, orderBy = "created_at desc") {
   const userIds = await getFamilyUserIds(env, userId);
   const placeholders = userIds.map(() => "?").join(",");
@@ -1065,6 +1120,9 @@ async function handleTableApi(request, env, user, table) {
       ? String(payload.onConflict).split(",").map((item) => item.trim()).filter(Boolean)
       : config.conflictColumns || [config.columns.includes("id") ? "id" : config.columns[0]];
     const count = await upsertRows(env, table, sanitizedRows, config.columns, action === "upsert" ? conflict : undefined);
+    if (action === "insert" && ["photos", "gratitude_notes", "photo_favorites", "photo_comments"].includes(table)) {
+      await createActivityNotifications(env, table, sanitizedRows, user.id);
+    }
     return jsonResponse(request, env, {
       data: sanitizedRows.map((row) => denormalizeRow(table, row)),
       count,
