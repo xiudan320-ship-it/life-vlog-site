@@ -2423,6 +2423,7 @@ async function enqueueDiaryUpload(payload) {
     tx.onerror = () => reject(tx.error || new Error("写入上传队列失败。"));
   });
   db.close();
+  void renderUploadCenter();
 }
 
 async function getQueuedDiaryUploads(userId = session?.user?.id || "") {
@@ -2449,6 +2450,7 @@ async function removeQueuedDiaryUpload(id) {
     tx.onerror = () => reject(tx.error || new Error("删除上传队列失败。"));
   });
   db.close();
+  void renderUploadCenter();
 }
 
 async function processDiaryUploadQueue() {
@@ -2467,6 +2469,7 @@ async function processDiaryUploadQueue() {
     setStatus(`上传队列等待网络恢复：${error.message || "稍后重试"}`);
   } finally {
     uploadQueueProcessing = false;
+    void renderUploadCenter();
   }
 }
 
@@ -5190,7 +5193,7 @@ function ensureCacheManagementUi() {
     button.textContent = `${value} / ${value * 3} MB`;
   });
   const hint = form?.querySelector(".cache-limit-hint");
-  if (hint) hint.textContent = "前一个数字是日记容量，后一个是秘藏容量。仅在缺少图片时补缓存，每次最多下载 6 张。";
+  if (hint) hint.textContent = "前一个数字是日记容量，后一个是秘藏容量。自动缓存会小批量补充；手动离线包会缓存到容量上限。";
 
   const group = els.cacheLimitButton.parentElement;
   if (group && !document.querySelector("#clearDiaryCacheButton")) {
@@ -5341,6 +5344,12 @@ async function renderCloudBackups() {
   try {
     const result = await cloudflareRequest("/api/backups");
     const backups = Array.isArray(result.data) ? result.data : [];
+    const latest = document.querySelector("#latestBackupStatus");
+    if (latest) {
+      latest.textContent = backups.length
+        ? `最近备份：${String(backups[0].key).split("/").pop().replace(/^d1-|\.backup$/g, "")} · ${formatFileSize(backups[0].size)}`
+        : "尚未生成自动备份";
+    }
     if (!backups.length) {
       list.innerHTML = '<p class="settings-empty">自动备份将在每天凌晨生成。</p>';
       return;
@@ -5470,7 +5479,7 @@ function ensureDataSafetyUi() {
     <p class="kicker">Data Safety</p><h3>备份与回收站</h3>
     <button id="downloadFamilyBackupButton" type="button"><span>下载家庭备份</span><strong>导出 D1 中的日记、评论、心愿、菜谱和秘藏索引</strong></button>
     <button id="backfillThumbnailsButton" type="button"><span>优化旧图片</span><strong>每次为最多 20 张旧图生成列表缩略图</strong></button>
-    <div class="trash-head"><div><strong>加密自动备份</strong><small>每天生成，保留最近 30 天，仅家庭创始人可下载</small></div><div class="backup-head-actions"><button type="button" data-create-backup>立即备份</button><button type="button" data-refresh-backups aria-label="刷新备份">↻</button></div></div>
+    <div class="trash-head"><div><strong>加密自动备份</strong><small>每天生成，保留最近 30 天，仅家庭创始人可下载</small><em id="latestBackupStatus">正在检查最近备份…</em></div><div class="backup-head-actions"><button type="button" data-create-backup>立即备份</button><button type="button" data-refresh-backups aria-label="刷新备份">↻</button></div></div>
     <div class="cloud-backup-list" id="cloudBackupList"></div>
     <div class="trash-head"><div><strong>回收站</strong><small>日记和秘藏保留 30 天，原图在永久删除前不会清理</small></div><button type="button" data-refresh-trash aria-label="刷新回收站">↻</button></div>
     <div class="trash-items" id="trashItemsList"></div>`;
@@ -5480,6 +5489,100 @@ function ensureDataSafetyUi() {
   group.querySelector("[data-create-backup]").addEventListener("click", createCloudBackupNow);
   group.querySelector("[data-refresh-backups]").addEventListener("click", renderCloudBackups);
   group.querySelector("[data-refresh-trash]").addEventListener("click", renderTrashItems);
+}
+
+function createSettingsSection(id, label, title, kicker = "System") {
+  const settingsNav = els.settingsDialog?.querySelector(".settings-sidebar nav");
+  const content = els.settingsDialog?.querySelector(".settings-content");
+  if (!settingsNav || !content) return null;
+  if (!settingsNav.querySelector(`[data-settings-section="${id}"]`)) {
+    const nav = document.createElement("button");
+    nav.type = "button";
+    nav.dataset.settingsSection = id;
+    nav.setAttribute("aria-selected", "false");
+    nav.textContent = label;
+    nav.addEventListener("click", () => setActiveSettingsSection(id));
+    settingsNav.append(nav);
+  }
+  let group = document.querySelector(`#${id}`);
+  if (!group) {
+    group = document.createElement("section");
+    group.id = id;
+    group.className = "settings-group stability-settings";
+    group.hidden = true;
+    group.innerHTML = `<p class="kicker">${kicker}</p><h3>${title}</h3>`;
+    content.append(group);
+  }
+  return group;
+}
+
+async function getCachedUrlHitCount(urls) {
+  if (!("caches" in window)) return { cached: 0, total: urls.length };
+  let cached = 0;
+  for (const url of [...new Set(urls)]) {
+    if (await caches.match(url, { ignoreVary: true })) cached += 1;
+  }
+  return { cached, total: [...new Set(urls)].length };
+}
+
+function diagnosticRow(label, value, state = "ok", detail = "") {
+  return `<article class="diagnostic-row ${state}"><i>${state === "ok" ? "✓" : state === "warn" ? "!" : "×"}</i><div><strong>${label}</strong>${detail ? `<small>${detail}</small>` : ""}</div><em>${value}</em></article>`;
+}
+
+async function runOfflineDiagnostics() {
+  const output = document.querySelector("#diagnosticResults");
+  if (!output) return;
+  output.innerHTML = '<p class="settings-empty">正在检查应用、缓存和上传队列…</p>';
+  const [stats, diaryHits, secretHits, queued, persisted] = await Promise.all([
+    getAppCacheStats(),
+    getCachedUrlHitCount(collectDiaryOfflineMediaUrls()),
+    getCachedUrlHitCount(collectSecretOfflineMediaUrls()),
+    getQueuedDiaryUploads().catch(() => []),
+    navigator.storage?.persisted?.().catch(() => false) || false,
+  ]);
+  const controlled = Boolean(navigator.serviceWorker?.controller);
+  const shellReady = stats.appEntries > 0 && controlled;
+  output.innerHTML = [
+    diagnosticRow("当前网络", navigator.onLine ? "在线" : "离线", navigator.onLine ? "ok" : "warn", navigator.onLine ? "云端同步可用" : "正在使用本机内容"),
+    diagnosticRow("离线启动", shellReady ? "可用" : "需要联网打开一次", shellReady ? "ok" : "bad", `应用外壳 ${stats.appEntries} 项`),
+    diagnosticRow("登录凭据", session ? "已保留" : "未登录", session ? "ok" : "warn", session?.offline_only ? "当前为离线只读身份" : "可访问家庭云端"),
+    diagnosticRow("日记图片", `${diaryHits.cached}/${diaryHits.total}`, diaryHits.total && diaryHits.cached === diaryHits.total ? "ok" : "warn", `${formatFileSize(stats.diaryBytes)} 已缓存`),
+    diagnosticRow("秘藏图片", `${secretHits.cached}/${secretHits.total}`, secretHits.total && secretHits.cached === secretHits.total ? "ok" : "warn", `${formatFileSize(stats.secretBytes)} 已缓存`),
+    diagnosticRow("上传队列", `${queued.length} 项`, queued.length ? "warn" : "ok", queued.length ? "联网后可在上传中心重试" : "没有等待上传的内容"),
+    diagnosticRow("持久存储", persisted ? "已授权" : "由系统管理", persisted ? "ok" : "warn", persisted ? "系统会尽量避免回收缓存" : "空间紧张时浏览器可能回收缓存"),
+  ].join("");
+}
+
+async function renderUploadCenter() {
+  const list = document.querySelector("#uploadCenterList");
+  if (!list) return;
+  const queued = await getQueuedDiaryUploads().catch(() => []);
+  const status = document.querySelector("#uploadCenterStatus");
+  if (status) status.textContent = uploadQueueProcessing ? "正在上传…" : queued.length ? `${queued.length} 篇等待上传` : "队列为空";
+  if (!queued.length) {
+    list.innerHTML = '<p class="settings-empty">没有等待上传的日记。弱网或断网发布时，任务会自动出现在这里。</p>';
+    return;
+  }
+  list.innerHTML = queued.map((item) => {
+    const bytes = (item.files || []).reduce((sum, entry) => sum + Number(entry.size || entry.file?.size || 0), 0);
+    return `<article class="upload-queue-item" data-upload-id="${escapeHtml(item.id)}"><div><strong>${escapeHtml(item.title || item.rawTitle || "无标题日记")}</strong><small>${formatDateTime(item.queuedAt || item.createdAt)} · ${(item.files || []).length} 张 · ${formatFileSize(bytes)}</small></div><button class="danger" type="button" data-remove-upload>移除</button></article>`;
+  }).join("");
+  list.querySelectorAll("[data-upload-id]").forEach((row) => {
+    row.querySelector("[data-remove-upload]")?.addEventListener("click", () => removeQueuedDiaryUpload(row.dataset.uploadId));
+  });
+}
+
+function ensureStabilitySettingsUi() {
+  const diagnostics = createSettingsSection("settingsDiagnostics", "诊断", "离线与运行诊断", "Diagnostics");
+  if (diagnostics && !diagnostics.querySelector("#diagnosticResults")) {
+    diagnostics.insertAdjacentHTML("beforeend", `<p>检查当前设备是否真的可以离线启动，以及日记和秘藏图片的实际缓存命中情况。</p><button type="button" data-run-diagnostics><span>开始诊断</span><strong>不会上传任何设备信息</strong></button><div class="diagnostic-results" id="diagnosticResults"></div>`);
+    diagnostics.querySelector("[data-run-diagnostics]").addEventListener("click", runOfflineDiagnostics);
+  }
+  const uploads = createSettingsSection("settingsUploads", "上传", "上传任务中心", "Transfers");
+  if (uploads && !uploads.querySelector("#uploadCenterList")) {
+    uploads.insertAdjacentHTML("beforeend", `<div class="upload-center-head"><strong id="uploadCenterStatus">正在读取…</strong><button type="button" data-retry-uploads>立即重试</button></div><div class="upload-center-list" id="uploadCenterList"></div>`);
+    uploads.querySelector("[data-retry-uploads]").addEventListener("click", () => processDiaryUploadQueue());
+  }
 }
 
 function ensureFamilySignatureUi() {
@@ -5555,6 +5658,7 @@ function renderSettingsSummary() {
   ensureCacheManagementUi();
   ensureFamilySignatureUi();
   ensureDataSafetyUi();
+  ensureStabilitySettingsUi();
   renderSettingsAccountOverview();
   if (els.settingsHomeNameValue) {
     els.settingsHomeNameValue.textContent =
@@ -11106,7 +11210,7 @@ function bindSettingsFamilyActions() {
 }
 
 function setActiveSettingsSection(sectionId = "settingsGeneral") {
-  const allowedSections = ["settingsGeneral", "settingsCache", "settingsTools", "settingsAccount", "settingsFamily", "settingsSafety"];
+  const allowedSections = ["settingsGeneral", "settingsCache", "settingsTools", "settingsAccount", "settingsFamily", "settingsSafety", "settingsDiagnostics", "settingsUploads"];
   const nextSection = allowedSections.includes(sectionId) ? sectionId : "settingsGeneral";
   activeSettingsSection = nextSection;
 
@@ -11121,6 +11225,8 @@ function setActiveSettingsSection(sectionId = "settingsGeneral") {
 
   if (nextSection === "settingsTools") renderSettingsToolOrderPanel();
   if (nextSection === "settingsFamily") renderSettingsFamilyPanel();
+  if (nextSection === "settingsDiagnostics") void runOfflineDiagnostics();
+  if (nextSection === "settingsUploads") void renderUploadCenter();
 }
 
 function openSettingsDialog(sectionId = activeSettingsSection || "settingsGeneral") {
