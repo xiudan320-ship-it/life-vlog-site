@@ -7705,7 +7705,7 @@ body.mobile-dialog-open {
     height: 100dvh !important;
     min-height: 0 !important;
     overflow-y: auto !important;
-    transition: transform 220ms cubic-bezier(0.2, 0.76, 0.18, 1) !important;
+    transition: transform 150ms cubic-bezier(0.2, 0.82, 0.2, 1) !important;
   }
 
   .mobile-diary-page.is-back-swiping {
@@ -7713,7 +7713,7 @@ body.mobile-dialog-open {
   }
 
   .mobile-diary-page.is-back-committing {
-    transition: transform 220ms cubic-bezier(0.2, 0.76, 0.18, 1) !important;
+    transition: transform 150ms cubic-bezier(0.2, 0.82, 0.2, 1) !important;
   }
 
   .mobile-diary-media {
