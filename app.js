@@ -4248,7 +4248,7 @@ function moveMobileDiaryBackSwipe(event) {
   const rawDeltaX = event.clientX - mobileDiaryBackSwipeStart.x;
   const deltaX = mobileDiaryBackSwipeStart.edge === "left" ? Math.max(0, rawDeltaX) : Math.min(0, rawDeltaX);
   const deltaY = Math.abs(event.clientY - mobileDiaryBackSwipeStart.y);
-  if (!mobileDiaryBackSwipeStart.tracking && Math.abs(deltaX) < 8) return;
+  if (!mobileDiaryBackSwipeStart.tracking && Math.abs(deltaX) < 5) return;
   if (!mobileDiaryBackSwipeStart.tracking && deltaY > Math.abs(deltaX)) {
     mobileDiaryBackSwipeStart = null;
     return;
@@ -4264,7 +4264,12 @@ function moveMobileDiaryBackSwipe(event) {
 function endMobileDiaryBackSwipe(event) {
   if (!mobileDiaryBackSwipeStart) return;
   const closingEdge = mobileDiaryBackSwipeStart.edge;
-  const shouldClose = isEdgeBackSwipe(mobileDiaryBackSwipeStart, event, { threshold: 68, ratio: 1.25, maxElapsed: 1000 });
+  const elapsed = Math.max(1, Date.now() - mobileDiaryBackSwipeStart.time);
+  const distance = Math.abs(event.clientX - mobileDiaryBackSwipeStart.x);
+  const velocity = distance / elapsed;
+  const shouldClose =
+    isEdgeBackSwipe(mobileDiaryBackSwipeStart, event, { threshold: 48, ratio: 1.08, maxElapsed: 1200 }) ||
+    (distance > 26 && velocity > 0.32);
   mobileDiaryBackSwipeStart = null;
   mobileDiaryPage.classList.remove("is-back-swiping");
   if (shouldClose) {
@@ -4273,7 +4278,7 @@ function endMobileDiaryBackSwipe(event) {
       "--back-swipe-x",
       closingEdge === "right" ? "-100vw" : "100vw"
     );
-    window.setTimeout(closeMobileDiaryPage, 220);
+    window.setTimeout(closeMobileDiaryPage, 150);
     return;
   }
   mobileDiaryPage.style.setProperty("--back-swipe-x", "0px");
@@ -4314,7 +4319,12 @@ function endMobileDiaryImageSwipe(event) {
   const deltaY = Math.abs(event.clientY - mobileDiaryImageSwipeStart.y);
   const elapsed = Date.now() - mobileDiaryImageSwipeStart.time;
   mobileDiaryImageSwipeStart = null;
-  const horizontal = Math.abs(deltaX) > 48 && Math.abs(deltaX) > deltaY * 1.25 && elapsed < 900;
+  const velocity = Math.abs(deltaX) / Math.max(1, elapsed);
+  const horizontal =
+    Math.abs(deltaX) > 26 &&
+    Math.abs(deltaX) > deltaY * 1.05 &&
+    elapsed < 1200 &&
+    (Math.abs(deltaX) > 42 || velocity > 0.28);
   if (!horizontal) return;
   mobileDiarySuppressImageClickUntil = Date.now() + 450;
   moveMobileDiaryImage(deltaX < 0 ? 1 : -1);
