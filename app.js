@@ -3268,6 +3268,14 @@ function isSecretImageDialogOpen() {
   return Boolean(els.dialog?.open && els.dialog.classList.contains("secret-image-dialog"));
 }
 
+function isZoomableImageDialogOpen() {
+  return Boolean(
+    els.dialog?.open &&
+      (els.dialog.classList.contains("secret-image-dialog") ||
+        els.dialog.classList.contains("mobile-diary-image-viewer"))
+  );
+}
+
 function applySecretImageZoom() {
   if (!els.dialogImage) return;
   const { scale, x, y } = secretImageZoom;
@@ -3310,7 +3318,7 @@ function getTouchCenter(touches) {
 }
 
 function beginSecretImageTouch(event) {
-  if (!isSecretImageDialogOpen()) return;
+  if (!isZoomableImageDialogOpen()) return;
   if (event.touches.length === 2) {
     const touches = Array.from(event.touches);
     dialogSwipeStart = null;
@@ -3343,7 +3351,7 @@ function beginSecretImageTouch(event) {
 }
 
 function moveSecretImageTouch(event) {
-  if (!isSecretImageDialogOpen() || !secretImageGesture) return;
+  if (!isZoomableImageDialogOpen() || !secretImageGesture) return;
   if (secretImageGesture.type === "pinch" && event.touches.length >= 2) {
     const touches = Array.from(event.touches);
     const distance = getTouchDistance(touches);
@@ -3379,7 +3387,7 @@ function moveSecretImageTouch(event) {
 }
 
 function endSecretImageTouch(event) {
-  if (!isSecretImageDialogOpen()) return;
+  if (!isZoomableImageDialogOpen()) return;
   if (event.touches.length >= 2) {
     beginSecretImageTouch(event);
     return;
@@ -3557,7 +3565,7 @@ function getMobileBackEdge(clientX) {
 
 function beginDialogSwipe(event) {
   if (dialogImages.length <= 1 || event.target.closest("button")) return;
-  if (isSecretImageDialogOpen()) {
+  if (isZoomableImageDialogOpen()) {
     if (secretImageGesture || secretImageZoom.scale > 1.01 || Date.now() < suppressDialogSwipeUntil) return;
   }
   dialogSwipeStart = {
@@ -3572,7 +3580,7 @@ function beginDialogSwipe(event) {
 
 function moveDialogSwipe(event) {
   if (!dialogSwipeStart || dialogSwipeStart.id !== event.pointerId) return;
-  if (isSecretImageDialogOpen() && (secretImageGesture || secretImageZoom.scale > 1.01)) return;
+  if (isZoomableImageDialogOpen() && (secretImageGesture || secretImageZoom.scale > 1.01)) return;
   const deltaX = event.clientX - dialogSwipeStart.x;
   const deltaY = Math.abs(event.clientY - dialogSwipeStart.y);
   if (!dialogSwipeStart.tracking && Math.abs(deltaX) < 7) return;
@@ -3590,7 +3598,7 @@ function moveDialogSwipe(event) {
 
 function finishDialogSwipe(event) {
   if (!dialogSwipeStart || dialogSwipeStart.id !== event.pointerId) return;
-  if (isSecretImageDialogOpen()) {
+  if (isZoomableImageDialogOpen()) {
     if (secretImageGesture || secretImageZoom.scale > 1.01 || Date.now() < suppressDialogSwipeUntil) {
       dialogSwipeStart = null;
       return;
@@ -3891,6 +3899,7 @@ function closePhotoDialog() {
 function openMobileDiaryImageViewer() {
   if (!mobileDiaryPhoto) return;
   mobileDiaryImageViewerOpen = true;
+  resetSecretImageZoom();
   if (mobileDiaryPage) mobileDiaryPage.hidden = true;
   activeDialogPhoto = mobileDiaryPhoto;
   activeSecretDialogItem = null;
@@ -3913,6 +3922,7 @@ function openMobileDiaryImageViewer() {
 function closeMobileDiaryImageViewer() {
   if (!mobileDiaryImageViewerOpen) return;
   mobileDiaryImageViewerOpen = false;
+  resetSecretImageZoom();
   mobileDiaryImageIndex = dialogImageIndex;
   els.dialog.removeAttribute("open");
   els.dialog.classList.remove("mobile-diary-image-viewer", "no-comments-dialog");
@@ -4018,10 +4028,11 @@ function ensureMobileDiaryPage() {
   mobileDiaryPage.addEventListener("pointermove", moveMobileDiaryBackSwipe, { passive: true });
   mobileDiaryPage.addEventListener("pointerup", endMobileDiaryBackSwipe, { passive: true });
   mobileDiaryPage.addEventListener("pointerdown", beginMobileDiaryImageSwipe, { passive: true });
+  mobileDiaryPage.addEventListener("pointermove", moveMobileDiaryImageSwipe, { passive: true });
   mobileDiaryPage.addEventListener("pointerup", endMobileDiaryImageSwipe, { passive: true });
   mobileDiaryPage.addEventListener("pointercancel", () => {
     cancelMobileDiaryBackSwipe();
-    mobileDiaryImageSwipeStart = null;
+    cancelMobileDiaryImageSwipe();
   });
   mobileDiaryPage.addEventListener("lostpointercapture", cancelMobileDiaryBackSwipe);
   document.body.append(mobileDiaryPage);
@@ -4238,9 +4249,7 @@ async function saveMobileDiaryComment(event) {
 function beginMobileDiaryBackSwipe(event) {
   if (!mobileDiaryPage || mobileDiaryPage.hidden || event.pointerType === "mouse") return;
   if (event.target.closest(".mobile-diary-media, .mobile-diary-thumbs, button, input, textarea, select, a")) return;
-  const edge = getMobileBackEdge(event.clientX);
-  if (!edge) return;
-  mobileDiaryBackSwipeStart = { id: event.pointerId, edge, x: event.clientX, y: event.clientY, time: Date.now(), tracking: false };
+  mobileDiaryBackSwipeStart = { id: event.pointerId, edge: "right", x: event.clientX, y: event.clientY, time: Date.now(), tracking: false };
 }
 
 function moveMobileDiaryBackSwipe(event) {
@@ -4310,7 +4319,34 @@ function beginMobileDiaryImageSwipe(event) {
     x: event.clientX,
     y: event.clientY,
     time: Date.now(),
+    tracking: false,
   };
+}
+
+function moveMobileDiaryImageSwipe(event) {
+  if (!mobileDiaryImageSwipeStart || mobileDiaryImageSwipeStart.id !== event.pointerId) return;
+  const deltaX = event.clientX - mobileDiaryImageSwipeStart.x;
+  const deltaY = Math.abs(event.clientY - mobileDiaryImageSwipeStart.y);
+  if (!mobileDiaryImageSwipeStart.tracking && Math.abs(deltaX) < 5) return;
+  if (!mobileDiaryImageSwipeStart.tracking && deltaY > Math.abs(deltaX) * 1.05) {
+    cancelMobileDiaryImageSwipe();
+    return;
+  }
+  mobileDiaryImageSwipeStart.tracking = true;
+  mobileDiarySuppressImageClickUntil = Date.now() + 450;
+  const button = mobileDiaryPage?.querySelector(".mobile-diary-image-button");
+  if (!button) return;
+  button.classList.add("is-swiping");
+  button.style.setProperty("--diary-image-swipe-x", `${clampNumber(deltaX * 0.82, -window.innerWidth, window.innerWidth)}px`);
+}
+
+function cancelMobileDiaryImageSwipe() {
+  mobileDiaryImageSwipeStart = null;
+  const button = mobileDiaryPage?.querySelector(".mobile-diary-image-button");
+  if (!button) return;
+  button.classList.remove("is-swiping");
+  button.style.setProperty("--diary-image-swipe-x", "0px");
+  window.setTimeout(() => button.style.removeProperty("--diary-image-swipe-x"), 180);
 }
 
 function endMobileDiaryImageSwipe(event) {
@@ -4325,7 +4361,10 @@ function endMobileDiaryImageSwipe(event) {
     Math.abs(deltaX) > deltaY * 1.05 &&
     elapsed < 1200 &&
     (Math.abs(deltaX) > 42 || velocity > 0.28);
-  if (!horizontal) return;
+  if (!horizontal) {
+    cancelMobileDiaryImageSwipe();
+    return;
+  }
   mobileDiarySuppressImageClickUntil = Date.now() + 450;
   moveMobileDiaryImage(deltaX < 0 ? 1 : -1);
 }
@@ -11439,7 +11478,7 @@ function renderNotifications() {
         : `<span class="notification-avatar">${escapeHtml(getInitial(actorName))}</span>`;
       const stateClass = item.just_seen ? "just-seen" : item.is_read ? "" : "unread";
       return `
-        <button class="notification-item ${stateClass}" type="button" data-notification-id="${escapeHtml(item.notification_id)}" data-notification-type="${escapeHtml(item.type || "")}" data-notification-photo="${escapeHtml(item.photo_id || "")}">
+        <button class="notification-item ${stateClass}" type="button" data-notification-id="${escapeHtml(item.notification_id || item.id || "")}" data-notification-type="${escapeHtml(item.type || "")}" data-notification-photo="${escapeHtml(item.photo_id || "")}">
           ${avatar}
           <span>
             <strong>${escapeHtml(getNotificationText(item))}${item.just_seen ? `<em>刚看到</em>` : ""}</strong>
@@ -11459,7 +11498,7 @@ async function openNotification(button) {
   const id = button.dataset.notificationId;
   const photoId = button.dataset.notificationPhoto;
   const type = button.dataset.notificationType;
-  const item = notifications.find((entry) => entry.notification_id === id);
+  const item = notifications.find((entry) => (entry.notification_id || entry.id) === id);
   if (item) item.is_read = true;
   renderNotifications();
   const photo = photos.find((entry) => entry.id === photoId);
@@ -11476,11 +11515,11 @@ async function openNotificationsPanel() {
   await loadNotifications();
   const justSeenIds = notifications
     .filter((item) => !item.is_read)
-    .map((item) => item.notification_id)
+    .map((item) => item.notification_id || item.id)
     .filter(Boolean);
   if (justSeenIds.length) {
     notifications.forEach((item) => {
-      if (justSeenIds.includes(item.notification_id)) {
+      if (justSeenIds.includes(item.notification_id || item.id)) {
         item.is_read = true;
         item.just_seen = true;
       } else {
@@ -11488,9 +11527,9 @@ async function openNotificationsPanel() {
       }
     });
     renderNotifications();
-    void markUnreadNotificationsRead();
   }
   els.notificationDialog.showModal();
+  if (justSeenIds.length) await markUnreadNotificationsRead();
 }
 
 async function markUnreadNotificationsRead() {
