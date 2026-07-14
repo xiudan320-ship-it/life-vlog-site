@@ -702,6 +702,7 @@ async function handleRpc(request, env, user, name) {
     return jsonResponse(request, env, {
       data: (rows.results || []).map((row) => ({
         ...denormalizeRow("notifications", row),
+        notification_id: row.id,
         actor_username: row.actor_username || "",
         actor_avatar_url: row.actor_avatar_url || "",
         photo_image_url: row.photo_image_url || "",
