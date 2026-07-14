@@ -1,5 +1,7 @@
 ﻿const CONFIG_KEY = "life-vlog-cloudflare-config";
 const CLOUDFLARE_AUTH_KEY = "life-vlog-cloudflare-auth";
+const AUTH_BACKUP_DB = "life-vlog-auth-backup";
+const AUTH_BACKUP_STORE = "session";
 const THEME_KEY = "life-vlog-theme";
 const HOME_NAME_KEY = "life-vlog-home-name";
 const FAMILY_TAGLINE_KEY = "life-vlog-family-tagline";
@@ -696,12 +698,76 @@ function readCloudflareSession() {
   }
 }
 
+function openAuthBackupDb() {
+  return new Promise((resolve, reject) => {
+    if (!("indexedDB" in window)) {
+      resolve(null);
+      return;
+    }
+    const request = indexedDB.open(AUTH_BACKUP_DB, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(AUTH_BACKUP_STORE)) db.createObjectStore(AUTH_BACKUP_STORE);
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function readCloudflareSessionBackup() {
+  try {
+    const db = await openAuthBackupDb();
+    if (!db) return null;
+    const value = await new Promise((resolve, reject) => {
+      const transaction = db.transaction(AUTH_BACKUP_STORE, "readonly");
+      const request = transaction.objectStore(AUTH_BACKUP_STORE).get(CLOUDFLARE_AUTH_KEY);
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () => reject(request.error);
+    });
+    db.close();
+    return value?.access_token && value?.user?.id ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+async function writeCloudflareSessionBackup(nextSession) {
+  try {
+    const db = await openAuthBackupDb();
+    if (!db) return;
+    await new Promise((resolve, reject) => {
+      const transaction = db.transaction(AUTH_BACKUP_STORE, "readwrite");
+      const store = transaction.objectStore(AUTH_BACKUP_STORE);
+      if (nextSession?.access_token) store.put(nextSession, CLOUDFLARE_AUTH_KEY);
+      else store.delete(CLOUDFLARE_AUTH_KEY);
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+    });
+    db.close();
+  } catch {
+    // localStorage remains the primary fallback where IndexedDB is unavailable.
+  }
+}
+
+async function restoreCloudflareSessionBackup() {
+  const current = readCloudflareSession();
+  if (current) {
+    void writeCloudflareSessionBackup(current);
+    return current;
+  }
+  const backup = await readCloudflareSessionBackup();
+  if (!backup) return null;
+  localStorage.setItem(CLOUDFLARE_AUTH_KEY, JSON.stringify(backup));
+  return backup;
+}
+
 function writeCloudflareSession(nextSession) {
   if (nextSession?.access_token) {
     localStorage.setItem(CLOUDFLARE_AUTH_KEY, JSON.stringify(nextSession));
   } else {
     localStorage.removeItem(CLOUDFLARE_AUTH_KEY);
   }
+  void writeCloudflareSessionBackup(nextSession);
 }
 
 function createCloudflareSession(data) {
@@ -870,6 +936,8 @@ function createCloudflareClient() {
           });
           const nextSession = createCloudflareSession(data);
           writeCloudflareSession(nextSession);
+          await writeCloudflareSessionBackup(nextSession);
+          void navigator.storage?.persist?.();
           notify("SIGNED_IN", nextSession);
           return { data: { session: nextSession }, error: null };
         } catch (error) {
@@ -886,6 +954,8 @@ function createCloudflareClient() {
           });
           const nextSession = createCloudflareSession(data);
           writeCloudflareSession(nextSession);
+          await writeCloudflareSessionBackup(nextSession);
+          void navigator.storage?.persist?.();
           notify("SIGNED_IN", nextSession);
           return { data: { session: nextSession }, error: null };
         } catch (error) {
@@ -12236,5 +12306,5 @@ initializeFeedObserver();
 applyMobileFeedLayout();
 applyMobileSecretLayout();
 syncMobileComposerPlacement();
-initializeCloudflare();
+restoreCloudflareSessionBackup().finally(() => initializeCloudflare());
 
