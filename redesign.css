@@ -7654,7 +7654,7 @@ body.mobile-dialog-open {
     place-items: center !important;
     padding: 0 !important;
     background: #070907 !important;
-    touch-action: pan-x pan-y pinch-zoom;
+    touch-action: none !important;
     -webkit-overflow-scrolling: touch;
   }
 
@@ -7667,7 +7667,8 @@ body.mobile-dialog-open {
     max-height: 100% !important;
     object-fit: contain !important;
     object-position: center !important;
-    transform: none !important;
+    transform-origin: center center;
+    will-change: transform;
   }
 
   #photoDialog.mobile-page-dialog .carousel-button,
@@ -7723,6 +7724,8 @@ body.mobile-dialog-open {
     min-height: clamp(360px, 54dvh, 520px) !important;
     overflow: hidden !important;
     place-items: center;
+    touch-action: pan-x !important;
+    overscroll-behavior: contain;
   }
 
   .mobile-diary-image-button {
@@ -7730,6 +7733,13 @@ body.mobile-dialog-open {
     width: 100% !important;
     height: 100% !important;
     place-items: center;
+    transform: translate3d(var(--diary-image-swipe-x, 0), 0, 0);
+    transition: transform 160ms cubic-bezier(0.2, 0.82, 0.2, 1);
+    will-change: transform;
+  }
+
+  .mobile-diary-image-button.is-swiping {
+    transition: none;
   }
 
   .mobile-diary-media img {
