@@ -1,5 +1,5 @@
 const MAX_UPLOAD_BYTES = 12 * 1024 * 1024;
-const SESSION_DAYS = 30;
+const SESSION_DAYS = 365;
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const RATE_LIMITS = {
   "/api/auth/login": 30,
