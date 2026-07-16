@@ -1,6 +1,7 @@
 name = "life-vlog-r2-upload"
 main = "src/worker.js"
 compatibility_date = "2026-07-02"
+compatibility_flags = ["nodejs_compat"]
 account_id = "e91104ac5162a3cb66f045e5b45f0bdb"
 workers_dev = true
 preview_urls = false

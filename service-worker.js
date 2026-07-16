@@ -1,4 +1,4 @@
-const CACHE_NAME = "life-vlog-site-20260716-166-pwa";
+const CACHE_NAME = "life-vlog-site-20260716-167-pwa";
 const APP_MEDIA_CACHES = new Set([
   "life-vlog-diary-media-cache",
   "life-vlog-secret-media-cache",
@@ -6,8 +6,8 @@ const APP_MEDIA_CACHES = new Set([
 const CORE_ASSETS = [
   "./",
   "./styles.css?v=20260610-37",
-  "./redesign.css?v=20260716-166",
-  "./app.js?v=20260716-166",
+  "./redesign.css?v=20260716-167",
+  "./app.js?v=20260716-167",
   "./manifest.webmanifest",
   "./assets/food-wheel-icon.png",
   "./assets/app-icon-192.png",
@@ -100,4 +100,44 @@ self.addEventListener("fetch", (event) => {
       return cached || network;
     })
   );
+});
+
+self.addEventListener("push", (event) => {
+  let payload = {};
+  try {
+    payload = event.data?.json() || {};
+  } catch {
+    payload = { title: "咻蛋之家", body: event.data?.text() || "家里有新动态" };
+  }
+  const title = payload.title || "咻蛋之家";
+  const options = {
+    body: payload.body || "家里有新动态",
+    icon: payload.icon || "./assets/app-icon-192.png",
+    badge: payload.badge || "./assets/app-icon-192.png",
+    tag: payload.tag || "life-vlog-update",
+    renotify: true,
+    data: payload,
+  };
+  event.waitUntil((async () => {
+    await self.registration.showNotification(title, options);
+    if (self.registration.setAppBadge && Number(payload.unread) > 0) {
+      await self.registration.setAppBadge(Number(payload.unread)).catch(() => {});
+    }
+  })());
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const data = event.notification.data || {};
+  const targetUrl = new URL(data.url || "./", self.location.origin).href;
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    const existing = windows.find((client) => new URL(client.url).origin === self.location.origin);
+    if (existing) {
+      await existing.focus();
+      existing.postMessage({ type: "OPEN_PUSH_NOTIFICATION", data });
+      return;
+    }
+    await self.clients.openWindow(targetUrl);
+  })());
 });

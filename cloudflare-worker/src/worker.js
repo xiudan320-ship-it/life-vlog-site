@@ -1,3 +1,5 @@
+import { buildPushPayload } from "@block65/webcrypto-web-push";
+
 const MAX_UPLOAD_BYTES = 12 * 1024 * 1024;
 const SESSION_DAYS = 365;
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
@@ -839,15 +841,125 @@ async function getFamilyContext(env, userId) {
   return { ...family, members: members.results || [] };
 }
 
+function getPushCopy(type, actorName, body = "") {
+  const name = actorName || "家庭成员";
+  const snippets = {
+    diary: [`${name} 发布了新日记`, body || "家里有一条新的生活记录"],
+    thanks: [`${name} 写下了感谢留言`, body || "感谢留言板有了新内容"],
+    comment: [`${name} 评论了你的日记`, body || "打开看看对方说了什么"],
+    reply: [`${name} 回复了你`, body || "你收到了一条新回复"],
+    favorite: [`${name} 收藏了你的日记`, "你的记录被家人收藏了"],
+  };
+  return snippets[type] || [`${name} 有新动态`, body || "打开咻蛋之家查看"];
+}
+
+async function sendPushToUser(env, userId, notification) {
+  if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY || !userId) return;
+  const subscriptions = await env.DB.prepare(
+    "select id, endpoint, p256dh, auth from push_subscriptions where user_id=?"
+  ).bind(userId).all();
+  if (!(subscriptions.results || []).length) return;
+  const actor = await env.DB.prepare(
+    "select username from user_profiles where user_id=? limit 1"
+  ).bind(notification.actorId).first();
+  const unread = await env.DB.prepare(
+    "select count(*) as total from notifications where user_id=? and is_read=0"
+  ).bind(userId).first();
+  const [title, body] = getPushCopy(notification.type, actor?.username, notification.body);
+  const data = {
+    title,
+    body: String(body || "").slice(0, 180),
+    icon: "/assets/app-icon-192.png",
+    badge: "/assets/app-icon-192.png",
+    tag: `life-vlog-${notification.type}-${notification.photoId || notification.id}`,
+    notificationId: notification.id,
+    photoId: notification.photoId || "",
+    type: notification.type,
+    unread: Number(unread?.total || 1),
+    url: notification.photoId
+      ? `/?pushPhoto=${encodeURIComponent(notification.photoId)}`
+      : `/?pushType=${encodeURIComponent(notification.type)}`,
+  };
+  const vapid = {
+    subject: env.VAPID_SUBJECT || "mailto:xiudan320@gmail.com",
+    publicKey: env.VAPID_PUBLIC_KEY,
+    privateKey: env.VAPID_PRIVATE_KEY,
+  };
+  await Promise.allSettled((subscriptions.results || []).map(async (subscription) => {
+    try {
+      const request = await buildPushPayload(
+        { data, options: { ttl: 86400, urgency: "normal", topic: `life-vlog-${notification.type}` } },
+        {
+          endpoint: subscription.endpoint,
+          expirationTime: null,
+          keys: { p256dh: subscription.p256dh, auth: subscription.auth },
+        },
+        vapid
+      );
+      const response = await fetch(subscription.endpoint, request);
+      if (response.status === 404 || response.status === 410) {
+        await env.DB.prepare("delete from push_subscriptions where id=?").bind(subscription.id).run();
+      }
+    } catch {
+      // A single unavailable device must not block publishing content.
+    }
+  }));
+}
+
+async function handlePushSubscribe(request, env, user) {
+  const payload = await readJsonRequestBody(request);
+  const subscription = payload.subscription || payload;
+  const endpoint = String(subscription?.endpoint || "").trim();
+  const p256dh = String(subscription?.keys?.p256dh || "").trim();
+  const auth = String(subscription?.keys?.auth || "").trim();
+  if (!endpoint.startsWith("https://") || !p256dh || !auth) {
+    return jsonResponse(request, env, { error: "Invalid push subscription." }, 400);
+  }
+  const existing = await env.DB.prepare("select id from push_subscriptions where endpoint=?").bind(endpoint).first();
+  const id = existing?.id || randomId();
+  await env.DB.prepare(
+    `insert into push_subscriptions (id,user_id,endpoint,p256dh,auth,user_agent,created_at,updated_at,last_seen_at)
+     values (?,?,?,?,?,?,?,?,?)
+     on conflict(endpoint) do update set user_id=excluded.user_id,p256dh=excluded.p256dh,auth=excluded.auth,
+       user_agent=excluded.user_agent,updated_at=excluded.updated_at,last_seen_at=excluded.last_seen_at`
+  ).bind(
+    id, user.id, endpoint, p256dh, auth,
+    String(request.headers.get("User-Agent") || "").slice(0, 300),
+    nowIso(), nowIso(), nowIso()
+  ).run();
+  return jsonResponse(request, env, { data: { subscribed: true } });
+}
+
+async function handlePushUnsubscribe(request, env, user) {
+  const payload = await readJsonRequestBody(request);
+  const endpoint = String(payload.endpoint || "").trim();
+  if (endpoint) {
+    await env.DB.prepare("delete from push_subscriptions where user_id=? and endpoint=?")
+      .bind(user.id, endpoint).run();
+  } else {
+    await env.DB.prepare("delete from push_subscriptions where user_id=?").bind(user.id).run();
+  }
+  return jsonResponse(request, env, { data: { subscribed: false } });
+}
+
 async function createActivityNotifications(env, table, rows, actorId) {
   const insertNotification = async ({ userId, type, photoId = null, commentId = null, body = "" }) => {
     if (!userId || userId === actorId) return;
+    const notificationId = randomId();
     await env.DB.prepare(
       `insert into notifications (id, user_id, actor_id, type, photo_id, comment_id, body, is_read, created_at)
        values (?, ?, ?, ?, ?, ?, ?, 0, ?)`
     )
-      .bind(randomId(), userId, actorId, type, photoId, commentId, String(body || "").slice(0, 240), nowIso())
+      .bind(notificationId, userId, actorId, type, photoId, commentId, String(body || "").slice(0, 240), nowIso())
       .run();
+    await sendPushToUser(env, userId, {
+      id: notificationId,
+      actorId,
+      type,
+      photoId,
+      commentId,
+      body,
+    });
   };
 
   for (const row of rows) {
@@ -1424,6 +1536,15 @@ export default {
       }
       if (url.pathname === "/api/auth/password" && request.method === "POST") {
         return handlePasswordUpdate(request, env, user);
+      }
+      if (url.pathname === "/api/push/config" && request.method === "GET") {
+        return jsonResponse(request, env, { data: { publicKey: env.VAPID_PUBLIC_KEY || "" } });
+      }
+      if (url.pathname === "/api/push/subscribe" && request.method === "POST") {
+        return handlePushSubscribe(request, env, user);
+      }
+      if (url.pathname === "/api/push/unsubscribe" && request.method === "POST") {
+        return handlePushUnsubscribe(request, env, user);
       }
       if (url.pathname === "/api/export" && request.method === "GET") {
         return handleD1Export(request, env, user);

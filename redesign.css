@@ -8577,6 +8577,181 @@ body.mobile-dialog-open {
   }
 }
 
+/* Growth center uses the same stable sidebar/content pattern as Settings. */
+.level-dialog {
+  width: min(calc(100% - 28px), 980px);
+  height: min(720px, calc(100dvh - 28px));
+  max-height: calc(100dvh - 28px);
+}
+
+.level-center {
+  grid-template-rows: auto auto minmax(0, 1fr);
+  height: 100%;
+  max-height: none;
+  overflow: hidden;
+  padding: 28px;
+}
+
+.level-list { min-height: 0; }
+
+.level-workspace {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface), var(--bg) 14%);
+}
+
+.level-section-nav {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-height: 0;
+  border-right: 1px solid var(--line);
+  padding: 12px;
+}
+
+.level-section-nav button {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  text-align: left;
+  font-weight: 900;
+  padding: 0 10px;
+}
+
+.level-section-nav button:hover,
+.level-section-nav button.active {
+  background: color-mix(in srgb, var(--accent) 13%, var(--surface));
+  color: var(--ink);
+}
+
+.level-section-nav i {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: var(--accent-strong);
+  font-size: 11px;
+  font-style: normal;
+}
+
+.level-section-content {
+  min-height: 0;
+  overflow: auto;
+  padding: 18px;
+  scrollbar-gutter: stable;
+}
+
+.level-section-content .cultivation-archive { grid-template-columns: 1fr; }
+.level-section-content .cultivation-roots { grid-column: auto; }
+.level-rank-head > small { color: var(--muted); font-weight: 800; }
+.level-atlas-intro { display: flex; justify-content: space-between; gap: 14px; color: var(--muted); }
+.level-atlas-intro strong { color: var(--accent-strong); }
+.level-achievement-panel { display: grid; gap: 14px; }
+.level-section-heading { display: flex; align-items: end; justify-content: space-between; gap: 12px; }
+.level-section-heading h3 { margin: 2px 0 0; font-size: 26px; }
+.level-section-heading small, .level-section-heading > span { color: var(--muted); }
+.level-achievement-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.level-achievement-grid button { display: grid; grid-template-columns: 38px minmax(0, 1fr); align-items: center; gap: 10px; min-height: 66px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); text-align: left; padding: 10px; }
+.level-achievement-grid button > i { display: grid; width: 36px; height: 36px; place-items: center; border-radius: 50%; background: color-mix(in srgb, var(--accent) 13%, var(--surface)); font-style: normal; }
+.level-achievement-grid strong, .level-achievement-grid small { display: block; }
+.level-achievement-grid small { overflow: hidden; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.level-achievement-grid button.locked { opacity: .52; }
+
+/* Secret-gallery folder naming dialog. */
+.secret-folder-dialog {
+  width: min(calc(100% - 28px), 430px);
+  max-width: none;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  padding: 0;
+}
+
+.secret-folder-dialog::backdrop {
+  background: rgba(5, 8, 6, .72);
+  backdrop-filter: blur(8px);
+}
+
+.secret-folder-dialog form { position: relative; display: grid; gap: 20px; padding: 26px; }
+.secret-folder-dialog header span { color: var(--accent-strong); font-size: 10px; font-weight: 950; text-transform: uppercase; }
+.secret-folder-dialog h2 { margin: 4px 0 0; font-size: 30px; letter-spacing: 0; }
+.secret-folder-dialog label { display: grid; gap: 8px; color: var(--muted); font-size: 12px; font-weight: 850; }
+.secret-folder-dialog input { box-sizing: border-box; width: 100%; min-height: 52px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); font: inherit; font-size: 15px; padding: 0 14px; outline: none; }
+.secret-folder-dialog input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+.secret-folder-dialog-close { position: absolute; top: 14px; right: 14px; display: grid; width: 34px; height: 34px; place-items: center; border: 1px solid var(--line); border-radius: 50%; background: transparent; color: var(--muted); font-size: 22px; line-height: 1; }
+.secret-folder-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; padding-top: 2px; }
+.secret-folder-dialog-actions button { min-width: 88px; min-height: 42px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: var(--ink); font-weight: 900; }
+.secret-folder-dialog-actions button.primary { border-color: var(--accent); background: var(--accent); color: #081008; }
+
+.admin-category-dialog {
+  width: min(calc(100% - 28px), 420px);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  padding: 0;
+}
+.admin-category-dialog::backdrop { background: rgba(5, 8, 6, .72); backdrop-filter: blur(8px); }
+.admin-category-dialog form { display: grid; gap: 18px; padding: 24px; }
+.admin-category-dialog h2 { margin: 3px 0 0; font-size: 28px; }
+.admin-category-dialog label { display: grid; gap: 8px; color: var(--muted); font-size: 12px; font-weight: 850; }
+.admin-category-dialog select { width: 100%; min-height: 50px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); font: inherit; font-weight: 850; padding: 0 12px; }
+.admin-category-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.admin-category-actions button { min-height: 42px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: var(--ink); font-weight: 900; padding: 0 16px; }
+.admin-category-actions button.primary { border-color: var(--accent); background: var(--accent); color: #081008; }
+
+.push-settings-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface), var(--bg) 16%);
+  padding: 18px;
+}
+.push-settings-card > div:first-child { display: grid; gap: 5px; }
+.push-settings-card span, .push-settings-card small { color: var(--muted); }
+.push-settings-card span { font-size: 11px; font-weight: 900; text-transform: uppercase; }
+.push-settings-card strong { font-size: 20px; }
+.push-settings-actions { display: flex; gap: 8px; }
+.push-settings-actions button { min-height: 42px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: var(--ink); font-weight: 900; padding: 0 14px; }
+.push-settings-actions button.primary { border-color: var(--accent); background: var(--accent); color: #081008; }
+
+@media (max-width: 700px) {
+  .level-dialog { width: calc(100% - 18px); height: calc(100dvh - 18px); }
+  .level-center { gap: 10px; padding: 18px 12px 12px; }
+  .level-hero { padding-right: 44px; }
+  .level-hero h2 { font-size: 27px; }
+  .level-current-card > div { padding: 10px; }
+  .level-current-card strong { font-size: 14px; }
+  .level-workspace { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
+  .level-section-nav { display: flex; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--line); padding: 8px; }
+  .level-section-nav button { flex: 0 0 auto; grid-template-columns: 24px auto; min-height: 38px; padding: 0 9px; }
+  .level-section-nav i { width: 24px; height: 24px; }
+  .level-section-content { padding: 12px; }
+  .level-achievement-grid { grid-template-columns: 1fr; }
+  .secret-folder-dialog form { gap: 17px; padding: 22px 18px 18px; }
+  .secret-folder-dialog h2 { font-size: 26px; }
+  .push-settings-card { grid-template-columns: 1fr; }
+  .push-settings-actions { display: grid; grid-template-columns: 1fr; }
+}
+
 .pull-refresh-indicator {
   position: fixed;
   z-index: 250;

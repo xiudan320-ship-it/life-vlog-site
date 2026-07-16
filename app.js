@@ -35,6 +35,7 @@ const STORY_SECRET_PHOTO_TAG = "故事集";
 const FAVORITE_SECRET_PHOTO_TAG = "收藏";
 const THANKS_COLORS = new Set(["#2f6b3b", "#d6544d", "#2e6da4", "#81559b", "#a66b12"]);
 const DEFAULT_THANKS_COLOR = "#2f6b3b";
+const PHOTO_CATEGORIES = ["日常", "旅行", "食物", "卢浮宫", "城市"];
 const DAILY_LOGIN_EXP = 25;
 const EXPERIENCE_REWARDS = {
   diary: 20,
@@ -223,6 +224,8 @@ let notifications = [];
 let commentReplyToId = null;
 let avatarPreviewUrl = "";
 let notificationPollTimer = null;
+let galleryRenderSignature = "";
+let activeLevelSection = "ranking";
 let lastAppBadgeCount = -1;
 let pendingNewPhotos = [];
 let dismissedFeedRefreshIds = new Set();
@@ -1095,12 +1098,16 @@ async function initializeCloudflare() {
   els.setupToggle.hidden = true;
   els.setupPanel.hidden = true;
   cloudDb = createCloudflareClient();
+  ensurePushSettingsPage();
 
   const { data } = await cloudDb.auth.getSession();
   session = data.session;
   updateAuthUI();
   renderCachedPhotoFeed(session?.user?.id || "public");
   await loadPhotos();
+  if (new URLSearchParams(location.search).has("pushPhoto") || new URLSearchParams(location.search).has("pushType")) {
+    void openPushDestination();
+  }
   syncMobileComposerPlacement();
   void processDiaryUploadQueue();
 
@@ -2857,6 +2864,20 @@ function renderGallery() {
     Math.max(PAGE_SIZE, filteredPhotoCount)
   );
   const visible = filtered.slice(0, visiblePhotoCount);
+  const nextSignature = JSON.stringify({
+    filter: activeFilter,
+    search: diarySearchQuery,
+    layout: document.body.dataset.mobileFeedLayout || "",
+    visible: visiblePhotoCount,
+    favorites: [...favoritePhotoIds].sort(),
+    photos: visible.map((photo) => [photo.id, photo.updated_at, photo.is_featured, photo.is_pinned, getPhotoImages(photo).length]),
+    comments: visible.map((photo) => (photoCommentPreviewMap.get(photo.id) || []).map((comment) => [comment.id, comment.updated_at, comment.body])),
+  });
+  if (nextSignature === galleryRenderSignature && els.gallery.childElementCount) {
+    updateFeedLoader(filteredPhotoCount);
+    return;
+  }
+  galleryRenderSignature = nextSignature;
 
   if (!visible.length) {
     const emptyMessage =
@@ -5139,7 +5160,7 @@ function isAdminAccount() {
 
 async function adminUpdatePhotoCategory(photo) {
   if (!photo || !cloudDb || !session || !isAdminAccount()) return;
-  const category = String(window.prompt("修改日记分类", photo.category || "日常") || "").trim().slice(0, 32);
+  const category = await choosePhotoCategory(photo.category || "日常");
   if (!category || category === photo.category) return;
   const { data, error } = await cloudDb.rpc("admin_update_photo_category", {
     p_photo_id: photo.id,
@@ -5156,6 +5177,31 @@ async function adminUpdatePhotoCategory(photo) {
   }
   renderGallery();
   showMiniToast(`已改为“${photo.category}”`, { kind: "success" });
+}
+
+function choosePhotoCategory(current = "日常") {
+  return new Promise((resolve) => {
+    let dialog = document.querySelector("#adminCategoryDialog");
+    if (!dialog) {
+      dialog = document.createElement("dialog");
+      dialog.id = "adminCategoryDialog";
+      dialog.className = "admin-category-dialog";
+      document.body.append(dialog);
+    }
+    dialog.innerHTML = `
+      <form method="dialog">
+        <div><p class="kicker">Admin</p><h2>修改日记分类</h2><p>选择正确的现有分类。</p></div>
+        <label>分类<select name="category">${PHOTO_CATEGORIES.map((item) => `<option value="${item}" ${item === current ? "selected" : ""}>${item}</option>`).join("")}</select></label>
+        <div class="admin-category-actions"><button value="cancel" type="submit">取消</button><button class="primary" value="confirm" type="submit">保存分类</button></div>
+      </form>`;
+    const finish = () => {
+      const value = dialog.returnValue === "confirm" ? dialog.querySelector("select")?.value || "" : "";
+      dialog.removeEventListener("close", finish);
+      resolve(value);
+    };
+    dialog.addEventListener("close", finish);
+    dialog.showModal();
+  });
 }
 
 function normalizeNickname(value) {
@@ -7096,61 +7142,34 @@ function renderCultivationArchive() {
   `;
 }
 
-function ensureLevelGuidePage() {
-  let page = document.querySelector("#levelGuidePage");
-  if (page) return page;
-  page = document.createElement("section");
-  page.id = "levelGuidePage";
-  page.className = "level-guide-page";
-  page.hidden = true;
-  page.addEventListener("click", (event) => {
-    if (event.target.closest("[data-close-level-guide]")) closeLevelGuidePage();
-  });
-  document.body.append(page);
-  return page;
-}
-
 function openLevelGuidePage() {
-  const page = ensureLevelGuidePage();
-  const experience = loadExperience();
-  const progress = getExperienceLevel(experience.total);
-  const dailyExp = getDailyLoginReward(getNextLoginStreak(experience));
-  page.innerHTML = `
-    <header class="level-guide-page-head">
-      <button type="button" data-close-level-guide aria-label="返回等级中心">‹</button>
-      <div><small>Cultivation Atlas</small><strong>境界图鉴</strong></div>
-      <span>${escapeHtml(progress.title)}</span>
-    </header>
-    <main class="level-guide-page-body">
-      <section class="level-guide-hero">
-        <p>每一次记录不是刷分，而是在给共同生活增加一个可返回的坐标。</p>
-        <strong>${experience.total.toLocaleString()} EXP</strong>
-        <span>${escapeHtml(getUpgradeEta(progress))}</span>
-      </section>
-      <div class="level-guide-timeline">
-        ${CULTIVATION_REALMS.map((realm, index) => {
-          const nextThreshold = Number.isFinite(realm.next) ? realm.next : Infinity;
-          const unlocked = experience.total >= realm.threshold;
-          const active = progress.realm === realm.name;
-          const remaining = Math.max(0, realm.threshold - experience.total);
-          const eta = unlocked ? (active ? "当前境界" : "已走过") : `${formatUpgradeDays(Math.ceil(remaining / Math.max(1, dailyExp)))}可抵达`;
-          const range = Number.isFinite(nextThreshold) ? `${realm.threshold.toLocaleString()} - ${(nextThreshold - 1).toLocaleString()} EXP` : `${realm.threshold.toLocaleString()}+ EXP`;
-          return `<article class="${active ? "active" : ""} ${unlocked ? "unlocked" : "locked"}">
-            <i>${String(index + 1).padStart(2, "0")}</i>
-            <div><small>${range}</small><h2>${escapeHtml(realm.name)}</h2><p>${escapeHtml(CULTIVATION_DESCRIPTIONS[realm.name] || "")}</p><em>${eta}</em></div>
-          </article>`;
-        }).join("")}
-      </div>
-    </main>`;
-  page.hidden = false;
-  document.body.classList.add("level-guide-open");
-  page.scrollTop = 0;
+  activeLevelSection = "atlas";
+  renderLevelDialog();
 }
 
 function closeLevelGuidePage() {
-  const page = document.querySelector("#levelGuidePage");
-  if (page) page.hidden = true;
-  document.body.classList.remove("level-guide-open");
+  activeLevelSection = "ranking";
+  renderLevelDialog();
+}
+
+function renderLevelAtlasPanel(experience, progress) {
+  const dailyExp = getDailyLoginReward(getNextLoginStreak(experience));
+  return `<section class="level-atlas-panel"><div class="level-atlas-intro"><strong>${experience.total.toLocaleString()} EXP</strong><span>${escapeHtml(getUpgradeEta(progress))}</span></div>
+    <div class="level-guide-timeline">${CULTIVATION_REALMS.map((realm, index) => {
+      const nextThreshold = Number.isFinite(realm.next) ? realm.next : Infinity;
+      const unlocked = experience.total >= realm.threshold;
+      const active = progress.realm === realm.name;
+      const remaining = Math.max(0, realm.threshold - experience.total);
+      const eta = unlocked ? (active ? "当前境界" : "已走过") : `${formatUpgradeDays(Math.ceil(remaining / Math.max(1, dailyExp)))}可抵达`;
+      const range = Number.isFinite(nextThreshold) ? `${realm.threshold.toLocaleString()} - ${(nextThreshold - 1).toLocaleString()} EXP` : `${realm.threshold.toLocaleString()}+ EXP`;
+      return `<article class="${active ? "active" : ""} ${unlocked ? "unlocked" : "locked"}"><i>${String(index + 1).padStart(2, "0")}</i><div><small>${range}</small><h2>${escapeHtml(realm.name)}</h2><p>${escapeHtml(CULTIVATION_DESCRIPTIONS[realm.name] || "")}</p><em>${eta}</em></div></article>`;
+    }).join("")}</div></section>`;
+}
+
+function renderLevelAchievementPanel() {
+  const badges = getCultivationArchive().badges;
+  return `<section class="level-achievement-panel"><div class="level-section-heading"><div><small>Achievements</small><h3>成就徽章</h3></div><span>${badges.filter((badge) => badge.unlocked).length}/${badges.length}</span></div>
+    <div class="level-achievement-grid">${badges.map((badge) => `<button type="button" data-level-achievement="${escapeHtml(badge.id)}" class="${badge.unlocked ? "unlocked" : "locked"}"><i>${escapeHtml(badge.icon)}</i><span><strong>${escapeHtml(badge.title)}</strong><small>${escapeHtml(badge.detail)}</small></span></button>`).join("")}</div></section>`;
 }
 
 function openAchievementDetail(badge) {
@@ -7184,26 +7203,40 @@ function renderLevelDialog() {
   els.levelCurrentTitle.title = "打开境界图鉴";
   els.levelUpgradeEta.textContent = getUpgradeEta(progress);
   els.levelSummary.textContent = `当前 ${progress.total.toLocaleString()} EXP。连续签到 ${Math.max(0, Number(experience.loginStreak) || 0)} 天，下次登录预计 +${dailyExp} EXP。`;
-  const guideButton = `
-    <button class="level-guide-toggle" type="button" data-open-level-guide>
-      打开境界图鉴
-    </button>
-  `;
-  const leaderboard = `
-    <section class="level-rank-panel">
-      <div class="level-rank-head">
-        <div>
-          <span>家庭排行榜</span>
-          <strong>修为榜</strong>
-        </div>
-        ${guideButton}
-      </div>
-      ${renderLevelLeaderboard()}
-    </section>
-  `;
-  els.levelList.innerHTML = `${leaderboard}${renderCultivationArchive()}`;
-  els.levelList.querySelector("[data-open-level-guide]")?.addEventListener("click", openLevelGuidePage);
-  els.levelList.querySelector("[data-open-achievements]")?.addEventListener("click", openAchievementDialog);
+  const sections = [
+    { id: "ranking", label: "家庭排行", icon: "榜" },
+    { id: "atlas", label: "境界图鉴", icon: "境" },
+    { id: "achievements", label: "成就徽章", icon: "章" },
+    { id: "monthly", label: "修行月报", icon: "月" },
+  ];
+  let content = "";
+  if (activeLevelSection === "atlas") {
+    content = renderLevelAtlasPanel(experience, progress);
+  } else if (activeLevelSection === "achievements") {
+    content = renderLevelAchievementPanel();
+  } else if (activeLevelSection === "monthly") {
+    content = renderCultivationArchive();
+  } else {
+    content = `<section class="level-rank-panel"><div class="level-rank-head"><div><span>Family Ranking</span><strong>家庭修为榜</strong></div><small>共同记录，各自成长</small></div>${renderLevelLeaderboard()}</section>`;
+  }
+  els.levelList.innerHTML = `<div class="level-workspace">
+    <nav class="level-section-nav" aria-label="成长等级页面">${sections.map((section) => `<button class="${activeLevelSection === section.id ? "active" : ""}" type="button" data-level-section="${section.id}"><i>${section.icon}</i><span>${section.label}</span></button>`).join("")}</nav>
+    <div class="level-section-content">${content}</div>
+  </div>`;
+  els.levelList.querySelectorAll("[data-level-section]").forEach((button) => {
+    button.addEventListener("click", () => {
+      activeLevelSection = button.dataset.levelSection || "ranking";
+      renderLevelDialog();
+    });
+  });
+  els.levelList.querySelectorAll("[data-level-achievement]").forEach((button) => {
+    const badges = getCultivationArchive().badges;
+    button.addEventListener("click", () => openAchievementDetail(badges.find((badge) => badge.id === button.dataset.levelAchievement)));
+  });
+  els.levelList.querySelector("[data-open-achievements]")?.addEventListener("click", () => {
+    activeLevelSection = "achievements";
+    renderLevelDialog();
+  });
 }
 
 function renderAchievementDialog() {
@@ -7245,6 +7278,7 @@ function openAchievementDialog() {
 async function openLevelDialog() {
   if (!session) return;
   await loadFamilyLevelProfiles();
+  activeLevelSection = "ranking";
   renderLevelDialog();
   els.levelDialog.showModal();
 }
@@ -8077,7 +8111,7 @@ function renderSecretFolderControls() {
 
 async function createSecretFolder() {
   if (!cloudDb || !session) return;
-  const name = String(window.prompt("文件夹名称") || "").trim().slice(0, 40);
+  const name = await requestSecretFolderName();
   if (!name) return;
   const now = new Date().toISOString();
   const { data, error } = await cloudDb.from("secret_folders").insert({
@@ -8095,6 +8129,33 @@ async function createSecretFolder() {
   secretFolders.push(secretFolderFromCloudRow(data));
   activeSecretFolderId = data.id;
   renderSecretGallery();
+}
+
+function requestSecretFolderName() {
+  return new Promise((resolve) => {
+    let dialog = document.querySelector("#secretFolderDialog");
+    if (!dialog) {
+      dialog = document.createElement("dialog");
+      dialog.id = "secretFolderDialog";
+      dialog.className = "secret-folder-dialog";
+      document.body.append(dialog);
+    }
+    dialog.innerHTML = `<form method="dialog">
+      <button class="secret-folder-dialog-close" value="cancel" type="submit" aria-label="关闭">×</button>
+      <header><span>Folder</span><h2>新建文件夹</h2></header>
+      <label><span>名称</span><input name="folderName" maxlength="40" autocomplete="off" placeholder="给这个空间起个名字" required /></label>
+      <div class="secret-folder-dialog-actions"><button value="cancel" type="submit">取消</button><button class="primary" value="confirm" type="submit">创建</button></div>
+    </form>`;
+    const input = dialog.querySelector("input");
+    const finish = () => {
+      const value = dialog.returnValue === "confirm" ? String(input.value || "").trim().slice(0, 40) : "";
+      dialog.removeEventListener("close", finish);
+      resolve(value);
+    };
+    dialog.addEventListener("close", finish);
+    dialog.showModal();
+    window.setTimeout(() => input.focus(), 0);
+  });
 }
 
 function updateSecretSearchSuggestions() {
@@ -10749,6 +10810,164 @@ function registerAppShellWorker() {
   });
 }
 
+function decodeVapidPublicKey(value) {
+  const padding = "=".repeat((4 - (value.length % 4)) % 4);
+  const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
+  return Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
+}
+
+function supportsWebPush() {
+  return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+}
+
+function isStandaloneWebApp() {
+  return window.matchMedia?.("(display-mode: standalone)").matches || window.navigator.standalone === true;
+}
+
+async function getPushSubscription() {
+  if (!supportsWebPush()) return null;
+  const registration = await navigator.serviceWorker.ready;
+  return registration.pushManager.getSubscription();
+}
+
+async function refreshPushSettings() {
+  const state = document.querySelector("#pushNotificationState");
+  const detail = document.querySelector("#pushNotificationDetail");
+  const enable = document.querySelector("#enablePushNotifications");
+  const disable = document.querySelector("#disablePushNotifications");
+  if (!state || !enable || !disable) return;
+  if (!supportsWebPush()) {
+    state.textContent = "当前设备不支持";
+    detail.textContent = "请使用 iOS 16.4+ 主屏幕 Web App 或现代浏览器。";
+    enable.disabled = true;
+    disable.hidden = true;
+    return;
+  }
+  const subscription = await getPushSubscription().catch(() => null);
+  const enabled = Notification.permission === "granted" && Boolean(subscription);
+  state.textContent = enabled ? "已开启" : Notification.permission === "denied" ? "已被系统关闭" : "未开启";
+  detail.textContent = enabled
+    ? "新日记、评论、回复和感谢留言会发送到这台设备。"
+    : (/(iPhone|iPad|iPod)/i.test(navigator.userAgent) && !isStandaloneWebApp())
+      ? "请先添加到主屏幕，再从桌面图标打开并开启。"
+      : "开启后，即使没有打开页面也能收到家庭消息。";
+  enable.hidden = enabled;
+  enable.disabled = Notification.permission === "denied";
+  disable.hidden = !enabled;
+}
+
+async function enableWebPush() {
+  if (!session || !supportsWebPush()) return;
+  const status = document.querySelector("#pushNotificationStatus");
+  if (/(iPhone|iPad|iPod)/i.test(navigator.userAgent) && !isStandaloneWebApp()) {
+    if (status) status.textContent = "请先把咻蛋之家添加到主屏幕，再从桌面图标打开。";
+    return;
+  }
+  if (status) status.textContent = "正在向系统申请通知权限...";
+  const permission = await Notification.requestPermission();
+  if (permission !== "granted") {
+    if (status) status.textContent = "没有获得通知权限，可在系统设置中重新允许。";
+    await refreshPushSettings();
+    return;
+  }
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    const config = await cloudflareRequest("/api/push/config");
+    const publicKey = String(config?.data?.publicKey || "");
+    if (!publicKey) throw new Error("推送公钥尚未部署");
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: decodeVapidPublicKey(publicKey),
+      });
+    }
+    await cloudflareRequest("/api/push/subscribe", {
+      method: "POST",
+      body: JSON.stringify({ subscription: subscription.toJSON() }),
+    });
+    if (status) status.textContent = "通知已开启，这台设备会收到家庭新消息。";
+    showMiniToast("通知已开启", { kind: "success", placement: "center" });
+  } catch (error) {
+    if (status) status.textContent = `开启失败：${error.message}`;
+  }
+  await refreshPushSettings();
+}
+
+async function disableWebPush() {
+  const status = document.querySelector("#pushNotificationStatus");
+  try {
+    const subscription = await getPushSubscription();
+    if (subscription) {
+      await cloudflareRequest("/api/push/unsubscribe", {
+        method: "POST",
+        body: JSON.stringify({ endpoint: subscription.endpoint }),
+      });
+      await subscription.unsubscribe();
+    }
+    if (navigator.clearAppBadge) await navigator.clearAppBadge().catch(() => {});
+    if (status) status.textContent = "这台设备的通知已关闭。";
+  } catch (error) {
+    if (status) status.textContent = `关闭失败：${error.message}`;
+  }
+  await refreshPushSettings();
+}
+
+function ensurePushSettingsPage() {
+  const nav = els.settingsDialog?.querySelector(".settings-sidebar nav");
+  const content = els.settingsDialog?.querySelector(".settings-content");
+  if (!nav || !content) return;
+  if (!nav.querySelector('[data-settings-section="settingsNotifications"]')) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.dataset.settingsSection = "settingsNotifications";
+    button.setAttribute("aria-selected", "false");
+    button.textContent = "通知";
+    button.addEventListener("click", () => setActiveSettingsSection("settingsNotifications"));
+    nav.insertBefore(button, nav.querySelector('[data-settings-section="settingsTools"]'));
+  }
+  if (!document.querySelector("#settingsNotifications")) {
+    const group = document.createElement("section");
+    group.className = "settings-group settings-notification-group";
+    group.id = "settingsNotifications";
+    group.hidden = true;
+    group.innerHTML = `<p class="kicker">Web Push</p><h3>消息通知</h3>
+      <div class="push-settings-card"><div><span>这台设备</span><strong id="pushNotificationState">检查中</strong><small id="pushNotificationDetail">正在读取通知状态...</small></div>
+      <div class="push-settings-actions"><button class="primary" id="enablePushNotifications" type="button">开启通知</button><button id="disablePushNotifications" type="button" hidden>关闭这台设备</button></div></div>
+      <p class="status-line" id="pushNotificationStatus"></p>`;
+    content.append(group);
+    group.querySelector("#enablePushNotifications").addEventListener("click", enableWebPush);
+    group.querySelector("#disablePushNotifications").addEventListener("click", disableWebPush);
+  }
+}
+
+async function openPushDestination(data = {}) {
+  if (!session) return;
+  const photoId = String(data.photoId || new URLSearchParams(location.search).get("pushPhoto") || "");
+  const type = String(data.type || new URLSearchParams(location.search).get("pushType") || "");
+  if (data.notificationId && cloudDb) {
+    await cloudDb.from("notifications").update({ is_read: true }).eq("id", data.notificationId);
+    void loadNotifications();
+  }
+  if (photoId) {
+    let photo = photos.find((item) => item.id === photoId);
+    if (!photo && cloudDb) {
+      const { data: fetched } = await cloudDb.from("photos").select("*").eq("id", photoId).single();
+      photo = fetched || null;
+      if (photo && !photos.some((item) => item.id === photo.id)) photos.unshift(photo);
+    }
+    if (photo) {
+      switchPage("gallery");
+      requestAnimationFrame(() => openPhoto(photo));
+    }
+  } else if (type === "thanks") {
+    switchPage("thanks");
+  } else {
+    await openNotificationsPanel();
+  }
+  if (location.search.includes("push")) history.replaceState({}, "", location.pathname);
+}
+
 function getAnniversaryStorageKey() {
   const name = session ? getSessionDisplayName() : "guest";
   return `${ANNIVERSARY_KEY}:${String(name).toLowerCase()}`;
@@ -11679,7 +11898,7 @@ function bindSettingsFamilyActions() {
 }
 
 function setActiveSettingsSection(sectionId = "settingsGeneral") {
-  const allowedSections = ["settingsGeneral", "settingsCache", "settingsTools", "settingsAccount", "settingsFamily", "settingsSafety", "settingsDiagnostics", "settingsUploads"];
+  const allowedSections = ["settingsGeneral", "settingsNotifications", "settingsCache", "settingsTools", "settingsAccount", "settingsFamily", "settingsSafety", "settingsDiagnostics", "settingsUploads"];
   const nextSection = allowedSections.includes(sectionId) ? sectionId : "settingsGeneral";
   activeSettingsSection = nextSection;
 
@@ -11693,6 +11912,7 @@ function setActiveSettingsSection(sectionId = "settingsGeneral") {
   });
 
   if (nextSection === "settingsTools") renderSettingsToolOrderPanel();
+  if (nextSection === "settingsNotifications") void refreshPushSettings();
   if (nextSection === "settingsFamily") renderSettingsFamilyPanel();
   if (nextSection === "settingsDiagnostics") void runOfflineDiagnostics();
   if (nextSection === "settingsUploads") void renderUploadCenter();
@@ -12665,6 +12885,12 @@ window.addEventListener("scroll", () => {
   updateSecretToolbarTop();
   updateDiaryBackTopButton();
 }, { passive: true });
+
+navigator.serviceWorker?.addEventListener("message", (event) => {
+  if (event.data?.type === "OPEN_PUSH_NOTIFICATION") {
+    void openPushDestination(event.data.data || {});
+  }
+});
 
 registerAppShellWorker();
 updateDiarySearchUi();
