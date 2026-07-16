@@ -17,7 +17,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="./assets/app-icon-32.png" />
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
     <link rel="stylesheet" href="./styles.css?v=20260610-37" />
-    <link rel="stylesheet" href="./redesign.css?v=20260714-165" />
+    <link rel="stylesheet" href="./redesign.css?v=20260716-166" />
   </head>
   <body>
     <header class="topbar">
@@ -322,7 +322,8 @@
       <section class="filters" id="galleryFilters" aria-label="日记筛选">
         <label class="diary-search" for="diarySearchInput">
           <span>搜索日记</span>
-          <input id="diarySearchInput" type="search" placeholder="日期、标题、正文、分类" autocomplete="off" />
+          <input id="diarySearchInput" type="search" list="diarySearchSuggestions" placeholder="日期、标题、正文、分类" autocomplete="off" />
+          <datalist id="diarySearchSuggestions"></datalist>
           <button id="clearDiarySearch" type="button" aria-label="清空搜索" hidden>清空</button>
         </label>
         <div class="filter-chip-row" aria-label="日记分类">
@@ -663,6 +664,16 @@
           <p class="status-line" id="secretStatus"></p>
         </div>
 
+        <div class="secret-library-toolbar">
+          <label class="secret-search" for="secretSearchInput">
+            <span>搜索秘藏</span>
+            <input id="secretSearchInput" type="search" list="secretSearchSuggestions" placeholder="相册名或照片 Tag" autocomplete="off" />
+            <datalist id="secretSearchSuggestions"></datalist>
+          </label>
+          <button type="button" id="secretCreateFolderButton">新建文件夹</button>
+        </div>
+        <nav class="secret-folder-list" id="secretFolderList" aria-label="秘藏文件夹"></nav>
+
         <section class="secret-composer" id="secretComposer" hidden>
           <div class="section-title">
             <button class="section-heading-button" id="secretToggle" type="button" aria-expanded="false">
@@ -693,6 +704,12 @@
                 <input id="secretCategoryInput" maxlength="32" list="secretCategoryList" placeholder="可不填，照片 tag 可之后批量设置" />
                 <datalist id="secretCategoryList"></datalist>
                 <div class="secret-category-tags" id="secretCategoryTags" aria-label="常用照片 tag"></div>
+              </label>
+              <label>
+                所属文件夹
+                <select id="secretFolderInput">
+                  <option value="">未归档</option>
+                </select>
               </label>
               <label>
                 关联日记
@@ -1228,6 +1245,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260714-165"></script>
+    <script type="module" src="./app.js?v=20260716-166"></script>
   </body>
 </html>

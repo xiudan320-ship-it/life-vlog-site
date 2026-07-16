@@ -54,36 +54,36 @@ const EXPERIENCE_REWARDS = {
 };
 const VIP_EXP_MULTIPLIERS = [1, 1.05, 1.1, 1.2, 1.35, 1.5];
 const CULTIVATION_REALMS = [
-  { name: "炼气期", threshold: 0, next: 1500, layers: 13 },
-  { name: "筑基期", threshold: 1500, next: 4200 },
-  { name: "结丹期", threshold: 4200, next: 8200 },
-  { name: "元婴期", threshold: 8200, next: 14000 },
-  { name: "化神期", threshold: 14000, next: 22000 },
-  { name: "炼虚期", threshold: 22000, next: 33000 },
-  { name: "合体期", threshold: 33000, next: 47000 },
-  { name: "大乘期", threshold: 47000, next: 65000 },
-  { name: "真仙境", threshold: 65000, next: 88000 },
-  { name: "金仙境", threshold: 88000, next: 116000 },
-  { name: "太乙境", threshold: 116000, next: 150000 },
-  { name: "大罗境", threshold: 150000, next: 200000 },
-  { name: "道祖境", threshold: 200000, next: Infinity },
+  { name: "炼气期", threshold: 0, next: 600, layers: 13 },
+  { name: "筑基期", threshold: 600, next: 1600 },
+  { name: "结丹期", threshold: 1600, next: 3200 },
+  { name: "元婴期", threshold: 3200, next: 5600 },
+  { name: "化神期", threshold: 5600, next: 9000 },
+  { name: "炼虚期", threshold: 9000, next: 14000 },
+  { name: "合体期", threshold: 14000, next: 20000 },
+  { name: "大乘期", threshold: 20000, next: 28000 },
+  { name: "真仙境", threshold: 28000, next: 38000 },
+  { name: "金仙境", threshold: 38000, next: 50000 },
+  { name: "太乙境", threshold: 50000, next: 65000 },
+  { name: "大罗境", threshold: 65000, next: 85000 },
+  { name: "道祖境", threshold: 85000, next: Infinity },
 ];
 const CHINESE_NUMERALS = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十", "十一", "十二", "十三"];
 const CULTIVATION_PHASES = ["初期", "中期", "后期", "圆满"];
 const CULTIVATION_DESCRIPTIONS = {
-  炼气期: "起步洗髓，攒下第一口灵气。",
-  筑基期: "根基初成，生活记录开始成体系。",
-  结丹期: "金丹成型，长期坚持有了清晰光泽。",
-  元婴期: "回忆化婴，重要瞬间有了第二次生命。",
-  化神期: "心神通达，日常与愿望开始互相照亮。",
-  炼虚期: "能从细碎生活里炼出自己的秩序。",
-  合体期: "照片、菜谱、心愿和留言融成完整家谱。",
-  大乘期: "几乎每段时间都有可回看的坐标。",
-  真仙境: "法则初成，生活档案进入仙界篇。",
-  金仙境: "收藏圆满，回忆本身也有了重量。",
-  太乙境: "触碰更深的大道，记录成为一种审美。",
-  大罗境: "三位一体，文字、影像、关系都稳定发光。",
-  道祖境: "大道圆满，你们的家就是自己的时间宇宙。",
+  炼气期: "把第一批普通日子炼成灵气，十三层里每一步都看得见。",
+  筑基期: "小窝有了地基，照片、留言和愿望开始彼此认识。",
+  结丹期: "回忆结成一颗会发光的金丹，偶尔翻看也能回血。",
+  元婴期: "旧日子长出第二条生命，能够在随机回忆里突然来访。",
+  化神期: "记录不再是任务，而是你们共同生活的一种语言。",
+  炼虚期: "能从一地鸡毛里炼出秩序，也能给快乐留出空位。",
+  合体期: "照片、菜谱、心愿、秘藏与留言终于连成同一张地图。",
+  大乘期: "四季都有坐标，任何一年都不再只剩模糊印象。",
+  真仙境: "飞升不是离开人间，是更懂得珍惜一顿饭和一次散步。",
+  金仙境: "收藏拥有重量，家里的小事也值得被认真策展。",
+  太乙境: "开始形成只属于这个家的记录审美与秘密暗号。",
+  大罗境: "文字、影像与陪伴三位一体，旧日子随时可以重新亮起。",
+  道祖境: "大道圆满：你们没有保存所有时间，却保存了真正重要的。",
 };
 const BUCKET = "life-photos";
 const PRODUCTION_URL = "https://life-vlog-site.pages.dev/";
@@ -199,6 +199,7 @@ let weekendPlans = [];
 let anniversaries = [];
 let gratitudeNotes = [];
 let secretItems = [];
+let secretFolders = [];
 let familyInfo = null;
 let familyMembers = [];
 let familyInvitations = [];
@@ -236,6 +237,8 @@ let activePage = "gallery";
 let activeFilter = "全部";
 let activeSecretFilter = "全部";
 let activeSecretAlbumId = "";
+let activeSecretFolderId = "all";
+let secretSearchQuery = "";
 let secretPhotoSortDescending = true;
 let secretSelectionMode = false;
 let selectedSecretImageIndexes = new Set();
@@ -255,6 +258,7 @@ let filteredPhotoCount = 0;
 let showingCachedFeed = false;
 let feedObserver = null;
 let feedLoading = false;
+let pullRefreshState = null;
 let galleryMasonryObserver = null;
 let galleryMasonryTimer = null;
 let editingPhoto = null;
@@ -627,6 +631,10 @@ const els = {
   thanksPage: document.querySelector("#thanksPage"),
   secretPage: document.querySelector("#secretPage"),
   secretStatus: document.querySelector("#secretStatus"),
+  secretSearchInput: document.querySelector("#secretSearchInput"),
+  secretSearchSuggestions: document.querySelector("#secretSearchSuggestions"),
+  secretCreateFolderButton: document.querySelector("#secretCreateFolderButton"),
+  secretFolderList: document.querySelector("#secretFolderList"),
   secretComposer: document.querySelector("#secretComposer"),
   secretToggle: document.querySelector("#secretToggle"),
   secretForm: document.querySelector("#secretForm"),
@@ -638,6 +646,7 @@ const els = {
   secretImageName: document.querySelector("#secretImageName"),
   secretTitleInput: document.querySelector("#secretTitleInput"),
   secretCategoryInput: document.querySelector("#secretCategoryInput"),
+  secretFolderInput: document.querySelector("#secretFolderInput"),
   secretCategoryList: document.querySelector("#secretCategoryList"),
   secretCategoryTags: document.querySelector("#secretCategoryTags"),
   secretLinkedPhotoInput: document.querySelector("#secretLinkedPhotoInput"),
@@ -1473,6 +1482,7 @@ async function loadPhotos() {
     }
     savePhotoFeedCache(session?.user?.id || "public");
   }
+  updateDiarySearchSuggestions();
 
   visiblePhotoCount = Math.min(
     Math.max(PAGE_SIZE, visiblePhotoCount || PAGE_SIZE),
@@ -2868,6 +2878,7 @@ function renderGallery() {
     .map(
         (photo, index) => {
           const canManage = Boolean(session && (!photo.user_id || photo.user_id === session.user.id));
+          const canAdminCategorize = Boolean(session && isAdminAccount() && photo.user_id && photo.user_id !== session.user.id);
           const displayTitle = getDisplayTitle(photo);
           const images = getPhotoImages(photo);
           const noteText = getPlainNote(photo);
@@ -2917,6 +2928,7 @@ function renderGallery() {
                   <button class="delete-photo" type="button" data-delete-index="${index}" title="删除日记">删除</button>`
                 : ""
             }
+            ${canAdminCategorize ? `<button class="edit-photo" type="button" data-admin-category-index="${index}" title="管理员修改分类">修改分类</button>` : ""}
           </div>
           ${renderPhotoCommentPreview(photo.id, index)}
         </article>
@@ -2981,6 +2993,12 @@ function renderGallery() {
     });
   });
 
+  els.gallery.querySelectorAll("button[data-admin-category-index]").forEach((button) => {
+    button.addEventListener("click", () => {
+      void adminUpdatePhotoCategory(visible[Number(button.dataset.adminCategoryIndex)]);
+    });
+  });
+
   els.gallery.querySelectorAll("button[data-open-comments-index]").forEach((button) => {
     button.addEventListener("click", () => {
       openPhoto(visible[Number(button.dataset.openCommentsIndex)]);
@@ -3021,6 +3039,72 @@ function scheduleGalleryMasonryLayout() {
   galleryMasonryTimer = window.setTimeout(layoutGalleryMasonry, 60);
 }
 
+function ensurePullRefreshIndicator() {
+  let indicator = document.querySelector("#pullRefreshIndicator");
+  if (indicator) return indicator;
+  indicator = document.createElement("div");
+  indicator.id = "pullRefreshIndicator";
+  indicator.className = "pull-refresh-indicator";
+  indicator.innerHTML = `<i></i><span>下拉刷新</span>`;
+  document.body.append(indicator);
+  return indicator;
+}
+
+function initializePullToRefresh() {
+  const indicator = ensurePullRefreshIndicator();
+  document.addEventListener("touchstart", (event) => {
+    if (!isMobileViewport() || activePage !== "gallery" || window.scrollY > 2 || mobileDiaryPhoto || event.touches.length !== 1) return;
+    if (event.target.closest("dialog, input, textarea, select, .photo-media, .tool-dock")) return;
+    const touch = event.touches[0];
+    pullRefreshState = { x: touch.clientX, y: touch.clientY, distance: 0, tracking: false };
+  }, { passive: true });
+  document.addEventListener("touchmove", (event) => {
+    if (!pullRefreshState || event.touches.length !== 1) return;
+    const touch = event.touches[0];
+    const dy = touch.clientY - pullRefreshState.y;
+    const dx = Math.abs(touch.clientX - pullRefreshState.x);
+    if (dy <= 0 || dx > dy * .8) {
+      pullRefreshState = null;
+      return;
+    }
+    if (dy < 8) return;
+    pullRefreshState.tracking = true;
+    pullRefreshState.distance = Math.min(110, dy * .55);
+    event.preventDefault();
+    const ready = pullRefreshState.distance >= 64;
+    indicator.classList.add("visible");
+    indicator.classList.toggle("ready", ready);
+    indicator.style.setProperty("--pull-y", `${pullRefreshState.distance}px`);
+    indicator.querySelector("span").textContent = ready ? "松开刷新" : "下拉刷新";
+  }, { passive: false });
+  document.addEventListener("touchend", async () => {
+    if (!pullRefreshState) return;
+    const shouldRefresh = pullRefreshState.tracking && pullRefreshState.distance >= 64;
+    pullRefreshState = null;
+    if (!shouldRefresh) {
+      indicator.classList.remove("visible", "ready");
+      indicator.style.removeProperty("--pull-y");
+      return;
+    }
+    indicator.classList.add("refreshing");
+    indicator.querySelector("span").textContent = "正在刷新";
+    try {
+      await Promise.all([loadPhotos(), loadNotifications()]);
+      indicator.querySelector("span").textContent = "已更新";
+    } finally {
+      window.setTimeout(() => {
+        indicator.classList.remove("visible", "ready", "refreshing");
+        indicator.style.removeProperty("--pull-y");
+      }, 420);
+    }
+  }, { passive: true });
+  document.addEventListener("touchcancel", () => {
+    pullRefreshState = null;
+    indicator.classList.remove("visible", "ready", "refreshing");
+    indicator.style.removeProperty("--pull-y");
+  }, { passive: true });
+}
+
 function observeGalleryMasonry() {
   galleryMasonryObserver?.disconnect();
   if (!("ResizeObserver" in window) || !els.gallery) return;
@@ -3047,6 +3131,20 @@ function getPhotoSearchText(photo) {
   ]
     .map(normalizeDiarySearchText)
     .join(" ");
+}
+
+function updateDiarySearchSuggestions() {
+  const list = document.querySelector("#diarySearchSuggestions");
+  if (!list) return;
+  const values = new Set();
+  photos.forEach((photo) => {
+    const title = getDisplayTitle(photo);
+    if (title) values.add(title);
+    if (photo.category) values.add(photo.category);
+    const date = formatDate(photo.taken_at || photo.created_at);
+    if (date) values.add(date);
+  });
+  list.innerHTML = [...values].slice(0, 100).map((value) => `<option value="${escapeHtml(value)}"></option>`).join("");
 }
 
 function filterPhotosBySearch(photoList) {
@@ -4087,6 +4185,23 @@ function ensureMobileDiaryPage() {
     const cancelReply = event.target.closest("[data-mobile-diary-cancel-reply]");
     if (cancelReply) {
       cancelMobileDiaryReply();
+      return;
+    }
+    if (event.target.closest("[data-mobile-diary-edit]") && mobileDiaryPhoto) {
+      const photo = mobileDiaryPhoto;
+      closeMobileDiaryPage();
+      openEditPhoto(photo);
+      return;
+    }
+    if (event.target.closest("[data-mobile-diary-admin-category]") && mobileDiaryPhoto) {
+      void adminUpdatePhotoCategory(mobileDiaryPhoto);
+      return;
+    }
+    if (event.target.closest("[data-mobile-diary-delete]") && mobileDiaryPhoto) {
+      const photo = mobileDiaryPhoto;
+      void deletePhoto(photo).then((deleted) => {
+        if (deleted) closeMobileDiaryPage();
+      });
     }
   });
   mobileDiaryPage.addEventListener("submit", (event) => {
@@ -4173,6 +4288,8 @@ function renderMobileDiaryPage() {
       photo &&
       (photo.user_id === session.user.id || familyMemberMap.has(photo.user_id))
   );
+  const canManageDiary = Boolean(session && photo.user_id === session.user.id);
+  const canAdminCategorize = Boolean(session && isAdminAccount() && photo.user_id && photo.user_id !== session.user.id);
   page.innerHTML = `
     <button class="mobile-diary-close" type="button" data-mobile-diary-close aria-label="返回">返回</button>
     <div class="mobile-diary-media">
@@ -4206,6 +4323,10 @@ function renderMobileDiaryPage() {
       </p>
       ${getDisplayTitle(photo) ? `<h1>${escapeHtml(getDisplayTitle(photo))}</h1>` : ""}
       ${getPlainNote(photo) ? `<p class="mobile-diary-note">${escapeHtml(getPlainNote(photo))}</p>` : ""}
+      ${canManageDiary || canAdminCategorize ? `<div class="mobile-diary-actions">
+        ${canManageDiary ? `<button type="button" data-mobile-diary-edit>编辑</button><button class="danger" type="button" data-mobile-diary-delete>删除</button>` : ""}
+        ${canAdminCategorize ? `<button type="button" data-mobile-diary-admin-category>修改分类</button>` : ""}
+      </div>` : ""}
     </article>
     <section class="mobile-diary-comments">
       <div class="photo-comments-head">
@@ -4275,6 +4396,7 @@ function closeMobileDiaryPage() {
   document.body.classList.remove("mobile-diary-page-open");
   mobileDiaryPage.classList.remove("is-back-swiping", "is-back-committing");
   mobileDiaryPage.style.removeProperty("--back-swipe-x");
+  mobileDiaryPage.style.removeProperty("--back-swipe-progress");
 }
 
 function startMobileDiaryReply(commentId) {
@@ -4333,11 +4455,10 @@ function moveMobileDiaryBackSwipe(event) {
     return;
   }
   mobileDiaryBackSwipeStart.tracking = true;
+  const resisted = Math.sign(deltaX) * Math.min(window.innerWidth, Math.abs(deltaX) * 0.92);
   mobileDiaryPage.classList.add("is-back-swiping");
-  mobileDiaryPage.style.setProperty(
-    "--back-swipe-x",
-    `${clampNumber(deltaX, -window.innerWidth, window.innerWidth)}px`
-  );
+  mobileDiaryPage.style.setProperty("--back-swipe-x", `${resisted}px`);
+  mobileDiaryPage.style.setProperty("--back-swipe-progress", String(Math.min(1, Math.abs(resisted) / window.innerWidth)));
 }
 
 function endMobileDiaryBackSwipe(event) {
@@ -4357,15 +4478,17 @@ function endMobileDiaryBackSwipe(event) {
       "--back-swipe-x",
       closingEdge === "right" ? "-100vw" : "100vw"
     );
-    window.setTimeout(closeMobileDiaryPage, 150);
+    mobileDiaryPage.style.setProperty("--back-swipe-progress", "1");
+    window.setTimeout(closeMobileDiaryPage, 240);
     return;
   }
   mobileDiaryPage.style.setProperty("--back-swipe-x", "0px");
+  mobileDiaryPage.style.setProperty("--back-swipe-progress", "0");
   window.setTimeout(() => {
     if (!mobileDiaryBackSwipeStart && !mobileDiaryPage.classList.contains("is-back-swiping")) {
       mobileDiaryPage.style.removeProperty("--back-swipe-x");
     }
-  }, 200);
+  }, 260);
 }
 
 function cancelMobileDiaryBackSwipe() {
@@ -4373,11 +4496,12 @@ function cancelMobileDiaryBackSwipe() {
   if (!mobileDiaryPage) return;
   mobileDiaryPage.classList.remove("is-back-swiping", "is-back-committing");
   mobileDiaryPage.style.setProperty("--back-swipe-x", "0px");
+  mobileDiaryPage.style.setProperty("--back-swipe-progress", "0");
   window.setTimeout(() => {
     if (mobileDiaryPage && !mobileDiaryBackSwipeStart && !mobileDiaryPage.classList.contains("is-back-swiping")) {
       mobileDiaryPage.style.removeProperty("--back-swipe-x");
     }
-  }, 200);
+  }, 260);
 }
 
 function beginMobileDiaryImageSwipe(event) {
@@ -5011,6 +5135,27 @@ function getSessionLoginName() {
 
 function isAdminAccount() {
   return String(getSessionLoginName() || "").trim().toLowerCase() === "xiudan320";
+}
+
+async function adminUpdatePhotoCategory(photo) {
+  if (!photo || !cloudDb || !session || !isAdminAccount()) return;
+  const category = String(window.prompt("修改日记分类", photo.category || "日常") || "").trim().slice(0, 32);
+  if (!category || category === photo.category) return;
+  const { data, error } = await cloudDb.rpc("admin_update_photo_category", {
+    p_photo_id: photo.id,
+    p_category: category,
+  });
+  if (error) {
+    showMiniToast(`分类修改失败：${error.message}`, { kind: "error", duration: 3200 });
+    return;
+  }
+  photo.category = data?.category || category;
+  if (mobileDiaryPhoto?.id === photo.id) {
+    mobileDiaryPhoto.category = photo.category;
+    renderMobileDiaryPage();
+  }
+  renderGallery();
+  showMiniToast(`已改为“${photo.category}”`, { kind: "success" });
 }
 
 function normalizeNickname(value) {
@@ -6782,8 +6927,9 @@ function getCultivationArchive() {
   const secretPhotoCount = ownSecrets.reduce((total, album) => total + normalizeSecretImages(album.images).length, 0);
   const travelCount = ownPhotos.filter((photo) => ["旅行", "城市", "卢浮宫"].includes(photo.category)).length + ownWeekendPlans.length;
 
-  const makeBadge = (category, icon, title, detail, current, target) => ({
-    category, icon, title, detail, current, target, unlocked: current >= target,
+  const makeBadge = (category, icon, title, detail, current, target, lore = "") => ({
+    id: `${category}-${title}`,
+    category, icon, title, detail, lore, current, target, unlocked: current >= target,
     percent: Math.min(100, Math.round((current / Math.max(1, target)) * 100)),
   });
   const collectedCount = favoriteCount + secretPhotoCount;
@@ -6827,6 +6973,63 @@ function getCultivationArchive() {
     makeBadge("收藏", "星", "精选策展人", "设置 7 篇精选日记", featuredCount, 7),
     makeBadge("收藏", "顶", "镇馆之宝", "置顶 5 篇日记", pinnedCount, 5),
   ];
+  const extraBadgeSpecs = [
+    ["记录","芽","第一颗种子","发布 3 篇日记",ownPhotos.length,3,"生活从第三次认真按下发布开始长出根。"],
+    ["记录","灯","窗边小灯","发布 20 篇日记",ownPhotos.length,20,"有人持续替普通日子留灯。"],
+    ["记录","潮","时间涨潮","发布 75 篇日记",ownPhotos.length,75,"回忆涨到足以淹没一整个坏心情。"],
+    ["记录","山","纸上群山","发布 150 篇日记",ownPhotos.length,150,"翻页时已经能看见山脉。"],
+    ["记录","墨","墨水不睡","发布 300 篇日记",ownPhotos.length,300,"这一家的编年史开始拥有自己的气候。"],
+    ["记录","双","双镜头","发布 10 篇多图日记",ownPhotos.filter((p)=>getPhotoImages(p).length>=2).length,10,"一张装不下的日子，就多留几扇窗。"],
+    ["记录","册","九宫秘术","发布 10 篇九图日记",nineImageCount,10,"九张图刚好摆下一次完整出逃。"],
+    ["记录","书","长信未寄","写下 10 篇八百字长日记",longDiaryCount,10,"写给未来的长信，已经攒成一摞。"],
+    ["记录","曙","黎明记录员","早晨 8 点前记录 15 篇日记",earlyDiaryCount,15,"太阳还没完全醒，你先替今天签了到。"],
+    ["记录","月","月光打字机","凌晨记录 15 篇日记",nightDiaryCount,15,"世界安静以后，键盘替你说话。"],
+
+    ["陪伴","手","第一次回应","留下第一条评论",ownComments.length,1,"回忆被另一个人接住了。"],
+    ["陪伴","桥","纸飞机往返","留下 25 条评论",ownComments.length,25,"你们在日记之间搭起了一座小桥。"],
+    ["陪伴","铃","回声收藏家","留下 100 条评论",ownComments.length,100,"每一句回应都让旧照片重新有声音。"],
+    ["陪伴","暖","七日炉火","连续签到 14 天",streak,14,"炉火连续亮了两个星期。"],
+    ["陪伴","季","一季不缺席","连续签到 90 天",streak,90,"整整一季，门口每天都有脚印。"],
+    ["陪伴","星","周年守夜人","连续签到 365 天",streak,365,"一年没有把这间小屋忘在身后。"],
+    ["陪伴","愿","愿望开花","完成 25 个心愿",completedWishes,25,"想做的事不再只是停在句号前。"],
+    ["陪伴","谢","谢谢星球","写下 30 条感谢留言",gratitudeNotes.length,30,"这颗星球由很多句谢谢维持运转。"],
+    ["陪伴","家","家书往来","完成 50 次评论或感谢",ownComments.length+gratitudeNotes.length,50,"你们把这里用成了真正的家书箱。"],
+    ["陪伴","喵","双猫观察站","留下 50 篇猫咪记录",catDiaryCount,50,"呱呱和噗噗拥有了专属观测档案。"],
+
+    ["探索","鞋","鞋底有风","留下 3 次探索记录",travelCount,3,"地图上出现了第一串脚印。"],
+    ["探索","车","周末逃跑计划","完成 3 个周末计划",completedWeekendCount,3,"周末没有被沙发全部没收。"],
+    ["探索","门","出门即副本","完成 20 个周末计划",completedWeekendCount,20,"推开门，普通街道也能刷新副本。"],
+    ["探索","票","车票夹","留下 50 次探索记录",travelCount,50,"去过的地方开始挤满一只车票夹。"],
+    ["探索","馆","卢浮宫常客","留下 5 篇卢浮宫分类日记",ownPhotos.filter((p)=>p.category==="卢浮宫").length,5,"自己的珍藏也值得一间卢浮宫。"],
+    ["探索","城","城市拾荒者","留下 20 篇城市日记",ownPhotos.filter((p)=>p.category==="城市").length,20,"你捡回了城市遗漏的小光点。"],
+    ["探索","路","路线收藏家","留下 100 次探索记录",travelCount,100,"不是迷路，只是在扩充私人地图。"],
+    ["探索","周","周末满勤","完成 30 个周末计划",completedWeekendCount,30,"日历里的周末很少再是空白。"],
+    ["探索","岛","生活群岛","记录 8 个不同月份",new Set(ownPhotos.map((p)=>String(p.created_at||p.taken_at||"").slice(0,7)).filter(Boolean)).size,8,"每个月份都是一座气候不同的小岛。"],
+    ["探索","年","四季巡游","记录满 12 个不同月份",new Set(ownPhotos.map((p)=>String(p.created_at||p.taken_at||"").slice(0,7)).filter(Boolean)).size,12,"春夏秋冬都留下了通关印章。"],
+
+    ["料理","锅","锅里有光","记录 3 道菜谱",ownRecipes.length,3,"厨房第一次像一间会发光的实验室。"],
+    ["料理","勺","一勺成名","记录 5 道菜谱",ownRecipes.length,5,"这把勺子已经有了代表作。"],
+    ["料理","桌","两人食堂","记录 20 道菜谱",ownRecipes.length,20,"菜单不大，但每一道都有人等。"],
+    ["料理","册","家庭味觉志","记录 50 道菜谱",ownRecipes.length,50,"味道也拥有了可以翻阅的家谱。"],
+    ["料理","火","灶台修仙","留下 5 篇食物日记",foodDiaryCount,5,"灵气有时闻起来就是锅气。"],
+    ["料理","碗","碗底见月","留下 50 篇食物日记",foodDiaryCount,50,"每只空碗都证明这一顿很成功。"],
+    ["料理","宴","家宴开席","记录 80 道菜谱",ownRecipes.length,80,"已经可以开一桌跨季节的家宴。"],
+    ["料理","签","今晚不纠结","累计记录 10 道菜谱或食物日记",ownRecipes.length+foodDiaryCount,10,"今天吃什么终于不再是一道哲学题。"],
+    ["料理","香","香气档案","累计记录 40 道菜谱或食物日记",ownRecipes.length+foodDiaryCount,40,"闻不到的香气也被好好存档。"],
+    ["料理","神","胃袋导航员","累计记录 100 道菜谱或食物日记",ownRecipes.length+foodDiaryCount,100,"闭眼转盘，也总能转到家的方向。"],
+
+    ["收藏","袋","口袋珍藏","收藏 5 张影像",collectedCount,5,"口袋里已经装了几块舍不得丢的小石头。"],
+    ["收藏","柜","秘密抽屉","秘藏保存 20 张图片",secretPhotoCount,20,"抽屉拉开时，里面是一间小展厅。"],
+    ["收藏","展","周末策展人","秘藏保存 50 张图片",secretPhotoCount,50,"你为喜欢的东西安排了灯光和顺序。"],
+    ["收藏","星","星标巡逻员","收藏 25 篇日记",favoriteCount,25,"值得重看的日子都被钉上了星星。"],
+    ["收藏","库","私人博物馆","秘藏保存 200 张图片",secretPhotoCount,200,"藏品多到足以拥有自己的闭馆日。"],
+    ["收藏","冠","首席策展人","设置 20 篇精选日记",featuredCount,20,"精选不是最好，是最舍不得忘。"],
+    ["收藏","锚","时间锚点","置顶 10 篇日记",pinnedCount,10,"十个锚点让时间流不再漂走。"],
+    ["收藏","页","收藏夹发烫","累计收藏 300 张影像",collectedCount,300,"收藏夹已经热得像刚打印完的书。"],
+    ["收藏","门","里世界住民","创建 5 个秘藏相册",ownSecrets.length,5,"你为不同的秘密各造了一扇门。"],
+    ["收藏","宇","私人宇宙","累计收藏 500 张影像",collectedCount,500,"这里已经不是相册，而是一套私人星系。"],
+  ];
+  badgeRules.push(...extraBadgeSpecs.map((spec) => makeBadge(...spec)));
 
   const rootScores = [
     { key: "记录", score: ownPhotos.length * 3 + ownComments.length },
@@ -6893,6 +7096,84 @@ function renderCultivationArchive() {
   `;
 }
 
+function ensureLevelGuidePage() {
+  let page = document.querySelector("#levelGuidePage");
+  if (page) return page;
+  page = document.createElement("section");
+  page.id = "levelGuidePage";
+  page.className = "level-guide-page";
+  page.hidden = true;
+  page.addEventListener("click", (event) => {
+    if (event.target.closest("[data-close-level-guide]")) closeLevelGuidePage();
+  });
+  document.body.append(page);
+  return page;
+}
+
+function openLevelGuidePage() {
+  const page = ensureLevelGuidePage();
+  const experience = loadExperience();
+  const progress = getExperienceLevel(experience.total);
+  const dailyExp = getDailyLoginReward(getNextLoginStreak(experience));
+  page.innerHTML = `
+    <header class="level-guide-page-head">
+      <button type="button" data-close-level-guide aria-label="返回等级中心">‹</button>
+      <div><small>Cultivation Atlas</small><strong>境界图鉴</strong></div>
+      <span>${escapeHtml(progress.title)}</span>
+    </header>
+    <main class="level-guide-page-body">
+      <section class="level-guide-hero">
+        <p>每一次记录不是刷分，而是在给共同生活增加一个可返回的坐标。</p>
+        <strong>${experience.total.toLocaleString()} EXP</strong>
+        <span>${escapeHtml(getUpgradeEta(progress))}</span>
+      </section>
+      <div class="level-guide-timeline">
+        ${CULTIVATION_REALMS.map((realm, index) => {
+          const nextThreshold = Number.isFinite(realm.next) ? realm.next : Infinity;
+          const unlocked = experience.total >= realm.threshold;
+          const active = progress.realm === realm.name;
+          const remaining = Math.max(0, realm.threshold - experience.total);
+          const eta = unlocked ? (active ? "当前境界" : "已走过") : `${formatUpgradeDays(Math.ceil(remaining / Math.max(1, dailyExp)))}可抵达`;
+          const range = Number.isFinite(nextThreshold) ? `${realm.threshold.toLocaleString()} - ${(nextThreshold - 1).toLocaleString()} EXP` : `${realm.threshold.toLocaleString()}+ EXP`;
+          return `<article class="${active ? "active" : ""} ${unlocked ? "unlocked" : "locked"}">
+            <i>${String(index + 1).padStart(2, "0")}</i>
+            <div><small>${range}</small><h2>${escapeHtml(realm.name)}</h2><p>${escapeHtml(CULTIVATION_DESCRIPTIONS[realm.name] || "")}</p><em>${eta}</em></div>
+          </article>`;
+        }).join("")}
+      </div>
+    </main>`;
+  page.hidden = false;
+  document.body.classList.add("level-guide-open");
+  page.scrollTop = 0;
+}
+
+function closeLevelGuidePage() {
+  const page = document.querySelector("#levelGuidePage");
+  if (page) page.hidden = true;
+  document.body.classList.remove("level-guide-open");
+}
+
+function openAchievementDetail(badge) {
+  if (!badge) return;
+  let dialog = document.querySelector("#achievementDetailDialog");
+  if (!dialog) {
+    dialog = document.createElement("dialog");
+    dialog.id = "achievementDetailDialog";
+    dialog.className = "achievement-detail-dialog";
+    dialog.addEventListener("click", (event) => {
+      if (event.target === dialog || event.target.closest("[data-close-achievement-detail]")) dialog.close();
+    });
+    document.body.append(dialog);
+  }
+  dialog.innerHTML = `<button type="button" data-close-achievement-detail aria-label="关闭">×</button>
+    <div class="achievement-detail-icon ${badge.unlocked ? "unlocked" : ""}">${escapeHtml(badge.icon)}</div>
+    <small>${escapeHtml(badge.category)} · ${badge.unlocked ? "已解锁" : "修行中"}</small>
+    <h2>${escapeHtml(badge.title)}</h2>
+    <p>${escapeHtml(badge.lore || "每一枚徽章，都是普通日子认真发生过的证据。")}</p>
+    <section><span>达成条件</span><strong>${escapeHtml(badge.detail)}</strong><em>${Math.min(badge.current, badge.target)} / ${badge.target}</em><i><b style="width:${badge.percent}%"></b></i></section>`;
+  dialog.showModal();
+}
+
 function renderLevelDialog() {
   if (!els.levelDialog) return;
   const experience = loadExperience();
@@ -6900,13 +7181,12 @@ function renderLevelDialog() {
   const nextStreak = getNextLoginStreak(experience);
   const dailyExp = getDailyLoginReward(nextStreak);
   els.levelCurrentTitle.textContent = progress.title;
-  els.levelCurrentTitle.title = levelGuideVisible ? "收起境界说明" : "查看境界说明";
+  els.levelCurrentTitle.title = "打开境界图鉴";
   els.levelUpgradeEta.textContent = getUpgradeEta(progress);
   els.levelSummary.textContent = `当前 ${progress.total.toLocaleString()} EXP。连续签到 ${Math.max(0, Number(experience.loginStreak) || 0)} 天，下次登录预计 +${dailyExp} EXP。`;
-  els.levelCurrentTitle.closest(".level-current-card")?.classList.toggle("guide-open", levelGuideVisible);
   const guideButton = `
-    <button class="level-guide-toggle" type="button" data-level-guide-toggle>
-      ${levelGuideVisible ? "收起境界说明" : "查看境界说明"}
+    <button class="level-guide-toggle" type="button" data-open-level-guide>
+      打开境界图鉴
     </button>
   `;
   const leaderboard = `
@@ -6921,38 +7201,8 @@ function renderLevelDialog() {
       ${renderLevelLeaderboard()}
     </section>
   `;
-  const guide = CULTIVATION_REALMS.map((realm, index) => {
-    const nextThreshold = Number.isFinite(realm.next) ? realm.next : Infinity;
-    const unlocked = experience.total >= realm.threshold;
-    const active = progress.realm === realm.name;
-    const completed = experience.total >= nextThreshold;
-    const range = Number.isFinite(nextThreshold)
-      ? `${realm.threshold.toLocaleString()} - ${(nextThreshold - 1).toLocaleString()} EXP`
-      : `${realm.threshold.toLocaleString()}+ EXP`;
-    const eta =
-      !unlocked && Number.isFinite(realm.threshold)
-        ? `${formatUpgradeDays(Math.ceil((realm.threshold - experience.total) / Math.max(1, dailyExp)))}后可达`
-        : active
-          ? getUpgradeEta(progress)
-          : completed
-            ? "已突破"
-            : "终点境界";
-    return `
-      <article class="level-row ${active ? "active" : ""} ${completed ? "completed" : ""}">
-        <span>${String(index + 1).padStart(2, "0")}</span>
-        <div>
-          <strong>${escapeHtml(realm.name)}</strong>
-          <p>${escapeHtml(CULTIVATION_DESCRIPTIONS[realm.name] || "")}</p>
-          <small>${range} · ${eta}</small>
-        </div>
-      </article>
-    `;
-  }).join("");
-  els.levelList.innerHTML = `${leaderboard}${renderCultivationArchive()}${levelGuideVisible ? `<section class="level-guide-list">${guide}</section>` : ""}`;
-  els.levelList.querySelector("[data-level-guide-toggle]")?.addEventListener("click", () => {
-    levelGuideVisible = !levelGuideVisible;
-    renderLevelDialog();
-  });
+  els.levelList.innerHTML = `${leaderboard}${renderCultivationArchive()}`;
+  els.levelList.querySelector("[data-open-level-guide]")?.addEventListener("click", openLevelGuidePage);
   els.levelList.querySelector("[data-open-achievements]")?.addEventListener("click", openAchievementDialog);
 }
 
@@ -6967,18 +7217,21 @@ function renderAchievementDialog() {
   `).join("");
   const visible = achievementFilter === "全部" ? badges : badges.filter((badge) => badge.category === achievementFilter);
   els.achievementGrid.innerHTML = visible.map((badge) => `
-    <article class="achievement-card ${badge.unlocked ? "unlocked" : "locked"}">
+    <button class="achievement-card ${badge.unlocked ? "unlocked" : "locked"}" type="button" data-achievement-id="${escapeHtml(badge.id)}">
       <i>${badge.icon}</i>
       <div><small>${badge.category}</small><strong>${badge.title}</strong><p>${badge.unlocked ? "已经达成" : badge.detail}</p></div>
       <em>${Math.min(badge.current, badge.target)} / ${badge.target}</em>
       <span><b style="width:${badge.percent}%"></b></span>
-    </article>
+    </button>
   `).join("");
   els.achievementFilters.querySelectorAll("[data-achievement-filter]").forEach((button) => {
     button.addEventListener("click", () => {
       achievementFilter = button.dataset.achievementFilter || "全部";
       renderAchievementDialog();
     });
+  });
+  els.achievementGrid.querySelectorAll("[data-achievement-id]").forEach((button) => {
+    button.addEventListener("click", () => openAchievementDetail(badges.find((badge) => badge.id === button.dataset.achievementId)));
   });
 }
 
@@ -7595,6 +7848,7 @@ function secretFromCloudRow(row) {
   return {
     id: row.id,
     userId: row.user_id,
+    folderId: row.folder_id || "",
     title: row.title || "",
     category: row.category || "未分类",
     note: row.note || "",
@@ -7614,6 +7868,7 @@ function secretToCloudRow(item, userId = session?.user?.id) {
   return {
     id: normalizeUuid(item.id),
     user_id: userId,
+    folder_id: item.folderId || null,
     title: item.title || "",
     category: item.category || "未分类",
     note: item.note || "",
@@ -7779,6 +8034,100 @@ function imageMatchesSecretFilter(image) {
   return secretImageHasTag(image, activeSecretFilter);
 }
 
+function secretFolderFromCloudRow(row) {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    name: row.name || "未命名文件夹",
+    sortOrder: Number(row.sort_order) || 0,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function renderSecretFolderControls() {
+  if (!els.secretFolderList) return;
+  const folderButtons = [
+    { id: "all", name: "全部相册", count: secretItems.length },
+    { id: "unfiled", name: "未归档", count: secretItems.filter((item) => !item.folderId).length },
+    ...secretFolders.map((folder) => ({
+      id: folder.id,
+      name: folder.name,
+      count: secretItems.filter((item) => item.folderId === folder.id).length,
+    })),
+  ];
+  els.secretFolderList.hidden = Boolean(activeSecretAlbumId);
+  els.secretFolderList.innerHTML = folderButtons.map((folder) => `
+    <button class="${activeSecretFolderId === folder.id ? "active" : ""}" type="button" data-secret-folder="${escapeHtml(folder.id)}">
+      <span>${escapeHtml(folder.name)}</span><small>${folder.count}</small>
+    </button>
+  `).join("");
+  els.secretFolderList.querySelectorAll("[data-secret-folder]").forEach((button) => {
+    button.addEventListener("click", () => {
+      activeSecretFolderId = button.dataset.secretFolder || "all";
+      renderSecretGallery();
+    });
+  });
+  if (els.secretFolderInput) {
+    els.secretFolderInput.innerHTML = `<option value="">未归档</option>${secretFolders
+      .map((folder) => `<option value="${escapeHtml(folder.id)}">${escapeHtml(folder.name)}</option>`)
+      .join("")}`;
+  }
+}
+
+async function createSecretFolder() {
+  if (!cloudDb || !session) return;
+  const name = String(window.prompt("文件夹名称") || "").trim().slice(0, 40);
+  if (!name) return;
+  const now = new Date().toISOString();
+  const { data, error } = await cloudDb.from("secret_folders").insert({
+    id: crypto.randomUUID(),
+    user_id: session.user.id,
+    name,
+    sort_order: secretFolders.length * 1000,
+    created_at: now,
+    updated_at: now,
+  }).select("*").single();
+  if (error) {
+    setSecretStatus(`新建文件夹失败：${error.message}`);
+    return;
+  }
+  secretFolders.push(secretFolderFromCloudRow(data));
+  activeSecretFolderId = data.id;
+  renderSecretGallery();
+}
+
+function updateSecretSearchSuggestions() {
+  if (!els.secretSearchSuggestions) return;
+  const suggestions = new Set();
+  secretItems.forEach((item) => {
+    if (item.title) suggestions.add(item.title);
+    normalizeSecretImages(item.images).forEach((image) => {
+      normalizeSecretPhotoTags(image).forEach((tag) => suggestions.add(tag));
+    });
+  });
+  els.secretSearchSuggestions.innerHTML = [...suggestions]
+    .slice(0, 80)
+    .map((value) => `<option value="${escapeHtml(value)}"></option>`)
+    .join("");
+}
+
+function secretItemMatchesSearch(item) {
+  const query = secretSearchQuery.trim().toLocaleLowerCase("zh-CN");
+  if (!query) return true;
+  const albumText = `${item.title || ""} ${item.note || ""} ${item.category || ""}`.toLocaleLowerCase("zh-CN");
+  if (albumText.includes(query)) return true;
+  return normalizeSecretImages(item.images).some((image) =>
+    normalizeSecretPhotoTags(image).some((tag) => tag.toLocaleLowerCase("zh-CN").includes(query))
+  );
+}
+
+function secretImageMatchesSearch(image) {
+  const query = secretSearchQuery.trim().toLocaleLowerCase("zh-CN");
+  if (!query) return true;
+  return normalizeSecretPhotoTags(image).some((tag) => tag.toLocaleLowerCase("zh-CN").includes(query));
+}
+
 async function loadSecretItems() {
   if (!cloudDb || !session) {
     secretItems = [];
@@ -7789,13 +8138,15 @@ async function loadSecretItems() {
     renderCachedSecretItems(session.user.id);
   }
   try {
-    const { data, error } = await cloudDb
-      .from("secret_items")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (error) throw error;
+    const [itemsResponse, foldersResponse] = await Promise.all([
+      cloudDb.from("secret_items").select("*").order("created_at", { ascending: false }),
+      cloudDb.from("secret_folders").select("*").order("sort_order", { ascending: true }),
+    ]);
+    if (itemsResponse.error) throw itemsResponse.error;
+    if (foldersResponse.error) throw foldersResponse.error;
     secretCloudAvailable = true;
-    secretItems = sortSecretItems((data || []).map(secretFromCloudRow));
+    secretItems = sortSecretItems((itemsResponse.data || []).map(secretFromCloudRow));
+    secretFolders = (foldersResponse.data || []).map(secretFolderFromCloudRow);
     saveSecretItemsCache(session.user.id);
     renderSecretGallery();
   } catch (error) {
@@ -7948,6 +8299,7 @@ async function saveSecretItem(event) {
     const now = new Date().toISOString();
     const item = {
       id: crypto.randomUUID(),
+      folderId: els.secretFolderInput?.value || (activeSecretFolderId !== "all" && activeSecretFolderId !== "unfiled" ? activeSecretFolderId : ""),
       title: els.secretTitleInput.value.trim(),
       category: els.secretCategoryInput.value.trim() || "未分类",
       note: els.secretNoteInput.value.trim(),
@@ -7980,6 +8332,8 @@ async function saveSecretItem(event) {
 function renderSecretGallery() {
   if (!els.secretGallery) return;
   renderSecretLinkedPhotoOptions();
+  renderSecretFolderControls();
+  updateSecretSearchSuggestions();
   const activeAlbum = secretItems.find((item) => item.id === activeSecretAlbumId);
   const layoutToggle = els.secretPage?.querySelector("[data-secret-layout-toggle]");
   if (layoutToggle) layoutToggle.hidden = Boolean(activeAlbum);
@@ -8028,7 +8382,11 @@ function renderSecretGallery() {
   activeSecretFilter = "全部";
   els.secretFilters.hidden = true;
   els.secretFilters.innerHTML = "";
-  const visible = sortSecretItems(secretItems);
+  const visible = sortSecretItems(secretItems).filter((item) => {
+    const folderMatch = activeSecretFolderId === "all"
+      || (activeSecretFolderId === "unfiled" ? !item.folderId : item.folderId === activeSecretFolderId);
+    return folderMatch && secretItemMatchesSearch(item);
+  });
   if (!visible.length) {
     els.secretGallery.innerHTML = `<div class="empty">这里还没有相册，先上传第一组私人收藏吧。</div>`;
     return;
@@ -8088,7 +8446,7 @@ function renderSecretAlbumView(item) {
   const displayEntries = sortSecretDisplayEntries(
     images
       .map((image, index) => ({ image, index }))
-      .filter(({ image }) => imageMatchesSecretFilter(image))
+      .filter(({ image }) => imageMatchesSecretFilter(image) && secretImageMatchesSearch(image))
   );
   const linkedPhoto = photos.find((photo) => photo.id === item.linkedPhotoId);
   const linkedTitle = linkedPhoto ? getDisplayTitle(linkedPhoto) || "关联日记" : "";
@@ -8113,7 +8471,6 @@ function renderSecretAlbumView(item) {
           ${linkedTitle ? `<small>关联：${escapeHtml(linkedTitle)}</small>` : ""}
         </div>
         <div class="secret-album-actions">
-          <button type="button" data-secret-new-album>新建相册</button>
           <button class="primary" type="button" data-secret-toggle-append>${secretAppendExpanded ? "收起上传" : "添加相片"}</button>
           <button class="delete-secret danger" type="button" data-secret-delete-current>删除相册</button>
         </div>
@@ -8171,6 +8528,10 @@ function renderSecretAlbumView(item) {
             <form class="secret-album-edit" data-secret-edit-form>
               <input data-secret-edit-title maxlength="80" value="${escapeHtml(item.title || "")}" placeholder="相册名" />
               <input data-secret-edit-category maxlength="32" value="${escapeHtml(item.category || "")}" placeholder="分类" />
+              <select data-secret-edit-folder>
+                <option value="" ${item.folderId ? "" : "selected"}>未归档</option>
+                ${secretFolders.map((folder) => `<option value="${escapeHtml(folder.id)}" ${item.folderId === folder.id ? "selected" : ""}>${escapeHtml(folder.name)}</option>`).join("")}
+              </select>
               <textarea data-secret-edit-note rows="2" placeholder="备注">${escapeHtml(item.note || "")}</textarea>
               <div>
                 <button class="primary" type="submit">保存相册</button>
@@ -8252,18 +8613,6 @@ function renderSecretAlbumView(item) {
   els.secretGallery.querySelector("[data-secret-toggle-append]")?.addEventListener("click", () => {
     secretAppendExpanded = !secretAppendExpanded;
     renderSecretGallery();
-  });
-  els.secretGallery.querySelector("[data-secret-new-album]")?.addEventListener("click", () => {
-    activeSecretAlbumId = "";
-    activeSecretFilter = "全部";
-    secretSelectionMode = false;
-    selectedSecretImageIndexes = new Set();
-    setSecretExpanded(true);
-    renderSecretGallery();
-    window.requestAnimationFrame(() => {
-      els.secretComposer?.scrollIntoView({ behavior: "smooth", block: "start" });
-      els.secretTitleInput?.focus({ preventScroll: true });
-    });
   });
   els.secretGallery.querySelector("[data-secret-merge-album]")?.addEventListener("click", () => {
     const targetId = els.secretGallery.querySelector("[data-secret-merge-target]")?.value || "";
@@ -8573,8 +8922,9 @@ async function saveSecretAlbumEdit(event, item) {
   const form = event.currentTarget;
   const title = form.querySelector("[data-secret-edit-title]")?.value.trim() || "";
   const category = form.querySelector("[data-secret-edit-category]")?.value.trim() || "未分类";
+  const folderId = form.querySelector("[data-secret-edit-folder]")?.value || "";
   const note = form.querySelector("[data-secret-edit-note]")?.value.trim() || "";
-  const saved = await updateSecretAlbum(item, { title, category, note }, "相册资料已保存。");
+  const saved = await updateSecretAlbum(item, { title, category, note, folder_id: folderId || null }, "相册资料已保存。");
   if (saved) {
     secretAlbumEditing = false;
     renderSecretGallery();
@@ -11571,13 +11921,26 @@ async function openNotification(button) {
   const item = notifications.find((entry) => (entry.notification_id || entry.id) === id);
   if (item) item.is_read = true;
   renderNotifications();
-  const photo = photos.find((entry) => entry.id === photoId);
+  let photo = photos.find((entry) => entry.id === photoId);
+  if (!photo && photoId && cloudDb && session) {
+    const { data, error } = await cloudDb.from("photos").select("*").eq("id", photoId).single();
+    if (!error && data) {
+      photo = data;
+      if (!photos.some((entry) => entry.id === data.id)) photos.unshift(data);
+      savePhotoFeedCache(session.user.id);
+      renderGallery();
+    }
+  }
   if (photo) {
     els.notificationDialog.close();
+    switchPage("gallery");
+    await new Promise((resolve) => requestAnimationFrame(resolve));
     openPhoto(photo);
   } else if (type === "thanks") {
     els.notificationDialog.close();
     switchPage("thanks");
+  } else {
+    showMiniToast("这条日记可能已删除或暂时无法读取。", { kind: "error", duration: 2600 });
   }
 }
 
@@ -12140,8 +12503,7 @@ els.levelDialog?.addEventListener("click", (event) => {
   if (event.target === els.levelDialog) els.levelDialog.close();
 });
 els.levelCurrentTitle?.addEventListener("click", () => {
-  levelGuideVisible = !levelGuideVisible;
-  renderLevelDialog();
+  openLevelGuidePage();
 });
 els.closeForgotPassword.addEventListener("click", () => els.forgotPasswordDialog.close());
 els.forgotPasswordDialog.addEventListener("click", (event) => {
@@ -12280,6 +12642,11 @@ els.diarySearchInput?.addEventListener("input", () => {
   updateDiarySearchUi();
   renderGallery();
 });
+els.secretSearchInput?.addEventListener("input", () => {
+  secretSearchQuery = els.secretSearchInput.value;
+  renderSecretGallery();
+});
+els.secretCreateFolderButton?.addEventListener("click", createSecretFolder);
 els.clearDiarySearch?.addEventListener("click", () => {
   diarySearchQuery = "";
   visiblePhotoCount = PAGE_SIZE;
@@ -12303,6 +12670,7 @@ registerAppShellWorker();
 updateDiarySearchUi();
 renderFoodWheel();
 initializeFeedObserver();
+initializePullToRefresh();
 applyMobileFeedLayout();
 applyMobileSecretLayout();
 syncMobileComposerPlacement();

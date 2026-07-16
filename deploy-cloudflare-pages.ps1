@@ -3,7 +3,7 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $dist = Join-Path $root ".cloudflare-pages-dist"
 $nodeBin = "C:\Users\xiuda\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin"
-$pnpmBin = "C:\Users\xiuda\.cache\codex-runtimes\codex-primary-runtime\dependencies\bin"
+$pnpmBin = "C:\Users\xiuda\.cache\codex-runtimes\codex-primary-runtime\dependencies\bin\fallback"
 
 if (-not $env:CLOUDFLARE_API_TOKEN) {
   $tokenPath = Join-Path $root "cloudfileToken.txt"

@@ -197,9 +197,21 @@ CREATE TABLE IF NOT EXISTS anniversaries (
 
 CREATE INDEX IF NOT EXISTS anniversaries_user_date_idx ON anniversaries (user_id, event_date ASC);
 
+CREATE TABLE IF NOT EXISTS secret_folders (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+
+CREATE INDEX IF NOT EXISTS secret_folders_user_sort_idx ON secret_folders (user_id, sort_order ASC);
+
 CREATE TABLE IF NOT EXISTS secret_items (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  folder_id TEXT REFERENCES secret_folders(id) ON DELETE SET NULL,
   title TEXT NOT NULL DEFAULT '',
   category TEXT NOT NULL DEFAULT '未分类',
   note TEXT NOT NULL DEFAULT '',
@@ -215,6 +227,7 @@ CREATE TABLE IF NOT EXISTS secret_items (
 CREATE INDEX IF NOT EXISTS secret_items_user_sort_idx ON secret_items (user_id, sort_order ASC);
 CREATE INDEX IF NOT EXISTS secret_items_user_created_idx ON secret_items (user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS secret_items_user_category_idx ON secret_items (user_id, category, created_at DESC);
+CREATE INDEX IF NOT EXISTS secret_items_folder_sort_idx ON secret_items (folder_id, sort_order ASC);
 
 CREATE TABLE IF NOT EXISTS gratitude_notes (
   id TEXT PRIMARY KEY,

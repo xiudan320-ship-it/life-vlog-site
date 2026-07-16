@@ -152,11 +152,17 @@ const TABLE_CONFIG = {
     booleanColumns: ["is_read"],
   },
   secret_items: {
-    columns: ["id", "user_id", "title", "category", "note", "cover_image", "cover_path", "images", "linked_photo_id", "sort_order", "created_at", "updated_at"],
+    columns: ["id", "user_id", "folder_id", "title", "category", "note", "cover_image", "cover_path", "images", "linked_photo_id", "sort_order", "created_at", "updated_at"],
     scope: "own",
     writeScope: "own",
     ownerColumn: "user_id",
     jsonColumns: ["images"],
+  },
+  secret_folders: {
+    columns: ["id", "user_id", "name", "sort_order", "created_at", "updated_at"],
+    scope: "own",
+    writeScope: "own",
+    ownerColumn: "user_id",
   },
   trash_items: {
     columns: ["id", "user_id", "item_type", "item_id", "label", "payload", "deleted_at", "expires_at"],
@@ -683,6 +689,27 @@ async function handleRpc(request, env, user, name) {
     return jsonResponse(request, env, { data: { name: familyName } });
   }
 
+  if (name === "admin_update_photo_category") {
+    if (String(user.username || "").trim().toLowerCase() !== "xiudan320") {
+      return jsonResponse(request, env, { error: "Only the family administrator can change this category." }, 403);
+    }
+    const photoId = String(payload.p_photo_id || payload.photo_id || "").trim();
+    const category = String(payload.p_category || payload.category || "").trim().slice(0, 32);
+    if (!photoId || !category) {
+      return jsonResponse(request, env, { error: "Photo and category are required." }, 400);
+    }
+    const familyIds = await getFamilyUserIds(env, user.id);
+    const placeholders = familyIds.map(() => "?").join(",");
+    const target = await env.DB.prepare(
+      `select id from photos where id=? and user_id in (${placeholders}) limit 1`
+    ).bind(photoId, ...familyIds).first();
+    if (!target) return jsonResponse(request, env, { error: "Diary not found in this family." }, 404);
+    await env.DB.prepare("update photos set category=?, updated_at=? where id=?")
+      .bind(category, nowIso(), photoId)
+      .run();
+    return jsonResponse(request, env, { data: { id: photoId, category } });
+  }
+
   if (name === "get_my_notifications") {
     const limit = Math.min(100, Math.max(1, Number(payload.p_limit || 50)));
     const rows = await env.DB.prepare(
@@ -978,6 +1005,7 @@ function normalizeColumnValue(table, column, value) {
     "width",
     "height",
     "linked_photo_id",
+    "folder_id",
   ]);
   if (table === "notifications" && ["photo_id", "comment_id"].includes(column)) {
     return value || null;
@@ -1223,6 +1251,7 @@ const BACKUP_TABLES = [
   "gratitude_notes",
   "notifications",
   "secret_items",
+  "secret_folders",
   "trash_items",
 ];
 

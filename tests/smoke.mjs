@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const [app, css, worker, schema] = await Promise.all([
+const [app, css, worker, schema, index, manifestText] = await Promise.all([
   readFile(new URL("../app.js", import.meta.url), "utf8"),
   readFile(new URL("../redesign.css", import.meta.url), "utf8"),
   readFile(new URL("../cloudflare-worker/src/worker.js", import.meta.url), "utf8"),
   readFile(new URL("../cloudflare-worker/schema.d1.sql", import.meta.url), "utf8"),
+  readFile(new URL("../index.html", import.meta.url), "utf8"),
+  readFile(new URL("../manifest.webmanifest", import.meta.url), "utf8"),
 ]);
 const serviceWorker = await readFile(new URL("../service-worker.js", import.meta.url), "utf8");
 
@@ -34,5 +36,20 @@ assert.match(app, /shouldAutoCacheMedia/);
 assert.match(app, /downloadOfflinePool/);
 assert.match(app, /Number\.POSITIVE_INFINITY/);
 assert.match(app, /await getCachedResponseBytes\(response\)/);
+assert.match(worker, /secret_folders/);
+assert.match(worker, /admin_update_photo_category/);
+assert.match(schema, /CREATE TABLE IF NOT EXISTS secret_folders/);
+assert.match(schema, /folder_id TEXT REFERENCES secret_folders/);
+assert.match(app, /initializePullToRefresh/);
+assert.match(app, /adminUpdatePhotoCategory/);
+assert.match(app, /openLevelGuidePage/);
+assert.match(app, /openAchievementDetail/);
+assert.match(app, /const extraBadgeSpecs = \[/);
+const extraBadgeBlock = app.slice(app.indexOf("const extraBadgeSpecs = ["), app.indexOf("badgeRules.push(...extraBadgeSpecs"));
+assert.equal((extraBadgeBlock.match(/^\s+\["/gm) || []).length, 50);
+assert.match(index, /id="diarySearchSuggestions"/);
+assert.match(index, /id="secretSearchSuggestions"/);
+assert.match(index, /id="secretFolderList"/);
+assert.doesNotThrow(() => JSON.parse(manifestText));
 
 console.log("Smoke checks passed.");
