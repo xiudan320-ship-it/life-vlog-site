@@ -240,7 +240,7 @@ let activePage = "gallery";
 let activeFilter = "全部";
 let activeSecretFilter = "全部";
 let activeSecretAlbumId = "";
-let activeSecretFolderId = "all";
+let activeSecretFolderId = "unfiled";
 let secretSearchQuery = "";
 let secretPhotoSortDescending = true;
 let secretSelectionMode = false;
@@ -4231,7 +4231,7 @@ function ensureMobileDiaryPage() {
     }
   });
   mobileDiaryPage.addEventListener("pointerdown", beginMobileDiaryBackSwipe, { passive: true });
-  mobileDiaryPage.addEventListener("pointermove", moveMobileDiaryBackSwipe, { passive: true });
+  mobileDiaryPage.addEventListener("pointermove", moveMobileDiaryBackSwipe, { passive: false });
   mobileDiaryPage.addEventListener("pointerup", endMobileDiaryBackSwipe, { passive: true });
   mobileDiaryPage.addEventListener("pointerdown", beginMobileDiaryImageSwipe, { passive: true });
   mobileDiaryPage.addEventListener("pointermove", moveMobileDiaryImageSwipe, { passive: true });
@@ -4240,7 +4240,6 @@ function ensureMobileDiaryPage() {
     cancelMobileDiaryBackSwipe();
     cancelMobileDiaryImageSwipe();
   });
-  mobileDiaryPage.addEventListener("lostpointercapture", cancelMobileDiaryBackSwipe);
   document.body.append(mobileDiaryPage);
   return mobileDiaryPage;
 }
@@ -4463,6 +4462,11 @@ function beginMobileDiaryBackSwipe(event) {
   if (!mobileDiaryPage || mobileDiaryPage.hidden || event.pointerType === "mouse") return;
   if (event.target.closest(".mobile-diary-media, .mobile-diary-thumbs, button, input, textarea, select, a")) return;
   mobileDiaryBackSwipeStart = { id: event.pointerId, edge: "right", x: event.clientX, y: event.clientY, time: Date.now(), tracking: false };
+  try {
+    mobileDiaryPage.setPointerCapture(event.pointerId);
+  } catch {
+    // Pointer capture is optional on older iOS versions.
+  }
 }
 
 function moveMobileDiaryBackSwipe(event) {
@@ -4476,6 +4480,7 @@ function moveMobileDiaryBackSwipe(event) {
     return;
   }
   mobileDiaryBackSwipeStart.tracking = true;
+  if (event.cancelable) event.preventDefault();
   const resisted = Math.sign(deltaX) * Math.min(window.innerWidth, Math.abs(deltaX) * 0.92);
   mobileDiaryPage.classList.add("is-back-swiping");
   mobileDiaryPage.style.setProperty("--back-swipe-x", `${resisted}px`);
@@ -4495,12 +4500,14 @@ function endMobileDiaryBackSwipe(event) {
   mobileDiaryPage.classList.remove("is-back-swiping");
   if (shouldClose) {
     mobileDiaryPage.classList.add("is-back-committing");
-    mobileDiaryPage.style.setProperty(
-      "--back-swipe-x",
-      closingEdge === "right" ? "-100vw" : "100vw"
-    );
-    mobileDiaryPage.style.setProperty("--back-swipe-progress", "1");
-    window.setTimeout(closeMobileDiaryPage, 240);
+    requestAnimationFrame(() => {
+      mobileDiaryPage.style.setProperty(
+        "--back-swipe-x",
+        closingEdge === "right" ? "-100vw" : "100vw"
+      );
+      mobileDiaryPage.style.setProperty("--back-swipe-progress", "1");
+    });
+    window.setTimeout(closeMobileDiaryPage, 320);
     return;
   }
   mobileDiaryPage.style.setProperty("--back-swipe-x", "0px");
@@ -8082,8 +8089,7 @@ function secretFolderFromCloudRow(row) {
 function renderSecretFolderControls() {
   if (!els.secretFolderList) return;
   const folderButtons = [
-    { id: "all", name: "全部相册", count: secretItems.length },
-    { id: "unfiled", name: "未归档", count: secretItems.filter((item) => !item.folderId).length },
+    { id: "unfiled", name: "默认文件夹", count: secretItems.filter((item) => !item.folderId).length },
     ...secretFolders.map((folder) => ({
       id: folder.id,
       name: folder.name,
@@ -8098,12 +8104,12 @@ function renderSecretFolderControls() {
   `).join("");
   els.secretFolderList.querySelectorAll("[data-secret-folder]").forEach((button) => {
     button.addEventListener("click", () => {
-      activeSecretFolderId = button.dataset.secretFolder || "all";
+      activeSecretFolderId = button.dataset.secretFolder || "unfiled";
       renderSecretGallery();
     });
   });
   if (els.secretFolderInput) {
-    els.secretFolderInput.innerHTML = `<option value="">未归档</option>${secretFolders
+    els.secretFolderInput.innerHTML = `<option value="">默认文件夹</option>${secretFolders
       .map((folder) => `<option value="${escapeHtml(folder.id)}">${escapeHtml(folder.name)}</option>`)
       .join("")}`;
   }
@@ -8360,7 +8366,7 @@ async function saveSecretItem(event) {
     const now = new Date().toISOString();
     const item = {
       id: crypto.randomUUID(),
-      folderId: els.secretFolderInput?.value || (activeSecretFolderId !== "all" && activeSecretFolderId !== "unfiled" ? activeSecretFolderId : ""),
+      folderId: els.secretFolderInput?.value || (activeSecretFolderId !== "unfiled" ? activeSecretFolderId : ""),
       title: els.secretTitleInput.value.trim(),
       category: els.secretCategoryInput.value.trim() || "未分类",
       note: els.secretNoteInput.value.trim(),
@@ -8444,8 +8450,9 @@ function renderSecretGallery() {
   els.secretFilters.hidden = true;
   els.secretFilters.innerHTML = "";
   const visible = sortSecretItems(secretItems).filter((item) => {
-    const folderMatch = activeSecretFolderId === "all"
-      || (activeSecretFolderId === "unfiled" ? !item.folderId : item.folderId === activeSecretFolderId);
+    const folderMatch = activeSecretFolderId === "unfiled"
+      ? !item.folderId
+      : item.folderId === activeSecretFolderId;
     return folderMatch && secretItemMatchesSearch(item);
   });
   if (!visible.length) {
@@ -8462,7 +8469,7 @@ function renderSecretGallery() {
         ...new Set(itemImages.flatMap((image) => normalizeSecretPhotoTags(image))),
       ].slice(0, 3).join(" · ");
       return `
-        <article class="secret-card">
+        <article class="secret-card" data-secret-album-card="${escapeHtml(item.id)}">
           <button class="secret-cover" type="button" data-secret-index="${index}">
             <img src="${escapeHtml(cover)}" alt="${escapeHtml(item.title || item.category)}" loading="lazy" />
             <span>${String(itemImages.length).padStart(2, "0")}</span>
@@ -8482,7 +8489,35 @@ function renderSecretGallery() {
     })
     .join("");
   els.secretGallery.querySelectorAll("[data-secret-index]").forEach((button) => {
+    let longPressTimer = null;
+    let longPressTriggered = false;
+    const item = visible[Number(button.dataset.secretIndex)];
+    const clearLongPress = () => {
+      if (longPressTimer) window.clearTimeout(longPressTimer);
+      longPressTimer = null;
+    };
+    button.addEventListener("pointerdown", (event) => {
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+      clearLongPress();
+      longPressTriggered = false;
+      longPressTimer = window.setTimeout(() => {
+        longPressTimer = null;
+        longPressTriggered = true;
+        if (navigator.vibrate) navigator.vibrate(24);
+        void openSecretAlbumFolderDialog(item);
+      }, 480);
+    });
+    button.addEventListener("pointerup", clearLongPress);
+    button.addEventListener("pointercancel", clearLongPress);
+    button.addEventListener("pointerleave", clearLongPress);
+    button.addEventListener("contextmenu", (event) => {
+      if (longPressTriggered) event.preventDefault();
+    });
     button.addEventListener("click", () => {
+      if (longPressTriggered) {
+        longPressTriggered = false;
+        return;
+      }
       activeSecretAlbumId = visible[Number(button.dataset.secretIndex)]?.id || "";
       activeSecretFilter = "全部";
       secretSelectionMode = false;
@@ -8500,6 +8535,59 @@ function renderSecretGallery() {
       moveSecretAlbum(id, Number(direction) || 0, visible);
     });
   });
+}
+
+async function openSecretAlbumFolderDialog(item) {
+  if (!item || !session || !cloudDb) return;
+  let dialog = document.querySelector("#secretAlbumFolderDialog");
+  if (!dialog) {
+    dialog = document.createElement("dialog");
+    dialog.id = "secretAlbumFolderDialog";
+    dialog.className = "secret-album-folder-dialog";
+    document.body.append(dialog);
+  }
+  const choices = [
+    { id: "", name: "默认文件夹", count: secretItems.filter((entry) => !entry.folderId).length },
+    ...secretFolders.map((folder) => ({
+      id: folder.id,
+      name: folder.name,
+      count: secretItems.filter((entry) => entry.folderId === folder.id).length,
+    })),
+  ];
+  dialog.innerHTML = `<form method="dialog">
+    <header><div><span>Move Album</span><h2>移动相册</h2><p>${escapeHtml(item.title || "未命名相册")}</p></div><button value="cancel" type="submit" aria-label="关闭">×</button></header>
+    <div class="secret-folder-choice-list">${choices.map((folder) => {
+      const current = (item.folderId || "") === folder.id;
+      return `<button class="${current ? "current" : ""}" type="submit" value="${escapeHtml(folder.id || "__default__")}" ${current ? "disabled" : ""}><span><i aria-hidden="true"></i><strong>${escapeHtml(folder.name)}</strong></span><small>${folder.count} 个相册</small></button>`;
+    }).join("")}</div>
+    <footer>长按相册，可以随时重新整理</footer>
+  </form>`;
+  dialog.showModal();
+  await new Promise((resolve) => dialog.addEventListener("close", resolve, { once: true }));
+  const targetFolderId = dialog.returnValue === "__default__" ? "" : dialog.returnValue;
+  if (!targetFolderId && dialog.returnValue !== "__default__") return;
+  await moveSecretAlbumToFolder(item, targetFolderId);
+}
+
+async function moveSecretAlbumToFolder(item, folderId = "") {
+  if (!item || !cloudDb || !session || (item.folderId || "") === folderId) return;
+  setSecretStatus("正在移动相册...");
+  const { error } = await cloudDb
+    .from("secret_items")
+    .update({ folder_id: folderId || null, updated_at: new Date().toISOString() })
+    .eq("id", item.id)
+    .eq("user_id", session.user.id);
+  if (error) {
+    setSecretStatus(error.message || "移动相册失败。");
+    showMiniToast("移动失败", { kind: "error" });
+    return;
+  }
+  item.folderId = folderId;
+  item.updatedAt = new Date().toISOString();
+  saveSecretItemsCache(session.user.id);
+  renderSecretGallery();
+  setSecretStatus("相册已移动。");
+  showMiniToast("相册已移动", { kind: "success" });
 }
 
 function renderSecretAlbumView(item) {
@@ -8590,7 +8678,7 @@ function renderSecretAlbumView(item) {
               <input data-secret-edit-title maxlength="80" value="${escapeHtml(item.title || "")}" placeholder="相册名" />
               <input data-secret-edit-category maxlength="32" value="${escapeHtml(item.category || "")}" placeholder="分类" />
               <select data-secret-edit-folder>
-                <option value="" ${item.folderId ? "" : "selected"}>未归档</option>
+                <option value="" ${item.folderId ? "" : "selected"}>默认文件夹</option>
                 ${secretFolders.map((folder) => `<option value="${escapeHtml(folder.id)}" ${item.folderId === folder.id ? "selected" : ""}>${escapeHtml(folder.name)}</option>`).join("")}
               </select>
               <textarea data-secret-edit-note rows="2" placeholder="备注">${escapeHtml(item.note || "")}</textarea>
