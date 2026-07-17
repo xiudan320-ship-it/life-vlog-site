@@ -182,6 +182,193 @@ button *,
   }
 }
 
+/* Stable mobile wishlist cards: media, copy and actions keep the same rhythm. */
+@media (max-width: 700px) {
+  .wishlist-list {
+    align-items: start;
+    gap: 10px !important;
+  }
+
+  .wish-card {
+    box-sizing: border-box;
+    display: grid !important;
+    grid-template-rows: 30px minmax(0, 1fr) 76px;
+    gap: 10px !important;
+    height: 456px;
+    min-height: 456px;
+    overflow: hidden;
+    padding: 11px !important;
+  }
+
+  .wish-card-top {
+    min-height: 30px;
+    overflow: hidden;
+    align-items: center !important;
+    flex-direction: row !important;
+  }
+
+  .wish-index-stack {
+    width: 100%;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    gap: 5px;
+  }
+
+  .wish-seq,
+  .wish-state-pill {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .wish-card-layout {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    grid-template-rows: 154px minmax(0, 1fr);
+    gap: 10px !important;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .wish-card-image-button,
+  .wish-card-placeholder {
+    order: 0 !important;
+    box-sizing: border-box;
+    width: 100% !important;
+    height: 154px !important;
+    min-height: 154px !important;
+    max-height: 154px !important;
+    margin: 0 !important;
+    border-radius: 6px !important;
+  }
+
+  .wish-card-image-button .wish-card-image {
+    width: 100% !important;
+    height: 154px !important;
+    min-height: 154px !important;
+    max-height: 154px !important;
+    object-fit: cover !important;
+  }
+
+  .wish-card-content {
+    order: 1 !important;
+    display: grid !important;
+    grid-template-rows: 15px 46px auto minmax(0, 1fr);
+    align-content: start;
+    gap: 6px !important;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .wish-card-content .kicker {
+    overflow: hidden;
+    line-height: 15px !important;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .wish-card h3 {
+    display: -webkit-box;
+    height: 46px;
+    min-height: 46px;
+    margin: 0;
+    overflow: hidden;
+    font-size: 19px !important;
+    line-height: 23px !important;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .wish-meta {
+    display: flex;
+    min-height: 24px;
+    max-height: 50px;
+    overflow: hidden;
+    align-content: flex-start;
+  }
+
+  .wish-meta span {
+    overflow: hidden;
+    max-width: 100%;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .wish-card p:not(.kicker).wish-note {
+    display: -webkit-box;
+    margin: 0;
+    min-height: 0;
+    overflow: hidden;
+    line-height: 17px !important;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .wish-completion-note {
+    min-height: 0;
+    max-height: 58px;
+    margin: 0;
+    overflow: hidden;
+    padding: 7px 9px;
+  }
+
+  .wish-completion-note p {
+    display: -webkit-box;
+    overflow: hidden;
+    line-height: 16px;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .wish-actions {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: 34px 34px;
+    align-self: end;
+    gap: 6px !important;
+    width: 100%;
+    height: 74px;
+    margin: 0 !important;
+  }
+
+  .wish-actions button {
+    min-width: 0;
+    min-height: 34px !important;
+    height: 34px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .wish-actions .danger { grid-column: 1 / -1; }
+
+  body.mobile-feed-single .wish-card {
+    grid-template-rows: 32px minmax(0, 1fr) 40px;
+    height: 540px;
+    min-height: 540px;
+    padding: 14px !important;
+  }
+
+  body.mobile-feed-single .wish-card-layout {
+    grid-template-rows: 250px minmax(0, 1fr);
+  }
+
+  body.mobile-feed-single .wish-card-image-button,
+  body.mobile-feed-single .wish-card-image-button .wish-card-image,
+  body.mobile-feed-single .wish-card-placeholder {
+    height: 250px !important;
+    min-height: 250px !important;
+    max-height: 250px !important;
+  }
+
+  body.mobile-feed-single .wish-actions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: 40px;
+    height: 40px;
+  }
+
+  body.mobile-feed-single .wish-actions .danger { grid-column: auto; }
+}
+
 body.level-guide-open { overflow: hidden; }
 
 .level-guide-page {
@@ -8876,5 +9063,29 @@ body.mobile-dialog-open {
     width: 18px;
     pointer-events: none;
     background: linear-gradient(90deg, rgba(0,0,0,.2), transparent);
+  }
+}
+
+.wish-card-details {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-height: 0;
+}
+
+@media (max-width: 700px) {
+  .wish-card-details {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    align-content: start;
+    gap: 5px;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .wish-card-details .wish-note,
+  .wish-card-details .wish-completion-note {
+    min-height: 0;
+    margin: 0;
   }
 }

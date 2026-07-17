@@ -10620,20 +10620,22 @@ function renderWishes() {
                 ${wish.date ? `<span>计划 ${formatWishDate(wish.date)}</span>` : ""}
                 ${completedDate ? `<span>完成 ${completedDate}</span>` : ""}
               </div>
-              ${wish.note ? `<p class="wish-note">${escapeHtml(wish.note)}</p>` : ""}
-              ${
-                wish.done && wish.completionNote
-                  ? `<div class="wish-completion-note">
-                      <span>完成回执</span>
-                      <p>${escapeHtml(wish.completionNote)}</p>
-                    </div>`
-                  : wish.done
-                    ? `<div class="wish-completion-note empty">
+              <div class="wish-card-details">
+                ${wish.note ? `<p class="wish-note">${escapeHtml(wish.note)}</p>` : ""}
+                ${
+                  wish.done && wish.completionNote
+                    ? `<div class="wish-completion-note">
                         <span>完成回执</span>
-                        <p>已经完成啦，之后可以编辑补上一句感想。</p>
+                        <p>${escapeHtml(wish.completionNote)}</p>
                       </div>`
-                    : ""
-              }
+                    : wish.done
+                      ? `<div class="wish-completion-note empty">
+                          <span>完成回执</span>
+                          <p>已经完成啦，之后可以编辑补上一句感想。</p>
+                        </div>`
+                      : ""
+                }
+              </div>
             </div>
           </div>
           ${canManage ? `<div class="wish-actions">

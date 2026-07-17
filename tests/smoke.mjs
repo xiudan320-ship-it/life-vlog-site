@@ -47,6 +47,8 @@ assert.match(app, /level-workspace/);
 assert.match(app, /requestSecretFolderName/);
 assert.match(app, /openSecretAlbumFolderDialog/);
 assert.match(app, /moveSecretAlbumToFolder/);
+assert.match(app, /wish-card-details/);
+assert.match(css, /Stable mobile wishlist cards/);
 assert.match(app, /activeSecretFolderId = "unfiled"/);
 assert.match(css, /\.secret-album-folder-dialog/);
 assert.match(css, /transition: transform 320ms/);
