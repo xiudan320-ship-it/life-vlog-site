@@ -1778,11 +1778,15 @@ dialog article {
 }
 
 .edit-image-item button,
+.edit-image-item .edit-image-picker,
 .danger-button {
+  display: inline-grid;
   min-height: 34px;
+  place-items: center;
   border: 1px solid var(--line);
   background: transparent;
   color: var(--ink);
+  cursor: pointer;
   font-size: 12px;
   font-weight: 850;
 }

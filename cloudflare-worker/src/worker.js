@@ -1,12 +1,19 @@
 import { buildPushPayload } from "@block65/webcrypto-web-push";
 
 const MAX_UPLOAD_BYTES = 12 * 1024 * 1024;
-const SESSION_DAYS = 365;
+const SESSION_DAYS = 3650;
+const SESSION_REFRESH_WINDOW_MS = 30 * 86400 * 1000;
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const PASSWORD_HASH_PREFIX = "pbkdf2-sha256";
+const PASSWORD_HASH_ITERATIONS = 210000;
 const RATE_LIMITS = {
   "/api/auth/login": 30,
   "/api/auth/register": 5,
   "/api/invite/verify": 20,
+  "/api/account/email/request": 5,
+  "/api/account/email/confirm": 10,
+  "/api/auth/password-reset/request": 5,
+  "/api/auth/password-reset/confirm": 10,
   "/upload": 60,
   "/copy": 90,
   "/object": 90,
@@ -15,6 +22,7 @@ const RATE_LIMITS = {
 
 const rateLimitBuckets = globalThis.__lifeVlogRateLimitBuckets || new Map();
 globalThis.__lifeVlogRateLimitBuckets = rateLimitBuckets;
+let emailSchemaPromise = null;
 
 const TABLE_CONFIG = {
   user_profiles: {
@@ -136,6 +144,44 @@ const TABLE_CONFIG = {
     ownerColumn: "user_id",
     booleanColumns: ["is_done"],
   },
+  wardrobe_locations: {
+    columns: ["id", "user_id", "name", "note", "sort_order", "created_at", "updated_at"],
+    scope: "family",
+    ownerColumn: "user_id",
+  },
+  wardrobe_items: {
+    columns: [
+      "id",
+      "user_id",
+      "wearer_user_id",
+      "name",
+      "item_type",
+      "category",
+      "description",
+      "fit_note",
+      "location_id",
+      "status",
+      "seasons",
+      "occasions",
+      "style_tags",
+      "color_tags",
+      "images",
+      "is_favorite",
+      "wear_count",
+      "last_worn_at",
+      "created_at",
+      "updated_at",
+    ],
+    scope: "family",
+    ownerColumn: "user_id",
+    jsonColumns: ["seasons", "occasions", "style_tags", "color_tags", "images"],
+    booleanColumns: ["is_favorite"],
+  },
+  wardrobe_wear_logs: {
+    columns: ["id", "user_id", "wardrobe_item_id", "worn_on", "note", "created_at"],
+    scope: "family",
+    ownerColumn: "user_id",
+  },
   anniversaries: {
     columns: ["id", "user_id", "title", "event_type", "event_date", "note", "created_at", "updated_at"],
     scope: "family",
@@ -154,7 +200,7 @@ const TABLE_CONFIG = {
     booleanColumns: ["is_read"],
   },
   secret_items: {
-    columns: ["id", "user_id", "folder_id", "title", "category", "note", "cover_image", "cover_path", "images", "linked_photo_id", "sort_order", "created_at", "updated_at"],
+    columns: ["id", "user_id", "folder_id", "title", "category", "note", "cover_image", "cover_path", "images", "linked_photo_id", "photo_sort_descending", "sort_order", "created_at", "updated_at"],
     scope: "own",
     writeScope: "own",
     ownerColumn: "user_id",
@@ -248,9 +294,65 @@ async function sha256Base64Url(value) {
   return toBase64Url(digest);
 }
 
+async function derivePasswordHash(password, salt, iterations = PASSWORD_HASH_ITERATIONS) {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(password),
+    "PBKDF2",
+    false,
+    ["deriveBits"]
+  );
+  const bits = await crypto.subtle.deriveBits(
+    {
+      name: "PBKDF2",
+      hash: "SHA-256",
+      salt: fromBase64Url(salt),
+      iterations,
+    },
+    key,
+    256
+  );
+  return toBase64Url(bits);
+}
+
+function constantTimeEqual(left, right) {
+  const a = new TextEncoder().encode(String(left || ""));
+  const b = new TextEncoder().encode(String(right || ""));
+  const length = Math.max(a.length, b.length);
+  let mismatch = a.length ^ b.length;
+  for (let index = 0; index < length; index += 1) {
+    mismatch |= (a[index] || 0) ^ (b[index] || 0);
+  }
+  return mismatch === 0;
+}
+
 async function hashPassword(password, salt = toBase64Url(crypto.getRandomValues(new Uint8Array(16)))) {
-  const hash = await sha256Base64Url(`${salt}:${password}`);
-  return { salt, hash };
+  const derived = await derivePasswordHash(password, salt);
+  return {
+    salt,
+    hash: `${PASSWORD_HASH_PREFIX}$${PASSWORD_HASH_ITERATIONS}$${derived}`,
+  };
+}
+
+async function verifyPassword(password, salt, storedHash) {
+  const value = String(storedHash || "");
+  if (value.startsWith(`${PASSWORD_HASH_PREFIX}$`)) {
+    const [, iterationsText, expected] = value.split("$");
+    const iterations = Number(iterationsText);
+    if (!Number.isInteger(iterations) || iterations < 10000 || !expected) {
+      return { valid: false, needsUpgrade: false };
+    }
+    const actual = await derivePasswordHash(password, salt, iterations);
+    return {
+      valid: constantTimeEqual(actual, expected),
+      needsUpgrade: iterations < PASSWORD_HASH_ITERATIONS,
+    };
+  }
+
+  // Accounts created before this rollout used a single salted SHA-256.
+  const legacy = await sha256Base64Url(`${salt}:${password}`);
+  const valid = constantTimeEqual(legacy, value);
+  return { valid, needsUpgrade: valid };
 }
 
 function safeJson(value, fallback = null) {
@@ -319,9 +421,11 @@ function checkRateLimit(request, env, url) {
 async function getD1UserFromToken(token, env) {
   if (!env.DB) return null;
   if (!token) return null;
+  await ensureEmailSchema(env);
   const tokenHash = await sha256Base64Url(token);
   const row = await env.DB.prepare(
-    `select users.id, users.username
+    `select users.id, users.username, users.email,
+            sessions.id as session_id, sessions.expires_at as session_expires_at
        from sessions
        join users on users.id = sessions.user_id
       where sessions.token_hash = ? and sessions.expires_at > ?`
@@ -329,7 +433,14 @@ async function getD1UserFromToken(token, env) {
     .bind(tokenHash, nowIso())
     .first();
   if (!row?.id) return null;
-  return { id: row.id, username: row.username, source: "d1" };
+  const expiresAt = new Date(row.session_expires_at || "").getTime();
+  if (Number.isFinite(expiresAt) && expiresAt <= Date.now() + SESSION_REFRESH_WINDOW_MS) {
+    const renewedUntil = new Date(Date.now() + SESSION_DAYS * 86400 * 1000).toISOString();
+    await env.DB.prepare("update sessions set expires_at=? where id=?")
+      .bind(renewedUntil, row.session_id)
+      .run();
+  }
+  return { id: row.id, username: row.username, email: row.email || "", source: "d1" };
 }
 
 async function getD1UserFromSession(request, env) {
@@ -347,6 +458,263 @@ async function requireUser(request, env) {
 async function readJsonRequestBody(request) {
   const text = await request.text().catch(() => "");
   return safeJson(text, {});
+}
+
+function normalizeEmail(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function isValidEmail(email) {
+  return email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(email);
+}
+
+function generateEmailCode() {
+  return String(crypto.getRandomValues(new Uint32Array(1))[0] % 1000000).padStart(6, "0");
+}
+
+function escapeEmailHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+async function ensureEmailSchema(env) {
+  if (!env.DB) return;
+  if (!emailSchemaPromise) {
+    emailSchemaPromise = (async () => {
+      try {
+        await env.DB.prepare("alter table users add column email text").run();
+      } catch (error) {
+        if (!/duplicate column|already exists/i.test(String(error?.message || ""))) throw error;
+      }
+      await env.DB.prepare(
+        "create unique index if not exists users_email_unique on users(email) where email is not null and email <> ''"
+      ).run();
+      await env.DB.prepare(
+        `create table if not exists email_challenges (
+          id text primary key,
+          user_id text not null references users(id) on delete cascade,
+          email text not null,
+          purpose text not null check (purpose in ('bind', 'password_reset')),
+          code_hash text not null,
+          expires_at text not null,
+          attempts integer not null default 0,
+          created_at text not null default (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+        )`
+      ).run();
+      await env.DB.prepare(
+        "create index if not exists email_challenges_lookup_idx on email_challenges(user_id, email, purpose, created_at desc)"
+      ).run();
+    })().catch((error) => {
+      emailSchemaPromise = null;
+      throw error;
+    });
+  }
+  return emailSchemaPromise;
+}
+
+async function sendTransactionalEmail(env, { to, subject, text, html }) {
+  const apiKey = String(env.RESEND_API_KEY || "").trim();
+  const from = String(env.EMAIL_FROM || "").trim();
+  if (!apiKey || !from) throw new Error("EMAIL_SERVICE_NOT_CONFIGURED");
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer " + apiKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ from, to, subject, text, html }),
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    console.error("Transactional email failed", response.status, result?.message || "");
+    throw new Error("EMAIL_SEND_FAILED");
+  }
+  return result;
+}
+
+async function createEmailChallenge(env, { userId, email, purpose }) {
+  const id = randomId();
+  const code = generateEmailCode();
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+  const codeHash = await sha256Base64Url(id + ":" + code);
+  await env.DB.batch([
+    env.DB.prepare("delete from email_challenges where user_id=? and email=? and purpose=?")
+      .bind(userId, email, purpose),
+    env.DB.prepare(
+      "insert into email_challenges (id, user_id, email, purpose, code_hash, expires_at) values (?, ?, ?, ?, ?, ?)"
+    ).bind(id, userId, email, purpose, codeHash, expiresAt),
+  ]);
+  return { id, code, expiresAt };
+}
+
+async function verifyEmailChallenge(env, { userId, email, purpose, code }) {
+  const challenge = await env.DB.prepare(
+    "select * from email_challenges where user_id=? and email=? and purpose=? order by created_at desc limit 1"
+  )
+    .bind(userId, email, purpose)
+    .first();
+  if (!challenge?.id) return { valid: false };
+  if (new Date(challenge.expires_at).getTime() <= Date.now() || Number(challenge.attempts) >= 5) {
+    await env.DB.prepare("delete from email_challenges where id=?").bind(challenge.id).run();
+    return { valid: false };
+  }
+  const expected = await sha256Base64Url(challenge.id + ":" + String(code || "").trim());
+  if (!constantTimeEqual(expected, challenge.code_hash)) {
+    await env.DB.prepare("update email_challenges set attempts=attempts+1 where id=?")
+      .bind(challenge.id)
+      .run();
+    return { valid: false };
+  }
+  return { valid: true, challenge };
+}
+
+async function deliverEmailChallenge(env, { email, code, purpose, username = "" }) {
+  const isReset = purpose === "password_reset";
+  const subject = isReset ? "咻蛋之家 · 找回账号" : "咻蛋之家 · 验证绑定邮箱";
+  const usernameLine = username ? "你的用户名是：" + username + "\n\n" : "";
+  const text =
+    usernameLine +
+    "验证码：" +
+    code +
+    "\n\n验证码 10 分钟内有效。如果不是你本人操作，请忽略这封邮件。";
+  const safeCode = escapeEmailHtml(code);
+  const safeUsername = escapeEmailHtml(username);
+  const html =
+    '<div style="font-family:Arial,sans-serif;line-height:1.7;color:#172019">' +
+    '<p style="color:#79bd4b;font-weight:700;letter-spacing:.08em">LIFE ARCHIVE</p>' +
+    (safeUsername ? "<p>你的用户名是：<strong>" + safeUsername + "</strong></p>" : "") +
+    '<p style="font-size:30px;font-weight:800;letter-spacing:.18em">' +
+    safeCode +
+    "</p>" +
+    "<p>验证码 10 分钟内有效。如果不是你本人操作，请忽略这封邮件。</p></div>";
+  return sendTransactionalEmail(env, { to: email, subject, text, html });
+}
+
+async function handleEmailBindRequest(request, env, user) {
+  const dbError = requireDb(request, env);
+  if (dbError) return dbError;
+  await ensureEmailSchema(env);
+  const payload = await readJsonRequestBody(request);
+  const email = normalizeEmail(payload.email);
+  if (!isValidEmail(email)) return jsonResponse(request, env, { error: "请输入有效的邮箱地址。" }, 400);
+  const existing = await env.DB.prepare(
+    "select id from users where lower(email)=lower(?) and id<>?"
+  ).bind(email, user.id).first();
+  if (existing?.id) return jsonResponse(request, env, { error: "这个邮箱已经绑定了其他家庭账户。" }, 409);
+  const challenge = await createEmailChallenge(env, { userId: user.id, email, purpose: "bind" });
+  try {
+    await deliverEmailChallenge(env, { email, code: challenge.code, purpose: "bind" });
+  } catch (error) {
+    await env.DB.prepare("delete from email_challenges where id=?").bind(challenge.id).run();
+    const message =
+      error?.message === "EMAIL_SERVICE_NOT_CONFIGURED"
+        ? "邮箱服务尚未配置，请先在 Worker 中设置 RESEND_API_KEY 和 EMAIL_FROM。"
+        : "验证码邮件发送失败，请稍后重试。";
+    return jsonResponse(request, env, { error: message }, 503);
+  }
+  return jsonResponse(request, env, { data: { sent: true, email } });
+}
+
+async function handleEmailBindConfirm(request, env, user) {
+  const dbError = requireDb(request, env);
+  if (dbError) return dbError;
+  await ensureEmailSchema(env);
+  const payload = await readJsonRequestBody(request);
+  const email = normalizeEmail(payload.email);
+  const code = String(payload.code || "").trim();
+  if (!isValidEmail(email) || !/^\d{6}$/.test(code)) {
+    return jsonResponse(request, env, { error: "邮箱或验证码格式不正确。" }, 400);
+  }
+  const verification = await verifyEmailChallenge(env, {
+    userId: user.id,
+    email,
+    purpose: "bind",
+    code,
+  });
+  if (!verification.valid) return jsonResponse(request, env, { error: "验证码错误或已过期。" }, 400);
+  const existing = await env.DB.prepare(
+    "select id from users where lower(email)=lower(?) and id<>?"
+  ).bind(email, user.id).first();
+  if (existing?.id) return jsonResponse(request, env, { error: "这个邮箱已经绑定了其他家庭账户。" }, 409);
+  await env.DB.batch([
+    env.DB.prepare("update users set email=?, updated_at=? where id=?").bind(email, nowIso(), user.id),
+    env.DB.prepare("delete from email_challenges where id=?").bind(verification.challenge.id),
+  ]);
+  return jsonResponse(request, env, { data: { email } });
+}
+
+async function handlePasswordResetRequest(request, env) {
+  const dbError = requireDb(request, env);
+  if (dbError) return dbError;
+  await ensureEmailSchema(env);
+  const payload = await readJsonRequestBody(request);
+  const email = normalizeEmail(payload.email);
+  if (!isValidEmail(email)) return jsonResponse(request, env, { error: "请输入有效的邮箱地址。" }, 400);
+  const user = await env.DB.prepare(
+    "select id, username from users where lower(email)=lower(?)"
+  ).bind(email).first();
+  if (!user?.id) return jsonResponse(request, env, { data: { sent: true } });
+  const challenge = await createEmailChallenge(env, {
+    userId: user.id,
+    email,
+    purpose: "password_reset",
+  });
+  try {
+    await deliverEmailChallenge(env, {
+      email,
+      code: challenge.code,
+      purpose: "password_reset",
+      username: user.username,
+    });
+  } catch (error) {
+    await env.DB.prepare("delete from email_challenges where id=?").bind(challenge.id).run();
+    const message =
+      error?.message === "EMAIL_SERVICE_NOT_CONFIGURED"
+        ? "邮箱服务尚未配置，请先在 Worker 中设置 RESEND_API_KEY 和 EMAIL_FROM。"
+        : "验证码邮件发送失败，请稍后重试。";
+    return jsonResponse(request, env, { error: message }, 503);
+  }
+  return jsonResponse(request, env, { data: { sent: true } });
+}
+
+async function handlePasswordResetConfirm(request, env) {
+  const dbError = requireDb(request, env);
+  if (dbError) return dbError;
+  await ensureEmailSchema(env);
+  const payload = await readJsonRequestBody(request);
+  const email = normalizeEmail(payload.email);
+  const code = String(payload.code || "").trim();
+  const password = String(payload.password || "");
+  if (!isValidEmail(email) || !/^\d{6}$/.test(code)) {
+    return jsonResponse(request, env, { error: "邮箱或验证码格式不正确。" }, 400);
+  }
+  if (password.length < 6 || password.length > 128) {
+    return jsonResponse(request, env, { error: "密码需要为 6-128 个字符。" }, 400);
+  }
+  const user = await env.DB.prepare(
+    "select id, username from users where lower(email)=lower(?)"
+  ).bind(email).first();
+  if (!user?.id) return jsonResponse(request, env, { error: "邮箱或验证码错误。" }, 400);
+  const verification = await verifyEmailChallenge(env, {
+    userId: user.id,
+    email,
+    purpose: "password_reset",
+    code,
+  });
+  if (!verification.valid) return jsonResponse(request, env, { error: "验证码错误或已过期。" }, 400);
+  const next = await hashPassword(password);
+  await env.DB.batch([
+    env.DB.prepare(
+      "update users set password_hash=?, password_salt=?, updated_at=? where id=?"
+    ).bind(next.hash, next.salt, nowIso(), user.id),
+    env.DB.prepare("delete from sessions where user_id=?").bind(user.id),
+    env.DB.prepare("delete from email_challenges where id=?").bind(verification.challenge.id),
+  ]);
+  return jsonResponse(request, env, { data: { username: user.username } });
 }
 
 function publicUrl(env, key) {
@@ -400,11 +768,46 @@ function isAllowedCopySource(value, env) {
   }
 
   const publicHost = env.PUBLIC_R2_URL ? new URL(env.PUBLIC_R2_URL).host : "";
-  return (
-    url.protocol === "https:" &&
-    url.host !== publicHost &&
-    url.pathname.includes("/storage/v1/object/public/")
-  );
+  const hostname = url.hostname.toLowerCase();
+  const blockedHostname =
+    hostname === "localhost" ||
+    hostname === "0.0.0.0" ||
+    hostname === "127.0.0.1" ||
+    hostname === "::1" ||
+    hostname.endsWith(".local") ||
+    /^10\./.test(hostname) ||
+    /^192\.168\./.test(hostname) ||
+    /^169\.254\./.test(hostname) ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(hostname);
+  return url.protocol === "https:" && url.host !== publicHost && !blockedHostname;
+}
+
+async function fetchAllowedImage(sourceUrl, env) {
+  let currentUrl = sourceUrl;
+  for (let redirectCount = 0; redirectCount <= 3; redirectCount += 1) {
+    if (!isAllowedCopySource(currentUrl, env)) throw new Error("Invalid source URL.");
+    const response = await fetch(currentUrl, { redirect: "manual" });
+    if ([301, 302, 303, 307, 308].includes(response.status)) {
+      const location = response.headers.get("Location");
+      if (!location || redirectCount === 3) throw new Error("Too many image redirects.");
+      currentUrl = new URL(location, currentUrl).href;
+      continue;
+    }
+    return response;
+  }
+  throw new Error("Could not read source image.");
+}
+
+function detectImageContentType(bytes) {
+  const view = new Uint8Array(bytes, 0, Math.min(bytes.byteLength, 16));
+  if (view[0] === 0xff && view[1] === 0xd8 && view[2] === 0xff) return "image/jpeg";
+  if (view[0] === 0x89 && view[1] === 0x50 && view[2] === 0x4e && view[3] === 0x47) return "image/png";
+  if (String.fromCharCode(...view.slice(0, 6)).startsWith("GIF8")) return "image/gif";
+  if (
+    String.fromCharCode(...view.slice(0, 4)) === "RIFF" &&
+    String.fromCharCode(...view.slice(8, 12)) === "WEBP"
+  ) return "image/webp";
+  return "";
 }
 
 async function handleCopy(request, env, user) {
@@ -414,11 +817,17 @@ async function handleCopy(request, env, user) {
     return jsonResponse(request, env, { error: "Invalid source URL." }, 400);
   }
 
-  const response = await fetch(sourceUrl);
+  let response;
+  try {
+    response = await fetchAllowedImage(sourceUrl, env);
+  } catch (error) {
+    return jsonResponse(request, env, { error: error.message || "Invalid source URL." }, 400);
+  }
   if (!response.ok || !response.body) {
     return jsonResponse(request, env, { error: "Could not read source image." }, 502);
   }
 
+  let contentType = String(response.headers.get("Content-Type") || "").split(";")[0].trim().toLowerCase();
   const contentLength = Number(response.headers.get("Content-Length")) || 0;
   if (contentLength > MAX_UPLOAD_BYTES) {
     return jsonResponse(request, env, { error: "Source file is too large." }, 413);
@@ -428,9 +837,16 @@ async function handleCopy(request, env, user) {
   const name = cleanSegment(payload.name, "image");
   const random = crypto.randomUUID().slice(0, 8);
   const key = `${user.id}/${folder}/${Date.now()}-${random}-${name}.jpg`;
-  const contentType = response.headers.get("Content-Type") || "image/jpeg";
+  const bytes = await response.arrayBuffer();
+  if (bytes.byteLength > MAX_UPLOAD_BYTES) {
+    return jsonResponse(request, env, { error: "Source file is too large." }, 413);
+  }
+  if (!contentType.startsWith("image/")) contentType = detectImageContentType(bytes);
+  if (!contentType) {
+    return jsonResponse(request, env, { error: "The URL does not point to an image." }, 415);
+  }
 
-  await env.R2_BUCKET.put(key, response.body, {
+  await env.R2_BUCKET.put(key, bytes, {
     httpMetadata: {
       contentType,
       cacheControl: "public, max-age=31536000, immutable",
@@ -444,7 +860,7 @@ async function handleCopy(request, env, user) {
   return jsonResponse(request, env, {
     key,
     url: publicUrl(env, key),
-    size: contentLength,
+    size: bytes.byteLength,
     contentType,
   });
 }
@@ -452,6 +868,7 @@ async function handleCopy(request, env, user) {
 async function handleD1Register(request, env) {
   const dbError = requireDb(request, env);
   if (dbError) return dbError;
+  await ensureEmailSchema(env);
   const payload = await request.json().catch(() => ({}));
   const configuredInvite = String(env.FAMILY_INVITE_CODE || "").trim();
   const inviteCode = String(payload.invite_code || payload.inviteCode || "").trim();
@@ -509,6 +926,7 @@ async function handleInviteVerify(request, env) {
 async function handleD1Login(request, env, directPayload = null) {
   const dbError = requireDb(request, env);
   if (dbError) return dbError;
+  await ensureEmailSchema(env);
   const payload = directPayload || (await request.json().catch(() => ({})));
   const username = String(payload.username || "").trim();
   const password = String(payload.password || "");
@@ -517,10 +935,14 @@ async function handleD1Login(request, env, directPayload = null) {
     .first();
   if (!user) return jsonResponse(request, env, { error: "Invalid login credentials." }, 401);
 
-  const { hash } = await hashPassword(password, user.password_salt);
-  if (hash !== user.password_hash) {
+  const verification = await verifyPassword(password, user.password_salt, user.password_hash);
+  if (!verification.valid) {
     return jsonResponse(request, env, { error: "Invalid login credentials." }, 401);
   }
+  // Legacy accounts are still valid. Rehashing them inline can exceed the
+  // Worker CPU budget and turn a successful password check into a 500 login.
+  // They will move to PBKDF2 the next time the user explicitly changes the
+  // password, outside this latency-sensitive login path.
 
   const tokenBytes = crypto.getRandomValues(new Uint8Array(32));
   const token = toBase64Url(tokenBytes);
@@ -538,7 +960,7 @@ async function handleD1Login(request, env, directPayload = null) {
   return jsonResponse(request, env, {
     token,
     expires_at: expiresAt,
-    user: { id: user.id, username: user.username },
+    user: { id: user.id, username: user.username, email: user.email || "" },
     profile,
   });
 }
@@ -553,10 +975,88 @@ async function handleD1Me(request, env, user) {
   return jsonResponse(request, env, { user, profile, family });
 }
 
+const RECYCLABLE_FAMILY_ITEMS = {
+  wish: { table: "wishes", labelColumn: "title" },
+  recipe: { table: "recipes", labelColumn: "name" },
+  weekend: { table: "weekend_plans", labelColumn: "title" },
+  anniversary: { table: "anniversaries", labelColumn: "title" },
+  gratitude: { table: "gratitude_notes", labelColumn: "body" },
+};
+
+async function moveFamilyItemToTrash(request, env, user, payload) {
+  const itemType = String(payload.p_item_type || payload.item_type || "").trim();
+  const itemId = String(payload.p_item_id || payload.item_id || "").trim();
+  const recycleConfig = RECYCLABLE_FAMILY_ITEMS[itemType];
+  if (!recycleConfig || !itemId) {
+    return jsonResponse(request, env, { error: "Invalid recycle-bin request." }, 400);
+  }
+
+  const tableConfig = TABLE_CONFIG[recycleConfig.table];
+  const filters = [{ op: "eq", column: "id", value: itemId }];
+  const values = [];
+  const scope = await buildScopeSql(env, recycleConfig.table, tableConfig, user, values, true);
+  const clauses = [...scope, ...buildFilterSql(tableConfig, filters, values)];
+  const row = await env.DB.prepare(
+    `select * from ${recycleConfig.table} where ${clauses.join(" and ")} limit 1`
+  )
+    .bind(...values)
+    .first();
+  if (!row) {
+    return jsonResponse(request, env, { error: "Item not found or not writable." }, 404);
+  }
+
+  const trashId = randomId();
+  const deletedAt = new Date();
+  const expiresAt = new Date(deletedAt.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const label = String(row[recycleConfig.labelColumn] || "").slice(0, 120);
+  const storedPayload = JSON.stringify(denormalizeRow(recycleConfig.table, row));
+  const deleteValues = [];
+  const deleteScope = await buildScopeSql(
+    env,
+    recycleConfig.table,
+    tableConfig,
+    user,
+    deleteValues,
+    true
+  );
+  const deleteClauses = [
+    ...deleteScope,
+    ...buildFilterSql(tableConfig, filters, deleteValues),
+  ];
+
+  await env.DB.batch([
+    env.DB.prepare(
+      `insert into trash_items
+        (id, user_id, item_type, item_id, label, payload, deleted_at, expires_at)
+       values (?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      trashId,
+      user.id,
+      itemType,
+      itemId,
+      label,
+      storedPayload,
+      deletedAt.toISOString(),
+      expiresAt.toISOString()
+    ),
+    env.DB.prepare(
+      `delete from ${recycleConfig.table} where ${deleteClauses.join(" and ")}`
+    ).bind(...deleteValues),
+  ]);
+
+  return jsonResponse(request, env, {
+    data: { id: itemId, trash_id: trashId, deleted_at: deletedAt.toISOString() },
+  });
+}
+
 async function handleRpc(request, env, user, name) {
   const dbError = requireDb(request, env);
   if (dbError) return dbError;
   const payload = request.method === "GET" ? {} : await readJsonRequestBody(request);
+
+  if (name === "move_family_item_to_trash") {
+    return moveFamilyItemToTrash(request, env, user, payload);
+  }
 
   if (name === "get_my_family_members") {
     const family = await getFamilyContext(env, user.id);
@@ -776,14 +1276,27 @@ async function handlePasswordRecoveryReset(request, env) {
     .bind(user.id)
     .first();
   if (!credential) return jsonResponse(request, env, { data: false });
-  const { hash } = await hashPassword(recoveryKey, credential.recovery_salt);
-  if (hash !== credential.recovery_hash) return jsonResponse(request, env, { data: false });
+  const verification = await verifyPassword(
+    recoveryKey,
+    credential.recovery_salt,
+    credential.recovery_hash
+  );
+  if (!verification.valid) return jsonResponse(request, env, { data: false });
+  if (verification.needsUpgrade) {
+    const upgradedRecovery = await hashPassword(recoveryKey);
+    await env.DB.prepare(
+      "update password_recovery_credentials set recovery_hash=?, recovery_salt=?, updated_at=? where user_id=?"
+    )
+      .bind(upgradedRecovery.hash, upgradedRecovery.salt, nowIso(), user.id)
+      .run();
+  }
   const next = await hashPassword(newPassword);
-  await env.DB.prepare(
-    "update users set password_hash=?, password_salt=?, updated_at=? where id=?"
-  )
-    .bind(next.hash, next.salt, nowIso(), user.id)
-    .run();
+  await env.DB.batch([
+    env.DB.prepare(
+      "update users set password_hash=?, password_salt=?, updated_at=? where id=?"
+    ).bind(next.hash, next.salt, nowIso(), user.id),
+    env.DB.prepare("delete from sessions where user_id=?").bind(user.id),
+  ]);
   return jsonResponse(request, env, { data: true });
 }
 
@@ -794,9 +1307,13 @@ async function handlePasswordUpdate(request, env, user) {
     return jsonResponse(request, env, { error: "Password must be 6-128 characters." }, 400);
   }
   const next = await hashPassword(password);
-  await env.DB.prepare("update users set password_hash=?, password_salt=?, updated_at=? where id=?")
-    .bind(next.hash, next.salt, nowIso(), user.id)
-    .run();
+  const currentTokenHash = await sha256Base64Url(getBearerToken(request));
+  await env.DB.batch([
+    env.DB.prepare("update users set password_hash=?, password_salt=?, updated_at=? where id=?")
+      .bind(next.hash, next.salt, nowIso(), user.id),
+    env.DB.prepare("delete from sessions where user_id=? and token_hash<>?")
+      .bind(user.id, currentTokenHash),
+  ]);
   return jsonResponse(request, env, { data: true });
 }
 
@@ -841,14 +1358,16 @@ async function getFamilyContext(env, userId) {
   return { ...family, members: members.results || [] };
 }
 
-function getPushCopy(type, actorName, body = "") {
+function getPushCopy(type, actorName, body = "", aggregateCount = 1) {
   const name = actorName || "家庭成员";
+  const count = Math.max(1, Number(aggregateCount) || 1);
   const snippets = {
     diary: [`${name} 发布了新日记`, body || "家里有一条新的生活记录"],
     thanks: [`${name} 写下了感谢留言`, body || "感谢留言板有了新内容"],
-    comment: [`${name} 评论了你的日记`, body || "打开看看对方说了什么"],
-    reply: [`${name} 回复了你`, body || "你收到了一条新回复"],
+    comment: [`${name} 评论了你的日记${count > 1 ? ` ${count} 次` : ""}`, body || "打开看看对方说了什么"],
+    reply: [`${name} 回复了你${count > 1 ? ` ${count} 次` : ""}`, body || "你收到了一条新回复"],
     favorite: [`${name} 收藏了你的日记`, "你的记录被家人收藏了"],
+    push_ready: ["通知已开启", "以后家人发布新日记或回复时，这台设备会收到提醒"],
   };
   return snippets[type] || [`${name} 有新动态`, body || "打开咻蛋之家查看"];
 }
@@ -865,7 +1384,16 @@ async function sendPushToUser(env, userId, notification) {
   const unread = await env.DB.prepare(
     "select count(*) as total from notifications where user_id=? and is_read=0"
   ).bind(userId).first();
-  const [title, body] = getPushCopy(notification.type, actor?.username, notification.body);
+  let aggregateCount = 1;
+  if (["comment", "reply"].includes(notification.type) && notification.photoId) {
+    const recent = await env.DB.prepare(
+      `select count(*) as total from notifications
+       where user_id=? and actor_id=? and type=? and photo_id=? and is_read=0
+         and datetime(created_at) >= datetime('now', '-10 minutes')`
+    ).bind(userId, notification.actorId, notification.type, notification.photoId).first();
+    aggregateCount = Math.max(1, Number(recent?.total || 1));
+  }
+  const [title, body] = getPushCopy(notification.type, actor?.username, notification.body, aggregateCount);
   const data = {
     title,
     body: String(body || "").slice(0, 180),
@@ -875,6 +1403,7 @@ async function sendPushToUser(env, userId, notification) {
     notificationId: notification.id,
     photoId: notification.photoId || "",
     type: notification.type,
+    aggregateCount,
     unread: Number(unread?.total || 1),
     url: notification.photoId
       ? `/?pushPhoto=${encodeURIComponent(notification.photoId)}`
@@ -899,9 +1428,24 @@ async function sendPushToUser(env, userId, notification) {
       const response = await fetch(subscription.endpoint, request);
       if (response.status === 404 || response.status === 410) {
         await env.DB.prepare("delete from push_subscriptions where id=?").bind(subscription.id).run();
+      } else if (!response.ok) {
+        console.warn("Push delivery rejected", {
+          userId,
+          status: response.status,
+          type: notification.type,
+        });
+      } else {
+        await env.DB.prepare("update push_subscriptions set last_seen_at=? where id=?")
+          .bind(nowIso(), subscription.id)
+          .run();
       }
-    } catch {
+    } catch (error) {
       // A single unavailable device must not block publishing content.
+      console.warn("Push delivery failed", {
+        userId,
+        type: notification.type,
+        error: String(error?.message || error),
+      });
     }
   }));
 }
@@ -927,6 +1471,14 @@ async function handlePushSubscribe(request, env, user) {
     String(request.headers.get("User-Agent") || "").slice(0, 300),
     nowIso(), nowIso(), nowIso()
   ).run();
+  if (!existing) {
+    await sendPushToUser(env, user.id, {
+      id: `push-ready-${id}`,
+      actorId: user.id,
+      type: "push_ready",
+      body: "以后家人发布新日记或回复时，这台设备会收到提醒",
+    });
+  }
   return jsonResponse(request, env, { data: { subscribed: true } });
 }
 
@@ -988,20 +1540,27 @@ async function createActivityNotifications(env, table, rows, actorId) {
 
     if (table === "photo_comments") {
       const photo = await env.DB.prepare("select user_id from photos where id=?").bind(row.photo_id).first();
-      let recipientId = photo?.user_id;
-      let type = "comment";
+      const recipients = new Map();
+      if (photo?.user_id && photo.user_id !== actorId) {
+        recipients.set(photo.user_id, "comment");
+      }
       if (row.parent_id) {
         const parent = await env.DB.prepare("select user_id from photo_comments where id=?").bind(row.parent_id).first();
-        recipientId = parent?.user_id || recipientId;
-        type = "reply";
+        if (parent?.user_id && parent.user_id !== actorId) {
+          recipients.set(parent.user_id, "reply");
+        }
       }
-      await insertNotification({
-        userId: recipientId,
-        type,
-        photoId: row.photo_id,
-        commentId: row.id,
-        body: row.body,
-      });
+      await Promise.all(
+        [...recipients.entries()].map(([userId, type]) =>
+          insertNotification({
+            userId,
+            type,
+            photoId: row.photo_id,
+            commentId: row.id,
+            body: row.body,
+          })
+        )
+      );
     }
   }
 }
@@ -1021,7 +1580,7 @@ async function handleD1Export(request, env, user) {
   const familyIds = await getFamilyIds(env, user.id);
   const userPlaceholders = familyUserIds.map(() => "?").join(",");
   const familyPlaceholders = familyIds.map(() => "?").join(",");
-  const [families, members, invitations, profiles, photos, favorites, comments, recipes, wishes, weekends, anniversaries, thanks, notifications, secrets] =
+  const [families, members, invitations, profiles, photos, favorites, comments, recipes, wishes, weekends, wardrobeLocations, wardrobeItems, wardrobeWearLogs, anniversaries, thanks, notifications, secrets] =
     await Promise.all([
       familyIds.length
         ? env.DB.prepare(`select * from families where id in (${familyPlaceholders})`)
@@ -1054,6 +1613,9 @@ async function handleD1Export(request, env, user) {
       selectVisibleRows(env, "recipes", user.id, "created_at desc"),
       selectVisibleRows(env, "wishes", user.id, "created_at desc"),
       selectVisibleRows(env, "weekend_plans", user.id, "plan_date asc"),
+      selectVisibleRows(env, "wardrobe_locations", user.id, "sort_order asc, created_at asc"),
+      selectVisibleRows(env, "wardrobe_items", user.id, "updated_at desc"),
+      selectVisibleRows(env, "wardrobe_wear_logs", user.id, "worn_on desc"),
       selectVisibleRows(env, "anniversaries", user.id, "event_date asc"),
       selectVisibleRows(env, "gratitude_notes", user.id, "created_at desc"),
       env.DB.prepare("select * from notifications where user_id=? order by created_at desc limit 100")
@@ -1074,6 +1636,9 @@ async function handleD1Export(request, env, user) {
     recipes: recipes.results || [],
     wishes: wishes.results || [],
     weekend_plans: weekends.results || [],
+    wardrobe_locations: wardrobeLocations.results || [],
+    wardrobe_items: (wardrobeItems.results || []).map((row) => denormalizeRow("wardrobe_items", row)),
+    wardrobe_wear_logs: wardrobeWearLogs.results || [],
     anniversaries: anniversaries.results || [],
     gratitude_notes: thanks.results || [],
     notifications: notifications.results || [],
@@ -1087,10 +1652,11 @@ function asJsonText(value, fallback = []) {
 }
 
 function normalizeColumnValue(table, column, value) {
-  if (["is_public", "is_featured", "is_pinned", "is_done", "is_read"].includes(column)) {
+  const config = TABLE_CONFIG[table];
+  if ((config?.booleanColumns || []).includes(column)) {
     return value ? 1 : 0;
   }
-  if (["seasonings", "ingredients", "steps", "food_options", "images"].includes(column)) {
+  if ((config?.jsonColumns || []).includes(column)) {
     return asJsonText(value);
   }
   if (column === "theme_preference") {
@@ -1102,8 +1668,13 @@ function normalizeColumnValue(table, column, value) {
   if (column === "role") {
     return ["owner", "member"].includes(value) ? value : "member";
   }
-  if (column === "status") {
+  if (table === "family_invitations" && column === "status") {
     return ["pending", "accepted", "declined"].includes(value) ? value : "pending";
+  }
+  if (table === "wardrobe_items" && column === "status") {
+    return ["available", "laundry", "repair", "retired"].includes(value)
+      ? value
+      : "available";
   }
   if (column === "type") {
     return ["favorite", "comment", "reply", "diary", "thanks"].includes(value) ? value : "diary";
@@ -1118,6 +1689,9 @@ function normalizeColumnValue(table, column, value) {
     "height",
     "linked_photo_id",
     "folder_id",
+    "wearer_user_id",
+    "location_id",
+    "last_worn_at",
   ]);
   if (table === "notifications" && ["photo_id", "comment_id"].includes(column)) {
     return value || null;
@@ -1257,12 +1831,30 @@ async function handleTableApi(request, env, user, table) {
     const sanitizedRows = rows.map((row) =>
       sanitizeRowForTable(table, row, user, { forceOwner: Boolean(config.ownerColumn) })
     );
+    let existingPhotoIds = new Set();
+    if (table === "photos" && action === "upsert") {
+      const ids = sanitizedRows.map((row) => row.id).filter(Boolean);
+      if (ids.length) {
+        const placeholders = ids.map(() => "?").join(",");
+        const existing = await env.DB.prepare(
+          `select id from photos where id in (${placeholders})`
+        ).bind(...ids).all();
+        existingPhotoIds = new Set((existing.results || []).map((row) => row.id));
+      }
+    }
     const conflict = payload.onConflict
       ? String(payload.onConflict).split(",").map((item) => item.trim()).filter(Boolean)
       : config.conflictColumns || [config.columns.includes("id") ? "id" : config.columns[0]];
     const count = await upsertRows(env, table, sanitizedRows, config.columns, action === "upsert" ? conflict : undefined);
-    if (action === "insert" && ["photos", "gratitude_notes", "photo_favorites", "photo_comments"].includes(table)) {
-      await createActivityNotifications(env, table, sanitizedRows, user.id);
+    if (["photos", "gratitude_notes", "photo_favorites", "photo_comments"].includes(table)) {
+      const activityRows = table === "photos" && action === "upsert"
+        ? sanitizedRows.filter((row) => !existingPhotoIds.has(row.id))
+        : action === "insert"
+          ? sanitizedRows
+          : [];
+      if (activityRows.length) {
+        await createActivityNotifications(env, table, activityRows, user.id);
+      }
     }
     return jsonResponse(request, env, {
       data: sanitizedRows.map((row) => denormalizeRow(table, row)),
@@ -1281,10 +1873,41 @@ async function handleTableApi(request, env, user, table) {
     if (config.ownerColumn) delete updates[config.ownerColumn];
     const updateColumns = Object.keys(updates).filter((column) => config.columns.includes(column));
     if (!updateColumns.length) return jsonResponse(request, env, { data: [] });
-    const setValues = updateColumns.map((column) => updates[column]);
     const whereValues = [];
     const scope = await buildScopeSql(env, table, config, user, whereValues, true);
     const clauses = [...scope, ...buildFilterSql(config, filters, whereValues)];
+    if (table === "user_profiles") {
+      const current = await env.DB.prepare(
+        `select login_streak, experience_total, last_login_date
+           from user_profiles
+          where ${clauses.join(" and ")}
+          limit 1`
+      )
+        .bind(...whereValues)
+        .first();
+      if (current) {
+        if (Object.prototype.hasOwnProperty.call(updates, "login_streak")) {
+          updates.login_streak = Math.max(
+            Number(current.login_streak) || 0,
+            Number(updates.login_streak) || 0
+          );
+        }
+        if (Object.prototype.hasOwnProperty.call(updates, "experience_total")) {
+          updates.experience_total = Math.max(
+            Number(current.experience_total) || 0,
+            Number(updates.experience_total) || 0
+          );
+        }
+        if (
+          Object.prototype.hasOwnProperty.call(updates, "last_login_date") &&
+          current.last_login_date &&
+          String(current.last_login_date) > String(updates.last_login_date || "")
+        ) {
+          updates.last_login_date = current.last_login_date;
+        }
+      }
+    }
+    const setValues = updateColumns.map((column) => updates[column]);
     await env.DB.prepare(
       `update ${table} set ${updateColumns.map((column) => `${column}=?`).join(",")} where ${clauses.join(" and ")}`
     )
@@ -1326,7 +1949,32 @@ async function upsertRows(env, table, rows, columns, conflictColumns = null) {
     .join(",");
   let count = 0;
   for (const row of rows) {
-    const values = columns.map((column) => normalizeColumnValue(table, column, row[column]));
+    let effectiveRow = row;
+    if (table === "user_profiles" && row.user_id) {
+      const current = await env.DB.prepare(
+        "select login_streak, experience_total, last_login_date from user_profiles where user_id=? limit 1"
+      )
+        .bind(row.user_id)
+        .first();
+      if (current) {
+        effectiveRow = { ...row };
+        effectiveRow.login_streak = Math.max(
+          Number(current.login_streak) || 0,
+          Number(row.login_streak) || 0
+        );
+        effectiveRow.experience_total = Math.max(
+          Number(current.experience_total) || 0,
+          Number(row.experience_total) || 0
+        );
+        if (
+          current.last_login_date &&
+          String(current.last_login_date) > String(row.last_login_date || "")
+        ) {
+          effectiveRow.last_login_date = current.last_login_date;
+        }
+      }
+    }
+    const values = columns.map((column) => normalizeColumnValue(table, column, effectiveRow[column]));
     await env.DB.prepare(
       `insert into ${table} (${columns.join(",")}) values (${placeholders})
        on conflict(${conflict.join(",")}) do update set ${updates || `${conflict[0]}=excluded.${conflict[0]}`}`
@@ -1359,6 +2007,9 @@ const BACKUP_TABLES = [
   "recipes",
   "wishes",
   "weekend_plans",
+  "wardrobe_locations",
+  "wardrobe_items",
+  "wardrobe_wear_logs",
   "anniversaries",
   "gratitude_notes",
   "notifications",
@@ -1515,12 +2166,18 @@ export default {
       if (url.pathname === "/api/auth/register" && request.method === "POST") {
         return handleD1Register(request, env);
       }
-      if (url.pathname === "/api/auth/login" && request.method === "POST") {
-        return handleD1Login(request, env);
+     if (url.pathname === "/api/auth/login" && request.method === "POST") {
+       return handleD1Login(request, env);
+     }
+      if (url.pathname === "/api/auth/password-reset/request" && request.method === "POST") {
+        return handlePasswordResetRequest(request, env);
       }
-      if (url.pathname === "/api/rpc/reset_password_with_recovery_key" && request.method === "POST") {
-        return handlePasswordRecoveryReset(request, env);
+      if (url.pathname === "/api/auth/password-reset/confirm" && request.method === "POST") {
+        return handlePasswordResetConfirm(request, env);
       }
+     if (url.pathname === "/api/rpc/reset_password_with_recovery_key" && request.method === "POST") {
+       return handlePasswordRecoveryReset(request, env);
+     }
 
       let user = null;
       user = await requireUser(request, env);
@@ -1531,12 +2188,18 @@ export default {
       if (url.pathname === "/upload" && request.method === "POST") {
         return handleUpload(request, env, user);
       }
-      if (url.pathname === "/api/auth/me" && request.method === "GET") {
-        return handleD1Me(request, env, user);
+     if (url.pathname === "/api/auth/me" && request.method === "GET") {
+       return handleD1Me(request, env, user);
+     }
+      if (url.pathname === "/api/account/email/request" && request.method === "POST") {
+        return handleEmailBindRequest(request, env, user);
       }
-      if (url.pathname === "/api/auth/password" && request.method === "POST") {
-        return handlePasswordUpdate(request, env, user);
+      if (url.pathname === "/api/account/email/confirm" && request.method === "POST") {
+        return handleEmailBindConfirm(request, env, user);
       }
+     if (url.pathname === "/api/auth/password" && request.method === "POST") {
+       return handlePasswordUpdate(request, env, user);
+     }
       if (url.pathname === "/api/push/config" && request.method === "GET") {
         return jsonResponse(request, env, { data: { publicKey: env.VAPID_PUBLIC_KEY || "" } });
       }
@@ -1586,11 +2249,8 @@ export default {
     }
   },
   async scheduled(_controller, env, ctx) {
-    ctx.waitUntil(
-      Promise.all([
-        cleanupExpiredTrash(env),
-        createDailyBackup(env),
-      ])
-    );
+    // The scheduled task only expires recycle-bin entries. Automatic backups
+    // are intentionally disabled for this private family app.
+    ctx.waitUntil(cleanupExpiredTrash(env));
   },
 };

@@ -7,11 +7,30 @@ PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
   username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+  email TEXT,
   password_hash TEXT NOT NULL,
   password_salt TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS users_email_unique
+  ON users(email)
+  WHERE email IS NOT NULL AND email <> '';
+
+CREATE TABLE IF NOT EXISTS email_challenges (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  email TEXT NOT NULL,
+  purpose TEXT NOT NULL CHECK (purpose IN ('bind', 'password_reset')),
+  code_hash TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  attempts INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+
+CREATE INDEX IF NOT EXISTS email_challenges_lookup_idx
+  ON email_challenges(user_id, email, purpose, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS sessions (
   id TEXT PRIMARY KEY,
@@ -61,7 +80,7 @@ CREATE TABLE IF NOT EXISTS families (
 CREATE TABLE IF NOT EXISTS trash_items (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  item_type TEXT NOT NULL CHECK (item_type IN ('photo', 'secret')),
+  item_type TEXT NOT NULL CHECK (item_type IN ('photo', 'secret', 'recipe', 'wish', 'weekend', 'anniversary', 'gratitude')),
   item_id TEXT NOT NULL,
   label TEXT NOT NULL DEFAULT '',
   payload TEXT NOT NULL DEFAULT '{}',
@@ -184,6 +203,63 @@ CREATE TABLE IF NOT EXISTS weekend_plans (
 
 CREATE INDEX IF NOT EXISTS weekend_plans_user_date_idx ON weekend_plans (user_id, plan_date ASC);
 
+CREATE TABLE IF NOT EXISTS wardrobe_locations (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  note TEXT NOT NULL DEFAULT '',
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+
+CREATE INDEX IF NOT EXISTS wardrobe_locations_user_sort_idx
+  ON wardrobe_locations (user_id, sort_order ASC, created_at ASC);
+
+CREATE TABLE IF NOT EXISTS wardrobe_items (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  wearer_user_id TEXT,
+  name TEXT NOT NULL,
+  item_type TEXT NOT NULL DEFAULT 'item' CHECK (item_type IN ('item', 'outfit')),
+  category TEXT NOT NULL DEFAULT '上装',
+  description TEXT NOT NULL DEFAULT '',
+  fit_note TEXT NOT NULL DEFAULT '',
+  location_id TEXT REFERENCES wardrobe_locations(id) ON DELETE SET NULL,
+  status TEXT NOT NULL DEFAULT 'available' CHECK (status IN ('available', 'laundry', 'repair', 'retired')),
+  seasons TEXT NOT NULL DEFAULT '[]',
+  occasions TEXT NOT NULL DEFAULT '[]',
+  style_tags TEXT NOT NULL DEFAULT '[]',
+  color_tags TEXT NOT NULL DEFAULT '[]',
+  images TEXT NOT NULL DEFAULT '[]',
+  is_favorite INTEGER NOT NULL DEFAULT 0,
+  wear_count INTEGER NOT NULL DEFAULT 0,
+  last_worn_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+
+CREATE INDEX IF NOT EXISTS wardrobe_items_user_updated_idx
+  ON wardrobe_items (user_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS wardrobe_items_location_idx
+  ON wardrobe_items (location_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS wardrobe_items_status_idx
+  ON wardrobe_items (status, item_type, updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS wardrobe_wear_logs (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  wardrobe_item_id TEXT NOT NULL REFERENCES wardrobe_items(id) ON DELETE CASCADE,
+  worn_on TEXT NOT NULL,
+  note TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+
+CREATE INDEX IF NOT EXISTS wardrobe_wear_logs_item_date_idx
+  ON wardrobe_wear_logs (wardrobe_item_id, worn_on DESC);
+CREATE INDEX IF NOT EXISTS wardrobe_wear_logs_user_date_idx
+  ON wardrobe_wear_logs (user_id, worn_on DESC);
+
 CREATE TABLE IF NOT EXISTS anniversaries (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -219,6 +295,7 @@ CREATE TABLE IF NOT EXISTS secret_items (
   cover_path TEXT NOT NULL DEFAULT '',
   images TEXT NOT NULL DEFAULT '[]',
   linked_photo_id TEXT REFERENCES photos(id) ON DELETE SET NULL,
+  photo_sort_descending INTEGER NOT NULL DEFAULT 1,
   sort_order INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))

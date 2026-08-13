@@ -1,0 +1,23 @@
+# Local credentials and private setup notes
+cloudfileToken.txt
+inviteCode.txt
+code.txt
+
+# Generated deployment and dependency directories
+.cloudflare-pages-dist/
+.wrangler/
+cloudflare-worker/.wrangler/
+node_modules/
+cloudflare-worker/node_modules/
+
+# Local test output
+tests/*.log
+tests/http.out
+tests/http.err
+tests/*.png
+worker-tail.log
+worker-tail.err.log
+
+# Local visual review captures and generated artwork
+/*.png
+/*.jpg

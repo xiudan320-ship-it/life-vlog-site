@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>衣柜视觉验收</title>
+  <link rel="stylesheet" href="../styles.css" />
+  <link rel="stylesheet" href="../redesign.css" />
+  <link rel="stylesheet" href="../wardrobe.css?v=20260811-007" />
+  <style>
+    body { min-height: 100vh; margin: 0; padding-top: 0 !important; background: var(--bg); }
+    .wardrobe-page { display: block; }
+  </style>
+</head>
+<body class="theme-dark">
+  <main>
+    <section class="wardrobe-page"><div id="wardrobeRoot"></div></section>
+  </main>
+  <script type="module">
+    import { createWardrobeController } from "../modules/wardrobe.js?v=20260811-004";
+
+    const now = new Date().toISOString();
+    const images = {
+      wide: { id: "wide", url: "../assets/black-cat-cover.jpg", thumbnailUrl: "../assets/black-cat-cover.jpg", role: "cover", name: "正面" },
+      portrait: { id: "portrait", url: "../assets/anniversary-icon.jpg", thumbnailUrl: "../assets/anniversary-icon.jpg", role: "try-on", name: "试穿" },
+      square: { id: "square", url: "../assets/home-logo.jpg", thumbnailUrl: "../assets/home-logo.jpg", role: "detail", name: "细节" },
+      logo: { id: "logo", url: "../assets/black-cat-logo-source.png", thumbnailUrl: "../assets/black-cat-logo-source.png", role: "back", name: "背面" },
+      food: { id: "food", url: "../assets/food-wheel-icon.png", thumbnailUrl: "../assets/food-wheel-icon.png", role: "side", name: "侧面" },
+    };
+    let locations = [
+      { id: "loc-bedroom", user_id: "owner", name: "卧室衣柜 · 上层", note: "左边第二个收纳盒", sort_order: 0, created_at: now, updated_at: now },
+      { id: "loc-entry", user_id: "owner", name: "玄关抽屉", note: "配饰和常穿的小包", sort_order: 1, created_at: now, updated_at: now },
+      { id: "loc-storage", user_id: "owner", name: "储物间衣架", note: "换季外套", sort_order: 2, created_at: now, updated_at: now },
+    ];
+    let items = [
+      { id: "a", user_id: "owner", wearer_user_id: "owner", name: "森林绿针织开衫", item_type: "item", category: "上装", description: "柔软，适合搭浅色裙子。", fit_note: "袖口刚好，里面还能加薄打底。", location_id: "loc-bedroom", status: "available", seasons: ["春", "秋"], occasions: ["通勤", "约会"], style_tags: ["复古", "温柔"], color_tags: ["森林绿"], images: [images.wide, images.portrait, images.square], is_favorite: true, wear_count: 8, last_worn_at: "2026-08-02T08:00:00Z", created_at: now, updated_at: now },
+      { id: "b", user_id: "member", wearer_user_id: "member", name: "奶油白连衣裙", item_type: "item", category: "连衣裙", description: "侧面和背后都有系带。", fit_note: "腰围合适，坐下不会紧。", location_id: "loc-bedroom", status: "available", seasons: ["夏"], occasions: ["约会", "旅行"], style_tags: ["法式"], color_tags: ["奶油白"], images: [images.portrait, images.logo, images.food], is_favorite: false, wear_count: 3, last_worn_at: "2026-07-18T08:00:00Z", created_at: now, updated_at: now },
+      { id: "c", user_id: "owner", wearer_user_id: "owner", name: "周末散步整套", item_type: "outfit", category: "整套", description: "开衫、白裙和棕色小包的一整套。", fit_note: "适合 18 至 24 度。", location_id: "loc-bedroom", status: "available", seasons: ["春", "秋"], occasions: ["约会", "旅行"], style_tags: ["整套", "散步"], color_tags: ["绿", "白", "棕"], images: [images.square, images.wide], is_favorite: true, wear_count: 2, last_worn_at: "2026-06-12T08:00:00Z", created_at: now, updated_at: now },
+      { id: "d", user_id: "owner", wearer_user_id: "owner", name: "棕色乐福鞋", item_type: "item", category: "鞋", description: "走路久也不磨脚。", fit_note: "厚袜会稍紧。", location_id: "loc-entry", status: "available", seasons: ["春", "秋", "冬"], occasions: ["通勤", "旅行"], style_tags: ["百搭"], color_tags: ["棕色"], images: [images.food], is_favorite: false, wear_count: 14, last_worn_at: "2026-08-08T08:00:00Z", created_at: now, updated_at: now },
+      { id: "e", user_id: "member", wearer_user_id: "member", name: "黑色长外套", item_type: "item", category: "外套", description: "换季后收起来。", fit_note: "肩线略宽，里面可以穿毛衣。", location_id: "loc-storage", status: "retired", seasons: ["冬"], occasions: ["通勤"], style_tags: ["简洁"], color_tags: ["黑色"], images: [images.logo], is_favorite: false, wear_count: 5, last_worn_at: "2026-02-10T08:00:00Z", created_at: now, updated_at: now },
+      { id: "f", user_id: "owner", wearer_user_id: "owner", name: "珍珠耳夹", item_type: "item", category: "配饰", description: "放在小绒布袋里。", fit_note: "戴半天不会夹痛。", location_id: "loc-entry", status: "available", seasons: ["四季"], occasions: ["约会", "聚会"], style_tags: ["精致"], color_tags: ["白色"], images: [images.square], is_favorite: true, wear_count: 6, last_worn_at: "2026-07-28T08:00:00Z", created_at: now, updated_at: now },
+    ];
+
+    const ok = (data) => Promise.resolve({ data, error: null });
+    const repository = {
+      listItems: () => ok(items), listLocations: () => ok(locations), listWearLogs: () => ok([]),
+      insertItem: (record) => { items = [{ ...record, user_id: "owner" }, ...items]; return ok(items[0]); },
+      updateItem: (id, patch) => { items = items.map((item) => item.id === id ? { ...item, ...patch } : item); return ok(items.find((item) => item.id === id)); },
+      removeItem: (id) => { items = items.filter((item) => item.id !== id); return ok(true); },
+      insertLocation: (record) => { locations = [...locations, { ...record, user_id: "owner" }]; return ok(locations.at(-1)); },
+      updateLocation: (id, patch) => { locations = locations.map((item) => item.id === id ? { ...item, ...patch } : item); return ok(locations.find((item) => item.id === id)); },
+      removeLocation: (id) => { locations = locations.filter((item) => item.id !== id); return ok(true); },
+      insertWearLog: (record) => ok(record),
+    };
+
+    const controller = createWardrobeController({
+      root: document.querySelector("#wardrobeRoot"),
+      repository,
+      getSession: () => ({ user: { id: "owner" } }),
+      getFamilyMembers: () => [
+        { user_id: "owner", username: "咻蛋", avatar_url: "../assets/black-cat-logo.png" },
+        { user_id: "member", username: "蛋", avatar_url: "../assets/home-logo.jpg" },
+      ],
+      uploadFile: async () => ({ url: images.square.url, thumbnailUrl: images.square.thumbnailUrl, path: "fixture", thumbnailPath: "fixture-thumb" }),
+      importUrl: async (url) => ({ url, thumbnailUrl: url, path: "fixture-url" }),
+      deleteAsset: async () => true,
+      confirmAction: async () => true,
+      notify: () => {},
+      onExperience: async () => {},
+    });
+    await controller.load();
+  </script>
+</body>
+</html>

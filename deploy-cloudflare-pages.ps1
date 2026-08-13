@@ -27,12 +27,18 @@ Copy-Item -LiteralPath `
   (Join-Path $root "index.html"), `
   (Join-Path $root "app.js"), `
   (Join-Path $root "redesign.css"), `
+  (Join-Path $root "weekend-board.css"), `
+  (Join-Path $root "diary-detail.css"), `
+  (Join-Path $root "secret-viewer.css"), `
+  (Join-Path $root "wardrobe.css"), `
   (Join-Path $root "styles.css"), `
   (Join-Path $root "service-worker.js"), `
   (Join-Path $root "manifest.webmanifest"), `
-  (Join-Path $root ".nojekyll") `
+  (Join-Path $root ".nojekyll"), `
+  (Join-Path $root "_headers") `
   -Destination $dist
 Copy-Item -LiteralPath (Join-Path $root "assets") -Destination $dist -Recurse
+Copy-Item -LiteralPath (Join-Path $root "modules") -Destination $dist -Recurse
 
 $env:Path = "$nodeBin;$pnpmBin;$env:Path"
-& (Join-Path $pnpmBin "pnpm.cmd") dlx wrangler@latest pages deploy $dist --project-name life-vlog-site --branch main
+& (Join-Path $pnpmBin "pnpm.cmd") dlx wrangler@latest pages deploy $dist --project-name life-vlog-site

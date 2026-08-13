@@ -1,4 +1,4 @@
-const CACHE_NAME = "life-vlog-site-20260717-169-pwa";
+const CACHE_NAME = "life-vlog-site-20260813-001-pwa";
 const APP_MEDIA_CACHES = new Set([
   "life-vlog-diary-media-cache",
   "life-vlog-secret-media-cache",
@@ -6,8 +6,33 @@ const APP_MEDIA_CACHES = new Set([
 const CORE_ASSETS = [
   "./",
   "./styles.css?v=20260610-37",
-  "./redesign.css?v=20260717-169",
-  "./app.js?v=20260717-169",
+  "./redesign.css?v=20260813-001",
+  "./weekend-board.css?v=20260809-238",
+  "./assets/weekend-complete-stamp.png",
+  "./diary-detail.css?v=20260809-232",
+  "./secret-viewer.css?v=20260809-230",
+  "./wardrobe.css?v=20260811-007",
+  "./app.js?v=20260813-001",
+  "./modules/app-lifecycle.js",
+  "./modules/confirm-dialog.js",
+  "./modules/cache-policy.js",
+  "./modules/cloud-models.js",
+  "./modules/cloudflare-client.js?v=20260811-010",
+  "./modules/data-repositories.js?v=20260810-003",
+  "./modules/diary-domain.js",
+  "./modules/gamification-archive.js",
+  "./modules/gamification-domain.js?v=20260810-003",
+  "./modules/household-repository.js",
+  "./modules/image-service.js",
+  "./modules/media-cache.js",
+  "./modules/media-metadata.js",
+  "./modules/notification-domain.js",
+  "./modules/offline-records.js",
+  "./modules/preferences-store.js",
+  "./modules/secret-domain.js?v=20260810-004",
+  "./modules/ui-formatters.js",
+  "./modules/upload-queue.js",
+  "./modules/wardrobe.js?v=20260811-005",
   "./manifest.webmanifest",
   "./assets/food-wheel-icon.png",
   "./assets/app-icon-192.png",
@@ -20,9 +45,9 @@ self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(async (cache) => {
-        // One optional asset must not prevent the whole offline shell from
-        // installing. The root document is the canonical navigation fallback.
-        await Promise.allSettled(
+        // Install atomically. Keeping the previous worker is safer than
+        // activating a new offline shell with a missing module or stylesheet.
+        await Promise.all(
           CORE_ASSETS.map(async (asset) => {
             const response = await fetch(asset, { cache: "reload" });
             if (!response.ok) throw new Error(`Unable to cache ${asset}`);
@@ -74,9 +99,10 @@ self.addEventListener("fetch", (event) => {
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request)
-        .then((response) => {
+        .then(async (response) => {
           const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put("./", copy));
+          const cache = await caches.open(CACHE_NAME);
+          await cache.put("./", copy);
           return response;
         })
         .catch(async () => {
@@ -86,19 +112,17 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  const network = fetch(request).then(async (response) => {
+    if (response.ok || response.type === "opaque") {
+      const copy = response.clone();
+      const cache = await caches.open(CACHE_NAME);
+      await cache.put(request, copy);
+    }
+    return response;
+  });
+  event.waitUntil(network.then(() => undefined, () => undefined));
   event.respondWith(
-    caches.match(request).then((cached) => {
-      const network = fetch(request)
-        .then((response) => {
-          if (response.ok || response.type === "opaque") {
-            const copy = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-          }
-          return response;
-        })
-        .catch(() => cached);
-      return cached || network;
-    })
+    caches.match(request).then((cached) => cached || network)
   );
 });
 

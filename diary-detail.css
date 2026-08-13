@@ -1,0 +1,149 @@
+/* Stable desktop diary reader. The left media stage remains fixed while the
+   complete right reading rail scrolls in document order. */
+@media (min-width: 701px) {
+  #photoDialog.diary-detail-dialog:not(.diary-image-fullscreen) {
+    --diary-sidebar-width: clamp(390px, 31vw, 500px);
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) var(--diary-sidebar-width) !important;
+    grid-template-rows: max-content max-content !important;
+    align-content: start;
+    width: min(1520px, calc(100vw - 40px)) !important;
+    height: min(90dvh, 920px) !important;
+    max-height: min(90dvh, 920px) !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    scrollbar-color: color-mix(in srgb, var(--accent) 55%, transparent) transparent;
+    scrollbar-width: thin;
+  }
+
+  #photoDialog.diary-detail-dialog:not(.diary-image-fullscreen) .dialog-media {
+    position: sticky !important;
+    top: 0;
+    grid-column: 1 !important;
+    grid-row: 1 / -1 !important;
+    align-self: start;
+    width: 100% !important;
+    max-width: none !important;
+    height: min(90dvh, 920px) !important;
+    max-height: none !important;
+    margin: 0 !important;
+    box-sizing: border-box;
+    padding: 20px 20px 72px !important;
+    background: #080b09;
+  }
+
+  #photoDialog.diary-detail-dialog:not(.diary-image-fullscreen) .dialog-media img {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    object-fit: contain !important;
+  }
+
+  #photoDialog.diary-detail-dialog:not(.diary-image-fullscreen) > article {
+    position: static !important;
+    display: block !important;
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    align-self: start;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    box-sizing: border-box;
+    overflow: visible !important;
+    border-left: 1px solid var(--line);
+    padding: 28px 26px 30px !important;
+  }
+
+  #photoDialog.diary-detail-dialog:not(.diary-image-fullscreen) > article #dialogMeta {
+    margin: 0 52px 9px 0 !important;
+  }
+
+  #photoDialog.diary-detail-dialog:not(.diary-image-fullscreen) > article #dialogTitle {
+    margin: 0 42px 14px 0 !important;
+    font-size: clamp(28px, 2.35vw, 39px) !important;
+    line-height: 1.08 !important;
+  }
+
+  #photoDialog.diary-detail-dialog:not(.diary-image-fullscreen) > article #dialogNote {
+    display: block !important;
+    max-width: none !important;
+    max-height: none !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.72 !important;
+    white-space: pre-wrap;
+  }
+
+  #photoDialog.diary-detail-dialog:not(.diary-image-fullscreen) .photo-comments {
+    position: static !important;
+    inset: auto !important;
+    grid-column: 2 !important;
+    grid-row: 2 !important;
+    display: flex !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 360px !important;
+    max-height: none !important;
+    flex-direction: column;
+    margin: 0 !important;
+    box-sizing: border-box;
+    overflow: visible !important;
+    border-top: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
+    border-left: 1px solid var(--line);
+    background: var(--surface);
+    padding: 22px 26px 26px !important;
+  }
+
+  #photoDialog.diary-detail-dialog:not(.diary-image-fullscreen) .photo-comments-head {
+    display: flex !important;
+    align-items: flex-start !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    gap: 4px !important;
+    margin: 0 0 14px !important;
+  }
+
+  #photoDialog.diary-detail-dialog:not(.diary-image-fullscreen) .photo-comments-head h3 {
+    order: -1;
+    margin: 0;
+    font-size: 28px !important;
+    line-height: 1 !important;
+  }
+
+  #photoDialog.diary-detail-dialog:not(.diary-image-fullscreen) .photo-comments-list {
+    flex: 0 0 auto !important;
+    min-height: 120px;
+    overflow: visible !important;
+  }
+
+  #photoDialog.diary-detail-dialog:not(.diary-image-fullscreen) #photoCommentForm {
+    position: sticky !important;
+    z-index: 5;
+    bottom: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    margin-top: auto;
+    border-top: 1px solid var(--line);
+    background: var(--surface);
+    padding-top: 12px;
+  }
+
+  #photoDialog.diary-detail-dialog:not(.diary-image-fullscreen) > .dialog-close {
+    position: sticky !important;
+    z-index: 20;
+    top: 14px !important;
+    right: 14px !important;
+    grid-column: 2;
+    grid-row: 1;
+    align-self: start;
+    justify-self: end;
+    margin: 14px 14px -66px 0;
+  }
+}

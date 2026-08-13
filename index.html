@@ -17,7 +17,11 @@
     <link rel="icon" type="image/png" sizes="32x32" href="./assets/app-icon-32.png" />
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
     <link rel="stylesheet" href="./styles.css?v=20260610-37" />
-    <link rel="stylesheet" href="./redesign.css?v=20260717-169" />
+    <link rel="stylesheet" href="./redesign.css?v=20260813-001" />
+    <link rel="stylesheet" href="./weekend-board.css?v=20260809-238" />
+    <link rel="stylesheet" href="./diary-detail.css?v=20260809-232" />
+    <link rel="stylesheet" href="./secret-viewer.css?v=20260809-230" />
+    <link rel="stylesheet" href="./wardrobe.css?v=20260811-007" />
   </head>
   <body>
     <header class="topbar">
@@ -32,9 +36,10 @@
       </a>
       <nav class="main-nav" aria-label="页面切换">
         <button class="active" id="galleryNav" type="button">日记</button>
+        <button id="recipesNav" type="button">菜谱</button>
         <button id="wishlistNav" type="button">心愿</button>
         <button id="weekendNav" type="button">周末</button>
-        <button id="thanksNav" type="button">留言</button>
+        <button id="wardrobeNav" type="button">衣柜</button>
       </nav>
       <div class="top-actions">
         <button class="icon-button" id="themeToggle" type="button" title="切换日夜模式">
@@ -131,6 +136,13 @@
             <small>抽一篇家庭日记</small>
           </span>
         </button>
+        <button class="tool-dock-button weekly-review-button" id="weeklyReviewOpen" type="button" data-tool-id="weekly" hidden>
+          <span class="tool-dock-mark weekly-review-mark" aria-hidden="true">周</span>
+          <span>
+            <strong>本周回顾</strong>
+            <small>共同生活周报</small>
+          </span>
+        </button>
         <button class="tool-dock-button secret-button" id="secretOpen" type="button" data-tool-id="secret" hidden>
           <span class="tool-dock-mark secret-mark" aria-hidden="true">✦</span>
           <span>
@@ -138,11 +150,11 @@
             <small>进入里世界展览</small>
           </span>
         </button>
-        <button class="tool-dock-button recipe-tool-button" id="recipeOpen" type="button" data-tool-id="recipe" hidden>
-          <span class="tool-dock-mark recipe-mark" aria-hidden="true">味</span>
+        <button class="tool-dock-button thanks-tool-button" id="thanksOpen" type="button" data-tool-id="thanks" hidden>
+          <span class="tool-dock-mark thanks-mark" aria-hidden="true">谢</span>
           <span>
-            <strong>菜谱本</strong>
-            <small>记录自己的味道</small>
+            <strong>留言</strong>
+            <small>留下生活里的话</small>
           </span>
         </button>
       </section>
@@ -183,6 +195,22 @@
 
       <aside class="anniversary-section" id="anniversarySection" hidden>
       </aside>
+
+      <dialog class="weekly-review-dialog" id="weeklyReviewDialog">
+        <div class="weekly-review-shell">
+          <header class="weekly-review-head">
+            <div>
+              <p class="kicker">Together, This Week</p>
+              <h2>我们的这一周</h2>
+              <p id="weeklyReviewRange"></p>
+            </div>
+            <button id="weeklyReviewClose" type="button" aria-label="关闭本周回顾">×</button>
+          </header>
+          <div class="weekly-review-loading" id="weeklyReviewLoading" hidden><i></i><span>正在整理这一周…</span></div>
+          <div id="weeklyReviewContent"></div>
+          <p class="status-line" id="weeklyReviewStatus"></p>
+        </div>
+      </dialog>
 
       <section class="overview" id="overview" hidden>
         <div class="overview-head">
@@ -260,11 +288,18 @@
 
         <form id="uploadForm" hidden>
           <div class="file-drop" id="photoDrop" tabindex="0">
-            <input id="photoInput" type="file" accept="image/*" multiple />
-            <img id="photoPreview" alt="照片预览" hidden />
+            <input class="native-file-input" id="photoInput" type="file" accept="image/*" multiple />
+            <div class="upload-main-preview" id="uploadMainPreview" hidden>
+              <img id="photoPreview" alt="照片预览" />
+              <button class="upload-main-remove" id="removeUploadPreview" type="button" aria-label="删除当前图片">×</button>
+            </div>
             <div class="preview-strip" id="previewStrip" hidden></div>
-            <span>选择多张照片，或在这里粘贴图片</span>
+            <label class="upload-native-trigger upload-pick-button" for="photoInput">选择图片</label>
             <strong id="fileName">还没有选择图片</strong>
+          </div>
+          <div class="image-link-adder">
+            <input id="photoLinkInput" type="url" inputmode="url" placeholder="粘贴图片链接" aria-label="日记图片链接" />
+            <button id="photoLinkAdd" type="button">添加</button>
           </div>
           <p class="compression-note">
             图片会在浏览器中自动压缩后上传，原图不会被修改。
@@ -318,6 +353,7 @@
 
       <section class="today-posts-notice" id="feedRefreshNotice" hidden></section>
       <section class="today-posts-notice" id="todayPostsNotice" hidden></section>
+      <section class="today-posts-notice weekend-reminder-notice" id="weekendReminderNotice" hidden></section>
 
       <section class="filters" id="galleryFilters" aria-label="日记筛选">
         <label class="diary-search" for="diarySearchInput">
@@ -364,12 +400,15 @@
 
           <form class="recipe-form" id="recipeForm" hidden>
             <label class="recipe-cover-drop" id="recipeCoverDrop" tabindex="0">
-              <input id="recipeCoverInput" type="file" accept="image/*" />
+              <input class="native-file-input" id="recipeCoverInput" type="file" accept="image/*" />
               <img id="recipeCoverPreview" alt="菜谱封面预览" hidden />
-              <span>上传封面</span>
+              <span class="upload-native-trigger">上传封面</span>
               <strong id="recipeCoverName">还没有选择封面</strong>
             </label>
-
+            <div class="image-link-adder">
+              <input id="recipeCoverLinkInput" type="url" inputmode="url" placeholder="粘贴图片链接" aria-label="菜谱封面链接" />
+              <button id="recipeCoverLinkAdd" type="button">添加</button>
+            </div>
             <div class="form-grid">
               <label>
                 菜名
@@ -455,11 +494,15 @@
 
           <form class="wishlist-form" id="wishlistForm" hidden>
             <label class="wish-image-drop" id="wishImageDrop" tabindex="0">
-              <input id="wishImageInput" type="file" accept="image/*" />
+              <input class="native-file-input" id="wishImageInput" type="file" accept="image/*" />
               <img id="wishImagePreview" alt="心愿图片预览" hidden />
-              <span>添加一张心愿图片，也可以直接粘贴剪切板图片</span>
+              <span class="upload-native-trigger">添加心愿图片</span>
               <strong id="wishImageName">还没有选择图片</strong>
             </label>
+            <div class="image-link-adder">
+              <input id="wishImageLinkInput" type="url" inputmode="url" placeholder="粘贴图片链接" aria-label="心愿图片链接" />
+              <button id="wishImageLinkAdd" type="button">添加</button>
+            </div>
             <button class="wish-remove-image" id="wishRemoveImage" type="button" hidden>
               移除图片
             </button>
@@ -563,6 +606,16 @@
             </button>
           </div>
           <form class="weekend-form" id="weekendForm" hidden>
+            <div class="weekend-image-drop" id="weekendImageDrop" tabindex="0">
+              <input class="native-file-input" id="weekendImageInput" type="file" accept="image/*" multiple />
+              <label class="upload-native-trigger" for="weekendImageInput">添加当天场景</label>
+              <small>选择多张图片，或直接粘贴图片</small>
+              <div class="weekend-image-previews" id="weekendImagePreviews" hidden></div>
+            </div>
+            <div class="image-link-adder">
+              <input id="weekendImageLinkInput" type="url" inputmode="url" placeholder="粘贴图片链接" aria-label="周末图片链接" />
+              <button id="weekendImageLinkAdd" type="button">添加</button>
+            </div>
             <div class="form-grid">
               <label>
                 想做什么
@@ -600,6 +653,40 @@
         </section>
 
         <section class="weekend-list" id="weekendList" aria-live="polite"></section>
+      </section>
+
+      <dialog class="weekend-completion-dialog" id="weekendCompletionDialog">
+        <button class="dialog-close" id="weekendCompletionClose" type="button" aria-label="关闭">×</button>
+        <form id="weekendCompletionForm">
+          <header>
+            <p class="kicker">Weekend Recap</p>
+            <h2>留下这一天</h2>
+            <p id="weekendCompletionPlanTitle"></p>
+          </header>
+          <label>
+            完成回顾
+            <textarea id="weekendCompletionNote" rows="5" placeholder="今天去了哪里、吃了什么，或者只写一句当时的心情。"></textarea>
+          </label>
+          <div class="weekend-completion-drop" id="weekendCompletionDrop" tabindex="0">
+            <input class="native-file-input" id="weekendCompletionInput" type="file" accept="image/*" multiple />
+            <label class="upload-native-trigger" for="weekendCompletionInput">添加当天照片</label>
+            <small>可以批量选择、粘贴图片或图片链接</small>
+            <div class="weekend-completion-previews" id="weekendCompletionPreviews" hidden></div>
+          </div>
+          <div class="image-link-adder">
+            <input id="weekendCompletionLinkInput" type="url" inputmode="url" placeholder="粘贴图片链接" aria-label="完成回顾图片链接" />
+            <button id="weekendCompletionLinkAdd" type="button">添加</button>
+          </div>
+          <p class="status-line" id="weekendCompletionStatus"></p>
+          <footer>
+            <button class="ghost-button" id="weekendCompletionCancel" type="button">取消</button>
+            <button class="primary" id="weekendCompletionSubmit" type="submit">完成并保存</button>
+          </footer>
+        </form>
+      </dialog>
+
+      <section class="wardrobe-page" id="wardrobePage" hidden>
+        <div id="wardrobeRoot"></div>
       </section>
 
       <section class="thanks-page" id="thanksPage" hidden>
@@ -664,16 +751,6 @@
           <p class="status-line" id="secretStatus"></p>
         </div>
 
-        <div class="secret-library-toolbar">
-          <label class="secret-search" for="secretSearchInput">
-            <span>搜索秘藏</span>
-            <input id="secretSearchInput" type="search" list="secretSearchSuggestions" placeholder="相册名或照片 Tag" autocomplete="off" />
-            <datalist id="secretSearchSuggestions"></datalist>
-          </label>
-          <button type="button" id="secretCreateFolderButton">新建文件夹</button>
-        </div>
-        <nav class="secret-folder-list" id="secretFolderList" aria-label="秘藏文件夹"></nav>
-
         <section class="secret-composer" id="secretComposer" hidden>
           <div class="section-title">
             <button class="section-heading-button" id="secretToggle" type="button" aria-expanded="false">
@@ -684,27 +761,27 @@
 
           <form class="secret-form" id="secretForm" hidden>
             <label class="secret-image-drop" id="secretImageDrop" tabindex="0">
-              <input id="secretImageInput" type="file" accept="image/*" multiple />
+              <input class="native-file-input" id="secretImageInput" type="file" accept="image/*" multiple />
               <img id="secretImagePreview" alt="秘藏图片预览" hidden />
               <div class="preview-strip" id="secretPreviewStrip" hidden></div>
-              <span>选择图片，或在这里粘贴剪切板图片</span>
+              <span class="upload-native-trigger">选择图片</span>
               <strong id="secretImageName">还没有选择图片</strong>
             </label>
+            <div class="image-link-adder">
+              <input id="secretImageLinkInput" type="url" inputmode="url" placeholder="粘贴图片链接" aria-label="秘藏图片链接" />
+              <button id="secretImageLinkAdd" type="button">添加</button>
+            </div>
             <label>
               自定义封面
-              <input id="secretCoverInput" type="file" accept="image/*" />
+              <input class="native-file-input" id="secretCoverInput" type="file" accept="image/*" />
             </label>
             <div class="form-grid">
               <label>
                 相册名
                 <input id="secretTitleInput" maxlength="80" placeholder="比如：灵感收藏" />
               </label>
-              <label>
-                相册分组（可选）
-                <input id="secretCategoryInput" maxlength="32" list="secretCategoryList" placeholder="可不填，照片 tag 可之后批量设置" />
-                <datalist id="secretCategoryList"></datalist>
-                <div class="secret-category-tags" id="secretCategoryTags" aria-label="常用照片 tag"></div>
-              </label>
+              <input id="secretCategoryInput" type="hidden" value="未分类" />
+              <datalist id="secretCategoryList"></datalist>
               <label>
                 所属文件夹
                 <select id="secretFolderInput">
@@ -728,8 +805,27 @@
           </form>
         </section>
 
-        <div class="secret-filters" id="secretFilters" aria-label="秘藏照片 tag"></div>
-        <section class="secret-gallery" id="secretGallery" aria-live="polite"></section>
+        <div class="secret-library-layout">
+          <aside class="secret-library-sidebar" aria-label="秘藏收藏夹">
+            <label class="secret-search" for="secretSearchInput">
+              <span>搜索展品</span>
+              <input id="secretSearchInput" type="search" list="secretSearchSuggestions" placeholder="相册或 Tag" autocomplete="off" />
+              <datalist id="secretSearchSuggestions"></datalist>
+            </label>
+            <div class="secret-sidebar-heading">
+              <span>收藏夹</span>
+              <button class="secret-create-folder-button" type="button" id="secretCreateFolderButton" aria-label="新建文件夹" title="新建文件夹">
+                <span class="secret-create-folder-icon" aria-hidden="true">+</span>
+                <span class="secret-create-folder-label">新建文件夹</span>
+              </button>
+            </div>
+            <nav class="secret-folder-list" id="secretFolderList" aria-label="秘藏文件夹"></nav>
+          </aside>
+          <div class="secret-library-main">
+            <div class="secret-filters" id="secretFilters" aria-label="秘藏照片 tag"></div>
+            <section class="secret-gallery" id="secretGallery" aria-live="polite"></section>
+          </div>
+        </div>
       </section>
     </main>
 
@@ -876,7 +972,15 @@
             <span>恢复密钥</span>
             <strong>忘记密码时用来重设</strong>
           </button>
-        </section>
+         <button id="changeSecretPinButton" type="button">
+           <span>秘藏密码</span>
+           <strong>修改进入秘藏的四位数字密码</strong>
+         </button>
+          <button id="bindEmailButton" type="button">
+            <span>绑定邮箱</span>
+            <strong><em id="settingsEmailValue">未绑定</em><small>用于找回用户名和密码</small></strong>
+          </button>
+       </section>
         <section class="settings-group" id="settingsFamily">
           <p class="kicker">Family</p>
           <h3>家庭与会员</h3>
@@ -942,7 +1046,7 @@
           <p>会显示在家庭成员、评论和互动通知中。</p>
         </div>
         <label class="avatar-picker">
-          <input id="avatarInput" type="file" accept="image/*" />
+          <input class="native-file-input" id="avatarInput" type="file" accept="image/*" />
           <img id="avatarPreview" alt="头像预览" hidden />
           <span id="avatarPreviewInitial">U</span>
           <strong>选择一张图片</strong>
@@ -1044,9 +1148,66 @@
       </form>
     </dialog>
 
+    <dialog class="account-dialog email-dialog" id="emailBindingDialog">
+      <button class="dialog-close" id="closeEmailBinding" type="button" aria-label="关闭">×</button>
+      <div class="email-dialog-head">
+        <p class="kicker">Email Recovery</p>
+        <h2>绑定邮箱</h2>
+        <p>验证后可以用邮箱验证码找回用户名和密码。</p>
+      </div>
+      <form id="emailBindingRequestForm">
+        <label>
+          邮箱地址
+          <input id="accountEmailInput" type="email" autocomplete="email" required placeholder="name@example.com" />
+        </label>
+        <p class="status-line" id="emailBindingStatus"></p>
+        <button class="primary" id="requestEmailBindingButton" type="submit">发送验证码</button>
+      </form>
+      <form id="emailBindingConfirmForm" hidden>
+        <label>
+          邮箱验证码
+          <input id="accountEmailCodeInput" inputmode="numeric" maxlength="6" autocomplete="one-time-code" required />
+        </label>
+        <p class="status-line" id="emailBindingConfirmStatus"></p>
+        <button class="primary" type="submit">验证并绑定</button>
+      </form>
+    </dialog>
+
     <dialog class="account-dialog" id="forgotPasswordDialog">
-      <button class="dialog-close" id="closeForgotPassword" type="button" aria-label="关闭">×</button>
-      <form id="forgotPasswordForm">
+     <button class="dialog-close" id="closeForgotPassword" type="button" aria-label="关闭">×</button>
+      <section class="email-recovery-panel">
+        <div>
+          <p class="kicker">Email Recovery</p>
+          <h2>用邮箱找回</h2>
+          <p>验证码邮件会同时告诉你用户名。</p>
+        </div>
+        <form id="emailResetRequestForm">
+          <label>
+            绑定邮箱
+            <input id="resetEmailInput" type="email" autocomplete="email" required placeholder="name@example.com" />
+          </label>
+          <p class="status-line" id="emailResetStatus"></p>
+          <button class="primary" type="submit">发送验证码</button>
+        </form>
+        <form id="emailResetConfirmForm" hidden>
+          <label>
+            邮箱验证码
+            <input id="resetEmailCodeInput" inputmode="numeric" maxlength="6" autocomplete="one-time-code" required />
+          </label>
+          <label>
+            新密码
+            <input id="emailResetNewPasswordInput" type="password" minlength="6" autocomplete="new-password" required />
+          </label>
+          <label>
+            再输入一次
+            <input id="emailResetConfirmPasswordInput" type="password" minlength="6" autocomplete="new-password" required />
+          </label>
+          <button class="primary" type="submit">验证并重设密码</button>
+        </form>
+      </section>
+      <details class="email-recovery-fallback">
+        <summary>没有绑定邮箱？使用恢复密钥</summary>
+        <form id="forgotPasswordForm">
         <div>
           <p class="kicker">Password Recovery</p>
           <h2>重设密码</h2>
@@ -1070,7 +1231,8 @@
         </label>
         <p class="status-line" id="forgotPasswordStatus"></p>
         <button class="primary" type="submit">重设密码</button>
-      </form>
+        </form>
+      </details>
     </dialog>
 
     <dialog id="photoDialog">
@@ -1080,12 +1242,52 @@
         <img id="dialogImage" alt="" />
         <button class="carousel-button next" id="dialogNext" type="button" aria-label="下一张">›</button>
         <span class="media-counter" id="dialogCounter"></span>
+        <div class="dialog-dots" id="dialogDots" role="tablist" aria-label="图片位置" hidden></div>
+        <button class="dialog-expand-image" id="dialogExpandImage" type="button" aria-label="查看大图" title="查看大图">
+          <span aria-hidden="true">⛶</span>
+        </button>
       </div>
+      <nav class="diary-viewer-toolbar" id="diaryViewerToolbar" aria-label="大图工具" hidden>
+        <button id="diaryViewerPrev" type="button" aria-label="上一张">‹</button>
+        <output id="diaryViewerCounter">1 / 1</output>
+        <button id="diaryViewerNext" type="button" aria-label="下一张">›</button>
+        <i aria-hidden="true"></i>
+        <button id="diaryViewerZoomOut" type="button" aria-label="缩小">−</button>
+        <output id="diaryViewerZoomValue">100%</output>
+        <button id="diaryViewerZoomIn" type="button" aria-label="放大">+</button>
+        <button id="diaryViewerFit" type="button" aria-label="适应窗口">⌗</button>
+        <i aria-hidden="true"></i>
+        <button id="diaryViewerRotate" type="button" aria-label="向右旋转">↻</button>
+        <button id="diaryViewerDownload" type="button" aria-label="下载原图">⇩</button>
+      </nav>
+      <div class="secret-viewer-status" id="secretViewerStatus" role="status" aria-live="polite" hidden>
+        <span aria-hidden="true"></span>
+        <b id="secretViewerStatusText">Loading image</b>
+      </div>
+      <nav class="secret-viewer-toolbar" id="secretViewerToolbar" aria-label="Image viewer controls" hidden>
+        <button id="secretViewerPrev" type="button" aria-label="Previous image">‹</button>
+        <output id="secretViewerCounter">1 / 1</output>
+        <button id="secretViewerNext" type="button" aria-label="Next image">›</button>
+        <i aria-hidden="true"></i>
+        <button id="secretViewerZoomOut" type="button" aria-label="Zoom out">−</button>
+        <output id="secretViewerZoomValue">100%</output>
+        <button id="secretViewerZoomIn" type="button" aria-label="Zoom in">+</button>
+        <button id="secretViewerFit" type="button" aria-label="Fit image to screen">⌗</button>
+        <i aria-hidden="true"></i>
+        <button id="secretViewerInfo" type="button" aria-label="Show image information" aria-pressed="false">i</button>
+      </nav>
       <div class="dialog-thumbs" id="dialogThumbs" hidden></div>
       <article>
         <p class="kicker" id="dialogMeta"></p>
         <h2 id="dialogTitle"></h2>
         <p id="dialogNote"></p>
+        <section class="wish-dialog-feedback" id="wishDialogFeedback" hidden>
+          <header>
+            <span>完成回执</span>
+            <time id="wishDialogCompletedAt"></time>
+          </header>
+          <p id="wishDialogFeedbackText"></p>
+        </section>
         <div class="dialog-tool-row">
           <button class="dialog-random-button" id="dialogRandomButton" type="button" hidden>
             再抽一篇
@@ -1101,7 +1303,7 @@
       <section class="photo-comments" id="photoCommentsSection">
         <div class="photo-comments-head">
           <p class="kicker">Family Comments</p>
-          <h3>留言</h3>
+          <h3>共 0 条评论</h3>
         </div>
         <div class="photo-comments-list" id="photoCommentsList"></div>
         <form id="photoCommentForm" hidden>
@@ -1164,10 +1366,10 @@
             </div>
             <div class="edit-media-actions">
               <span id="editImageCount"></span>
-              <button id="addEditImageButton" type="button">追加图片</button>
+              <label class="edit-image-picker" id="addEditImageButton" for="editImageInput">追加图片</label>
             </div>
           </div>
-          <input id="editImageInput" type="file" accept="image/*" multiple hidden />
+          <input class="native-file-input" id="editImageInput" type="file" accept="image/*" multiple />
           <div class="edit-image-list" id="editImageList"></div>
           <p class="hint">可以替换或删除合集中的单张图片，至少保留一张。</p>
         </section>
@@ -1245,6 +1447,42 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260717-169"></script>
+    <dialog class="secret-pin-dialog" id="secretPinDialog" aria-labelledby="secretPinTitle">
+      <section class="secret-pin-shell">
+        <button class="secret-pin-close" id="secretPinClose" type="button" aria-label="关闭秘藏密码">×</button>
+        <div class="secret-pin-mark" aria-hidden="true">
+          <span></span><span></span><span></span>
+        </div>
+        <header>
+          <p class="kicker" id="secretPinEyebrow">Private Archive</p>
+          <h2 id="secretPinTitle">进入秘藏</h2>
+          <p id="secretPinDescription">输入四位数字密码</p>
+        </header>
+        <div class="secret-pin-dots" id="secretPinDots" aria-label="已输入 0 位密码">
+          <i></i><i></i><i></i><i></i>
+        </div>
+        <p class="secret-pin-status" id="secretPinStatus" aria-live="polite"></p>
+        <div class="secret-pin-keypad" id="secretPinKeypad" aria-label="数字密码键盘">
+          <button type="button" data-secret-pin-digit="1">1</button>
+          <button type="button" data-secret-pin-digit="2">2</button>
+          <button type="button" data-secret-pin-digit="3">3</button>
+          <button type="button" data-secret-pin-digit="4">4</button>
+          <button type="button" data-secret-pin-digit="5">5</button>
+          <button type="button" data-secret-pin-digit="6">6</button>
+          <button type="button" data-secret-pin-digit="7">7</button>
+          <button type="button" data-secret-pin-digit="8">8</button>
+          <button type="button" data-secret-pin-digit="9">9</button>
+          <span aria-hidden="true"></span>
+          <button type="button" data-secret-pin-digit="0">0</button>
+          <button class="secret-pin-delete" type="button" data-secret-pin-delete aria-label="删除一位">⌫</button>
+        </div>
+        <footer>
+          <span>仅保存在此设备</span>
+          <span>离线可验证</span>
+        </footer>
+      </section>
+    </dialog>
+
+    <script type="module" src="./app.js?v=20260813-001"></script>
   </body>
 </html>

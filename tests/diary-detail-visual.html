@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Diary detail visual check</title>
+  <link rel="stylesheet" href="../styles.css" />
+    <link rel="stylesheet" href="../redesign.css?v=20260811-003" />
+  <link rel="stylesheet" href="../diary-detail.css?v=20260809-232" />
+  <style>body { margin: 0; background: var(--bg); } dialog[open] { display: grid; }</style>
+</head>
+<body class="theme-dark">
+  <dialog id="photoDialog" class="diary-detail-dialog" open>
+    <button class="dialog-close" type="button" aria-label="关闭">×</button>
+    <div class="dialog-media">
+      <img id="dialogImage" src="../assets/black-cat-cover.jpg" alt="测试图片" />
+    </div>
+    <article>
+      <p class="kicker" id="dialogMeta">日常 · 8月7日 13:04 · 蛋</p>
+      <h2 id="dialogTitle">你值得拥有最好的</h2>
+      <p id="dialogNote">看到你的转变，我很开心也很感慨。<br /><br />大部分人都是很不喜欢社交的，你不是异类，这太正常不过了。就算是世界福布斯排行榜的前十，大佬里也都是普通人。<br /><br />首先严厉批评一点，你哪里是阴暗爬行的人？跟你一点关系都没有。<br /><br />我找的蛋蛋要自信一点，我真的，发自内心的感慨你比别的女生好太多了！好的不止一点。<br /><br />另外，永远幸福的门票从来不是外貌，而是爱。<br /><br />这是一篇用于验证长文章滚动的正文。每一段都必须完整显示，不能藏在留言区后面，也不能因为图片高度固定而截断。<br /><br />继续向下阅读时，左边图片保持稳定，右边依次出现文章末尾、留言列表和发送框。<br /><br />长文章还会继续。滚轮需要控制整个右侧阅读过程，不能让留言区提前盖住正文。<br /><br />在接近末尾时，仍然应该保持舒适的行距，图片区域也不应该随着文章高度伸缩。<br /><br />这是倒数第二段，用于确认滚动条拥有足够距离。<br /><br />最后一段正文。现在应该能顺畅滚动到这里。</p>
+    </article>
+    <section class="photo-comments">
+      <div class="photo-comments-head"><p class="kicker">Family Comments</p><h3>留言</h3></div>
+      <div class="photo-comments-list"><p><strong>蛋</strong><br />鸣鸣鸣 啵啵</p></div>
+      <form id="photoCommentForm"><input placeholder="给这篇日记留句话" /><button type="button">发送</button></form>
+    </section>
+  </dialog>
+</body>
+</html>
