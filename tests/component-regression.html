@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Component regression check</title>
+    <link rel="stylesheet" href="../styles.css" />
+    <link rel="stylesheet" href="../redesign.css" />
+    <link rel="stylesheet" href="../secret-viewer.css" />
+    <style>
+      body { margin: 0; padding: 24px; background: var(--bg); }
+      main { display: grid; gap: 32px; max-width: 1200px; margin: 0 auto; }
+      main > section { width: 100%; min-width: 0; }
+      .secret-album-view { min-height: 720px; overflow: clip; }
+      @media (max-width: 640px) { body { padding: 12px; } }
+    </style>
+  </head>
+  <body class="theme-dark">
+    <main>
+      <section class="wishlist-page">
+        <div class="wishlist-list">
+          <article class="wish-card">
+            <div class="wish-card-top"><span>Wish 01</span><time>8月13日</time></div>
+            <div class="wish-card-layout">
+              <button class="wish-card-image-button" type="button" aria-label="查看心愿图片">
+                <img class="wish-card-image" src="../assets/black-cat-cover.jpg" alt="" />
+              </button>
+              <div class="wish-card-content">
+                <p class="kicker">想做 · 普通</p>
+                <h3>一起去看夏天的烟花</h3>
+                <div class="wish-card-details"><p class="wish-note">准备好相机，也给彼此留下一张照片。</p></div>
+              </div>
+            </div>
+            <div class="wish-actions"><button type="button">编辑</button><button class="complete" type="button">完成</button><button class="danger" type="button">删除</button></div>
+          </article>
+          <article class="wish-card done">
+            <div class="wish-card-top"><span>Wish 02</span><time>8月12日</time></div>
+            <div class="wish-card-layout">
+              <button class="wish-card-image-button" type="button" aria-label="查看心愿图片">
+                <img class="wish-card-image" src="../assets/home-logo.jpg" alt="" />
+              </button>
+              <div class="wish-card-content">
+                <p class="kicker">想吃 · 已完成</p>
+                <h3>一起吃一顿认真准备的晚饭</h3>
+                <div class="wish-card-details"><p class="wish-note">照片比例不同也不能把卡片撑歪。</p><p class="wish-completion-note">完成感想：比计划里的那天更开心。</p></div>
+              </div>
+            </div>
+            <div class="wish-actions"><button type="button">编辑</button><button class="complete" type="button">查看</button><button class="danger" type="button">删除</button></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="secret-album-view selection-active tools-expanded">
+        <aside class="secret-album-toolbar">
+          <div class="secret-inspector-heading"><span>Selection</span><strong>已选 1 张</strong></div>
+          <div class="secret-selection-primary-actions"><button type="button">取消选择</button><button class="danger" type="button">删除</button></div>
+          <div class="secret-selection-actions"><button type="button">全选</button><button type="button">设为封面</button></div>
+        </aside>
+        <div class="secret-photo-grid">
+          <button type="button"><img src="../assets/black-cat-cover.jpg" alt="" /></button>
+          <button type="button"><img src="../assets/home-logo.jpg" alt="" /></button>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

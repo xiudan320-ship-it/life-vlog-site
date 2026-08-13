@@ -1,0 +1,15 @@
+{
+  "name": "life-vlog-site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node --check app.js && node --check service-worker.js && node --check cloudflare-worker/src/worker.js",
+    "test:static": "node tests/smoke.mjs",
+    "test:structure": "node tests/structure-health.mjs",
+    "test:browser": "node tests/browser-regression.mjs",
+    "test": "pnpm run check && pnpm run test:static && pnpm run test:structure && pnpm run test:browser"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1"
+  }
+}

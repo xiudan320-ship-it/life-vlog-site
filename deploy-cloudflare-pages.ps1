@@ -4,6 +4,12 @@ $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $dist = Join-Path $root ".cloudflare-pages-dist"
 $nodeBin = "C:\Users\xiuda\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin"
 $pnpmBin = "C:\Users\xiuda\.cache\codex-runtimes\codex-primary-runtime\dependencies\bin\fallback"
+$env:Path = "$nodeBin;$pnpmBin;$env:Path"
+
+& (Join-Path $pnpmBin "pnpm.cmd") test
+if ($LASTEXITCODE -ne 0) {
+  throw "Validation failed. Deployment was stopped before uploading files."
+}
 
 if (-not $env:CLOUDFLARE_API_TOKEN) {
   $tokenPath = Join-Path $root "cloudfileToken.txt"
@@ -40,5 +46,4 @@ Copy-Item -LiteralPath `
 Copy-Item -LiteralPath (Join-Path $root "assets") -Destination $dist -Recurse
 Copy-Item -LiteralPath (Join-Path $root "modules") -Destination $dist -Recurse
 
-$env:Path = "$nodeBin;$pnpmBin;$env:Path"
 & (Join-Path $pnpmBin "pnpm.cmd") dlx wrangler@latest pages deploy $dist --project-name life-vlog-site
