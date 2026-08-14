@@ -5,7 +5,7 @@ const SESSION_DAYS = 3650;
 const SESSION_REFRESH_WINDOW_MS = 30 * 86400 * 1000;
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const PASSWORD_HASH_PREFIX = "pbkdf2-sha256";
-const PASSWORD_HASH_ITERATIONS = 210000;
+const PASSWORD_HASH_ITERATIONS = 100000;
 const RATE_LIMITS = {
   "/api/auth/login": 30,
   "/api/auth/register": 5,
