@@ -117,6 +117,12 @@ assert.match(app, /accountProfile\.avatarUrl \|\| familyAvatar \|\| loadCachedAv
 assert.match(app, /function renderExperienceRulesPanel\(experience\)/);
 assert.match(app, /profileUpdates\.login_streak = loginStreak/);
 assert.match(app, /const cachedAvatarUrl = loadCachedAvatarUrl\(member\.user_id\)/);
+assert.match(app, /data-settings-signup-invite/);
+assert.match(app, /\/api\/admin\/signup-invite/);
+assert.match(worker, /async function handleSignupInviteRead\(/);
+assert.match(worker, /Only the family owner can read the signup invite/);
+assert.match(worker, /url\.pathname === "\/api\/admin\/signup-invite"/);
+assert.match(css, /\.settings-family-invite-code/);
 assert.match(app, /function isSecretImageViewerOpen\(\)/);
 assert.match(app, /classList\.add\("no-comments-dialog", "secret-image-dialog"\)/);
 assert.doesNotMatch(app, /classList\.add\("no-comments-dialog", "secret-image-dialog", "secret-image-fullscreen"\)/);

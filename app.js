@@ -13324,6 +13324,16 @@ function renderSettingsFamilyPanel() {
         })
         .join("")}
     </div>
+    ${familyInfo.isOwner
+      ? `<div class="settings-family-invite-code">
+          <div>
+            <span>注册邀请码</span>
+            <small>仅家庭创建者可见。可用它创建独立测试账号，测试完成后再删除。</small>
+          </div>
+          <code data-settings-signup-invite-value hidden></code>
+          <button type="button" data-settings-signup-invite>获取邀请码</button>
+        </div>`
+      : ""}
     ${outgoing.length
       ? `<div class="settings-family-pending">
           ${outgoing
@@ -13339,6 +13349,46 @@ function renderSettingsFamilyPanel() {
         </div>`
       : ""}
   `;
+  bindSettingsFamilyActions();
+}
+
+async function readSignupInviteCode(button) {
+  if (!session?.access_token || !familyInfo?.isOwner) return;
+  const originalLabel = button.textContent;
+  button.disabled = true;
+  button.textContent = "读取中…";
+  try {
+    const response = await fetch(`${R2_UPLOAD_ENDPOINT}/api/admin/signup-invite`, {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload?.data?.code) {
+      throw new Error(payload?.error || "暂时无法读取邀请码");
+    }
+    const container = button.closest(".settings-family-invite-code");
+    const value = container?.querySelector("[data-settings-signup-invite-value]");
+    if (value) {
+      value.hidden = false;
+      value.textContent = String(payload.data.code);
+    }
+    try {
+      await navigator.clipboard?.writeText(String(payload.data.code));
+    } catch {
+      // The code remains visible when clipboard access is unavailable.
+    }
+    button.textContent = "已复制";
+    window.setTimeout(() => {
+      button.textContent = originalLabel;
+    }, 1800);
+  } catch (error) {
+    console.error("read signup invite failed", error);
+    button.textContent = "获取失败";
+    window.setTimeout(() => {
+      button.textContent = originalLabel;
+    }, 1800);
+  } finally {
+    button.disabled = false;
+  }
 }
 
 function bindSettingsFamilyActions() {
@@ -13352,6 +13402,9 @@ function bindSettingsFamilyActions() {
         )
       );
     });
+  els.settingsFamilyPanel
+    ?.querySelector("[data-settings-signup-invite]")
+    ?.addEventListener("click", (event) => readSignupInviteCode(event.currentTarget));
 }
 
 function setActiveSettingsSection(sectionId = "settingsGeneral") {

@@ -969,6 +969,17 @@ async function handleInviteVerify(request, env) {
   return jsonResponse(request, env, { ok: true });
 }
 
+async function handleSignupInviteRead(request, env, user) {
+  if (!(await requireFamilyOwner(env, user))) {
+    return jsonResponse(request, env, { error: "Only the family owner can read the signup invite." }, 403);
+  }
+  const code = String(env.FAMILY_INVITE_CODE || "").trim();
+  if (!code) {
+    return jsonResponse(request, env, { error: "FAMILY_INVITE_CODE is not configured." }, 503);
+  }
+  return jsonResponse(request, env, { data: { code } });
+}
+
 async function handleD1Login(request, env, directPayload = null) {
   const dbError = requireDb(request, env);
   if (dbError) return dbError;
@@ -2456,6 +2467,10 @@ export default {
       user = await requireUser(request, env);
       if (!user?.id) {
         return jsonResponse(request, env, { error: "Unauthorized." }, 401);
+      }
+
+      if (url.pathname === "/api/admin/signup-invite" && request.method === "GET") {
+        return handleSignupInviteRead(request, env, user);
       }
 
       if (url.pathname === "/upload" && request.method === "POST") {
