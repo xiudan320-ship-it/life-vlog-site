@@ -44,6 +44,15 @@ export function createDiaryRepository({ getDatabase, getSession }) {
       if (single) query = query.single();
       return query;
     },
+    async updateAdminUnpin(id, { select = "", single = false } = {}) {
+      let query = requireDatabase(getDatabase)
+        .from("photos")
+        .update({ is_pinned: false })
+        .eq("id", id);
+      if (select) query = query.select(select);
+      if (single) query = query.single();
+      return query;
+    },
     async remove(id, { select = "" } = {}) {
       const userId = getSession?.()?.user?.id;
       let query = requireDatabase(getDatabase).from("photos").delete().eq("id", id);

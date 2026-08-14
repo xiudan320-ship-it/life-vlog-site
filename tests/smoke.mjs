@@ -282,8 +282,14 @@ assert.match(app, /img\.feed-image, img\.secret-progressive-image/);
 assert.match(css, /\.secret-album-photo\.media-loaded::before/);
 assert.match(index, /id="secretPinDialog"/);
 assert.match(app, /SECRET_UNLOCK_MAX_MS = 15 \* 60 \* 1000/);
-assert.match(app, /SECRET_DEFAULT_FOLDER_KEY/);
 assert.match(app, /function openSecretFolderContextMenu/);
+assert.match(app, /function openSecretAlbumContextMenu/);
+assert.match(app, /let secretDefaultFolderId = "unfiled"/);
+assert.match(app, /secret_default_folder_id/);
+assert.match(app, /data-admin-unpin-index/);
+assert.match(app, /updateAdminUnpin/);
+assert.match(worker, /secret_default_folder_id/);
+assert.match(worker, /adminUnpinRequest/);
 assert.match(app, /async function hashSecretPin/);
 assert.match(app, /requestedPage === "secret" && !skipSecretGate && !isSecretUnlocked\(\)/);
 assert.match(css, /Secret archive PIN/);
@@ -332,7 +338,7 @@ assert.match(worker, /delete from sessions where user_id=\? and token_hash<>\?/)
 assert.match(worker, /delete from sessions where user_id=\?/);
 assert.match(cloudflareClientModule, /SESSION_ROLLING_DAYS = 3650/);
 assert.match(cloudflareClientModule, /delete activeSession\.offline_only/);
-assert.match(app, /from "\.\/modules\/data-repositories\.js\?v=20260810-003"/);
+assert.match(app, /from "\.\/modules\/data-repositories\.js\?v=20260814-004"/);
 assert.match(app, /from "\.\/modules\/media-cache\.js"/);
 assert.match(app, /from "\.\/modules\/media-metadata\.js"/);
 assert.match(app, /from "\.\/modules\/upload-queue\.js"/);
@@ -356,9 +362,9 @@ assert.match(serviceWorker, /modules\/confirm-dialog\.js/);
 assert.match(serviceWorker, /modules\/diary-domain\.js/);
 assert.match(serviceWorker, /modules\/notification-domain\.js/);
 assert.match(serviceWorker, /modules\/secret-domain\.js/);
-assert.match(serviceWorker, /life-vlog-site-20260814-003-pwa/);
+assert.match(serviceWorker, /life-vlog-site-20260814-004-pwa/);
 assert.match(serviceWorker, /redesign\.css\?v=20260813-001/);
-assert.match(index, /app\.js\?v=20260813-001/);
+assert.match(index, /app\.js\?v=20260814-004/);
 assert.match(
   pageHeaders,
   /img-src[^\n]*https:\/\/life-vlog-r2-upload\.xiudan320-life\.workers\.dev/,

@@ -12713,6 +12713,15 @@ body.mobile-dialog-open {
   color: var(--accent-strong);
 }
 
+.secret-folder-context-menu button.danger {
+  color: var(--danger);
+}
+
+.secret-folder-context-menu button.danger:not(:disabled):hover {
+  background: color-mix(in srgb, var(--danger) 12%, var(--surface));
+  color: var(--danger);
+}
+
 .secret-folder-context-menu button:disabled {
   color: var(--accent-strong);
   opacity: 1;

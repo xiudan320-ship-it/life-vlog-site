@@ -40,6 +40,7 @@ const TABLE_CONFIG = {
       "local_data_migrated",
       "theme_preference",
       "home_name",
+      "secret_default_folder_id",
       "food_options",
       "preferred_thanks_color",
       "avatar_url",
@@ -1614,6 +1615,11 @@ async function getFamilyContext(env, userId) {
   return { ...family, members: members.results || [] };
 }
 
+async function isFamilyOwner(env, userId) {
+  const family = await getFamilyContext(env, userId);
+  return Boolean(family?.owner_id && String(family.owner_id) === String(userId));
+}
+
 function getPushCopy(type, actorName, body = "", aggregateCount = 1) {
   const name = actorName || "家庭成员";
   const count = Math.max(1, Number(aggregateCount) || 1);
@@ -2120,17 +2126,23 @@ async function handleTableApi(request, env, user, table) {
 
   const filters = payload.filters || [];
   if (action === "update") {
-    if (!(await assertRowsWritable(env, table, config, user, filters))) {
+    const rawUpdates = payload.values && typeof payload.values === "object" ? payload.values : {};
+    const adminUnpinRequest =
+      table === "photos" &&
+      rawUpdates.is_pinned === false &&
+      Object.keys(rawUpdates).length === 1 &&
+      (await isFamilyOwner(env, user.id));
+    if (!adminUnpinRequest && !(await assertRowsWritable(env, table, config, user, filters))) {
       return jsonResponse(request, env, { error: "Not allowed." }, 403);
     }
-    const updates = sanitizeRowForTable(table, payload.values || {}, user);
+    const updates = sanitizeRowForTable(table, rawUpdates, user);
     delete updates.id;
     delete updates.created_at;
     if (config.ownerColumn) delete updates[config.ownerColumn];
     const updateColumns = Object.keys(updates).filter((column) => config.columns.includes(column));
     if (!updateColumns.length) return jsonResponse(request, env, { data: [] });
     const whereValues = [];
-    const scope = await buildScopeSql(env, table, config, user, whereValues, true);
+    const scope = await buildScopeSql(env, table, config, user, whereValues, !adminUnpinRequest);
     const clauses = [...scope, ...buildFilterSql(config, filters, whereValues)];
     if (table === "user_profiles") {
       const current = await env.DB.prepare(

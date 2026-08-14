@@ -28,7 +28,7 @@ import {
   createNotificationRepository,
   createSecretRepository,
   createWardrobeRepository,
-} from "./modules/data-repositories.js?v=20260810-003";
+} from "./modules/data-repositories.js?v=20260814-004";
 import { createWardrobeController } from "./modules/wardrobe.js?v=20260811-005";
 import {
   composeDiaryStoredNote,
@@ -124,7 +124,6 @@ const PHOTO_FEED_CACHE_KEY = "life-vlog-photo-feed-cache";
 const SECRET_ITEMS_CACHE_KEY = "life-vlog-secret-items-cache";
 const SECRET_PIN_KEY = "life-vlog-secret-pin";
 const SECRET_UNLOCK_KEY = "life-vlog-secret-unlock";
-const SECRET_DEFAULT_FOLDER_KEY = "life-vlog-secret-default-folder";
 const SECRET_UNLOCK_MAX_MS = 15 * 60 * 1000;
 const LEGACY_MEDIA_CACHE_NAME = "life-vlog-media-cache";
 const DIARY_MEDIA_CACHE_NAME = "life-vlog-diary-media-cache";
@@ -318,7 +317,9 @@ let activeFilter = "全部";
 let activeSecretFilter = "全部";
 let activeSecretAlbumId = "";
 let activeSecretFolderId = "unfiled";
+let secretDefaultFolderId = "unfiled";
 let secretFolderContextMenu = null;
+let secretAlbumContextMenu = null;
 let secretSearchQuery = "";
 let secretPinEntry = "";
 let secretPinSetupValue = "";
@@ -1163,6 +1164,10 @@ function updateAuthUI() {
       thanksColorCloudAvailable = false;
     gratitudeNotes = [];
     secretItems = [];
+    secretDefaultFolderId = "unfiled";
+    closeSecretFolderContextMenu();
+    closeSecretAlbumContextMenu();
+    secretAlbumContextMenu = null;
     notifications = [];
     commentReplyToId = null;
     familyInfo = null;
@@ -2700,6 +2705,13 @@ function renderGallery() {
         (photo, index) => {
           const canManage = Boolean(session && (!photo.user_id || photo.user_id === session.user.id));
           const canAdminCategorize = Boolean(session && isAdminAccount() && photo.user_id && photo.user_id !== session.user.id);
+          const canAdminUnpin = Boolean(
+            session &&
+              isAdminAccount() &&
+              photo.user_id &&
+              photo.user_id !== session.user.id &&
+              photo.is_pinned
+          );
           const displayTitle = getDisplayTitle(photo);
           const images = getPhotoImages(photo);
           const noteText = getPlainNote(photo);
@@ -2750,6 +2762,7 @@ function renderGallery() {
                 : ""
             }
             ${canAdminCategorize ? `<button class="edit-photo" type="button" data-admin-category-index="${index}" title="管理员修改分类">修改分类</button>` : ""}
+            ${canAdminUnpin ? `<button class="pin-photo active admin-unpin-photo" type="button" data-admin-unpin-index="${index}" title="管理员取消置顶">取消置顶</button>` : ""}
           </div>
           ${renderPhotoCommentPreview(photo.id, index)}
         </article>
@@ -2817,6 +2830,16 @@ function renderGallery() {
   els.gallery.querySelectorAll("button[data-admin-category-index]").forEach((button) => {
     button.addEventListener("click", () => {
       void adminUpdatePhotoCategory(visible[Number(button.dataset.adminCategoryIndex)]);
+    });
+  });
+
+  els.gallery.querySelectorAll("button[data-admin-unpin-index]").forEach((button) => {
+    button.addEventListener("click", () => {
+      void togglePhotoFlag(
+        visible[Number(button.dataset.adminUnpinIndex)],
+        "is_pinned",
+        { adminUnpin: true }
+      );
     });
   });
 
@@ -2981,21 +3004,40 @@ function isPhotoWithinSevenDays(photo) {
   return isDiaryWithinDays(photo, 7);
 }
 
-async function togglePhotoFlag(photo, field) {
-  if (!cloudDb || !session || !photo || photo.user_id !== session.user.id) return;
+async function togglePhotoFlag(photo, field, { adminUnpin = false } = {}) {
+  const canAdminUnpin = Boolean(
+    adminUnpin &&
+      field === "is_pinned" &&
+      session &&
+      isAdminAccount() &&
+      photo?.user_id &&
+      photo.user_id !== session.user.id
+  );
+  if (
+    !cloudDb ||
+    !session ||
+    !photo ||
+    (photo.user_id !== session.user.id && !canAdminUnpin)
+  ) return;
   const label = field === "is_pinned" ? "置顶" : "精选";
   if (!photoFlagsCloudAvailable) {
     setGlobalStatus(`Cloudflare D1 尚未启用${label}字段，请先部署最新版数据库结构。`);
     return;
   }
-  const nextValue = !Boolean(photo[field]);
+  const nextValue = canAdminUnpin ? false : !Boolean(photo[field]);
   setGlobalStatus(`正在更新${label}状态...`);
 
-  const { data, error } = await diaryRepository.updateOwned(
-    photo.id,
-    { [field]: nextValue },
-    { select: "id,is_featured,is_pinned", single: true }
-  );
+  const result = canAdminUnpin
+    ? await diaryRepository.updateAdminUnpin(photo.id, {
+        select: "id,is_featured,is_pinned",
+        single: true,
+      })
+    : await diaryRepository.updateOwned(
+        photo.id,
+        { [field]: nextValue },
+        { select: "id,is_featured,is_pinned", single: true }
+      );
+  const { data, error } = result;
 
   if (error) {
     setGlobalStatus(
@@ -3006,9 +3048,12 @@ async function togglePhotoFlag(photo, field) {
     return;
   }
 
-  Object.assign(photo, data);
+  Object.assign(photo, data || { is_pinned: false });
   setGlobalStatus(nextValue ? `已设为${label}。` : `已取消${label}。`);
   renderGallery();
+  if (mobileDiaryPhoto?.id === photo.id && !mobileDiaryPage?.hidden) {
+    renderMobileDiaryPage();
+  }
 }
 
 async function togglePhotoFavorite(photo, button) {
@@ -4370,6 +4415,10 @@ function ensureMobileDiaryPage() {
       void adminUpdatePhotoCategory(mobileDiaryPhoto);
       return;
     }
+    if (event.target.closest("[data-mobile-diary-admin-unpin]") && mobileDiaryPhoto) {
+      void togglePhotoFlag(mobileDiaryPhoto, "is_pinned", { adminUnpin: true });
+      return;
+    }
     if (event.target.closest("[data-mobile-diary-delete]") && mobileDiaryPhoto) {
       const photo = mobileDiaryPhoto;
       void deletePhoto(photo).then((deleted) => {
@@ -4468,6 +4517,13 @@ function renderMobileDiaryPage() {
   );
   const canManageDiary = Boolean(session && photo.user_id === session.user.id);
   const canAdminCategorize = Boolean(session && isAdminAccount() && photo.user_id && photo.user_id !== session.user.id);
+  const canAdminUnpinDiary = Boolean(
+    session &&
+      isAdminAccount() &&
+      photo.user_id &&
+      photo.user_id !== session.user.id &&
+      photo.is_pinned
+  );
   page.innerHTML = `
     <button class="mobile-diary-close" type="button" data-mobile-diary-close aria-label="返回">返回</button>
     <div class="mobile-diary-media">
@@ -4508,6 +4564,7 @@ function renderMobileDiaryPage() {
         </button>
         ${canManageDiary ? `<button class="mobile-diary-action" type="button" data-mobile-diary-edit><span class="mobile-diary-action-mark" aria-hidden="true">编</span><span>编辑</span></button>` : ""}
         ${canAdminCategorize ? `<button class="mobile-diary-action" type="button" data-mobile-diary-admin-category><span class="mobile-diary-action-mark" aria-hidden="true">类</span><span>分类</span></button>` : ""}
+        ${canAdminUnpinDiary ? `<button class="mobile-diary-action" type="button" data-mobile-diary-admin-unpin><span class="mobile-diary-action-mark" aria-hidden="true">顶</span><span>取消置顶</span></button>` : ""}
         ${canManageDiary ? `<button class="mobile-diary-action danger" type="button" data-mobile-diary-delete><span class="mobile-diary-action-mark" aria-hidden="true">删</span><span>删除</span></button>` : ""}
       </div>` : ""}
     </article>
@@ -6353,12 +6410,15 @@ async function synchronizeAccountData() {
             experience_total: localExperience.total,
             last_login_date: localExperience.lastLoginDate || null,
             login_streak: Math.max(0, Number(localExperience.loginStreak) || 0),
+            secret_default_folder_id: "unfiled",
           },
           { select: "*", single: true }
         );
         if (error) throw error;
         profile = data;
       }
+
+      secretDefaultFolderId = String(profile.secret_default_folder_id || "unfiled");
 
       const loginName = normalizeNickname(getSessionLoginName());
       const sessionDisplayName = normalizeNickname(getSessionDisplayName());
@@ -6505,6 +6565,7 @@ async function synchronizeAccountData() {
         local_data_migrated: true,
         today_experience_date: todayExperienceDate,
         today_experience_amount: todayExperienceAmount,
+        secret_default_folder_id: secretDefaultFolderId || "unfiled",
         updated_at: new Date().toISOString(),
       };
       profileUpdates.login_streak = loginStreak;
@@ -7852,20 +7913,25 @@ function getSecretUnlockStorageKey() {
   return `${SECRET_UNLOCK_KEY}:${session?.user?.id || "guest"}`;
 }
 
-function getSecretDefaultFolderStorageKey() {
-  return `${SECRET_DEFAULT_FOLDER_KEY}:${session?.user?.id || "guest"}`;
-}
-
 function getSecretDefaultFolderId() {
-  if (!session) return "unfiled";
-  return localStorage.getItem(getSecretDefaultFolderStorageKey()) || "unfiled";
+  return session ? secretDefaultFolderId || "unfiled" : "unfiled";
 }
 
-function setSecretDefaultFolderId(folderId) {
+async function setSecretDefaultFolderId(folderId) {
   if (!session) return;
   const nextFolderId = folderId || "unfiled";
-  localStorage.setItem(getSecretDefaultFolderStorageKey(), nextFolderId);
+  secretDefaultFolderId = nextFolderId;
   renderSecretFolderControls();
+  try {
+    const { error } = await householdRepository.update(
+      "user_profiles",
+      { secret_default_folder_id: nextFolderId },
+      { user_id: session.user.id }
+    );
+    if (error) throw error;
+  } catch (error) {
+    setGlobalStatus(`默认入口同步失败：${error.message || "请稍后重试"}`);
+  }
 }
 
 function bytesToHex(bytes) {
@@ -8331,9 +8397,19 @@ function closeSecretFolderContextMenu() {
   secretFolderContextMenu = null;
 }
 
+function closeSecretAlbumContextMenu() {
+  if (!secretAlbumContextMenu) return;
+  document.removeEventListener("pointerdown", secretAlbumContextMenu.closeOnOutside, true);
+  window.removeEventListener("resize", closeSecretAlbumContextMenu);
+  window.removeEventListener("scroll", closeSecretAlbumContextMenu, true);
+  secretAlbumContextMenu.element.remove();
+  secretAlbumContextMenu = null;
+}
+
 function openSecretFolderContextMenu(folder, clientX, clientY) {
   if (!folder || isMobileViewport()) return;
   closeSecretFolderContextMenu();
+  closeSecretAlbumContextMenu();
   const currentDefaultId = getSecretDefaultFolderId();
   const menu = document.createElement("div");
   menu.className = "secret-folder-context-menu";
@@ -8356,9 +8432,37 @@ function openSecretFolderContextMenu(folder, clientX, clientY) {
   window.addEventListener("resize", closeSecretFolderContextMenu);
   window.addEventListener("scroll", closeSecretFolderContextMenu, true);
   menu.querySelector("button")?.addEventListener("click", () => {
-    setSecretDefaultFolderId(folder.id);
+    void setSecretDefaultFolderId(folder.id);
     closeSecretFolderContextMenu();
     showMiniToast(`以后进入秘藏会先打开「${folder.name}」`, { kind: "success" });
+  });
+}
+
+function openSecretAlbumContextMenu(item, clientX, clientY) {
+  if (!item || isMobileViewport()) return;
+  closeSecretFolderContextMenu();
+  closeSecretAlbumContextMenu();
+  const menu = document.createElement("div");
+  menu.className = "secret-folder-context-menu secret-album-context-menu";
+  menu.setAttribute("role", "menu");
+  menu.innerHTML = `
+    <span>${escapeHtml(item.title || "未命名相册")}</span>
+    <button class="danger" type="button" role="menuitem">删除相册</button>
+  `;
+  document.body.append(menu);
+  const rect = menu.getBoundingClientRect();
+  menu.style.left = `${Math.max(10, Math.min(clientX, window.innerWidth - rect.width - 10))}px`;
+  menu.style.top = `${Math.max(10, Math.min(clientY, window.innerHeight - rect.height - 10))}px`;
+  const closeOnOutside = (event) => {
+    if (!menu.contains(event.target)) closeSecretAlbumContextMenu();
+  };
+  secretAlbumContextMenu = { element: menu, closeOnOutside };
+  document.addEventListener("pointerdown", closeOnOutside, true);
+  window.addEventListener("resize", closeSecretAlbumContextMenu);
+  window.addEventListener("scroll", closeSecretAlbumContextMenu, true);
+  menu.querySelector("button")?.addEventListener("click", async () => {
+    closeSecretAlbumContextMenu();
+    await deleteSecretItem(item);
   });
 }
 
@@ -8495,7 +8599,7 @@ async function deleteActiveSecretFolder() {
   }
   secretFolders = secretFolders.filter((entry) => entry.id !== folder.id);
   if (getSecretDefaultFolderId() === folder.id) {
-    setSecretDefaultFolderId("unfiled");
+    void setSecretDefaultFolderId("unfiled");
   }
   activeSecretFolderId = "unfiled";
   saveSecretItemsCache(session.user.id);
@@ -8632,7 +8736,7 @@ async function loadSecretItemsInternal() {
     if (!activeSecretAlbumId && !validFolderIds.has(activeSecretFolderId)) {
       const defaultFolderId = getSecretDefaultFolderId();
       activeSecretFolderId = validFolderIds.has(defaultFolderId) ? defaultFolderId : "unfiled";
-      if (!validFolderIds.has(defaultFolderId)) setSecretDefaultFolderId("unfiled");
+      if (!validFolderIds.has(defaultFolderId)) void setSecretDefaultFolderId("unfiled");
     }
     lastSecretSyncAt = Date.now();
     saveSecretItemsCache(session.user.id);
@@ -9019,7 +9123,12 @@ function renderSecretGallery() {
     button.addEventListener("pointercancel", clearLongPress);
     button.addEventListener("pointerleave", clearLongPress);
     button.addEventListener("contextmenu", (event) => {
-      if (longPressTriggered) event.preventDefault();
+      if (isMobileViewport()) {
+        if (longPressTriggered) event.preventDefault();
+        return;
+      }
+      event.preventDefault();
+      openSecretAlbumContextMenu(item, event.clientX, event.clientY);
     });
     button.addEventListener("click", () => {
       if (longPressTriggered) {
