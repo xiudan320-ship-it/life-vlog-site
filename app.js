@@ -3957,6 +3957,23 @@ async function createTrashItem(itemType, itemId, label, payload) {
   return trashId;
 }
 
+async function snapshotPhotoCommentsForTrash(photoId) {
+  if (!photoId) return [];
+  const { data, error } = await diaryRepository.listComments(photoId);
+  if (error) {
+    throw new Error(`删除前读取留言失败，已取消删除：${error.message}`);
+  }
+  return (data || []).map((comment) => ({
+    id: comment.id,
+    photo_id: photoId,
+    user_id: comment.user_id,
+    parent_id: comment.parent_id || null,
+    body: String(comment.body || ""),
+    created_at: comment.created_at,
+    updated_at: comment.updated_at || comment.created_at,
+  }));
+}
+
 async function rollbackTrashItem(trashId) {
   if (!trashId || !cloudDb || !session) return;
   await householdRepository.remove("trash_items", { id: trashId }, { owned: true });
@@ -4087,7 +4104,9 @@ async function deletePhoto(photo, triggerButton = null) {
   }
 
   try {
-    const trashSaved = await createTrashItem("photo", photo.id, getPhotoLabel(photo), photo);
+    const comments = await snapshotPhotoCommentsForTrash(photo.id);
+    const trashPayload = { ...photo, comments };
+    const trashSaved = await createTrashItem("photo", photo.id, getPhotoLabel(photo), trashPayload);
     if (!trashSaved) throw new Error("无法写入回收站，已取消删除。");
     const { data: deletedRows, error: deleteError } = await diaryRepository.remove(photo.id, {
       select: "id",

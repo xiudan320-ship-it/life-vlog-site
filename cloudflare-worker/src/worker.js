@@ -1174,6 +1174,46 @@ async function listTrashItems(request, env, user, payload) {
   });
 }
 
+function normalizeRestoredPhotoComments(sourcePayload, photoId) {
+  if (!Array.isArray(sourcePayload?.comments)) return [];
+  const seen = new Set();
+  const comments = sourcePayload.comments
+    .map((comment) => ({
+      id: String(comment?.id || "").trim(),
+      photo_id: photoId,
+      user_id: String(comment?.user_id || "").trim(),
+      parent_id: String(comment?.parent_id || "").trim() || null,
+      body: String(comment?.body || ""),
+      created_at: String(comment?.created_at || nowIso()),
+      updated_at: String(comment?.updated_at || comment?.created_at || nowIso()),
+    }))
+    .filter((comment) => {
+      if (!comment.id || !comment.user_id || !comment.body || seen.has(comment.id)) return false;
+      seen.add(comment.id);
+      return true;
+    });
+
+  const ids = new Set(comments.map((comment) => comment.id));
+  comments.forEach((comment) => {
+    if (comment.parent_id && !ids.has(comment.parent_id)) comment.parent_id = null;
+  });
+
+  const ordered = [];
+  const pending = [...comments];
+  const inserted = new Set();
+  while (pending.length) {
+    const index = pending.findIndex((comment) => !comment.parent_id || inserted.has(comment.parent_id));
+    if (index < 0) {
+      ordered.push(...pending.map((comment) => ({ ...comment, parent_id: null })));
+      break;
+    }
+    const [comment] = pending.splice(index, 1);
+    ordered.push(comment);
+    inserted.add(comment.id);
+  }
+  return ordered;
+}
+
 async function restoreTrashItem(request, env, user, payload) {
   const trashId = String(payload.p_trash_id || payload.trash_id || payload.id || "").trim();
   if (!trashId) return jsonResponse(request, env, { error: "缺少回收站记录。" }, 400);
@@ -1212,12 +1252,34 @@ async function restoreTrashItem(request, env, user, payload) {
     Object.prototype.hasOwnProperty.call(restored, column)
   );
   const placeholders = columns.map(() => "?").join(",");
-  await env.DB.batch([
+  const statements = [
     env.DB.prepare(
       `insert into ${table} (${columns.join(",")}) values (${placeholders})`
     ).bind(...columns.map((column) => restored[column])),
-    env.DB.prepare("delete from trash_items where id=?").bind(trashId),
-  ]);
+  ];
+
+  if (table === "photos") {
+    const comments = normalizeRestoredPhotoComments(sourcePayload, itemId);
+    for (const comment of comments) {
+      statements.push(
+        env.DB.prepare(
+          `insert into photo_comments (id, photo_id, user_id, parent_id, body, created_at, updated_at)
+           values (?, ?, ?, ?, ?, ?, ?)`
+        ).bind(
+          comment.id,
+          comment.photo_id,
+          comment.user_id,
+          comment.parent_id,
+          comment.body,
+          comment.created_at,
+          comment.updated_at
+        )
+      );
+    }
+  }
+
+  statements.push(env.DB.prepare("delete from trash_items where id=?").bind(trashId));
+  await env.DB.batch(statements);
 
   return jsonResponse(request, env, { data: { id: itemId, item_type: row.item_type } });
 }
