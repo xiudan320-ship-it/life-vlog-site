@@ -3999,34 +3999,20 @@ function getTrashImagePaths(item) {
 
 async function loadTrashItems() {
   if (!cloudDb || !session) return [];
-  const { data, error } = await householdRepository.list("trash_items", {
-    order: [{ column: "deleted_at", ascending: false }],
-  });
+  const { data, error } = await householdRepository.rpc("list_trash_items", { p_limit: 500 });
   if (error) throw error;
   return data || [];
 }
 
 async function restoreTrashItem(item) {
   if (!item || !cloudDb || !session) return;
-  const tableByType = {
-    photo: "photos",
-    secret: "secret_items",
-    recipe: "recipes",
-    wish: "wishes",
-    weekend: "weekend_plans",
-    anniversary: "anniversaries",
-    gratitude: "gratitude_notes",
-  };
-  const table = tableByType[item.item_type] || "";
-  if (!table) return;
-  const payload = { ...(item.payload || {}) };
-  payload.user_id = payload.user_id || session.user.id;
-  const { error: restoreError } = await householdRepository.insert(table, payload);
+  const { error: restoreError } = await householdRepository.rpc("restore_trash_item", {
+    p_trash_id: item.id,
+  });
   if (restoreError) {
     showMiniToast(`恢复失败：${restoreError.message}`, { kind: "error", duration: 3200 });
     return;
   }
-  await householdRepository.remove("trash_items", { id: item.id }, { owned: true });
   showMiniToast("已恢复", { kind: "success" });
   await Promise.all([
     loadPhotos(),
@@ -4050,11 +4036,9 @@ async function permanentlyDeleteTrashItem(item) {
     danger: true,
   });
   if (!confirmed) return;
-  const { error } = await householdRepository.remove(
-    "trash_items",
-    { id: item.id },
-    { owned: true }
-  );
+  const { error } = await householdRepository.rpc("permanently_delete_trash_item", {
+    p_trash_id: item.id,
+  });
   if (error) {
     showMiniToast(`永久删除失败：${error.message}`, { kind: "error" });
     return;
@@ -4063,6 +4047,15 @@ async function permanentlyDeleteTrashItem(item) {
   if (paths.length) cleanupStoredImagePaths(paths).catch(() => {});
   showMiniToast("已永久删除", { kind: "success" });
   await renderTrashItems();
+}
+
+function getTrashOwnershipLabel(item) {
+  const ownerName = String(item?.owner_username || "").trim();
+  const deletedByName = String(item?.deleted_by_username || "").trim();
+  if (ownerName && deletedByName && ownerName !== deletedByName) {
+    return `原发布者：${ownerName} · 删除者：${deletedByName}`;
+  }
+  return `发布者：${ownerName || deletedByName || "家庭成员"}`;
 }
 
 async function deletePhoto(photo, triggerButton = null) {
@@ -5765,7 +5758,7 @@ async function renderTrashItems() {
     };
     list.innerHTML = items.map((item) => `
       <article class="trash-item" data-trash-id="${escapeHtml(item.id)}">
-        <div><small>${typeLabels[item.item_type] || "内容"} · ${formatDateTime(item.deleted_at)}</small><strong>${escapeHtml(item.label || "未命名")}</strong><span>${Math.max(0, Math.ceil((new Date(item.expires_at) - Date.now()) / 86400000))} 天后过期</span></div>
+        <div><small>${typeLabels[item.item_type] || "内容"} · ${formatDateTime(item.deleted_at)}</small><strong>${escapeHtml(item.label || "未命名")}</strong><span>${escapeHtml(getTrashOwnershipLabel(item))}</span><span>${Math.max(0, Math.ceil((new Date(item.expires_at) - Date.now()) / 86400000))} 天后过期</span></div>
         <div><button type="button" data-trash-restore>恢复</button><button class="danger" type="button" data-trash-delete>永久删除</button></div>
       </article>`).join("");
     list.querySelectorAll("[data-trash-id]").forEach((row) => {

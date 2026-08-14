@@ -1094,6 +1094,143 @@ async function moveFamilyItemToTrash(request, env, user, payload) {
   });
 }
 
+const RESTORABLE_TRASH_TABLES = Object.freeze({
+  photo: "photos",
+  secret: "secret_items",
+  recipe: "recipes",
+  wish: "wishes",
+  weekend: "weekend_plans",
+  anniversary: "anniversaries",
+  gratitude: "gratitude_notes",
+});
+
+function parseTrashPayload(row) {
+  if (row?.payload && typeof row.payload === "object") return row.payload;
+  const payload = safeJson(row?.payload, {});
+  return payload && typeof payload === "object" && !Array.isArray(payload) ? payload : {};
+}
+
+async function getAccessibleTrashItem(env, user, trashId) {
+  const row = await env.DB.prepare("select * from trash_items where id=? limit 1")
+    .bind(trashId)
+    .first();
+  if (!row) return { error: "回收站记录不存在。", status: 404 };
+
+  const payload = parseTrashPayload(row);
+  const ownerId = String(payload.user_id || row.user_id || "");
+  const familyUserIds = await getFamilyUserIds(env, user.id);
+  const familySet = new Set(familyUserIds.map((id) => String(id)));
+  const isSecret = row.item_type === "secret";
+  const canAccess = isSecret
+    ? ownerId === String(user.id)
+    : familySet.has(String(row.user_id)) || familySet.has(ownerId);
+  if (!canAccess) return { error: "无权访问这条回收站记录。", status: 403 };
+
+  return { row, payload, ownerId, familyUserIds };
+}
+
+async function listTrashItems(request, env, user, payload) {
+  const familyUserIds = await getFamilyUserIds(env, user.id);
+  const placeholders = familyUserIds.map(() => "?").join(",");
+  const limit = Math.min(500, Math.max(1, Number(payload.p_limit || payload.limit || 200)));
+  const rows = await env.DB.prepare(
+    `select trash_items.*,
+            deleted_profiles.username as deleted_by_username,
+            owner_profiles.username as owner_username
+       from trash_items
+       left join user_profiles deleted_profiles
+         on deleted_profiles.user_id = trash_items.user_id
+       left join user_profiles owner_profiles
+         on owner_profiles.user_id = coalesce(json_extract(trash_items.payload, '$.user_id'), trash_items.user_id)
+      where trash_items.expires_at > ?
+        and (
+          (trash_items.item_type = 'secret'
+            and coalesce(json_extract(trash_items.payload, '$.user_id'), trash_items.user_id) = ?)
+          or
+          (trash_items.item_type <> 'secret'
+            and (
+              trash_items.user_id in (${placeholders})
+              or coalesce(json_extract(trash_items.payload, '$.user_id'), trash_items.user_id) in (${placeholders})
+            ))
+        )
+      order by trash_items.deleted_at desc
+      limit ?`
+  )
+    .bind(
+      nowIso(),
+      user.id,
+      ...familyUserIds,
+      ...familyUserIds,
+      limit
+    )
+    .all();
+
+  return jsonResponse(request, env, {
+    data: (rows.results || []).map((row) => ({
+      ...denormalizeRow("trash_items", row),
+      deleted_by_username: row.deleted_by_username || "",
+      owner_username: row.owner_username || "",
+    })),
+  });
+}
+
+async function restoreTrashItem(request, env, user, payload) {
+  const trashId = String(payload.p_trash_id || payload.trash_id || payload.id || "").trim();
+  if (!trashId) return jsonResponse(request, env, { error: "缺少回收站记录。" }, 400);
+  const accessible = await getAccessibleTrashItem(env, user, trashId);
+  if (accessible.error) return jsonResponse(request, env, { error: accessible.error }, accessible.status);
+
+  const { row, payload: sourcePayload, ownerId } = accessible;
+  if (row.expires_at && new Date(row.expires_at).getTime() <= Date.now()) {
+    return jsonResponse(request, env, { error: "这条记录已过期，无法恢复。" }, 410);
+  }
+  const table = RESTORABLE_TRASH_TABLES[row.item_type];
+  const tableConfig = TABLE_CONFIG[table];
+  if (!table || !tableConfig) {
+    return jsonResponse(request, env, { error: "不支持恢复这类记录。" }, 400);
+  }
+
+  const itemId = String(sourcePayload.id || row.item_id || "").trim();
+  if (!itemId) return jsonResponse(request, env, { error: "原记录缺少 ID，无法恢复。" }, 400);
+  const existing = await env.DB.prepare(`select id from ${table} where id=? limit 1`)
+    .bind(itemId)
+    .first();
+  if (existing) return jsonResponse(request, env, { error: "内容已存在，未重复恢复。" }, 409);
+
+  sourcePayload.id = itemId;
+  if (tableConfig.ownerColumn) sourcePayload[tableConfig.ownerColumn] = ownerId;
+  const restored = sanitizeRowForTable(table, sourcePayload, user, { forceOwner: false });
+  restored.id = itemId;
+  if (tableConfig.ownerColumn) restored[tableConfig.ownerColumn] = ownerId;
+  for (const column of ["created_at", "updated_at"]) {
+    if (Object.prototype.hasOwnProperty.call(sourcePayload, column)) {
+      restored[column] = normalizeColumnValue(table, column, sourcePayload[column]);
+    }
+  }
+
+  const columns = tableConfig.columns.filter((column) =>
+    Object.prototype.hasOwnProperty.call(restored, column)
+  );
+  const placeholders = columns.map(() => "?").join(",");
+  await env.DB.batch([
+    env.DB.prepare(
+      `insert into ${table} (${columns.join(",")}) values (${placeholders})`
+    ).bind(...columns.map((column) => restored[column])),
+    env.DB.prepare("delete from trash_items where id=?").bind(trashId),
+  ]);
+
+  return jsonResponse(request, env, { data: { id: itemId, item_type: row.item_type } });
+}
+
+async function permanentlyDeleteTrashItem(request, env, user, payload) {
+  const trashId = String(payload.p_trash_id || payload.trash_id || payload.id || "").trim();
+  if (!trashId) return jsonResponse(request, env, { error: "缺少回收站记录。" }, 400);
+  const accessible = await getAccessibleTrashItem(env, user, trashId);
+  if (accessible.error) return jsonResponse(request, env, { error: accessible.error }, accessible.status);
+  await env.DB.prepare("delete from trash_items where id=?").bind(trashId).run();
+  return jsonResponse(request, env, { data: true });
+}
+
 async function handleRpc(request, env, user, name) {
   const dbError = requireDb(request, env);
   if (dbError) return dbError;
@@ -1101,6 +1238,18 @@ async function handleRpc(request, env, user, name) {
 
   if (name === "move_family_item_to_trash") {
     return moveFamilyItemToTrash(request, env, user, payload);
+  }
+
+  if (name === "list_trash_items") {
+    return listTrashItems(request, env, user, payload);
+  }
+
+  if (name === "restore_trash_item") {
+    return restoreTrashItem(request, env, user, payload);
+  }
+
+  if (name === "permanently_delete_trash_item") {
+    return permanentlyDeleteTrashItem(request, env, user, payload);
   }
 
   if (name === "get_my_family_members") {

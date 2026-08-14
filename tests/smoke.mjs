@@ -294,6 +294,9 @@ assert.match(app, /data-view-wish-detail/);
 assert.match(css, /Completed wishes: readable feedback/);
 assert.match(worker, /move_family_item_to_trash/);
 assert.match(worker, /RECYCLABLE_FAMILY_ITEMS/);
+assert.match(worker, /list_trash_items/);
+assert.match(worker, /restore_trash_item/);
+assert.match(worker, /permanently_delete_trash_item/);
 assert.match(app, /const deleteResult = await householdRepository\.remove\("wishes", \{ id \}\)/);
 assert.match(app, /数据库没有删除任何记录，请稍后重试/);
 assert.match(worker, /existingPhotoIds = new Set/);
@@ -302,6 +305,9 @@ assert.match(css, /Desktop diary detail: keep the image large while comments sta
 assert.match(css, /grid-template-columns: minmax\(0, 1fr\) var\(--diary-sidebar-width\)/);
 assert.match(css, /\.photo-comments \{[\s\S]*?position: absolute/);
 assert.match(app, /move_family_item_to_trash/);
+assert.match(app, /rpc\("list_trash_items"/);
+assert.match(app, /rpc\("restore_trash_item"/);
+assert.match(app, /rpc\("permanently_delete_trash_item"/);
 assert.match(schema, /CREATE TABLE IF NOT EXISTS push_subscriptions/);
 assert.match(serviceWorker, /addEventListener\("push"/);
 assert.match(serviceWorker, /notificationclick/);
@@ -346,7 +352,7 @@ assert.match(serviceWorker, /modules\/confirm-dialog\.js/);
 assert.match(serviceWorker, /modules\/diary-domain\.js/);
 assert.match(serviceWorker, /modules\/notification-domain\.js/);
 assert.match(serviceWorker, /modules\/secret-domain\.js/);
-assert.match(serviceWorker, /life-vlog-site-20260814-001-pwa/);
+assert.match(serviceWorker, /life-vlog-site-20260814-002-pwa/);
 assert.match(serviceWorker, /redesign\.css\?v=20260813-001/);
 assert.match(index, /app\.js\?v=20260813-001/);
 assert.match(
