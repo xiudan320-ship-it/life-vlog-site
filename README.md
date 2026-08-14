@@ -44,3 +44,18 @@ http://127.0.0.1:8000/index.html
 ## iPhone 主屏幕
 
 这个项目是 PWA，可以用 Safari 打开 GitHub Pages 地址后选择“添加到主屏幕”。它看起来像 App，但仍然是网页壳；数据实时来自 Cloudflare。
+
+## 发布前验收
+
+每次发布前必须先完成本地回归和测试账户验收。完整清单见 [`docs/release-checklist.md`](docs/release-checklist.md)。
+
+```powershell
+pnpm test
+$env:RELEASE_BASE_URL = "https://life-vlog-site.pages.dev"
+$env:RELEASE_TEST_USERNAME = "测试账号的登录名"
+$env:RELEASE_TEST_PASSWORD = "测试账号的密码"
+$env:RELEASE_TEST_DISPLAY_NAME = "呱噗救火大队"
+pnpm run test:release
+```
+
+测试密码只放在当前终端环境变量里，不要写入仓库；测试失败时不要发布。

@@ -2003,6 +2003,36 @@ function parseFiltersFromUrl(url) {
   return filters;
 }
 
+function isPublicPhotoListRequest(url) {
+  return parseFiltersFromUrl(url).some((filter) => {
+    if (filter?.op && filter.op !== "eq") return false;
+    if (filter?.column !== "is_public") return false;
+    const value = filter.value;
+    return value === true || value === 1 || String(value).toLowerCase() === "true" || String(value) === "1";
+  });
+}
+
+async function handlePublicPhotoList(request, env) {
+  const dbError = requireDb(request, env);
+  if (dbError) return dbError;
+
+  const url = new URL(request.url);
+  const config = TABLE_CONFIG.photos;
+  const filters = parseFiltersFromUrl(url).filter((filter) => filter?.column !== "is_public");
+  const values = [];
+  const clauses = ["is_public = 1", ...buildFilterSql(config, filters, values)];
+  const orderColumn = url.searchParams.get("order") || "created_at";
+  const orderDirection = url.searchParams.get("ascending") === "true" ? "asc" : "desc";
+  const safeOrder = config.columns.includes(orderColumn) ? orderColumn : "created_at";
+  const limit = Math.min(500, Math.max(1, Number(url.searchParams.get("limit")) || 500));
+  const rows = await env.DB.prepare(
+    `select * from photos where ${clauses.join(" and ")} order by ${safeOrder} ${orderDirection} limit ?`
+  )
+    .bind(...values, limit)
+    .all();
+  return jsonResponse(request, env, { data: (rows.results || []).map((row) => denormalizeRow("photos", row)) });
+}
+
 function buildFilterSql(config, filters, values) {
   const clauses = [];
   for (const filter of filters || []) {
@@ -2459,9 +2489,17 @@ export default {
       if (url.pathname === "/api/auth/password-reset/confirm" && request.method === "POST") {
         return handlePasswordResetConfirm(request, env);
       }
-     if (url.pathname === "/api/rpc/reset_password_with_recovery_key" && request.method === "POST") {
+      if (url.pathname === "/api/rpc/reset_password_with_recovery_key" && request.method === "POST") {
        return handlePasswordRecoveryReset(request, env);
      }
+
+      if (
+        url.pathname === "/api/table/photos" &&
+        request.method === "GET" &&
+        isPublicPhotoListRequest(url)
+      ) {
+        return handlePublicPhotoList(request, env);
+      }
 
       let user = null;
       user = await requireUser(request, env);
