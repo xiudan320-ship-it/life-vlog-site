@@ -346,9 +346,13 @@ assert.match(serviceWorker, /modules\/confirm-dialog\.js/);
 assert.match(serviceWorker, /modules\/diary-domain\.js/);
 assert.match(serviceWorker, /modules\/notification-domain\.js/);
 assert.match(serviceWorker, /modules\/secret-domain\.js/);
-assert.match(serviceWorker, /life-vlog-site-20260813-001-pwa/);
+assert.match(serviceWorker, /life-vlog-site-20260814-001-pwa/);
 assert.match(serviceWorker, /redesign\.css\?v=20260813-001/);
 assert.match(index, /app\.js\?v=20260813-001/);
+assert.match(
+  pageHeaders,
+  /img-src[^\n]*https:\/\/life-vlog-r2-upload\.xiudan320-life\.workers\.dev/,
+);
 assert.match(css, /photo-comment-author-line/);
 assert.match(index, /id="diaryViewerToolbar"/);
 assert.match(app, /function updateDiaryViewerToolbar/);

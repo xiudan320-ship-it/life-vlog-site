@@ -1,4 +1,4 @@
-const CACHE_NAME = "life-vlog-site-20260813-001-pwa";
+const CACHE_NAME = "life-vlog-site-20260814-001-pwa";
 const APP_MEDIA_CACHES = new Set([
   "life-vlog-diary-media-cache",
   "life-vlog-secret-media-cache",
