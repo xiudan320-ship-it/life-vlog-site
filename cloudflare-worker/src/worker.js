@@ -14,6 +14,7 @@ const RATE_LIMITS = {
   "/api/account/email/confirm": 10,
   "/api/auth/password-reset/request": 5,
   "/api/auth/password-reset/confirm": 10,
+  "/media": 600,
   "/upload": 60,
   "/copy": 90,
   "/object": 90,
@@ -394,8 +395,9 @@ function checkRateLimit(request, env, url) {
     return null;
   }
   const now = Date.now();
-  const limit = RATE_LIMITS[url.pathname] || RATE_LIMITS.default;
-  const key = `${getClientIp(request)}:${url.pathname}`;
+  const routeKey = url.pathname.startsWith("/media/") ? "/media" : url.pathname;
+  const limit = RATE_LIMITS[routeKey] || RATE_LIMITS.default;
+  const key = `${getClientIp(request)}:${routeKey}`;
   const current = rateLimitBuckets.get(key);
   if (!current || current.resetAt <= now) {
     rateLimitBuckets.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
@@ -719,6 +721,49 @@ async function handlePasswordResetConfirm(request, env) {
 
 function publicUrl(env, key) {
   return `${String(env.PUBLIC_R2_URL || "").replace(/\/+$/, "")}/${key}`;
+}
+
+function decodeMediaKey(pathname) {
+  const parts = String(pathname || "")
+    .replace(/^\/media\//, "")
+    .split("/");
+  if (parts.length < 3) return null;
+  try {
+    const scope = decodeURIComponent(parts.shift() || "");
+    const key = parts.map((part) => decodeURIComponent(part)).join("/");
+    if (!["family", "private"].includes(scope) || !key) return null;
+    if (key.split("/").some((part) => !part || part === "." || part === "..")) return null;
+    return { scope, key };
+  } catch {
+    return null;
+  }
+}
+
+async function handleMedia(request, env, scope, key) {
+  if (!env.R2_BUCKET) {
+    return jsonResponse(request, env, { error: "R2 bucket is not configured." }, 503);
+  }
+
+  if (scope === "private") {
+    const user = await requireUser(request, env);
+    const ownerId = key.split("/")[0] || "";
+    if (!user?.id) return jsonResponse(request, env, { error: "Unauthorized." }, 401);
+    if (ownerId !== user.id) return jsonResponse(request, env, { error: "Not allowed." }, 403);
+  }
+
+  const object = await env.R2_BUCKET.get(key);
+  if (!object) return jsonResponse(request, env, { error: "Image not found." }, 404);
+
+  const headers = new Headers(getCorsHeaders(request, env));
+  object.writeHttpMetadata(headers);
+  headers.set("Content-Type", object.httpMetadata?.contentType || "application/octet-stream");
+  headers.set(
+    "Cache-Control",
+    scope === "private" ? "private, no-store" : "public, max-age=31536000, immutable"
+  );
+  headers.set("X-Content-Type-Options", "nosniff");
+  if (object.httpEtag) headers.set("ETag", object.httpEtag);
+  return new Response(object.body, { headers });
 }
 
 async function handleUpload(request, env, user) {
@@ -2160,6 +2205,11 @@ export default {
       }
       const rateLimited = checkRateLimit(request, env, url);
       if (rateLimited) return rateLimited;
+      if (url.pathname.startsWith("/media/") && request.method === "GET") {
+        const media = decodeMediaKey(url.pathname);
+        if (!media) return jsonResponse(request, env, { error: "Invalid media path." }, 400);
+        return handleMedia(request, env, media.scope, media.key);
+      }
       if (url.pathname === "/api/invite/verify" && request.method === "POST") {
         return handleInviteVerify(request, env);
       }
