@@ -1660,8 +1660,9 @@ function collectDiaryOfflineMediaUrls(itemLimit = Number.POSITIVE_INFINITY) {
   getSortedPhotos(photos)
     .slice(0, itemLimit)
     .forEach((photo) => urls.push(...getPhotoCacheImages(photo)));
-  urls.push(accountProfile.avatarUrl || "");
-  familyMemberMap.forEach((member) => urls.push(member?.avatar_url || ""));
+  urls.push(getProfileAvatarUrl(accountProfile));
+  familyMemberMap.forEach((member) => urls.push(getProfileAvatarUrl(member)));
+  familyLevelProfiles.forEach((profile) => urls.push(getProfileAvatarUrl(profile)));
   return [...new Set(urls.map(normalizeMediaCacheUrl).filter(Boolean))];
 }
 
@@ -2563,6 +2564,30 @@ function isR2Url(url) {
 
 function getR2Key(path) {
   return String(path || "").replace(/^r2:/, "");
+}
+
+function getR2PublicAssetUrl(path) {
+  const key = getR2Key(path);
+  if (!key || !R2_PUBLIC_URL) return "";
+  return `${R2_PUBLIC_URL.replace(/\/+$/, "")}/${key
+    .split("/")
+    .map((part) => encodeURIComponent(part))
+    .join("/")}`;
+}
+
+function resolveStoredAssetUrl(value = "", path = "") {
+  const rawValue = String(value || "");
+  const rawPath = String(path || "");
+  if (isR2Path(rawValue)) return getR2PublicAssetUrl(rawValue);
+  if (/^https?:\/\//i.test(rawValue)) return rawValue;
+  if (isR2Path(rawPath)) return getR2PublicAssetUrl(rawPath);
+  return /^https?:\/\//i.test(rawPath) ? rawPath : "";
+}
+
+function getProfileAvatarUrl(profile = {}) {
+  const avatarPath = profile.avatar_path || profile.avatarPath || "";
+  if (isR2Path(avatarPath)) return getR2PublicAssetUrl(avatarPath);
+  return resolveStoredAssetUrl(profile.avatar_url || profile.avatarUrl || "", avatarPath);
 }
 
 function getLegacyStoragePublicUrl(path) {
@@ -5450,11 +5475,17 @@ function getAuthorName(userId) {
 }
 
 function getAuthorAvatar(userId) {
-  const familyAvatar = familyMemberMap.get(userId)?.avatar_url || "";
+  const familyAvatar = getProfileAvatarUrl(familyMemberMap.get(userId) || {});
+  const cloudAvatar = getProfileAvatarUrl(familyLevelProfiles.get(userId) || {});
   if (userId === session?.user?.id) {
-    return accountProfile.avatarUrl || familyAvatar || loadCachedAvatarUrl(userId);
+    return (
+      getProfileAvatarUrl(accountProfile) ||
+      cloudAvatar ||
+      familyAvatar ||
+      loadCachedAvatarUrl(userId)
+    );
   }
-  return familyAvatar;
+  return cloudAvatar || familyAvatar || loadCachedAvatarUrl(userId);
 }
 
 function renderAvatarMarkup(userId, className = "photo-comment-avatar") {
@@ -5478,10 +5509,11 @@ document.addEventListener(
 );
 
 function renderAccountAvatar(avatarUrl = "", displayName = getSessionDisplayName()) {
-  const hasAvatar = Boolean(avatarUrl);
+  const resolvedAvatarUrl = resolveStoredAssetUrl(avatarUrl, accountProfile.avatarPath);
+  const hasAvatar = Boolean(resolvedAvatarUrl);
   els.avatarImage.hidden = !hasAvatar;
   els.avatarInitial.hidden = hasAvatar;
-  if (hasAvatar) els.avatarImage.src = avatarUrl;
+  if (hasAvatar) els.avatarImage.src = resolvedAvatarUrl;
   else els.avatarImage.removeAttribute("src");
   els.avatarInitial.textContent = getInitial(displayName);
 }
@@ -6277,12 +6309,13 @@ async function loadFamilyContext() {
   familyInvitations = invitationsResult.data || [];
   familyMembers.forEach((member) => familyMemberMap.set(member.user_id, member));
   const ownMember = familyMemberMap.get(session.user.id);
-  if (ownMember?.avatar_url) {
-    saveCachedAvatarUrl(session.user.id, ownMember.avatar_url);
-    if (!accountProfile.avatarUrl) {
-      accountProfile.avatarUrl = ownMember.avatar_url;
+  const ownMemberAvatar = getProfileAvatarUrl(ownMember || {});
+  if (ownMemberAvatar) {
+    saveCachedAvatarUrl(session.user.id, ownMemberAvatar);
+    if (!getProfileAvatarUrl(accountProfile)) {
+      accountProfile.avatarUrl = ownMemberAvatar;
       accountProfile.avatarPath = ownMember.avatar_path || accountProfile.avatarPath;
-      renderAccountAvatar(accountProfile.avatarUrl, getSessionDisplayName());
+      renderAccountAvatar(ownMemberAvatar, getSessionDisplayName());
       renderSettingsSummary();
     }
   }
@@ -6592,15 +6625,24 @@ async function synchronizeAccountData() {
       );
       if (profileError) throw profileError;
 
-      const familyAvatarUrl = familyMemberMap.get(userId)?.avatar_url || "";
+      const familyAvatarProfile = familyMemberMap.get(userId) || {};
+      const syncedAvatarProfile = {
+        avatar_url:
+          savedProfile.avatar_url ||
+          profile.avatar_url ||
+          familyAvatarProfile.avatar_url ||
+          accountProfile.avatarUrl ||
+          "",
+        avatar_path:
+          savedProfile.avatar_path ||
+          profile.avatar_path ||
+          familyAvatarProfile.avatar_path ||
+          accountProfile.avatarPath ||
+          "",
+      };
       const syncedAvatarUrl =
-        savedProfile.avatar_url ||
-        profile.avatar_url ||
-        familyAvatarUrl ||
-        accountProfile.avatarUrl ||
-        loadCachedAvatarUrl(userId);
-      const syncedAvatarPath =
-        savedProfile.avatar_path || profile.avatar_path || accountProfile.avatarPath || "";
+        getProfileAvatarUrl(syncedAvatarProfile) || loadCachedAvatarUrl(userId);
+      const syncedAvatarPath = syncedAvatarProfile.avatar_path;
       if (syncedAvatarUrl) saveCachedAvatarUrl(userId, syncedAvatarUrl);
 
       if (cloudWishes.length) {
@@ -7055,7 +7097,8 @@ function getUpgradeEta(progress) {
 
 function getLevelRankProfiles() {
   if (!session) return [];
-  const currentAvatarUrl = accountProfile.avatarUrl || loadCachedAvatarUrl(session.user.id);
+  const currentAvatarUrl =
+    getProfileAvatarUrl(accountProfile) || loadCachedAvatarUrl(session.user.id);
   const ownProfile = {
     user_id: session.user.id,
     username: getSessionDisplayName(),
@@ -7068,13 +7111,13 @@ function getLevelRankProfiles() {
   familyMembers.forEach((member) => {
     const cloudProfile = familyLevelProfiles.get(member.user_id) || {};
     const cachedAvatarUrl = loadCachedAvatarUrl(member.user_id);
+    const memberAvatarUrl =
+      getProfileAvatarUrl({ ...member, ...cloudProfile }) || cachedAvatarUrl;
     profiles.set(member.user_id, {
       ...member,
       username: cloudProfile.username || member.username || "家庭成员",
       avatar_url:
-        cloudProfile.avatar_url ||
-        member.avatar_url ||
-        cachedAvatarUrl ||
+        memberAvatarUrl ||
         (member.user_id === session.user.id ? ownProfile.avatar_url : ""),
       experience_total: Number(cloudProfile.experience_total) || (member.user_id === session.user.id ? ownProfile.experience_total : 0),
       login_streak: Number(cloudProfile.login_streak) || 0,
@@ -7101,8 +7144,9 @@ async function loadFamilyLevelProfiles() {
         maybeSingle: true,
       });
       if (error || !data) return null;
-      if (data.avatar_url) saveCachedAvatarUrl(userId, data.avatar_url);
-      return [userId, data];
+      const avatarUrl = getProfileAvatarUrl(data);
+      if (avatarUrl) saveCachedAvatarUrl(userId, avatarUrl);
+      return [userId, { ...data, avatar_url: avatarUrl }];
     })
   );
   familyLevelProfiles = new Map(entries.filter(Boolean));
@@ -13585,8 +13629,13 @@ function getNotificationActorName(item) {
 }
 
 function getNotificationActorAvatar(item) {
-  const fromFamily = item?.actor_id ? familyMemberMap.get(item.actor_id)?.avatar_url : "";
-  return item?.actor_avatar_url || fromFamily || "";
+  const fromFamily = item?.actor_id
+    ? getProfileAvatarUrl(familyMemberMap.get(item.actor_id) || {})
+    : "";
+  const fromProfiles = item?.actor_id
+    ? getProfileAvatarUrl(familyLevelProfiles.get(item.actor_id) || {})
+    : "";
+  return getProfileAvatarUrl(item) || fromProfiles || fromFamily || "";
 }
 
 async function loadNotificationsInternal() {

@@ -1486,6 +1486,7 @@ async function handleRpc(request, env, user, name) {
       `select notifications.*,
               user_profiles.username as actor_username,
               user_profiles.avatar_url as actor_avatar_url,
+              user_profiles.avatar_path as actor_avatar_path,
               photos.image_url as photo_image_url
          from notifications
          left join user_profiles on user_profiles.user_id = notifications.actor_id
@@ -1502,6 +1503,7 @@ async function handleRpc(request, env, user, name) {
         notification_id: row.id,
         actor_username: row.actor_username || "",
         actor_avatar_url: row.actor_avatar_url || "",
+        actor_avatar_path: row.actor_avatar_path || "",
         photo_image_url: row.photo_image_url || "",
       })),
     });
@@ -1615,9 +1617,9 @@ async function getFamilyContext(env, userId) {
     .first();
   if (!family) return null;
   const members = await env.DB.prepare(
-    `select family_members.*, user_profiles.username, user_profiles.avatar_url
+    `select family_members.*, user_profiles.username, user_profiles.avatar_url, user_profiles.avatar_path
        from family_members
-       left join user_profiles on user_profiles.user_id = family_members.user_id
+      left join user_profiles on user_profiles.user_id = family_members.user_id
       where family_members.family_id = ?
       order by case when family_members.role='owner' then 0 else 1 end, joined_at asc`
   )

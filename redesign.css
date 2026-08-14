@@ -14434,3 +14434,178 @@ body.mobile-dialog-open {
     display: none !important;
   }
 }
+
+/* Keep mobile wish cards aligned even when notes, images, or completion receipts differ. */
+@media (max-width: 700px) {
+  .wishlist-list {
+    align-items: stretch;
+  }
+
+  .wish-card {
+    box-sizing: border-box;
+    display: flex !important;
+    flex-direction: column !important;
+    height: 552px !important;
+    min-height: 552px !important;
+    max-height: 552px !important;
+    overflow: hidden !important;
+  }
+
+  .wish-card-top {
+    flex: 0 0 26px;
+    min-height: 26px !important;
+    height: 26px;
+  }
+
+  .wish-card-layout {
+    display: flex !important;
+    flex: 1 1 auto;
+    min-height: 0 !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    overflow: hidden !important;
+  }
+
+  .wish-card-image-button,
+  .wish-card-placeholder {
+    flex: 0 0 154px;
+    width: 100% !important;
+    height: 154px !important;
+    min-height: 154px !important;
+    max-height: 154px !important;
+    aspect-ratio: auto !important;
+  }
+
+  .wish-card-image-button .wish-card-image {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+  }
+
+  .wish-card-content {
+    flex: 1 1 auto;
+    min-height: 0 !important;
+    gap: 5px !important;
+    overflow: hidden !important;
+  }
+
+  .wish-card h3 {
+    flex: 0 0 44px;
+    min-height: 44px !important;
+    max-height: 44px !important;
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .wish-meta {
+    flex: 0 0 auto;
+    max-height: 28px;
+    overflow: hidden;
+  }
+
+  .wish-card-details {
+    display: flex !important;
+    flex: 0 0 124px;
+    flex-direction: column;
+    gap: 5px !important;
+    min-height: 0 !important;
+    max-height: 124px;
+    overflow: hidden !important;
+  }
+
+  .wish-card-details .wish-note {
+    flex: 0 0 36px;
+    max-height: 36px;
+    min-height: 0 !important;
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .wish-completion-note {
+    box-sizing: border-box;
+    flex: 0 0 80px;
+    min-height: 80px !important;
+    max-height: 80px !important;
+    margin: 0 !important;
+    padding: 8px !important;
+    gap: 4px !important;
+    overflow: hidden !important;
+  }
+
+  .wish-completion-note span {
+    min-height: 18px;
+    line-height: 18px;
+  }
+
+  .wish-completion-note p {
+    display: -webkit-box;
+    max-height: 36px;
+    margin: 0;
+    overflow: hidden;
+    line-height: 18px;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .wish-actions {
+    flex: 0 0 74px;
+    height: 74px !important;
+    margin-top: auto !important;
+  }
+
+  /* The single-column feed mode has a more specific legacy rule; keep the
+     same fixed geometry there so switching layouts does not reflow the list. */
+  body.mobile-feed-single .wish-card {
+    height: 552px !important;
+    min-height: 552px !important;
+    max-height: 552px !important;
+  }
+
+  body.mobile-feed-single .wish-card-image-button,
+  body.mobile-feed-single .wish-card-placeholder {
+    flex-basis: 154px;
+    height: 154px !important;
+    min-height: 154px !important;
+    max-height: 154px !important;
+    aspect-ratio: auto !important;
+  }
+
+  body.mobile-feed-single .wish-card-details {
+    flex-basis: 124px;
+    max-height: 124px;
+  }
+}
+
+@media (max-width: 380px) {
+  .wish-card {
+    height: 532px !important;
+    min-height: 532px !important;
+    max-height: 532px !important;
+  }
+
+  .wish-card-image-button,
+  .wish-card-placeholder {
+    flex-basis: 140px;
+    height: 140px !important;
+    min-height: 140px !important;
+    max-height: 140px !important;
+  }
+
+  body.mobile-feed-single .wish-card {
+    height: 532px !important;
+    min-height: 532px !important;
+    max-height: 532px !important;
+  }
+
+  body.mobile-feed-single .wish-card-image-button,
+  body.mobile-feed-single .wish-card-placeholder {
+    flex-basis: 140px;
+    height: 140px !important;
+    min-height: 140px !important;
+    max-height: 140px !important;
+  }
+}

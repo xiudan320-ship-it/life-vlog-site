@@ -122,6 +122,14 @@ async function testComponentStates(viewport, label) {
     Math.abs(wishCards[0].imageHeight - wishCards[1].imageHeight) <= 1,
     `${label} wishlist image regions have different heights`
   );
+  if (viewport.width <= 700) {
+    assert.ok(
+      Math.abs(wishCards[0].height - wishCards[1].height) <= 1,
+      `${label} wishlist cards have different heights`
+    );
+    const receipt = await page.locator(".wish-completion-note").boundingBox();
+    assert.ok(receipt && receipt.height >= 24, `${label} completion receipt is collapsed`);
+  }
   for (const card of wishCards) {
     assert.ok(
       card.actionsBottom <= card.cardBottom + 1,
