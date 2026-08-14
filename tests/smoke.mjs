@@ -338,7 +338,7 @@ assert.match(worker, /delete from sessions where user_id=\? and token_hash<>\?/)
 assert.match(worker, /delete from sessions where user_id=\?/);
 assert.match(cloudflareClientModule, /SESSION_ROLLING_DAYS = 3650/);
 assert.match(cloudflareClientModule, /delete activeSession\.offline_only/);
-assert.match(app, /from "\.\/modules\/data-repositories\.js\?v=20260814-004"/);
+assert.match(app, /from "\.\/modules\/data-repositories\.js\?v=20260814-005"/);
 assert.match(app, /from "\.\/modules\/media-cache\.js"/);
 assert.match(app, /from "\.\/modules\/media-metadata\.js"/);
 assert.match(app, /from "\.\/modules\/upload-queue\.js"/);
@@ -362,9 +362,9 @@ assert.match(serviceWorker, /modules\/confirm-dialog\.js/);
 assert.match(serviceWorker, /modules\/diary-domain\.js/);
 assert.match(serviceWorker, /modules\/notification-domain\.js/);
 assert.match(serviceWorker, /modules\/secret-domain\.js/);
-assert.match(serviceWorker, /life-vlog-site-20260814-004-pwa/);
+assert.match(serviceWorker, /life-vlog-site-20260814-005-pwa/);
 assert.match(serviceWorker, /redesign\.css\?v=20260813-001/);
-assert.match(index, /app\.js\?v=20260814-004/);
+assert.match(index, /app\.js\?v=20260814-005/);
 assert.match(
   pageHeaders,
   /img-src[^\n]*https:\/\/life-vlog-r2-upload\.xiudan320-life\.workers\.dev/,

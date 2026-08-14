@@ -28,7 +28,7 @@ import {
   createNotificationRepository,
   createSecretRepository,
   createWardrobeRepository,
-} from "./modules/data-repositories.js?v=20260814-004";
+} from "./modules/data-repositories.js?v=20260814-005";
 import { createWardrobeController } from "./modules/wardrobe.js?v=20260811-005";
 import {
   composeDiaryStoredNote,
@@ -2703,15 +2703,12 @@ function renderGallery() {
   els.gallery.innerHTML = visible
     .map(
         (photo, index) => {
-          const canManage = Boolean(session && (!photo.user_id || photo.user_id === session.user.id));
-          const canAdminCategorize = Boolean(session && isAdminAccount() && photo.user_id && photo.user_id !== session.user.id);
-          const canAdminUnpin = Boolean(
-            session &&
-              isAdminAccount() &&
-              photo.user_id &&
-              photo.user_id !== session.user.id &&
-              photo.is_pinned
+          const photoOwnerId = getPhotoOwnerId(photo);
+          const canManage = Boolean(session && (!photoOwnerId || photoOwnerId === session.user.id));
+          const canAdminCategorize = Boolean(
+            session && isAdminAccount() && photoOwnerId && photoOwnerId !== session.user.id
           );
+          const canAdminUnpin = Boolean(session && isAdminAccount() && photo.is_pinned);
           const displayTitle = getDisplayTitle(photo);
           const images = getPhotoImages(photo);
           const noteText = getPlainNote(photo);
@@ -3005,19 +3002,19 @@ function isPhotoWithinSevenDays(photo) {
 }
 
 async function togglePhotoFlag(photo, field, { adminUnpin = false } = {}) {
+  const photoOwnerId = getPhotoOwnerId(photo);
   const canAdminUnpin = Boolean(
     adminUnpin &&
       field === "is_pinned" &&
       session &&
       isAdminAccount() &&
-      photo?.user_id &&
-      photo.user_id !== session.user.id
+      photo?.is_pinned
   );
   if (
     !cloudDb ||
     !session ||
     !photo ||
-    (photo.user_id !== session.user.id && !canAdminUnpin)
+    (photoOwnerId && photoOwnerId !== session.user.id && !canAdminUnpin)
   ) return;
   const label = field === "is_pinned" ? "置顶" : "精选";
   if (!photoFlagsCloudAvailable) {
@@ -4517,13 +4514,7 @@ function renderMobileDiaryPage() {
   );
   const canManageDiary = Boolean(session && photo.user_id === session.user.id);
   const canAdminCategorize = Boolean(session && isAdminAccount() && photo.user_id && photo.user_id !== session.user.id);
-  const canAdminUnpinDiary = Boolean(
-    session &&
-      isAdminAccount() &&
-      photo.user_id &&
-      photo.user_id !== session.user.id &&
-      photo.is_pinned
-  );
+  const canAdminUnpinDiary = Boolean(session && isAdminAccount() && photo.is_pinned);
   page.innerHTML = `
     <button class="mobile-diary-close" type="button" data-mobile-diary-close aria-label="返回">返回</button>
     <div class="mobile-diary-media">
@@ -5347,8 +5338,21 @@ function getSessionLoginName() {
   return emailPrefix || getSessionDisplayName();
 }
 
+function getPhotoOwnerId(photo) {
+  return String(photo?.user_id || photo?.userId || photo?.owner_id || "").trim();
+}
+
 function isAdminAccount() {
-  return String(getSessionLoginName() || "").trim().toLowerCase() === "xiudan320";
+  if (!session?.user?.id) return false;
+  if (familyInfo?.isOwner) return true;
+  return [
+    getSessionLoginName(),
+    getSessionDisplayName(),
+    session.user.user_metadata?.username,
+    session.user.user_metadata?.login_username,
+  ]
+    .map((value) => String(value || "").trim().toLowerCase())
+    .includes("xiudan320");
 }
 
 async function adminUpdatePhotoCategory(photo) {

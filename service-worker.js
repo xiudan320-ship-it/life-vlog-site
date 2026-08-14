@@ -1,4 +1,4 @@
-const CACHE_NAME = "life-vlog-site-20260814-004-pwa";
+const CACHE_NAME = "life-vlog-site-20260814-005-pwa";
 const APP_MEDIA_CACHES = new Set([
   "life-vlog-diary-media-cache",
   "life-vlog-secret-media-cache",
@@ -12,13 +12,13 @@ const CORE_ASSETS = [
   "./diary-detail.css?v=20260809-232",
   "./secret-viewer.css?v=20260809-230",
   "./wardrobe.css?v=20260811-007",
-  "./app.js?v=20260814-004",
+  "./app.js?v=20260814-005",
   "./modules/app-lifecycle.js",
   "./modules/confirm-dialog.js",
   "./modules/cache-policy.js",
   "./modules/cloud-models.js",
   "./modules/cloudflare-client.js?v=20260811-010",
-  "./modules/data-repositories.js?v=20260814-004",
+  "./modules/data-repositories.js?v=20260814-005",
   "./modules/diary-domain.js",
   "./modules/gamification-archive.js",
   "./modules/gamification-domain.js?v=20260810-003",
