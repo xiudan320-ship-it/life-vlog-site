@@ -11,6 +11,9 @@ import {
   normalizeMediaUrl,
 } from "./modules/media-cache.js";
 import { createUploadQueue } from "./modules/upload-queue.js";
+import { refreshAdminStorage as refreshStorage } from "./modules/admin-storage.js";
+import { createVlogMode, filterVlogPhotos, validateVlogUpload } from "./modules/vlog-mode.js";
+import { bindWeekendGalleryInteractions } from "./modules/weekend-gallery.js";
 import {
   CULTIVATION_DESCRIPTIONS,
   CULTIVATION_REALMS,
@@ -28,7 +31,7 @@ import {
   createNotificationRepository,
   createSecretRepository,
   createWardrobeRepository,
-} from "./modules/data-repositories.js?v=20260814-005";
+} from "./modules/data-repositories.js?v=20260814-008";
 import { createWardrobeController } from "./modules/wardrobe.js?v=20260811-005";
 import {
   composeDiaryStoredNote,
@@ -36,6 +39,10 @@ import {
   composeWishStoredNote,
   extractImageUrls,
   getClipboardImageUrl,
+  getDiaryMediaPosterUrl,
+  getDiaryMediaType,
+  getDiaryMediaVideoUrl,
+  isDiaryLiveMedia,
   parseDiaryStoredImages,
   parseWeekendStoredNote,
   parseWishStoredNote,
@@ -53,12 +60,21 @@ import {
   weekendToCloudRow,
   wishFromCloudRow,
   wishToCloudRow,
-  wishToLegacyCloudRow,
 } from "./modules/cloud-models.js";
 import { buildCultivationArchive } from "./modules/gamification-archive.js";
-import { createImageService } from "./modules/image-service.js";
+import {
+  createImageService,
+  createVideoPosterFile,
+  getVideoContentType,
+  getVideoFileExtension,
+} from "./modules/image-service.js";
 import { createPreferenceStore } from "./modules/preferences-store.js";
 import { createHouseholdRepository } from "./modules/household-repository.js";
+import {
+  fitVideoToContainer,
+  startDiaryMotionVideo,
+  stopDiaryMotionVideo,
+} from "./modules/diary-video-layout.js";
 import {
   createAppLifecycleController,
   createFrameScheduler,
@@ -114,11 +130,9 @@ const FAMILY_TAGLINE_KEY = "life-vlog-family-tagline";
 const DEFAULT_FAMILY_TAGLINE = "收藏生活里值得回看的照片、味道和还没完成的小愿望。";
 const VIP_RECHARGE_KEY = "life-vlog-vip-recharge";
 const RECIPES_KEY = "life-vlog-recipes";
-const WISHLIST_KEY = "life-vlog-wishlist";
 const WEEKEND_KEY = "life-vlog-weekend-plans";
 const ANNIVERSARY_KEY = "life-vlog-anniversaries";
 const FOOD_OPTIONS_KEY = "life-vlog-food-options";
-const PHOTO_FAVORITES_KEY = "life-vlog-photo-favorites";
 const TODAY_POSTS_SEEN_KEY = "life-vlog-today-posts-seen";
 const PHOTO_FEED_CACHE_KEY = "life-vlog-photo-feed-cache";
 const SECRET_ITEMS_CACHE_KEY = "life-vlog-secret-items-cache";
@@ -126,7 +140,7 @@ const SECRET_PIN_KEY = "life-vlog-secret-pin";
 const SECRET_UNLOCK_KEY = "life-vlog-secret-unlock";
 const SECRET_UNLOCK_MAX_MS = 15 * 60 * 1000;
 const LEGACY_MEDIA_CACHE_NAME = "life-vlog-media-cache";
-const DIARY_MEDIA_CACHE_NAME = "life-vlog-diary-media-cache";
+const DIARY_MEDIA_CACHE_NAME = "life-vlog-diary-image-cache";
 const SECRET_MEDIA_CACHE_NAME = "life-vlog-secret-media-cache";
 const DIARY_CACHE_MB_KEY = "life-vlog-diary-cache-mb";
 const SECRET_CACHE_MB_KEY = "life-vlog-secret-cache-mb";
@@ -159,7 +173,6 @@ const BUCKET = "life-photos";
 const PRODUCTION_URL = "https://life-vlog-site.pages.dev/";
 const R2_UPLOAD_ENDPOINT = "https://life-vlog-r2-upload.xiudan320-life.workers.dev";
 const R2_PUBLIC_URL = "https://pub-47959f26cde042c3b37bc0f8f3f441ce.r2.dev";
-const CLOUDFLARE_SESSION_KEY = "life-vlog-cloudflare-session";
 const PAGE_SIZE = 6;
 const VIP_USERS = new Set(["xiao980320", "xiudan320"]);
 const PHOTO_COMMENT_PREVIEW_LIMIT = 3;
@@ -173,9 +186,10 @@ const EAGER_IMAGE_CARD_COUNT = 4;
 const SECRET_ALBUM_IMAGE_LIMIT = 80;
 const DEFAULT_SECRET_SORT_STEP = 1000;
 const TOOL_DOCK_ORDER_KEY = "life-vlog-tool-dock-order";
-const TOOL_DOCK_DEFAULT_ORDER = ["food", "anniversary", "memory", "weekly", "timeline", "secret", "thanks"];
+const TOOL_DOCK_DEFAULT_ORDER = ["food", "recipes", "anniversary", "memory", "weekly", "timeline", "secret", "thanks"];
 const TOOL_DOCK_LABELS = {
   food: { title: "今日吃什么", subtitle: "转盘" },
+  recipes: { title: "菜谱", subtitle: "家庭菜谱" },
   anniversary: { title: "时间纪念册", subtitle: "纪念日" },
   memory: { title: "随机回忆", subtitle: "抽一篇日记" },
   weekly: { title: "本周回顾", subtitle: "共同生活周报" },
@@ -184,6 +198,8 @@ const TOOL_DOCK_LABELS = {
   thanks: { title: "留言", subtitle: "留下生活里的话" },
 };
 const MOBILE_DIALOG_BREAKPOINT = 920;
+const SECRET_ALL_FOLDER_ID = "all";
+const SECRET_FAVORITES_FOLDER_ID = "favorites";
 const DEFAULT_FOOD_OPTIONS = ["拉面", "寿喜烧", "咖喱饭", "烤肉", "火锅", "寿司", "麻婆豆腐", "披萨"];
 const GENERATED_TITLE_PREFIXES = ["今日小星星", "软乎乎的一天", "闪闪生活碎片", "快乐收藏夹"];
 
@@ -262,6 +278,7 @@ let session = null;
 let photos = [];
 let favoritePhotoIds = new Set();
 let favoritesCloudAvailable = false;
+let favoriteDataState = "idle";
 let recipes = [];
 let wishes = [];
 let weekendPlans = [];
@@ -314,10 +331,26 @@ let dialogRestoreElementTop = 0;
 let foodOptions = [];
 let activePage = "gallery";
 let activeFilter = "全部";
+const vlogMode = createVlogMode({
+  canOpen: () => Boolean(session),
+  onOpen: () => {
+    activeFilter = "VLOG";
+    switchPage("gallery");
+    visiblePhotoCount = PAGE_SIZE;
+    updateFilterChips();
+    renderGallery();
+    setUploadExpanded(false);
+  },
+  onClose: () => {
+    if (activeFilter !== "VLOG") return;
+    activeFilter = "全部";
+    updateFilterChips();
+  },
+});
 let activeSecretFilter = "全部";
 let activeSecretAlbumId = "";
-let activeSecretFolderId = "unfiled";
-let secretDefaultFolderId = "unfiled";
+let activeSecretFolderId = SECRET_ALL_FOLDER_ID;
+let secretDefaultFolderId = "";
 let secretFolderContextMenu = null;
 let secretAlbumContextMenu = null;
 let secretSearchQuery = "";
@@ -416,12 +449,12 @@ let photoFlagsCloudAvailable = false;
 let foodOptionsCloudAvailable = false;
 let profilePreferencesCloudAvailable = false;
 let thanksColorCloudAvailable = false;
-let wishCompletionNoteCloudAvailable = true;
 let foodWheelRotation = 0;
 let foodWheelSpinning = false;
 let cloudSyncAvailable = false;
 let cloudSyncInFlight = null;
 let syncedUserId = "";
+let accountDataState = "idle";
 let accountProfile = {
   rechargeTotal: 0,
   vipLevel: 0,
@@ -579,10 +612,12 @@ const els = {
   uploadForm: document.querySelector("#uploadForm"),
   photoDrop: document.querySelector("#photoDrop"),
   photoInput: document.querySelector("#photoInput"),
+  photoMotionInput: document.querySelector("#photoMotionInput"),
   photoLinkInput: document.querySelector("#photoLinkInput"),
   photoLinkAdd: document.querySelector("#photoLinkAdd"),
   uploadMainPreview: document.querySelector("#uploadMainPreview"),
   photoPreview: document.querySelector("#photoPreview"),
+  photoVideoPreview: document.querySelector("#photoVideoPreview"),
   removeUploadPreview: document.querySelector("#removeUploadPreview"),
   previewStrip: document.querySelector("#previewStrip"),
   fileName: document.querySelector("#fileName"),
@@ -607,6 +642,7 @@ const els = {
   dialogMedia: document.querySelector("#photoDialog .dialog-media"),
   closeDialog: document.querySelector("#closeDialog"),
   dialogImage: document.querySelector("#dialogImage"),
+  dialogVideo: document.querySelector("#dialogVideo"),
   dialogExpandImage: document.querySelector("#dialogExpandImage"),
   dialogTitle: document.querySelector("#dialogTitle"),
   dialogMeta: document.querySelector("#dialogMeta"),
@@ -689,6 +725,7 @@ const els = {
   overviewLevel: document.querySelector("#overviewLevel"),
   overviewProgress: document.querySelector("#overviewProgress"),
   memoryButton: document.querySelector("#memoryButton"),
+  vlogNav: document.querySelector("#vlogNav"),
   weeklyReviewOpen: document.querySelector("#weeklyReviewOpen"),
   weeklyReviewDialog: document.querySelector("#weeklyReviewDialog"),
   weeklyReviewClose: document.querySelector("#weeklyReviewClose"),
@@ -705,6 +742,7 @@ const els = {
   quickWeekend: document.querySelector("#quickWeekend"),
   foodWheelSection: document.querySelector("#foodWheelSection"),
   foodWheelOpen: document.querySelector("#foodWheelOpen"),
+  recipesToolOpen: document.querySelector("#recipesToolOpen"),
   foodWheelDialog: document.querySelector("#foodWheelDialog"),
   foodWheelClose: document.querySelector("#foodWheelClose"),
   foodWheelPeek: document.querySelector("#foodWheelPeek"),
@@ -1042,18 +1080,6 @@ async function initializeCloudflare() {
   cloudDb = createCloudflareClient();
   ensurePushSettingsPage();
 
-  const { data } = await cloudDb.auth.getSession();
-  session = data.session;
-  updateAuthUI();
-  if (session) void syncExistingPushSubscription();
-  renderCachedPhotoFeed(session?.user?.id || "public");
-  await loadPhotos();
-  if (new URLSearchParams(location.search).has("pushPhoto") || new URLSearchParams(location.search).has("pushType")) {
-    void openPushDestination();
-  }
-  syncMobileComposerPlacement();
-  void processDiaryUploadQueue();
-
   cloudDb.auth.onAuthStateChange((_event, nextSession) => {
     const previousUserId = session?.user?.id || "";
     const nextUserId = nextSession?.user?.id || "";
@@ -1074,11 +1100,26 @@ async function initializeCloudflare() {
       void syncExistingPushSubscription();
     }
   });
+
+  const { data } = await cloudDb.auth.getSession();
+  session = data.session;
+  updateAuthUI();
+  if (session) void syncExistingPushSubscription();
+  renderCachedPhotoFeed(session?.user?.id || "public");
+  await loadPhotos();
+  if (new URLSearchParams(location.search).has("pushPhoto") || new URLSearchParams(location.search).has("pushType")) {
+    void openPushDestination();
+  }
+  syncMobileComposerPlacement();
+  void processDiaryUploadQueue();
+
   appLifecycleController.start();
 }
 
 function updateAuthUI() {
   const signedIn = Boolean(session);
+  const needsAccountSync = Boolean(signedIn && session.user.id !== syncedUserId);
+  if (!signedIn) vlogMode.close();
   const displayName = signedIn ? getSessionDisplayName() : "";
   if (signedIn && !accountProfile.avatarUrl) {
     accountProfile.avatarUrl = loadCachedAvatarUrl(session.user.id);
@@ -1102,6 +1143,7 @@ function updateAuthUI() {
   els.anniversarySection.hidden = !signedIn;
   els.anniversaryOpen.hidden = !signedIn;
   els.memoryButton.hidden = !signedIn;
+  if (els.vlogNav) els.vlogNav.hidden = !signedIn;
   if (els.weeklyReviewOpen) els.weeklyReviewOpen.hidden = !signedIn;
   const timelineTool = document.querySelector('[data-tool-id="timeline"]');
   if (timelineTool) timelineTool.hidden = !signedIn;
@@ -1133,10 +1175,12 @@ function updateAuthUI() {
   if (signedIn) renderTopLevelBadge();
   renderVipCenter();
   recipes = signedIn ? loadRecipes() : [];
-  wishes = signedIn ? loadWishes() : [];
+  wishes = signedIn && !needsAccountSync ? wishes : [];
   weekendPlans = signedIn ? loadWeekendPlans() : [];
   anniversaries = signedIn ? loadAnniversaries() : [];
-  favoritePhotoIds = signedIn ? loadLocalFavoritePhotoIds() : new Set();
+  if (needsAccountSync || !signedIn) favoritePhotoIds = new Set();
+  accountDataState = needsAccountSync ? "loading" : signedIn ? accountDataState : "idle";
+  favoriteDataState = needsAccountSync ? "loading" : signedIn ? favoriteDataState : "idle";
   renderOverview();
   renderRecipes();
   renderWishes();
@@ -1151,12 +1195,13 @@ function updateAuthUI() {
       : "输入用户名和密码登录。注册新账号需要 xiudan320 给的邀请码。"
   );
   setGlobalStatus("");
-
   if (!signedIn) {
+    void refreshStorage(cloudflareRequest, () => false);
     cloudSyncAvailable = false;
     weekendCloudAvailable = false;
     anniversaryCloudAvailable = false;
     favoritesCloudAvailable = false;
+    favoriteDataState = "idle";
     photoFlagsCloudAvailable = false;
     secretCloudAvailable = false;
     foodOptionsCloudAvailable = false;
@@ -1164,7 +1209,7 @@ function updateAuthUI() {
       thanksColorCloudAvailable = false;
     gratitudeNotes = [];
     secretItems = [];
-    secretDefaultFolderId = "unfiled";
+    secretDefaultFolderId = "";
     closeSecretFolderContextMenu();
     closeSecretAlbumContextMenu();
     secretAlbumContextMenu = null;
@@ -1178,6 +1223,7 @@ function updateAuthUI() {
     photoComments = [];
     activeDialogPhoto = null;
     cloudSyncInFlight = null;
+    accountDataState = "idle";
     syncedUserId = "";
     accountProfile = {
       rechargeTotal: 0,
@@ -1201,7 +1247,7 @@ function updateAuthUI() {
     return;
   }
 
-  if (session.user.id !== syncedUserId) {
+  if (needsAccountSync) {
     syncedUserId = session.user.id;
     void synchronizeAccountData();
   }
@@ -1546,8 +1592,6 @@ async function loadPhotosInternal() {
 
   if (error) {
     if (!navigator.onLine || /failed to fetch|network/i.test(error.message || "")) {
-      // Keep the locally rendered feed during an offline cold start. Replacing
-      // it with an empty network result makes a valid offline cache look broken.
       renderCachedPhotoFeed(session?.user?.id || "public");
       setGlobalStatus("当前离线，正在显示本机缓存。");
     } else {
@@ -1555,6 +1599,7 @@ async function loadPhotosInternal() {
       if (!photos.length) photos = [];
     }
     photoFlagsCloudAvailable = false;
+    if (session) favoriteDataState = "error";
   } else {
     setGlobalStatus("");
     photos = data || [];
@@ -1639,7 +1684,9 @@ function saveCacheCapacityMb(type, value, userId = session?.user?.id || "guest")
 function getPhotoCacheImages(photo) {
   const images = getPhotoImages(photo);
   if (images.length) {
-    return images.flatMap((image) => [image.thumbnail_url, image.image_url]).filter(Boolean);
+    return images
+      .flatMap((image) => [image.thumbnail_url, image.image_url, image.poster_url])
+      .filter(Boolean);
   }
   return [photo?.image_url].filter(Boolean);
 }
@@ -1768,7 +1815,6 @@ function savePhotoFeedCache(userId = session?.user?.id || "public") {
     localStorage.setItem(getPhotoFeedCacheStorageKey(userId), JSON.stringify(payload));
     scheduleOfflineMediaCache(userId);
   } catch {
-    // Local storage can be full or unavailable; the live cloud feed still works.
   }
 }
 
@@ -1819,7 +1865,6 @@ function saveSecretItemsCache(userId = session?.user?.id || "guest") {
     );
     scheduleOfflineMediaCache(userId);
   } catch {
-    // The cloud copy remains the source of truth if local storage is full.
   }
 }
 
@@ -1926,7 +1971,7 @@ function getSortedPhotos(photoList = photos) {
 function getTodayPublishedPhotos() {
   const currentUserId = String(session?.user?.id || "");
   return getSortedPhotos(photos).filter(
-    (photo) => isPhotoPublishedToday(photo) && String(photo?.user_id || "") !== currentUserId
+    (photo) => photo.category !== "VLOG" && isPhotoPublishedToday(photo) && String(photo?.user_id || "") !== currentUserId
   );
 }
 
@@ -2065,6 +2110,7 @@ async function checkForNewPhotos() {
     pendingNewPhotos = (data || []).filter(
       (photo) =>
         photo.id &&
+        photo.category !== "VLOG" &&
         String(photo.user_id || "") !== String(session.user.id) &&
         !currentIds.has(photo.id) &&
         !dismissedFeedRefreshIds.has(photo.id)
@@ -2128,6 +2174,8 @@ function updateTodayPostsNotice() {
 
 function updateFilterChips() {
   els.chips.forEach((item) => item.classList.toggle("active", item.dataset.filter === activeFilter));
+  els.galleryNav.classList.toggle("active", activePage === "gallery" && activeFilter !== "VLOG");
+  els.vlogNav?.classList.toggle("active", activePage === "gallery" && activeFilter === "VLOG");
 }
 
 function showTodayPosts() {
@@ -2185,56 +2233,37 @@ async function verifyPhotoFlagSchema() {
   photoFlagsCloudAvailable = !error;
 }
 
-function getPhotoFavoritesStorageKey(userId = session?.user?.id || "guest") {
-  return `${PHOTO_FAVORITES_KEY}:${userId}`;
+function normalizeFavoritePhotoId(value) {
+  return String(value ?? "").trim();
 }
 
-function loadLocalFavoritePhotoIds() {
-  try {
-    const parsed = JSON.parse(
-      localStorage.getItem(getPhotoFavoritesStorageKey()) || "[]"
-    );
-    return new Set(Array.isArray(parsed) ? parsed : []);
-  } catch {
-    return new Set();
-  }
-}
-
-function saveLocalFavoritePhotoIds() {
-  localStorage.setItem(
-    getPhotoFavoritesStorageKey(),
-    JSON.stringify([...favoritePhotoIds])
+function isFavoritePhoto(photoOrId) {
+  const photoId = normalizeFavoritePhotoId(
+    typeof photoOrId === "object" ? photoOrId?.id : photoOrId
   );
+  return Boolean(photoId && favoritePhotoIds.has(photoId));
 }
 
 async function synchronizePhotoFavorites() {
   if (!cloudDb || !session) return;
-  const userId = session.user.id;
-  const visiblePhotoIds = new Set(photos.map((photo) => photo.id));
-  const localIds = [...loadLocalFavoritePhotoIds()].filter((id) =>
-    visiblePhotoIds.has(id)
-  );
   try {
     const { data, error } = await diaryRepository.listFavorites();
     if (error) throw error;
 
-    const cloudIdSet = new Set((data || []).map((row) => row.photo_id));
-    const missingLocalIds = localIds.filter((id) => !cloudIdSet.has(id));
-    if (missingLocalIds.length) {
-      const { error: migrateError } = await diaryRepository.upsertFavorites(missingLocalIds);
-      if (migrateError) throw migrateError;
-      missingLocalIds.forEach((id) => cloudIdSet.add(id));
-    }
+    const cloudIdSet = new Set(
+      (data || [])
+        .map((row) => normalizeFavoritePhotoId(row.photo_id))
+        .filter(Boolean)
+    );
 
     favoritesCloudAvailable = true;
+    favoriteDataState = "ready";
     favoritePhotoIds = cloudIdSet;
-    saveLocalFavoritePhotoIds();
   } catch (error) {
     favoritesCloudAvailable = false;
-    favoritePhotoIds = new Set(localIds);
-    if (!isMissingCloudSchema(error)) {
-      console.warn("Favorite sync failed:", error);
-    }
+    favoriteDataState = "error";
+    favoritePhotoIds = new Set();
+    console.warn("Favorite sync failed:", error);
   }
 }
 
@@ -2251,22 +2280,36 @@ async function uploadPhoto(event) {
 
   const files = selectedUploadFiles.length ? selectedUploadFiles : Array.from(els.photoInput.files || []);
   const linkUrls = [...selectedUploadLinks];
+  if (vlogMode.isActive()) {
+    const vlogError = validateVlogUpload(files, linkUrls);
+    if (vlogError) {
+      setStatus(vlogError);
+      return;
+    }
+  }
   if (!files.length && !linkUrls.length) {
     setStatus("请选择图片，或粘贴图片链接。");
     return;
   }
 
+  const uploadPairing = pairDiaryUploadFiles(files);
+  if (uploadPairing.unsupportedFiles.length) {
+    setStatus("只支持图片和视频文件。");
+    return;
+  }
+
   const imageLimit = getCurrentImageLimit();
-  if (files.length + linkUrls.length > imageLimit) {
+  if (getDiaryUploadEntryCount(uploadPairing) + linkUrls.length > imageLimit) {
     setStatus(`当前 VIP 等级单篇最多 ${imageLimit} 张图。`);
     return;
   }
 
   const finalTitle = getFinalTitle();
-  const payload = getDiaryUploadPayload(finalTitle, files, linkUrls);
   uploadInFlight = true;
   setUploadSubmitting(true);
+  let payload;
   try {
+    payload = getDiaryUploadPayload(finalTitle, files, linkUrls, uploadPairing);
     if (!navigator.onLine) {
       await enqueueDiaryUpload(payload);
       clearDiaryDraft();
@@ -2276,7 +2319,7 @@ async function uploadPhoto(event) {
     }
     await publishDiaryPayload(payload);
   } catch (error) {
-    if (isNetworkLikeError(error)) {
+    if (payload && isNetworkLikeError(error)) {
       await enqueueDiaryUpload(payload);
       clearDiaryDraft();
       clearPhotoPreview();
@@ -2291,44 +2334,223 @@ async function uploadPhoto(event) {
   }
 }
 
-function getDiaryUploadPayload(finalTitle, files, linkUrls = []) {
+function getDiaryUploadFileExtension(file) {
+  return String(file?.name || "").match(/\.([a-z0-9]{1,8})$/i)?.[1].toLowerCase() || "";
+}
+
+function isDiaryUploadStillFile(file) {
+  return (
+    String(file?.type || "").toLowerCase().startsWith("image/") ||
+    /\.(avif|gif|heic|heif|jpe?g|png|tiff?|webp)$/i.test(file?.name || "")
+  );
+}
+
+function isDiaryUploadMotionFile(file) {
+  return String(file?.type || "").toLowerCase().startsWith("video/") ||
+    /\.(mov|mp4|m4v|webm)$/i.test(file?.name || "");
+}
+
+function getDiaryUploadEntryCount(pairing) {
+  return pairing.entries.length + pairing.videoFiles.length;
+}
+
+function getDiaryUploadFileKey(file) {
+  return [file?.name || "", file?.size || 0, file?.lastModified || 0, file?.type || ""].join("|");
+}
+
+function getDiaryUploadFileStem(file) {
+  return String(file?.name || "")
+    .replace(/\.[^.]+$/, "")
+    .trim()
+    .toLocaleLowerCase();
+}
+
+function pairDiaryUploadFiles(files = []) {
+  const stillFiles = [];
+  const motionFiles = [];
+  const unsupportedFiles = [];
+  for (const file of files) {
+    if (isDiaryUploadStillFile(file)) {
+      stillFiles.push(file);
+    } else if (isDiaryUploadMotionFile(file)) {
+      motionFiles.push(file);
+    } else {
+      unsupportedFiles.push(file);
+    }
+  }
+
+  const unusedMotionFiles = new Set(motionFiles);
+  const entries = stillFiles.map((file) => {
+    const stem = getDiaryUploadFileStem(file);
+    const motionFile = motionFiles.find(
+      (candidate) => unusedMotionFiles.has(candidate) && getDiaryUploadFileStem(candidate) === stem
+    );
+    if (motionFile) unusedMotionFiles.delete(motionFile);
+    return { file, motionFile: motionFile || null };
+  });
+
+  const unpairedEntries = entries.filter((entry) => !entry.motionFile);
+  const remainingMotionFiles = motionFiles.filter((file) => unusedMotionFiles.has(file));
+  if (remainingMotionFiles.length > 0 && unpairedEntries.length > 0) {
+    unpairedEntries.slice(0, remainingMotionFiles.length).forEach((entry, index) => {
+      entry.motionFile = remainingMotionFiles[index];
+      unusedMotionFiles.delete(remainingMotionFiles[index]);
+    });
+  }
+
+  return {
+    stillFiles,
+    entries,
+    motionFiles,
+    videoFiles: [...unusedMotionFiles],
+    unsupportedFiles,
+  };
+}
+
+function getDiaryUploadPreviewItems(files) {
+  const pairing = pairDiaryUploadFiles(files);
+  return {
+    pairing,
+    items: [
+      ...pairing.entries.map((entry) => ({
+        kind: entry.motionFile ? "live" : "image",
+        file: entry.file,
+        files: [entry.file, entry.motionFile].filter(Boolean),
+        label: entry.motionFile ? `${entry.file.name} · Live Photo` : entry.file.name,
+      })),
+      ...pairing.videoFiles.map((file) => ({
+        kind: "video",
+        file,
+        files: [file],
+        label: `${file.name} · 普通视频`,
+      })),
+      ...pairing.unsupportedFiles.map((file) => ({
+        kind: "unsupported",
+        file,
+        files: [file],
+        label: `${file.name} · 不支持`,
+      })),
+      ...selectedUploadLinks.map((url) => ({
+        kind: "link",
+        url,
+        files: [],
+        label: "图片链接",
+      })),
+    ],
+  };
+}
+
+function getDiaryUploadPayload(finalTitle, files, linkUrls = [], pairing = pairDiaryUploadFiles(files)) {
+  if (pairing.unsupportedFiles.length) {
+    throw new Error("只支持图片和视频文件。");
+  }
   return {
     id: crypto.randomUUID(),
     userId: session?.user?.id || "",
     title: finalTitle,
     rawTitle: els.titleInput.value.trim(),
     note: els.noteInput.value.trim(),
-    category: els.categoryInput.value,
+    category: vlogMode.isActive() ? "VLOG" : els.categoryInput.value,
     takenAt: els.dateInput.value,
     isPublic: els.publicInput.value === "true",
     createdAt: new Date().toISOString(),
-    files: files.map((file) => ({
-      file,
-      name: file.name || "diary-image",
-      type: file.type || "image/jpeg",
-      size: file.size || 0,
-      lastModified: file.lastModified || Date.now(),
-    })),
+    files: [
+      ...pairing.entries.map(({ file, motionFile }) => ({
+        kind: motionFile ? "live" : "image",
+        file,
+        name: file.name || "diary-image",
+        type: file.type || "image/jpeg",
+        size: file.size || 0,
+        lastModified: file.lastModified || Date.now(),
+        motionFile: motionFile || null,
+      })),
+      ...pairing.videoFiles.map((file) => ({
+        kind: "video",
+        file,
+        name: file.name || "diary-video",
+        type: file.type || "video/quicktime",
+        size: file.size || 0,
+        lastModified: file.lastModified || Date.now(),
+      })),
+    ],
     linkUrls: [...linkUrls],
   };
 }
 
 async function publishDiaryPayload(payload, { queued = false } = {}) {
   const images = [];
-  const files = payload.files.map((entry) => entry.file);
+  const mediaEntries = payload.files.map((entry) => ({
+    kind: entry.kind || (entry.motionFile ? "live" : "image"),
+    file: entry.file,
+    motionFile: entry.motionFile || null,
+  }));
   const finalTitle = payload.title || "";
 
-  for (const [index, file] of files.entries()) {
-    const safeName = getUploadFileNameBase(finalTitle, index, files.length);
-    const imageData = await uploadImageFile(file, safeName, index + 1, files.length);
+  for (const [index, entry] of mediaEntries.entries()) {
+    const safeName = getUploadFileNameBase(finalTitle, index, mediaEntries.length);
+    if (entry.kind === "video") {
+      setStatus(
+        `${index + 1}/${mediaEntries.length} · 正在从视频提取封面...`
+      );
+      const posterFile = await createVideoPosterFile(entry.file);
+      const poster = await uploadImageFile(
+        posterFile,
+        `${safeName}-poster`,
+        index + 1,
+        mediaEntries.length,
+        { folder: "photos-video-posters", thumbnail: false }
+      );
+      if (!poster) throw new Error("普通视频封面上传失败。");
+      const video = await uploadDiaryVideoFile(
+        entry.file,
+        `${safeName}-video`,
+        index + 1,
+        mediaEntries.length
+      );
+      if (!video) throw new Error("普通视频上传失败。");
+      images.push({
+        type: "video",
+        image_path: poster.image_path,
+        image_url: poster.image_url,
+        thumbnail_path: poster.thumbnail_path,
+        thumbnail_url: poster.thumbnail_url,
+        poster_path: poster.image_path,
+        poster_url: poster.image_url,
+        video_path: `r2:${video.key}`,
+        video_url: video.url,
+        video_type: video.contentType || getVideoContentType(entry.file),
+        width: poster.width,
+        height: poster.height,
+        original_size: poster.original_size,
+        compressed_size: poster.compressed_size,
+      });
+      continue;
+    }
+
+    const imageData = await uploadImageFile(entry.file, safeName, index + 1, mediaEntries.length);
     if (!imageData) throw new Error("图片上传失败。");
+    imageData.type = entry.kind === "live" ? "live" : "image";
+    if (entry.motionFile) {
+      const motion = await uploadDiaryMotionFile(
+        entry.motionFile,
+        `${safeName}-live`,
+        index + 1,
+        mediaEntries.length
+      );
+      if (!motion) throw new Error("Live Photo 动态部分上传失败。");
+      imageData.motion_path = `r2:${motion.key}`;
+      imageData.motion_url = motion.url;
+      imageData.motion_type = motion.contentType || getVideoContentType(entry.motionFile);
+      imageData.motion_size = entry.motionFile.size || 0;
+    }
     images.push(imageData);
   }
   const linkUrls = Array.isArray(payload.linkUrls) ? payload.linkUrls : [];
   for (const [index, url] of linkUrls.entries()) {
-    const safeName = `${getUploadFileNameBase(finalTitle, files.length + index, files.length + linkUrls.length)}-link`;
+    const safeName = `${getUploadFileNameBase(finalTitle, mediaEntries.length + index, mediaEntries.length + linkUrls.length)}-link`;
     const copied = await copyUrlToR2(url, safeName, "photos");
     images.push({
+      type: "image",
       image_path: `r2:${copied.key}`,
       image_url: copied.url,
       thumbnail_path: "",
@@ -2363,6 +2585,7 @@ async function publishDiaryPayload(payload, { queued = false } = {}) {
     `${queued ? "队列日记已发布。" : images.length > 1 ? `已发布 1 篇合集，共 ${images.length} 张图。` : "上传完成。"}${compressionSummary}${gainedExp ? ` 修为 +${gainedExp}` : ""}`
   );
   await loadPhotos();
+  vlogMode.close();
   switchPage("gallery");
   els.galleryHead?.scrollIntoView({
     behavior: "smooth",
@@ -2546,8 +2769,39 @@ async function uploadImageFile(file, safeName, index = 1, total = 1, options = {
     return null;
   }
 }
-async function uploadToR2(blob, safeName, folder = "photos") {
-  return imageService.uploadToR2(blob, safeName, folder);
+
+async function uploadDiaryMotionFile(file, safeName, index = 1, total = 1) {
+  const prefix = total > 1 ? `${index}/${total} · ` : "";
+  setStatus(`${prefix}正在上传 Live Photo 动态部分...`);
+  try {
+    const extension = getVideoFileExtension(file);
+    return await uploadToR2(file, safeName, "photos-live", {
+      fileName: `${safeName}.${extension}`,
+      contentType: getVideoContentType(file),
+    });
+  } catch (error) {
+    setStatus(`Live Photo 上传失败：${error.message}`);
+    throw error;
+  }
+}
+
+async function uploadDiaryVideoFile(file, safeName, index = 1, total = 1) {
+  const prefix = total > 1 ? `${index}/${total} · ` : "";
+  setStatus(`${prefix}正在上传普通视频...`);
+  try {
+    const extension = getVideoFileExtension(file);
+    return await uploadToR2(file, safeName, "photos-video", {
+      fileName: `${safeName}.${extension}`,
+      contentType: getVideoContentType(file),
+    });
+  } catch (error) {
+    setStatus(`普通视频上传失败：${error.message}`);
+    throw error;
+  }
+}
+
+async function uploadToR2(blob, safeName, folder = "photos", options = {}) {
+  return imageService.uploadToR2(blob, safeName, folder, options);
 }
 async function copyUrlToR2(url, safeName, folder = "migrated") {
   return imageService.copyUrlToR2(url, safeName, folder);
@@ -2676,16 +2930,12 @@ function renderGallery() {
   renderOverview();
   updateTodayPostsNotice();
   const sortedPhotos = getSortedPhotos(photos);
-  const categoryFiltered =
-    activeFilter === "全部"
-      ? sortedPhotos
-      : activeFilter === "featured7"
-        ? sortedPhotos.filter(
-            (photo) => Boolean(photo.is_featured) && isPhotoWithinSevenDays(photo)
-          )
-        : activeFilter === "favorites"
-          ? sortedPhotos.filter((photo) => favoritePhotoIds.has(photo.id))
-          : sortedPhotos.filter((photo) => photo.category === activeFilter);
+  const categoryFiltered = filterVlogPhotos(
+    sortedPhotos,
+    activeFilter,
+    isFavoritePhoto,
+    isPhotoWithinSevenDays
+  );
   const filtered = filterPhotosBySearch(categoryFiltered);
 
   filteredPhotoCount = filtered.length;
@@ -2694,6 +2944,7 @@ function renderGallery() {
     Math.max(PAGE_SIZE, filteredPhotoCount)
   );
   const visible = filtered.slice(0, visiblePhotoCount);
+  const p=!galleryRenderSignature;
   const nextSignature = JSON.stringify({
     filter: activeFilter,
     search: diarySearchQuery,
@@ -2707,8 +2958,6 @@ function renderGallery() {
     updateFeedLoader(filteredPhotoCount);
     return;
   }
-  galleryRenderSignature = nextSignature;
-
   if (!visible.length) {
     const emptyMessage =
       diarySearchQuery
@@ -2717,13 +2966,21 @@ function renderGallery() {
         ? "最近七天还没有精选日记。"
         : activeFilter === "favorites"
           ? session
-            ? "还没有收藏日记。"
+            ? favoriteDataState === "loading"
+              ? "正在同步收藏…"
+              : favoriteDataState === "error"
+                ? "收藏同步失败，请稍后刷新重试。"
+                : "还没有收藏日记。"
             : "登录后可以收藏喜欢的日记。"
+          : activeFilter === "VLOG"
+            ? "还没有 VLOG，点击顶部 VLOG 发布第一条视频。"
           : "还没有这个分类的日记。";
-    els.gallery.innerHTML = `<div class="empty">${emptyMessage}</div>`;
+    els.gallery.innerHTML = `<div class="empty"${activeFilter === "favorites" && favoriteDataState === "loading" ? " data-favorite-sync-loading role=\"status\"" : ""}>${emptyMessage}</div>`;
     updateFeedLoader(0);
     return;
   }
+
+  galleryRenderSignature = nextSignature;
 
   els.gallery.innerHTML = visible
     .map(
@@ -2766,8 +3023,8 @@ function renderGallery() {
           <div class="card-actions">
             ${
               session
-                ? `<button class="favorite-photo ${favoritePhotoIds.has(photo.id) ? "active" : ""}" type="button" data-favorite-index="${index}">
-                    ${favoritePhotoIds.has(photo.id) ? "♥ 已收藏" : "♡ 收藏"}
+                ? `<button class="favorite-photo ${isFavoritePhoto(photo) ? "active" : ""}" type="button" data-favorite-index="${index}" aria-pressed="${String(isFavoritePhoto(photo))}">
+                    ${isFavoritePhoto(photo) ? "♥ 已收藏" : "♡ 收藏"}
                   </button>`
                 : ""
             }
@@ -2792,6 +3049,8 @@ function renderGallery() {
       }
     )
     .join("");
+
+  if(p)requestAnimationFrame(()=>els.gallery.querySelector(".photo-media")?.scrollIntoView());
 
   els.gallery.querySelectorAll(".photo-media").forEach((media) => {
     media.addEventListener(
@@ -3042,6 +3301,7 @@ async function togglePhotoFlag(photo, field, { adminUnpin = false } = {}) {
     (photoOwnerId && photoOwnerId !== session.user.id && !canAdminUnpin)
   ) return;
   const label = field === "is_pinned" ? "置顶" : "精选";
+  if (!photoFlagsCloudAvailable) await verifyPhotoFlagSchema();
   if (!photoFlagsCloudAvailable) {
     setGlobalStatus(`Cloudflare D1 尚未启用${label}字段，请先部署最新版数据库结构。`);
     return;
@@ -3084,31 +3344,44 @@ async function togglePhotoFavorite(photo, button) {
     return;
   }
 
-  if (!favoritesCloudAvailable) {
-    setGlobalStatus("Cloudflare D1 尚未启用收藏表，请先部署最新版数据库结构。");
-    return;
+  const photoId = normalizeFavoritePhotoId(photo.id);
+  if (!photoId) return;
+  const wasFavorite = isFavoritePhoto(photoId);
+  const nextFavorite = !wasFavorite;
+  if (button) button.disabled = true;
+  let error = null;
+  try {
+    const result = await diaryRepository.setFavorite(photoId, nextFavorite);
+    error = result?.error || null;
+  } catch (requestError) {
+    error = requestError;
   }
 
-  const wasFavorite = favoritePhotoIds.has(photo.id);
-  button.disabled = true;
-  favoritePhotoIds[wasFavorite ? "delete" : "add"](photo.id);
-  button.classList.toggle("active", !wasFavorite);
-  button.classList.toggle("is-active", !wasFavorite);
-  button.setAttribute("aria-pressed", String(!wasFavorite));
-  button.innerHTML = button.hasAttribute("data-mobile-diary-favorite")
-    ? `<span class="mobile-diary-action-mark" aria-hidden="true">${wasFavorite ? "♡" : "♥"}</span><span>${wasFavorite ? "收藏" : "已收藏"}</span>`
-    : `${wasFavorite ? "♡ 收藏" : "♥ 已收藏"}`;
-  const { error } = await diaryRepository.setFavorite(photo.id, !wasFavorite);
   if (error) {
-    favoritePhotoIds[wasFavorite ? "add" : "delete"](photo.id);
-    renderGallery();
-    if (!mobileDiaryPage?.hidden && mobileDiaryPhoto?.id === photo.id) renderMobileDiaryPage();
-    setGlobalStatus(`收藏更新失败：${error.message}`);
+    favoritesCloudAvailable = false;
+    favoriteDataState = "error";
+    if (button) button.disabled = false;
+    setGlobalStatus(
+      isMissingCloudSchema(error)
+        ? "收藏表尚未启用，请先部署最新版 Cloudflare D1 结构。"
+        : `收藏更新失败：${error.message}`
+    );
     return;
   }
 
-  saveLocalFavoritePhotoIds();
-  setGlobalStatus(wasFavorite ? "已取消收藏。" : "已收藏。");
+  favoritePhotoIds[nextFavorite ? "add" : "delete"](photoId);
+  favoritesCloudAvailable = true;
+  favoriteDataState = "ready";
+  if (button) button.disabled = false;
+  if (button) {
+    button.classList.toggle("active", nextFavorite);
+    button.classList.toggle("is-active", nextFavorite);
+    button.setAttribute("aria-pressed", String(nextFavorite));
+    button.innerHTML = button.hasAttribute("data-mobile-diary-favorite")
+      ? `<span class="mobile-diary-action-mark" aria-hidden="true">${nextFavorite ? "♥" : "♡"}</span><span>${nextFavorite ? "已收藏" : "收藏"}</span>`
+      : `${nextFavorite ? "♥ 已收藏" : "♡ 收藏"}`;
+  }
+  setGlobalStatus(nextFavorite ? "已收藏。" : "已取消收藏。");
   renderGallery();
 }
 
@@ -3120,6 +3393,7 @@ function renderPhotoMedia(images, title, photoIndex) {
       <div class="photo-media single"${getPhotoAspectStyle(image)}>
         <button type="button" data-photo-index="${photoIndex}" data-image-index="0">
           ${renderFeedImage(image, altText, photoIndex, 0)}
+          ${isDiaryLiveMedia(image) ? `<span class="live-photo-badge" aria-label="Live Photo">LIVE</span>` : ""}
         </button>
       </div>
     `;
@@ -3133,6 +3407,7 @@ function renderPhotoMedia(images, title, photoIndex) {
           (image, index) => `
             <button type="button" data-photo-index="${photoIndex}" data-image-index="${index}">
               ${renderFeedImage(image, `${altText} ${index + 1}`, photoIndex, index)}
+              ${isDiaryLiveMedia(image) ? '<i class="multi-motion-dot"></i>' : ""}
             </button>
           `
         )
@@ -3150,8 +3425,27 @@ function renderFeedImage(image, altText, photoIndex, imageIndex) {
   const height = Number(image?.height);
   const widthAttr = Number.isFinite(width) && width > 0 ? ` width="${Math.round(width)}"` : "";
   const heightAttr = Number.isFinite(height) && height > 0 ? ` height="${Math.round(height)}"` : "";
+  const posterUrl = getDiaryMediaPosterUrl(image);
+  const motionUrl = getDiaryMediaVideoUrl(image);
+  const videoUrl = shouldAutoplayDiaryFeedMedia(photoIndex) ? motionUrl : "";
+  const videoPreviewStyle = motionUrl
+    ? ' style="width:100%;height:100%;object-fit:contain;background:#080b09;"'
+    : "";
 
-  return `<img class="feed-image" src="${escapeHtml(image?.thumbnail_url || image?.image_url || "")}" data-full-src="${escapeHtml(image?.image_url || "")}" alt="${escapeHtml(altText)}" loading="${loading}" decoding="async" fetchpriority="${fetchPriority}"${widthAttr}${heightAttr} />`;
+  if (videoUrl) {
+    return `<video class="feed-image" src="${escapeHtml(videoUrl)}" poster="${escapeHtml(posterUrl)}" data-full-src="${escapeHtml(posterUrl)}" aria-label="${escapeHtml(altText)}" autoplay muted loop playsinline preload="metadata"${videoPreviewStyle}${widthAttr}${heightAttr}></video>`;
+  }
+
+  return `<img class="feed-image" src="${escapeHtml(image?.thumbnail_url || posterUrl)}" data-full-src="${escapeHtml(posterUrl)}" alt="${escapeHtml(altText)}" loading="${loading}" decoding="async" fetchpriority="${fetchPriority}"${videoPreviewStyle}${widthAttr}${heightAttr} />`;
+}
+
+function shouldAutoplayDiaryFeedMedia(photoIndex = 0) {
+  if (isMobileViewport()) return photoIndex < 5;
+  const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  if (!connection) return true;
+  if (connection.saveData || connection.type === "cellular") return false;
+  if (connection.type === "wifi" || connection.type === "ethernet") return true;
+  return !/(^|-)2g$/.test(connection.effectiveType || "");
 }
 
 function getPhotoAspectStyle(image) {
@@ -3170,18 +3464,18 @@ function getPhotoAspectRatio(image) {
 }
 
 function prepareFeedImages(root = document) {
-  root.querySelectorAll("img.feed-image, img.secret-progressive-image").forEach((image) => {
+  root.querySelectorAll("img.feed-image, video.feed-image, img.secret-progressive-image").forEach((image) => {
     const markLoaded = () => {
       image.classList.add("is-loaded");
       image.closest("button")?.classList.add("media-loaded");
     };
 
-    if (image.complete) {
+    if (image.tagName === "VIDEO" ? image.readyState >= 2 : image.complete) {
       markLoaded();
       return;
     }
 
-    image.addEventListener("load", markLoaded, { once: true });
+    image.addEventListener(image.tagName === "VIDEO" ? "loadeddata" : "load", markLoaded, { once: true });
     image.addEventListener("error", markLoaded, { once: true });
   });
 }
@@ -3223,26 +3517,44 @@ function warmUpcomingFeedImages(filteredPhotos, startIndex) {
 function getPhotoImages(photo) {
   const storedImages = parseDiaryStoredImages(photo.note);
   const primary = {
+    type: photo.type || (photo.motion_url ? "live" : photo.video_url ? "video" : "image"),
     image_url: photo.image_url,
     image_path: photo.image_path || "",
     width: photo.width ?? null,
     height: photo.height ?? null,
     thumbnail_url: photo.thumbnail_url || "",
     thumbnail_path: photo.thumbnail_path || "",
+    motion_url: photo.motion_url || "",
+    motion_path: photo.motion_path || "",
+    motion_type: photo.motion_type || "",
+    video_url: photo.video_url || "",
+    video_path: photo.video_path || "",
+    video_type: photo.video_type || "",
+    poster_url: photo.poster_url || photo.image_url || "",
+    poster_path: photo.poster_path || photo.image_path || "",
   };
   const images = storedImages.length ? storedImages : [primary];
   const seen = new Set();
 
   return images
-    .filter((image) => image?.image_url)
     .map((image) => ({
-      image_url: image.image_url || image.url,
+      type: getDiaryMediaType(image),
+      image_url: image.image_url || image.poster_url || image.posterUrl || image.url,
       image_path: image.image_path || image.path || "",
       width: image.width ?? null,
       height: image.height ?? null,
       thumbnail_url: image.thumbnail_url || image.thumb_url || "",
       thumbnail_path: image.thumbnail_path || image.thumb_path || "",
+      motion_url: image.motion_url || image.motionUrl || "",
+      motion_path: image.motion_path || image.motionPath || "",
+      motion_type: image.motion_type || image.motionType || "",
+      video_url: image.video_url || image.videoUrl || "",
+      video_path: image.video_path || image.videoPath || "",
+      video_type: image.video_type || image.videoType || "",
+      poster_url: image.poster_url || image.posterUrl || image.image_url || image.url || "",
+      poster_path: image.poster_path || image.posterPath || image.image_path || image.path || "",
     }))
+    .filter((image) => image.image_url)
     .filter((image) => {
       if (seen.has(image.image_url)) return false;
       seen.add(image.image_url);
@@ -3340,6 +3652,7 @@ function setSecretViewerStatus(state, message = "") {
 }
 
 function fitSecretViewerImage() {
+  fitVideoToContainer(els.dialogVideo, els.dialogMedia);
   if (!isFittableImageDialogOpen() || !els.dialogImage?.naturalWidth || !els.dialogMedia) return;
   const mediaStyle = getComputedStyle(els.dialogMedia);
   const availableWidth = Math.max(
@@ -3569,8 +3882,6 @@ function handleSecretViewerWheel(event) {
   if (!isDiaryDetail && !isDiaryViewer && !isSecretDialog) return;
 
   if (isDiaryViewer || isSecretViewer) {
-    // Once the image is zoomed, the wheel belongs to the image rather than
-    // the carousel, so tall and wide images remain navigable without jumps.
     if (secretImageZoom.scale > 1.01) {
       event.preventDefault();
       const step = event.deltaY > 0 ? -0.18 : 0.18;
@@ -3622,19 +3933,33 @@ function renderDialogMedia(entryDirection = 0) {
     els.dialogMedia.scrollLeft = 0;
   }
   const image = dialogImages[dialogImageIndex] || dialogImages[0] || {};
-  const imageUrl = image.image_url || "";
+  const imageUrl = getDiaryMediaPosterUrl(image);
+  const motionUrl = getDiaryMediaVideoUrl(image);
+  const hasMotion = Boolean(motionUrl);
+  const dialogVisual = hasMotion ? els.dialogVideo : els.dialogImage;
   const imageRequestId = ++dialogImageRequestId;
   const secretTags = normalizeSecretPhotoTags(image);
-  els.dialogImage.classList.toggle("is-loading", Boolean(imageUrl));
+  els.dialogImage.hidden = hasMotion;
+  els.dialogImage.style.display = hasMotion ? "none" : "";
+  els.dialogImage.classList.toggle("is-loading", Boolean(imageUrl && !hasMotion));
   els.dialogImage.classList.remove("is-load-error");
   els.dialogImage.dataset.dialogImageRequestId = String(imageRequestId);
   els.dialogImage.removeAttribute("src");
+  if (els.dialogVideo) {
+    els.dialogVideo.controls = !isMobileViewport();
+    stopDiaryMotionVideo(els.dialogVideo);
+    els.dialogVideo.hidden = !hasMotion;
+    els.dialogVideo.style.display = hasMotion ? "block" : "none";
+    if (hasMotion) {
+      els.dialogVideo.poster = imageUrl;
+      els.dialogVideo.src = motionUrl;
+      startDiaryMotionVideo(els.dialogVideo, els.dialogMedia);
+    }
+  }
   if (isSecretImageViewerOpen()) {
     setSecretViewerStatus(imageUrl ? "loading" : "", imageUrl ? "正在加载图片" : "");
   }
-  if (imageUrl) {
-    // Preload the selected image before attaching it to the visible img. This
-    // prevents the previous diary image from flashing while the new one loads.
+  if (imageUrl && !hasMotion) {
     const preloader = new Image();
     preloader.decoding = "async";
     preloader.onload = () => {
@@ -3657,7 +3982,7 @@ function renderDialogMedia(entryDirection = 0) {
     };
     preloader.src = imageUrl;
   }
-  if (isFittableImageDialogOpen()) {
+  if (!hasMotion && isFittableImageDialogOpen()) {
     requestAnimationFrame(() => {
       if (imageRequestId !== dialogImageRequestId || !isFittableImageDialogOpen() || !els.dialogImage.complete || !els.dialogImage.naturalWidth) return;
       fitSecretViewerImage();
@@ -3668,16 +3993,20 @@ function renderDialogMedia(entryDirection = 0) {
   els.dialog?.style.setProperty("--diary-viewer-backdrop", `url(${JSON.stringify(imageUrl)})`);
   els.dialogImage.style.removeProperty("transition");
   els.dialogImage.style.removeProperty("opacity");
+  els.dialogVideo?.style.removeProperty("transition");
+  els.dialogVideo?.style.removeProperty("transform");
+  els.dialogVideo?.style.removeProperty("opacity");
   els.dialogImage.alt = `${els.dialogTitle.textContent} ${dialogImageIndex + 1}`;
+  if (els.dialogVideo) els.dialogVideo.setAttribute("aria-label", `${els.dialogTitle.textContent} ${dialogImageIndex + 1}`);
   if (entryDirection) {
-    els.dialogImage.style.transition = "none";
-    els.dialogImage.style.transform = `translate3d(${entryDirection * 24}vw, 0, 0)`;
-    els.dialogImage.style.opacity = "0.6";
+    dialogVisual.style.transition = "none";
+    dialogVisual.style.transform = `translate3d(${entryDirection * 24}vw, 0, 0)`;
+    dialogVisual.style.opacity = "0.6";
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        els.dialogImage.style.transition = "transform 190ms cubic-bezier(0.22, 0.78, 0.2, 1), opacity 170ms ease";
-        els.dialogImage.style.transform = "translate3d(0, 0, 0)";
-        els.dialogImage.style.opacity = "1";
+        dialogVisual.style.transition = "transform 190ms cubic-bezier(0.22, 0.78, 0.2, 1), opacity 170ms ease";
+        dialogVisual.style.transform = "translate3d(0, 0, 0)";
+        dialogVisual.style.opacity = "1";
       });
     });
   }
@@ -3777,8 +4106,6 @@ function renderSecretDialogControls(image) {
 }
 
 function bindSecretDialogControls() {
-  // Controls are rendered before showModal() opens the dialog, so checking
-  // dialog.open here prevents every tag/favorite handler from being attached.
   if (!activeSecretDialogItem) return;
   els.dialogNote.querySelector("[data-secret-dialog-favorite]")?.addEventListener("click", () => {
     const current = dialogImages[dialogImageIndex] || {};
@@ -4060,7 +4387,7 @@ function confirmWishDeletion(wish) {
 function getTrashImagePaths(item) {
   const payload = item?.payload || {};
   if (item?.item_type === "photo") {
-    return getPhotoImages(payload).flatMap((image) => [image.image_path, image.thumbnail_path]).filter(Boolean);
+    return getPhotoImages(payload).flatMap(getStoredPhotoMediaPaths);
   }
   if (item?.item_type === "secret") {
     return [
@@ -4079,6 +4406,16 @@ function getTrashImagePaths(item) {
       .filter(Boolean);
   }
   return [];
+}
+
+function getStoredPhotoMediaPaths(image = {}) {
+  return [
+    image.image_path,
+    image.thumbnail_path,
+    image.motion_path,
+    image.poster_path,
+    image.video_path,
+  ].filter(Boolean);
 }
 
 async function loadTrashItems() {
@@ -4190,7 +4527,6 @@ async function deletePhoto(photo, triggerButton = null) {
 
     photos = photos.filter((item) => item.id !== photo.id);
     favoritePhotoIds.delete(photo.id);
-    saveLocalFavoritePhotoIds();
     renderGallery();
     setGlobalStatus("日记已移到回收站，可在设置中恢复。");
     showMiniToast("已移到回收站", { kind: "success" });
@@ -4263,10 +4599,6 @@ function closePhotoDialog() {
     closeMobileDiaryPage();
     return;
   }
-  if (isSecretImageViewerOpen()) {
-    toggleDialogImageFullscreen();
-    return;
-  }
   if (els.dialog?.classList.contains("diary-image-fullscreen")) {
     els.dialog.classList.remove("diary-image-fullscreen");
     resetSecretImageZoom();
@@ -4289,8 +4621,7 @@ function openMobileDiaryImageViewer() {
   activeSecretDialogItem = null;
   dialogImages = getPhotoImages(mobileDiaryPhoto);
   dialogImageIndex = Math.min(Math.max(0, mobileDiaryImageIndex), Math.max(0, dialogImages.length - 1));
-  els.dialog.classList.remove("secret-image-dialog", "mobile-page-dialog", "secret-image-fullscreen");
-  els.dialog.classList.add("no-comments-dialog", "mobile-diary-image-viewer");
+  els.dialog.className = "no-comments-dialog mobile-diary-image-viewer";
   els.dialogTitle.textContent = getDisplayTitle(mobileDiaryPhoto) || "日记图片";
   els.dialogMeta.textContent = `${dialogImageIndex + 1} / ${dialogImages.length}`;
   els.dialogNote.textContent = "";
@@ -4310,6 +4641,11 @@ function closeMobileDiaryImageViewer() {
   mobileDiaryImageIndex = dialogImageIndex;
   els.dialog.removeAttribute("open");
   els.dialog.classList.remove("mobile-diary-image-viewer", "no-comments-dialog");
+  els.dialogImage.hidden = false;
+  if (els.dialogVideo) {
+    stopDiaryMotionVideo(els.dialogVideo);
+    els.dialogVideo.hidden = true;
+  }
   els.dialogImage.style.transform = "";
   els.dialogMedia?.classList.remove("is-zoomed");
   document.body.classList.remove("photo-dialog-open", "mobile-dialog-open");
@@ -4544,9 +4880,12 @@ function renderMobileDiaryPage() {
     <button class="mobile-diary-close" type="button" data-mobile-diary-close aria-label="返回">返回</button>
     <div class="mobile-diary-media">
       <button class="mobile-diary-image-button" type="button" data-mobile-diary-open-image aria-label="放大查看日记图片">
-        <img src="${escapeHtml(image.image_url || "")}" alt="${escapeHtml(getDisplayTitle(photo) || "日记图片")}" />
+        ${getDiaryMediaVideoUrl(image)
+          ? `<video class="mobile-diary-motion" src="${escapeHtml(getDiaryMediaVideoUrl(image))}" poster="${escapeHtml(getDiaryMediaPosterUrl(image))}" autoplay muted loop playsinline preload="metadata" aria-label="${escapeHtml(getDisplayTitle(photo) || "日记视频")}"></video>`
+          : `<img src="${escapeHtml(getDiaryMediaPosterUrl(image))}" alt="${escapeHtml(getDisplayTitle(photo) || "日记图片")}" />`}
+        ${images.length === 1 && isDiaryLiveMedia(image) ? `<span class="live-photo-badge" aria-label="Live Photo">LIVE</span>` : ""}
       </button>
-      ${images.length > 1 ? `<span>${mobileDiaryImageIndex + 1} / ${images.length}</span>` : ""}
+      ${images.length > 1 ? `<span class="mobile-diary-count">${mobileDiaryImageIndex + 1} / ${images.length}</span>` : ""}
     </div>
     ${
       images.length > 1
@@ -4574,9 +4913,9 @@ function renderMobileDiaryPage() {
       ${getDisplayTitle(photo) ? `<h1>${escapeHtml(getDisplayTitle(photo))}</h1>` : ""}
       ${getPlainNote(photo) ? `<p class="mobile-diary-note">${escapeHtml(getPlainNote(photo))}</p>` : ""}
       ${session ? `<div class="mobile-diary-actions" aria-label="日记操作">
-        <button class="mobile-diary-action ${favoritePhotoIds.has(photo.id) ? "is-active" : ""}" type="button" data-mobile-diary-favorite aria-pressed="${favoritePhotoIds.has(photo.id)}">
-          <span class="mobile-diary-action-mark" aria-hidden="true">${favoritePhotoIds.has(photo.id) ? "♥" : "♡"}</span>
-          <span>${favoritePhotoIds.has(photo.id) ? "已收藏" : "收藏"}</span>
+        <button class="mobile-diary-action ${isFavoritePhoto(photo) ? "is-active" : ""}" type="button" data-mobile-diary-favorite aria-pressed="${isFavoritePhoto(photo)}">
+          <span class="mobile-diary-action-mark" aria-hidden="true">${isFavoritePhoto(photo) ? "♥" : "♡"}</span>
+          <span>${isFavoritePhoto(photo) ? "已收藏" : "收藏"}</span>
         </button>
         ${canManageDiary ? `<button class="mobile-diary-action" type="button" data-mobile-diary-edit><span class="mobile-diary-action-mark" aria-hidden="true">编</span><span>编辑</span></button>` : ""}
         ${canAdminCategorize ? `<button class="mobile-diary-action" type="button" data-mobile-diary-admin-category><span class="mobile-diary-action-mark" aria-hidden="true">类</span><span>分类</span></button>` : ""}
@@ -4605,6 +4944,7 @@ function renderMobileDiaryPage() {
       }
     </section>
   `;
+  startDiaryMotionVideo(page.querySelector(".mobile-diary-motion"));
   renderMobileDiaryComments();
 }
 
@@ -4698,7 +5038,6 @@ function beginMobileDiaryBackSwipe(event) {
   try {
     mobileDiaryPage.setPointerCapture(event.pointerId);
   } catch {
-    // Pointer capture is optional on older iOS versions.
   }
 }
 
@@ -4971,38 +5310,6 @@ function openEditPhoto(photo) {
   els.editDialog.showModal();
 }
 
-async function savePhotoEditLegacy(event) {
-  event.preventDefault();
-  if (!cloudDb || !session || !editingPhoto) {
-    els.saveEditStatus.textContent = "请先登录后再编辑。";
-    return;
-  }
-
-  const takenAt = els.editDateInput.value || toDateInputValue(new Date());
-  const title = els.editTitleInput.value.trim();
-  const updates = {
-    title,
-    note: composeDiaryStoredNote(els.editNoteInput.value.trim(), getPhotoImages(editingPhoto)),
-    category: els.editCategoryInput.value,
-    taken_at: takenAt,
-    is_public: els.editPublicInput.value === "true",
-  };
-
-  els.saveEditStatus.textContent = "正在保存...";
-  const { error } = await diaryRepository.update(editingPhoto.id, updates);
-
-  if (error) {
-    els.saveEditStatus.textContent = error.message;
-    return;
-  }
-
-  els.editDialog.close();
-  editingPhoto = null;
-  await loadPhotos();
-  const gainedExp = await awardExperience("diaryEdit");
-  setGlobalStatus(`日记信息已更新。${gainedExp ? ` 修为 +${gainedExp}` : ""}`);
-}
-
 async function savePhotoEdit(event) {
   event.preventDefault();
   if (!cloudDb || !session || !editingPhoto || !editingImages.length) {
@@ -5033,8 +5340,14 @@ async function savePhotoEdit(event) {
       if (!uploaded) throw new Error("替换图片上传失败。");
       nextImages.push(uploaded);
       if (uploaded.image_path) newlyUploadedPaths.push(uploaded.image_path);
+      if (uploaded.motion_path) newlyUploadedPaths.push(uploaded.motion_path);
+      if (uploaded.poster_path) newlyUploadedPaths.push(uploaded.poster_path);
+      if (uploaded.video_path) newlyUploadedPaths.push(uploaded.video_path);
       if (image.image_path) editingRemovedPaths.add(image.image_path);
       if (image.thumbnail_path) editingRemovedPaths.add(image.thumbnail_path);
+      if (image.motion_path) editingRemovedPaths.add(image.motion_path);
+      if (image.poster_path) editingRemovedPaths.add(image.poster_path);
+      if (image.video_path) editingRemovedPaths.add(image.video_path);
     }
 
     const primaryImage = nextImages[0];
@@ -5054,8 +5367,9 @@ async function savePhotoEdit(event) {
     const { error } = await diaryRepository.updateOwned(editingPhoto.id, updates);
     if (error) throw error;
 
+    const nextImagePaths = new Set(nextImages.flatMap(getStoredPhotoMediaPaths));
     const pathsToRemove = [...editingRemovedPaths].filter(
-      (path) => path && !nextImages.some((image) => image.image_path === path)
+      (path) => path && !nextImagePaths.has(path)
     );
     if (pathsToRemove.length) {
       const cleanupError = await cleanupStoredImagePaths(pathsToRemove).then(() => null).catch((error) => error);
@@ -5202,6 +5516,9 @@ async function removeEditingImage(index) {
   if (!confirmed) return;
   if (image.image_path) editingRemovedPaths.add(image.image_path);
   if (image.thumbnail_path) editingRemovedPaths.add(image.thumbnail_path);
+  if (image.motion_path) editingRemovedPaths.add(image.motion_path);
+  if (image.poster_path) editingRemovedPaths.add(image.poster_path);
+  if (image.video_path) editingRemovedPaths.add(image.video_path);
   if (editingPreviewUrls[index]) URL.revokeObjectURL(editingPreviewUrls[index]);
   editingImages.splice(index, 1);
   editingPreviewUrls.splice(index, 1);
@@ -5351,7 +5668,6 @@ function saveCachedAvatarUrl(userId, avatarUrl) {
     if (avatarUrl) localStorage.setItem(key, String(avatarUrl));
     else localStorage.removeItem(key);
   } catch {
-    // Local storage is only a fast offline fallback; cloud profile data remains authoritative.
   }
 }
 
@@ -5471,7 +5787,11 @@ function normalizeUuid(value) {
 function getAuthorName(userId) {
   if (!userId) return "我";
   if (userId === session?.user?.id) return getSessionDisplayName();
-  return familyMemberMap.get(userId)?.username || "其他用户";
+  return (
+    familyMemberMap.get(userId)?.username ||
+    familyLevelProfiles.get(userId)?.username ||
+    "其他用户"
+  );
 }
 
 function getAuthorAvatar(userId) {
@@ -5509,11 +5829,19 @@ document.addEventListener(
 );
 
 function renderAccountAvatar(avatarUrl = "", displayName = getSessionDisplayName()) {
-  const resolvedAvatarUrl = resolveStoredAssetUrl(avatarUrl, accountProfile.avatarPath);
+  const resolvedAvatarUrl =
+    getProfileAvatarUrl({
+      avatar_url: avatarUrl || accountProfile.avatarUrl,
+      avatar_path: accountProfile.avatarPath,
+    }) ||
+    loadCachedAvatarUrl(session?.user?.id);
   const hasAvatar = Boolean(resolvedAvatarUrl);
   els.avatarImage.hidden = !hasAvatar;
   els.avatarInitial.hidden = hasAvatar;
-  if (hasAvatar) els.avatarImage.src = resolvedAvatarUrl;
+  if (hasAvatar) {
+    els.avatarImage.src = resolvedAvatarUrl;
+    if (session?.user?.id) saveCachedAvatarUrl(session.user.id, resolvedAvatarUrl);
+  }
   else els.avatarImage.removeAttribute("src");
   els.avatarInitial.textContent = getInitial(displayName);
 }
@@ -5923,10 +6251,10 @@ async function renderCloudBackups() {
         : "尚未生成自动备份";
     }
     if (!backups.length) {
-      list.innerHTML = '<p class="settings-empty">自动备份将在每天凌晨生成。</p>';
+      list.innerHTML = '<p class="settings-empty">每天凌晨自动生成，保留最近 7 天的备份。</p>';
       return;
     }
-    list.innerHTML = backups.slice(0, 30).map((backup) => `
+    list.innerHTML = backups.slice(0, 7).map((backup) => `
       <button class="cloud-backup-item" type="button" data-backup-key="${escapeHtml(backup.key)}">
         <span>${escapeHtml(String(backup.key).split("/").pop().replace(/^d1-|\.backup$/g, ""))}</span>
         <strong>${formatFileSize(backup.size)}<small>下载解密副本</small></strong>
@@ -5935,6 +6263,8 @@ async function renderCloudBackups() {
       button.addEventListener("click", () => downloadCloudBackup(button.dataset.backupKey));
     });
   } catch (error) {
+    const latest = document.querySelector("#latestBackupStatus");
+    if (latest) latest.textContent = "仅家庭创始人可以查看备份";
     list.innerHTML = `<p class="settings-empty">${escapeHtml(error.message || "仅家庭创始人可以查看自动备份")}</p>`;
   }
 }
@@ -6037,10 +6367,7 @@ function ensureDataSafetyUi() {
     nav.dataset.settingsSection = "settingsSafety";
     nav.setAttribute("aria-selected", "false");
     nav.textContent = "数据安全";
-    nav.addEventListener("click", () => {
-      setActiveSettingsSection("settingsSafety");
-      void renderTrashItems();
-    });
+    nav.addEventListener("click", () => setActiveSettingsSection("settingsSafety"));
     settingsNav.append(nav);
   }
   if (document.querySelector("#settingsSafety")) return;
@@ -6049,12 +6376,16 @@ function ensureDataSafetyUi() {
   group.id = "settingsSafety";
   group.hidden = true;
   group.innerHTML = `
-    <p class="kicker">Recycle Bin</p><h3>回收站</h3>
+    <p class="kicker">Backup & Recycle Bin</p><h3>数据安全</h3>
+    <div class="trash-head"><div><strong>每日云端备份</strong><small>每天凌晨 03:20（日本时间）生成 1 份，自动保留最近 7 天</small><em id="latestBackupStatus">正在读取最近备份…</em></div><div class="backup-head-actions"><button type="button" data-refresh-backups aria-label="刷新备份">↻</button><button type="button" data-create-backup>立即备份</button></div></div>
+    <div class="cloud-backup-list" id="cloudBackupList"></div>
     <button id="backfillThumbnailsButton" type="button"><span>优化旧图片</span><strong>每次为最多 20 张旧图生成列表缩略图</strong></button>
     <div class="trash-head"><div><strong>最近删除</strong><small>日记、秘藏、菜谱、心愿、周末计划、纪念日和留言保留 30 天</small></div><button type="button" data-refresh-trash aria-label="刷新回收站">↻</button></div>
     <div class="trash-items" id="trashItemsList"></div>`;
   content.append(group);
   group.querySelector("#backfillThumbnailsButton").addEventListener("click", backfillLegacyThumbnails);
+  group.querySelector("[data-refresh-backups]").addEventListener("click", renderCloudBackups);
+  group.querySelector("[data-create-backup]").addEventListener("click", createCloudBackupNow);
   group.querySelector("[data-refresh-trash]").addEventListener("click", renderTrashItems);
 }
 
@@ -6307,7 +6638,11 @@ async function loadFamilyContext() {
 
   familyMembers = membersResult.data || [];
   familyInvitations = invitationsResult.data || [];
-  familyMembers.forEach((member) => familyMemberMap.set(member.user_id, member));
+  familyMembers.forEach((member) => {
+    familyMemberMap.set(member.user_id, member);
+    const avatarUrl = getProfileAvatarUrl(member);
+    if (avatarUrl) saveCachedAvatarUrl(member.user_id, avatarUrl);
+  });
   const ownMember = familyMemberMap.get(session.user.id);
   const ownMemberAvatar = getProfileAvatarUrl(ownMember || {});
   if (ownMemberAvatar) {
@@ -6427,8 +6762,6 @@ async function synchronizeAccountData() {
       if (firstError) throw firstError;
       if (!session || session.user.id !== userId) return;
 
-      const localRecipes = loadRecipes();
-      const localWishes = loadWishes();
       const localRecharge = loadRechargeTotal(displayName);
       const localExperience = loadLocalExperienceAliases(displayName);
       const localFoodOptions = loadFoodOptions(userId);
@@ -6447,7 +6780,7 @@ async function synchronizeAccountData() {
             experience_total: localExperience.total,
             last_login_date: localExperience.lastLoginDate || null,
             login_streak: Math.max(0, Number(localExperience.loginStreak) || 0),
-            secret_default_folder_id: "unfiled",
+            secret_default_folder_id: null,
           },
           { select: "*", single: true }
         );
@@ -6455,7 +6788,8 @@ async function synchronizeAccountData() {
         profile = data;
       }
 
-      secretDefaultFolderId = String(profile.secret_default_folder_id || "unfiled");
+      secretDefaultFolderId = String(profile.secret_default_folder_id || "");
+      if (secretDefaultFolderId === "unfiled") secretDefaultFolderId = "";
 
       const loginName = normalizeNickname(getSessionLoginName());
       const sessionDisplayName = normalizeNickname(getSessionDisplayName());
@@ -6469,61 +6803,12 @@ async function synchronizeAccountData() {
         updateSessionDisplayName(preferredDisplayName);
       }
 
-      let cloudRecipes = recipesResult.data || [];
-      let cloudWishes = wishesResult.data || [];
-      const needsLocalMigration = !profile.local_data_migrated;
-
-      if (needsLocalMigration) {
-        const personalLocalRecipes = localRecipes.filter(
-          (recipe) => !recipe.userId || recipe.userId === userId
-        );
-        const personalLocalWishes = localWishes.filter(
-          (wish) => !wish.userId || wish.userId === userId
-        );
-        if (personalLocalRecipes.length) {
-          const rows = personalLocalRecipes.map((recipe) => recipeToCloudRow(recipe, userId));
-          const { error } = await householdRepository.upsert("recipes", rows, {
-            onConflict: "id",
-          });
-          if (error) throw error;
-        }
-        if (personalLocalWishes.length) {
-          const rows = personalLocalWishes.map((wish) => wishToCloudRow(wish, userId));
-          let { error } = await householdRepository.upsert("wishes", rows, {
-            onConflict: "id",
-          });
-          if (error && isMissingCloudSchema(error)) {
-            wishCompletionNoteCloudAvailable = false;
-            const legacyRows = personalLocalWishes.map((wish) =>
-              wishToLegacyCloudRow(wish, userId)
-            );
-            const retry = await householdRepository.upsert("wishes", legacyRows, {
-              onConflict: "id",
-            });
-            error = retry.error;
-          }
-          if (error) throw error;
-        }
-
-        const [migratedRecipes, migratedWishes] = await Promise.all([
-          householdRepository.list("recipes", {
-            order: [{ column: "created_at", ascending: false }],
-          }),
-          householdRepository.list("wishes", {
-            order: [{ column: "created_at", ascending: false }],
-          }),
-        ]);
-        if (migratedRecipes.error || migratedWishes.error) {
-          throw migratedRecipes.error || migratedWishes.error;
-        }
-        cloudRecipes = migratedRecipes.data || [];
-        cloudWishes = migratedWishes.data || [];
-      }
+      const cloudRecipes = recipesResult.data || [];
+      const cloudWishes = wishesResult.data || [];
 
       const today = getLocalDateKey();
       let rechargeTotal = Math.max(
         Number(profile.recharge_total) || 0,
-        needsLocalMigration ? localRecharge : 0,
         isVipUser(displayName) ? 298 : 0
       );
       let experienceTotal = Math.max(
@@ -6599,10 +6884,9 @@ async function synchronizeAccountData() {
         vip_level: vipLevel,
         experience_total: experienceTotal,
         last_login_date: lastLoginDate,
-        local_data_migrated: true,
         today_experience_date: todayExperienceDate,
         today_experience_amount: todayExperienceAmount,
-        secret_default_folder_id: secretDefaultFolderId || "unfiled",
+        secret_default_folder_id: secretDefaultFolderId || null,
         updated_at: new Date().toISOString(),
       };
       profileUpdates.login_streak = loginStreak;
@@ -6645,13 +6929,8 @@ async function synchronizeAccountData() {
       const syncedAvatarPath = syncedAvatarProfile.avatar_path;
       if (syncedAvatarUrl) saveCachedAvatarUrl(userId, syncedAvatarUrl);
 
-      if (cloudWishes.length) {
-        wishCompletionNoteCloudAvailable = Object.prototype.hasOwnProperty.call(
-          cloudWishes[0],
-          "completion_note"
-        );
-      }
       cloudSyncAvailable = true;
+      accountDataState = "ready";
       accountProfile = {
         rechargeTotal: Number(savedProfile.recharge_total) || 0,
         vipLevel: Number(savedProfile.vip_level) || 0,
@@ -6698,7 +6977,6 @@ async function synchronizeAccountData() {
         JSON.stringify({ date: accountProfile.todayExperienceDate, amount: accountProfile.todayExperienceAmount })
       );
       saveRecipes();
-      saveWishes();
       saveFoodOptionsCache(userId);
 
       activeVipLevel = accountProfile.vipLevel;
@@ -6720,8 +6998,11 @@ async function synchronizeAccountData() {
       await loadSecretItems();
       await loadNotifications();
       updateCloudSyncStatus();
+      void refreshStorage(cloudflareRequest, () => Boolean(session && isAdminAccount()));
     } catch (error) {
       cloudSyncAvailable = false;
+      accountDataState = "error";
+      renderWishes();
       awardDailyExperience(displayName);
       renderExperience(displayName);
       if (isMissingCloudSchema(error)) {
@@ -6751,7 +7032,6 @@ function updateCloudSyncStatus() {
   if (!foodOptionsCloudAvailable) missing.push("转盘候选");
   if (!profilePreferencesCloudAvailable) missing.push("主题/主页名称");
   if (!thanksColorCloudAvailable) missing.push("留言颜色");
-  if (!wishCompletionNoteCloudAvailable) missing.push("心愿完成感想");
   if (!secretCloudAvailable) missing.push("秘藏");
   setGlobalStatus(
     missing.length
@@ -6971,9 +7251,7 @@ function loadLocalExperienceAliases(displayName = getSessionDisplayName()) {
       result.loginStreak = Math.max(result.loginStreak, Number(parsed.loginStreak) || 0);
       if (lastLoginDate > result.lastLoginDate) result.lastLoginDate = lastLoginDate;
       result.gainedToday = result.gainedToday || Boolean(parsed.gainedToday);
-    } catch {
-      // Ignore malformed local snapshots and keep the usable records.
-    }
+    } catch {}
   }
 
   return result;
@@ -7110,11 +7388,16 @@ function getLevelRankProfiles() {
   const profiles = new Map([[ownProfile.user_id, ownProfile]]);
   familyMembers.forEach((member) => {
     const cloudProfile = familyLevelProfiles.get(member.user_id) || {};
-    const cachedAvatarUrl = loadCachedAvatarUrl(member.user_id);
-    const memberAvatarUrl =
-      getProfileAvatarUrl({ ...member, ...cloudProfile }) || cachedAvatarUrl;
-    profiles.set(member.user_id, {
+    const mergedProfile = {
       ...member,
+      ...cloudProfile,
+      avatar_url: cloudProfile.avatar_url || cloudProfile.avatarUrl || member.avatar_url || member.avatarUrl || "",
+      avatar_path: cloudProfile.avatar_path || cloudProfile.avatarPath || member.avatar_path || member.avatarPath || "",
+    };
+    const cachedAvatarUrl = loadCachedAvatarUrl(member.user_id);
+    const memberAvatarUrl = getProfileAvatarUrl(mergedProfile) || cachedAvatarUrl;
+    profiles.set(member.user_id, {
+      ...mergedProfile,
       username: cloudProfile.username || member.username || "家庭成员",
       avatar_url:
         memberAvatarUrl ||
@@ -7149,7 +7432,17 @@ async function loadFamilyLevelProfiles() {
       return [userId, { ...data, avatar_url: avatarUrl }];
     })
   );
-  familyLevelProfiles = new Map(entries.filter(Boolean));
+  const profileMap = new Map(familyMembers.map((member) => [member.user_id, { ...member }]));
+  entries.filter(Boolean).forEach(([userId, profile]) => {
+    const existing = profileMap.get(userId) || {};
+    profileMap.set(userId, {
+      ...existing,
+      ...profile,
+      avatar_url: profile.avatar_url || profile.avatarUrl || existing.avatar_url || existing.avatarUrl || "",
+      avatar_path: profile.avatar_path || profile.avatarPath || existing.avatar_path || existing.avatarPath || "",
+    });
+  });
+  familyLevelProfiles = profileMap;
 }
 
 function renderLevelLeaderboard() {
@@ -7160,11 +7453,12 @@ function renderLevelLeaderboard() {
       ${ranks
         .map((profile, index) => {
           const isCurrent = profile.user_id === session?.user?.id;
+          const avatarUrl = getProfileAvatarUrl(profile) || loadCachedAvatarUrl(profile.user_id);
           return `
             <article class="level-rank-row ${isCurrent ? "current" : ""}">
               <span class="level-rank-index">${index + 1}</span>
-              ${profile.avatar_url
-                ? `<span class="level-rank-avatar" data-avatar-fallback="${escapeHtml(getInitial(profile.username))}"><img src="${escapeHtml(profile.avatar_url)}" alt="${escapeHtml(profile.username)}的头像" decoding="async" /></span>`
+              ${avatarUrl
+                ? `<span class="level-rank-avatar" data-avatar-fallback="${escapeHtml(getInitial(profile.username))}"><img src="${escapeHtml(avatarUrl)}" alt="${escapeHtml(profile.username)}的头像" decoding="async" /></span>`
                 : `<span class="level-rank-avatar">${escapeHtml(getInitial(profile.username))}</span>`}
               <div>
                 <strong>${escapeHtml(profile.username || "家庭成员")}${isCurrent ? "（我）" : ""}</strong>
@@ -7801,35 +8095,90 @@ async function restoreDefaultHomeName() {
 function initializePhotoDropHint() {
   const hint = els.photoDrop?.querySelector("[for='photoInput']");
   if (!hint) return;
-  els.fileName.textContent = "展开后直接粘贴图片，或点上面选择";
+  els.fileName.textContent = "展开后直接粘贴图片，或选择图片 / Live Photo 照片";
+}
+
+function logDiaryInputFiles(source, files) {
+  const rows = Array.from(files || []).map((file) => ({
+    source,
+    name: file.name || "",
+    type: file.type || "(browser did not provide a MIME type)",
+    size: file.size || 0,
+    lastModified: file.lastModified || 0,
+  }));
+  console.info(`[Diary upload] ${source}: ${rows.length} file(s)`, rows);
+  if (typeof console.table === "function") console.table(rows);
+  if (
+    source === "照片 / Live Photo 入口" &&
+    rows.length &&
+    files.some(isDiaryUploadStillFile) &&
+    !files.some(isDiaryUploadMotionFile)
+  ) {
+    console.warn("LIVE_PHOTO_MOTION_NOT_PROVIDED_BY_BROWSER", {
+      source,
+      files: rows,
+      action: "saved as static image until a paired movie file is supplied",
+    });
+  }
 }
 
 function updatePhotoPreview() {
   const files = selectedUploadFiles;
-  const media = [
-    ...files.map((file) => ({ file, label: file.name })),
-    ...selectedUploadLinks.map((url) => ({ url, label: "图片链接" })),
-  ];
-  if (!media.length) {
+  const { pairing, items } = getDiaryUploadPreviewItems(files);
+  if (!items.length) {
     clearPhotoPreview();
     return;
   }
 
   revokePreviewUrls();
   const imageLimit = getCurrentImageLimit();
-  if (media.length > imageLimit) {
+  const uploadCount = getDiaryUploadEntryCount(pairing) + selectedUploadLinks.length;
+  if (pairing.unsupportedFiles.length) {
+    setStatus("只支持图片和视频文件。");
+  } else if (pairing.videoFiles.length) {
+    setStatus(
+      pairing.entries.some((entry) => entry.motionFile)
+        ? `已配对 ${pairing.entries.filter((entry) => entry.motionFile).length} 个 Live Photo，另有 ${pairing.videoFiles.length} 个普通视频。`
+        : `已读取 ${pairing.videoFiles.length} 个普通视频；只有与照片配对成功时才会按 Live Photo 保存。`
+    );
+  } else if (
+    pairing.motionFiles.length === 0 &&
+    files.some((file) => /\.(heic|heif)$/i.test(file?.name || ""))
+  ) {
+    setStatus("当前只读取到静态 HEIC；要保留 Live 动态，请再补充同一张照片的 .MOV 文件。");
+  } else if (pairing.motionFiles.length === 0 && pairing.entries.length) {
+    setStatus("当前文件列表只有照片；如果这是 Live Photo，请点击“添加视频”补充同一组 MOV，成功配对后才会动。");
+  } else if (uploadCount > imageLimit) {
     setStatus(`当前 VIP 等级单篇最多 ${imageLimit} 张图。`);
   } else {
-    setStatus(media.length > 1 ? `将发布为 1 篇合集，共 ${media.length} 张图。` : "");
+    setStatus(uploadCount > 1 ? `将发布为 1 篇合集，共 ${uploadCount} 张图。` : "");
   }
   syncPhotoInputFiles();
-  previewUrls = media.map((item) => item.file ? URL.createObjectURL(item.file) : item.url);
-  activeUploadPreviewIndex = Math.min(activeUploadPreviewIndex, media.length - 1);
-  els.photoPreview.src = previewUrls[activeUploadPreviewIndex];
+  previewUrls = items.map((item) => item.file ? URL.createObjectURL(item.file) : item.url);
+  activeUploadPreviewIndex = Math.min(activeUploadPreviewIndex, items.length - 1);
+  showUploadPreviewItem(items[activeUploadPreviewIndex], previewUrls[activeUploadPreviewIndex]);
   els.uploadMainPreview.hidden = false;
   els.fileName.textContent =
-    media.length > 1 ? `已选择 ${media.length} 张图片` : media[0].label;
-  renderPreviewStrip(media, previewUrls);
+    uploadCount > 1 ? `已选择 ${uploadCount} 个媒体` : items[0].label;
+  renderPreviewStrip(items, previewUrls);
+}
+
+function showUploadPreviewItem(item, url) {
+  const isVideo = item?.kind === "video";
+  if (els.photoPreview) {
+    els.photoPreview.hidden = isVideo;
+    if (isVideo) els.photoPreview.removeAttribute("src");
+    else els.photoPreview.src = url || "";
+  }
+  if (!els.photoVideoPreview) return;
+  els.photoVideoPreview.pause();
+  els.photoVideoPreview.hidden = !isVideo;
+  if (!isVideo) {
+    els.photoVideoPreview.removeAttribute("src");
+    return;
+  }
+  els.photoVideoPreview.src = url || "";
+  els.photoVideoPreview.load();
 }
 
 function handlePasteUpload(event) {
@@ -7879,14 +8228,21 @@ function clearPhotoPreview() {
   selectedUploadFiles = [];
   selectedUploadLinks = [];
   els.photoInput.value = "";
+  if (els.photoMotionInput) els.photoMotionInput.value = "";
   if (els.photoLinkInput) els.photoLinkInput.value = "";
 
   activeUploadPreviewIndex = 0;
   els.photoPreview.removeAttribute("src");
+  els.photoPreview.hidden = false;
+  if (els.photoVideoPreview) {
+    els.photoVideoPreview.pause();
+    els.photoVideoPreview.removeAttribute("src");
+    els.photoVideoPreview.hidden = true;
+  }
   els.uploadMainPreview.hidden = true;
   els.previewStrip.innerHTML = "";
   els.previewStrip.hidden = true;
-  els.fileName.textContent = "展开后直接粘贴图片，或点上面选择";
+  els.fileName.textContent = "展开后直接粘贴图片，或选择图片 / Live Photo 照片";
 }
 
 function revokePreviewUrls() {
@@ -7911,7 +8267,10 @@ function renderPreviewStrip(files, urls) {
     .map(
       (url, index) => `
         <span class="preview-thumb" data-preview-index="${index}" role="button" tabindex="0" aria-label="预览第 ${index + 1} 张">
-          <img src="${url}" alt="" />
+          ${files[index]?.kind === "video"
+            ? `<video src="${escapeHtml(url)}" muted playsinline preload="metadata" aria-hidden="true"></video>`
+            : `<img src="${escapeHtml(url)}" alt="" />`}
+          ${files[index]?.kind === "live" ? `<small class="preview-live-badge">LIVE</small>` : ""}
           <button class="preview-remove" type="button" data-remove-preview="${index}" aria-label="删除第 ${index + 1} 张">×</button>
         </span>
       `
@@ -7924,7 +8283,7 @@ function renderPreviewStrip(files, urls) {
       event.preventDefault();
       const index = Number(thumb.dataset.previewIndex);
       activeUploadPreviewIndex = index;
-      els.photoPreview.src = urls[index];
+      showUploadPreviewItem(files[index], urls[index]);
     };
     thumb.addEventListener("click", showPreview);
     thumb.addEventListener("keydown", (event) => {
@@ -7934,13 +8293,15 @@ function renderPreviewStrip(files, urls) {
 }
 
 function removeUploadPreview(index) {
-  const total = selectedUploadFiles.length + selectedUploadLinks.length;
+  const { items } = getDiaryUploadPreviewItems(selectedUploadFiles);
+  const total = items.length;
   if (index < 0 || index >= total) return;
-  if (index < selectedUploadFiles.length) {
-    selectedUploadFiles = selectedUploadFiles.filter((_, itemIndex) => itemIndex !== index);
+  const item = items[index];
+  if (item.kind === "link") {
+    selectedUploadLinks = selectedUploadLinks.filter((url) => url !== item.url);
   } else {
-    const linkIndex = index - selectedUploadFiles.length;
-    selectedUploadLinks = selectedUploadLinks.filter((_, itemIndex) => itemIndex !== linkIndex);
+    const filesToRemove = new Set(item.files || []);
+    selectedUploadFiles = selectedUploadFiles.filter((file) => !filesToRemove.has(file));
   }
   const nextTotal = selectedUploadFiles.length + selectedUploadLinks.length;
   activeUploadPreviewIndex = Math.max(0, Math.min(activeUploadPreviewIndex, nextTotal - 1));
@@ -7962,18 +8323,20 @@ function getSecretUnlockStorageKey() {
 }
 
 function getSecretDefaultFolderId() {
-  return session ? secretDefaultFolderId || "unfiled" : "unfiled";
+  return session ? secretDefaultFolderId || SECRET_ALL_FOLDER_ID : SECRET_ALL_FOLDER_ID;
 }
 
 async function setSecretDefaultFolderId(folderId) {
   if (!session) return;
-  const nextFolderId = folderId || "unfiled";
+  const nextFolderId = folderId && ![SECRET_ALL_FOLDER_ID, SECRET_FAVORITES_FOLDER_ID].includes(folderId)
+    ? folderId
+    : "";
   secretDefaultFolderId = nextFolderId;
   renderSecretFolderControls();
   try {
     const { error } = await householdRepository.update(
       "user_profiles",
-      { secret_default_folder_id: nextFolderId },
+      { secret_default_folder_id: nextFolderId || null },
       { user_id: session.user.id }
     );
     if (error) throw error;
@@ -8200,6 +8563,8 @@ function switchPage(page, { skipSecretGate = false } = {}) {
     openSecretPinDialog();
     return false;
   }
+  if (activePage === "gallery" && requestedPage !== "gallery") setUploadExpanded(false);
+  if (requestedPage !== "gallery") vlogMode.close();
   const enteringSecret = activePage !== "secret" && requestedPage === "secret";
   if (activePage === "secret" && requestedPage !== "secret") markSecretLeft();
   closeMobileDiaryPage();
@@ -8216,7 +8581,8 @@ function switchPage(page, { skipSecretGate = false } = {}) {
   const showWardrobe = activePage === "wardrobe";
   const showThanks = activePage === "thanks";
   const showSecret = activePage === "secret";
-  els.galleryNav.classList.toggle("active", activePage === "gallery");
+  els.galleryNav.classList.toggle("active", activePage === "gallery" && activeFilter !== "VLOG");
+  els.vlogNav?.classList.toggle("active", activePage === "gallery" && activeFilter === "VLOG");
   els.recipesNav?.classList.toggle("active", showRecipes);
   els.wishlistNav.classList.toggle("active", showWishlist);
   els.weekendNav.classList.toggle("active", showWeekend);
@@ -8286,7 +8652,7 @@ function renderOverview() {
 
 function getMemoryPhotos() {
   if (!session) return [];
-  return photos.filter((photo) => photo?.image_url || getPhotoImages(photo).length);
+  return photos.filter((photo) => photo.category !== "VLOG" && (photo?.image_url || getPhotoImages(photo).length));
 }
 
 function openRandomMemory() {
@@ -8455,7 +8821,7 @@ function closeSecretAlbumContextMenu() {
 }
 
 function openSecretFolderContextMenu(folder, clientX, clientY) {
-  if (!folder || isMobileViewport()) return;
+  if (!folder || folder.virtual || isMobileViewport()) return;
   closeSecretFolderContextMenu();
   closeSecretAlbumContextMenu();
   const currentDefaultId = getSecretDefaultFolderId();
@@ -8464,9 +8830,10 @@ function openSecretFolderContextMenu(folder, clientX, clientY) {
   menu.setAttribute("role", "menu");
   menu.innerHTML = `
     <span>${escapeHtml(folder.name)}</span>
-    <button type="button" role="menuitem" ${currentDefaultId === folder.id ? "disabled" : ""}>
+    <button type="button" role="menuitem" data-secret-folder-default ${currentDefaultId === folder.id ? "disabled" : ""}>
       ${currentDefaultId === folder.id ? "当前默认入口" : "设为默认入口"}
     </button>
+    <button class="danger" type="button" role="menuitem" data-secret-folder-delete>删除文件夹</button>
   `;
   document.body.append(menu);
   const rect = menu.getBoundingClientRect();
@@ -8479,10 +8846,14 @@ function openSecretFolderContextMenu(folder, clientX, clientY) {
   document.addEventListener("pointerdown", closeOnOutside, true);
   window.addEventListener("resize", closeSecretFolderContextMenu);
   window.addEventListener("scroll", closeSecretFolderContextMenu, true);
-  menu.querySelector("button")?.addEventListener("click", () => {
+  menu.querySelector("[data-secret-folder-default]")?.addEventListener("click", () => {
     void setSecretDefaultFolderId(folder.id);
     closeSecretFolderContextMenu();
     showMiniToast(`以后进入秘藏会先打开「${folder.name}」`, { kind: "success" });
+  });
+  menu.querySelector("[data-secret-folder-delete]")?.addEventListener("click", async () => {
+    closeSecretFolderContextMenu();
+    await deleteSecretFolder(folder);
   });
 }
 
@@ -8517,8 +8888,13 @@ function openSecretAlbumContextMenu(item, clientX, clientY) {
 function renderSecretFolderControls() {
   if (!els.secretFolderList) return;
   const defaultFolderId = getSecretDefaultFolderId();
+  const favoriteCount = secretItems.reduce(
+    (total, item) => total + normalizeSecretImages(item.images).filter((image) => image.favorite).length,
+    0
+  );
   const folderButtons = [
-    { id: "unfiled", name: "默认文件夹", count: secretItems.filter((item) => !item.folderId).length },
+    { id: SECRET_ALL_FOLDER_ID, name: "全部相册", count: secretItems.length, virtual: true, isAll: true },
+    { id: SECRET_FAVORITES_FOLDER_ID, name: "收藏夹", count: favoriteCount, virtual: true, isFavorites: true },
     ...secretFolders.map((folder) => ({
       id: folder.id,
       name: folder.name,
@@ -8527,24 +8903,25 @@ function renderSecretFolderControls() {
   ];
   els.secretFolderList.hidden = Boolean(activeSecretAlbumId);
   els.secretFolderList.innerHTML = folderButtons.map((folder) => `
-    <button class="${activeSecretFolderId === folder.id ? "active" : ""} ${defaultFolderId === folder.id ? "is-default" : ""}" type="button" data-secret-folder="${escapeHtml(folder.id)}" title="右键可设为秘藏默认入口">
+    <button class="${activeSecretFolderId === folder.id ? "active" : ""} ${!folder.virtual && defaultFolderId === folder.id ? "is-default" : ""} ${folder.isFavorites ? "is-favorites" : ""} ${folder.isAll ? "is-all" : ""}" type="button" data-secret-folder="${escapeHtml(folder.id)}" title="${folder.virtual ? (folder.isFavorites ? "查看所有已收藏照片" : "查看全部相册") : "右键可设为秘藏默认入口或删除文件夹"}">
       <i class="secret-folder-glyph" aria-hidden="true"></i>
-      <span><strong>${escapeHtml(folder.name)}</strong><small>${folder.count} 个相册${defaultFolderId === folder.id ? " · 默认入口" : ""}</small></span>
+      <span><strong>${escapeHtml(folder.name)}</strong><small>${folder.isFavorites ? `${folder.count} 张照片` : `${folder.count} 个相册${!folder.virtual && defaultFolderId === folder.id ? " · 默认入口" : ""}`}</small></span>
     </button>
   `).join("");
   els.secretFolderList.querySelectorAll("[data-secret-folder]").forEach((button) => {
     button.addEventListener("click", () => {
-      activeSecretFolderId = button.dataset.secretFolder || "unfiled";
+      activeSecretFolderId = button.dataset.secretFolder || SECRET_ALL_FOLDER_ID;
       renderSecretGallery();
     });
     button.addEventListener("contextmenu", (event) => {
+      const folder = folderButtons.find((entry) => entry.id === (button.dataset.secretFolder || SECRET_ALL_FOLDER_ID));
+      if (folder?.virtual) return;
       event.preventDefault();
-      const folder = folderButtons.find((entry) => entry.id === (button.dataset.secretFolder || "unfiled"));
       openSecretFolderContextMenu(folder, event.clientX, event.clientY);
     });
   });
   if (els.secretFolderInput) {
-    els.secretFolderInput.innerHTML = `<option value="">默认文件夹</option>${secretFolders
+    els.secretFolderInput.innerHTML = `<option value="">不放入文件夹</option>${secretFolders
       .map((folder) => `<option value="${escapeHtml(folder.id)}">${escapeHtml(folder.name)}</option>`)
       .join("")}`;
   }
@@ -8611,15 +8988,15 @@ async function renameActiveSecretFolder() {
   showMiniToast("收藏夹名称已更新", { kind: "success" });
 }
 
-async function deleteActiveSecretFolder() {
-  const folder = secretFolders.find((entry) => entry.id === activeSecretFolderId);
+async function deleteSecretFolder(folder) {
   if (!folder || !cloudDb || !session) return;
+  const wasActive = activeSecretFolderId === folder.id;
   const albums = secretItems.filter((item) => item.folderId === folder.id);
   const confirmed = await confirmAction({
     eyebrow: "整理收藏夹",
     title: `删除「${folder.name}」？`,
     message: albums.length
-      ? `其中 ${albums.length} 个相册会移回默认文件夹，照片不会被删除。`
+      ? `其中 ${albums.length} 个相册会移回全部相册，照片不会被删除。`
       : "这个空收藏夹会被删除，照片和相册不会受到影响。",
     confirmLabel: "删除收藏夹",
     cancelLabel: "保留",
@@ -8647,13 +9024,18 @@ async function deleteActiveSecretFolder() {
   }
   secretFolders = secretFolders.filter((entry) => entry.id !== folder.id);
   if (getSecretDefaultFolderId() === folder.id) {
-    void setSecretDefaultFolderId("unfiled");
+    await setSecretDefaultFolderId("");
   }
-  activeSecretFolderId = "unfiled";
+  if (wasActive) activeSecretFolderId = SECRET_ALL_FOLDER_ID;
   saveSecretItemsCache(session.user.id);
   renderSecretGallery();
   setSecretStatus("");
-  showMiniToast("收藏夹已删除，相册已移回默认文件夹", { kind: "success" });
+  showMiniToast("文件夹已删除，相册已移回全部相册", { kind: "success" });
+}
+
+function deleteActiveSecretFolder() {
+  const folder = secretFolders.find((entry) => entry.id === activeSecretFolderId);
+  return deleteSecretFolder(folder);
 }
 
 function requestSecretFolderName({ value = "", title = "新建文件夹", confirmLabel = "创建" } = {}) {
@@ -8780,11 +9162,21 @@ async function loadSecretItemsInternal() {
     secretCloudAvailable = true;
     secretItems = sortSecretItems((itemsResponse.data || []).map(secretFromCloudRow));
     secretFolders = (foldersResponse.data || []).map(secretFolderFromCloudRow);
-    const validFolderIds = new Set(["unfiled", ...secretFolders.map((folder) => folder.id)]);
+    const validFolderIds = new Set([
+      SECRET_ALL_FOLDER_ID,
+      SECRET_FAVORITES_FOLDER_ID,
+      ...secretFolders.map((folder) => folder.id),
+    ]);
+    const storedDefaultFolderId = secretDefaultFolderId;
+    const validDefaultFolderId = secretFolders.some((folder) => folder.id === storedDefaultFolderId)
+      ? storedDefaultFolderId
+      : "";
+    if (storedDefaultFolderId !== validDefaultFolderId) {
+      await setSecretDefaultFolderId(validDefaultFolderId);
+    }
     if (!activeSecretAlbumId && !validFolderIds.has(activeSecretFolderId)) {
       const defaultFolderId = getSecretDefaultFolderId();
-      activeSecretFolderId = validFolderIds.has(defaultFolderId) ? defaultFolderId : "unfiled";
-      if (!validFolderIds.has(defaultFolderId)) void setSecretDefaultFolderId("unfiled");
+      activeSecretFolderId = validFolderIds.has(defaultFolderId) ? defaultFolderId : SECRET_ALL_FOLDER_ID;
     }
     lastSecretSyncAt = Date.now();
     saveSecretItemsCache(session.user.id);
@@ -8986,7 +9378,11 @@ async function saveSecretItem(event) {
     const now = new Date().toISOString();
     const item = {
       id: crypto.randomUUID(),
-      folderId: els.secretFolderInput?.value || (activeSecretFolderId !== "unfiled" ? activeSecretFolderId : ""),
+      folderId: els.secretFolderInput?.value || (
+        ![SECRET_ALL_FOLDER_ID, SECRET_FAVORITES_FOLDER_ID].includes(activeSecretFolderId)
+          ? activeSecretFolderId
+          : ""
+      ),
       title: els.secretTitleInput.value.trim(),
       category: els.secretCategoryInput.value.trim() || "未分类",
       note: els.secretNoteInput.value.trim(),
@@ -9017,6 +9413,80 @@ async function saveSecretItem(event) {
     dismissMiniToast(loadingToast);
     els.secretSubmitButton.disabled = false;
   }
+}
+
+function getSecretFavoriteEntries() {
+  const query = secretSearchQuery.trim().toLocaleLowerCase("zh-CN");
+  const entries = [];
+  sortSecretItems(secretItems).forEach((item) => {
+    const favoriteImages = sortSecretDisplayEntries(
+      normalizeSecretImages(item.images)
+        .map((image, index) => ({ image, index }))
+        .filter(({ image }) => image.favorite),
+      item
+    );
+    const favoriteImageList = favoriteImages.map(({ image }) => image);
+    favoriteImages.forEach(({ image, index }, favoriteIndex) => {
+      if (query) {
+        const albumText = `${item.title || ""} ${item.note || ""}`.toLocaleLowerCase("zh-CN");
+        const imageText = normalizeSecretPhotoTags(image)
+          .join(" ")
+          .toLocaleLowerCase("zh-CN");
+        if (!albumText.includes(query) && !imageText.includes(query)) return;
+      }
+      entries.push({
+        item,
+        image,
+        index,
+        favoriteIndex,
+        favoriteImages: favoriteImageList,
+      });
+    });
+  });
+  return entries;
+}
+
+function renderSecretFavoritesView() {
+  const entries = getSecretFavoriteEntries();
+  const albumCount = new Set(entries.map(({ item }) => item.id)).size;
+  activeSecretFilter = "全部";
+  els.secretFilters.hidden = true;
+  els.secretFilters.innerHTML = "";
+  els.secretGallery.innerHTML = `
+    <section class="secret-favorites-view">
+      <header class="secret-collection-header">
+        <div>
+          <p class="kicker">FAVORITES</p>
+          <h3>收藏夹</h3>
+          <p>${entries.length ? `${entries.length} 张照片 · 来自 ${albumCount} 个相册` : "还没有收藏照片，点开照片后选择收藏即可"}</p>
+        </div>
+      </header>
+      ${entries.length
+        ? `<div class="secret-album-grid secret-favorites-grid">
+            ${entries.map(({ item, image }, index) => `
+              <button class="secret-album-photo" type="button" data-secret-favorite-photo="${index}">
+                <img class="secret-progressive-image" src="${escapeHtml(image.thumbnail_url || image.image_url)}" data-full-src="${escapeHtml(image.image_url)}" alt="${escapeHtml(item.title || "收藏照片")}" loading="lazy" decoding="async" />
+                <small class="secret-photo-tag">${escapeHtml(item.title || "未命名相册")} · ${escapeHtml(normalizeSecretPhotoTags(image).slice(0, 2).join(" · "))}</small>
+                <strong class="secret-photo-favorite">♥</strong>
+              </button>
+            `).join("")}
+          </div>`
+        : `<div class="empty">收藏后，照片会自动出现在这里。</div>`}
+    </section>
+  `;
+  prepareFeedImages(els.secretGallery);
+  els.secretGallery.querySelectorAll("[data-secret-favorite-photo]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const entry = entries[Number(button.dataset.secretFavoritePhoto)];
+      if (!entry) return;
+      openSecretItem(entry.item, entry.favoriteIndex, {
+        images: entry.favoriteImages,
+        returnImageUrl: entry.image.image_url,
+        returnElementTop: button.getBoundingClientRect().top,
+        triggerElement: button,
+      });
+    });
+  });
 }
 
 function renderSecretGallery() {
@@ -9075,14 +9545,19 @@ function renderSecretGallery() {
     return;
   }
 
+  if (activeSecretFolderId === SECRET_FAVORITES_FOLDER_ID) {
+    renderSecretFavoritesView();
+    return;
+  }
+
   activeSecretFilter = "全部";
   els.secretFilters.hidden = true;
   els.secretFilters.innerHTML = "";
   const activeFolder = secretFolders.find((folder) => folder.id === activeSecretFolderId);
-  const activeFolderName = activeFolder?.name || "默认文件夹";
+  const activeFolderName = activeFolder?.name || "全部相册";
   const visible = sortSecretItems(secretItems).filter((item) => {
-    const folderMatch = activeSecretFolderId === "unfiled"
-      ? !item.folderId
+    const folderMatch = activeSecretFolderId === SECRET_ALL_FOLDER_ID
+      ? true
       : item.folderId === activeSecretFolderId;
     return folderMatch && secretItemMatchesSearch(item);
   });
@@ -9142,7 +9617,11 @@ function renderSecretGallery() {
     button.addEventListener("click", () => {
       if (els.secretComposer?.hidden) els.secretComposer.hidden = false;
       setSecretExpanded(true);
-      if (els.secretFolderInput) els.secretFolderInput.value = activeSecretFolderId === "unfiled" ? "" : activeSecretFolderId;
+      if (els.secretFolderInput) {
+        els.secretFolderInput.value = [SECRET_ALL_FOLDER_ID, SECRET_FAVORITES_FOLDER_ID].includes(activeSecretFolderId)
+          ? ""
+          : activeSecretFolderId;
+      }
       els.secretComposer?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   });
@@ -9212,7 +9691,7 @@ async function openSecretAlbumFolderDialog(item) {
     document.body.append(dialog);
   }
   const choices = [
-    { id: "", name: "默认文件夹", count: secretItems.filter((entry) => !entry.folderId).length },
+    { id: "", name: "不放入文件夹", count: secretItems.filter((entry) => !entry.folderId).length },
     ...secretFolders.map((folder) => ({
       id: folder.id,
       name: folder.name,
@@ -9361,7 +9840,7 @@ function renderSecretAlbumView(item) {
                 ${hasNumericPhotoOrder ? `<small>数字 Tag 已优先按自然顺序排列：1、2……9、10……99</small>` : ""}
               </label>
               <select data-secret-edit-folder>
-                <option value="" ${item.folderId ? "" : "selected"}>默认文件夹</option>
+                <option value="" ${item.folderId ? "" : "selected"}>不放入文件夹</option>
                 ${secretFolders.map((folder) => `<option value="${escapeHtml(folder.id)}" ${item.folderId === folder.id ? "selected" : ""}>${escapeHtml(folder.name)}</option>`).join("")}
               </select>
               <textarea data-secret-edit-note rows="2" placeholder="备注">${escapeHtml(item.note || "")}</textarea>
@@ -9626,8 +10105,6 @@ function openSecretItem(item, initialImageIndex = 0, options = {}) {
   dialogRestoreScrollY = window.scrollY || window.pageYOffset || 0;
   dialogRestorePhotoId = "";
   dialogRestorePhotoTop = 0;
-  // A full-screen secret viewer does not need the body to be shifted to a
-  // negative top offset. Keeping the page in place avoids a visible jump.
   lockedDialogScrollY = dialogRestoreScrollY;
   dialogLockUsesFixed = false;
   document.documentElement.classList.add("dialog-scroll-locked");
@@ -9671,6 +10148,7 @@ function openSecretItem(item, initialImageIndex = 0, options = {}) {
 }
 
 function toggleDialogImageFullscreen({ bypassSuppression = false } = {}) {
+  if (activeSecretDialogItem && isMobileViewport()) return;
   if (!dialogImages.length || !els.dialog.open) return;
   if (!bypassSuppression && Date.now() < suppressDialogImageClickUntil) return;
   const opening = !els.dialog.classList.contains("secret-image-fullscreen");
@@ -9710,6 +10188,7 @@ function toggleDiaryImageFullscreen({ bypassSuppression = false } = {}) {
   } else {
     els.dialogImage.style.removeProperty("width");
     els.dialogImage.style.removeProperty("height");
+    requestAnimationFrame(() => fitSecretViewerImage());
   }
   updateDiaryViewerToolbar();
 }
@@ -11503,25 +11982,6 @@ function resetWishForm() {
   els.wishCancelEdit.hidden = true;
 }
 
-function getWishlistStorageKey() {
-  const name = session ? getSessionDisplayName() : "guest";
-  return `${WISHLIST_KEY}:${String(name).toLowerCase()}`;
-}
-
-function loadWishes() {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(getWishlistStorageKey()) || "[]");
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveWishes() {
-  if (!session) return;
-  localStorage.setItem(getWishlistStorageKey(), JSON.stringify(wishes));
-}
-
 async function saveWish(event) {
   event.preventDefault();
   if (!session) {
@@ -11567,44 +12027,28 @@ async function saveWish(event) {
     updatedAt: new Date().toISOString(),
   };
 
-  if (cloudSyncAvailable) {
-    let row = wishCompletionNoteCloudAvailable
-      ? wishToCloudRow(wish, wish.userId)
-      : wishToLegacyCloudRow(wish, wish.userId);
-    let { data, error } = await householdRepository.upsert("wishes", row, {
+  const { data, error } = await householdRepository.upsert(
+    "wishes",
+    wishToCloudRow(wish, wish.userId),
+    {
       onConflict: "id",
       select: "*",
       single: true,
-    });
-    if (error && isMissingCloudSchema(error)) {
-      wishCompletionNoteCloudAvailable = false;
-      row = wishToLegacyCloudRow(wish, wish.userId);
-      const retry = await householdRepository.upsert("wishes", row, {
-        onConflict: "id",
-        select: "*",
-        single: true,
-      });
-      data = retry.data;
-      error = retry.error;
     }
-    if (error) {
-      if (image.imagePath && image.imagePath !== previous?.imagePath) {
-        await cleanupStoredImagePaths([image.imagePath]);
-      }
-      setWishlistStatus(`心愿同步失败：${error.message}`);
-      return;
+  );
+  if (error) {
+    if (image.imagePath && image.imagePath !== previous?.imagePath) {
+      await cleanupStoredImagePaths([image.imagePath]);
     }
-    wish = wishFromCloudRow(data);
-    if (!wishCompletionNoteCloudAvailable) {
-      wish.completionNote = els.wishCompletionNoteInput.value.trim();
-    }
+    setWishlistStatus(`心愿同步失败：${error.message}`);
+    return;
   }
+  wish = wishFromCloudRow(data);
 
   const wasEditing = Boolean(wishEditingId);
   wishes = wasEditing
     ? wishes.map((item) => (item.id === wishEditingId ? wish : item))
     : [wish, ...wishes];
-  saveWishes();
   if (
     previous?.imagePath &&
     previous.imagePath !== wish.imagePath &&
@@ -11617,11 +12061,7 @@ async function saveWish(event) {
   setWishlistExpanded(false);
   const gainedExp = await awardExperience(wasEditing ? "wishEdit" : "wish");
   setWishlistStatus(
-    `${!wishCompletionNoteCloudAvailable && wish.completionNote
-      ? "心愿已保存；完成感想字段还没升级，请部署最新版 Cloudflare D1 结构后再编辑同步。"
-      : wasEditing
-        ? "心愿已更新。"
-        : "心愿已保存。"}${gainedExp ? ` 修为 +${gainedExp}` : ""}`
+    `${wasEditing ? "心愿已更新。" : "心愿已保存。"}${gainedExp ? ` 修为 +${gainedExp}` : ""}`
   );
   renderWishes();
 }
@@ -11633,6 +12073,16 @@ function renderWishes() {
   if (!session) {
     els.wishlistList.innerHTML = `<div class="empty">登录后可以记录想做、想吃、想去的事。</div>`;
     setWishlistStatus("");
+    return;
+  }
+
+  if (accountDataState === "loading") {
+    els.wishlistList.innerHTML = `<div class="empty" data-account-sync-loading role="status">正在同步心愿…</div>`;
+    return;
+  }
+
+  if (accountDataState === "error") {
+    els.wishlistList.innerHTML = `<div class="empty">心愿同步失败，请稍后刷新重试。</div>`;
     return;
   }
 
@@ -11690,12 +12140,18 @@ function renderWishes() {
                 ${
                   wish.done && wish.completionNote
                     ? `<div class="wish-completion-note" data-view-wish-detail="${escapeHtml(wish.id)}" role="button" tabindex="0" aria-label="查看 ${escapeHtml(wish.title)} 的完整完成反馈">
-                        <span>完成回执 <em>查看完整反馈</em></span>
+                        <div class="wish-completion-header">
+                          <strong>完成回执</strong>
+                          <span>查看完整反馈</span>
+                        </div>
                         <p>${escapeHtml(wish.completionNote)}</p>
                       </div>`
                     : wish.done
                       ? `<div class="wish-completion-note empty" data-view-wish-detail="${escapeHtml(wish.id)}" role="button" tabindex="0" aria-label="查看 ${escapeHtml(wish.title)} 的完成详情">
-                          <span>完成回执 <em>查看详情</em></span>
+                          <div class="wish-completion-header">
+                            <strong>完成回执</strong>
+                            <span>查看详情</span>
+                          </div>
                           <p>已经完成啦，之后可以编辑补上一句感想。</p>
                         </div>`
                       : ""
@@ -11842,61 +12298,24 @@ async function saveWishCompletionState(current, done, completionNote = "", targe
     completed_at: next.completedAt || null,
     updated_at: next.updatedAt,
   };
-  if (!wishCompletionNoteCloudAvailable) {
-    delete updatePayload.completion_note;
-  }
-  let usedLegacyCompletionNote = !wishCompletionNoteCloudAvailable && done && Boolean(completionNote);
-  let result = await householdRepository.update(
+  const result = await householdRepository.update(
     "wishes",
     updatePayload,
     { id: current.id },
     { select: "*", single: true }
   );
 
-  if (result.error && isMissingCloudSchema(result.error)) {
-    wishCompletionNoteCloudAvailable = false;
-    result = await householdRepository.update(
-      "wishes",
-      {
-        is_done: next.done,
-        completed_at: next.completedAt || null,
-        updated_at: next.updatedAt,
-      },
-      { id: current.id },
-      { select: "*", single: true }
-    );
-    if (result.error) {
-      setWishCompletionMessage(`心愿同步失败：${result.error.message}`, target);
-      return;
-    }
-    Object.assign(next, wishFromCloudRow(result.data));
-    next.done = done;
-    next.completionNote = done ? completionNote : "";
-    usedLegacyCompletionNote = true;
-  } else if (result.error) {
+  if (result.error) {
     setWishCompletionMessage(`心愿同步失败：${result.error.message}`, target);
     return false;
-  } else {
-    wishCompletionNoteCloudAvailable = Object.prototype.hasOwnProperty.call(
-      result.data || {},
-      "completion_note"
-    );
-    Object.assign(next, wishFromCloudRow(result.data));
-    if (!wishCompletionNoteCloudAvailable) {
-      next.completionNote = done ? completionNote : "";
-    }
   }
+  Object.assign(next, wishFromCloudRow(result.data));
 
   wishes = wishes.map((wish) => (wish.id === current.id ? next : wish));
   activeWishView = done ? "done" : "open";
-  saveWishes();
   const gainedExp = await awardExperience(done ? "wishDone" : "wishEdit");
   setWishlistStatus(
-    `${usedLegacyCompletionNote
-      ? "心愿已完成；数据库还缺少完成感想字段，请部署最新版 Cloudflare D1 结构后再编辑补上。"
-      : done
-        ? "心愿已完成，感想已保存。"
-        : "已取消完成状态。"}${gainedExp ? ` 修为 +${gainedExp}` : ""}`
+    `${done ? "心愿已完成，感想已保存。" : "已取消完成状态。"}${gainedExp ? ` 修为 +${gainedExp}` : ""}`
   );
   renderWishes();
   return true;
@@ -11955,9 +12374,6 @@ async function deleteWish(id, triggerButton = null) {
       p_item_id: wish.id,
     });
 
-    // Keep deletion working across Worker versions and transient RPC route errors.
-    // The generic table delete still uses the family write scope, then the
-    // recycle-bin row is rolled back if that delete did not complete.
     if (result.error) {
       const trashSaved = await createTrashItem(
         "wish",
@@ -11990,7 +12406,6 @@ async function deleteWish(id, triggerButton = null) {
     }
 
     wishes = wishes.filter((item) => item.id !== id);
-    saveWishes();
     setWishlistStatus("心愿已移到回收站，30 天内可以恢复。");
     showMiniToast("已移到回收站", { kind: "success" });
     renderWishes();
@@ -12017,9 +12432,7 @@ function setWishlistStatus(message) {
 function registerAppShellWorker() {
   if (!("serviceWorker" in navigator)) return;
   if (!["https:", "http:"].includes(window.location.protocol)) return;
-  navigator.serviceWorker.register("./service-worker.js", { scope: "./" }).catch(() => {
-    // The app still works normally if install caching is unavailable.
-  });
+  navigator.serviceWorker.register("./service-worker.js", { scope: "./" }).catch(() => {});
 }
 
 function decodeVapidPublicKey(value) {
@@ -12277,7 +12690,7 @@ function getAnniversaryMetrics(item) {
     return {
       value: age.years,
       unit: "岁",
-      detail: `${age.months} 个月 ${age.days} 天 · 已来到世界 ${differenceInDays(today, start)} 天`,
+      detail: `生日 ${formatDate(item.date)} · ${age.months} 个月 ${age.days} 天 · 已来到世界 ${differenceInDays(today, start)} 天`,
     };
   }
 
@@ -12301,7 +12714,7 @@ function getAnniversaryMetrics(item) {
 }
 
 function getAnniversaryTypeLabel(type) {
-  if (type === "pet") return "宠物年龄";
+  if (type === "pet") return "宠物生日";
   if (type === "together") return "相伴天数";
   return "纪念日倒计时";
 }
@@ -12924,11 +13337,9 @@ function renderWeekendPlans() {
       openWeekendCompletionDialog(plan);
     });
   });
-  els.weekendList.querySelectorAll("[data-weekend-gallery]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const plan = weekendPlans.find((item) => item.id === button.dataset.weekendGallery);
-      openWeekendImageGallery(plan, Number(button.dataset.weekendImage) || 0, button.dataset.weekendGalleryKind || "plan");
-    });
+  bindWeekendGalleryInteractions(els.weekendList, {
+    getPlan: (id) => weekendPlans.find((item) => item.id === id),
+    openGallery: openWeekendImageGallery,
   });
 }
 
@@ -13417,9 +13828,7 @@ async function readSignupInviteCode(button) {
     }
     try {
       await navigator.clipboard?.writeText(String(payload.data.code));
-    } catch {
-      // The code remains visible when clipboard access is unavailable.
-    }
+    } catch {}
     button.textContent = "已复制";
     window.setTimeout(() => {
       button.textContent = originalLabel;
@@ -13468,6 +13877,10 @@ function setActiveSettingsSection(sectionId = "settingsGeneral") {
   if (nextSection === "settingsTools") renderSettingsToolOrderPanel();
   if (nextSection === "settingsNotifications") void refreshPushSettings();
   if (nextSection === "settingsFamily") renderSettingsFamilyPanel();
+  if (nextSection === "settingsSafety") {
+    void renderCloudBackups();
+    void renderTrashItems();
+  }
   if (nextSection === "settingsDiagnostics") void runOfflineDiagnostics();
   if (nextSection === "settingsUploads") void renderUploadCenter();
 }
@@ -13502,6 +13915,7 @@ function closeSettingsDialog() {
 
 async function refreshSharedContent() {
   if (!cloudDb || !session) return;
+  await loadFamilyLevelProfiles();
   const [recipesResult, wishesResult] = await Promise.all([
     householdRepository.list("recipes", {
       order: [{ column: "created_at", ascending: false }],
@@ -13614,9 +14028,7 @@ async function syncAppIconBadge(count = 0) {
     } else if (navigator.setAppBadge) {
       await navigator.setAppBadge(0);
     }
-  } catch {
-    // Some browsers expose the API but only allow it for installed PWAs.
-  }
+  } catch {}
 }
 
 function getNotificationText(item) {
@@ -13635,7 +14047,7 @@ function getNotificationActorAvatar(item) {
   const fromProfiles = item?.actor_id
     ? getProfileAvatarUrl(familyLevelProfiles.get(item.actor_id) || {})
     : "";
-  return getProfileAvatarUrl(item) || fromProfiles || fromFamily || "";
+  return getProfileAvatarUrl(item) || fromProfiles || fromFamily || loadCachedAvatarUrl(item?.actor_id) || "";
 }
 
 async function loadNotificationsInternal() {
@@ -13948,8 +14360,16 @@ els.setupToggle.addEventListener("click", () => {
   els.setupPanel.hidden = !els.setupPanel.hidden;
 });
 els.themeToggle.addEventListener("click", toggleTheme);
-els.galleryNav.addEventListener("click", () => switchPage("gallery"));
+els.galleryNav.addEventListener("click", () => {
+  setUploadExpanded(false);
+  vlogMode.close();
+  switchPage("gallery");
+});
 els.recipesNav?.addEventListener("click", () => {
+  switchPage("recipes");
+  els.recipesPage?.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+els.recipesToolOpen?.addEventListener("click", () => {
   switchPage("recipes");
   els.recipesPage?.scrollIntoView({ behavior: "smooth", block: "start" });
 });
@@ -14042,6 +14462,7 @@ document.addEventListener("keydown", (event) => {
   }
 });
 els.quickPhoto.addEventListener("click", () => {
+  vlogMode.close();
   switchPage("gallery");
   setUploadExpanded(true);
   els.composer.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -14056,7 +14477,7 @@ els.quickWish.addEventListener("click", () => {
   setWishlistExpanded(true);
   els.wishlistComposer.scrollIntoView({ behavior: "smooth", block: "start" });
 });
-els.quickWeekend.addEventListener("click", () => {
+  els.quickWeekend.addEventListener("click", () => {
   switchPage("weekend");
   setWeekendExpanded(true);
   els.weekendComposer.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -14283,6 +14704,7 @@ window.addEventListener("offline", updateNetworkStatus);
 updateNetworkStatus();
 (navigator.connection || navigator.mozConnection || navigator.webkitConnection)?.addEventListener?.("change", () => {
   if (shouldAutoCacheMedia()) scheduleOfflineMediaCache();
+  if (activePage === "gallery") renderGallery();
 });
 els.renameHomeButton.addEventListener("click", () => {
   openSettingsChildDialog(els.renameHomeDialog, () => {
@@ -14479,7 +14901,36 @@ els.photoLinkInput?.addEventListener("keydown", (event) => {
   }
 });
 els.photoInput.addEventListener("change", () => {
-  selectedUploadFiles = Array.from(els.photoInput.files || []);
+  const nextFiles = Array.from(els.photoInput.files || []);
+  logDiaryInputFiles("照片 / Live Photo 入口", nextFiles);
+  const seen = new Set(selectedUploadFiles.map(getDiaryUploadFileKey));
+  selectedUploadFiles = [
+    ...selectedUploadFiles,
+    ...nextFiles.filter((file) => {
+      const key = getDiaryUploadFileKey(file);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }),
+  ];
+  updatePhotoPreview();
+});
+els.photoMotionInput?.addEventListener("change", () => {
+  const pickedFiles = Array.from(els.photoMotionInput.files || []);
+  logDiaryInputFiles("视频入口", pickedFiles);
+  const supportedFiles = pickedFiles.filter(
+    (file) => isDiaryUploadStillFile(file) || isDiaryUploadMotionFile(file)
+  );
+  const seen = new Set(selectedUploadFiles.map(getDiaryUploadFileKey));
+  selectedUploadFiles = [
+    ...selectedUploadFiles,
+    ...supportedFiles.filter((file) => {
+      const key = getDiaryUploadFileKey(file);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }),
+  ];
   updatePhotoPreview();
 });
 els.previewStrip.addEventListener("click", (event) => {
@@ -14564,7 +15015,12 @@ els.dialog.addEventListener("close", () => {
   secretViewerInfoOpen = false;
   dialogImageRequestId += 1;
   els.dialogImage.removeAttribute("src");
+  els.dialogImage.hidden = false;
   els.dialogImage.classList.remove("is-loading", "is-load-error");
+  if (els.dialogVideo) {
+    stopDiaryMotionVideo(els.dialogVideo);
+    els.dialogVideo.hidden = true;
+  }
   setSecretViewerStatus("");
   window.clearTimeout(secretViewerResizeTimer);
   els.dialog.removeAttribute("aria-modal");
@@ -14620,6 +15076,19 @@ els.secretViewerInfo?.addEventListener("click", () => {
 });
 els.dialogMedia.addEventListener("click", (event) => {
   if (event.target.closest("button")) return;
+  if (event.target === els.dialogVideo) return;
+  if (
+    activeSecretDialogItem &&
+    isSecretImageViewerOpen() &&
+    event.target === els.dialogImage
+  ) {
+    if (Date.now() >= suppressDialogImageClickUntil && secretImageZoom.scale > 1.01) {
+      event.preventDefault();
+      event.stopPropagation();
+      resetSecretImageZoom();
+    }
+    return;
+  }
   if (
     isMobileViewport() &&
     isZoomableImageDialogOpen() &&
@@ -14645,6 +15114,14 @@ els.dialogMedia.addEventListener("click", (event) => {
   }
 });
 els.dialogImage.addEventListener("click", (event) => {
+  if (activeSecretDialogItem && isSecretImageViewerOpen()) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (secretImageZoom.scale > 1.01 && Date.now() >= suppressDialogImageClickUntil) {
+      resetSecretImageZoom();
+    }
+    return;
+  }
   if (activeSecretDialogItem && isMobileViewport()) {
     event.preventDefault();
     event.stopPropagation();
@@ -14729,6 +15206,7 @@ els.closeEditDialog.addEventListener("click", () => {
 els.closeVipDialog.addEventListener("click", () => els.vipDialog.close());
 els.chips.forEach((chip) => {
   chip.addEventListener("click", () => {
+    vlogMode.close();
     activeFilter = chip.dataset.filter;
     visiblePhotoCount = PAGE_SIZE;
     updateFilterChips();

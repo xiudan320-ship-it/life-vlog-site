@@ -11,6 +11,35 @@
   --shadow: 0 24px 80px rgba(16, 16, 20, 0.12);
 }
 
+.multi-motion-dot {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 6;
+  display: block;
+  width: 8px;
+  height: 8px;
+  border: 2px solid rgba(255, 255, 255, 0.86);
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px rgba(10, 14, 11, 0.68), 0 0 12px rgba(145, 210, 88, 0.76);
+}
+
+.mobile-diary-media > .multi-motion-dot {
+  top: 12px;
+  right: 12px;
+}
+
+.gallery .photo-media {
+  scroll-margin-top: 76px;
+}
+
+@media (max-width: 700px) {
+  .gallery .photo-media {
+    scroll-margin-top: calc(136px + env(safe-area-inset-top));
+  }
+}
+
 body.theme-dark {
   color-scheme: dark;
   --bg: #101014;
@@ -93,6 +122,71 @@ p {
 body.theme-dark .topbar {
   background: rgba(16, 16, 20, 0.86);
   border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.admin-storage-meter {
+  display: grid;
+  flex: 0 0 224px;
+  gap: 6px;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 48%, var(--line));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 88%, var(--accent));
+  color: var(--ink);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.admin-storage-meter:hover,
+.admin-storage-meter:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.admin-storage-meter-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: .04em;
+}
+
+.admin-storage-meter-head strong {
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.admin-storage-meter-track {
+  display: block;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 14%, transparent);
+}
+
+.admin-storage-meter-track i {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 220ms ease;
+}
+
+.admin-storage-meter small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 700px) {
+  .admin-storage-meter { display: none !important; }
 }
 
 .brand {
@@ -2154,5 +2248,187 @@ body.theme-dark .dialog-close {
 
   .photo-card h3 {
     font-size: 18px;
+  }
+}
+
+/* The mobile diary reader is a standalone full-screen surface. Do not let
+   the shared dialog/detail layout leak into it. */
+@media (max-width: 700px) {
+  #photoDialog.mobile-diary-image-viewer.no-comments-dialog {
+    position: fixed !important;
+    inset: 0 !important;
+    display: block !important;
+    box-sizing: border-box !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    max-width: none !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: #070907 !important;
+    transform: none !important;
+  }
+
+  #photoDialog.mobile-diary-image-viewer.no-comments-dialog .dialog-media {
+    position: fixed !important;
+    inset: 0 !important;
+    display: grid !important;
+    place-items: center !important;
+    box-sizing: border-box !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    max-width: none !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    background: #070907 !important;
+    touch-action: none !important;
+  }
+
+  #photoDialog.mobile-diary-image-viewer.no-comments-dialog .dialog-media :is(#dialogImage, #dialogVideo):not([hidden]) {
+    display: block !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    object-fit: contain !important;
+    object-position: center !important;
+  }
+
+  #photoDialog.mobile-diary-image-viewer.no-comments-dialog > article,
+  #photoDialog.mobile-diary-image-viewer.no-comments-dialog > .diary-viewer-toolbar,
+  #photoDialog.mobile-diary-image-viewer.no-comments-dialog > .secret-viewer-status,
+  #photoDialog.mobile-diary-image-viewer.no-comments-dialog > .secret-viewer-toolbar,
+  #photoDialog.mobile-diary-image-viewer.no-comments-dialog > .dialog-thumbs,
+  #photoDialog.mobile-diary-image-viewer.no-comments-dialog .dialog-expand-image {
+    display: none !important;
+  }
+
+  #photoDialog.mobile-diary-image-viewer.no-comments-dialog .media-counter {
+    position: fixed !important;
+    top: calc(env(safe-area-inset-top) + 12px) !important;
+    right: auto !important;
+    bottom: auto !important;
+    left: 50% !important;
+    z-index: 21 !important;
+    transform: translateX(-50%) !important;
+  }
+
+  #photoDialog.mobile-diary-image-viewer.no-comments-dialog > .dialog-close {
+    position: fixed !important;
+    top: calc(env(safe-area-inset-top) + 10px) !important;
+    right: 12px !important;
+    bottom: auto !important;
+    left: auto !important;
+    z-index: 22 !important;
+  }
+
+  #photoDialog.mobile-diary-image-viewer.no-comments-dialog .dialog-dots,
+  #photoDialog.mobile-diary-image-viewer.no-comments-dialog .dialog-expand-image {
+    display: none !important;
+  }
+
+  .mobile-diary-thumbs button {
+    position: relative;
+  }
+
+  .mobile-diary-thumbs .live-photo-badge {
+    top: 3px;
+    right: auto;
+    bottom: auto;
+    left: 3px;
+    gap: 2px;
+    border: 0;
+    font-size: 7px;
+    padding: 2px 3px;
+  }
+
+  .mobile-diary-thumbs .live-photo-badge::before {
+    width: 4px;
+    height: 4px;
+  }
+
+  body .photo-card .photo-status-badges {
+    right: auto !important;
+    left: 12px !important;
+  }
+
+  /* Some mobile entry points still use the legacy dialog classes. They must
+     share the same media-only reader instead of rendering the title panel. */
+  #photoDialog.mobile-page-dialog,
+  body.mobile-dialog-open #photoDialog.diary-detail-dialog {
+    position: fixed !important;
+    inset: 0 !important;
+    display: block !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    max-width: none !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: #070907 !important;
+    box-shadow: none !important;
+    transform: none !important;
+  }
+
+  #photoDialog.mobile-page-dialog .dialog-media,
+  body.mobile-dialog-open #photoDialog.diary-detail-dialog .dialog-media {
+    position: fixed !important;
+    inset: 0 !important;
+    display: grid !important;
+    place-items: center !important;
+    box-sizing: border-box !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    max-width: none !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    background: #070907 !important;
+  }
+
+  #photoDialog.mobile-page-dialog > article,
+  #photoDialog.mobile-page-dialog > .photo-comments,
+  #photoDialog.mobile-page-dialog > .dialog-thumbs,
+  body.mobile-dialog-open #photoDialog.diary-detail-dialog > article,
+  body.mobile-dialog-open #photoDialog.diary-detail-dialog > .photo-comments,
+  body.mobile-dialog-open #photoDialog.diary-detail-dialog > .dialog-thumbs {
+    display: none !important;
+  }
+
+  #photoDialog.mobile-page-dialog .dialog-dots,
+  #photoDialog.mobile-page-dialog .dialog-expand-image,
+  body.mobile-dialog-open #photoDialog.diary-detail-dialog .dialog-dots,
+  body.mobile-dialog-open #photoDialog.diary-detail-dialog .dialog-expand-image,
+  #photoDialog.mobile-page-dialog .diary-viewer-toolbar,
+  body.mobile-dialog-open #photoDialog.diary-detail-dialog .diary-viewer-toolbar {
+    display: none !important;
+  }
+
+  #photoDialog.mobile-page-dialog .media-counter,
+  body.mobile-dialog-open #photoDialog.diary-detail-dialog .media-counter {
+    position: fixed !important;
+    top: calc(env(safe-area-inset-top) + 12px) !important;
+    right: auto !important;
+    bottom: auto !important;
+    left: 50% !important;
+    z-index: 21 !important;
+    transform: translateX(-50%) !important;
+  }
+
+  #photoDialog.mobile-page-dialog > .dialog-close,
+  body.mobile-dialog-open #photoDialog.diary-detail-dialog > .dialog-close {
+    position: fixed !important;
+    top: calc(env(safe-area-inset-top) + 10px) !important;
+    right: 12px !important;
+    bottom: auto !important;
+    left: auto !important;
+    z-index: 22 !important;
   }
 }

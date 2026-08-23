@@ -44,6 +44,15 @@ export function createMediaCacheService({
     );
   }
 
+  function isVideoResponse(response, url) {
+    return (
+      String(response?.headers?.get("content-type") || "")
+        .toLowerCase()
+        .startsWith("video/") ||
+      /\.(mov|mp4|m4v|webm)(?:[?#]|$)/i.test(String(url || ""))
+    );
+  }
+
   async function fetchMedia(url) {
     try {
       return await fetchApi(url, { mode: "cors", cache: "reload" });
@@ -89,6 +98,10 @@ export function createMediaCacheService({
         }
       }
       if (!response || (!response.ok && response.type !== "opaque")) continue;
+      if (isVideoResponse(response, url)) {
+        if (existingByUrl.has(url)) await cache.delete(existingByUrl.get(url));
+        continue;
+      }
       const bytes = await getCachedResponseBytes(response);
       if (usedBytes + bytes > maxBytes) continue;
       if (!existingByUrl.has(url)) {

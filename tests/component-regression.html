@@ -6,6 +6,7 @@
     <title>Component regression check</title>
     <link rel="stylesheet" href="../styles.css" />
     <link rel="stylesheet" href="../redesign.css" />
+    <link rel="stylesheet" href="../weekend-board.css" />
     <link rel="stylesheet" href="../secret-viewer.css" />
     <style>
       body { margin: 0; padding: 24px; background: var(--bg); }
@@ -42,10 +43,34 @@
               <div class="wish-card-content">
                 <p class="kicker">想吃 · 已完成</p>
                 <h3>一起吃一顿认真准备的晚饭</h3>
-                <div class="wish-card-details"><p class="wish-note">照片比例不同也不能把卡片撑歪。</p><p class="wish-completion-note">完成感想：比计划里的那天更开心。</p></div>
+                <div class="wish-card-details"><p class="wish-note">照片比例不同也不能把卡片撑歪。</p><div class="wish-completion-note"><div class="wish-completion-header"><strong>完成回执</strong><span>查看完整反馈</span></div><p>比计划里的那天更开心。</p></div></div>
               </div>
             </div>
             <div class="wish-actions"><button type="button">编辑</button><button class="complete" type="button">查看</button><button class="danger" type="button">删除</button></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="weekend-page">
+        <div class="weekend-list">
+          <article class="weekend-card">
+            <div class="weekend-date"><span>8月</span><strong>22日</strong><small>周六</small></div>
+            <div class="weekend-card-body">
+              <p class="kicker">散步 · PLAN 01</p>
+              <h3>公园里慢慢走一圈</h3>
+              <div class="weekend-scenes">
+                <button type="button" data-weekend-gallery="fixture" data-weekend-image="0"><img src="../assets/black-cat-cover.jpg" alt="场景 1" /></button>
+                <button type="button" data-weekend-gallery="fixture" data-weekend-image="1"><img src="../assets/home-logo.jpg" alt="场景 2" /></button>
+                <button type="button" data-weekend-gallery="fixture" data-weekend-image="2"><img src="../assets/black-cat-cover.jpg" alt="场景 3" /></button>
+                <button type="button" data-weekend-gallery="fixture" data-weekend-image="3"><img src="../assets/home-logo.jpg" alt="场景 4" /></button>
+                <button type="button" data-weekend-gallery="fixture" data-weekend-image="4"><img src="../assets/black-cat-cover.jpg" alt="场景 5" /></button>
+                <button type="button" data-weekend-gallery="fixture" data-weekend-image="5"><img src="../assets/home-logo.jpg" alt="场景 6" /></button>
+                <button type="button" data-weekend-gallery="fixture" data-weekend-image="6"><img src="../assets/black-cat-cover.jpg" alt="场景 7" /></button>
+                <button type="button" data-weekend-gallery="fixture" data-weekend-image="7"><img src="../assets/home-logo.jpg" alt="场景 8" /></button>
+                <button type="button" data-weekend-gallery="fixture" data-weekend-image="8"><img src="../assets/black-cat-cover.jpg" alt="场景 9" /></button>
+                <button type="button" data-weekend-gallery="fixture" data-weekend-image="9"><img src="../assets/home-logo.jpg" alt="场景 10" /></button>
+              </div>
+            </div>
           </article>
         </div>
       </section>
@@ -62,5 +87,22 @@
         </div>
       </section>
     </main>
+    <script type="module">
+      import { bindWeekendGalleryInteractions } from "../modules/weekend-gallery.js";
+
+      bindWeekendGalleryInteractions(document.querySelector(".weekend-list"), {
+        getPlan: () => ({
+          id: "fixture",
+          title: "公园里慢慢走一圈",
+          images: [...document.querySelectorAll(".weekend-scenes img")].map((image) => ({
+            image_url: image.src,
+            thumbnail_url: image.src,
+          })),
+        }),
+        openGallery: () => {
+          document.body.dataset.weekendGalleryOpened = "true";
+        },
+      });
+    </script>
   </body>
 </html>

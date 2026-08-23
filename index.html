@@ -15,11 +15,11 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="apple-touch-icon" href="./assets/app-icon-180.png" />
     <link rel="icon" type="image/png" sizes="32x32" href="./assets/app-icon-32.png" />
-    <link rel="stylesheet" href="./styles.css?v=20260610-37" />
-    <link rel="stylesheet" href="./redesign.css?v=20260813-001" />
-    <link rel="stylesheet" href="./weekend-board.css?v=20260809-238" />
-    <link rel="stylesheet" href="./diary-detail.css?v=20260809-232" />
-    <link rel="stylesheet" href="./secret-viewer.css?v=20260809-230" />
+    <link rel="stylesheet" href="./styles.css?v=20260823-019" />
+    <link rel="stylesheet" href="./redesign.css?v=20260823-020" />
+    <link rel="stylesheet" href="./weekend-board.css?v=20260823-241" />
+    <link rel="stylesheet" href="./diary-detail.css?v=20260823-019" />
+    <link rel="stylesheet" href="./secret-viewer.css?v=20260814-231" />
     <link rel="stylesheet" href="./wardrobe.css?v=20260811-007" />
   </head>
   <body>
@@ -35,12 +35,16 @@
       </a>
       <nav class="main-nav" aria-label="页面切换">
         <button class="active" id="galleryNav" type="button">日记</button>
-        <button id="recipesNav" type="button">菜谱</button>
+        <button id="vlogNav" type="button" aria-pressed="false" hidden>VLOG</button>
         <button id="wishlistNav" type="button">心愿</button>
         <button id="weekendNav" type="button">周末</button>
         <button id="wardrobeNav" type="button">衣柜</button>
       </nav>
       <div class="top-actions">
+        <a class="admin-storage-meter" id="adminStorageMeter" href="https://dash.cloudflare.com/" target="_blank" rel="noopener noreferrer" hidden aria-live="polite" title="打开 Cloudflare 控制台">
+          <span class="admin-storage-meter-head"><span>R2 对象存储</span><strong id="adminStorageUsed">—</strong></span>
+          <small id="adminStorageMonth">本月上传 —</small>
+        </a>
         <button class="icon-button" id="themeToggle" type="button" title="切换日夜模式">
           <span aria-hidden="true">◐</span>
         </button>
@@ -109,6 +113,13 @@
           <span>
             <strong>今日吃什么</strong>
             <small id="foodWheelPeek">打开转盘</small>
+          </span>
+        </button>
+        <button class="tool-dock-button recipes-tool-button" id="recipesToolOpen" type="button" data-tool-id="recipes">
+          <span class="tool-dock-mark recipes-mark" aria-hidden="true">谱</span>
+          <span>
+            <strong>菜谱</strong>
+            <small>打开家庭菜谱</small>
           </span>
         </button>
         <button
@@ -282,18 +293,21 @@
             <p class="kicker">Upload</p>
             <h2>发布新日记</h2>
           </button>
-          <span id="uploadStatus"></span>
+          <span id="uploadStatus" role="status" aria-live="polite"></span>
         </div>
 
         <form id="uploadForm" hidden>
           <div class="file-drop" id="photoDrop" tabindex="0">
-            <input class="native-file-input" id="photoInput" type="file" accept="image/*" multiple />
+            <input class="native-file-input" id="photoInput" type="file" accept="image/*,video/*,.mov,.heic,.heif" multiple />
             <div class="upload-main-preview" id="uploadMainPreview" hidden>
               <img id="photoPreview" alt="照片预览" />
+              <video id="photoVideoPreview" playsinline muted controls hidden></video>
               <button class="upload-main-remove" id="removeUploadPreview" type="button" aria-label="删除当前图片">×</button>
             </div>
             <div class="preview-strip" id="previewStrip" hidden></div>
-            <label class="upload-native-trigger upload-pick-button" for="photoInput">选择图片</label>
+            <label class="upload-native-trigger upload-pick-button" for="photoInput">选择图片或 Live Photo</label>
+            <input class="native-file-input" id="photoMotionInput" type="file" accept="video/*,.mov,.mp4,.m4v,.webm" multiple />
+            <label class="upload-native-trigger upload-pick-button" for="photoMotionInput">添加视频</label>
             <strong id="fileName">还没有选择图片</strong>
           </div>
           <div class="image-link-adder">
@@ -301,7 +315,7 @@
             <button id="photoLinkAdd" type="button">添加</button>
           </div>
           <p class="compression-note">
-            图片会在浏览器中自动压缩后上传，原图不会被修改。
+            图片会在浏览器中自动压缩后上传。第一入口选择静态照片或 Live Photo；第二入口添加视频。照片和视频同时出现在文件列表并成功配对时才会保存为 LIVE，单独的视频会保存为普通视频；同一篇可以混合静态图、LIVE 和普通视频。
           </p>
 
           <div class="form-grid">
@@ -322,6 +336,7 @@
                 <option>卢浮宫</option>
                 <option>城市</option>
                 <option>家</option>
+                <option value="VLOG" hidden>VLOG</option>
               </select>
             </label>
             <label>
@@ -861,7 +876,7 @@
               <label>
                 计算方式
                 <select id="anniversaryTypeInput">
-                  <option value="pet">宠物年龄</option>
+                  <option value="pet">宠物生日</option>
                   <option value="together">累计相伴天数</option>
                   <option value="annual">年度纪念日倒计时</option>
                 </select>
@@ -1239,6 +1254,7 @@
       <div class="dialog-media">
         <button class="carousel-button prev" id="dialogPrev" type="button" aria-label="上一张">‹</button>
         <img id="dialogImage" alt="" />
+        <video id="dialogVideo" playsinline autoplay muted loop preload="metadata" style="width:auto;height:auto;max-width:100%;max-height:100%;object-fit:contain;background:#080b09;" hidden></video>
         <button class="carousel-button next" id="dialogNext" type="button" aria-label="下一张">›</button>
         <span class="media-counter" id="dialogCounter"></span>
         <div class="dialog-dots" id="dialogDots" role="tablist" aria-label="图片位置" hidden></div>
@@ -1347,6 +1363,7 @@
               <option>卢浮宫</option>
               <option>城市</option>
               <option>家</option>
+              <option value="VLOG" hidden>VLOG</option>
             </select>
           </label>
           <label>
@@ -1482,6 +1499,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260814-005"></script>
+    <script type="module" src="./app.js?v=20260823-021"></script>
   </body>
 </html>

@@ -41,6 +41,16 @@
     object-fit: contain !important;
   }
 
+  #photoDialog.diary-detail-dialog:not(.diary-image-fullscreen) .dialog-media #dialogVideo:not([hidden]) {
+    display: block !important;
+    width: auto !important;
+    height: auto !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    object-fit: contain !important;
+    object-position: center !important;
+  }
+
   #photoDialog.diary-detail-dialog:not(.diary-image-fullscreen) > article {
     position: static !important;
     display: block !important;
@@ -146,4 +156,12 @@
     justify-self: end;
     margin: 14px 14px -66px 0;
   }
+}
+
+/* A hidden media element must not reserve a grid row in the diary reader. */
+#photoDialog #dialogImage[hidden],
+#photoDialog #dialogVideo[hidden],
+#photoDialog.diary-detail-dialog:not(.diary-image-fullscreen) #dialogImage[hidden],
+#photoDialog.diary-detail-dialog:not(.diary-image-fullscreen) #dialogVideo[hidden] {
+  display: none !important;
 }

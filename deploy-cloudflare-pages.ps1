@@ -1,14 +1,38 @@
+param(
+  [string]$VerificationBaseUrl = "https://life-vlog-site.pages.dev"
+)
+
 $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $dist = Join-Path $root ".cloudflare-pages-dist"
-$nodeBin = "C:\Users\xiuda\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin"
-$pnpmBin = "C:\Users\xiuda\.cache\codex-runtimes\codex-primary-runtime\dependencies\bin\fallback"
-$env:Path = "$nodeBin;$pnpmBin;$env:Path"
+$pnpmCommand = Get-Command pnpm.cmd -ErrorAction SilentlyContinue
+if (-not $pnpmCommand) {
+  $pnpmCommand = Get-Command pnpm -ErrorAction SilentlyContinue
+}
+if (-not $pnpmCommand) {
+  throw "pnpm is required for deployment."
+}
+$nodeCommand = Get-Command node.exe -ErrorAction SilentlyContinue
+if (-not $nodeCommand) {
+  $pnpmDirectory = Split-Path -Parent $pnpmCommand.Source
+  $dependencyRoot = Split-Path -Parent (Split-Path -Parent $pnpmDirectory)
+  $bundledNode = Join-Path $dependencyRoot "node\bin\node.exe"
+  if (Test-Path -LiteralPath $bundledNode) {
+    $env:Path = "$(Split-Path -Parent $bundledNode);$env:Path"
+  } else {
+    throw "node is required for deployment."
+  }
+}
 
-& (Join-Path $pnpmBin "pnpm.cmd") test
+& $pnpmCommand.Source test
 if ($LASTEXITCODE -ne 0) {
   throw "Validation failed. Deployment was stopped before uploading files."
+}
+
+& (Join-Path $root "test-release.ps1") -BaseUrl $VerificationBaseUrl
+if ($LASTEXITCODE -ne 0) {
+  throw "Test-account verification failed. Deployment was stopped before uploading files."
 }
 
 if (-not $env:CLOUDFLARE_API_TOKEN) {
@@ -46,4 +70,4 @@ Copy-Item -LiteralPath `
 Copy-Item -LiteralPath (Join-Path $root "assets") -Destination $dist -Recurse
 Copy-Item -LiteralPath (Join-Path $root "modules") -Destination $dist -Recurse
 
-& (Join-Path $pnpmBin "pnpm.cmd") dlx wrangler@latest pages deploy $dist --project-name life-vlog-site
+& $pnpmCommand.Source dlx wrangler@latest pages deploy $dist --project-name life-vlog-site

@@ -5,6 +5,29 @@ const WISH_MEDIA_META_END = "-->";
 const WEEKEND_MEDIA_META_START = "<!--life-vlog-weekend-media:";
 const WEEKEND_MEDIA_META_END = "-->";
 
+export function getDiaryMediaType(media = {}) {
+  const explicitType = String(media.type || "").toLowerCase();
+  if (["image", "live", "video"].includes(explicitType)) return explicitType;
+  if (media.motion_url || media.motionUrl) return "live";
+  if (media.video_url || media.videoUrl) return "video";
+  return "image";
+}
+
+export function getDiaryMediaVideoUrl(media = {}) {
+  const type = getDiaryMediaType(media);
+  if (type === "live") return media.motion_url || media.motionUrl || "";
+  if (type === "video") return media.video_url || media.videoUrl || "";
+  return "";
+}
+
+export function getDiaryMediaPosterUrl(media = {}) {
+  return media.image_url || media.poster_url || media.posterUrl || "";
+}
+
+export function isDiaryLiveMedia(media = {}) {
+  return Boolean(getDiaryMediaVideoUrl(media));
+}
+
 function stripEmbeddedPayload(value, startMarker, endMarker) {
   const text = String(value || "");
   const start = text.indexOf(startMarker);
@@ -36,15 +59,51 @@ function appendEmbeddedPayload(note, value, startMarker, endMarker) {
 
 export function composeDiaryStoredNote(noteText, images) {
   const cleanNote = stripDiaryMediaMetadata(noteText);
-  const normalizedImages = (Array.isArray(images) ? images : []).map((image) => ({
-    image_url: image.image_url,
-    image_path: image.image_path || "",
-    width: image.width ?? null,
-    height: image.height ?? null,
-    thumbnail_url: image.thumbnail_url || "",
-    thumbnail_path: image.thumbnail_path || "",
-  }));
-  if (normalizedImages.length <= 1 && !normalizedImages[0]?.thumbnail_path) return cleanNote;
+  const normalizedImages = (Array.isArray(images) ? images : []).map((image, index) => {
+    const explicitType = String(image?.type || "").toLowerCase();
+    const type = ["image", "live", "video"].includes(explicitType)
+      ? explicitType
+      : image?.motion_url
+        ? "live"
+        : image?.video_url
+          ? "video"
+          : "image";
+    const normalized = {
+      type,
+      image_url: image?.image_url || image?.poster_url || image?.posterUrl || "",
+      image_path: image.image_path || "",
+      width: image.width ?? null,
+      height: image.height ?? null,
+      thumbnail_url: image.thumbnail_url || "",
+      thumbnail_path: image.thumbnail_path || "",
+      motion_url: image.motion_url || "",
+      motion_path: image.motion_path || "",
+      motion_type: image.motion_type || "",
+      video_url: image.video_url || "",
+      video_path: image.video_path || "",
+      video_type: image.video_type || "",
+      poster_url: image.poster_url || "",
+      poster_path: image.poster_path || "",
+    };
+    if (type === "live" && (!normalized.image_url || !normalized.motion_url)) {
+      throw new Error(`第 ${index + 1} 个 Live Photo 缺少照片或动态视频。`);
+    }
+    if (type === "video" && (!normalized.image_url || !normalized.video_url)) {
+      throw new Error(`第 ${index + 1} 个视频缺少封面或视频文件。`);
+    }
+    if (type === "image" && (normalized.motion_url || normalized.video_url)) {
+      throw new Error(`第 ${index + 1} 个媒体的类型与文件不一致。`);
+    }
+    return normalized;
+  });
+  if (
+    normalizedImages.length <= 1 &&
+    !normalizedImages[0]?.thumbnail_path &&
+    !normalizedImages[0]?.motion_path &&
+    !normalizedImages[0]?.motion_url &&
+    !normalizedImages[0]?.video_path &&
+    !normalizedImages[0]?.video_url
+  ) return cleanNote;
   return appendEmbeddedPayload(
     cleanNote,
     normalizedImages,

@@ -1,6 +1,6 @@
 import { buildPushPayload } from "@block65/webcrypto-web-push";
 
-const MAX_UPLOAD_BYTES = 12 * 1024 * 1024;
+const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
 const SESSION_DAYS = 3650;
 const SESSION_REFRESH_WINDOW_MS = 30 * 86400 * 1000;
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
@@ -37,7 +37,6 @@ const TABLE_CONFIG = {
       "login_streak",
       "today_experience_date",
       "today_experience_amount",
-      "local_data_migrated",
       "theme_preference",
       "home_name",
       "secret_default_folder_id",
@@ -52,7 +51,6 @@ const TABLE_CONFIG = {
     writeScope: "own",
     ownerColumn: "user_id",
     jsonColumns: ["food_options"],
-    booleanColumns: ["local_data_migrated"],
   },
   photos: {
     columns: [
@@ -463,6 +461,45 @@ async function readJsonRequestBody(request) {
   return safeJson(text, {});
 }
 
+function validateDiaryPhotoMedia(note) {
+  const text = String(note || "");
+  const startMarker = "<!--life-vlog-media:";
+  const endMarker = "-->";
+  const start = text.indexOf(startMarker);
+  if (start === -1) return "";
+  const payloadStart = start + startMarker.length;
+  const end = text.indexOf(endMarker, payloadStart);
+  if (end === -1) return "日记媒体数据不完整，请重新上传。";
+
+  let media;
+  try {
+    media = JSON.parse(decodeURIComponent(text.slice(payloadStart, end)));
+  } catch {
+    return "日记媒体数据无法读取，请重新上传。";
+  }
+  if (!Array.isArray(media)) return "日记媒体数据格式不正确，请重新上传。";
+
+  for (const [index, item] of media.entries()) {
+    const type = String(
+      item?.type || (item?.motion_url ? "live" : item?.video_url ? "video" : "image")
+    ).toLowerCase();
+    if (!["image", "live", "video"].includes(type)) {
+      return `第 ${index + 1} 个媒体类型不受支持。`;
+    }
+    if (!item?.image_url) return `第 ${index + 1} 个媒体缺少封面图片。`;
+    if (type === "live" && !item.motion_url) {
+      return `第 ${index + 1} 个 Live Photo 缺少动态视频。`;
+    }
+    if (type === "video" && !item.video_url) {
+      return `第 ${index + 1} 个普通视频缺少视频文件。`;
+    }
+    if (type === "image" && (item.motion_url || item.video_url)) {
+      return `第 ${index + 1} 个媒体的类型与文件不一致。`;
+    }
+  }
+  return "";
+}
+
 function normalizeEmail(value) {
   return String(value || "").trim().toLowerCase();
 }
@@ -774,17 +811,26 @@ async function handleUpload(request, env, user) {
     return jsonResponse(request, env, { error: "Missing file." }, 400);
   }
   if (file.size > MAX_UPLOAD_BYTES) {
-    return jsonResponse(request, env, { error: "File is too large." }, 413);
+    return jsonResponse(request, env, { error: "文件不能超过 100 MB。" }, 413);
   }
-  if (!String(file.type || "").startsWith("image/")) {
-    return jsonResponse(request, env, { error: "Only image files are allowed." }, 415);
+  const fileType = String(file.type || "").toLowerCase();
+  const isImage = fileType.startsWith("image/");
+  const isLivePhotoMovie =
+    fileType.startsWith("video/") || /\.(mov|mp4|m4v|webm)$/i.test(file.name || "");
+  if (!isImage && !isLivePhotoMovie) {
+    return jsonResponse(request, env, { error: "Only image files or video files are allowed." }, 415);
   }
 
   const folder = cleanSegment(formData.get("folder"), "photos");
   const name = cleanSegment(formData.get("name"), "image");
   const random = crypto.randomUUID().slice(0, 8);
-  const key = `${user.id}/${folder}/${Date.now()}-${random}-${name}.jpg`;
-  const contentType = file.type || "image/jpeg";
+  const namedExtension = String(file.name || "").match(/\.([a-z0-9]{1,8})$/i)?.[1].toLowerCase() || "";
+  const extension = isImage
+    ? "jpg"
+    : namedExtension ||
+      (fileType === "video/mp4" ? "mp4" : fileType === "video/webm" ? "webm" : "mov");
+  const key = `${user.id}/${folder}/${Date.now()}-${random}-${name}.${extension}`;
+  const contentType = file.type || (isLivePhotoMovie ? "video/quicktime" : "image/jpeg");
 
   await env.R2_BUCKET.put(key, file.stream(), {
     httpMetadata: {
@@ -1633,6 +1679,45 @@ async function isFamilyOwner(env, userId) {
   return Boolean(family?.owner_id && String(family.owner_id) === String(userId));
 }
 
+async function getR2StorageUsage(env) {
+  const now = new Date();
+  const monthStart = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
+  let usedBytes = 0;
+  let monthUploadedBytes = 0;
+  let cursor;
+  do {
+    const listed = await env.R2_BUCKET.list({ limit: 1000, ...(cursor ? { cursor } : {}) });
+    for (const object of listed.objects || []) {
+      const size = Math.max(0, Number(object.size) || 0);
+      usedBytes += size;
+      const uploadedAt = new Date(object.uploaded).getTime();
+      if (Number.isFinite(uploadedAt) && uploadedAt >= monthStart) {
+        monthUploadedBytes += size;
+      }
+    }
+    cursor = listed.truncated ? listed.cursor : undefined;
+  } while (cursor);
+  return { usedBytes, monthUploadedBytes };
+}
+
+async function handleAdminR2Usage(request, env, user) {
+  const dbError = requireDb(request, env);
+  if (dbError) return dbError;
+  const namedAdmin = String(user.username || "").trim().toLowerCase() === "xiudan320";
+  if (!namedAdmin && !(await isFamilyOwner(env, user.id))) {
+    return jsonResponse(request, env, { error: "Only the family administrator can read R2 usage." }, 403);
+  }
+  const { usedBytes, monthUploadedBytes } = await getR2StorageUsage(env);
+  return jsonResponse(request, env, {
+    data: {
+      used_bytes: usedBytes,
+      month_uploaded_bytes: monthUploadedBytes,
+      capacity_label: "不限",
+      refreshed_at: nowIso(),
+    },
+  });
+}
+
 function getPushCopy(type, actorName, body = "", aggregateCount = 1) {
   const name = actorName || "家庭成员";
   const count = Math.max(1, Number(aggregateCount) || 1);
@@ -2136,6 +2221,12 @@ async function handleTableApi(request, env, user, table) {
     const sanitizedRows = rows.map((row) =>
       sanitizeRowForTable(table, row, user, { forceOwner: Boolean(config.ownerColumn) })
     );
+    if (table === "photos") {
+      for (const row of sanitizedRows) {
+        const mediaError = validateDiaryPhotoMedia(row.note);
+        if (mediaError) return jsonResponse(request, env, { error: mediaError }, 400);
+      }
+    }
     let existingPhotoIds = new Set();
     if (table === "photos" && action === "upsert") {
       const ids = sanitizedRows.map((row) => row.id).filter(Boolean);
@@ -2150,7 +2241,7 @@ async function handleTableApi(request, env, user, table) {
     const conflict = payload.onConflict
       ? String(payload.onConflict).split(",").map((item) => item.trim()).filter(Boolean)
       : config.conflictColumns || [config.columns.includes("id") ? "id" : config.columns[0]];
-    const count = await upsertRows(env, table, sanitizedRows, config.columns, action === "upsert" ? conflict : undefined);
+    const count = await upsertRows(env, table, sanitizedRows, config.columns, conflict);
     if (["photos", "gratitude_notes", "photo_favorites", "photo_comments"].includes(table)) {
       const activityRows = table === "photos" && action === "upsert"
         ? sanitizedRows.filter((row) => !existingPhotoIds.has(row.id))
@@ -2179,6 +2270,10 @@ async function handleTableApi(request, env, user, table) {
       return jsonResponse(request, env, { error: "Not allowed." }, 403);
     }
     const updates = sanitizeRowForTable(table, rawUpdates, user);
+    if (table === "photos" && Object.prototype.hasOwnProperty.call(updates, "note")) {
+      const mediaError = validateDiaryPhotoMedia(updates.note);
+      if (mediaError) return jsonResponse(request, env, { error: mediaError }, 400);
+    }
     delete updates.id;
     delete updates.created_at;
     if (config.ownerColumn) delete updates[config.ownerColumn];
@@ -2224,7 +2319,15 @@ async function handleTableApi(request, env, user, table) {
     )
       .bind(...setValues, ...whereValues)
       .run();
-    return handleTableApi(new Request(`${url.origin}${url.pathname}?filters=${encodeURIComponent(JSON.stringify(filters))}`), env, user, table);
+    return handleTableApi(
+      new Request(
+        `${url.origin}${url.pathname}?filters=${encodeURIComponent(JSON.stringify(filters))}`,
+        { headers: request.headers }
+      ),
+      env,
+      user,
+      table
+    );
   }
 
   if (action === "delete") {
@@ -2328,6 +2431,7 @@ const BACKUP_TABLES = [
   "secret_folders",
   "trash_items",
 ];
+const BACKUP_RETENTION_DAYS = 7;
 
 function extractR2KeysFromTrashPayload(payload) {
   let text = JSON.stringify(payload || {});
@@ -2365,12 +2469,12 @@ async function createDailyBackup(env) {
     httpMetadata: { contentType: "application/octet-stream", cacheControl: "private, no-store" },
   });
 
-  const oldBefore = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const oldBefore = Date.now() - BACKUP_RETENTION_DAYS * 24 * 60 * 60 * 1000;
   let cursor;
   do {
     const listed = await env.R2_BUCKET.list({ prefix: "system-backups/", cursor });
     const oldKeys = listed.objects
-      .filter((object) => new Date(object.uploaded).getTime() < oldBefore)
+      .filter((object) => object.key.endsWith(".backup") && new Date(object.uploaded).getTime() < oldBefore)
       .map((object) => object.key);
     if (oldKeys.length) await env.R2_BUCKET.delete(oldKeys);
     cursor = listed.truncated ? listed.cursor : undefined;
@@ -2512,6 +2616,9 @@ export default {
       if (url.pathname === "/api/admin/signup-invite" && request.method === "GET") {
         return handleSignupInviteRead(request, env, user);
       }
+      if (url.pathname === "/api/admin/r2-usage" && request.method === "GET") {
+        return handleAdminR2Usage(request, env, user);
+      }
 
       if (url.pathname === "/upload" && request.method === "POST") {
         return handleUpload(request, env, user);
@@ -2577,8 +2684,10 @@ export default {
     }
   },
   async scheduled(_controller, env, ctx) {
-    // The scheduled task only expires recycle-bin entries. Automatic backups
-    // are intentionally disabled for this private family app.
+    // Cloudflare cron runs once per day. The date-based object key makes a
+    // repeated invocation on the same day idempotent, while the backup job
+    // removes snapshots older than the seven-day retention window.
     ctx.waitUntil(cleanupExpiredTrash(env));
+    ctx.waitUntil(createDailyBackup(env));
   },
 };

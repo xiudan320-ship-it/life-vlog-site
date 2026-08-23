@@ -19,6 +19,74 @@ function isRetryableStatus(status) {
   return status === 408 || status === 429 || status >= 500;
 }
 
+export function getVideoFileExtension(file) {
+  const extension = String(file?.name || "").match(/\.([a-z0-9]{1,8})$/i)?.[1].toLowerCase();
+  if (extension) return extension;
+  const type = String(file?.type || "").toLowerCase();
+  if (type === "video/mp4") return "mp4";
+  if (type === "video/webm") return "webm";
+  if (type === "video/x-m4v") return "m4v";
+  return "mov";
+}
+
+export function getVideoContentType(file) {
+  const type = String(file?.type || "").toLowerCase();
+  if (type.startsWith("video/")) return type;
+  const extension = getVideoFileExtension(file);
+  if (extension === "mp4") return "video/mp4";
+  if (extension === "webm") return "video/webm";
+  if (extension === "m4v") return "video/x-m4v";
+  return "video/quicktime";
+}
+
+export async function createVideoPosterFile(file) {
+  const objectUrl = URL.createObjectURL(file);
+  const video = document.createElement("video");
+  video.preload = "auto";
+  video.muted = true;
+  video.playsInline = true;
+  try {
+    await new Promise((resolve, reject) => {
+      video.addEventListener("loadeddata", resolve, { once: true });
+      video.addEventListener(
+        "error",
+        () => reject(new Error("这个视频无法在当前浏览器读取，请先导出兼容的视频格式。")),
+        { once: true }
+      );
+      video.src = objectUrl;
+      video.load();
+    });
+    const sourceWidth = Number(video.videoWidth);
+    const sourceHeight = Number(video.videoHeight);
+    if (!sourceWidth || !sourceHeight) {
+      throw new Error("无法从这个视频提取封面，请先导出兼容的视频格式后重试。");
+    }
+    const scale = Math.min(1, 2048 / Math.max(sourceWidth, sourceHeight));
+    const width = Math.max(1, Math.round(sourceWidth * scale));
+    const height = Math.max(1, Math.round(sourceHeight * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("无法生成视频封面，请重试。");
+    context.drawImage(video, 0, 0, width, height);
+    const blob = await new Promise((resolve, reject) => {
+      canvas.toBlob(
+        (nextBlob) => (nextBlob ? resolve(nextBlob) : reject(new Error("视频封面生成失败，请重试。"))),
+        "image/jpeg",
+        0.9
+      );
+    });
+    const stem = String(file?.name || "").replace(/\.[^.]+$/, "").trim() || "video";
+    return new File([blob], `${stem}-cover.jpg`, { type: "image/jpeg", lastModified: Date.now() });
+  } finally {
+    video.pause();
+    video.removeAttribute("src");
+    video.load();
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
 export function createImageService({
   endpoint,
   getAccessToken,
@@ -97,11 +165,13 @@ export function createImageService({
     });
   }
 
-  async function uploadToR2(blob, safeName, folder = "photos") {
+  async function uploadToR2(blob, safeName, folder = "photos", options = {}) {
     const accessToken = getAccessToken?.();
     if (!normalizedEndpoint || !accessToken) {
       throw new Error("R2 上传服务尚未配置。");
     }
+    const fileName = options.fileName || `${safeName}.jpg`;
+    const contentType = options.contentType || "image/jpeg";
     const taskId = crypto.randomUUID();
     taskMap.set(taskId, {
       id: taskId,
@@ -119,7 +189,7 @@ export function createImageService({
         onTaskChanged(taskMap);
         try {
           const formData = new FormData();
-          formData.set("file", new File([blob], `${safeName}.jpg`, { type: "image/jpeg" }));
+          formData.set("file", new File([blob], fileName, { type: contentType }));
           formData.set("name", safeName);
           formData.set("folder", folder);
           const response = await fetchApi(`${normalizedEndpoint}/upload`, {

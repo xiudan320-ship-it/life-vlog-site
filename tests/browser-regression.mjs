@@ -109,10 +109,16 @@ async function testComponentStates(viewport, label) {
   await page.goto(`${baseUrl}/tests/component-regression.html`, { waitUntil: "load" });
   await assertNoHorizontalOverflow(page, `${label} component states`);
 
+  const wishlistColumns = await page.locator(".wishlist-list").evaluate(
+    (list) => getComputedStyle(list).gridTemplateColumns.split(" ").filter(Boolean).length
+  );
+  assert.equal(wishlistColumns, 1, `${label} wishlist must use one row per item`);
   const wishCards = await page.locator(".wish-card").evaluateAll((cards) =>
     cards.map((card) => ({
       height: Math.round(card.getBoundingClientRect().height),
+      width: Math.round(card.getBoundingClientRect().width),
       imageHeight: Math.round(card.querySelector(".wish-card-image-button").getBoundingClientRect().height),
+      imageWidth: Math.round(card.querySelector(".wish-card-image-button").getBoundingClientRect().width),
       actionsBottom: Math.round(card.querySelector(".wish-actions").getBoundingClientRect().bottom),
       cardBottom: Math.round(card.getBoundingClientRect().bottom),
     }))
@@ -122,20 +128,61 @@ async function testComponentStates(viewport, label) {
     Math.abs(wishCards[0].imageHeight - wishCards[1].imageHeight) <= 1,
     `${label} wishlist image regions have different heights`
   );
-  if (viewport.width <= 700) {
-    assert.ok(
-      Math.abs(wishCards[0].height - wishCards[1].height) <= 1,
-      `${label} wishlist cards have different heights`
-    );
-    const receipt = await page.locator(".wish-completion-note").boundingBox();
-    assert.ok(receipt && receipt.height >= 24, `${label} completion receipt is collapsed`);
-  }
+  const maxImageSize = viewport.width <= 700 ? 104 : 140;
+  const maxCardHeight = viewport.width <= 700 ? 320 : 280;
+  const receipt = await page.locator(".wish-completion-note").boundingBox();
+  assert.ok(receipt && receipt.height >= 24, `${label} completion receipt is collapsed`);
   for (const card of wishCards) {
+    assert.ok(card.imageWidth <= maxImageSize, `${label} wishlist image is too wide: ${JSON.stringify(card)}`);
+    assert.ok(card.imageHeight <= maxImageSize, `${label} wishlist image is too tall: ${JSON.stringify(card)}`);
+    assert.ok(card.height <= maxCardHeight, `${label} wishlist row is too tall: ${JSON.stringify(card)}`);
     assert.ok(
       card.actionsBottom <= card.cardBottom + 1,
       `${label} wishlist actions overlap card boundary: ${JSON.stringify(card)}`
     );
   }
+
+  const weekendPreview = await page.locator(".weekend-scenes button").evaluateAll((buttons) => {
+    const visible = buttons.filter((button) => getComputedStyle(button).display !== "none");
+    return {
+      visible: visible.length,
+      rows: new Set(visible.map((button) => Math.round(button.getBoundingClientRect().top))).size,
+      lastOverlay: visible.length ? getComputedStyle(visible.at(-1), "::after").content : "",
+    };
+  });
+  assert.equal(weekendPreview.visible, viewport.width <= 700 ? 6 : 8, `${label} weekend preview is not two rows`);
+  assert.equal(weekendPreview.rows, 2, `${label} weekend preview row count is incorrect`);
+  assert.match(weekendPreview.lastOverlay, /查看全部/, `${label} weekend preview has no open-all cue`);
+
+  const previewLimit = viewport.width <= 700 ? 6 : 8;
+  await page.locator(".weekend-scenes button").nth(previewLimit - 1).click();
+  const albumWindow = await page.locator("#weekendAlbumDialog").evaluate((dialog) => ({
+    open: dialog.open,
+    photos: dialog.querySelectorAll("[data-weekend-album-image]").length,
+    title: dialog.querySelector("#weekendAlbumTitle")?.textContent || "",
+    overflow: dialog.scrollWidth > dialog.clientWidth,
+  }));
+  const unchangedPreview = await page.locator(".weekend-scenes button").evaluateAll((buttons) => ({
+    visible: buttons.filter((button) => getComputedStyle(button).display !== "none").length,
+    opened: document.body.dataset.weekendGalleryOpened || "",
+  }));
+  assert.equal(albumWindow.open, true, `${label} weekend album window did not open`);
+  assert.equal(albumWindow.photos, 10, `${label} weekend album window is missing images`);
+  assert.match(albumWindow.title, /公园里慢慢走一圈/, `${label} weekend album title is incorrect`);
+  assert.equal(albumWindow.overflow, false, `${label} weekend album window overflows horizontally`);
+  assert.equal(unchangedPreview.visible, previewLimit, `${label} weekend card expanded in place`);
+  assert.equal(unchangedPreview.opened, "", `${label} first weekend click opened the lightbox`);
+  await page.locator("[data-weekend-album-image]").first().click();
+  assert.equal(
+    await page.locator("body").getAttribute("data-weekend-gallery-opened"),
+    "true",
+    `${label} weekend album image did not open the lightbox`
+  );
+  assert.equal(
+    await page.locator("#weekendAlbumDialog").getAttribute("open"),
+    null,
+    `${label} album window stayed open behind the lightbox`
+  );
 
   const toolbar = await page.locator(".secret-album-toolbar").boundingBox();
   assert.ok(toolbar && toolbar.width > 0 && toolbar.height > 0, `${label} secret selection toolbar is missing`);

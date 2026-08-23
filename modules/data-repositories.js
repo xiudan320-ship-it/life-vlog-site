@@ -104,17 +104,6 @@ export function createDiaryRepository({ getDatabase, getSession }) {
         .select("photo_id")
         .eq("user_id", userId);
     },
-    async upsertFavorites(photoIds) {
-      const userId = getSession?.()?.user?.id;
-      const ids = [...new Set((photoIds || []).filter(Boolean))];
-      if (!userId || !ids.length) return { data: [], error: null };
-      return requireDatabase(getDatabase)
-        .from("photo_favorites")
-        .upsert(
-          ids.map((photoId) => ({ user_id: userId, photo_id: photoId })),
-          { onConflict: "user_id,photo_id" }
-        );
-    },
   };
 }
 

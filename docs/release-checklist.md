@@ -12,24 +12,19 @@ pnpm test
 
 ## 2. 线上测试账户检查
 
-测试账号只在本机环境变量里输入，不要写入 README、脚本、截图或提交记录：
+测试账号保存在当前 Windows 用户专属的 DPAPI 加密文件中：
 
 ```powershell
-$env:RELEASE_BASE_URL = "https://life-vlog-site.pages.dev"
-$env:RELEASE_TEST_USERNAME = "测试账号的登录名"
-$env:RELEASE_TEST_PASSWORD = "测试账号的密码"
-$env:RELEASE_TEST_DISPLAY_NAME = "呱噗救火大队"
-pnpm run test:release
+powershell -NoProfile -ExecutionPolicy Bypass -File .\test-release.ps1
 ```
 
-测试完成后清掉当前终端里的凭证：
+凭据文件位于：
 
-```powershell
-Remove-Item Env:RELEASE_TEST_USERNAME
-Remove-Item Env:RELEASE_TEST_PASSWORD
-```
+`%LOCALAPPDATA%\LifeVlog\release-test-credential.xml`
 
-自动检查会在桌面尺寸和手机尺寸下登录线上页面，确认登录状态、账号入口、日记/菜谱/心愿导航和页面宽度没有异常。
+文件内的密码由 Windows DPAPI 加密，只能由保存它的 Windows 用户解密。测试脚本只在子进程中短暂注入登录信息，结束时会立即清除环境变量。
+
+自动检查会在桌面尺寸和手机尺寸下登录线上页面，确认登录状态、账号入口、日记/菜谱/心愿导航和页面宽度没有异常；还会验证已完成心愿的回执布局与详情，以及收藏日记在刷新后的持久化和取消收藏。收藏检查使用一条临时 D1 日记夹具，脚本结束时会清理日记、收藏、评论和通知。
 
 ## 3. 手动验收清单
 
@@ -48,6 +43,6 @@ Remove-Item Env:RELEASE_TEST_PASSWORD
 
 ## 凭证规则
 
-- 测试密码只通过环境变量或本机密码管理器提供。
+- 测试密码只通过本机 DPAPI 加密凭据文件提供。
 - 不把密码、Worker token、邀请码、邮箱密钥提交到 Git。
 - 发布前检查 `git diff`，确认没有凭证、临时截图和本地配置文件。

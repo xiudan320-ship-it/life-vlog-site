@@ -74,12 +74,6 @@ export function wishToCloudRow(wish, userId) {
   };
 }
 
-export function wishToLegacyCloudRow(wish, userId) {
-  const row = wishToCloudRow(wish, userId);
-  delete row.completion_note;
-  return row;
-}
-
 export function wishFromCloudRow(row) {
   const media = parseWishStoredNote(row.note);
   return {

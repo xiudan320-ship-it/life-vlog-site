@@ -234,6 +234,193 @@
   }
 }
 
+/* Weekend cards keep a two-row preview. Clicking it opens a separate album window. */
+.weekend-list .weekend-scenes > button {
+  position: relative;
+}
+
+@media (min-width: 701px) {
+  .weekend-list .weekend-scenes > button:nth-child(n + 9) {
+    display: none;
+  }
+
+  .weekend-list .weekend-scenes > button:nth-child(8):not(:last-child)::after {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(135deg, rgba(8, 12, 9, .7), rgba(8, 12, 9, .9));
+    color: #fff;
+    content: "查看全部";
+    font-size: 12px;
+    font-weight: 950;
+    letter-spacing: .04em;
+    pointer-events: none;
+  }
+}
+
+@media (max-width: 700px) {
+  .weekend-list .weekend-scenes > button:nth-child(n + 7) {
+    display: none;
+  }
+
+  .weekend-list .weekend-scenes > button:nth-child(6):not(:last-child)::after {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(135deg, rgba(8, 12, 9, .7), rgba(8, 12, 9, .9));
+    color: #fff;
+    content: "查看全部";
+    font-size: 10px;
+    font-weight: 950;
+    letter-spacing: .04em;
+    pointer-events: none;
+  }
+}
+
+.weekend-album-dialog {
+  width: min(920px, calc(100vw - 40px));
+  max-width: none;
+  max-height: calc(100dvh - 40px);
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--line));
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--surface) 96%, #071009);
+  color: var(--text);
+  box-shadow: 0 28px 90px rgba(0, 0, 0, .64);
+}
+
+.weekend-album-dialog::backdrop {
+  background: rgba(2, 5, 3, .82);
+  backdrop-filter: blur(8px);
+}
+
+.weekend-album-window {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 42px);
+}
+
+.weekend-album-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px 22px 16px;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+}
+
+.weekend-album-header p {
+  margin: 0 0 3px;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.weekend-album-header h2 {
+  margin: 0;
+  font-size: clamp(20px, 3vw, 30px);
+  line-height: 1.08;
+}
+
+.weekend-album-header span {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.weekend-album-close {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 28px;
+  line-height: 1;
+}
+
+.weekend-album-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  padding: 18px 22px 24px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.weekend-album-grid > button {
+  min-width: 0;
+  aspect-ratio: 1;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #090d0a;
+}
+
+.weekend-album-grid img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  transition: transform 180ms ease, filter 180ms ease;
+}
+
+@media (hover: hover) {
+  .weekend-album-grid > button:hover img {
+    transform: scale(1.035);
+    filter: brightness(1.08);
+  }
+}
+
+@media (max-width: 700px) {
+  .weekend-album-dialog {
+    width: calc(100vw - 16px);
+    max-height: calc(100dvh - 16px);
+    border-radius: 14px;
+  }
+
+  .weekend-album-window {
+    max-height: calc(100dvh - 18px);
+  }
+
+  .weekend-album-header {
+    gap: 12px;
+    padding: 14px 14px 12px;
+  }
+
+  .weekend-album-header h2 {
+    font-size: 21px;
+  }
+
+  .weekend-album-close {
+    flex-basis: 40px;
+    width: 40px;
+    height: 40px;
+    font-size: 25px;
+  }
+
+  .weekend-album-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    padding: 10px 10px calc(16px + env(safe-area-inset-bottom));
+  }
+
+  .weekend-album-grid > button {
+    border-radius: 7px;
+  }
+}
+
 @media (max-width: 700px) {
   .weekend-list {
     gap: 12px !important;
