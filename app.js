@@ -1,43 +1,33 @@
 ﻿const CONFIG_KEY = "life-vlog-cloudflare-config";
 import { confirmAction } from "./modules/confirm-dialog.js";
-import {
-  getCacheCapacityStorageKey as buildCacheCapacityStorageKey,
-  isClearlyUnmeteredConnection as detectUnmeteredConnection,
-  normalizeCacheMb as clampCacheMb,
-} from "./modules/cache-policy.js";
+import { createOfflineCacheController } from "./modules/offline-cache-controller.js";
+import { createAssetController } from "./modules/asset-controller.js";
+import { createDiaryComposerController } from "./modules/diary-composer-controller.js";
+import { createGamificationController } from "./modules/gamification-controller.js";
+import { createProfilePreferencesController } from "./modules/profile-preferences-controller.js";
+import { createSecretPinController } from "./modules/secret-pin-controller.js";
+import { createSecretController } from "./modules/secret-controller.js";
 import { createCloudflareBackend } from "./modules/cloudflare-client.js?v=20260811-010";
-import {
-  createMediaCacheService,
-  normalizeMediaUrl,
-} from "./modules/media-cache.js";
+import { createMediaCacheService } from "./modules/media-cache.js";
 import { createUploadQueue } from "./modules/upload-queue.js";
 import { createPhotoFavoritesStore } from "./modules/photo-favorites.js";
-import { formatWishDate, renderWishlist } from "./modules/wishlist-view.js";
+import { formatWishDate } from "./modules/wishlist-view.js";
+import { createWishlistController } from "./modules/wishlist-controller.js";
+import { normalizeFoodOptions } from "./modules/food-wheel-view.js";
+import { createFoodWheelController } from "./modules/food-wheel-controller.js";
+import { createPushController } from "./modules/push-controller.js";
+import { createAuthController } from "./modules/auth-controller.js";
+import { createRecipeController } from "./modules/recipe-controller.js";
+import { createAnniversaryController } from "./modules/anniversary-controller.js";
 import {
-  createDiaryUploadPayload,
-  getDiaryUploadEntryCount,
-  getDiaryUploadFileExtension,
-  getDiaryUploadFileKey,
-  getDiaryUploadPreviewItems,
-  isDiaryUploadMotionFile,
-  isDiaryUploadStillFile,
-  pairDiaryUploadFiles,
-} from "./modules/diary-upload-domain.js";
-import {
-  buildFoodWheelOptions,
-  normalizeFoodOptions,
-  renderFoodWheelView,
-} from "./modules/food-wheel-view.js";
-import { renderRecipesView } from "./modules/recipe-view.js";
-import { renderAnniversariesView } from "./modules/anniversary-view.js";
-import { renderWeekendPlansView } from "./modules/weekend-plans-view.js";
-import { renderGratitudeNotesView } from "./modules/gratitude-view.js";
+  createWeekendController,
+  getNextWeekendDate,
+} from "./modules/weekend-controller.js";
+import { createGratitudeController } from "./modules/gratitude-controller.js";
 import { renderNotificationsView } from "./modules/notification-view.js";
 import {
-  formatMoney,
   getVipLevel,
   getVipLevelByRecharge,
-  renderVipCenterView,
 } from "./modules/vip-center.js";
 import {
   getDiaryGalleryEmptyState,
@@ -94,37 +84,14 @@ import {
 } from "./modules/family-activity-view.js";
 import { configureCacheManagementUi } from "./modules/cache-management-view.js";
 import {
-  buildAchievementDetailMarkup,
-  buildAchievementFilterMarkup,
-  buildAchievementGridMarkup,
-  buildCultivationArchiveMarkup,
-  buildExperienceRulesMarkup,
-  buildLevelAchievementMarkup,
-  buildLevelAtlasMarkup,
-  buildLevelLeaderboardMarkup,
-  buildLevelWorkspaceMarkup,
-  getAchievementConditionText as formatAchievementCondition,
-} from "./modules/gamification-view.js";
-import {
   getProfileCapabilities,
   mergeLoginState,
   resolvePreferredDisplayName,
   resolvePreferredHomeName,
 } from "./modules/account-sync-domain.js";
+import { collectAppElements } from "./modules/app-elements.js";
 import { refreshAdminStorage as refreshStorage } from "./modules/admin-storage.js";
-import { createVlogMode, filterVlogPhotos, validateVlogUpload } from "./modules/vlog-mode.js";
-import {
-  CULTIVATION_DESCRIPTIONS,
-  CULTIVATION_REALMS,
-  DAILY_LOGIN_EXP,
-  EXPERIENCE_REWARDS,
-  getDailyLoginReward as calculateDailyLoginReward,
-  getExperienceLevel as calculateExperienceLevel,
-  getLoginStreakBonusBase as calculateLoginStreakBonusBase,
-  getUpgradeEta as calculateUpgradeEta,
-  getVipAdjustedExperience as calculateVipAdjustedExperience,
-  getVipExpMultiplier as calculateVipExpMultiplier,
-} from "./modules/gamification-domain.js?v=20260810-003";
+import { createVlogMode, filterVlogPhotos } from "./modules/vlog-mode.js";
 import {
   createDiaryRepository,
   createNotificationRepository,
@@ -148,22 +115,15 @@ import {
   stripDiaryMediaMetadata,
 } from "./modules/media-metadata.js";
 import {
-  anniversaryFromCloudRow,
-  anniversaryToCloudRow,
   recipeFromCloudRow,
-  recipeToCloudRow,
   secretFolderFromCloudRow,
   secretFromCloudRow,
   secretToCloudRow,
   weekendFromCloudRow,
-  weekendToCloudRow,
   wishFromCloudRow,
-  wishToCloudRow,
 } from "./modules/cloud-models.js";
-import { buildCultivationArchive } from "./modules/gamification-archive.js";
 import {
   createImageService,
-  createVideoPosterFile,
   getVideoContentType,
   getVideoFileExtension,
 } from "./modules/image-service.js";
@@ -182,15 +142,10 @@ import {
   formatCommentTime,
   formatDate,
   formatDateTime,
+  formatFileSize,
   getInitial,
   slugify,
 } from "./modules/ui-formatters.js";
-import {
-  getStorageUsageBytes,
-  sanitizeCommentRecord,
-  sanitizeDiaryRecord,
-  sanitizeSecretRecord,
-} from "./modules/offline-records.js";
 import {
   filterDiaryEntries,
   isDiaryWithinDays,
@@ -340,8 +295,6 @@ let familyInvitations = [];
 let familyMemberMap = new Map();
 let familyLevelProfiles = new Map();
 let levelGuideVisible = false;
-let achievementFilter = "全部";
-let gratitudeEditingId = null;
 let activeDialogPhoto = null;
 let mobileDiaryPhoto = null;
 let mobileDiaryPage = null;
@@ -355,16 +308,11 @@ let photoComments = [];
 let photoCommentPreviewMap = new Map();
 let notifications = [];
 let commentReplyToId = null;
-let avatarPreviewUrl = "";
 let photosLoadPromise = null;
 let notificationsLoadPromise = null;
 let secretLoadPromise = null;
 let lastSecretSyncAt = 0;
-let pushSubscriptionSyncPromise = null;
-const PUSH_SUBSCRIPTION_SYNC_KEY = "life-vlog-push-subscription-sync";
-const PUSH_SUBSCRIPTION_SYNC_INTERVAL = 6 * 60 * 60 * 1000;
 let galleryRenderSignature = "";
-let activeLevelSection = "ranking";
 let lastAppBadgeCount = -1;
 let pendingNewPhotos = [];
 let dismissedFeedRefreshIds = new Set();
@@ -402,12 +350,6 @@ let secretDefaultFolderId = "";
 let secretFolderContextMenu = null;
 let secretAlbumContextMenu = null;
 let secretSearchQuery = "";
-let secretPinEntry = "";
-let secretPinSetupValue = "";
-let secretPinMode = "unlock";
-let secretPinManageMode = false;
-let secretUnlockedAt = 0;
-let secretLeftAt = 0;
 let secretSelectionMode = false;
 let selectedSecretImageIndexes = new Set();
 let secretAlbumEditing = false;
@@ -415,10 +357,6 @@ let secretAppendExpanded = false;
 let secretMobileToolsExpanded = false;
 let diarySearchQuery = "";
 let activeWishView = "open";
-let previewUrls = [];
-let selectedUploadFiles = [];
-let uploadInFlight = false;
-let uploadQueueProcessing = false;
 const activeUploadTasks = new Map();
 let visiblePhotoCount = PAGE_SIZE;
 let filteredPhotoCount = 0;
@@ -464,39 +402,13 @@ let mobileDiaryImageViewerOpen = false;
 let toolDockDragState = null;
 let suppressToolDockClick = false;
 let activeVipLevel = 1;
-let recipeEditingId = null;
-let recipeExistingCover = "";
-let recipeCoverLink = "";
-let recipeCoverPreviewUrl = "";
-let activeUploadPreviewIndex = 0;
-let selectedUploadLinks = [];
-let wishEditingId = null;
-let wishExistingImage = "";
-let wishExistingImagePath = "";
-let wishImageLink = "";
-let wishImagePreviewUrl = "";
-let wishRemoveImageRequested = false;
-let wishCompletingId = null;
-let weekendEditingId = null;
-let weekendSelectedFiles = [];
-let weekendSelectedLinks = [];
-let weekendExistingImages = [];
-let weekendPreviewUrls = [];
-let weekendCompletionPlanId = null;
-let weekendCompletionFiles = [];
-let weekendCompletionLinks = [];
-let weekendCompletionExistingImages = [];
-let weekendCompletionPreviewUrls = [];
 let weekendCloudAvailable = false;
-let anniversaryEditingId = null;
 let anniversaryCloudAvailable = false;
 let secretCloudAvailable = false;
 let photoFlagsCloudAvailable = false;
 let foodOptionsCloudAvailable = false;
 let profilePreferencesCloudAvailable = false;
 let thanksColorCloudAvailable = false;
-let foodWheelRotation = 0;
-let foodWheelSpinning = false;
 let cloudSyncAvailable = false;
 let cloudSyncInFlight = null;
 let syncedUserId = "";
@@ -518,461 +430,10 @@ let accountProfile = {
   foodOptions: [],
 };
 
-const els = {
-  brand: document.querySelector(".brand"),
-  themeToggle: document.querySelector("#themeToggle"),
-  galleryNav: document.querySelector("#galleryNav"),
-  recipesNav: document.querySelector("#recipesNav"),
-  wishlistNav: document.querySelector("#wishlistNav"),
-  weekendNav: document.querySelector("#weekendNav"),
-  wardrobeNav: document.querySelector("#wardrobeNav"),
-  thanksNav: document.querySelector("#thanksNav"),
-  secretNav: document.querySelector("#secretNav"),
-  setupToggle: document.querySelector("#setupToggle"),
-  setupPanel: document.querySelector("#setupPanel"),
-  notificationButton: document.querySelector("#notificationButton"),
-  notificationBadge: document.querySelector("#notificationBadge"),
-  notificationDialog: document.querySelector("#notificationDialog"),
-  closeNotificationDialog: document.querySelector("#closeNotificationDialog"),
-  notificationList: document.querySelector("#notificationList"),
-  notificationStatus: document.querySelector("#notificationStatus"),
-  cloudflareEndpoint: document.querySelector("#cloudflareEndpoint"),
-  saveConfig: document.querySelector("#saveConfig"),
-  authCard: document.querySelector("#authCard"),
-  usernameInput: document.querySelector("#usernameInput"),
-  passwordInput: document.querySelector("#passwordInput"),
-  inviteCodeInput: document.querySelector("#inviteCodeInput"),
-  loginButton: document.querySelector("#loginButton"),
-  signupButton: document.querySelector("#signupButton"),
-  logoutButton: document.querySelector("#logoutButton"),
-  authHint: document.querySelector("#authHint"),
-  userMenu: document.querySelector("#userMenu"),
-  avatarButton: document.querySelector("#avatarButton"),
-  avatarInitial: document.querySelector("#avatarInitial"),
-  avatarImage: document.querySelector("#avatarImage"),
-  userPopover: document.querySelector("#userPopover"),
-  accountSettingsButton: document.querySelector("#accountSettingsButton"),
-  settingsDialog: document.querySelector("#settingsDialog"),
-  closeSettingsDialog: document.querySelector("#closeSettingsDialog"),
-  settingsNavButtons: document.querySelectorAll("[data-settings-section]"),
-  settingsGroups: document.querySelectorAll(".settings-group"),
-  settingsToolOrderList: document.querySelector("#settingsToolOrderList"),
-  settingsFamilyPanel: document.querySelector("#settingsFamilyPanel"),
-  settingsHomeNameValue: document.querySelector("#settingsHomeNameValue"),
-  settingsNicknameValue: document.querySelector("#settingsNicknameValue"),
-  settingsAvatarValue: document.querySelector("#settingsAvatarValue"),
-  settingsFeedLayoutButton: document.querySelector("#settingsFeedLayoutButton"),
-  settingsFeedLayoutValue: document.querySelector("#settingsFeedLayoutValue"),
-  refreshCacheInfoButton: document.querySelector("#refreshCacheInfoButton"),
-  cacheLimitButton: document.querySelector("#cacheLimitButton"),
-  cacheLimitDialog: document.querySelector("#cacheLimitDialog"),
-  closeCacheLimitDialog: document.querySelector("#closeCacheLimitDialog"),
-  cacheLimitForm: document.querySelector("#cacheLimitForm"),
-  cacheLimitInput: document.querySelector("#cacheLimitInput"),
-  cacheLimitStatus: document.querySelector("#cacheLimitStatus"),
-  cancelCacheLimit: document.querySelector("#cancelCacheLimit"),
-  clearAppCacheButton: document.querySelector("#clearAppCacheButton"),
-  settingsCacheValue: document.querySelector("#settingsCacheValue"),
-  settingsCacheLimitValue: document.querySelector("#settingsCacheLimitValue"),
-  settingsCacheStatus: document.querySelector("#settingsCacheStatus"),
-  profileName: document.querySelector("#profileName"),
-  xpPanel: document.querySelector("#xpPanel"),
-  brandName: document.querySelector("#brandName"),
-  heroHomeName: document.querySelector("#heroHomeName"),
-  heroSignature: document.querySelector(".hero-copy > p:last-child"),
-  vipHomeName: document.querySelector("#vipHomeName"),
-  renameHomeButton: document.querySelector("#renameHomeButton"),
-  renameProfileButton: document.querySelector("#renameProfileButton"),
-  changeAvatarButton: document.querySelector("#changeAvatarButton"),
-  familyAccountButton: document.querySelector("#familyAccountButton"),
-  renameHomeDialog: document.querySelector("#renameHomeDialog"),
-  closeRenameHome: document.querySelector("#closeRenameHome"),
-  renameHomeForm: document.querySelector("#renameHomeForm"),
-  homeNameInput: document.querySelector("#homeNameInput"),
-  homeNameStatus: document.querySelector("#homeNameStatus"),
-  resetHomeName: document.querySelector("#resetHomeName"),
-  renameProfileDialog: document.querySelector("#renameProfileDialog"),
-  closeRenameProfile: document.querySelector("#closeRenameProfile"),
-  renameProfileForm: document.querySelector("#renameProfileForm"),
-  profileNicknameInput: document.querySelector("#profileNicknameInput"),
-  profileNicknameStatus: document.querySelector("#profileNicknameStatus"),
-  avatarDialog: document.querySelector("#avatarDialog"),
-  closeAvatarDialog: document.querySelector("#closeAvatarDialog"),
-  avatarForm: document.querySelector("#avatarForm"),
-  avatarInput: document.querySelector("#avatarInput"),
-  avatarPreview: document.querySelector("#avatarPreview"),
-  avatarPreviewInitial: document.querySelector("#avatarPreviewInitial"),
-  avatarStatus: document.querySelector("#avatarStatus"),
-  changePasswordButton: document.querySelector("#changePasswordButton"),
-  changePasswordDialog: document.querySelector("#changePasswordDialog"),
-  closeChangePassword: document.querySelector("#closeChangePassword"),
-  changePasswordForm: document.querySelector("#changePasswordForm"),
-  newPasswordInput: document.querySelector("#newPasswordInput"),
-  confirmPasswordInput: document.querySelector("#confirmPasswordInput"),
-  changePasswordStatus: document.querySelector("#changePasswordStatus"),
-  recoveryKeyButton: document.querySelector("#recoveryKeyButton"),
-  recoveryKeyDialog: document.querySelector("#recoveryKeyDialog"),
-  closeRecoveryKey: document.querySelector("#closeRecoveryKey"),
-  recoveryKeyForm: document.querySelector("#recoveryKeyForm"),
-  recoveryKeyInput: document.querySelector("#recoveryKeyInput"),
-  confirmRecoveryKeyInput: document.querySelector("#confirmRecoveryKeyInput"),
-  recoveryKeyStatus: document.querySelector("#recoveryKeyStatus"),
-  changeSecretPinButton: document.querySelector("#changeSecretPinButton"),
-  settingsEmailValue: document.querySelector("#settingsEmailValue"),
-  bindEmailButton: document.querySelector("#bindEmailButton"),
-  emailBindingDialog: document.querySelector("#emailBindingDialog"),
-  closeEmailBinding: document.querySelector("#closeEmailBinding"),
-  emailBindingRequestForm: document.querySelector("#emailBindingRequestForm"),
-  emailBindingConfirmForm: document.querySelector("#emailBindingConfirmForm"),
-  accountEmailInput: document.querySelector("#accountEmailInput"),
-  accountEmailCodeInput: document.querySelector("#accountEmailCodeInput"),
-  emailBindingStatus: document.querySelector("#emailBindingStatus"),
-  emailBindingConfirmStatus: document.querySelector("#emailBindingConfirmStatus"),
-  requestEmailBindingButton: document.querySelector("#requestEmailBindingButton"),
-  forgotPasswordButton: document.querySelector("#forgotPasswordButton"),
-  forgotPasswordDialog: document.querySelector("#forgotPasswordDialog"),
-  closeForgotPassword: document.querySelector("#closeForgotPassword"),
-  forgotPasswordForm: document.querySelector("#forgotPasswordForm"),
-  emailResetRequestForm: document.querySelector("#emailResetRequestForm"),
-  emailResetConfirmForm: document.querySelector("#emailResetConfirmForm"),
-  resetEmailInput: document.querySelector("#resetEmailInput"),
-  resetEmailCodeInput: document.querySelector("#resetEmailCodeInput"),
-  emailResetNewPasswordInput: document.querySelector("#emailResetNewPasswordInput"),
-  emailResetConfirmPasswordInput: document.querySelector("#emailResetConfirmPasswordInput"),
-  emailResetStatus: document.querySelector("#emailResetStatus"),
-  recoveryUsernameInput: document.querySelector("#recoveryUsernameInput"),
-  recoverySecretInput: document.querySelector("#recoverySecretInput"),
-  recoveryNewPasswordInput: document.querySelector("#recoveryNewPasswordInput"),
-  recoveryConfirmPasswordInput: document.querySelector("#recoveryConfirmPasswordInput"),
-  forgotPasswordStatus: document.querySelector("#forgotPasswordStatus"),
-  xpPanel: document.querySelector("#xpPanel"),
-  xpLevel: document.querySelector("#xpLevel"),
-  xpText: document.querySelector("#xpText"),
-  xpBar: document.querySelector("#xpBar"),
-  xpHint: document.querySelector("#xpHint"),
-  vipBadge: document.querySelector("#vipBadge"),
-  vipPopoverBadge: document.querySelector("#vipPopoverBadge"),
-  globalStatus: document.querySelector("#globalStatus"),
-  composer: document.querySelector("#composer"),
-  uploadToggle: document.querySelector("#uploadToggle"),
-  uploadForm: document.querySelector("#uploadForm"),
-  photoDrop: document.querySelector("#photoDrop"),
-  photoInput: document.querySelector("#photoInput"),
-  photoMotionInput: document.querySelector("#photoMotionInput"),
-  photoLinkInput: document.querySelector("#photoLinkInput"),
-  photoLinkAdd: document.querySelector("#photoLinkAdd"),
-  uploadMainPreview: document.querySelector("#uploadMainPreview"),
-  photoPreview: document.querySelector("#photoPreview"),
-  photoVideoPreview: document.querySelector("#photoVideoPreview"),
-  removeUploadPreview: document.querySelector("#removeUploadPreview"),
-  previewStrip: document.querySelector("#previewStrip"),
-  fileName: document.querySelector("#fileName"),
-  titleInput: document.querySelector("#titleInput"),
-  dateInput: document.querySelector("#dateInput"),
-  categoryInput: document.querySelector("#categoryInput"),
-  publicInput: document.querySelector("#publicInput"),
-  noteInput: document.querySelector("#noteInput"),
-  uploadStatus: document.querySelector("#uploadStatus"),
-  galleryHead: document.querySelector("#galleryHead"),
-  feedRefreshNotice: document.querySelector("#feedRefreshNotice"),
-  todayPostsNotice: document.querySelector("#todayPostsNotice"),
-  weekendReminderNotice: document.querySelector("#weekendReminderNotice"),
-  galleryFilters: document.querySelector("#galleryFilters"),
-  diarySearchInput: document.querySelector("#diarySearchInput"),
-  clearDiarySearch: document.querySelector("#clearDiarySearch"),
-  gallery: document.querySelector("#gallery"),
-  feedLoader: document.querySelector("#feedLoader"),
-  feedLoaderText: document.querySelector("#feedLoaderText"),
-  chips: document.querySelectorAll(".chip"),
-  dialog: document.querySelector("#photoDialog"),
-  dialogMedia: document.querySelector("#photoDialog .dialog-media"),
-  closeDialog: document.querySelector("#closeDialog"),
-  dialogImage: document.querySelector("#dialogImage"),
-  dialogVideo: document.querySelector("#dialogVideo"),
-  dialogExpandImage: document.querySelector("#dialogExpandImage"),
-  dialogTitle: document.querySelector("#dialogTitle"),
-  dialogMeta: document.querySelector("#dialogMeta"),
-  dialogNote: document.querySelector("#dialogNote"),
-  wishDialogFeedback: document.querySelector("#wishDialogFeedback"),
-  wishDialogCompletedAt: document.querySelector("#wishDialogCompletedAt"),
-  wishDialogFeedbackText: document.querySelector("#wishDialogFeedbackText"),
-  dialogPrev: document.querySelector("#dialogPrev"),
-  dialogNext: document.querySelector("#dialogNext"),
-  diaryViewerToolbar: document.querySelector("#diaryViewerToolbar"),
-  diaryViewerPrev: document.querySelector("#diaryViewerPrev"),
-  diaryViewerCounter: document.querySelector("#diaryViewerCounter"),
-  diaryViewerNext: document.querySelector("#diaryViewerNext"),
-  diaryViewerZoomOut: document.querySelector("#diaryViewerZoomOut"),
-  diaryViewerZoomValue: document.querySelector("#diaryViewerZoomValue"),
-  diaryViewerZoomIn: document.querySelector("#diaryViewerZoomIn"),
-  diaryViewerFit: document.querySelector("#diaryViewerFit"),
-  diaryViewerRotate: document.querySelector("#diaryViewerRotate"),
-  diaryViewerDownload: document.querySelector("#diaryViewerDownload"),
-  secretViewerStatus: document.querySelector("#secretViewerStatus"),
-  secretViewerStatusText: document.querySelector("#secretViewerStatusText"),
-  secretViewerToolbar: document.querySelector("#secretViewerToolbar"),
-  secretViewerPrev: document.querySelector("#secretViewerPrev"),
-  secretViewerCounter: document.querySelector("#secretViewerCounter"),
-  secretViewerNext: document.querySelector("#secretViewerNext"),
-  secretViewerZoomOut: document.querySelector("#secretViewerZoomOut"),
-  secretViewerZoomValue: document.querySelector("#secretViewerZoomValue"),
-  secretViewerZoomIn: document.querySelector("#secretViewerZoomIn"),
-  secretViewerFit: document.querySelector("#secretViewerFit"),
-  secretViewerInfo: document.querySelector("#secretViewerInfo"),
-  dialogCounter: document.querySelector("#dialogCounter"),
-  dialogDots: document.querySelector("#dialogDots"),
-  dialogThumbs: document.querySelector("#dialogThumbs"),
-  dialogRandomButton: document.querySelector("#dialogRandomButton"),
-  dialogSecretLinkButton: document.querySelector("#dialogSecretLinkButton"),
-  dialogSecretReturnButton: document.querySelector("#dialogSecretReturnButton"),
-  editDialog: document.querySelector("#editDialog"),
-  closeEditDialog: document.querySelector("#closeEditDialog"),
-  editForm: document.querySelector("#editForm"),
-  editTitleInput: document.querySelector("#editTitleInput"),
-  editDateInput: document.querySelector("#editDateInput"),
-  editCategoryInput: document.querySelector("#editCategoryInput"),
-  editPublicInput: document.querySelector("#editPublicInput"),
-  editNoteInput: document.querySelector("#editNoteInput"),
-  editMediaManager: document.querySelector("#editMediaManager"),
-  editImageInput: document.querySelector("#editImageInput"),
-  editImageList: document.querySelector("#editImageList"),
-  editImageCount: document.querySelector("#editImageCount"),
-  addEditImageButton: document.querySelector("#addEditImageButton"),
-  deleteEditingPhoto: document.querySelector("#deleteEditingPhoto"),
-  saveEditStatus: document.querySelector("#saveEditStatus"),
-  vipDialog: document.querySelector("#vipDialog"),
-  closeVipDialog: document.querySelector("#closeVipDialog"),
-  levelDialog: document.querySelector("#levelDialog"),
-  closeLevelDialog: document.querySelector("#closeLevelDialog"),
-  levelSummary: document.querySelector("#levelSummary"),
-  levelCurrentTitle: document.querySelector("#levelCurrentTitle"),
-  levelUpgradeEta: document.querySelector("#levelUpgradeEta"),
-  levelList: document.querySelector("#levelList"),
-  achievementDialog: document.querySelector("#achievementDialog"),
-  closeAchievementDialog: document.querySelector("#closeAchievementDialog"),
-  achievementSummary: document.querySelector("#achievementSummary"),
-  achievementFilters: document.querySelector("#achievementFilters"),
-  achievementGrid: document.querySelector("#achievementGrid"),
-  vipSummary: document.querySelector("#vipSummary"),
-  vipCurrentLevel: document.querySelector("#vipCurrentLevel"),
-  vipCurrentName: document.querySelector("#vipCurrentName"),
-  vipRechargeTotal: document.querySelector("#vipRechargeTotal"),
-  vipTierAmount: document.querySelector("#vipTierAmount"),
-  vipNext: document.querySelector("#vipNext"),
-  vipLevels: document.querySelector("#vipLevels"),
-  vipRecharge: document.querySelector("#vipRecharge"),
-  vipPerks: document.querySelector("#vipPerks"),
-  vipStatus: document.querySelector("#vipStatus"),
-  overview: document.querySelector("#overview"),
-  overviewPhotos: document.querySelector("#overviewPhotos"),
-  overviewRecipes: document.querySelector("#overviewRecipes"),
-  overviewWishes: document.querySelector("#overviewWishes"),
-  overviewLevelButton: document.querySelector("#overviewLevelButton"),
-  overviewLevel: document.querySelector("#overviewLevel"),
-  overviewProgress: document.querySelector("#overviewProgress"),
-  memoryButton: document.querySelector("#memoryButton"),
-  vlogNav: document.querySelector("#vlogNav"),
-  weeklyReviewOpen: document.querySelector("#weeklyReviewOpen"),
-  weeklyReviewDialog: document.querySelector("#weeklyReviewDialog"),
-  weeklyReviewClose: document.querySelector("#weeklyReviewClose"),
-  weeklyReviewRange: document.querySelector("#weeklyReviewRange"),
-  weeklyReviewLoading: document.querySelector("#weeklyReviewLoading"),
-  weeklyReviewContent: document.querySelector("#weeklyReviewContent"),
-  weeklyReviewStatus: document.querySelector("#weeklyReviewStatus"),
-  secretOpen: document.querySelector("#secretOpen"),
-  thanksOpen: document.querySelector("#thanksOpen"),
-  toolDock: document.querySelector("#toolDock"),
-  quickPhoto: document.querySelector("#quickPhoto"),
-  quickRecipe: document.querySelector("#quickRecipe"),
-  quickWish: document.querySelector("#quickWish"),
-  quickWeekend: document.querySelector("#quickWeekend"),
-  foodWheelSection: document.querySelector("#foodWheelSection"),
-  foodWheelOpen: document.querySelector("#foodWheelOpen"),
-  recipesToolOpen: document.querySelector("#recipesToolOpen"),
-  foodWheelDialog: document.querySelector("#foodWheelDialog"),
-  foodWheelClose: document.querySelector("#foodWheelClose"),
-  foodWheelPeek: document.querySelector("#foodWheelPeek"),
-  foodWheel: document.querySelector("#foodWheel"),
-  spinFoodWheel: document.querySelector("#spinFoodWheel"),
-  foodWheelResult: document.querySelector("#foodWheelResult"),
-  foodOptionInput: document.querySelector("#foodOptionInput"),
-  addFoodOption: document.querySelector("#addFoodOption"),
-  foodOptions: document.querySelector("#foodOptions"),
-  anniversarySection: document.querySelector("#anniversarySection"),
-  anniversaryOpen: document.querySelector("#anniversaryOpen"),
-  anniversaryPeek: document.querySelector("#anniversaryPeek"),
-  anniversaryDialog: document.querySelector("#anniversaryDialog"),
-  anniversaryClose: document.querySelector("#anniversaryClose"),
-  anniversaryList: document.querySelector("#anniversaryList"),
-  anniversaryAdd: document.querySelector("#anniversaryAdd"),
-  anniversaryForm: document.querySelector("#anniversaryForm"),
-  anniversaryTitleInput: document.querySelector("#anniversaryTitleInput"),
-  anniversaryTypeInput: document.querySelector("#anniversaryTypeInput"),
-  anniversaryDateInput: document.querySelector("#anniversaryDateInput"),
-  anniversaryNoteInput: document.querySelector("#anniversaryNoteInput"),
-  anniversaryStatus: document.querySelector("#anniversaryStatus"),
-  anniversarySubmit: document.querySelector("#anniversarySubmit"),
-  anniversaryCancel: document.querySelector("#anniversaryCancel"),
-  recipesPage: document.querySelector("#recipesPage"),
-  recipeComposer: document.querySelector("#recipeComposer"),
-  recipeToggle: document.querySelector("#recipeToggle"),
-  recipeFormTitle: document.querySelector("#recipeFormTitle"),
-  recipeForm: document.querySelector("#recipeForm"),
-  recipeCoverDrop: document.querySelector("#recipeCoverDrop"),
-  recipeCoverInput: document.querySelector("#recipeCoverInput"),
-  recipeCoverLinkInput: document.querySelector("#recipeCoverLinkInput"),
-  recipeCoverLinkAdd: document.querySelector("#recipeCoverLinkAdd"),
-  recipeCoverPreview: document.querySelector("#recipeCoverPreview"),
-  recipeCoverName: document.querySelector("#recipeCoverName"),
-  recipeNameInput: document.querySelector("#recipeNameInput"),
-  recipeCategoryInput: document.querySelector("#recipeCategoryInput"),
-  recipeTimeInput: document.querySelector("#recipeTimeInput"),
-  recipeServingsInput: document.querySelector("#recipeServingsInput"),
-  recipeIngredientsInput: document.querySelector("#recipeIngredientsInput"),
-  recipeStepsInput: document.querySelector("#recipeStepsInput"),
-  recipeNoteInput: document.querySelector("#recipeNoteInput"),
-  recipeSubmitButton: document.querySelector("#recipeSubmitButton"),
-  recipeCancelEdit: document.querySelector("#recipeCancelEdit"),
-  recipeStatus: document.querySelector("#recipeStatus"),
-  recipesList: document.querySelector("#recipesList"),
-  wishlistPage: document.querySelector("#wishlistPage"),
-  wishlistComposer: document.querySelector("#wishlistComposer"),
-  wishlistToggle: document.querySelector("#wishlistToggle"),
-  wishlistFormTitle: document.querySelector("#wishlistFormTitle"),
-  wishlistForm: document.querySelector("#wishlistForm"),
-  wishImageDrop: document.querySelector("#wishImageDrop"),
-  wishImageInput: document.querySelector("#wishImageInput"),
-  wishImageLinkInput: document.querySelector("#wishImageLinkInput"),
-  wishImageLinkAdd: document.querySelector("#wishImageLinkAdd"),
-  wishImagePreview: document.querySelector("#wishImagePreview"),
-  wishImageName: document.querySelector("#wishImageName"),
-  wishRemoveImage: document.querySelector("#wishRemoveImage"),
-  wishTitleInput: document.querySelector("#wishTitleInput"),
-  wishTypeInput: document.querySelector("#wishTypeInput"),
-  wishDateInput: document.querySelector("#wishDateInput"),
-  wishPriorityInput: document.querySelector("#wishPriorityInput"),
-  wishNoteInput: document.querySelector("#wishNoteInput"),
-  wishCompletionNoteInput: document.querySelector("#wishCompletionNoteInput"),
-  wishSubmitButton: document.querySelector("#wishSubmitButton"),
-  wishCancelEdit: document.querySelector("#wishCancelEdit"),
-  wishlistStatus: document.querySelector("#wishlistStatus"),
-  wishTabs: document.querySelector("#wishTabs"),
-  wishOpenCount: document.querySelector("#wishOpenCount"),
-  wishDoneCount: document.querySelector("#wishDoneCount"),
-  wishlistList: document.querySelector("#wishlistList"),
-  wishCompleteDialog: document.querySelector("#wishCompleteDialog"),
-  wishCompleteClose: document.querySelector("#wishCompleteClose"),
-  wishCompleteForm: document.querySelector("#wishCompleteForm"),
-  wishCompleteTitle: document.querySelector("#wishCompleteTitle"),
-  wishCompleteMeta: document.querySelector("#wishCompleteMeta"),
-  wishCompletePreview: document.querySelector("#wishCompletePreview"),
-  wishCompleteNoteInput: document.querySelector("#wishCompleteNoteInput"),
-  wishCompleteStatus: document.querySelector("#wishCompleteStatus"),
-  wishCompleteCancel: document.querySelector("#wishCompleteCancel"),
-  wishCompleteSubmit: document.querySelector("#wishCompleteSubmit"),
-  weekendPage: document.querySelector("#weekendPage"),
-  weekendComposer: document.querySelector("#weekendComposer"),
-  weekendToggle: document.querySelector("#weekendToggle"),
-  weekendFormTitle: document.querySelector("#weekendFormTitle"),
-  weekendForm: document.querySelector("#weekendForm"),
-  weekendImageDrop: document.querySelector("#weekendImageDrop"),
-  weekendImageInput: document.querySelector("#weekendImageInput"),
-  weekendImageLinkInput: document.querySelector("#weekendImageLinkInput"),
-  weekendImageLinkAdd: document.querySelector("#weekendImageLinkAdd"),
-  weekendImagePreviews: document.querySelector("#weekendImagePreviews"),
-  weekendTitleInput: document.querySelector("#weekendTitleInput"),
-  weekendDateInput: document.querySelector("#weekendDateInput"),
-  weekendLocationInput: document.querySelector("#weekendLocationInput"),
-  weekendTypeInput: document.querySelector("#weekendTypeInput"),
-  weekendNoteInput: document.querySelector("#weekendNoteInput"),
-  weekendSubmitButton: document.querySelector("#weekendSubmitButton"),
-  weekendCancelEdit: document.querySelector("#weekendCancelEdit"),
-  weekendStatus: document.querySelector("#weekendStatus"),
-  weekendList: document.querySelector("#weekendList"),
-  weekendCompletionDialog: document.querySelector("#weekendCompletionDialog"),
-  weekendCompletionClose: document.querySelector("#weekendCompletionClose"),
-  weekendCompletionForm: document.querySelector("#weekendCompletionForm"),
-  weekendCompletionPlanTitle: document.querySelector("#weekendCompletionPlanTitle"),
-  weekendCompletionNote: document.querySelector("#weekendCompletionNote"),
-  weekendCompletionDrop: document.querySelector("#weekendCompletionDrop"),
-  weekendCompletionInput: document.querySelector("#weekendCompletionInput"),
-  weekendCompletionPreviews: document.querySelector("#weekendCompletionPreviews"),
-  weekendCompletionLinkInput: document.querySelector("#weekendCompletionLinkInput"),
-  weekendCompletionLinkAdd: document.querySelector("#weekendCompletionLinkAdd"),
-  weekendCompletionStatus: document.querySelector("#weekendCompletionStatus"),
-  weekendCompletionCancel: document.querySelector("#weekendCompletionCancel"),
-  weekendCompletionSubmit: document.querySelector("#weekendCompletionSubmit"),
-  wardrobePage: document.querySelector("#wardrobePage"),
-  wardrobeRoot: document.querySelector("#wardrobeRoot"),
-  thanksPage: document.querySelector("#thanksPage"),
-  secretPage: document.querySelector("#secretPage"),
-  secretPinDialog: document.querySelector("#secretPinDialog"),
-  secretPinClose: document.querySelector("#secretPinClose"),
-  secretPinEyebrow: document.querySelector("#secretPinEyebrow"),
-  secretPinTitle: document.querySelector("#secretPinTitle"),
-  secretPinDescription: document.querySelector("#secretPinDescription"),
-  secretPinDots: document.querySelector("#secretPinDots"),
-  secretPinStatus: document.querySelector("#secretPinStatus"),
-  secretPinKeypad: document.querySelector("#secretPinKeypad"),
-  secretStatus: document.querySelector("#secretStatus"),
-  secretSearchInput: document.querySelector("#secretSearchInput"),
-  secretSearchSuggestions: document.querySelector("#secretSearchSuggestions"),
-  secretCreateFolderButton: document.querySelector("#secretCreateFolderButton"),
-  secretFolderList: document.querySelector("#secretFolderList"),
-  secretComposer: document.querySelector("#secretComposer"),
-  secretToggle: document.querySelector("#secretToggle"),
-  secretForm: document.querySelector("#secretForm"),
-  secretImageDrop: document.querySelector("#secretImageDrop"),
-  secretImageInput: document.querySelector("#secretImageInput"),
-  secretImageLinkInput: document.querySelector("#secretImageLinkInput"),
-  secretImageLinkAdd: document.querySelector("#secretImageLinkAdd"),
-  secretCoverInput: document.querySelector("#secretCoverInput"),
-  secretImagePreview: document.querySelector("#secretImagePreview"),
-  secretPreviewStrip: document.querySelector("#secretPreviewStrip"),
-  secretImageName: document.querySelector("#secretImageName"),
-  secretTitleInput: document.querySelector("#secretTitleInput"),
-  secretCategoryInput: document.querySelector("#secretCategoryInput"),
-  secretFolderInput: document.querySelector("#secretFolderInput"),
-  secretCategoryList: document.querySelector("#secretCategoryList"),
-  secretCategoryTags: document.querySelector("#secretCategoryTags"),
-  secretLinkedPhotoInput: document.querySelector("#secretLinkedPhotoInput"),
-  secretNoteInput: document.querySelector("#secretNoteInput"),
-  secretSubmitButton: document.querySelector("#secretSubmitButton"),
-  secretFilters: document.querySelector("#secretFilters"),
-  secretGallery: document.querySelector("#secretGallery"),
-  thanksForm: document.querySelector("#thanksForm"),
-  thanksBodyInput: document.querySelector("#thanksBodyInput"),
-  thanksStatus: document.querySelector("#thanksStatus"),
-  thanksSubmitButton: document.querySelector("#thanksSubmitButton"),
-  thanksCancelEdit: document.querySelector("#thanksCancelEdit"),
-  thanksBoard: document.querySelector("#thanksBoard"),
-  familyDialog: document.querySelector("#familyDialog"),
-  closeFamilyDialog: document.querySelector("#closeFamilyDialog"),
-  familyEmpty: document.querySelector("#familyEmpty"),
-  createFamilyForm: document.querySelector("#createFamilyForm"),
-  familyNameInput: document.querySelector("#familyNameInput"),
-  familyContent: document.querySelector("#familyContent"),
-  familyName: document.querySelector("#familyName"),
-  familyInviteForm: document.querySelector("#familyInviteForm"),
-  familyUsernameInput: document.querySelector("#familyUsernameInput"),
-  familyMembers: document.querySelector("#familyMembers"),
-  familyInvitations: document.querySelector("#familyInvitations"),
-  familyOutgoingInvitations: document.querySelector("#familyOutgoingInvitations"),
-  familyStatus: document.querySelector("#familyStatus"),
-  photoCommentsList: document.querySelector("#photoCommentsList"),
-  photoCommentsSection: document.querySelector("#photoCommentsSection"),
-  photoCommentForm: document.querySelector("#photoCommentForm"),
-  photoCommentInput: document.querySelector("#photoCommentInput"),
-  photoCommentStatus: document.querySelector("#photoCommentStatus"),
-  commentReplying: document.querySelector("#commentReplying"),
-  commentReplyingText: document.querySelector("#commentReplyingText"),
-  cancelCommentReply: document.querySelector("#cancelCommentReply"),
-};
+const els = collectAppElements(document);
 
 els.dateInput.valueAsDate = new Date();
 els.weekendDateInput.value = getNextWeekendDate();
-foodOptions = loadFoodOptions();
-applyTheme(loadTheme(null), { persist: false, userId: null });
 
 const cloudflareBackend = createCloudflareBackend({
   endpoint: R2_UPLOAD_ENDPOINT,
@@ -1043,6 +504,300 @@ const imageService = createImageService({
   taskMap: activeUploadTasks,
   onTaskChanged: () => void renderUploadCenter(),
 });
+const assetController = createAssetController({
+  imageService,
+  publicUrl: R2_PUBLIC_URL,
+  legacyBucket: BUCKET,
+  formatFileSize,
+  getVideoContentType,
+  getVideoFileExtension,
+  slugify,
+  setStatus,
+});
+const {
+  cleanupStoredImagePaths,
+  compressImage,
+  copyUrlToR2,
+  deleteR2Object,
+  getProfileAvatarUrl,
+  getR2Key,
+  getR2PublicAssetUrl,
+  isR2Path,
+  isR2Url,
+  migrateImageAsset,
+  resolveStoredAssetUrl,
+  shouldMigrateImageAsset,
+  uploadDiaryMotionFile,
+  uploadDiaryVideoFile,
+  uploadImageFile,
+  uploadToR2,
+} = assetController;
+const gamificationState = {
+  get session() { return session; },
+  get accountProfile() { return accountProfile; },
+  get activeVipLevel() { return activeVipLevel; },
+  set activeVipLevel(value) { activeVipLevel = value; },
+  get cloudSyncAvailable() { return cloudSyncAvailable; },
+  get cloudDb() { return cloudDb; },
+  get familyInfo() { return familyInfo; },
+  get familyMemberMap() { return familyMemberMap; },
+  get familyMembers() { return familyMembers; },
+  set familyMembers(value) { familyMembers = value; },
+  get familyLevelProfiles() { return familyLevelProfiles; },
+  set familyLevelProfiles(value) { familyLevelProfiles = value; },
+};
+const gamificationController = createGamificationController({
+  elements: els,
+  state: gamificationState,
+  householdRepository,
+  keys: {
+    vipRecharge: VIP_RECHARGE_KEY,
+    experience: EXPERIENCE_KEY,
+    todayExperience: TODAY_EXPERIENCE_KEY,
+  },
+  vipUsers: VIP_USERS,
+  getSessionDisplayName,
+  getSessionLoginName,
+  getProfileAvatarUrl,
+  loadCachedAvatarUrl,
+  saveCachedAvatarUrl,
+  getArchiveData: () => ({
+    photos,
+    recipes,
+    wishes,
+    weekendPlans,
+    secretItems,
+    comments: [...photoCommentPreviewMap.values()].flat(),
+    gratitudeNotes,
+    favoriteCount: photoFavorites.size,
+  }),
+  getLocalDateKey,
+  getOffsetLocalDateKey,
+  normalizeLoginDateKey,
+  isYesterdayLoginDate,
+  updateAuthUI,
+  renderOverview,
+});
+const {
+  addTodayExperience,
+  awardDailyExperience,
+  awardExperience,
+  getCurrentImageLimit,
+  getDailyLoginReward,
+  getExperienceLevel,
+  getLoginStreakBonusBase,
+  getNextLoginStreak,
+  getTodayExperienceStorageKey,
+  getUploadQuality,
+  getUpgradeEta,
+  getVipAdjustedExperience,
+  getVipExpMultiplier,
+  isVipUser,
+  loadExperience,
+  loadLocalExperienceAliases,
+  loadFamilyLevelProfiles,
+  loadRechargeTotal,
+  loadTodayExperience,
+  openAchievementDialog,
+  openLevelDialog,
+  openLevelGuidePage,
+  rechargeVip,
+  renderAchievementDialog,
+  renderExperience,
+  renderLevelDialog,
+  renderTopLevelBadge,
+  renderVipCenter,
+  saveExperience,
+  saveRechargeTotal,
+} = gamificationController;
+const profilePreferencesController = createProfilePreferencesController({
+  elements: els,
+  preferenceStore,
+  householdRepository,
+  assets: assetController,
+  keys: { theme: THEME_KEY },
+  state: gamificationState,
+  normalizeHomeName,
+  applyHomeName,
+  normalizeNickname,
+  getSessionDisplayName,
+  updateSessionDisplayName,
+  isMissingCloudSchema,
+  loadFamilyContext,
+  renderGallery,
+  renderAccountAvatar,
+  renderSettingsSummary,
+  renderPhotoComments,
+  saveCachedAvatarUrl,
+});
+const {
+  applyTheme,
+  clearAvatarPreviewUrl,
+  loadTheme,
+  normalizeTheme,
+  persistHomeNameToCloud,
+  restoreDefaultHomeName,
+  saveAvatar,
+  saveHomeName,
+  saveProfileNickname,
+  setAvatarPreview,
+  toggleTheme,
+  updateAvatarPreview,
+} = profilePreferencesController;
+applyTheme(loadTheme(null), { persist: false, userId: null });
+const secretPinController = createSecretPinController({
+  elements: els,
+  pinKey: SECRET_PIN_KEY,
+  unlockKey: SECRET_UNLOCK_KEY,
+  maxUnlockMs: SECRET_UNLOCK_MAX_MS,
+  getSession: () => session,
+  openSecretPage: () => switchPage("secret", { skipSecretGate: true }),
+});
+const {
+  appendDigit: appendSecretPinDigit,
+  clearUnlockState: clearSecretUnlockState,
+  deleteDigit: deleteSecretPinDigit,
+  isUnlocked: isSecretUnlocked,
+  markLeft: markSecretLeft,
+  openDialog: openSecretPinDialog,
+  openSettings: openSecretPinSettings,
+} = secretPinController;
+const secretState = {
+  get cloudDb() { return cloudDb; }, set cloudDb(value) { cloudDb = value; },
+  get session() { return session; }, set session(value) { session = value; },
+  get photos() { return photos; }, set photos(value) { photos = value; },
+  get secretItems() { return secretItems; }, set secretItems(value) { secretItems = value; },
+  get secretFolders() { return secretFolders; }, set secretFolders(value) { secretFolders = value; },
+  get activeDialogPhoto() { return activeDialogPhoto; }, set activeDialogPhoto(value) { activeDialogPhoto = value; },
+  get secretLoadPromise() { return secretLoadPromise; }, set secretLoadPromise(value) { secretLoadPromise = value; },
+  get lastSecretSyncAt() { return lastSecretSyncAt; }, set lastSecretSyncAt(value) { lastSecretSyncAt = value; },
+  get dialogRestoreScrollY() { return dialogRestoreScrollY; }, set dialogRestoreScrollY(value) { dialogRestoreScrollY = value; },
+  get dialogRestorePhotoId() { return dialogRestorePhotoId; }, set dialogRestorePhotoId(value) { dialogRestorePhotoId = value; },
+  get dialogRestorePhotoTop() { return dialogRestorePhotoTop; }, set dialogRestorePhotoTop(value) { dialogRestorePhotoTop = value; },
+  get dialogRestoreSecretImageUrl() { return dialogRestoreSecretImageUrl; }, set dialogRestoreSecretImageUrl(value) { dialogRestoreSecretImageUrl = value; },
+  get dialogRestoreElementTop() { return dialogRestoreElementTop; }, set dialogRestoreElementTop(value) { dialogRestoreElementTop = value; },
+  get activeFilter() { return activeFilter; }, set activeFilter(value) { activeFilter = value; },
+  get activeSecretFilter() { return activeSecretFilter; }, set activeSecretFilter(value) { activeSecretFilter = value; },
+  get activeSecretAlbumId() { return activeSecretAlbumId; }, set activeSecretAlbumId(value) { activeSecretAlbumId = value; },
+  get activeSecretFolderId() { return activeSecretFolderId; }, set activeSecretFolderId(value) { activeSecretFolderId = value; },
+  get secretDefaultFolderId() { return secretDefaultFolderId; }, set secretDefaultFolderId(value) { secretDefaultFolderId = value; },
+  get secretFolderContextMenu() { return secretFolderContextMenu; }, set secretFolderContextMenu(value) { secretFolderContextMenu = value; },
+  get secretAlbumContextMenu() { return secretAlbumContextMenu; }, set secretAlbumContextMenu(value) { secretAlbumContextMenu = value; },
+  get secretSearchQuery() { return secretSearchQuery; }, set secretSearchQuery(value) { secretSearchQuery = value; },
+  get secretSelectionMode() { return secretSelectionMode; }, set secretSelectionMode(value) { secretSelectionMode = value; },
+  get selectedSecretImageIndexes() { return selectedSecretImageIndexes; }, set selectedSecretImageIndexes(value) { selectedSecretImageIndexes = value; },
+  get secretAlbumEditing() { return secretAlbumEditing; }, set secretAlbumEditing(value) { secretAlbumEditing = value; },
+  get secretAppendExpanded() { return secretAppendExpanded; }, set secretAppendExpanded(value) { secretAppendExpanded = value; },
+  get secretMobileToolsExpanded() { return secretMobileToolsExpanded; }, set secretMobileToolsExpanded(value) { secretMobileToolsExpanded = value; },
+  get dialogImages() { return dialogImages; }, set dialogImages(value) { dialogImages = value; },
+  get dialogImageIndex() { return dialogImageIndex; }, set dialogImageIndex(value) { dialogImageIndex = value; },
+  get secretImageZoom() { return secretImageZoom; }, set secretImageZoom(value) { secretImageZoom = value; },
+  get secretViewerReturnFocus() { return secretViewerReturnFocus; }, set secretViewerReturnFocus(value) { secretViewerReturnFocus = value; },
+  get secretViewerInfoOpen() { return secretViewerInfoOpen; }, set secretViewerInfoOpen(value) { secretViewerInfoOpen = value; },
+  get suppressDialogImageClickUntil() { return suppressDialogImageClickUntil; }, set suppressDialogImageClickUntil(value) { suppressDialogImageClickUntil = value; },
+  get lockedDialogScrollY() { return lockedDialogScrollY; }, set lockedDialogScrollY(value) { lockedDialogScrollY = value; },
+  get dialogLockUsesFixed() { return dialogLockUsesFixed; }, set dialogLockUsesFixed(value) { dialogLockUsesFixed = value; },
+  get dialogRandomMode() { return dialogRandomMode; }, set dialogRandomMode(value) { dialogRandomMode = value; },
+  get dialogSecretSourceItem() { return dialogSecretSourceItem; }, set dialogSecretSourceItem(value) { dialogSecretSourceItem = value; },
+  get activeSecretDialogItem() { return activeSecretDialogItem; }, set activeSecretDialogItem(value) { activeSecretDialogItem = value; },
+  get secretCloudAvailable() { return secretCloudAvailable; }, set secretCloudAvailable(value) { secretCloudAvailable = value; },
+};
+const secretController = createSecretController({
+  elements: els,
+  state: secretState,
+  repository: secretRepository,
+  assets: assetController,
+  albumImageLimit: SECRET_ALBUM_IMAGE_LIMIT,
+  allFolderId: SECRET_ALL_FOLDER_ID,
+  favoritesFolderId: SECRET_FAVORITES_FOLDER_ID,
+  mobileDialogBreakpoint: MOBILE_DIALOG_BREAKPOINT,
+  getSecretDefaultFolderId,
+  setSecretDefaultFolderId,
+  saveSecretItemsCache: (...args) => saveSecretItemsCache(...args),
+  renderCachedSecretItems: (...args) => renderCachedSecretItems(...args),
+  setGlobalStatus,
+  setSecretStatus,
+  showMiniToast,
+  dismissMiniToast,
+  isMobileViewport,
+  getSortedPhotos,
+  getDisplayTitle,
+  getPlainNote,
+  isMissingCloudSchema,
+  openPhoto,
+  createTrashItem,
+  rollbackTrashItem,
+  showPhotoDialogPreservingScroll,
+  renderDialogMedia,
+  fitSecretViewerImage,
+  refreshDiaryViewerToolbar,
+  refreshSecretViewerToolbar,
+  resetSecretImageZoom,
+  setSecretViewerStatus,
+  updateSecretToolbarTop,
+});
+const {
+  addSecretImageLinks,
+  appendSecretAlbumImages,
+  closeSecretAlbumContextMenu,
+  closeSecretFolderContextMenu,
+  createSecretFolder,
+  deleteActiveSecretFolder,
+  deleteCurrentSecretTag,
+  deleteSecretItem,
+  deleteSelectedSecretImages,
+  getImageFilesFromClipboard,
+  getSecretAlbumFilterTags,
+  getSecretFavoriteEntries,
+  handleSecretPaste,
+  loadSecretItems,
+  moveSecretAlbum,
+  moveSelectedSecretImage,
+  moveSelectedSecretImagesToAlbum,
+  openSecretAlbumFolderDialog,
+  openSecretItem,
+  openSecretLinkedDiary,
+  removeSecretPhotoTagFromSelection,
+  renderSecretFolderControls,
+  renderSecretGallery,
+  renderSecretLinkedPhotoOptions,
+  returnToSecretItem,
+  saveSecretAlbumEdit,
+  saveSecretItem,
+  setSecretExpanded,
+  setSelectedSecretCover,
+  toggleDialogImageFullscreen,
+  updateSecretDialogImage,
+  updateSecretPreview,
+} = secretController;
+const diaryComposerController = createDiaryComposerController({
+  elements: els,
+  queue: diaryUploadQueue,
+  repository: diaryRepository,
+  assets: assetController,
+  vlogMode,
+  draftKey: DIARY_DRAFT_KEY,
+  getCloudDatabase: () => cloudDb,
+  getSession: () => session,
+  getCurrentImageLimit,
+  getFinalTitle,
+  getUploadFileNameBase,
+  formatFileSize,
+  escapeHtml,
+  setStatus,
+  awardExperience,
+  loadPhotos,
+  switchPage,
+  renderUploadCenter,
+});
+const {
+  getQueuedUploads: getQueuedDiaryUploads,
+  isProcessing: isDiaryUploadQueueProcessing,
+  isNetworkLikeError,
+  processQueue: processDiaryUploadQueue,
+  removeQueuedUpload: removeQueuedDiaryUpload,
+  setExpanded: setUploadExpanded,
+} = diaryComposerController;
 const wardrobeController = createWardrobeController({
   root: els.wardrobeRoot,
   repository: wardrobeRepository,
@@ -1132,11 +887,7 @@ async function initializeCloudflare() {
     const previousUserId = session?.user?.id || "";
     const nextUserId = nextSession?.user?.id || "";
     if (previousUserId !== nextUserId) {
-      secretUnlockedAt = 0;
-      secretLeftAt = 0;
-      secretPinEntry = "";
-      secretPinSetupValue = "";
-      els.secretPinDialog?.close();
+      secretPinController.resetSession();
     }
     session = nextSession;
     updateAuthUI();
@@ -1299,331 +1050,34 @@ function updateAuthUI() {
   }
 }
 
-async function loginWithPassword() {
-  if (!cloudDb) {
-    setHint("Cloudflare 服务正在初始化，请稍后再试。");
-    return;
-  }
-
-  const username = els.usernameInput.value.trim();
-  const password = els.passwordInput.value;
-  const email = usernameToEmail(username);
-  if (!email || !password) {
-    setHint("请输入用户名和密码。");
-    return;
-  }
-
-  setHint("正在登录...");
-
-  try {
-    const { error } = await cloudDb.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    setHint(error ? error.message : "登录成功。");
-  } catch (error) {
-    setHint(`登录失败：${error.message || "网络或配置错误"}`);
-  }
-}
-
-async function verifyInviteCode(inviteCode) {
-  const endpoint = R2_UPLOAD_ENDPOINT.replace(/\/+$/, "");
-  let response;
-  try {
-    response = await fetch(`${endpoint}/api/invite/verify`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ invite_code: inviteCode }),
-    });
-  } catch (error) {
-    throw new Error(`邀请码校验失败：${error.message || "无法连接服务"}`);
-  }
-
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok || !data.ok) {
-    throw new Error(data.error || "邀请码不正确。");
-  }
-}
-
-async function signupWithPassword() {
-  if (!cloudDb) {
-    setHint("Cloudflare 服务正在初始化，请稍后再试。");
-    return;
-  }
-
-  const username = els.usernameInput.value.trim();
-  const password = els.passwordInput.value;
-  const inviteCode = els.inviteCodeInput?.value.trim() || "";
-  const email = usernameToEmail(username);
-  if (!email || !password) {
-    setHint("请输入用户名和密码。用户名只能用中文、英文、数字、下划线或短横线。");
-    return;
-  }
-
-  if (password.length < 6) {
-    setHint("密码至少需要 6 位。");
-    return;
-  }
-
-  if (!inviteCode) {
-    setHint("注册需要邀请码，请找 xiudan320 获取。");
-    els.inviteCodeInput?.focus();
-    return;
-  }
-
-  setHint("正在校验邀请码...");
-
-  try {
-    await verifyInviteCode(inviteCode);
-    setHint("邀请码通过，正在注册...");
-    const { error } = await cloudDb.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: getRedirectUrl(),
-        data: { username, inviteCode },
-      },
-    });
-
-    setHint(error ? error.message : "注册完成，可以直接登录。");
-  } catch (error) {
-    setHint(`注册失败：${error.message || "网络或配置错误"}`);
-  }
-}
-
-async function logout() {
-  if (!cloudDb) return;
-  closeMobileDiaryPage();
-  clearSecretUnlockState();
-  els.secretPinDialog?.close();
-  await cloudDb.auth.signOut();
-}
-
-function passwordsMatch(password, confirmation, statusElement) {
-  if (password.length < 6) {
-    statusElement.textContent = "密码至少需要 6 位。";
-    return false;
-  }
-  if (password !== confirmation) {
-    statusElement.textContent = "两次输入的密码不一致。";
-    return false;
-  }
-  return true;
-}
-
-async function changePassword(event) {
-  event.preventDefault();
-  if (!cloudDb || !session) return;
-  const password = els.newPasswordInput.value;
-  if (!passwordsMatch(password, els.confirmPasswordInput.value, els.changePasswordStatus)) {
-    return;
-  }
-  els.changePasswordStatus.textContent = "正在修改密码…";
-  const { error } = await cloudDb.auth.updateUser({ password });
-  if (error) {
-    els.changePasswordStatus.textContent = `修改失败：${error.message}`;
-    return;
-  }
-  els.changePasswordForm.reset();
-  els.changePasswordStatus.textContent = "密码已修改。";
-  window.setTimeout(() => els.changePasswordDialog.close(), 650);
-}
-
-async function saveRecoveryKey(event) {
-  event.preventDefault();
-  if (!cloudDb || !session) return;
-  const recoveryKey = els.recoveryKeyInput.value.trim();
-  if (recoveryKey.length < 12) {
-    els.recoveryKeyStatus.textContent = "恢复密钥至少需要 12 位。";
-    return;
-  }
-  if (recoveryKey !== els.confirmRecoveryKeyInput.value.trim()) {
-    els.recoveryKeyStatus.textContent = "两次输入的恢复密钥不一致。";
-    return;
-  }
-  els.recoveryKeyStatus.textContent = "正在保存恢复密钥…";
-  const { error } = await cloudDb.rpc("set_password_recovery_key", {
-    p_recovery_key: recoveryKey,
-  });
-  if (error) {
-    els.recoveryKeyStatus.textContent = isMissingCloudSchema(error)
-      ? "恢复功能尚未初始化，请先部署最新版 Cloudflare D1 结构。"
-      : `保存失败：${error.message}`;
-    return;
-  }
-  els.recoveryKeyForm.reset();
-  els.recoveryKeyStatus.textContent = "恢复密钥已加密保存，请妥善保管。";
-  window.setTimeout(() => els.recoveryKeyDialog.close(), 900);
-}
-
-function isValidEmailInput(value) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(String(value || "").trim());
-}
-
-function resetEmailBindingDialog() {
-  if (!els.emailBindingDialog) return;
-  const boundEmail = getSessionBoundEmail();
-  els.emailBindingRequestForm?.reset();
-  els.emailBindingConfirmForm?.reset();
-  if (els.accountEmailInput) els.accountEmailInput.value = boundEmail;
-  if (els.accountEmailInput) els.accountEmailInput.disabled = false;
-  if (els.emailBindingConfirmForm) els.emailBindingConfirmForm.hidden = true;
-  if (els.emailBindingStatus) els.emailBindingStatus.textContent = "";
-  if (els.emailBindingConfirmStatus) els.emailBindingConfirmStatus.textContent = "";
-}
-
-async function requestEmailBinding(event) {
-  event.preventDefault();
-  if (!cloudDb?.account || !session) return;
-  const email = String(els.accountEmailInput?.value || "").trim().toLowerCase();
-  if (!isValidEmailInput(email)) {
-    if (els.emailBindingStatus) els.emailBindingStatus.textContent = "请输入有效的邮箱地址。";
-    return;
-  }
-  if (els.requestEmailBindingButton) els.requestEmailBindingButton.disabled = true;
-  if (els.emailBindingStatus) els.emailBindingStatus.textContent = "正在发送验证码…";
-  const { error } = await cloudDb.account.requestEmailBind(email);
-  if (error) {
-    if (els.emailBindingStatus) els.emailBindingStatus.textContent = "发送失败：" + error.message;
-    if (els.requestEmailBindingButton) els.requestEmailBindingButton.disabled = false;
-    return;
-  }
-  if (els.accountEmailInput) els.accountEmailInput.disabled = true;
-  if (els.emailBindingConfirmForm) els.emailBindingConfirmForm.hidden = false;
-  if (els.emailBindingStatus) els.emailBindingStatus.textContent = "验证码已发送，10 分钟内有效。";
-  els.accountEmailCodeInput?.focus();
-  if (els.requestEmailBindingButton) els.requestEmailBindingButton.disabled = false;
-}
-
-async function confirmEmailBinding(event) {
-  event.preventDefault();
-  if (!cloudDb?.account || !session) return;
-  const email = String(els.accountEmailInput?.value || "").trim().toLowerCase();
-  const code = String(els.accountEmailCodeInput?.value || "").trim();
-  if (!/^\d{6}$/.test(code)) {
-    if (els.emailBindingConfirmStatus) els.emailBindingConfirmStatus.textContent = "请输入 6 位验证码。";
-    return;
-  }
-  if (els.emailBindingConfirmStatus) els.emailBindingConfirmStatus.textContent = "正在验证…";
-  const { data, error } = await cloudDb.account.confirmEmailBind(email, code);
-  if (error) {
-    if (els.emailBindingConfirmStatus) els.emailBindingConfirmStatus.textContent = "绑定失败：" + error.message;
-    return;
-  }
-  const savedEmail = String(data?.email || email).trim().toLowerCase();
-  const { error: sessionError } = await cloudDb.auth.updateUser({
-    data: { bound_email: savedEmail },
-  });
-  if (sessionError) {
-    if (els.emailBindingConfirmStatus) els.emailBindingConfirmStatus.textContent = "本地同步失败：" + sessionError.message;
-    return;
-  }
-  if (session?.user) {
-    session.user.email = savedEmail;
-    session.user.user_metadata = {
-      ...(session.user.user_metadata || {}),
-      bound_email: savedEmail,
-    };
-  }
-  if (els.emailBindingConfirmStatus) els.emailBindingConfirmStatus.textContent = "邮箱已绑定，可用于找回用户名和密码。";
-  renderSettingsSummary();
-  window.setTimeout(() => els.emailBindingDialog?.close(), 900);
-}
-
-function resetEmailRecoveryUi() {
-  els.emailResetRequestForm?.reset();
-  els.emailResetConfirmForm?.reset();
-  if (els.emailResetConfirmForm) els.emailResetConfirmForm.hidden = true;
-  if (els.resetEmailInput) els.resetEmailInput.disabled = false;
-  if (els.emailResetStatus) els.emailResetStatus.textContent = "";
-}
-
-async function requestEmailPasswordReset(event) {
-  event.preventDefault();
-  if (!cloudDb?.account) return;
-  const email = String(els.resetEmailInput?.value || "").trim().toLowerCase();
-  if (!isValidEmailInput(email)) {
-    if (els.emailResetStatus) els.emailResetStatus.textContent = "请输入有效的绑定邮箱。";
-    return;
-  }
-  if (els.emailResetStatus) els.emailResetStatus.textContent = "正在发送验证码…";
-  const { error } = await cloudDb.account.requestPasswordReset(email);
-  if (error) {
-    if (els.emailResetStatus) els.emailResetStatus.textContent = "发送失败：" + error.message;
-    return;
-  }
-  if (els.resetEmailInput) els.resetEmailInput.disabled = true;
-  if (els.emailResetConfirmForm) els.emailResetConfirmForm.hidden = false;
-  if (els.emailResetStatus) els.emailResetStatus.textContent = "验证码已发送，邮件中也会告诉你用户名。";
-  els.resetEmailCodeInput?.focus();
-}
-
-async function confirmEmailPasswordReset(event) {
-  event.preventDefault();
-  if (!cloudDb?.account) return;
-  const email = String(els.resetEmailInput?.value || "").trim().toLowerCase();
-  const code = String(els.resetEmailCodeInput?.value || "").trim();
-  const password = els.emailResetNewPasswordInput?.value || "";
-  const confirmation = els.emailResetConfirmPasswordInput?.value || "";
-  if (!/^\d{6}$/.test(code)) {
-    if (els.emailResetStatus) els.emailResetStatus.textContent = "请输入 6 位验证码。";
-    return;
-  }
-  if (!passwordsMatch(password, confirmation, els.emailResetStatus)) return;
-  if (els.emailResetStatus) els.emailResetStatus.textContent = "正在重设密码…";
-  const { data, error } = await cloudDb.account.confirmPasswordReset(email, code, password);
-  if (error) {
-    if (els.emailResetStatus) els.emailResetStatus.textContent = "重设失败：" + error.message;
-    return;
-  }
-  if (data?.username) els.usernameInput.value = data.username;
-  els.passwordInput.value = "";
-  if (els.emailResetStatus) els.emailResetStatus.textContent = "密码已重设，请使用邮件中的用户名登录。";
-  window.setTimeout(() => els.forgotPasswordDialog?.close(), 1000);
-}
-
-async function resetForgottenPassword(event) {
-  event.preventDefault();
-  if (!cloudDb) return;
-  const username = els.recoveryUsernameInput.value.trim();
-  const recoveryKey = els.recoverySecretInput.value.trim();
-  const password = els.recoveryNewPasswordInput.value;
-  if (!username || recoveryKey.length < 12) {
-    els.forgotPasswordStatus.textContent = "请输入用户名和至少 12 位的恢复密钥。";
-    return;
-  }
-  if (
-    !passwordsMatch(
-      password,
-      els.recoveryConfirmPasswordInput.value,
-      els.forgotPasswordStatus
-    )
-  ) {
-    return;
-  }
-  els.forgotPasswordStatus.textContent = "正在验证恢复密钥…";
-  const { data, error } = await cloudDb.rpc("reset_password_with_recovery_key", {
-    p_username: username,
-    p_recovery_key: recoveryKey,
-    p_new_password: password,
-  });
-  if (error) {
-    els.forgotPasswordStatus.textContent = isMissingCloudSchema(error)
-      ? "恢复功能尚未初始化，请先部署最新版 Cloudflare D1 结构。"
-      : `重设失败：${error.message}`;
-    return;
-  }
-  if (!data) {
-    els.forgotPasswordStatus.textContent = "用户名或恢复密钥不正确。";
-    return;
-  }
-  els.forgotPasswordForm.reset();
-  els.usernameInput.value = username;
-  els.passwordInput.value = "";
-  els.forgotPasswordStatus.textContent = "密码已重设，可以使用新密码登录。";
-  window.setTimeout(() => els.forgotPasswordDialog.close(), 1000);
-}
+const authController = createAuthController({
+  elements: els,
+  endpoint: R2_UPLOAD_ENDPOINT,
+  getDatabase: () => cloudDb,
+  getSession: () => session,
+  usernameToEmail,
+  getRedirectUrl,
+  setHint,
+  getBoundEmail: getSessionBoundEmail,
+  renderSettingsSummary,
+  isMissingCloudSchema,
+  closeMobileDiaryPage,
+  clearSecretUnlockState,
+});
+const {
+  changePassword,
+  confirmEmailBinding,
+  confirmEmailPasswordReset,
+  login: loginWithPassword,
+  logout,
+  requestEmailBinding,
+  requestEmailPasswordReset,
+  resetEmailBindingDialog,
+  resetEmailRecoveryUi,
+  resetForgottenPassword,
+  saveRecoveryKey,
+  signup: signupWithPassword,
+} = authController;
 
 async function loadPhotosInternal() {
   if (!cloudDb) {
@@ -1700,278 +1154,94 @@ async function loadPhotoCommentPreviews() {
   });
 }
 
-function getPhotoFeedCacheStorageKey(userId = session?.user?.id || "public") {
-  return `${PHOTO_FEED_CACHE_KEY}:${userId || "public"}`;
-}
-
-function normalizeCacheMb(value, fallback) {
-  return clampCacheMb(value, fallback, { min: MIN_CACHE_MB, max: MAX_CACHE_MB });
-}
-
-function getCacheCapacityStorageKey(type, userId = session?.user?.id || "guest") {
-  return buildCacheCapacityStorageKey(type, userId, {
-    diary: DIARY_CACHE_MB_KEY,
-    secret: SECRET_CACHE_MB_KEY,
-  });
-}
-
-function loadCacheCapacityMb(type, userId = session?.user?.id || "guest") {
-  const fallback = type === "secret" ? DEFAULT_SECRET_CACHE_MB : DEFAULT_DIARY_CACHE_MB;
-  return normalizeCacheMb(localStorage.getItem(getCacheCapacityStorageKey(type, userId)), fallback);
-}
-
-function saveCacheCapacityMb(type, value, userId = session?.user?.id || "guest") {
-  const fallback = type === "secret" ? DEFAULT_SECRET_CACHE_MB : DEFAULT_DIARY_CACHE_MB;
-  const capacity = normalizeCacheMb(value, fallback);
-  localStorage.setItem(getCacheCapacityStorageKey(type, userId), String(capacity));
-  return capacity;
-}
-
-function getPhotoCacheImages(photo) {
-  const images = getPhotoImages(photo);
-  if (images.length) {
-    return images
-      .flatMap((image) => [image.thumbnail_url, image.image_url, image.poster_url])
-      .filter(Boolean);
-  }
-  return [photo?.image_url].filter(Boolean);
-}
-
-function getSecretItemCacheImages(item) {
-  return [
-    item?.coverImage || item?.cover_image || "",
-    ...normalizeSecretImages(item?.images).flatMap((image) => [image.thumbnail_url, image.image_url]),
-  ].filter(Boolean);
-}
-
-function normalizeMediaCacheUrl(url) {
-  return normalizeMediaUrl(url, window.location.href);
-}
-
-function collectDiaryOfflineMediaUrls(itemLimit = Number.POSITIVE_INFINITY) {
-  const urls = [];
-  getSortedPhotos(photos)
-    .slice(0, itemLimit)
-    .forEach((photo) => urls.push(...getPhotoCacheImages(photo)));
-  urls.push(getProfileAvatarUrl(accountProfile));
-  familyMemberMap.forEach((member) => urls.push(getProfileAvatarUrl(member)));
-  familyLevelProfiles.forEach((profile) => urls.push(getProfileAvatarUrl(profile)));
-  return [...new Set(urls.map(normalizeMediaCacheUrl).filter(Boolean))];
-}
-
-function collectSecretOfflineMediaUrls() {
-  const urls = [];
-  secretItems.forEach((item) => urls.push(...getSecretItemCacheImages(item)));
-  return [...new Set(urls.map(normalizeMediaCacheUrl).filter(Boolean))];
-}
-
-let mediaCacheTimer = 0;
-function getMediaCachePolicyKey(userId = session?.user?.id || "guest") {
-  return preferenceStore.scopedKey(MEDIA_CACHE_POLICY_KEY, userId || "guest");
-}
-
-function loadMediaCachePolicy(userId = session?.user?.id || "guest") {
-  return preferenceStore.readEnum(
-    MEDIA_CACHE_POLICY_KEY,
-    ["off", "wifi"],
-    "wifi",
-    { scope: userId || "guest" }
-  );
-}
-
-function saveMediaCachePolicy(policy, userId = session?.user?.id || "guest") {
-  const next = policy === "off" ? "off" : "wifi";
-  preferenceStore.write(getMediaCachePolicyKey(userId), next);
-  renderSettingsSummary();
-  return next;
-}
-
-function isClearlyUnmeteredConnection() {
-  return detectUnmeteredConnection(navigator);
-}
-
-function shouldAutoCacheMedia(userId = session?.user?.id || "guest") {
-  return navigator.onLine && loadMediaCachePolicy(userId) === "wifi" && isClearlyUnmeteredConnection();
-}
-
-function scheduleOfflineMediaCache(userId = session?.user?.id || "public") {
-  if (!("caches" in window)) return;
-  if (!shouldAutoCacheMedia(userId)) return;
-  window.clearTimeout(mediaCacheTimer);
-  mediaCacheTimer = window.setTimeout(() => {
-    cacheOfflineMedia(userId, { explicit: false }).catch((error) => {
-      console.warn("Offline media cache failed:", error);
-    });
-  }, 900);
-}
-
-async function cacheOfflineMedia(userId = session?.user?.id || "public", options = {}) {
-  if (!("caches" in window)) return;
-  const explicit = Boolean(options.explicit);
-  const type = options.type || "all";
-  if (!explicit && !shouldAutoCacheMedia(userId)) return;
-  const tasks = [];
-  if (type === "all" || type === "diary") {
-    const diaryItemLimit = explicit
-      ? Number.POSITIVE_INFINITY
-      : AUTO_DIARY_CACHE_ITEM_LIMIT;
-    tasks.push(mediaCacheService.fillWithinCapacity(
-      DIARY_MEDIA_CACHE_NAME,
-      collectDiaryOfflineMediaUrls(diaryItemLimit),
-      loadCacheCapacityMb("diary", userId) * 1024 * 1024,
-      explicit ? 40 : Number.POSITIVE_INFINITY
-    ));
-  }
-  if (type === "all" || type === "secret") {
-    tasks.push(mediaCacheService.fillWithinCapacity(
-      SECRET_MEDIA_CACHE_NAME,
-      collectSecretOfflineMediaUrls(),
-      loadCacheCapacityMb("secret", userId) * 1024 * 1024,
-      explicit ? Number.POSITIVE_INFINITY : 4
-    ));
-  }
-  const results = await Promise.all(tasks);
-  await caches.delete(LEGACY_MEDIA_CACHE_NAME);
-  await refreshCacheInfo();
-  return results.reduce((summary, result) => ({
-    cached: summary.cached + result.cached,
-    downloaded: summary.downloaded + result.downloaded,
-    bytes: summary.bytes + result.bytes,
-    requested: summary.requested + result.requested,
-    complete: summary.complete && result.complete,
-  }), { cached: 0, downloaded: 0, bytes: 0, requested: 0, complete: true });
-}
-
-function savePhotoFeedCache(userId = session?.user?.id || "public") {
-  if (!photos.length) return;
-  const cachedPhotos = getSortedPhotos(photos).slice(0, METADATA_CACHE_ITEM_LIMIT);
-  const cachedIds = new Set(cachedPhotos.map((photo) => photo.id).filter(Boolean));
-  const comments = [];
-  cachedIds.forEach((photoId) => {
-    (photoCommentPreviewMap.get(photoId) || [])
-      .slice(0, PHOTO_COMMENT_PREVIEW_LIMIT)
-      .forEach((comment) => comments.push(sanitizeCommentRecord(comment)));
-  });
-  const payload = {
-    savedAt: new Date().toISOString(),
-    photos: cachedPhotos.map(sanitizeDiaryRecord),
-    comments,
-  };
-  try {
-    localStorage.setItem(getPhotoFeedCacheStorageKey(userId), JSON.stringify(payload));
-    scheduleOfflineMediaCache(userId);
-  } catch {
-  }
-}
-
-function renderCachedPhotoFeed(userId = session?.user?.id || "public") {
-  if (activePage !== "gallery") return false;
-  try {
-    const raw = localStorage.getItem(getPhotoFeedCacheStorageKey(userId));
-    if (!raw) return false;
-    const cached = JSON.parse(raw);
-    if (!Array.isArray(cached.photos) || !cached.photos.length) return false;
-    photos = cached.photos.map((photo) => ({ ...photo, __cached: true }));
-    photoCommentPreviewMap = new Map();
-    (Array.isArray(cached.comments) ? cached.comments : []).forEach((comment) => {
-      if (!comment.photo_id) return;
-      const list = photoCommentPreviewMap.get(comment.photo_id) || [];
-      if (list.length >= PHOTO_COMMENT_PREVIEW_LIMIT) return;
-      list.push(comment);
-      photoCommentPreviewMap.set(comment.photo_id, list);
-    });
-    showingCachedFeed = true;
-    visiblePhotoCount = Math.max(PAGE_SIZE, Math.min(METADATA_CACHE_ITEM_LIMIT, cached.photos.length));
-    renderGallery();
-    setGlobalStatus("先显示上次缓存，正在同步最新内容…");
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function getSecretItemsCacheStorageKey(userId = session?.user?.id || "guest") {
-  return `${SECRET_ITEMS_CACHE_KEY}:${userId || "guest"}`;
-}
-
-function saveSecretItemsCache(userId = session?.user?.id || "guest") {
-  if (!secretItems.length) return;
-  try {
-    localStorage.setItem(
-      getSecretItemsCacheStorageKey(userId),
-      JSON.stringify({
-        savedAt: new Date().toISOString(),
-        items: secretItems.slice(0, METADATA_CACHE_ITEM_LIMIT).map((item) =>
-          sanitizeSecretRecord(item, {
-            images: normalizeSecretImages(item.images),
-            defaultSortOrder: getDefaultSecretSortOrder(item.createdAt),
-          })
-        ),
-      })
-    );
-    scheduleOfflineMediaCache(userId);
-  } catch {
-  }
-}
-
-function renderCachedSecretItems(userId = session?.user?.id || "guest") {
-  try {
-    const raw = localStorage.getItem(getSecretItemsCacheStorageKey(userId));
-    if (!raw) return false;
-    const cached = JSON.parse(raw);
-    if (!Array.isArray(cached.items) || !cached.items.length) return false;
-    secretItems = cached.items.map((item) => ({ ...item, __cached: true }));
-    secretCloudAvailable = true;
-    renderSecretGallery();
-    setSecretStatus("先显示上次缓存，正在同步秘藏...");
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-async function getAppCacheStats() {
-  return mediaCacheService.getStats(getStorageUsageBytes(localStorage));
-}
-function renderCacheStats(stats) {
-  if (!els.settingsCacheValue) return;
-  els.settingsCacheValue.textContent = `${formatFileSize(stats.totalBytes)} 本地离线缓存`;
-  const cacheHelp = els.settingsCacheValue.nextElementSibling;
-  if (cacheHelp) {
-    cacheHelp.textContent = `日记 ${stats.diaryEntries} 项 / ${loadCacheCapacityMb("diary")} MB · 秘藏 ${stats.secretEntries} 项 / ${loadCacheCapacityMb("secret")} MB`;
-  }
-  if (els.settingsCacheStatus) {
-    els.settingsCacheStatus.textContent = `日记 ${formatFileSize(stats.diaryBytes)} · 秘藏 ${formatFileSize(stats.secretBytes)} · 应用外壳 ${formatFileSize(stats.appShellBytes)} · 文字索引 ${formatFileSize(stats.localBytes)}`;
-    const clearHelp = els.settingsCacheStatus.nextElementSibling;
-    if (clearHelp) clearHelp.textContent = "清除以上离线内容，账号和个人设置仍保留";
-  }
-}
-
-async function refreshCacheInfo() {
-  if (els.settingsCacheValue) els.settingsCacheValue.textContent = "计算中...";
-  const stats = await getAppCacheStats();
-  renderCacheStats(stats);
-}
-
-async function clearAppCache() {
-  if (els.settingsCacheStatus) els.settingsCacheStatus.textContent = "正在清除...";
-  const keysToRemove = [];
-  for (let index = 0; index < localStorage.length; index += 1) {
-    const key = localStorage.key(index) || "";
-    if (
-      key.startsWith(`${PHOTO_FEED_CACHE_KEY}:`) ||
-      key.startsWith(`${SECRET_ITEMS_CACHE_KEY}:`)
-    ) {
-      keysToRemove.push(key);
-    }
-  }
-  keysToRemove.forEach((key) => localStorage.removeItem(key));
-
-  await mediaCacheService.deleteManagedCaches();
-
-  await refreshCacheInfo();
-  if (els.settingsCacheStatus) els.settingsCacheStatus.textContent = "缓存已清除，账号和设置已保留";
-}
+const offlineCacheController = createOfflineCacheController({
+  elements: els,
+  preferenceStore,
+  mediaCacheService,
+  keys: {
+    photoFeed: PHOTO_FEED_CACHE_KEY,
+    secretItems: SECRET_ITEMS_CACHE_KEY,
+    diaryCapacity: DIARY_CACHE_MB_KEY,
+    secretCapacity: SECRET_CACHE_MB_KEY,
+    policy: MEDIA_CACHE_POLICY_KEY,
+  },
+  cacheNames: {
+    diary: DIARY_MEDIA_CACHE_NAME,
+    secret: SECRET_MEDIA_CACHE_NAME,
+    legacy: LEGACY_MEDIA_CACHE_NAME,
+  },
+  limits: {
+    minMb: MIN_CACHE_MB,
+    maxMb: MAX_CACHE_MB,
+    defaultDiaryMb: DEFAULT_DIARY_CACHE_MB,
+    defaultSecretMb: DEFAULT_SECRET_CACHE_MB,
+    autoDiaryItems: AUTO_DIARY_CACHE_ITEM_LIMIT,
+    metadataItems: METADATA_CACHE_ITEM_LIMIT,
+    commentPreviews: PHOTO_COMMENT_PREVIEW_LIMIT,
+    pageSize: PAGE_SIZE,
+  },
+  getSession: () => session,
+  getPhotos: () => photos,
+  setPhotos: (items) => {
+    photos = items;
+  },
+  getSortedPhotos,
+  getPhotoImages,
+  getPhotoCommentPreviews: () => photoCommentPreviewMap,
+  setPhotoCommentPreviews: (map) => {
+    photoCommentPreviewMap = map;
+  },
+  setShowingCachedFeed: (value) => {
+    showingCachedFeed = value;
+  },
+  setVisiblePhotoCount: (value) => {
+    visiblePhotoCount = value;
+  },
+  getActivePage: () => activePage,
+  renderGallery,
+  setGlobalStatus,
+  getSecretItems: () => secretItems,
+  setSecretItems: (items) => {
+    secretItems = items;
+  },
+  setSecretCloudAvailable: (value) => {
+    secretCloudAvailable = value;
+  },
+  renderSecretGallery,
+  setSecretStatus,
+  normalizeSecretImages,
+  getDefaultSecretSortOrder,
+  getProfileAvatarUrl,
+  getAccountProfile: () => accountProfile,
+  getFamilyMembers: () => familyMemberMap,
+  getFamilyLevelProfiles: () => familyLevelProfiles,
+  renderSettingsSummary,
+  formatFileSize,
+});
+const {
+  cacheMedia: cacheOfflineMedia,
+  clear: clearAppCache,
+  collectDiaryUrls: collectDiaryOfflineMediaUrls,
+  collectSecretUrls: collectSecretOfflineMediaUrls,
+  getCapacityStorageKey: getCacheCapacityStorageKey,
+  getPhotoFeedStorageKey: getPhotoFeedCacheStorageKey,
+  getPolicyKey: getMediaCachePolicyKey,
+  getSecretStorageKey: getSecretItemsCacheStorageKey,
+  getStats: getAppCacheStats,
+  isUnmetered: isClearlyUnmeteredConnection,
+  loadCapacityMb: loadCacheCapacityMb,
+  loadPolicy: loadMediaCachePolicy,
+  refreshInfo: refreshCacheInfo,
+  renderCachedPhotoFeed,
+  renderCachedSecretItems,
+  renderStats: renderCacheStats,
+  saveCapacityMb: saveCacheCapacityMb,
+  savePhotoFeed: savePhotoFeedCache,
+  savePolicy: saveMediaCachePolicy,
+  saveSecretItems: saveSecretItemsCache,
+  schedule: scheduleOfflineMediaCache,
+  shouldAutoCache: shouldAutoCacheMedia,
+} = offlineCacheController;
 
 function getLocalDateKeyFromValue(value) {
   if (!value) return "";
@@ -2277,533 +1547,6 @@ async function verifyPhotoFlagSchema() {
   }
   const { error } = await diaryRepository.verifyFlags();
   photoFlagsCloudAvailable = !error;
-}
-
-async function uploadPhoto(event) {
-  event.preventDefault();
-  if (uploadInFlight) {
-    setStatus("正在上传，先别连点。");
-    return;
-  }
-  if (!cloudDb || !session) {
-    setStatus("请先登录。");
-    return;
-  }
-
-  const files = selectedUploadFiles.length ? selectedUploadFiles : Array.from(els.photoInput.files || []);
-  const linkUrls = [...selectedUploadLinks];
-  if (vlogMode.isActive()) {
-    const vlogError = validateVlogUpload(files, linkUrls);
-    if (vlogError) {
-      setStatus(vlogError);
-      return;
-    }
-  }
-  if (!files.length && !linkUrls.length) {
-    setStatus("请选择图片，或粘贴图片链接。");
-    return;
-  }
-
-  const uploadPairing = pairDiaryUploadFiles(files);
-  if (uploadPairing.unsupportedFiles.length) {
-    setStatus("只支持图片和视频文件。");
-    return;
-  }
-
-  const imageLimit = getCurrentImageLimit();
-  if (getDiaryUploadEntryCount(uploadPairing) + linkUrls.length > imageLimit) {
-    setStatus(`当前 VIP 等级单篇最多 ${imageLimit} 张图。`);
-    return;
-  }
-
-  const finalTitle = getFinalTitle();
-  uploadInFlight = true;
-  setUploadSubmitting(true);
-  let payload;
-  try {
-    payload = createDiaryUploadPayload({
-      title: finalTitle,
-      rawTitle: els.titleInput.value.trim(),
-      note: els.noteInput.value.trim(),
-      category: vlogMode.isActive() ? "VLOG" : els.categoryInput.value,
-      takenAt: els.dateInput.value,
-      isPublic: els.publicInput.value === "true",
-      userId: session?.user?.id || "",
-      files,
-      linkUrls,
-      pairing: uploadPairing,
-    });
-    if (!navigator.onLine) {
-      await enqueueDiaryUpload(payload);
-      clearDiaryDraft();
-      clearPhotoPreview();
-      setStatus("网络不稳定，已加入上传队列。恢复网络后会自动上传。");
-      return;
-    }
-    await publishDiaryPayload(payload);
-  } catch (error) {
-    if (payload && isNetworkLikeError(error)) {
-      await enqueueDiaryUpload(payload);
-      clearDiaryDraft();
-      clearPhotoPreview();
-      setStatus("上传中断，已加入上传队列。恢复网络后会自动上传。");
-      return;
-    }
-    setStatus(error.message || "上传失败。");
-  } finally {
-    uploadInFlight = false;
-    setUploadSubmitting(false);
-    void processDiaryUploadQueue();
-  }
-}
-
-async function publishDiaryPayload(payload, { queued = false } = {}) {
-  const images = [];
-  const mediaEntries = payload.files.map((entry) => ({
-    kind: entry.kind || (entry.motionFile ? "live" : "image"),
-    file: entry.file,
-    motionFile: entry.motionFile || null,
-  }));
-  const finalTitle = payload.title || "";
-
-  for (const [index, entry] of mediaEntries.entries()) {
-    const safeName = getUploadFileNameBase(finalTitle, index, mediaEntries.length);
-    if (entry.kind === "video") {
-      setStatus(
-        `${index + 1}/${mediaEntries.length} · 正在从视频提取封面...`
-      );
-      const posterFile = await createVideoPosterFile(entry.file);
-      const poster = await uploadImageFile(
-        posterFile,
-        `${safeName}-poster`,
-        index + 1,
-        mediaEntries.length,
-        { folder: "photos-video-posters", thumbnail: false }
-      );
-      if (!poster) throw new Error("普通视频封面上传失败。");
-      const video = await uploadDiaryVideoFile(
-        entry.file,
-        `${safeName}-video`,
-        index + 1,
-        mediaEntries.length
-      );
-      if (!video) throw new Error("普通视频上传失败。");
-      images.push({
-        type: "video",
-        image_path: poster.image_path,
-        image_url: poster.image_url,
-        thumbnail_path: poster.thumbnail_path,
-        thumbnail_url: poster.thumbnail_url,
-        poster_path: poster.image_path,
-        poster_url: poster.image_url,
-        video_path: `r2:${video.key}`,
-        video_url: video.url,
-        video_type: video.contentType || getVideoContentType(entry.file),
-        width: poster.width,
-        height: poster.height,
-        original_size: poster.original_size,
-        compressed_size: poster.compressed_size,
-      });
-      continue;
-    }
-
-    const imageData = await uploadImageFile(entry.file, safeName, index + 1, mediaEntries.length);
-    if (!imageData) throw new Error("图片上传失败。");
-    imageData.type = entry.kind === "live" ? "live" : "image";
-    if (entry.motionFile) {
-      const motion = await uploadDiaryMotionFile(
-        entry.motionFile,
-        `${safeName}-live`,
-        index + 1,
-        mediaEntries.length
-      );
-      if (!motion) throw new Error("Live Photo 动态部分上传失败。");
-      imageData.motion_path = `r2:${motion.key}`;
-      imageData.motion_url = motion.url;
-      imageData.motion_type = motion.contentType || getVideoContentType(entry.motionFile);
-      imageData.motion_size = entry.motionFile.size || 0;
-    }
-    images.push(imageData);
-  }
-  const linkUrls = Array.isArray(payload.linkUrls) ? payload.linkUrls : [];
-  for (const [index, url] of linkUrls.entries()) {
-    const safeName = `${getUploadFileNameBase(finalTitle, mediaEntries.length + index, mediaEntries.length + linkUrls.length)}-link`;
-    const copied = await copyUrlToR2(url, safeName, "photos");
-    images.push({
-      type: "image",
-      image_path: `r2:${copied.key}`,
-      image_url: copied.url,
-      thumbnail_path: "",
-      thumbnail_url: copied.url,
-      width: 0,
-      height: 0,
-    });
-  }
-
-  const insertError = await insertPhotoRecordFromPayload(payload, images);
-  if (insertError) {
-    throw new Error(insertError.message);
-  }
-
-  if (!queued) {
-    els.uploadForm.reset();
-    els.dateInput.valueAsDate = new Date();
-    clearDiaryDraft();
-    clearPhotoPreview();
-    setUploadExpanded(false);
-  }
-  const localImages = images.filter((image) => Number.isFinite(image.original_size));
-  const originalBytes = localImages.reduce((sum, image) => sum + image.original_size, 0);
-  const uploadedBytes = localImages.reduce((sum, image) => sum + image.compressed_size, 0);
-  const savings =
-    originalBytes > 0 ? Math.max(0, Math.round((1 - uploadedBytes / originalBytes) * 100)) : 0;
-  const compressionSummary = originalBytes
-    ? ` 自动压缩 ${formatFileSize(originalBytes)} → ${formatFileSize(uploadedBytes)}，节省 ${savings}%。`
-    : "";
-  const gainedExp = await awardExperience("diary");
-  setStatus(
-    `${queued ? "队列日记已发布。" : images.length > 1 ? `已发布 1 篇合集，共 ${images.length} 张图。` : "上传完成。"}${compressionSummary}${gainedExp ? ` 修为 +${gainedExp}` : ""}`
-  );
-  await loadPhotos();
-  vlogMode.close();
-  switchPage("gallery");
-  els.galleryHead?.scrollIntoView({
-    behavior: "smooth",
-    block: "start",
-  });
-}
-
-async function insertPhotoRecord(finalTitle, images) {
-  return insertPhotoRecordFromPayload(
-    {
-      title: finalTitle,
-      note: els.noteInput.value.trim(),
-      category: els.categoryInput.value,
-      takenAt: els.dateInput.value,
-      isPublic: els.publicInput.value === "true",
-    },
-    images
-  );
-}
-
-async function insertPhotoRecordFromPayload(payload, images) {
-  const primaryImage = images[0];
-  const record = {
-    user_id: session.user.id,
-    title: payload.title || "",
-    note: composeDiaryStoredNote(payload.note || "", images),
-    category: payload.category || "日常",
-    taken_at: payload.takenAt || new Date().toISOString().slice(0, 10),
-    is_public: payload.isPublic !== false,
-    image_path: primaryImage.image_path,
-    image_url: primaryImage.image_url,
-    width: primaryImage.width,
-    height: primaryImage.height,
-  };
-
-  const { error } = await diaryRepository.insert(record);
-  return error;
-}
-
-function setUploadSubmitting(isSubmitting) {
-  const submitButton = els.uploadForm?.querySelector('button[type="submit"]');
-  if (submitButton) {
-    submitButton.disabled = Boolean(isSubmitting);
-    submitButton.textContent = isSubmitting ? "上传中..." : "上传并发布";
-  }
-  els.uploadToggle.disabled = Boolean(isSubmitting);
-}
-
-function getDiaryDraftStorageKey(userId = session?.user?.id || "guest") {
-  return `${DIARY_DRAFT_KEY}:${userId}`;
-}
-
-function getDiaryDraftPayload() {
-  return {
-    title: els.titleInput.value,
-    note: els.noteInput.value,
-    category: els.categoryInput.value,
-    takenAt: els.dateInput.value,
-    isPublic: els.publicInput.value,
-    savedAt: new Date().toISOString(),
-  };
-}
-
-function saveDiaryDraft() {
-  if (!session || !els.uploadForm || els.uploadForm.hidden) return;
-  const draft = getDiaryDraftPayload();
-  const hasText = [draft.title, draft.note].some((value) => String(value || "").trim());
-  const hasNonDefault =
-    draft.category !== "日常" ||
-    draft.isPublic !== "true" ||
-    draft.takenAt !== new Date().toISOString().slice(0, 10);
-  if (!hasText && !hasNonDefault) return;
-  localStorage.setItem(getDiaryDraftStorageKey(), JSON.stringify(draft));
-}
-
-function restoreDiaryDraft() {
-  if (!session) return;
-  try {
-    const raw = localStorage.getItem(getDiaryDraftStorageKey());
-    if (!raw) return;
-    const draft = JSON.parse(raw);
-    els.titleInput.value = draft.title || "";
-    els.noteInput.value = draft.note || "";
-    els.categoryInput.value = draft.category || "日常";
-    els.dateInput.value = draft.takenAt || els.dateInput.value || new Date().toISOString().slice(0, 10);
-    els.publicInput.value = draft.isPublic || "true";
-    setStatus("已恢复上次未发布的日记草稿。");
-  } catch {
-    localStorage.removeItem(getDiaryDraftStorageKey());
-  }
-}
-
-function clearDiaryDraft() {
-  localStorage.removeItem(getDiaryDraftStorageKey());
-}
-
-function isNetworkLikeError(error) {
-  const message = String(error?.message || error || "").toLowerCase();
-  return !navigator.onLine || message.includes("failed to fetch") || message.includes("network");
-}
-
-async function enqueueDiaryUpload(payload) {
-  return diaryUploadQueue.enqueue(payload);
-}
-
-async function getQueuedDiaryUploads(userId = session?.user?.id || "") {
-  return diaryUploadQueue.list(userId);
-}
-
-async function removeQueuedDiaryUpload(id) {
-  return diaryUploadQueue.remove(id);
-}
-
-async function processDiaryUploadQueue() {
-  if (uploadQueueProcessing || !session || !cloudDb || !navigator.onLine) return;
-  uploadQueueProcessing = true;
-  try {
-    const queuedItems = await getQueuedDiaryUploads(session.user.id);
-    if (!queuedItems.length) return;
-    setStatus(`正在补传队列中的 ${queuedItems.length} 篇日记...`);
-    for (const item of queuedItems) {
-      await publishDiaryPayload(item, { queued: true });
-      await removeQueuedDiaryUpload(item.id);
-    }
-    setStatus("上传队列已清空。");
-  } catch (error) {
-    setStatus(`上传队列等待网络恢复：${error.message || "稍后重试"}`);
-  } finally {
-    uploadQueueProcessing = false;
-    void renderUploadCenter();
-  }
-}
-function compressImage(file, options = null) {
-  return imageService.compressImage(file, options);
-}
-
-async function uploadImageFile(file, safeName, index = 1, total = 1, options = {}) {
-  const folder = options.folder || "photos";
-  const statusSetter = options.statusSetter || setStatus;
-  const prefix = total > 1 ? `${index}/${total} · ` : "";
-  statusSetter(`${prefix}正在自动压缩图片...`);
-  let compressed;
-  try {
-    compressed = await compressImage(file);
-  } catch (error) {
-    statusSetter(error.message || "图片压缩失败。");
-    return null;
-  }
-  statusSetter(
-    `${prefix}已压缩 ${formatFileSize(file.size)} → ${formatFileSize(compressed.blob.size)}，正在上传...`
-  );
-  try {
-    const uploaded = await uploadToR2(compressed.blob, safeName, folder);
-    let thumbnail = null;
-    if (options.thumbnail !== false && Math.max(compressed.width, compressed.height) > 720) {
-      try {
-        const thumbCompressed = await compressImage(file, {
-          maxSide: 640,
-          targetBytes: 140 * 1024,
-          jpeg: 0.76,
-          minJpeg: 0.5,
-          rotatePortrait: false,
-        });
-        thumbnail = await uploadToR2(thumbCompressed.blob, `${safeName}-thumb`, `${folder}-thumbs`);
-      } catch (error) {
-        console.warn("Thumbnail upload skipped:", error);
-      }
-    }
-    return {
-      image_path: `r2:${uploaded.key}`,
-      image_url: uploaded.url,
-      thumbnail_path: thumbnail?.key ? `r2:${thumbnail.key}` : "",
-      thumbnail_url: thumbnail?.url || uploaded.url,
-      width: compressed.width,
-      height: compressed.height,
-      original_size: compressed.originalBytes,
-      compressed_size: compressed.compressedBytes,
-    };
-  } catch (error) {
-    statusSetter(`R2 上传失败：${error.message}`);
-    return null;
-  }
-}
-
-async function uploadDiaryMotionFile(file, safeName, index = 1, total = 1) {
-  const prefix = total > 1 ? `${index}/${total} · ` : "";
-  setStatus(`${prefix}正在上传 Live Photo 动态部分...`);
-  try {
-    const extension = getVideoFileExtension(file);
-    return await uploadToR2(file, safeName, "photos-live", {
-      fileName: `${safeName}.${extension}`,
-      contentType: getVideoContentType(file),
-    });
-  } catch (error) {
-    setStatus(`Live Photo 上传失败：${error.message}`);
-    throw error;
-  }
-}
-
-async function uploadDiaryVideoFile(file, safeName, index = 1, total = 1) {
-  const prefix = total > 1 ? `${index}/${total} · ` : "";
-  setStatus(`${prefix}正在上传普通视频...`);
-  try {
-    const extension = getVideoFileExtension(file);
-    return await uploadToR2(file, safeName, "photos-video", {
-      fileName: `${safeName}.${extension}`,
-      contentType: getVideoContentType(file),
-    });
-  } catch (error) {
-    setStatus(`普通视频上传失败：${error.message}`);
-    throw error;
-  }
-}
-
-async function uploadToR2(blob, safeName, folder = "photos", options = {}) {
-  return imageService.uploadToR2(blob, safeName, folder, options);
-}
-async function copyUrlToR2(url, safeName, folder = "migrated") {
-  return imageService.copyUrlToR2(url, safeName, folder);
-}
-
-function isR2Path(path) {
-  return String(path || "").startsWith("r2:");
-}
-
-function isR2Url(url) {
-  const value = String(url || "");
-  return Boolean(R2_PUBLIC_URL && value.startsWith(`${R2_PUBLIC_URL.replace(/\/+$/, "")}/`));
-}
-
-function getR2Key(path) {
-  return String(path || "").replace(/^r2:/, "");
-}
-
-function getR2PublicAssetUrl(path) {
-  const key = getR2Key(path);
-  if (!key || !R2_PUBLIC_URL) return "";
-  return `${R2_PUBLIC_URL.replace(/\/+$/, "")}/${key
-    .split("/")
-    .map((part) => encodeURIComponent(part))
-    .join("/")}`;
-}
-
-function resolveStoredAssetUrl(value = "", path = "") {
-  const rawValue = String(value || "");
-  const rawPath = String(path || "");
-  if (isR2Path(rawValue)) return getR2PublicAssetUrl(rawValue);
-  if (/^https?:\/\//i.test(rawValue)) return rawValue;
-  if (isR2Path(rawPath)) return getR2PublicAssetUrl(rawPath);
-  return /^https?:\/\//i.test(rawPath) ? rawPath : "";
-}
-
-function getProfileAvatarUrl(profile = {}) {
-  const avatarPath = profile.avatar_path || profile.avatarPath || "";
-  if (isR2Path(avatarPath)) return getR2PublicAssetUrl(avatarPath);
-  return resolveStoredAssetUrl(profile.avatar_url || profile.avatarUrl || "", avatarPath);
-}
-
-function getLegacyStoragePublicUrl(path) {
-  return path && !isR2Path(path) ? "" : "";
-}
-
-function getLegacyStoragePathFromPublicUrl(url) {
-  const marker = `/storage/v1/object/public/${BUCKET}/`;
-  const value = String(url || "");
-  const index = value.indexOf(marker);
-  if (index === -1) return "";
-  return decodeURIComponent(value.slice(index + marker.length).split("?")[0]);
-}
-
-function isLegacyStorageAsset(url, path = "") {
-  if (path && !isR2Path(path)) return true;
-  return Boolean(getLegacyStoragePathFromPublicUrl(url));
-}
-
-function isDataImageUrl(url) {
-  return String(url || "").startsWith("data:image/");
-}
-
-function shouldMigrateImageAsset(url, path = "") {
-  if (!url && !path) return false;
-  if (isR2Path(path) || isR2Url(url)) return false;
-  return isLegacyStorageAsset(url, path) || isDataImageUrl(url);
-}
-
-async function uploadDataUrlToR2(dataUrl, safeName, folder) {
-  const response = await fetch(dataUrl);
-  if (!response.ok) throw new Error("Could not read data image.");
-  const blob = await response.blob();
-  const file = new File([blob], `${safeName}.jpg`, { type: blob.type || "image/jpeg" });
-  const compressed = await compressImage(file, {
-    maxSide: 1600,
-    jpeg: 0.84,
-    minJpeg: 0.62,
-    targetBytes: 650_000,
-  });
-  return uploadToR2(compressed.blob, safeName, folder);
-}
-
-async function migrateImageAsset({ url = "", path = "", name = "image", folder = "migrated" }) {
-  if (!shouldMigrateImageAsset(url, path)) {
-    return { changed: false, image_url: url, image_path: path, oldPath: "" };
-  }
-
-  const safeName = slugify(name || folder || "image");
-  const sourceUrl = isDataImageUrl(url) ? url : url || getLegacyStoragePublicUrl(path);
-  if (!sourceUrl) {
-    return { changed: false, image_url: url, image_path: path, oldPath: "" };
-  }
-
-  const uploaded = isDataImageUrl(sourceUrl)
-    ? await uploadDataUrlToR2(sourceUrl, safeName, folder)
-    : await copyUrlToR2(sourceUrl, safeName, folder);
-  const oldPath = path && !isR2Path(path) ? path : getLegacyStoragePathFromPublicUrl(url);
-  return {
-    changed: true,
-    image_url: uploaded.url,
-    image_path: `r2:${uploaded.key}`,
-    oldPath,
-  };
-}
-async function deleteR2Object(path) {
-  return imageService.deleteR2Object(getR2Key(path));
-}
-
-async function cleanupStoredImagePaths(paths) {
-  const uniquePaths = [...new Set(paths.filter(Boolean))];
-  const r2Paths = uniquePaths.filter(isR2Path);
-  const errors = [];
-
-  for (const path of r2Paths) {
-    try {
-      await deleteR2Object(path);
-    } catch (error) {
-      errors.push(error);
-    }
-  }
-  if (errors.length) throw errors[0];
 }
 
 function renderGallery() {
@@ -5744,7 +4487,7 @@ async function renderUploadCenter() {
   if (status) {
     status.textContent = active.length
       ? `${active.length} 个图片任务处理中`
-      : uploadQueueProcessing
+      : isDiaryUploadQueueProcessing()
         ? "正在补传日记…"
         : queued.length
           ? `${queued.length} 篇日记等待上传`
@@ -6304,645 +5047,6 @@ function updateCloudSyncStatus() {
   );
 }
 
-function isVipUser(value) {
-  return VIP_USERS.has(String(value || "").trim().toLowerCase());
-}
-
-function getCurrentImageLimit() {
-  return activeVipLevel > 0 ? getVipLevel(activeVipLevel).limit : 1;
-}
-
-function getUploadQuality() {
-  if (activeVipLevel >= 5) {
-    return { maxSide: 2800, jpeg: 0.9, minJpeg: 0.69, targetBytes: 1_600_000 };
-  }
-  if (activeVipLevel >= 3) {
-    return { maxSide: 2200, jpeg: 0.87, minJpeg: 0.66, targetBytes: 1_200_000 };
-  }
-  return { maxSide: 1800, jpeg: 0.84, minJpeg: 0.62, targetBytes: 850_000 };
-}
-
-function formatFileSize(bytes) {
-  const size = Math.max(0, Number(bytes) || 0);
-  if (size < 1024) return `${Math.round(size)} B`;
-  if (size < 1024 * 1024) return `${(size / 1024).toFixed(size < 10240 ? 1 : 0)} KB`;
-  return `${(size / (1024 * 1024)).toFixed(2)} MB`;
-}
-
-function getRechargeStorageKey(displayName = getSessionDisplayName()) {
-  return `${VIP_RECHARGE_KEY}:${String(displayName || "guest").toLowerCase()}`;
-}
-
-function loadRechargeTotal(displayName = getSessionDisplayName()) {
-  if (cloudSyncAvailable && session) {
-    return Math.max(0, Number(accountProfile.rechargeTotal) || 0);
-  }
-  const key = getRechargeStorageKey(displayName);
-  const stored = Number(localStorage.getItem(key));
-  if (Number.isFinite(stored) && stored >= 0) return stored;
-  return isVipUser(displayName) ? 298 : 0;
-}
-
-function saveRechargeTotal(amount, displayName = getSessionDisplayName()) {
-  const normalized = Math.max(0, Math.round(amount));
-  localStorage.setItem(getRechargeStorageKey(displayName), String(normalized));
-  if (session) accountProfile.rechargeTotal = normalized;
-}
-
-function renderVipCenter() {
-  const displayName = session ? getSessionDisplayName() : "";
-  const rechargeTotal = session ? loadRechargeTotal(displayName) : 0;
-  renderVipCenterView({
-    elements: {
-      currentLevel: els.vipCurrentLevel,
-      currentName: els.vipCurrentName,
-      rechargeTotal: els.vipRechargeTotal,
-      tierAmount: els.vipTierAmount,
-      summary: els.vipSummary,
-      next: els.vipNext,
-      levels: els.vipLevels,
-      recharge: els.vipRecharge,
-      perks: els.vipPerks,
-      status: els.vipStatus,
-    },
-    signedIn: Boolean(session),
-    displayName,
-    rechargeTotal,
-    cloudSyncAvailable,
-    onTopUp: topUpToLevel,
-    onRecharge: rechargeVip,
-  });
-}
-
-function topUpToLevel(level) {
-  if (!session) {
-    els.vipStatus.textContent = "请先登录。";
-    return;
-  }
-
-  const target = getVipLevel(level);
-  const current = loadRechargeTotal();
-  const diff = Math.max(0, target.price - current);
-  rechargeVip(diff);
-}
-
-async function rechargeVip(amount) {
-  if (!session) {
-    els.vipStatus.textContent = "请先登录。";
-    return;
-  }
-
-  const numericAmount = Math.max(0, Math.round(Number(amount) || 0));
-  if (!numericAmount) {
-    els.vipStatus.textContent = "这个档位已经解锁。";
-    return;
-  }
-  if (!cloudSyncAvailable) {
-    els.vipStatus.textContent =
-      "Cloudflare D1 尚未升级，本次充值没有保存。请先部署最新版数据库结构。";
-    return;
-  }
-
-  const nextTotal = loadRechargeTotal() + numericAmount;
-  const nextLevel = getVipLevelByRecharge(nextTotal)?.level || 0;
-
-  const { error } = await householdRepository.update(
-    "user_profiles",
-    {
-      recharge_total: nextTotal,
-      vip_level: nextLevel,
-      updated_at: new Date().toISOString(),
-    },
-    { user_id: session.user.id }
-  );
-  if (error) {
-    els.vipStatus.textContent = `会员同步失败：${error.message}`;
-    return;
-  }
-
-  saveRechargeTotal(nextTotal);
-  accountProfile.vipLevel = nextLevel;
-  activeVipLevel = nextLevel;
-  updateAuthUI();
-  renderVipCenter();
-  els.vipStatus.textContent = `模拟充值 ${formatMoney(numericAmount)} 成功，累计 ${formatMoney(nextTotal)}，已同步。`;
-}
-
-function getExperienceStorageKey(displayName = getSessionDisplayName()) {
-  return `${EXPERIENCE_KEY}:${String(displayName || "guest").toLowerCase()}`;
-}
-
-function loadLocalExperienceAliases(displayName = getSessionDisplayName()) {
-  const names = new Set(
-    [
-      displayName,
-      getSessionDisplayName(),
-      getSessionLoginName(),
-      session?.user?.user_metadata?.username,
-      session?.user?.user_metadata?.login_username,
-    ]
-      .map((value) => String(value || "").trim().toLowerCase())
-      .filter(Boolean)
-  );
-  const result = {
-    total: 0,
-    lastLoginDate: "",
-    loginStreak: 0,
-    gainedToday: false,
-  };
-
-  for (const name of names) {
-    try {
-      const parsed = JSON.parse(localStorage.getItem(getExperienceStorageKey(name)) || "{}");
-      const lastLoginDate = normalizeLoginDateKey(parsed.lastLoginDate);
-      result.total = Math.max(result.total, Number(parsed.total) || 0);
-      result.loginStreak = Math.max(result.loginStreak, Number(parsed.loginStreak) || 0);
-      if (lastLoginDate > result.lastLoginDate) result.lastLoginDate = lastLoginDate;
-      result.gainedToday = result.gainedToday || Boolean(parsed.gainedToday);
-    } catch {}
-  }
-
-  return result;
-}
-
-function loadExperience(displayName = getSessionDisplayName()) {
-  if (cloudSyncAvailable && session) {
-    return {
-      total: Math.max(0, Number(accountProfile.experienceTotal) || 0),
-      lastLoginDate: accountProfile.lastLoginDate || "",
-      loginStreak: Math.max(0, Number(accountProfile.loginStreak) || 0),
-      gainedToday: accountProfile.lastLoginDate === getLocalDateKey(),
-    };
-  }
-  return loadLocalExperienceAliases(displayName);
-}
-
-function saveExperience(data, displayName = getSessionDisplayName()) {
-  localStorage.setItem(getExperienceStorageKey(displayName), JSON.stringify(data));
-  if (session) {
-    accountProfile.experienceTotal = Number(data.total) || 0;
-    accountProfile.lastLoginDate = data.lastLoginDate || "";
-    accountProfile.loginStreak = Math.max(0, Number(data.loginStreak) || 0);
-  }
-}
-
-function getTodayExperienceStorageKey(userId = session?.user?.id || getSessionLoginName()) {
-  return `${TODAY_EXPERIENCE_KEY}:${userId || "guest"}`;
-}
-
-function loadTodayExperience(userId = session?.user?.id || getSessionLoginName()) {
-  if (
-    cloudSyncAvailable &&
-    session &&
-    accountProfile.todayExperienceDate === getLocalDateKey()
-  ) {
-    return Math.max(0, Number(accountProfile.todayExperienceAmount) || 0);
-  }
-  try {
-    const parsed = JSON.parse(localStorage.getItem(getTodayExperienceStorageKey(userId)) || "{}");
-    return parsed.date === getLocalDateKey() ? Math.max(0, Number(parsed.amount) || 0) : 0;
-  } catch {
-    return 0;
-  }
-}
-
-function addTodayExperience(amount, userId = session?.user?.id || getSessionLoginName()) {
-  const numericAmount = Math.max(0, Number(amount) || 0);
-  if (!numericAmount) return loadTodayExperience(userId);
-  const nextAmount = loadTodayExperience(userId) + numericAmount;
-  localStorage.setItem(
-    getTodayExperienceStorageKey(userId),
-    JSON.stringify({ date: getLocalDateKey(), amount: nextAmount })
-  );
-  if (session && userId === session.user.id) {
-    accountProfile.todayExperienceDate = getLocalDateKey();
-    accountProfile.todayExperienceAmount = nextAmount;
-  }
-  return nextAmount;
-}
-
-function getVipExpMultiplier(level = activeVipLevel) {
-  return calculateVipExpMultiplier(level);
-}
-
-function getVipAdjustedExperience(base, level = activeVipLevel) {
-  return calculateVipAdjustedExperience(base, level);
-}
-
-function getLoginStreakBonusBase(streak) {
-  return calculateLoginStreakBonusBase(streak);
-}
-
-function getDailyLoginReward(streak = accountProfile.loginStreak || 1, level = activeVipLevel) {
-  return calculateDailyLoginReward(streak, level);
-}
-
-function getNextLoginStreak(experience = loadExperience()) {
-  const lastLoginDate = normalizeLoginDateKey(experience.lastLoginDate);
-  const streak = Math.max(0, Number(experience.loginStreak) || 0);
-  if (lastLoginDate === getLocalDateKey() || lastLoginDate === getOffsetLocalDateKey(-1)) {
-    return streak + 1;
-  }
-  return 1;
-}
-
-function awardDailyExperience(displayName = getSessionDisplayName()) {
-  const today = getLocalDateKey();
-  const data = loadExperience(displayName);
-  const lastLoginDate = normalizeLoginDateKey(data.lastLoginDate);
-  if (lastLoginDate === today) return data;
-  const streak = isYesterdayLoginDate(lastLoginDate) ? (Number(data.loginStreak) || 0) + 1 : 1;
-  const amount = getDailyLoginReward(streak);
-  addTodayExperience(amount);
-
-  const next = {
-    total: data.total + amount,
-    lastLoginDate: today,
-    loginStreak: streak,
-    gainedToday: true,
-  };
-  saveExperience(next, displayName);
-  return next;
-}
-
-function getExperienceLevel(totalExp) {
-  return calculateExperienceLevel(totalExp);
-}
-
-function formatUpgradeDays(days) {
-  if (!Number.isFinite(days)) return "已到最高境界";
-  if (days <= 0) return "今天就能突破";
-  if (days === 1) return "约 1 天";
-  return `约 ${days} 天`;
-}
-
-function getUpgradeEta(progress) {
-  const dailyExp = getDailyLoginReward(getNextLoginStreak());
-  return calculateUpgradeEta(progress, dailyExp);
-}
-
-function getLevelRankProfiles() {
-  if (!session) return [];
-  const currentAvatarUrl =
-    getProfileAvatarUrl(accountProfile) || loadCachedAvatarUrl(session.user.id);
-  const ownProfile = {
-    user_id: session.user.id,
-    username: getSessionDisplayName(),
-    avatar_url: currentAvatarUrl,
-    role: familyInfo?.isOwner ? "owner" : familyMemberMap.get(session.user.id)?.role || "member",
-    experience_total: loadExperience().total,
-    login_streak: accountProfile.loginStreak || loadExperience().loginStreak || 0,
-  };
-  const profiles = new Map([[ownProfile.user_id, ownProfile]]);
-  familyMembers.forEach((member) => {
-    const cloudProfile = familyLevelProfiles.get(member.user_id) || {};
-    const mergedProfile = {
-      ...member,
-      ...cloudProfile,
-      avatar_url: cloudProfile.avatar_url || cloudProfile.avatarUrl || member.avatar_url || member.avatarUrl || "",
-      avatar_path: cloudProfile.avatar_path || cloudProfile.avatarPath || member.avatar_path || member.avatarPath || "",
-    };
-    const cachedAvatarUrl = loadCachedAvatarUrl(member.user_id);
-    const memberAvatarUrl = getProfileAvatarUrl(mergedProfile) || cachedAvatarUrl;
-    profiles.set(member.user_id, {
-      ...mergedProfile,
-      username: cloudProfile.username || member.username || "家庭成员",
-      avatar_url:
-        memberAvatarUrl ||
-        (member.user_id === session.user.id ? ownProfile.avatar_url : ""),
-      experience_total: Number(cloudProfile.experience_total) || (member.user_id === session.user.id ? ownProfile.experience_total : 0),
-      login_streak: Number(cloudProfile.login_streak) || 0,
-    });
-  });
-  return [...profiles.values()]
-    .map((profile) => ({
-      ...profile,
-      progress: getExperienceLevel(profile.experience_total),
-    }))
-    .sort((a, b) => {
-      if (b.experience_total !== a.experience_total) return b.experience_total - a.experience_total;
-      return String(a.username || "").localeCompare(String(b.username || ""), "zh-Hans-CN");
-    });
-}
-
-async function loadFamilyLevelProfiles() {
-  if (!cloudDb || !session) return;
-  const ids = [...new Set([session.user.id, ...familyMembers.map((member) => member.user_id).filter(Boolean)])];
-  const entries = await Promise.all(
-    ids.map(async (userId) => {
-      const { data, error } = await householdRepository.list("user_profiles", {
-        filters: { user_id: userId },
-        maybeSingle: true,
-      });
-      if (error || !data) return null;
-      const avatarUrl = getProfileAvatarUrl(data);
-      if (avatarUrl) saveCachedAvatarUrl(userId, avatarUrl);
-      return [userId, { ...data, avatar_url: avatarUrl }];
-    })
-  );
-  const profileMap = new Map(familyMembers.map((member) => [member.user_id, { ...member }]));
-  entries.filter(Boolean).forEach(([userId, profile]) => {
-    const existing = profileMap.get(userId) || {};
-    profileMap.set(userId, {
-      ...existing,
-      ...profile,
-      avatar_url: profile.avatar_url || profile.avatarUrl || existing.avatar_url || existing.avatarUrl || "",
-      avatar_path: profile.avatar_path || profile.avatarPath || existing.avatar_path || existing.avatarPath || "",
-    });
-  });
-  familyLevelProfiles = profileMap;
-}
-
-function renderLevelLeaderboard() {
-  return buildLevelLeaderboardMarkup({
-    ranks: getLevelRankProfiles(),
-    currentUserId: session?.user?.id || "",
-    getAvatarUrl: getProfileAvatarUrl,
-    getCachedAvatarUrl: loadCachedAvatarUrl,
-    getInitial,
-  });
-}
-function getCultivationArchive() {
-  return buildCultivationArchive({
-    photos,
-    recipes,
-    wishes,
-    weekendPlans,
-    secretItems,
-    comments: [...photoCommentPreviewMap.values()].flat(),
-    gratitudeNotes,
-    currentUserId: session?.user?.id || "",
-    streak: Math.max(
-      0,
-      Number(accountProfile.loginStreak) || Number(loadExperience().loginStreak) || 0
-    ),
-    favoriteCount: photoFavorites.size,
-  });
-}
-function renderCultivationArchive() {
-  const archive = getCultivationArchive();
-  const monthLabel = new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "long" }).format(new Date());
-  return buildCultivationArchiveMarkup(archive, monthLabel);
-}
-function openLevelGuidePage() {
-  activeLevelSection = "atlas";
-  renderLevelDialog();
-}
-
-function closeLevelGuidePage() {
-  activeLevelSection = "ranking";
-  renderLevelDialog();
-}
-
-function getRealmMilestoneStorageKey() {
-  return `life-vlog-realm-milestones:${session?.user?.id || getSessionLoginName() || "guest"}`;
-}
-
-function loadRealmMilestones(experience) {
-  let milestones = {};
-  try {
-    milestones = JSON.parse(localStorage.getItem(getRealmMilestoneStorageKey()) || "{}") || {};
-  } catch {
-    milestones = {};
-  }
-  const reachedAt = new Date().toISOString();
-  let changed = false;
-  CULTIVATION_REALMS.forEach((realm) => {
-    if (experience.total >= realm.threshold && !milestones[realm.name]) {
-      milestones[realm.name] = reachedAt;
-      changed = true;
-    }
-  });
-  if (changed) {
-    localStorage.setItem(getRealmMilestoneStorageKey(), JSON.stringify(milestones));
-  }
-  return milestones;
-}
-
-function formatRealmMilestoneDate(value) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat("zh-CN", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  }).format(date);
-}
-
-function scrollLevelAtlasToCurrent() {
-  if (activeLevelSection !== "atlas" || !els.levelList) return;
-  requestAnimationFrame(() => {
-    const scroller = els.levelList.querySelector(".level-section-content");
-    const current = scroller?.querySelector(".level-guide-timeline article.active");
-    if (!scroller || !current) return;
-    const scrollerBox = scroller.getBoundingClientRect();
-    const currentBox = current.getBoundingClientRect();
-    scroller.scrollTop += currentBox.top - scrollerBox.top - 16;
-  });
-}
-
-function renderLevelAtlasPanel(experience, progress) {
-  return buildLevelAtlasMarkup({
-    experienceTotal: experience.total,
-    progress,
-    realms: CULTIVATION_REALMS,
-    descriptions: CULTIVATION_DESCRIPTIONS,
-    milestones: loadRealmMilestones(experience),
-    dailyExp: getDailyLoginReward(getNextLoginStreak(experience)),
-    formatMilestoneDate: formatRealmMilestoneDate,
-    formatUpgradeDays,
-    upgradeEta: getUpgradeEta(progress),
-  });
-}
-
-function renderExperienceRulesPanel(experience) {
-  const nextStreak = getNextLoginStreak(experience);
-  return buildExperienceRulesMarkup({
-    experience,
-    nextStreak,
-    streakBonus: getLoginStreakBonusBase(nextStreak),
-    todayExperience: loadTodayExperience(),
-  });
-}
-
-function renderLevelAchievementPanel() {
-  return buildLevelAchievementMarkup(getCultivationArchive().badges);
-}
-
-function getAchievementConditionText(badge) {
-  return formatAchievementCondition(badge);
-}
-function openAchievementDetail(badge) {
-  if (!badge) return;
-  let dialog = document.querySelector("#achievementDetailDialog");
-  if (!dialog) {
-    dialog = document.createElement("dialog");
-    dialog.id = "achievementDetailDialog";
-    dialog.className = "achievement-detail-dialog";
-    dialog.addEventListener("click", (event) => {
-      if (event.target === dialog || event.target.closest("[data-close-achievement-detail]")) dialog.close();
-    });
-    document.body.append(dialog);
-  }
-  dialog.innerHTML = buildAchievementDetailMarkup(badge);
-  dialog.showModal();
-}
-
-function renderLevelDialog() {
-  if (!els.levelDialog) return;
-  const experience = loadExperience();
-  const progress = getExperienceLevel(experience.total);
-  const nextStreak = getNextLoginStreak(experience);
-  const dailyExp = getDailyLoginReward(nextStreak);
-  els.levelCurrentTitle.textContent = progress.title;
-  els.levelCurrentTitle.title = "打开境界图鉴";
-  els.levelUpgradeEta.textContent = getUpgradeEta(progress);
-  els.levelSummary.textContent = `当前 ${progress.total.toLocaleString()} EXP。连续签到 ${Math.max(0, Number(experience.loginStreak) || 0)} 天，下次登录预计 +${dailyExp} EXP。`;
-  const sections = [
-    { id: "ranking", label: "家庭排行", icon: "榜" },
-    { id: "atlas", label: "境界图鉴", icon: "境" },
-    { id: "achievements", label: "成就徽章", icon: "章" },
-    { id: "monthly", label: "修行月报", icon: "月" },
-    { id: "rules", label: "经验规则", icon: "律" },
-  ];
-  let content = "";
-  if (activeLevelSection === "atlas") {
-    content = renderLevelAtlasPanel(experience, progress);
-  } else if (activeLevelSection === "achievements") {
-    content = renderLevelAchievementPanel();
-  } else if (activeLevelSection === "monthly") {
-    content = renderCultivationArchive();
-  } else if (activeLevelSection === "rules") {
-    content = renderExperienceRulesPanel(experience);
-  } else {
-    content = `<section class="level-rank-panel"><div class="level-rank-head"><div><span>Family Ranking</span><strong>家庭修为榜</strong></div><small>共同记录，各自成长</small></div>${renderLevelLeaderboard()}</section>`;
-  }
-  els.levelList.innerHTML = buildLevelWorkspaceMarkup({
-    sections,
-    activeSection: activeLevelSection,
-    content,
-  });
-  els.levelList.querySelectorAll("[data-level-section]").forEach((button) => {
-    button.addEventListener("click", () => {
-      activeLevelSection = button.dataset.levelSection || "ranking";
-      renderLevelDialog();
-    });
-  });
-  els.levelList.querySelectorAll("[data-level-achievement]").forEach((button) => {
-    const badges = getCultivationArchive().badges;
-    button.addEventListener("click", () => openAchievementDetail(badges.find((badge) => badge.id === button.dataset.levelAchievement)));
-  });
-  els.levelList.querySelector("[data-open-achievements]")?.addEventListener("click", () => {
-    activeLevelSection = "achievements";
-    renderLevelDialog();
-  });
-  scrollLevelAtlasToCurrent();
-}
-
-function renderAchievementDialog() {
-  if (!els.achievementGrid) return;
-  const badges = getCultivationArchive().badges;
-  const unlocked = badges.filter((badge) => badge.unlocked).length;
-  const categories = ["全部", "记录", "陪伴", "探索", "料理", "收藏"];
-  els.achievementSummary.textContent = `已解锁 ${unlocked} / ${badges.length} · 成就只记录生活，不影响境界强弱。`;
-  els.achievementFilters.innerHTML = buildAchievementFilterMarkup(categories, achievementFilter);
-  els.achievementGrid.innerHTML = buildAchievementGridMarkup(badges, achievementFilter);
-  els.achievementFilters.querySelectorAll("[data-achievement-filter]").forEach((button) => {
-    button.addEventListener("click", () => {
-      achievementFilter = button.dataset.achievementFilter || "全部";
-      renderAchievementDialog();
-    });
-  });
-  els.achievementGrid.querySelectorAll("[data-achievement-id]").forEach((button) => {
-    button.addEventListener("click", () => openAchievementDetail(badges.find((badge) => badge.id === button.dataset.achievementId)));
-  });
-}
-
-function openAchievementDialog() {
-  if (!els.achievementDialog) return;
-  achievementFilter = "全部";
-  renderAchievementDialog();
-  els.achievementDialog.showModal();
-}
-
-async function openLevelDialog() {
-  if (!session) return;
-  await loadFamilyLevelProfiles();
-  activeLevelSection = "ranking";
-  renderLevelDialog();
-  els.levelDialog.showModal();
-}
-
-function getLevelNeed(level) {
-  return 80 + level * 20;
-}
-
-function renderExperience(displayName = getSessionDisplayName()) {
-  const data = loadExperience(displayName);
-  const progress = getExperienceLevel(data.total);
-  els.xpLevel.textContent = progress.title;
-  els.xpText.textContent = `${progress.current} / ${progress.needed} EXP`;
-  els.xpBar.style.width = `${progress.percent}%`;
-  const nextStreak = getNextLoginStreak(data);
-  const loginExp = getDailyLoginReward(data.lastLoginDate === getLocalDateKey() ? data.loginStreak || 1 : nextStreak);
-  const multiplier = getVipExpMultiplier();
-  els.xpHint.textContent =
-    data.lastLoginDate === getLocalDateKey()
-      ? `今日吐纳 +${loginExp} EXP 已领取 · 连续 ${Math.max(1, Number(data.loginStreak) || 1)} 天${multiplier > 1 ? ` · VIP ${multiplier}x` : ""}`
-      : `下次吐纳 +${loginExp} EXP · 连续 ${nextStreak} 天`;
-  renderTopLevelBadge(progress);
-  if (els.levelDialog?.open) renderLevelDialog();
-}
-
-function renderTopLevelBadge(progress = getExperienceLevel(loadExperience().total)) {
-  if (!els.vipBadge) return;
-  const todayExp = loadTodayExperience();
-  const ranks = getLevelRankProfiles();
-  const myRank = ranks.findIndex((profile) => profile.user_id === session?.user?.id) + 1;
-  els.vipBadge.innerHTML = `
-    <span>${escapeHtml(progress.title)}</span>
-    <small>${myRank ? `第 ${myRank} 名 · ` : ""}今日 +${todayExp} EXP</small>
-  `;
-  els.vipBadge.title = `当前等级：${progress.title}，今日获得 ${todayExp} EXP`;
-}
-
-async function awardExperience(action, options = {}) {
-  if (!session) return 0;
-  const base = EXPERIENCE_REWARDS[action] || 0;
-  if (!base) return 0;
-  const amount = getVipAdjustedExperience(base);
-  const current = loadExperience();
-  const next = {
-    ...current,
-    total: Math.max(0, Number(current.total) || 0) + amount,
-  };
-  const todayAmount = addTodayExperience(amount);
-  saveExperience(next);
-  renderExperience();
-  renderOverview();
-
-  if (cloudSyncAvailable && cloudDb) {
-    const { error } = await householdRepository.update(
-      "user_profiles",
-      {
-        experience_total: next.total,
-        today_experience_date: getLocalDateKey(),
-        today_experience_amount: todayAmount,
-        updated_at: new Date().toISOString(),
-      },
-      { user_id: session.user.id }
-    );
-    if (error) {
-      console.warn("Experience sync failed:", error);
-    }
-  }
-
-  if (options.statusElement) {
-    options.statusElement.textContent = `${options.statusElement.textContent} 修为 +${amount}`;
-  }
-  return amount;
-}
-
 function getLocalDateKey() {
   return getOffsetLocalDateKey(0);
 }
@@ -6970,466 +5074,6 @@ function getOffsetLocalDateKey(offsetDays = 0) {
   return `${values.year}-${values.month}-${values.day}`;
 }
 
-function normalizeTheme(theme) {
-  return theme === "dark" || theme === "light" ? theme : "";
-}
-
-function getThemeStorageKey(userId = session?.user?.id || null) {
-  return preferenceStore.scopedKey(THEME_KEY, userId || "guest");
-}
-
-function loadTheme(userId = session?.user?.id || null) {
-  const fallback = window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-  return preferenceStore.readEnum(THEME_KEY, ["dark", "light"], fallback, {
-    scope: userId || "guest",
-    legacyKey: THEME_KEY,
-  });
-}
-
-function applyTheme(
-  theme,
-  { persist = true, userId = session?.user?.id || null, syncCloud = false } = {}
-) {
-  const nextTheme = theme === "dark" ? "dark" : "light";
-  document.body.classList.toggle("theme-dark", nextTheme === "dark");
-  document.documentElement.style.colorScheme = nextTheme;
-  if (persist) {
-    localStorage.setItem(getThemeStorageKey(userId), nextTheme);
-    if (userId && session?.user?.id === userId) {
-      accountProfile.themePreference = nextTheme;
-    }
-  }
-  els.themeToggle.querySelector("span").textContent = nextTheme === "dark" ? "☀" : "☾";
-  els.themeToggle.title = nextTheme === "dark" ? "切换白天模式" : "切换黑夜模式";
-  if (syncCloud) void persistThemeToCloud(nextTheme);
-}
-
-function toggleTheme() {
-  applyTheme(document.body.classList.contains("theme-dark") ? "light" : "dark", {
-    syncCloud: Boolean(session),
-  });
-}
-
-async function persistThemeToCloud(theme) {
-  const nextTheme = normalizeTheme(theme);
-  if (!nextTheme || !cloudDb || !session || !cloudSyncAvailable) return;
-  const userId = session.user.id;
-  const { error } = await householdRepository.update(
-    "user_profiles",
-    {
-      theme_preference: nextTheme,
-      updated_at: new Date().toISOString(),
-    },
-    { user_id: userId }
-  );
-  if (!error && session?.user?.id === userId) {
-    accountProfile.themePreference = nextTheme;
-  }
-}
-
-async function persistHomeNameToCloud(homeName) {
-  if (!cloudDb || !session) return false;
-  const { error } = await cloudDb.rpc("update_family_name", { p_name: homeName });
-  if (error) {
-    els.homeNameStatus.textContent = `云端保存失败：${error.message}`;
-    return false;
-  }
-  accountProfile.homeName = homeName;
-  if (familyInfo) familyInfo.name = homeName;
-  familyMembers = familyMembers.map((member) => ({ ...member, family_name: homeName }));
-  return true;
-}
-
-async function saveProfileNickname(event) {
-  event.preventDefault();
-  if (!cloudDb || !session) return;
-  const nickname = normalizeNickname(els.profileNicknameInput.value);
-  if (!nickname) {
-    els.profileNicknameStatus.textContent = "昵称不能为空。";
-    return;
-  }
-
-  els.profileNicknameStatus.textContent = "正在保存昵称...";
-  const { error: authError } = await cloudDb.auth.updateUser({
-    data: { username: nickname },
-  });
-  if (authError) {
-    els.profileNicknameStatus.textContent = `保存失败：${authError.message}`;
-    return;
-  }
-
-  const { error: profileError } = await householdRepository.update(
-    "user_profiles",
-    {
-      username: nickname,
-      updated_at: new Date().toISOString(),
-    },
-    { user_id: session.user.id }
-  );
-
-  if (profileError) {
-    els.profileNicknameStatus.textContent = isMissingCloudSchema(profileError)
-      ? "昵称已更新，运行最新版数据库脚本后家庭账户也会同步显示。"
-      : `资料保存失败：${profileError.message}`;
-  } else {
-    els.profileNicknameStatus.textContent = "昵称已保存。";
-  }
-
-  updateSessionDisplayName(nickname);
-  await loadFamilyContext();
-  renderGallery();
-  setTimeout(() => els.renameProfileDialog.close(), 500);
-}
-
-function setAvatarPreview(src = "") {
-  const hasImage = Boolean(src);
-  els.avatarPreview.hidden = !hasImage;
-  els.avatarPreviewInitial.hidden = hasImage;
-  if (hasImage) els.avatarPreview.src = src;
-  else els.avatarPreview.removeAttribute("src");
-  els.avatarPreviewInitial.textContent = getInitial(getSessionDisplayName());
-}
-
-function updateAvatarPreview() {
-  const file = els.avatarInput.files?.[0];
-  if (avatarPreviewUrl) URL.revokeObjectURL(avatarPreviewUrl);
-  avatarPreviewUrl = file ? URL.createObjectURL(file) : "";
-  setAvatarPreview(avatarPreviewUrl || accountProfile.avatarUrl);
-}
-
-async function saveAvatar(event) {
-  event.preventDefault();
-  if (!cloudDb || !session) return;
-  const file = els.avatarInput.files?.[0];
-  if (!file) {
-    els.avatarStatus.textContent = "先选择一张图片。";
-    return;
-  }
-
-  els.avatarStatus.textContent = "正在压缩头像...";
-  let compressed;
-  try {
-    compressed = await compressImage(file, {
-      maxSide: 640,
-      jpeg: 0.86,
-      minJpeg: 0.68,
-      targetBytes: 220000,
-    });
-  } catch (error) {
-    els.avatarStatus.textContent = `头像处理失败：${error.message}`;
-    return;
-  }
-
-  els.avatarStatus.textContent = "正在上传头像...";
-  let uploaded;
-  try {
-    uploaded = await uploadToR2(compressed.blob, "avatar", "avatars");
-  } catch (error) {
-    els.avatarStatus.textContent = `上传失败：${error.message}`;
-    return;
-  }
-
-  const avatarUrl = uploaded.url;
-  const path = `r2:${uploaded.key}`;
-  const previousPath = accountProfile.avatarPath;
-  const { error: profileError } = await householdRepository.update(
-    "user_profiles",
-    {
-      avatar_url: avatarUrl,
-      avatar_path: path,
-      updated_at: new Date().toISOString(),
-    },
-    { user_id: session.user.id }
-  );
-
-  if (profileError) {
-    await cleanupStoredImagePaths([path]).catch(() => {});
-    els.avatarStatus.textContent = isMissingCloudSchema(profileError)
-      ? "请先运行本次头像数据库补丁。"
-      : `资料保存失败：${profileError.message}`;
-    return;
-  }
-
-  accountProfile.avatarUrl = avatarUrl;
-  accountProfile.avatarPath = path;
-  saveCachedAvatarUrl(session.user.id, avatarUrl);
-  renderAccountAvatar(avatarUrl);
-  renderSettingsSummary();
-  await loadFamilyContext();
-  renderPhotoComments();
-  if (previousPath && previousPath !== path) {
-    void cleanupStoredImagePaths([previousPath]);
-  }
-  els.avatarStatus.textContent = "头像已保存。";
-  setTimeout(() => els.avatarDialog.close(), 500);
-}
-
-async function saveHomeName(event) {
-  event.preventDefault();
-  if (!session) return;
-  const homeName = normalizeHomeName(els.homeNameInput.value);
-  if (!homeName) {
-    els.homeNameStatus.textContent = "请先输入一个名称。";
-    return;
-  }
-  els.homeNameStatus.textContent = "正在保存…";
-  const cloudSaved = await persistHomeNameToCloud(homeName);
-  if (cloudSaved) {
-    applyHomeName(homeName, { persist: true, userId: session.user.id });
-    els.vipPopoverBadge.textContent =
-      activeVipLevel > 0
-        ? `${homeName} ${getVipLevel(activeVipLevel).label}`
-        : `开通 ${homeName} VIP`;
-    els.homeNameStatus.textContent = "名称已保存并同步。";
-    window.setTimeout(() => els.renameHomeDialog.close(), 450);
-  }
-}
-
-async function restoreDefaultHomeName() {
-  if (!session) return;
-  els.homeNameInput.value = "咻蛋之家";
-  els.homeNameStatus.textContent = "正在恢复默认名称…";
-  const cloudSaved = await persistHomeNameToCloud("咻蛋之家");
-  if (cloudSaved) {
-    applyHomeName("咻蛋之家", { persist: true, userId: session.user.id });
-    els.vipPopoverBadge.textContent =
-      activeVipLevel > 0
-        ? `咻蛋之家 ${getVipLevel(activeVipLevel).label}`
-        : "开通 咻蛋之家 VIP";
-    els.homeNameStatus.textContent = "已恢复默认名称。";
-  }
-}
-
-function initializePhotoDropHint() {
-  const hint = els.photoDrop?.querySelector("[for='photoInput']");
-  if (!hint) return;
-  els.fileName.textContent = "展开后直接粘贴图片，或选择图片 / Live Photo 照片";
-}
-
-function logDiaryInputFiles(source, files) {
-  const rows = Array.from(files || []).map((file) => ({
-    source,
-    name: file.name || "",
-    type: file.type || "(browser did not provide a MIME type)",
-    size: file.size || 0,
-    lastModified: file.lastModified || 0,
-  }));
-  console.info(`[Diary upload] ${source}: ${rows.length} file(s)`, rows);
-  if (typeof console.table === "function") console.table(rows);
-  if (
-    source === "照片 / Live Photo 入口" &&
-    rows.length &&
-    files.some(isDiaryUploadStillFile) &&
-    !files.some(isDiaryUploadMotionFile)
-  ) {
-    console.warn("LIVE_PHOTO_MOTION_NOT_PROVIDED_BY_BROWSER", {
-      source,
-      files: rows,
-      action: "saved as static image until a paired movie file is supplied",
-    });
-  }
-}
-
-function updatePhotoPreview() {
-  const files = selectedUploadFiles;
-  const { pairing, items } = getDiaryUploadPreviewItems(files, selectedUploadLinks);
-  if (!items.length) {
-    clearPhotoPreview();
-    return;
-  }
-
-  revokePreviewUrls();
-  const imageLimit = getCurrentImageLimit();
-  const uploadCount = getDiaryUploadEntryCount(pairing) + selectedUploadLinks.length;
-  if (pairing.unsupportedFiles.length) {
-    setStatus("只支持图片和视频文件。");
-  } else if (pairing.videoFiles.length) {
-    setStatus(
-      pairing.entries.some((entry) => entry.motionFile)
-        ? `已配对 ${pairing.entries.filter((entry) => entry.motionFile).length} 个 Live Photo，另有 ${pairing.videoFiles.length} 个普通视频。`
-        : `已读取 ${pairing.videoFiles.length} 个普通视频；只有与照片配对成功时才会按 Live Photo 保存。`
-    );
-  } else if (
-    pairing.motionFiles.length === 0 &&
-    files.some((file) => /\.(heic|heif)$/i.test(file?.name || ""))
-  ) {
-    setStatus("当前只读取到静态 HEIC；要保留 Live 动态，请再补充同一张照片的 .MOV 文件。");
-  } else if (pairing.motionFiles.length === 0 && pairing.entries.length) {
-    setStatus("当前文件列表只有照片；如果这是 Live Photo，请点击“添加视频”补充同一组 MOV，成功配对后才会动。");
-  } else if (uploadCount > imageLimit) {
-    setStatus(`当前 VIP 等级单篇最多 ${imageLimit} 张图。`);
-  } else {
-    setStatus(uploadCount > 1 ? `将发布为 1 篇合集，共 ${uploadCount} 张图。` : "");
-  }
-  syncPhotoInputFiles();
-  previewUrls = items.map((item) => item.file ? URL.createObjectURL(item.file) : item.url);
-  activeUploadPreviewIndex = Math.min(activeUploadPreviewIndex, items.length - 1);
-  showUploadPreviewItem(items[activeUploadPreviewIndex], previewUrls[activeUploadPreviewIndex]);
-  els.uploadMainPreview.hidden = false;
-  els.fileName.textContent =
-    uploadCount > 1 ? `已选择 ${uploadCount} 个媒体` : items[0].label;
-  renderPreviewStrip(items, previewUrls);
-}
-
-function showUploadPreviewItem(item, url) {
-  const isVideo = item?.kind === "video";
-  if (els.photoPreview) {
-    els.photoPreview.hidden = isVideo;
-    if (isVideo) els.photoPreview.removeAttribute("src");
-    else els.photoPreview.src = url || "";
-  }
-  if (!els.photoVideoPreview) return;
-  els.photoVideoPreview.pause();
-  els.photoVideoPreview.hidden = !isVideo;
-  if (!isVideo) {
-    els.photoVideoPreview.removeAttribute("src");
-    return;
-  }
-  els.photoVideoPreview.src = url || "";
-  els.photoVideoPreview.load();
-}
-
-function handlePasteUpload(event) {
-  const items = Array.from(event.clipboardData?.items || []);
-  const imageItems = items.filter((item) => item.type.startsWith("image/"));
-
-  if (imageItems.length) {
-    const files = imageItems.map((item) => item.getAsFile()).filter(Boolean);
-    if (!files.length) return;
-
-    event.preventDefault();
-    const pastedFiles = files.map((file, index) => {
-      const extension = file.type?.split("/")[1] || "png";
-      return new File([file], `pasted-${Date.now()}-${index + 1}.${extension}`, {
-        type: file.type || "image/png",
-      });
-    });
-    selectedUploadFiles = [...selectedUploadFiles, ...pastedFiles];
-    updatePhotoPreview();
-    saveDiaryDraft();
-    setStatus(files.length > 1 ? `已读取 ${files.length} 张剪贴板图片。` : "已读取剪贴板图片。");
-    return;
-  }
-  const urls = extractImageUrls(getClipboardImageUrl(event.clipboardData));
-  if (urls.length) {
-    event.preventDefault();
-    addDiaryImageLinks(urls);
-  }
-}
-
-function addDiaryImageLinks(rawLinks = els.photoLinkInput?.value || "") {
-  const urls = Array.isArray(rawLinks) ? rawLinks : extractImageUrls(rawLinks);
-  if (!urls.length) {
-    setStatus("请输入完整的 http 或 https 图片链接。");
-    return false;
-  }
-  selectedUploadLinks = [...new Set([...selectedUploadLinks, ...urls])];
-  if (els.photoLinkInput) els.photoLinkInput.value = "";
-  updatePhotoPreview();
-  saveDiaryDraft();
-  setStatus(`已添加 ${urls.length} 个图片链接，发布时会复制到 R2。`);
-  return true;
-}
-
-function clearPhotoPreview() {
-  revokePreviewUrls();
-  selectedUploadFiles = [];
-  selectedUploadLinks = [];
-  els.photoInput.value = "";
-  if (els.photoMotionInput) els.photoMotionInput.value = "";
-  if (els.photoLinkInput) els.photoLinkInput.value = "";
-
-  activeUploadPreviewIndex = 0;
-  els.photoPreview.removeAttribute("src");
-  els.photoPreview.hidden = false;
-  if (els.photoVideoPreview) {
-    els.photoVideoPreview.pause();
-    els.photoVideoPreview.removeAttribute("src");
-    els.photoVideoPreview.hidden = true;
-  }
-  els.uploadMainPreview.hidden = true;
-  els.previewStrip.innerHTML = "";
-  els.previewStrip.hidden = true;
-  els.fileName.textContent = "展开后直接粘贴图片，或选择图片 / Live Photo 照片";
-}
-
-function revokePreviewUrls() {
-  previewUrls.forEach((url) => URL.revokeObjectURL(url));
-  previewUrls = [];
-}
-
-function syncPhotoInputFiles() {
-  const transfer = new DataTransfer();
-  selectedUploadFiles.forEach((file) => transfer.items.add(file));
-  els.photoInput.files = transfer.files;
-}
-
-function renderPreviewStrip(files, urls) {
-  if (!files.length) {
-    els.previewStrip.innerHTML = "";
-    els.previewStrip.hidden = true;
-    return;
-  }
-
-  els.previewStrip.innerHTML = urls
-    .map(
-      (url, index) => `
-        <span class="preview-thumb" data-preview-index="${index}" role="button" tabindex="0" aria-label="预览第 ${index + 1} 张">
-          ${files[index]?.kind === "video"
-            ? `<video src="${escapeHtml(url)}" muted playsinline preload="metadata" aria-hidden="true"></video>`
-            : `<img src="${escapeHtml(url)}" alt="" />`}
-          ${files[index]?.kind === "live" ? `<small class="preview-live-badge">LIVE</small>` : ""}
-          <button class="preview-remove" type="button" data-remove-preview="${index}" aria-label="删除第 ${index + 1} 张">×</button>
-        </span>
-      `
-    )
-    .join("");
-  els.previewStrip.hidden = false;
-
-  els.previewStrip.querySelectorAll("[data-preview-index]").forEach((thumb) => {
-    const showPreview = (event) => {
-      event.preventDefault();
-      const index = Number(thumb.dataset.previewIndex);
-      activeUploadPreviewIndex = index;
-      showUploadPreviewItem(files[index], urls[index]);
-    };
-    thumb.addEventListener("click", showPreview);
-    thumb.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") showPreview(event);
-    });
-  });
-}
-
-function removeUploadPreview(index) {
-  const { items } = getDiaryUploadPreviewItems(selectedUploadFiles, selectedUploadLinks);
-  const total = items.length;
-  if (index < 0 || index >= total) return;
-  const item = items[index];
-  if (item.kind === "link") {
-    selectedUploadLinks = selectedUploadLinks.filter((url) => url !== item.url);
-  } else {
-    const filesToRemove = new Set(item.files || []);
-    selectedUploadFiles = selectedUploadFiles.filter((file) => !filesToRemove.has(file));
-  }
-  const nextTotal = selectedUploadFiles.length + selectedUploadLinks.length;
-  activeUploadPreviewIndex = Math.max(0, Math.min(activeUploadPreviewIndex, nextTotal - 1));
-  if (!nextTotal) {
-    clearPhotoPreview();
-    setStatus("已移除图片。");
-    return;
-  }
-  updatePhotoPreview();
-  setStatus("已移除图片。");
-}
-
-function getSecretPinStorageKey() {
-  return `${SECRET_PIN_KEY}:${session?.user?.id || "guest"}`;
-}
-
-function getSecretUnlockStorageKey() {
-  return `${SECRET_UNLOCK_KEY}:${session?.user?.id || "guest"}`;
-}
-
 function getSecretDefaultFolderId() {
   return session ? secretDefaultFolderId || SECRET_ALL_FOLDER_ID : SECRET_ALL_FOLDER_ID;
 }
@@ -7451,218 +5095,6 @@ async function setSecretDefaultFolderId(folderId) {
   } catch (error) {
     setGlobalStatus(`默认入口同步失败：${error.message || "请稍后重试"}`);
   }
-}
-
-function bytesToHex(bytes) {
-  return Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("");
-}
-
-async function hashSecretPin(pin, salt) {
-  const encoded = new TextEncoder().encode(`${salt}:${pin}`);
-  const digest = await crypto.subtle.digest("SHA-256", encoded);
-  return bytesToHex(new Uint8Array(digest));
-}
-
-function readSecretPinRecord() {
-  if (!session) return null;
-  try {
-    const record = JSON.parse(localStorage.getItem(getSecretPinStorageKey()) || "null");
-    return record?.salt && record?.hash ? record : null;
-  } catch {
-    return null;
-  }
-}
-
-function restoreSecretUnlockState() {
-  if (!session) return;
-  try {
-    const state = JSON.parse(sessionStorage.getItem(getSecretUnlockStorageKey()) || "null");
-    secretUnlockedAt = Number(state?.unlockedAt) || 0;
-    secretLeftAt = Number(state?.leftAt) || 0;
-  } catch {
-    secretUnlockedAt = 0;
-    secretLeftAt = 0;
-  }
-}
-
-function persistSecretUnlockState() {
-  if (!session) return;
-  sessionStorage.setItem(getSecretUnlockStorageKey(), JSON.stringify({
-    unlockedAt: secretUnlockedAt,
-    leftAt: secretLeftAt,
-  }));
-}
-
-function clearSecretUnlockState() {
-  if (session) sessionStorage.removeItem(getSecretUnlockStorageKey());
-  secretUnlockedAt = 0;
-  secretLeftAt = 0;
-}
-
-function isSecretUnlocked() {
-  restoreSecretUnlockState();
-  const now = Date.now();
-  const withinMaximum = secretUnlockedAt > 0 && now - secretUnlockedAt < SECRET_UNLOCK_MAX_MS;
-  if (withinMaximum) return true;
-  clearSecretUnlockState();
-  return false;
-}
-
-function markSecretLeft() {
-  if (!secretUnlockedAt) return;
-  secretLeftAt = Date.now();
-  persistSecretUnlockState();
-}
-
-function renderSecretPinEntry() {
-  const count = secretPinEntry.length;
-  els.secretPinDots?.querySelectorAll("i").forEach((dot, index) => {
-    dot.classList.toggle("filled", index < count);
-  });
-  els.secretPinDots?.setAttribute("aria-label", `已输入 ${count} 位密码`);
-}
-
-function setSecretPinStatus(message = "", kind = "") {
-  if (!els.secretPinStatus) return;
-  els.secretPinStatus.textContent = message;
-  els.secretPinStatus.dataset.kind = kind;
-}
-
-function setSecretPinDialogMode(mode) {
-  secretPinMode = mode;
-  secretPinEntry = "";
-  renderSecretPinEntry();
-  setSecretPinStatus("");
-  const setup = mode === "setup";
-  const confirm = mode === "confirm" || mode === "change-confirm";
-  const changing = ["change-current", "change-new", "change-confirm"].includes(mode);
-  const copy = {
-    setup: {
-      eyebrow: "Create Private PIN",
-      title: "设置秘藏密码",
-      description: "设置四位数字，只用于保护这台设备上的秘藏入口",
-    },
-    confirm: {
-      eyebrow: "Create Private PIN",
-      title: "再输入一次",
-      description: "确认两次输入一致，之后离线也能进入",
-    },
-    "change-current": {
-      eyebrow: "Private Archive",
-      title: "验证当前密码",
-      description: "先输入当前四位密码，再设置新的秘藏密码",
-    },
-    "change-new": {
-      eyebrow: "Private Archive",
-      title: "设置新密码",
-      description: "输入新的四位数字密码",
-    },
-    "change-confirm": {
-      eyebrow: "Private Archive",
-      title: "确认新密码",
-      description: "再输入一次新的四位数字密码",
-    },
-    unlock: {
-      eyebrow: "Private Archive",
-      title: "进入秘藏",
-      description: "输入这台设备的四位数字密码",
-    },
-  }[mode] || null;
-  els.secretPinEyebrow.textContent = copy?.eyebrow || "Private Archive";
-  els.secretPinTitle.textContent = copy?.title || "进入秘藏";
-  els.secretPinDescription.textContent = copy?.description || "输入这台设备的四位数字密码";
-  els.secretPinDialog?.classList.toggle("is-setup", setup || confirm || changing);
-}
-
-function openSecretPinDialog() {
-  if (!session || !els.secretPinDialog) return;
-  secretPinManageMode = false;
-  secretPinSetupValue = "";
-  setSecretPinDialogMode(readSecretPinRecord() ? "unlock" : "setup");
-  if (!els.secretPinDialog.open) els.secretPinDialog.showModal();
-}
-
-function openSecretPinSettings() {
-  if (!session || !els.secretPinDialog) return;
-  secretPinManageMode = true;
-  secretPinSetupValue = "";
-  setSecretPinDialogMode(readSecretPinRecord() ? "change-current" : "setup");
-  if (!els.secretPinDialog.open) els.secretPinDialog.showModal();
-}
-
-function finishSecretUnlock() {
-  secretPinManageMode = false;
-  secretUnlockedAt = Date.now();
-  secretLeftAt = 0;
-  persistSecretUnlockState();
-  els.secretPinDialog?.close();
-  secretPinEntry = "";
-  switchPage("secret", { skipSecretGate: true });
-  requestAnimationFrame(() => els.secretPage?.scrollIntoView({ behavior: "smooth", block: "start" }));
-}
-
-async function submitSecretPinEntry() {
-  if (secretPinEntry.length !== 4) return;
-  const pin = secretPinEntry;
-  if (secretPinMode === "change-current") {
-    const record = readSecretPinRecord();
-    if (record && await hashSecretPin(pin, record.salt) === record.hash) {
-      setSecretPinDialogMode("change-new");
-      return;
-    }
-    secretPinEntry = "";
-    renderSecretPinEntry();
-    setSecretPinStatus("当前密码不正确，请再试一次", "error");
-    return;
-  }
-  if (secretPinMode === "setup" || secretPinMode === "change-new") {
-    secretPinSetupValue = pin;
-    setSecretPinDialogMode(secretPinMode === "setup" ? "confirm" : "change-confirm");
-    return;
-  }
-  if (secretPinMode === "confirm" || secretPinMode === "change-confirm") {
-    if (pin !== secretPinSetupValue) {
-      setSecretPinDialogMode(secretPinMode === "confirm" ? "setup" : "change-new");
-      setSecretPinStatus("两次输入不一致，请重新设置", "error");
-      return;
-    }
-    const salt = bytesToHex(crypto.getRandomValues(new Uint8Array(16)));
-    const hash = await hashSecretPin(pin, salt);
-    localStorage.setItem(getSecretPinStorageKey(), JSON.stringify({ salt, hash, version: 1 }));
-    if (secretPinManageMode) {
-      secretPinManageMode = false;
-      els.secretPinDialog?.close();
-      showMiniToast("秘藏密码已更新", { kind: "success", placement: "center" });
-      return;
-    }
-    finishSecretUnlock();
-    showMiniToast("秘藏密码已设置", { kind: "success", placement: "center" });
-    return;
-  }
-  const record = readSecretPinRecord();
-  if (record && await hashSecretPin(pin, record.salt) === record.hash) {
-    finishSecretUnlock();
-    return;
-  }
-  secretPinEntry = "";
-  renderSecretPinEntry();
-  els.secretPinDialog?.classList.remove("pin-shake");
-  requestAnimationFrame(() => els.secretPinDialog?.classList.add("pin-shake"));
-  setSecretPinStatus("密码不正确，请再试一次", "error");
-}
-
-function appendSecretPinDigit(digit) {
-  if (!/^\d$/.test(digit) || secretPinEntry.length >= 4) return;
-  secretPinEntry += digit;
-  renderSecretPinEntry();
-  setSecretPinStatus("");
-  if (secretPinEntry.length === 4) window.setTimeout(() => void submitSecretPinEntry(), 110);
-}
-
-function deleteSecretPinDigit() {
-  secretPinEntry = secretPinEntry.slice(0, -1);
-  renderSecretPinEntry();
-  setSecretPinStatus("");
 }
 
 function switchPage(page, { skipSecretGate = false } = {}) {
@@ -7826,1741 +5258,6 @@ function updateNetworkStatus() {
     return;
   }
   if (badge) badge.hidden = true;
-}
-
-function setSecretExpanded(expanded) {
-  if (!els.secretForm || !els.secretToggle) return;
-  els.secretForm.hidden = !expanded;
-  els.secretToggle.setAttribute("aria-expanded", String(expanded));
-}
-
-function getSecretPhotoSortDescending(item) {
-  return item?.photoSortDescending !== false;
-}
-
-async function setSecretPhotoSortDescending(item, descending) {
-  if (!item?.id || !cloudDb || !session) return false;
-  const { error } = await secretRepository.updateItem(item.id, {
-    photo_sort_descending: descending ? 1 : 0,
-    updated_at: new Date().toISOString(),
-  });
-  if (error) {
-    setSecretStatus(error.message || "照片顺序保存失败。");
-    showMiniToast("照片顺序保存失败", { kind: "error" });
-    return false;
-  }
-  item.photoSortDescending = Boolean(descending);
-  return true;
-}
-
-function sortSecretDisplayEntries(entries, item) {
-  return sortSecretEntriesByAlbumOrder(entries, getSecretPhotoSortDescending(item));
-}
-
-function getSecretPhotoTags(items = secretItems) {
-  const tags = [];
-  items.forEach((item) => {
-    normalizeSecretImages(item.images).forEach((image) => {
-      normalizeSecretPhotoTags(image).forEach((tag) => {
-        if (!isSecretNumericTag(tag) && !tags.includes(tag)) tags.push(tag);
-      });
-    });
-  });
-  return [
-    FAVORITE_SECRET_PHOTO_TAG,
-    STORY_SECRET_PHOTO_TAG,
-    DEFAULT_SECRET_PHOTO_TAG,
-    ...tags.filter(
-      (tag) =>
-        tag !== FAVORITE_SECRET_PHOTO_TAG &&
-        tag !== STORY_SECRET_PHOTO_TAG &&
-        tag !== DEFAULT_SECRET_PHOTO_TAG
-    ),
-  ];
-}
-
-function getSecretAlbumFilterTags(item) {
-  return getSecretAlbumTagCounts(item).map(({ tag }) => tag).filter((tag) => tag !== "全部");
-}
-
-function getSecretAlbumTagCounts(item) {
-  const images = normalizeSecretImages(item?.images);
-  const counts = new Map();
-  images.forEach((image) => {
-    normalizeSecretPhotoTags(image).forEach((tag) => {
-      if (!isSecretNumericTag(tag)) {
-        counts.set(tag, (counts.get(tag) || 0) + 1);
-      }
-    });
-    if (image.favorite) {
-      counts.set(FAVORITE_SECRET_PHOTO_TAG, (counts.get(FAVORITE_SECRET_PHOTO_TAG) || 0) + 1);
-    }
-  });
-  return [
-    { tag: "全部", count: images.length },
-    ...[...counts.entries()]
-      .map(([tag, count]) => ({ tag, count }))
-      .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag, "zh-CN")),
-  ];
-}
-
-function imageMatchesSecretFilter(image) {
-  if (activeSecretFilter === "全部") return true;
-  if (activeSecretFilter === FAVORITE_SECRET_PHOTO_TAG) return Boolean(image?.favorite);
-  return secretImageHasTag(image, activeSecretFilter);
-}
-
-function closeSecretFolderContextMenu() {
-  if (!secretFolderContextMenu) return;
-  document.removeEventListener("pointerdown", secretFolderContextMenu.closeOnOutside, true);
-  window.removeEventListener("resize", closeSecretFolderContextMenu);
-  window.removeEventListener("scroll", closeSecretFolderContextMenu, true);
-  secretFolderContextMenu.element.remove();
-  secretFolderContextMenu = null;
-}
-
-function closeSecretAlbumContextMenu() {
-  if (!secretAlbumContextMenu) return;
-  document.removeEventListener("pointerdown", secretAlbumContextMenu.closeOnOutside, true);
-  window.removeEventListener("resize", closeSecretAlbumContextMenu);
-  window.removeEventListener("scroll", closeSecretAlbumContextMenu, true);
-  secretAlbumContextMenu.element.remove();
-  secretAlbumContextMenu = null;
-}
-
-function openSecretFolderContextMenu(folder, clientX, clientY) {
-  if (!folder || folder.virtual || isMobileViewport()) return;
-  closeSecretFolderContextMenu();
-  closeSecretAlbumContextMenu();
-  const currentDefaultId = getSecretDefaultFolderId();
-  const menu = document.createElement("div");
-  menu.className = "secret-folder-context-menu";
-  menu.setAttribute("role", "menu");
-  menu.innerHTML = `
-    <span>${escapeHtml(folder.name)}</span>
-    <button type="button" role="menuitem" data-secret-folder-default ${currentDefaultId === folder.id ? "disabled" : ""}>
-      ${currentDefaultId === folder.id ? "当前默认入口" : "设为默认入口"}
-    </button>
-    <button class="danger" type="button" role="menuitem" data-secret-folder-delete>删除文件夹</button>
-  `;
-  document.body.append(menu);
-  const rect = menu.getBoundingClientRect();
-  menu.style.left = `${Math.max(10, Math.min(clientX, window.innerWidth - rect.width - 10))}px`;
-  menu.style.top = `${Math.max(10, Math.min(clientY, window.innerHeight - rect.height - 10))}px`;
-  const closeOnOutside = (event) => {
-    if (!menu.contains(event.target)) closeSecretFolderContextMenu();
-  };
-  secretFolderContextMenu = { element: menu, closeOnOutside };
-  document.addEventListener("pointerdown", closeOnOutside, true);
-  window.addEventListener("resize", closeSecretFolderContextMenu);
-  window.addEventListener("scroll", closeSecretFolderContextMenu, true);
-  menu.querySelector("[data-secret-folder-default]")?.addEventListener("click", () => {
-    void setSecretDefaultFolderId(folder.id);
-    closeSecretFolderContextMenu();
-    showMiniToast(`以后进入秘藏会先打开「${folder.name}」`, { kind: "success" });
-  });
-  menu.querySelector("[data-secret-folder-delete]")?.addEventListener("click", async () => {
-    closeSecretFolderContextMenu();
-    await deleteSecretFolder(folder);
-  });
-}
-
-function openSecretAlbumContextMenu(item, clientX, clientY) {
-  if (!item || isMobileViewport()) return;
-  closeSecretFolderContextMenu();
-  closeSecretAlbumContextMenu();
-  const menu = document.createElement("div");
-  menu.className = "secret-folder-context-menu secret-album-context-menu";
-  menu.setAttribute("role", "menu");
-  menu.innerHTML = `
-    <span>${escapeHtml(item.title || "未命名相册")}</span>
-    <button class="danger" type="button" role="menuitem">删除相册</button>
-  `;
-  document.body.append(menu);
-  const rect = menu.getBoundingClientRect();
-  menu.style.left = `${Math.max(10, Math.min(clientX, window.innerWidth - rect.width - 10))}px`;
-  menu.style.top = `${Math.max(10, Math.min(clientY, window.innerHeight - rect.height - 10))}px`;
-  const closeOnOutside = (event) => {
-    if (!menu.contains(event.target)) closeSecretAlbumContextMenu();
-  };
-  secretAlbumContextMenu = { element: menu, closeOnOutside };
-  document.addEventListener("pointerdown", closeOnOutside, true);
-  window.addEventListener("resize", closeSecretAlbumContextMenu);
-  window.addEventListener("scroll", closeSecretAlbumContextMenu, true);
-  menu.querySelector("button")?.addEventListener("click", async () => {
-    closeSecretAlbumContextMenu();
-    await deleteSecretItem(item);
-  });
-}
-
-function renderSecretFolderControls() {
-  if (!els.secretFolderList) return;
-  const defaultFolderId = getSecretDefaultFolderId();
-  const favoriteCount = secretItems.reduce(
-    (total, item) => total + normalizeSecretImages(item.images).filter((image) => image.favorite).length,
-    0
-  );
-  const folderButtons = [
-    { id: SECRET_ALL_FOLDER_ID, name: "全部相册", count: secretItems.length, virtual: true, isAll: true },
-    { id: SECRET_FAVORITES_FOLDER_ID, name: "收藏夹", count: favoriteCount, virtual: true, isFavorites: true },
-    ...secretFolders.map((folder) => ({
-      id: folder.id,
-      name: folder.name,
-      count: secretItems.filter((item) => item.folderId === folder.id).length,
-    })),
-  ];
-  els.secretFolderList.hidden = Boolean(activeSecretAlbumId);
-  els.secretFolderList.innerHTML = buildSecretFolderListMarkup({
-    folders: folderButtons,
-    activeFolderId: activeSecretFolderId,
-    defaultFolderId,
-  });
-  els.secretFolderList.querySelectorAll("[data-secret-folder]").forEach((button) => {
-    button.addEventListener("click", () => {
-      activeSecretFolderId = button.dataset.secretFolder || SECRET_ALL_FOLDER_ID;
-      renderSecretGallery();
-    });
-    button.addEventListener("contextmenu", (event) => {
-      const folder = folderButtons.find((entry) => entry.id === (button.dataset.secretFolder || SECRET_ALL_FOLDER_ID));
-      if (folder?.virtual) return;
-      event.preventDefault();
-      openSecretFolderContextMenu(folder, event.clientX, event.clientY);
-    });
-  });
-  if (els.secretFolderInput) {
-    els.secretFolderInput.innerHTML = buildSecretFolderOptions(secretFolders);
-  }
-}
-
-async function createSecretFolder() {
-  if (!cloudDb || !session) {
-    showMiniToast("请先登录后再创建收藏夹", { kind: "error" });
-    return;
-  }
-  const name = await requestSecretFolderName();
-  if (!name) return;
-  const button = els.secretCreateFolderButton;
-  const now = new Date().toISOString();
-  const record = {
-    id: crypto.randomUUID(),
-    user_id: session.user.id,
-    name,
-    sort_order: secretFolders.length * 1000,
-    created_at: now,
-    updated_at: now,
-  };
-  if (button) button.disabled = true;
-  setSecretStatus("正在创建收藏夹...");
-  try {
-    const { data, error } = await secretRepository.insertFolder(record, { select: "*", single: true });
-    if (error) throw error;
-    const saved = data && typeof data === "object" ? data : record;
-    secretFolders.push(secretFolderFromCloudRow(saved));
-    activeSecretFolderId = saved.id || record.id;
-    renderSecretGallery();
-    setSecretStatus("");
-    showMiniToast(`已创建「${name}」`, { kind: "success" });
-  } catch (error) {
-    const message = error?.message || "Cloudflare 暂时没有完成创建";
-    setSecretStatus(`新建文件夹失败：${message}`);
-    showMiniToast("新建收藏夹失败，请稍后重试", { kind: "error" });
-  } finally {
-    if (button) button.disabled = false;
-  }
-}
-
-async function renameActiveSecretFolder() {
-  const folder = secretFolders.find((entry) => entry.id === activeSecretFolderId);
-  if (!folder || !cloudDb || !session) return;
-  const name = await requestSecretFolderName({
-    value: folder.name,
-    title: "重命名收藏夹",
-    confirmLabel: "保存名称",
-  });
-  if (!name || name === folder.name) return;
-  const updatedAt = new Date().toISOString();
-  const { error } = await secretRepository.updateFolder(folder.id, {
-    name,
-    updated_at: updatedAt,
-  });
-  if (error) {
-    showMiniToast(error.message || "重命名失败", { kind: "error" });
-    return;
-  }
-  folder.name = name;
-  folder.updatedAt = updatedAt;
-  renderSecretGallery();
-  showMiniToast("收藏夹名称已更新", { kind: "success" });
-}
-
-async function deleteSecretFolder(folder) {
-  if (!folder || !cloudDb || !session) return;
-  const wasActive = activeSecretFolderId === folder.id;
-  const albums = secretItems.filter((item) => item.folderId === folder.id);
-  const confirmed = await confirmAction({
-    eyebrow: "整理收藏夹",
-    title: `删除「${folder.name}」？`,
-    message: albums.length
-      ? `其中 ${albums.length} 个相册会移回全部相册，照片不会被删除。`
-      : "这个空收藏夹会被删除，照片和相册不会受到影响。",
-    confirmLabel: "删除收藏夹",
-    cancelLabel: "保留",
-    danger: true,
-  });
-  if (!confirmed) return;
-  setSecretStatus("正在整理收藏夹...");
-  for (const album of albums) {
-    const { error } = await secretRepository.updateOwnedItem(album.id, {
-      folder_id: null,
-      updated_at: new Date().toISOString(),
-    });
-    if (error) {
-      setSecretStatus(error.message || "移动相册失败，收藏夹未删除。");
-      showMiniToast("收藏夹删除失败", { kind: "error" });
-      return;
-    }
-    album.folderId = "";
-  }
-  const { error } = await secretRepository.removeFolder(folder.id);
-  if (error) {
-    setSecretStatus(error.message || "删除收藏夹失败。");
-    showMiniToast("收藏夹删除失败", { kind: "error" });
-    return;
-  }
-  secretFolders = secretFolders.filter((entry) => entry.id !== folder.id);
-  if (getSecretDefaultFolderId() === folder.id) {
-    await setSecretDefaultFolderId("");
-  }
-  if (wasActive) activeSecretFolderId = SECRET_ALL_FOLDER_ID;
-  saveSecretItemsCache(session.user.id);
-  renderSecretGallery();
-  setSecretStatus("");
-  showMiniToast("文件夹已删除，相册已移回全部相册", { kind: "success" });
-}
-
-function deleteActiveSecretFolder() {
-  const folder = secretFolders.find((entry) => entry.id === activeSecretFolderId);
-  return deleteSecretFolder(folder);
-}
-
-function requestSecretFolderName({ value = "", title = "新建文件夹", confirmLabel = "创建" } = {}) {
-  return new Promise((resolve) => {
-    let dialog = document.querySelector("#secretFolderDialog");
-    if (!dialog) {
-      dialog = document.createElement("dialog");
-      dialog.id = "secretFolderDialog";
-      dialog.className = "secret-folder-dialog";
-      document.body.append(dialog);
-    }
-    dialog.innerHTML = `<form novalidate>
-      <button class="secret-folder-dialog-close" data-action="cancel" type="button" aria-label="关闭">×</button>
-      <header><span>Collection</span><h2>${escapeHtml(title)}</h2><p>用收藏夹整理相册，不会改变里面的照片。</p></header>
-      <label><span>收藏夹名称</span><input name="folderName" maxlength="40" autocomplete="off" value="${escapeHtml(value)}" placeholder="例如：旅行、灵感、一起生活" required /></label>
-      <p class="secret-folder-dialog-error" role="alert" hidden></p>
-      <div class="secret-folder-dialog-actions"><button data-action="cancel" type="button">取消</button><button class="primary" data-action="confirm" type="submit">${escapeHtml(confirmLabel)}</button></div>
-    </form>`;
-    const form = dialog.querySelector("form");
-    const input = dialog.querySelector("input");
-    const errorLabel = dialog.querySelector(".secret-folder-dialog-error");
-    let settled = false;
-    const cleanup = () => {
-      form.removeEventListener("submit", submit);
-      dialog.removeEventListener("cancel", cancel);
-      dialog.removeEventListener("close", close);
-      dialog.querySelectorAll('[data-action="cancel"]').forEach((button) => button.removeEventListener("click", cancel));
-    };
-    const finish = (result = "") => {
-      if (settled) return;
-      settled = true;
-      cleanup();
-      if (dialog.open) dialog.close();
-      resolve(result);
-    };
-    const submit = (event) => {
-      event.preventDefault();
-      const folderName = String(input.value || "").trim().slice(0, 40);
-      if (!folderName) {
-        errorLabel.textContent = "请先写一个收藏夹名称";
-        errorLabel.hidden = false;
-        input.setAttribute("aria-invalid", "true");
-        input.focus();
-        return;
-      }
-      finish(folderName);
-    };
-    const cancel = (event) => {
-      event?.preventDefault?.();
-      finish("");
-    };
-    const close = () => finish("");
-    input.addEventListener("input", () => {
-      errorLabel.hidden = true;
-      input.removeAttribute("aria-invalid");
-    });
-    form.addEventListener("submit", submit);
-    dialog.addEventListener("cancel", cancel);
-    dialog.addEventListener("close", close);
-    dialog.querySelectorAll('[data-action="cancel"]').forEach((button) => button.addEventListener("click", cancel));
-    if (dialog.open) dialog.close();
-    try {
-      dialog.showModal();
-    } catch {
-      dialog.setAttribute("open", "");
-    };
-    window.setTimeout(() => input.focus({ preventScroll: true }), 0);
-  });
-}
-
-function updateSecretSearchSuggestions() {
-  if (!els.secretSearchSuggestions) return;
-  const suggestions = new Set();
-  secretItems.forEach((item) => {
-    if (item.title) suggestions.add(item.title);
-    normalizeSecretImages(item.images).forEach((image) => {
-      normalizeSecretPhotoTags(image)
-        .filter((tag) => !isSecretNumericTag(tag))
-        .forEach((tag) => suggestions.add(tag));
-    });
-  });
-  els.secretSearchSuggestions.innerHTML = [...suggestions]
-    .slice(0, 80)
-    .map((value) => `<option value="${escapeHtml(value)}"></option>`)
-    .join("");
-}
-
-function secretItemMatchesSearch(item) {
-  const query = secretSearchQuery.trim().toLocaleLowerCase("zh-CN");
-  if (!query) return true;
-  const albumText = `${item.title || ""} ${item.note || ""}`.toLocaleLowerCase("zh-CN");
-  if (albumText.includes(query)) return true;
-  return normalizeSecretImages(item.images).some((image) =>
-    normalizeSecretPhotoTags(image)
-      .filter((tag) => !isSecretNumericTag(tag))
-      .some((tag) => tag.toLocaleLowerCase("zh-CN").includes(query))
-  );
-}
-
-function secretImageMatchesSearch(image) {
-  const query = secretSearchQuery.trim().toLocaleLowerCase("zh-CN");
-  if (!query) return true;
-  return normalizeSecretPhotoTags(image)
-    .filter((tag) => !isSecretNumericTag(tag))
-    .some((tag) => tag.toLocaleLowerCase("zh-CN").includes(query));
-}
-
-async function loadSecretItemsInternal() {
-  if (!cloudDb || !session) {
-    secretItems = [];
-    renderSecretGallery();
-    return;
-  }
-  if (!secretItems.length) {
-    renderCachedSecretItems(session.user.id);
-  }
-  try {
-    const [itemsResponse, foldersResponse] = await Promise.all([
-      secretRepository.listItems(),
-      secretRepository.listFolders(),
-    ]);
-    if (itemsResponse.error) throw itemsResponse.error;
-    if (foldersResponse.error) throw foldersResponse.error;
-    secretCloudAvailable = true;
-    secretItems = sortSecretItems((itemsResponse.data || []).map(secretFromCloudRow));
-    secretFolders = (foldersResponse.data || []).map(secretFolderFromCloudRow);
-    const validFolderIds = new Set([
-      SECRET_ALL_FOLDER_ID,
-      SECRET_FAVORITES_FOLDER_ID,
-      ...secretFolders.map((folder) => folder.id),
-    ]);
-    const storedDefaultFolderId = secretDefaultFolderId;
-    const validDefaultFolderId = secretFolders.some((folder) => folder.id === storedDefaultFolderId)
-      ? storedDefaultFolderId
-      : "";
-    if (storedDefaultFolderId !== validDefaultFolderId) {
-      await setSecretDefaultFolderId(validDefaultFolderId);
-    }
-    if (!activeSecretAlbumId && !validFolderIds.has(activeSecretFolderId)) {
-      const defaultFolderId = getSecretDefaultFolderId();
-      activeSecretFolderId = validFolderIds.has(defaultFolderId) ? defaultFolderId : SECRET_ALL_FOLDER_ID;
-    }
-    lastSecretSyncAt = Date.now();
-    saveSecretItemsCache(session.user.id);
-    renderSecretGallery();
-  } catch (error) {
-    secretCloudAvailable = false;
-    const usedCache = renderCachedSecretItems(session.user.id);
-    if (!usedCache) secretItems = [];
-    renderSecretGallery();
-    if (isMissingCloudSchema(error)) {
-      setSecretStatus("秘藏表尚未初始化，请部署最新版 Cloudflare D1 结构。");
-    } else {
-      setSecretStatus(
-        usedCache
-          ? `秘藏同步失败，先显示上次缓存：${error.message || "请稍后重试"}`
-          : `秘藏同步失败：${error.message || "请稍后重试"}`
-      );
-    }
-  }
-}
-
-async function loadSecretItems() {
-  if (secretLoadPromise) return secretLoadPromise;
-  secretLoadPromise = loadSecretItemsInternal().finally(() => {
-    secretLoadPromise = null;
-  });
-  return secretLoadPromise;
-}
-
-function renderSecretLinkedPhotoOptions() {
-  if (!els.secretLinkedPhotoInput) return;
-  const options = getSortedPhotos(photos)
-    .map((photo) => {
-      const title = getDisplayTitle(photo) || getPlainNote(photo).slice(0, 18) || "未命名日记";
-      return `<option value="${escapeHtml(photo.id || "")}">${escapeHtml(`${formatDate(photo.taken_at)} · ${title}`)}</option>`;
-    })
-    .join("");
-  els.secretLinkedPhotoInput.innerHTML = `<option value="">不关联</option>${options}`;
-}
-
-function updateSecretPreview() {
-  const files = Array.from(els.secretImageInput?.files || []);
-  revokeSecretPreviewUrls();
-  const entries = [
-    ...files.map((file) => ({ url: URL.createObjectURL(file), label: file.name })),
-    ...secretSelectedLinks.map((url) => ({ url, label: "图片链接" })),
-  ];
-  if (!entries.length) {
-    els.secretImagePreview.removeAttribute("src");
-    els.secretImagePreview.hidden = true;
-    els.secretPreviewStrip.innerHTML = "";
-    els.secretPreviewStrip.hidden = true;
-    els.secretImageName.textContent = "还没有选择图片";
-    return;
-  }
-  secretPreviewUrls = entries.slice(0, 9).map((entry) => entry.url);
-  els.secretImagePreview.src = secretPreviewUrls[0];
-  els.secretImagePreview.hidden = false;
-  els.secretImageName.textContent =
-    entries.length > 1 ? `已选择 ${entries.length} 张图片` : entries[0].label;
-  renderSecretPreviewStrip(entries, secretPreviewUrls);
-}
-
-function renderSecretPreviewStrip(files, urls) {
-  if (files.length <= 1) {
-    els.secretPreviewStrip.innerHTML = "";
-    els.secretPreviewStrip.hidden = true;
-    return;
-  }
-  els.secretPreviewStrip.hidden = false;
-  els.secretPreviewStrip.innerHTML = urls
-    .map((url, index) => `<button type="button" data-secret-preview-index="${index}"><img src="${url}" alt="" /></button>`)
-    .join("");
-  els.secretPreviewStrip.querySelectorAll("[data-secret-preview-index]").forEach((button) => {
-    button.addEventListener("click", () => {
-      els.secretImagePreview.src = urls[Number(button.dataset.secretPreviewIndex)];
-    });
-  });
-}
-
-let secretPreviewUrls = [];
-let secretSelectedLinks = [];
-function revokeSecretPreviewUrls() {
-  secretPreviewUrls.forEach((url) => URL.revokeObjectURL(url));
-  secretPreviewUrls = [];
-}
-
-function handleSecretPaste(event) {
-  const items = Array.from(event.clipboardData?.items || []);
-  const imageItems = items.filter((item) => item.type.startsWith("image/"));
-  if (!imageItems.length) {
-    const pastedUrl = getClipboardImageUrl(event.clipboardData);
-    if (addSecretImageLinks(pastedUrl)) event.preventDefault();
-    return;
-  }
-  const files = imageItems.map((item) => item.getAsFile()).filter(Boolean);
-  if (!files.length) return;
-  event.preventDefault();
-  const transfer = new DataTransfer();
-  files.forEach((file, index) => {
-    const extension = file.type?.split("/")[1] || "png";
-    transfer.items.add(
-      new File([file], `secret-pasted-${Date.now()}-${index + 1}.${extension}`, {
-        type: file.type || "image/png",
-      })
-    );
-  });
-  els.secretImageInput.files = transfer.files;
-  updateSecretPreview();
-  setSecretStatus(files.length > 1 ? `已读取 ${files.length} 张剪贴板图片。` : "已读取剪贴板图片。");
-}
-
-function addSecretImageLinks(rawLinks = els.secretImageLinkInput?.value || "") {
-  const urls = extractImageUrls(rawLinks);
-  if (!urls.length) {
-    if (String(rawLinks || "").trim()) setSecretStatus("请输入完整的 http 或 https 图片链接。");
-    return false;
-  }
-  secretSelectedLinks = [...new Set([...secretSelectedLinks, ...urls])].slice(0, SECRET_ALBUM_IMAGE_LIMIT);
-  if (els.secretImageLinkInput) els.secretImageLinkInput.value = "";
-  updateSecretPreview();
-  setSecretStatus(`已添加 ${urls.length} 个图片链接，保存时会复制到 R2。`);
-  return true;
-}
-
-async function saveSecretItem(event) {
-  event.preventDefault();
-  if (!cloudDb || !session) {
-    setSecretStatus("请先登录。");
-    return;
-  }
-  if (!secretCloudAvailable) {
-    setSecretStatus("请先部署最新版 Cloudflare D1 结构，启用秘藏表。");
-    return;
-  }
-  const files = Array.from(els.secretImageInput.files || []);
-  const links = [...secretSelectedLinks];
-  if (!files.length && !links.length) {
-    setSecretStatus("请先选择图片或粘贴图片链接。");
-    return;
-  }
-  const imageLimit = SECRET_ALBUM_IMAGE_LIMIT;
-  if (files.length + links.length > imageLimit) {
-    setSecretStatus(`一个秘藏相册最多 ${imageLimit} 张图。`);
-    return;
-  }
-  const coverFile = els.secretCoverInput?.files?.[0] || null;
-  els.secretSubmitButton.disabled = true;
-  const images = [];
-  let loadingToast = null;
-  try {
-    loadingToast = showMiniToast("秘藏上传中...", {
-      kind: "loading",
-      persist: true,
-      placement: "center",
-    });
-    for (const [index, file] of files.entries()) {
-      const base = slugify(els.secretTitleInput.value || els.secretCategoryInput.value || "secret");
-      const uploaded = await uploadImageFile(file, `${base}-${index + 1}`, index + 1, files.length, {
-        folder: "secrets",
-        statusSetter: setSecretStatus,
-      });
-      if (!uploaded) throw new Error("秘藏图片上传失败。");
-      images.push({
-        ...uploaded,
-        tag: DEFAULT_SECRET_PHOTO_TAG,
-        tags: [DEFAULT_SECRET_PHOTO_TAG],
-        uploadedAt: new Date().toISOString(),
-      });
-    }
-    for (const [index, url] of links.entries()) {
-      setSecretStatus(`正在导入第 ${index + 1}/${links.length} 个图片链接…`);
-      const base = slugify(els.secretTitleInput.value || els.secretCategoryInput.value || "secret-link");
-      const copied = await copyUrlToR2(url, `${base}-link-${index + 1}`, "secrets");
-      images.push({
-        image_path: `r2:${copied.key}`,
-        image_url: copied.url,
-        thumbnail_path: "",
-        thumbnail_url: copied.url,
-        width: 0,
-        height: 0,
-        tag: DEFAULT_SECRET_PHOTO_TAG,
-        tags: [DEFAULT_SECRET_PHOTO_TAG],
-        uploadedAt: new Date().toISOString(),
-      });
-    }
-    let coverImage = images[0]?.image_url || "";
-    let coverPath = images[0]?.image_path || "";
-    if (coverFile) {
-      const coverBase = slugify(els.secretTitleInput.value || els.secretCategoryInput.value || "secret-cover");
-      const uploadedCover = await uploadImageFile(coverFile, `${coverBase}-cover`, 1, 1, {
-        folder: "secret-covers",
-        statusSetter: setSecretStatus,
-      });
-      if (!uploadedCover) throw new Error("秘藏封面上传失败。");
-      coverImage = uploadedCover.image_url;
-      coverPath = uploadedCover.image_path;
-    }
-    const now = new Date().toISOString();
-    const item = {
-      id: crypto.randomUUID(),
-      folderId: els.secretFolderInput?.value || (
-        ![SECRET_ALL_FOLDER_ID, SECRET_FAVORITES_FOLDER_ID].includes(activeSecretFolderId)
-          ? activeSecretFolderId
-          : ""
-      ),
-      title: els.secretTitleInput.value.trim(),
-      category: els.secretCategoryInput.value.trim() || "未分类",
-      note: els.secretNoteInput.value.trim(),
-      coverImage,
-      coverPath,
-      images,
-      linkedPhotoId: els.secretLinkedPhotoInput.value || "",
-      createdAt: now,
-      updatedAt: now,
-    };
-    const { error } = await secretRepository.insertItem(
-      secretToCloudRow(item, session.user.id)
-    );
-    if (error) throw error;
-    els.secretForm.reset();
-    secretSelectedLinks = [];
-    updateSecretPreview();
-    setSecretExpanded(false);
-    setSecretStatus("相册已保存到秘藏。");
-    dismissMiniToast(loadingToast);
-    showMiniToast("秘藏已保存", { kind: "success" });
-    await loadSecretItems();
-  } catch (error) {
-    dismissMiniToast(loadingToast);
-    showMiniToast("上传失败", { kind: "error", duration: 2600 });
-    setSecretStatus(error.message || "保存秘藏失败。");
-  } finally {
-    dismissMiniToast(loadingToast);
-    els.secretSubmitButton.disabled = false;
-  }
-}
-
-function getSecretFavoriteEntries() {
-  const query = secretSearchQuery.trim().toLocaleLowerCase("zh-CN");
-  const entries = [];
-  sortSecretItems(secretItems).forEach((item) => {
-    const favoriteImages = sortSecretDisplayEntries(
-      normalizeSecretImages(item.images)
-        .map((image, index) => ({ image, index }))
-        .filter(({ image }) => image.favorite),
-      item
-    );
-    const favoriteImageList = favoriteImages.map(({ image }) => image);
-    favoriteImages.forEach(({ image, index }, favoriteIndex) => {
-      if (query) {
-        const albumText = `${item.title || ""} ${item.note || ""}`.toLocaleLowerCase("zh-CN");
-        const imageText = normalizeSecretPhotoTags(image)
-          .join(" ")
-          .toLocaleLowerCase("zh-CN");
-        if (!albumText.includes(query) && !imageText.includes(query)) return;
-      }
-      entries.push({
-        item,
-        image,
-        index,
-        favoriteIndex,
-        favoriteImages: favoriteImageList,
-      });
-    });
-  });
-  return entries;
-}
-
-function renderSecretFavoritesView() {
-  const entries = getSecretFavoriteEntries();
-  activeSecretFilter = "全部";
-  els.secretFilters.hidden = true;
-  els.secretFilters.innerHTML = "";
-  els.secretGallery.innerHTML = buildSecretFavoritesMarkup(entries);
-  prepareFeedImages(els.secretGallery);
-  bindSecretFavoritesActions(els.secretGallery, entries, (entry, button) => {
-    openSecretItem(entry.item, entry.favoriteIndex, {
-        images: entry.favoriteImages,
-        returnImageUrl: entry.image.image_url,
-        returnElementTop: button.getBoundingClientRect().top,
-        triggerElement: button,
-      });
-  });
-}
-
-function renderSecretGallery() {
-  if (!els.secretGallery) return;
-  renderSecretLinkedPhotoOptions();
-  renderSecretFolderControls();
-  updateSecretSearchSuggestions();
-  const activeAlbum = secretItems.find((item) => item.id === activeSecretAlbumId);
-  const layoutToggle = els.secretPage?.querySelector("[data-secret-layout-toggle]");
-  if (layoutToggle) layoutToggle.hidden = Boolean(activeAlbum);
-  const allPhotoTags = activeAlbum
-    ? getSecretAlbumTagCounts(activeAlbum).map(({ tag }) => tag)
-    : [DEFAULT_SECRET_PHOTO_TAG];
-  els.secretCategoryList.innerHTML = buildSecretCategoryOptions(allPhotoTags);
-  if (els.secretCategoryTags) {
-    els.secretCategoryTags.hidden = true;
-    els.secretCategoryTags.innerHTML = "";
-  }
-  if (!session) {
-    els.secretFilters.hidden = true;
-    els.secretGallery.innerHTML = `<div class="empty">登录后才能进入秘藏。</div>`;
-    return;
-  }
-  if (!secretCloudAvailable) {
-    els.secretFilters.hidden = true;
-    els.secretGallery.innerHTML = `<div class="empty">秘藏需要先初始化数据库表。</div>`;
-    return;
-  }
-  if (activeAlbum) {
-    const photoTagCounts = getSecretAlbumTagCounts(activeAlbum);
-    const photoTags = photoTagCounts.map(({ tag }) => tag);
-    if (!photoTags.includes(activeSecretFilter)) activeSecretFilter = "全部";
-    els.secretFilters.hidden = false;
-    els.secretFilters.innerHTML = buildSecretFilterMarkup(photoTagCounts, activeSecretFilter);
-    bindSecretFilterActions(els.secretFilters, (filter) => {
-      activeSecretFilter = filter;
-      selectedSecretImageIndexes = new Set();
-      renderSecretGallery();
-    });
-    renderSecretAlbumView(activeAlbum);
-    return;
-  }
-
-  if (activeSecretFolderId === SECRET_FAVORITES_FOLDER_ID) {
-    renderSecretFavoritesView();
-    return;
-  }
-
-  activeSecretFilter = "全部";
-  els.secretFilters.hidden = true;
-  els.secretFilters.innerHTML = "";
-  const activeFolder = secretFolders.find((folder) => folder.id === activeSecretFolderId);
-  const activeFolderName = activeFolder?.name || "全部相册";
-  const visible = sortSecretItems(secretItems).filter((item) => {
-    const folderMatch = activeSecretFolderId === SECRET_ALL_FOLDER_ID
-      ? true
-      : item.folderId === activeSecretFolderId;
-    return folderMatch && secretItemMatchesSearch(item);
-  });
-  els.secretGallery.innerHTML = buildSecretCollectionMarkup({
-    activeFolderName,
-    activeFolder,
-    visible,
-    getLinkedTitle: (photoId) => {
-      const linkedPhoto = photos.find((photo) => photo.id === photoId);
-      return linkedPhoto ? getDisplayTitle(linkedPhoto) || "关联日记" : "";
-    },
-  });
-  bindSecretCollectionActions({
-    container: els.secretGallery,
-    items: visible,
-    mobile: isMobileViewport(),
-    onCreate: () => {
-      if (els.secretComposer?.hidden) els.secretComposer.hidden = false;
-      setSecretExpanded(true);
-      if (els.secretFolderInput) {
-        els.secretFolderInput.value = [SECRET_ALL_FOLDER_ID, SECRET_FAVORITES_FOLDER_ID].includes(activeSecretFolderId)
-          ? ""
-          : activeSecretFolderId;
-      }
-      els.secretComposer?.scrollIntoView({ behavior: "smooth", block: "start" });
-    },
-    onRename: renameActiveSecretFolder,
-    onDelete: deleteActiveSecretFolder,
-    onMoveToFolder: (item) => void openSecretAlbumFolderDialog(item),
-    onContextMenu: openSecretAlbumContextMenu,
-    onOpen: (item) => {
-      activeSecretAlbumId = item?.id || "";
-      activeSecretFilter = "全部";
-      secretSelectionMode = false;
-      selectedSecretImageIndexes = new Set();
-      secretAlbumEditing = false;
-      secretAppendExpanded = false;
-      secretMobileToolsExpanded = false;
-      renderSecretGallery();
-    },
-    onMove: moveSecretAlbum,
-  });
-}
-
-async function openSecretAlbumFolderDialog(item) {
-  if (!item || !session || !cloudDb) return;
-  let dialog = document.querySelector("#secretAlbumFolderDialog");
-  if (!dialog) {
-    dialog = document.createElement("dialog");
-    dialog.id = "secretAlbumFolderDialog";
-    dialog.className = "secret-album-folder-dialog";
-    document.body.append(dialog);
-  }
-  const choices = [
-    { id: "", name: "不放入文件夹", count: secretItems.filter((entry) => !entry.folderId).length },
-    ...secretFolders.map((folder) => ({
-      id: folder.id,
-      name: folder.name,
-      count: secretItems.filter((entry) => entry.folderId === folder.id).length,
-    })),
-  ];
-  dialog.innerHTML = `<form method="dialog">
-    <header><div><span>Move Album</span><h2>移动相册</h2><p>${escapeHtml(item.title || "未命名相册")}</p></div><button value="cancel" type="submit" aria-label="关闭">×</button></header>
-    <div class="secret-folder-choice-list">${choices.map((folder) => {
-      const current = (item.folderId || "") === folder.id;
-      return `<button class="${current ? "current" : ""}" type="submit" value="${escapeHtml(folder.id || "__default__")}" ${current ? "disabled" : ""}><span><i aria-hidden="true"></i><strong>${escapeHtml(folder.name)}</strong></span><small>${folder.count} 个相册</small></button>`;
-    }).join("")}</div>
-    <footer>长按相册，可以随时重新整理</footer>
-  </form>`;
-  dialog.showModal();
-  await new Promise((resolve) => dialog.addEventListener("close", resolve, { once: true }));
-  const targetFolderId = dialog.returnValue === "__default__" ? "" : dialog.returnValue;
-  if (!targetFolderId && dialog.returnValue !== "__default__") return;
-  await moveSecretAlbumToFolder(item, targetFolderId);
-}
-
-async function moveSecretAlbumToFolder(item, folderId = "") {
-  if (!item || !cloudDb || !session || (item.folderId || "") === folderId) return;
-  setSecretStatus("正在移动相册...");
-  const { error } = await secretRepository.updateOwnedItem(item.id, {
-    folder_id: folderId || null,
-    updated_at: new Date().toISOString(),
-  });
-  if (error) {
-    setSecretStatus(error.message || "移动相册失败。");
-    showMiniToast("移动失败", { kind: "error" });
-    return;
-  }
-  item.folderId = folderId;
-  item.updatedAt = new Date().toISOString();
-  saveSecretItemsCache(session.user.id);
-  renderSecretGallery();
-  setSecretStatus("相册已移动。");
-  showMiniToast("相册已移动", { kind: "success" });
-}
-
-function renderSecretAlbumView(item) {
-  const images = normalizeSecretImages(item.images);
-  const displayEntries = sortSecretDisplayEntries(
-    images
-      .map((image, index) => ({ image, index }))
-      .filter(({ image }) => imageMatchesSecretFilter(image) && secretImageMatchesSearch(image)),
-    item
-  );
-  const photoSortDescending = getSecretPhotoSortDescending(item);
-  const hasNumericPhotoOrder = images.some(
-    (image) => getSecretImageNumericOrder(image) !== null
-  );
-  const linkedPhoto = photos.find((photo) => photo.id === item.linkedPhotoId);
-  const linkedTitle = linkedPhoto ? getDisplayTitle(linkedPhoto) || "关联日记" : "";
-  const validSelectedIndexes = [...selectedSecretImageIndexes].filter((index) => index >= 0 && index < images.length);
-  const knownTags = getSecretAlbumTagCounts(item)
-    .map(({ tag }) => tag)
-    .filter((tag) => !["全部", FAVORITE_SECRET_PHOTO_TAG].includes(tag));
-  const selectedTags = [...new Set(
-    validSelectedIndexes.flatMap((index) => normalizeSecretPhotoTags(images[index]))
-  )].filter((tag) => tag !== DEFAULT_SECRET_PHOTO_TAG);
-  const moveTargets = sortSecretItems(secretItems).filter((entry) => entry.id !== item.id);
-  els.secretGallery.innerHTML = buildSecretAlbumMarkup({
-    item,
-    images,
-    displayEntries,
-    linkedTitle,
-    selectionMode: secretSelectionMode,
-    mobileToolsExpanded: secretMobileToolsExpanded,
-    selectedIndexes: selectedSecretImageIndexes,
-    appendExpanded: secretAppendExpanded,
-    albumEditing: secretAlbumEditing,
-    activeFilter: activeSecretFilter,
-    photoSortDescending,
-    hasNumericPhotoOrder,
-    knownTags,
-    selectedTags,
-    folders: secretFolders,
-    moveTargets,
-    mobile: isMobileViewport(),
-  });
-  updateSecretToolbarTop();
-  requestAnimationFrame(updateSecretToolbarTop);
-  prepareFeedImages(els.secretGallery);
-  bindSecretAlbumActions({
-    container: els.secretGallery,
-    selectionMode: secretSelectionMode,
-    selectedIndexes: selectedSecretImageIndexes,
-    handlers: {
-      back: () => {
-        activeSecretAlbumId = "";
-        secretSelectionMode = false;
-        selectedSecretImageIndexes = new Set();
-        secretAlbumEditing = false;
-        secretAppendExpanded = false;
-        secretMobileToolsExpanded = false;
-        renderSecretGallery();
-      },
-      toggleAppend: () => {
-        secretAppendExpanded = !secretAppendExpanded;
-        renderSecretGallery();
-      },
-      merge: (targetId) => mergeSecretAlbumInto(item, targetId),
-      toggleEdit: () => {
-        secretAlbumEditing = !secretAlbumEditing;
-        renderSecretGallery();
-      },
-      cancelEdit: () => {
-        secretAlbumEditing = false;
-        renderSecretGallery();
-      },
-      saveEdit: (event) => saveSecretAlbumEdit(event, item),
-      append: appendSecretAlbumImages,
-      getClipboardFiles: (event) => getImageFilesFromClipboard(event, "secret-append-pasted"),
-      openLinked: () => {
-        activeSecretDialogItem = item;
-        openSecretLinkedDiary();
-      },
-      deleteCurrent: () => deleteSecretItem(item),
-      toggleSort: async (button) => {
-        if (button.disabled) return;
-        button.disabled = true;
-        const saved = await setSecretPhotoSortDescending(item, !getSecretPhotoSortDescending(item));
-        if (saved) renderSecretGallery();
-        else button.disabled = false;
-      },
-      deleteTag: () => deleteCurrentSecretTag(item),
-      toggleSelection: () => {
-        secretSelectionMode = !secretSelectionMode;
-        secretMobileToolsExpanded = false;
-        if (!secretSelectionMode) selectedSecretImageIndexes = new Set();
-        renderSecretGallery();
-      },
-      toggleTools: () => {
-        secretMobileToolsExpanded = !secretMobileToolsExpanded;
-        renderSecretGallery();
-      },
-      toggleSelectAll: () => {
-        if (!secretSelectionMode) return;
-        const visibleIndexes = displayEntries.map(({ index }) => index);
-        const allSelected = visibleIndexes.length > 0 && visibleIndexes.every((index) => selectedSecretImageIndexes.has(index));
-        selectedSecretImageIndexes = allSelected ? new Set() : new Set(visibleIndexes);
-        renderSecretGallery();
-      },
-      deleteSelected: () => deleteSelectedSecretImages(item),
-      setCover: () => setSelectedSecretCover(item),
-      moveToAlbum: (targetId) => moveSelectedSecretImagesToAlbum(item, targetId),
-      applyTag: (tag) => applySecretPhotoTag(item, tag),
-      removeTag: (tag) => removeSecretPhotoTagFromSelection(item, tag),
-      backTop: scrollSecretAlbumToTop,
-      moveSelected: async (direction, button) => {
-        if (button.disabled) return;
-        button.disabled = true;
-        await moveSelectedSecretImage(item, direction);
-      },
-      enterSelection: (index) => {
-        secretSelectionMode = true;
-        secretMobileToolsExpanded = false;
-        selectedSecretImageIndexes = new Set([index]);
-        renderSecretGallery();
-      },
-      selectPhoto: (index, button, selected) => {
-        if (secretSelectionMode) {
-          if (selected) selectedSecretImageIndexes.delete(index);
-          else selectedSecretImageIndexes.add(index);
-          renderSecretGallery();
-          return;
-        }
-        const visibleIndex = displayEntries.findIndex((entry) => entry.index === index);
-        openSecretItem(item, Math.max(0, visibleIndex), {
-          images: displayEntries.map((entry) => entry.image),
-          returnImageUrl: displayEntries[Math.max(0, visibleIndex)]?.image?.image_url || "",
-          returnElementTop: button.getBoundingClientRect().top,
-          triggerElement: button,
-        });
-      },
-    },
-  });
-}
-
-function openSecretItem(item, initialImageIndex = 0, options = {}) {
-  if (!item) return;
-  secretViewerReturnFocus = options.triggerElement || document.activeElement;
-  secretViewerInfoOpen = false;
-  dialogRestoreScrollY = window.scrollY || window.pageYOffset || 0;
-  dialogRestorePhotoId = "";
-  dialogRestorePhotoTop = 0;
-  lockedDialogScrollY = dialogRestoreScrollY;
-  dialogLockUsesFixed = false;
-  document.documentElement.classList.add("dialog-scroll-locked");
-  document.body.classList.add("dialog-scroll-locked");
-  activeDialogPhoto = null;
-  activeSecretDialogItem = item;
-  dialogSecretSourceItem = null;
-  els.dialog.classList.remove("mobile-page-dialog", "diary-detail-dialog", "diary-image-fullscreen", "secret-viewer-info-open");
-  els.dialog.classList.add("no-comments-dialog", "secret-image-dialog");
-  if (isMobileViewport()) els.dialog.classList.add("secret-image-fullscreen");
-  els.dialog.setAttribute("aria-modal", "true");
-  document.body.classList.remove("mobile-dialog-open");
-  dialogRandomMode = false;
-  dialogImages = Array.isArray(options.images) && options.images.length
-    ? options.images
-    : normalizeSecretImages(item.images);
-  dialogImageIndex = Math.min(
-    Math.max(0, Number(initialImageIndex) || 0),
-    Math.max(0, dialogImages.length - 1)
-  );
-  dialogRestoreSecretImageUrl = options.returnImageUrl || dialogImages[dialogImageIndex]?.image_url || "";
-  dialogRestoreElementTop = Number(options.returnElementTop) || 0;
-  els.dialogTitle.textContent = item.title || item.category || "秘藏相册";
-  els.dialogMeta.textContent = `${normalizeSecretPhotoTags(dialogImages[dialogImageIndex]).slice(0, 2).join(" · ")} · ${dialogImageIndex + 1} / ${dialogImages.length}`;
-  els.dialogNote.textContent = item.note || "";
-  els.photoCommentsSection.hidden = true;
-  if (els.dialogRandomButton) els.dialogRandomButton.hidden = true;
-  if (els.dialogSecretReturnButton) els.dialogSecretReturnButton.hidden = true;
-  if (els.dialogSecretLinkButton) {
-    els.dialogSecretLinkButton.hidden = !item.linkedPhotoId;
-  }
-  showPhotoDialogPreservingScroll();
-  renderDialogMedia();
-  requestAnimationFrame(() => {
-    if (isMobileViewport()) {
-      fitSecretViewerImage();
-      resetSecretImageZoom();
-    }
-    els.closeDialog?.focus({ preventScroll: true });
-  });
-}
-
-function toggleDialogImageFullscreen({ bypassSuppression = false } = {}) {
-  if (activeSecretDialogItem && isMobileViewport()) return;
-  if (!dialogImages.length || !els.dialog.open) return;
-  if (!bypassSuppression && Date.now() < suppressDialogImageClickUntil) return;
-  const opening = !els.dialog.classList.contains("secret-image-fullscreen");
-  resetSecretImageZoom();
-  els.dialog.classList.toggle("secret-image-fullscreen", opening);
-  els.dialog.classList.remove("secret-viewer-info-open");
-  secretViewerInfoOpen = false;
-  if (opening) {
-    requestAnimationFrame(() => {
-      fitSecretViewerImage();
-      resetSecretImageZoom();
-      els.closeDialog?.focus({ preventScroll: true });
-    });
-  } else {
-    els.dialogImage.style.removeProperty("width");
-    els.dialogImage.style.removeProperty("height");
-    setSecretViewerStatus("");
-  }
-  refreshSecretViewerToolbar();
-}
-
-function toggleDiaryImageFullscreen({ bypassSuppression = false } = {}) {
-  if (!activeDialogPhoto || isMobileViewport() || !els.dialog?.open) return;
-  if (!bypassSuppression && Date.now() < suppressDialogImageClickUntil) return;
-  if (secretImageZoom.scale > 1.01) {
-    resetSecretImageZoom();
-    return;
-  }
-  const opening = !els.dialog.classList.contains("diary-image-fullscreen");
-  els.dialog.classList.toggle("diary-image-fullscreen", opening);
-  els.dialog.scrollTop = 0;
-  if (opening) {
-    requestAnimationFrame(() => {
-      fitSecretViewerImage();
-      resetSecretImageZoom();
-    });
-  } else {
-    els.dialogImage.style.removeProperty("width");
-    els.dialogImage.style.removeProperty("height");
-    requestAnimationFrame(() => fitSecretViewerImage());
-  }
-  refreshDiaryViewerToolbar();
-}
-
-function openSecretLinkedDiary() {
-  const item = activeSecretDialogItem;
-  if (!item?.linkedPhotoId) return;
-  const photo = photos.find((entry) => entry.id === item.linkedPhotoId);
-  if (!photo) {
-    setGlobalStatus("关联日记暂时没有加载到。");
-    return;
-  }
-  openPhoto(photo, 0, { secretSourceItem: item });
-}
-
-function returnToSecretItem() {
-  if (dialogSecretSourceItem) {
-    openSecretItem(dialogSecretSourceItem);
-  }
-}
-
-function scrollSecretAlbumToTop() {
-  const target = els.secretGallery?.querySelector(".secret-album-head");
-  if (!target) return;
-  const topbarHeight = document.querySelector(".topbar")?.getBoundingClientRect().height || 0;
-  const mobileOffset = window.matchMedia(`(max-width: ${MOBILE_DIALOG_BREAKPOINT}px)`).matches
-    ? 10
-    : topbarHeight + 14;
-  const targetY = target.getBoundingClientRect().top + window.scrollY - mobileOffset;
-  window.scrollTo({
-    top: Math.max(0, targetY),
-    behavior: "smooth",
-  });
-}
-
-function getImageFilesFromClipboard(event, prefix = "pasted") {
-  const items = Array.from(event.clipboardData?.items || []);
-  return items
-    .filter((item) => item.type.startsWith("image/"))
-    .map((item, index) => {
-      const file = item.getAsFile();
-      if (!file) return null;
-      const extension = file.type?.split("/")[1] || "png";
-      return new File([file], `${prefix}-${Date.now()}-${index + 1}.${extension}`, {
-        type: file.type || "image/png",
-      });
-    })
-    .filter(Boolean);
-}
-
-async function updateSecretAlbum(item, updates, successMessage = "相册已更新。") {
-  if (!item || !cloudDb || !session) {
-    setSecretStatus("请先登录。");
-    return false;
-  }
-  const nextUpdates = {
-    ...updates,
-    updated_at: new Date().toISOString(),
-  };
-  const { error } = await secretRepository.updateItem(item.id, nextUpdates);
-  if (error) {
-    setSecretStatus(error.message || "相册更新失败。");
-    return false;
-  }
-  setSecretStatus(successMessage);
-  await loadSecretItems();
-  activeSecretAlbumId = item.id;
-  return true;
-}
-
-async function moveSecretAlbum(itemId, direction, visibleItems = sortSecretItems(secretItems)) {
-  if (!itemId || !direction || !cloudDb || !session) return;
-  const ordered = sortSecretItems(visibleItems);
-  const index = ordered.findIndex((item) => item.id === itemId);
-  const target = index + direction;
-  if (index < 0 || target < 0 || target >= ordered.length) return;
-  const current = ordered[index];
-  const targetItem = ordered[target];
-  const currentOrder = Number.isFinite(Number(current.sortOrder))
-    ? Number(current.sortOrder)
-    : getDefaultSecretSortOrder(current.createdAt);
-  const targetOrder = Number.isFinite(Number(targetItem.sortOrder))
-    ? Number(targetItem.sortOrder)
-    : getDefaultSecretSortOrder(targetItem.createdAt);
-  setSecretStatus("正在保存相册顺序...");
-  const now = new Date().toISOString();
-  const [first, second] = await Promise.all([
-    secretRepository.updateOwnedItem(current.id, {
-      sort_order: targetOrder,
-      updated_at: now,
-    }),
-    secretRepository.updateOwnedItem(targetItem.id, {
-      sort_order: currentOrder,
-      updated_at: now,
-    }),
-  ]);
-  const error = first.error || second.error;
-  if (error) {
-    setSecretStatus(error.message || "相册排序保存失败。");
-    return;
-  }
-  current.sortOrder = targetOrder;
-  targetItem.sortOrder = currentOrder;
-  secretItems = sortSecretItems(secretItems);
-  saveSecretItemsCache(session.user.id);
-  renderSecretGallery();
-  setSecretStatus("相册顺序已保存。");
-}
-
-async function saveSecretAlbumEdit(event, item) {
-  event.preventDefault();
-  const form = event.currentTarget;
-  const title = form.querySelector("[data-secret-edit-title]")?.value.trim() || "";
-  const sortDescending = form.querySelector("[data-secret-edit-sort]")?.value !== "asc";
-  const folderId = form.querySelector("[data-secret-edit-folder]")?.value || "";
-  const note = form.querySelector("[data-secret-edit-note]")?.value.trim() || "";
-  const saved = await updateSecretAlbum(item, {
-    title,
-    note,
-    folder_id: folderId || null,
-    photo_sort_descending: sortDescending ? 1 : 0,
-  }, "相册资料已保存。");
-  if (saved) {
-    secretAlbumEditing = false;
-    renderSecretGallery();
-  }
-}
-
-function getSingleSelectedSecretIndex(images) {
-  const selected = [...selectedSecretImageIndexes].filter((index) => index >= 0 && index < images.length);
-  return selected.length === 1 ? selected[0] : -1;
-}
-
-async function moveSelectedSecretImage(item, direction) {
-  const images = normalizeSecretImages(item.images);
-  const index = getSingleSelectedSecretIndex(images);
-  const displayEntries = sortSecretDisplayEntries(
-    images
-      .map((image, imageIndex) => ({ image, index: imageIndex }))
-      .filter(({ image }) => imageMatchesSecretFilter(image) && secretImageMatchesSearch(image)),
-    item
-  );
-  const displayPosition = displayEntries.findIndex((entry) => entry.index === index);
-  const targetEntry = displayEntries[displayPosition + direction];
-  const target = targetEntry?.index ?? -1;
-  if (index < 0 || displayPosition < 0 || target < 0 || target >= images.length) return false;
-  const nextImages = [...images];
-  [nextImages[index], nextImages[target]] = [nextImages[target], nextImages[index]];
-  const saved = await updateSecretAlbum(
-    item,
-    { images: nextImages, cover_image: item.coverImage || "", cover_path: item.coverPath || "" },
-    "图片位置已更新。"
-  );
-  if (!saved) {
-    renderSecretGallery();
-    return false;
-  }
-  selectedSecretImageIndexes = new Set([target]);
-  renderSecretGallery();
-  showMiniToast("图片位置已更新", { kind: "success" });
-  return true;
-}
-
-async function setSelectedSecretCover(item) {
-  const images = normalizeSecretImages(item.images);
-  const index = getSingleSelectedSecretIndex(images);
-  const image = images[index];
-  if (!image) return;
-  await updateSecretAlbum(
-    item,
-    { cover_image: image.image_url || "", cover_path: image.image_path || "" },
-    "相册封面已更新。"
-  );
-  renderSecretGallery();
-}
-
-async function applySecretPhotoTag(item, rawTag) {
-  const images = normalizeSecretImages(item.images);
-  const selected = [...selectedSecretImageIndexes].filter((index) => index >= 0 && index < images.length);
-  if (!selected.length) {
-    setSecretStatus("先选择要打 tag 的图片。");
-    return;
-  }
-  const nextTag = normalizeSecretPhotoTag(rawTag);
-  const selectedSet = new Set(selected);
-  const nextImages = images.map((image, index) =>
-    selectedSet.has(index) ? addSecretImageTag(image, nextTag) : image
-  );
-  const saved = await updateSecretAlbum(item, { images: nextImages }, `已给 ${selected.length} 张图片添加「${nextTag}」tag。`);
-  if (saved) {
-    activeSecretFilter = nextTag;
-    selectedSecretImageIndexes = new Set(selected);
-    secretSelectionMode = true;
-    renderSecretGallery();
-  }
-}
-
-async function removeSecretPhotoTagFromSelection(item, rawTag) {
-  const tag = normalizeSecretPhotoTag(rawTag);
-  if (!item || !tag || tag === DEFAULT_SECRET_PHOTO_TAG) return;
-  const images = normalizeSecretImages(item.images);
-  const selected = [...selectedSecretImageIndexes].filter((index) => index >= 0 && index < images.length);
-  if (!selected.length) return;
-  const selectedSet = new Set(selected);
-  const affectedCount = selected.filter((index) => secretImageHasTag(images[index], tag)).length;
-  if (!affectedCount) return;
-  const nextImages = images.map((image, index) =>
-    selectedSet.has(index) && secretImageHasTag(image, tag) ? removeSecretImageTag(image, tag) : image
-  );
-  const saved = await updateSecretAlbum(
-    item,
-    { images: nextImages },
-    `已从 ${affectedCount} 张选中照片移除「${tag}」。`
-  );
-  if (!saved) return;
-  selectedSecretImageIndexes = new Set(selected);
-  secretSelectionMode = true;
-  renderSecretGallery();
-}
-
-async function deleteCurrentSecretTag(item) {
-  const tag = normalizeSecretPhotoTag(activeSecretFilter);
-  if (!item || ["全部", DEFAULT_SECRET_PHOTO_TAG, FAVORITE_SECRET_PHOTO_TAG].includes(tag)) return;
-  const images = normalizeSecretImages(item.images);
-  const affectedCount = images.filter((image) => secretImageHasTag(image, tag)).length;
-  if (!affectedCount) {
-    activeSecretFilter = "全部";
-    renderSecretGallery();
-    return;
-  }
-  const confirmed = await confirmAction({
-    eyebrow: "整理照片标签",
-    title: `删除「${tag}」Tag？`,
-    message: `会从当前相册的 ${affectedCount} 张照片上移除，不会删除照片。`,
-    confirmLabel: "删除 Tag",
-    cancelLabel: "取消",
-    danger: true,
-  });
-  if (!confirmed) return;
-  const nextImages = images.map((image) =>
-    secretImageHasTag(image, tag) ? removeSecretImageTag(image, tag) : image
-  );
-  const saved = await updateSecretAlbum(
-    item,
-    { images: nextImages },
-    `已从 ${affectedCount} 张照片移除「${tag}」tag。`
-  );
-  if (!saved) return;
-  activeSecretFilter = DEFAULT_SECRET_PHOTO_TAG;
-  selectedSecretImageIndexes = new Set();
-  secretSelectionMode = false;
-  renderSecretGallery();
-}
-
-async function updateSecretDialogImage(updates = {}) {
-  const item = activeSecretDialogItem;
-  if (!item || !cloudDb || !session) return;
-  const status = els.dialogNote?.querySelector("[data-secret-dialog-status]");
-  const images = normalizeSecretImages(item.images);
-  const displayedImage = dialogImages[dialogImageIndex] || {};
-  const matchedIndex = images.findIndex((image) =>
-    (displayedImage.image_path && image.image_path === displayedImage.image_path) ||
-    image.image_url === displayedImage.image_url
-  );
-  const index = matchedIndex >= 0
-    ? matchedIndex
-    : Math.min(Math.max(0, dialogImageIndex), Math.max(0, images.length - 1));
-  if (!images[index]) return;
-  let nextImage = { ...images[index] };
-  if (Object.prototype.hasOwnProperty.call(updates, "tag")) {
-    nextImage = setSecretImageTags(nextImage, [updates.tag]);
-  }
-  if (Object.prototype.hasOwnProperty.call(updates, "addTag")) {
-    nextImage = addSecretImageTag(nextImage, updates.addTag);
-  }
-  if (Object.prototype.hasOwnProperty.call(updates, "removeTag")) {
-    nextImage = removeSecretImageTag(nextImage, updates.removeTag);
-  }
-  if (Object.prototype.hasOwnProperty.call(updates, "favorite")) {
-    nextImage.favorite = Boolean(updates.favorite);
-  }
-  const nextImages = images.map((image, imageIndex) => (imageIndex === index ? nextImage : image));
-  if (status) status.textContent = "正在保存...";
-  const { error } = await secretRepository.updateItem(item.id, {
-    images: nextImages,
-    updated_at: new Date().toISOString(),
-  });
-  if (error) {
-    if (status) status.textContent = error.message || "保存失败。";
-    return;
-  }
-  item.images = nextImages;
-  item.updatedAt = new Date().toISOString();
-  const itemIndex = secretItems.findIndex((entry) => entry.id === item.id);
-  if (itemIndex >= 0) {
-    secretItems[itemIndex] = { ...secretItems[itemIndex], images: nextImages, updatedAt: item.updatedAt };
-    activeSecretDialogItem = secretItems[itemIndex];
-  }
-  dialogImages = dialogImages.map((image) =>
-    ((displayedImage.image_path && image.image_path === displayedImage.image_path) || image.image_url === displayedImage.image_url)
-      ? nextImage
-      : image
-  );
-  if (session?.user?.id) saveSecretItemsCache(session.user.id);
-  renderSecretGallery();
-  renderDialogMedia();
-  const message = Object.prototype.hasOwnProperty.call(updates, "favorite")
-    ? nextImage.favorite
-      ? "已加入收藏。"
-      : "已取消收藏。"
-    : Object.prototype.hasOwnProperty.call(updates, "removeTag")
-      ? `已移除「${normalizeSecretPhotoTag(updates.removeTag)}」。`
-      : `已更新 tag。`;
-  const nextStatus = els.dialogNote?.querySelector("[data-secret-dialog-status]");
-  if (nextStatus) nextStatus.textContent = message;
-}
-
-async function deleteSelectedSecretImages(item) {
-  const images = normalizeSecretImages(item.images);
-  const selected = [...selectedSecretImageIndexes].filter((index) => index >= 0 && index < images.length);
-  if (!selected.length) return;
-  if (selected.length >= images.length) {
-    setSecretStatus("至少保留一张图片。如果要全部删除，请删除整个相册。");
-    return;
-  }
-  const confirmed = await confirmAction({
-    eyebrow: "批量管理",
-    title: `删除选中的 ${selected.length} 张图片？`,
-    message: "保存后这些图片会从秘藏相册中移除。",
-    confirmLabel: "删除图片",
-    cancelLabel: "取消",
-    danger: true,
-  });
-  if (!confirmed) return;
-  const selectedSet = new Set(selected);
-  const removedImages = images.filter((_, index) => selectedSet.has(index));
-  const nextImages = images.filter((_, index) => !selectedSet.has(index));
-  const coverStillExists = nextImages.some((image) => image.image_url === item.coverImage);
-  const cover = coverStillExists ? { cover_image: item.coverImage || "", cover_path: item.coverPath || "" } : {
-    cover_image: nextImages[0]?.image_url || "",
-    cover_path: nextImages[0]?.image_path || "",
-  };
-  const saved = await updateSecretAlbum(item, { images: nextImages, ...cover }, `已删除 ${selected.length} 张图片。`);
-  if (!saved) return;
-  selectedSecretImageIndexes = new Set();
-  secretSelectionMode = false;
-  const paths = removedImages.flatMap((image) => [image.image_path, image.thumbnail_path]).filter(Boolean);
-  if (paths.length) cleanupStoredImagePaths(paths).catch(() => {});
-  renderSecretGallery();
-}
-
-async function moveSelectedSecretImagesToAlbum(sourceItem, targetId) {
-  if (!sourceItem || !targetId || !cloudDb || !session) return;
-  const targetItem = secretItems.find((entry) => entry.id === targetId);
-  if (!targetItem || targetItem.id === sourceItem.id) return;
-  const sourceImages = normalizeSecretImages(sourceItem.images);
-  const targetImages = normalizeSecretImages(targetItem.images);
-  const selected = [...selectedSecretImageIndexes].filter((index) => index >= 0 && index < sourceImages.length);
-  if (!selected.length) {
-    setSecretStatus("先选择要移动的图片。");
-    return;
-  }
-  if (selected.length >= sourceImages.length) {
-    setSecretStatus("至少给当前相册保留一张图片。");
-    return;
-  }
-  if (targetImages.length + selected.length > SECRET_ALBUM_IMAGE_LIMIT) {
-    setSecretStatus(`目标相册最多 ${SECRET_ALBUM_IMAGE_LIMIT} 张图。`);
-    return;
-  }
-  const selectedSet = new Set(selected);
-  const movingImages = sourceImages.filter((_, index) => selectedSet.has(index));
-  const nextSourceImages = sourceImages.filter((_, index) => !selectedSet.has(index));
-  const nextTargetImages = [...targetImages, ...movingImages];
-  const sourceCoverStillExists = nextSourceImages.some((image) => image.image_url === sourceItem.coverImage);
-  const sourceCover = sourceCoverStillExists
-    ? { cover_image: sourceItem.coverImage || "", cover_path: sourceItem.coverPath || "" }
-    : {
-        cover_image: nextSourceImages[0]?.image_url || "",
-        cover_path: nextSourceImages[0]?.image_path || "",
-      };
-  const targetCover = targetItem.coverImage
-    ? { cover_image: targetItem.coverImage || "", cover_path: targetItem.coverPath || "" }
-    : {
-        cover_image: nextTargetImages[0]?.image_url || "",
-        cover_path: nextTargetImages[0]?.image_path || "",
-      };
-  setSecretStatus("正在移动图片...");
-  const now = new Date().toISOString();
-  const [sourceResult, targetResult] = await Promise.all([
-    secretRepository.updateOwnedItem(sourceItem.id, {
-      images: nextSourceImages,
-      ...sourceCover,
-      updated_at: now,
-    }),
-    secretRepository.updateOwnedItem(targetItem.id, {
-      images: nextTargetImages,
-      ...targetCover,
-      updated_at: now,
-    }),
-  ]);
-  const error = sourceResult.error || targetResult.error;
-  if (error) {
-    setSecretStatus(error.message || "移动图片失败。");
-    return;
-  }
-  selectedSecretImageIndexes = new Set();
-  secretSelectionMode = false;
-  await loadSecretItems();
-  activeSecretAlbumId = sourceItem.id;
-  renderSecretGallery();
-  setSecretStatus(`已移动 ${movingImages.length} 张到「${targetItem.title || targetItem.category || "目标相册"}」。`);
-}
-
-async function mergeSecretAlbumInto(sourceItem, targetId) {
-  if (!sourceItem || !targetId || !cloudDb || !session) return;
-  const targetItem = secretItems.find((entry) => entry.id === targetId);
-  if (!targetItem || targetItem.id === sourceItem.id) return;
-  const sourceImages = normalizeSecretImages(sourceItem.images);
-  const targetImages = normalizeSecretImages(targetItem.images);
-  if (targetImages.length + sourceImages.length > SECRET_ALBUM_IMAGE_LIMIT) {
-    setSecretStatus(`合并后会超过每个相册 ${SECRET_ALBUM_IMAGE_LIMIT} 张的上限。`);
-    return;
-  }
-  const targetName = targetItem.title || targetItem.category || "目标相册";
-  const confirmed = await confirmAction({
-    eyebrow: "合并秘藏相册",
-    title: `移动到「${targetName}」？`,
-    message: `将移动 ${sourceImages.length} 张照片，完成后删除原相册。`,
-    confirmLabel: "移动并合并",
-    cancelLabel: "取消",
-  });
-  if (!confirmed) return;
-
-  const originalTargetImages = [...targetImages];
-  const mergedImages = [...targetImages, ...sourceImages];
-  const now = new Date().toISOString();
-  setSecretStatus("正在合并相册...");
-  const targetUpdates = {
-    images: mergedImages,
-    cover_image: targetItem.coverImage || mergedImages[0]?.image_url || "",
-    cover_path: targetItem.coverPath || mergedImages[0]?.image_path || "",
-    updated_at: now,
-  };
-  const targetResult = await secretRepository.updateOwnedItem(targetItem.id, targetUpdates);
-  if (targetResult.error) {
-    setSecretStatus(targetResult.error.message || "无法写入目标相册。");
-    return;
-  }
-
-  const deleteResult = await secretRepository.removeItem(sourceItem.id);
-  if (deleteResult.error) {
-    await secretRepository.updateOwnedItem(targetItem.id, {
-      images: originalTargetImages,
-      updated_at: targetItem.updatedAt || now,
-    });
-    setSecretStatus(deleteResult.error.message || "删除原相册失败，合并已回滚。");
-    return;
-  }
-
-  activeSecretAlbumId = targetItem.id;
-  activeSecretFilter = "全部";
-  await loadSecretItems();
-  renderSecretGallery();
-  setSecretStatus(`已合并到「${targetName}」。`);
-  showMiniToast("相册移动完成", { kind: "success" });
-}
-
-async function appendSecretAlbumImages(options = {}) {
-  const item = secretItems.find((entry) => entry.id === activeSecretAlbumId);
-  const files = Array.isArray(options.files)
-    ? options.files
-    : [];
-  const urls = extractImageUrls(options.linksText || "");
-  if (!item) return;
-  if (!cloudDb || !session) {
-    setSecretStatus("请先登录。");
-    return;
-  }
-  if (!files.length && !urls.length) {
-    setSecretStatus("请选择图片，或粘贴至少一个图片链接。");
-    return;
-  }
-  const currentImages = normalizeSecretImages(item.images);
-  const remaining = SECRET_ALBUM_IMAGE_LIMIT - currentImages.length;
-  if (remaining <= 0) {
-    setSecretStatus(`这个相册已经达到 ${SECRET_ALBUM_IMAGE_LIMIT} 张上限。`);
-    return;
-  }
-  const appendFiles = files.slice(0, remaining);
-  const appendUrls = urls.slice(0, Math.max(0, remaining - appendFiles.length));
-  const skippedCount = Math.max(0, files.length + urls.length - appendFiles.length - appendUrls.length);
-  const uploadedImages = [];
-  setSecretStatus(`正在追加 ${appendFiles.length + appendUrls.length} 张图片...`);
-  let loadingToast = showMiniToast("正在添加相片...", {
-    kind: "loading",
-    persist: true,
-    placement: "center",
-  });
-  try {
-    for (const [index, file] of appendFiles.entries()) {
-      const base = slugify(item.title || item.category || "secret");
-      const uploaded = await uploadImageFile(
-        file,
-        `${base}-append-${currentImages.length + index + 1}`,
-        index + 1,
-        appendFiles.length,
-        {
-          folder: "secrets",
-          statusSetter: setSecretStatus,
-        }
-      );
-      if (!uploaded) throw new Error("追加图片上传失败。");
-      uploadedImages.push({
-        ...uploaded,
-        tag: DEFAULT_SECRET_PHOTO_TAG,
-        tags: [DEFAULT_SECRET_PHOTO_TAG],
-        uploadedAt: new Date().toISOString(),
-      });
-    }
-    for (const [index, url] of appendUrls.entries()) {
-      const safeName = `${slugify(item.title || item.category || "secret-link")}-link-${currentImages.length + appendFiles.length + index + 1}`;
-      setSecretStatus(`正在复制第 ${index + 1}/${appendUrls.length} 个链接到 R2...`);
-      try {
-        const copied = await copyUrlToR2(url, safeName, "secrets");
-        uploadedImages.push({
-          image_path: `r2:${copied.key}`,
-          image_url: copied.url,
-          width: 0,
-          height: 0,
-          tag: DEFAULT_SECRET_PHOTO_TAG,
-          tags: [DEFAULT_SECRET_PHOTO_TAG],
-          uploadedAt: new Date().toISOString(),
-        });
-      } catch (error) {
-        console.warn("Secret image link copy failed, using remote URL:", error);
-        uploadedImages.push({
-          image_path: "",
-          image_url: url,
-          width: 0,
-          height: 0,
-          tag: DEFAULT_SECRET_PHOTO_TAG,
-          tags: [DEFAULT_SECRET_PHOTO_TAG],
-          uploadedAt: new Date().toISOString(),
-        });
-      }
-    }
-    const nextImages = [...uploadedImages, ...currentImages];
-    const updates = {
-      images: nextImages,
-      updated_at: new Date().toISOString(),
-    };
-    if (!item.coverImage && nextImages[0]?.image_url) {
-      updates.cover_image = nextImages[0].image_url;
-      updates.cover_path = nextImages[0].image_path || "";
-    }
-    const { error } = await secretRepository.updateOwnedItem(item.id, updates);
-    if (error) throw error;
-    setSecretStatus(
-      skippedCount
-        ? `已追加 ${uploadedImages.length} 张，另有 ${skippedCount} 张超过相册上限未添加。`
-        : `已追加 ${uploadedImages.length} 张图片。`
-    );
-    if (options.form) options.form.reset();
-    await loadSecretItems();
-    activeSecretAlbumId = item.id;
-    renderSecretGallery();
-    dismissMiniToast(loadingToast);
-    showMiniToast("相片已加入相册", { kind: "success", placement: "center" });
-  } catch (error) {
-    if (uploadedImages.length) {
-      cleanupStoredImagePaths(uploadedImages.map((image) => image.image_path).filter(Boolean)).catch(() => {});
-    }
-    dismissMiniToast(loadingToast);
-    showMiniToast("追加失败", { kind: "error", duration: 2600, placement: "center" });
-    setSecretStatus(error.message || "追加图片失败。");
-  } finally {
-    dismissMiniToast(loadingToast);
-  }
-}
-
-async function deleteSecretItem(item) {
-  if (!item || !session) return;
-  const confirmed = await confirmAction({
-    eyebrow: "移到回收站",
-    title: "删除这个秘藏相册？",
-    message: "相册会保留 30 天，期间可以从设置里的回收站恢复。",
-    confirmLabel: "删除相册",
-    cancelLabel: "先保留",
-    danger: true,
-  });
-  if (!confirmed) return;
-  const trashSaved = await createTrashItem(
-    "secret",
-    item.id,
-    item.title || item.category || "秘藏相册",
-    secretToCloudRow(item, item.userId || session.user.id)
-  );
-  if (!trashSaved) {
-    setSecretStatus("无法写入回收站，已取消删除。");
-    return;
-  }
-  const { error } = await secretRepository.removeItem(item.id);
-  if (error) {
-    await rollbackTrashItem(trashSaved);
-    setSecretStatus(error.message || "删除失败。");
-    return;
-  }
-  if (activeSecretAlbumId === item.id) activeSecretAlbumId = "";
-  setSecretStatus("秘藏已移到回收站，可在设置中恢复。");
-  showMiniToast("秘藏已移到回收站", { kind: "success" });
-  await loadSecretItems();
 }
 
 function getToolDockOrderStorageKey(userId = session?.user?.id || "guest") {
@@ -9981,1628 +5678,198 @@ function exitToolDockTouchSort() {
   }, 0);
 }
 
-function getFoodOptionsStorageKey(userId = session?.user?.id || "guest") {
-  return `${FOOD_OPTIONS_KEY}:${userId}`;
-}
-
-function loadFoodOptions(userId = session?.user?.id || "guest") {
-  try {
-    const stored =
-      localStorage.getItem(getFoodOptionsStorageKey(userId)) ||
-      localStorage.getItem(FOOD_OPTIONS_KEY) ||
-      "[]";
-    const parsed = normalizeFoodOptions(JSON.parse(stored));
-    return parsed.length ? parsed : [...DEFAULT_FOOD_OPTIONS];
-  } catch {
-    return [...DEFAULT_FOOD_OPTIONS];
-  }
-}
-
-function saveFoodOptionsCache(userId = session?.user?.id || "guest") {
-  localStorage.setItem(
-    getFoodOptionsStorageKey(userId),
-    JSON.stringify(foodOptions)
-  );
-}
-
-async function persistFoodOptions(nextOptions) {
-  if (
-    !cloudDb ||
-    !session ||
-    !cloudSyncAvailable ||
-    !foodOptionsCloudAvailable
-  ) {
-    els.foodWheelResult.textContent =
-      "Cloudflare D1 尚未升级，候选没有保存。请先部署最新版数据库结构。";
-    return false;
-  }
-  const normalized = normalizeFoodOptions(nextOptions);
-  const { data, error } = await householdRepository.update(
-    "user_profiles",
-    {
-      food_options: normalized,
-      updated_at: new Date().toISOString(),
-    },
-    { user_id: session.user.id },
-    { select: "food_options", single: true }
-  );
-  if (error) {
-    els.foodWheelResult.textContent = `候选同步失败：${error.message}`;
-    return false;
-  }
-  foodOptions = normalizeFoodOptions(data.food_options);
-  accountProfile.foodOptions = [...foodOptions];
-  saveFoodOptionsCache(session.user.id);
-  return true;
-}
-
-function getWheelOptions() {
-  return buildFoodWheelOptions(foodOptions, recipes);
-}
-
-function renderFoodWheel() {
-  renderFoodWheelView({
-    canvas: els.foodWheel,
-    optionsElement: els.foodOptions,
-    options: getWheelOptions(),
-    onRemove: removeFoodOption,
-  });
-}
-
-async function addFoodOption() {
-  const value = els.foodOptionInput.value.trim();
-  if (!value) return;
-  if (foodOptions.includes(value)) {
-    els.foodOptionInput.value = "";
-    return;
-  }
-  const saved = await persistFoodOptions([...foodOptions, value]);
-  if (!saved) return;
-  els.foodOptionInput.value = "";
-  renderFoodWheel();
-}
-
-async function removeFoodOption(value) {
-  const recipeNames = new Set(recipes.map((recipe) => recipe.name));
-  if (recipeNames.has(value)) {
-    els.foodWheelResult.textContent = "菜谱里的菜会自动保留在转盘中";
-    return;
-  }
-  if (getWheelOptions().length <= 2) {
-    els.foodWheelResult.textContent = "至少保留两个候选";
-    return;
-  }
-  const saved = await persistFoodOptions(
-    foodOptions.filter((item) => item !== value)
-  );
-  if (!saved) return;
-  renderFoodWheel();
-}
-
-function spinFoodWheel() {
-  if (foodWheelSpinning) return;
-  const options = getWheelOptions();
-  if (options.length < 2) return;
-  foodWheelSpinning = true;
-  els.spinFoodWheel.disabled = true;
-  els.spinFoodWheel.textContent = "转动中";
-  els.foodWheelResult.textContent = "转盘正在认真思考…";
-
-  const winnerIndex = Math.floor(Math.random() * options.length);
-  const segmentDegrees = 360 / options.length;
-  const desiredMod = (360 - (winnerIndex * segmentDegrees + segmentDegrees / 2)) % 360;
-  const currentMod = ((foodWheelRotation % 360) + 360) % 360;
-  const delta = ((desiredMod - currentMod + 360) % 360) + 360 * 6;
-  foodWheelRotation += delta;
-  els.foodWheel.style.transform = `rotate(${foodWheelRotation}deg)`;
-
-  window.setTimeout(() => {
-    foodWheelSpinning = false;
-    els.spinFoodWheel.disabled = false;
-    els.spinFoodWheel.textContent = "开始转";
-    const result = options[winnerIndex];
-    els.foodWheelResult.textContent = `今天就吃：${result}`;
-    els.foodWheelPeek.textContent = `今天吃 ${result}`;
-  }, 4300);
-}
-
-function openFoodWheel() {
-  els.foodWheelSection.hidden = false;
-  closeMobileDiaryPage();
-  if (els.dialog?.open) closePhotoDialog();
-  if (els.foodWheelDialog.open) return;
-  renderFoodWheel();
-  els.foodWheelDialog.showModal();
-}
-
-function closeFoodWheel() {
-  if (els.foodWheelDialog.open) {
-    els.foodWheelDialog.close();
-  }
-}
-
-function getRecipesStorageKey() {
-  const name = session ? getSessionDisplayName() : "guest";
-  return `${RECIPES_KEY}:${String(name).toLowerCase()}`;
-}
-
-function loadRecipes() {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(getRecipesStorageKey()) || "[]");
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveRecipes() {
-  if (!session) return;
-  localStorage.setItem(getRecipesStorageKey(), JSON.stringify(recipes));
-}
-
-function setRecipeExpanded(expanded) {
-  els.recipeComposer.classList.toggle("expanded", expanded);
-  els.recipeForm.hidden = !expanded;
-  els.recipeToggle.setAttribute("aria-expanded", String(expanded));
-}
-
-function getSelectedSeasonings() {
-  return Array.from(document.querySelectorAll('input[name="recipeSeasoning"]:checked')).map(
-    (input) => input.value
-  );
-}
-
-function setSelectedSeasonings(values = []) {
-  const selected = new Set(values);
-  document.querySelectorAll('input[name="recipeSeasoning"]').forEach((input) => {
-    input.checked = selected.has(input.value);
-  });
-}
-
-async function getRecipeCoverForSave() {
-  const file = els.recipeCoverInput.files?.[0];
-  if (!file && recipeCoverLink) {
-    setRecipeStatus("正在把封面链接复制到 R2…");
-    const copied = await copyUrlToR2(recipeCoverLink, `${slugify(els.recipeNameInput.value || "recipe-cover")}-link`, "recipes");
-    recipeCoverLink = "";
-    return copied.url;
-  }
-  if (!file) return recipeExistingCover;
-
-  try {
-    return await compressRecipeCover(file);
-  } catch (error) {
-    setRecipeStatus(`封面读取失败：${error.message || "请换一张图片"}`);
-    return recipeExistingCover;
-  }
-}
-
-function blobToDataUrl(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () => reject(new Error("图片读取失败。"));
-    reader.readAsDataURL(blob);
-  });
-}
-
-async function compressRecipeCover(file) {
-  const compressed = await compressImage(file, {
-    maxSide: 1200,
-    jpeg: 0.82,
-    minJpeg: 0.62,
-    targetBytes: 360_000,
-    rotatePortrait: true,
-  });
-  if (R2_UPLOAD_ENDPOINT) {
-    const uploaded = await uploadToR2(compressed.blob, slugify(file.name || "recipe-cover"), "recipes");
-    return uploaded.url;
-  }
-  return blobToDataUrl(compressed.blob);
-}
-
-function updateRecipeCoverPreview() {
-  const file = els.recipeCoverInput.files?.[0];
-  if (!file) {
-    if (!recipeExistingCover) clearRecipeCoverPreview();
-    return;
-  }
-
-  recipeCoverLink = "";
-
-  if (recipeCoverPreviewUrl) URL.revokeObjectURL(recipeCoverPreviewUrl);
-  recipeCoverPreviewUrl = URL.createObjectURL(file);
-  els.recipeCoverPreview.src = recipeCoverPreviewUrl;
-  els.recipeCoverPreview.hidden = false;
-  els.recipeCoverName.textContent = file.name;
-}
-
-function setRecipeCoverPreview(src, name = "已保留原封面") {
-  clearRecipeCoverPreview();
-  if (!src) return;
-  els.recipeCoverPreview.src = src;
-  els.recipeCoverPreview.hidden = false;
-  els.recipeCoverName.textContent = name;
-}
-
-function clearRecipeCoverPreview() {
-  if (recipeCoverPreviewUrl) {
-    URL.revokeObjectURL(recipeCoverPreviewUrl);
-    recipeCoverPreviewUrl = "";
-  }
-  els.recipeCoverPreview.removeAttribute("src");
-  els.recipeCoverPreview.hidden = true;
-  els.recipeCoverName.textContent = "还没有选择封面";
-}
-
-function applyRecipeCoverUrl(rawUrl) {
-  const url = String(rawUrl || "").trim();
-  if (!url) return false;
-  try {
-    const parsed = new URL(url);
-    if (!/^https?:$/.test(parsed.protocol)) throw new Error();
-    recipeCoverLink = parsed.href;
-    els.recipeCoverInput.value = "";
-    setRecipeCoverPreview(parsed.href, "已从剪贴板导入图片链接");
-    if (els.recipeCoverLinkInput) els.recipeCoverLinkInput.value = "";
-    setRecipeStatus("已添加图片链接，保存时会复制到 R2。");
-    return true;
-  } catch {
-    setRecipeStatus("剪贴板里的图片链接格式不正确。");
-    return false;
-  }
-}
-
-function handleRecipeCoverPaste(event) {
-  const files = getImageFilesFromClipboard(event, "recipe-cover-pasted");
-  if (files.length) {
-    event.preventDefault();
-    const transfer = new DataTransfer();
-    transfer.items.add(files[0]);
-    els.recipeCoverInput.files = transfer.files;
-    recipeExistingCover = "";
-    recipeCoverLink = "";
-    updateRecipeCoverPreview();
-    setRecipeStatus("已读取剪贴板图片。");
-    return;
-  }
-  const pastedUrl = getClipboardImageUrl(event.clipboardData);
-  if (applyRecipeCoverUrl(pastedUrl)) event.preventDefault();
-}
-
-function resetRecipeForm() {
-  els.recipeForm.reset();
-  recipeEditingId = null;
-  recipeExistingCover = "";
-  recipeCoverLink = "";
-  clearRecipeCoverPreview();
-  setSelectedSeasonings([]);
-  els.recipeFormTitle.textContent = "添加菜谱";
-  els.recipeSubmitButton.textContent = "保存菜谱";
-  els.recipeCancelEdit.hidden = true;
-}
-
-async function saveRecipe(event) {
-  event.preventDefault();
-  if (!session) {
-    setRecipeStatus("请先登录后再保存菜谱。");
-    return;
-  }
-  if (!cloudSyncAvailable) {
-    setRecipeStatus(
-      "Cloudflare D1 尚未升级，菜谱没有保存。请先部署最新版数据库结构。"
-    );
-    return;
-  }
-
-  const name = els.recipeNameInput.value.trim();
-  if (!name) {
-    setRecipeStatus("先写一个菜名。");
-    return;
-  }
-
-  let coverImage;
-  try {
-    coverImage = await getRecipeCoverForSave();
-  } catch (error) {
-    setRecipeStatus(`封面导入失败：${error.message || "请检查图片链接"}`);
-    return;
-  }
-  const previous = recipes.find((item) => item.id === recipeEditingId);
-  let recipe = {
-    id: normalizeUuid(recipeEditingId),
-    userId: previous?.userId || session.user.id,
-    name,
-    category: els.recipeCategoryInput.value,
-    time: els.recipeTimeInput.value.trim(),
-    servings: els.recipeServingsInput.value.trim(),
-    coverImage,
-    seasonings: getSelectedSeasonings(),
-    ingredients: splitLines(els.recipeIngredientsInput.value),
-    steps: splitLines(els.recipeStepsInput.value),
-    note: els.recipeNoteInput.value.trim(),
-    createdAt: previous?.createdAt || new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-
-  const wasEditing = Boolean(recipeEditingId);
-  if (cloudSyncAvailable) {
-    const { data, error } = await householdRepository.upsert(
-      "recipes",
-      recipeToCloudRow(recipe, recipe.userId),
-      { onConflict: "id", select: "*", single: true }
-    );
-    if (error) {
-      setRecipeStatus(`菜谱同步失败：${error.message}`);
-      return;
-    }
-    recipe = recipeFromCloudRow(data);
-  }
-
-  recipes = recipeEditingId
-    ? recipes.map((item) => (item.id === recipeEditingId ? recipe : item))
-    : [recipe, ...recipes];
-  saveRecipes();
-  resetRecipeForm();
-  setRecipeExpanded(false);
-  const gainedExp = await awardExperience(wasEditing ? "recipeEdit" : "recipe");
-  setRecipeStatus(`${wasEditing ? "菜谱已更新。" : "菜谱已保存。"}${gainedExp ? ` 修为 +${gainedExp}` : ""}`);
-  renderRecipes();
-}
-
-function renderRecipes() {
-  renderOverview();
-  renderFoodWheel();
-  if (!session) setRecipeStatus("");
-  renderRecipesView({
-    listElement: els.recipesList,
-    recipes,
-    signedIn: Boolean(session),
-    getAuthorName,
-    canManageItem,
-    onEdit: editRecipe,
-    onDelete: deleteRecipe,
-  });
-}
-
-function editRecipe(id) {
-  const recipe = recipes.find((item) => item.id === id);
-  if (!recipe || !canManageItem(recipe)) return;
-
-  recipeEditingId = id;
-  recipeExistingCover = recipe.coverImage || "";
-  recipeCoverLink = "";
-  els.recipeNameInput.value = recipe.name || "";
-  els.recipeCategoryInput.value = recipe.category || "家常菜";
-  els.recipeTimeInput.value = recipe.time || "";
-  els.recipeServingsInput.value = recipe.servings || "";
-  els.recipeIngredientsInput.value = (recipe.ingredients || []).join("\n");
-  els.recipeStepsInput.value = (recipe.steps || []).join("\n");
-  els.recipeNoteInput.value = recipe.note || "";
-  setSelectedSeasonings(recipe.seasonings || []);
-  setRecipeCoverPreview(recipeExistingCover);
-  els.recipeFormTitle.textContent = "编辑菜谱";
-  els.recipeSubmitButton.textContent = "保存修改";
-  els.recipeCancelEdit.hidden = false;
-  setRecipeExpanded(true);
-  setRecipeStatus(`正在编辑：${recipe.name}`);
-  els.recipeComposer.scrollIntoView({ behavior: "smooth", block: "start" });
-}
-
-async function deleteRecipe(id) {
-  const recipe = recipes.find((item) => item.id === id);
-  if (!recipe || !canManageItem(recipe)) return;
-  const ok = await confirmAction({
-    eyebrow: "移到回收站",
-    title: "删除这个菜谱？",
-    message: `“${recipe.name}”会保留 30 天，期间可以恢复。`,
-    confirmLabel: "删除菜谱",
-    cancelLabel: "先保留",
-    danger: true,
-  });
-  if (!ok) return;
-  if (!cloudSyncAvailable) {
-    setRecipeStatus("数据库尚未连接，不能删除菜谱。");
-    return;
-  }
-
-  const trashSaved = await createTrashItem(
-    "recipe",
-    recipe.id,
-    recipe.name,
-    recipeToCloudRow(recipe, recipe.userId || session.user.id)
-  );
-  if (!trashSaved) {
-    setRecipeStatus("无法写入回收站，已取消删除。");
-    return;
-  }
-  const { error } = await householdRepository.remove("recipes", { id });
-  if (error) {
-    await rollbackTrashItem(trashSaved);
-    setRecipeStatus(`删除同步失败：${error.message}`);
-    return;
-  }
-
-  recipes = recipes.filter((item) => item.id !== id);
-  saveRecipes();
-  setRecipeStatus("菜谱已移到回收站，30 天内可以恢复。");
-  renderRecipes();
-}
-
-function splitLines(value) {
-  return String(value || "")
-    .split(/\r?\n/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-function setRecipeStatus(message) {
-  els.recipeStatus.textContent = message;
-}
-
-function setWishlistExpanded(expanded) {
-  els.wishlistComposer.classList.toggle("expanded", expanded);
-  els.wishlistForm.hidden = !expanded;
-  els.wishlistToggle.setAttribute("aria-expanded", String(expanded));
-}
-
-function updateWishImagePreview() {
-  const file = els.wishImageInput.files?.[0];
-  if (!file) return;
-  wishImageLink = "";
-  if (wishImagePreviewUrl) URL.revokeObjectURL(wishImagePreviewUrl);
-  wishImagePreviewUrl = URL.createObjectURL(file);
-  wishRemoveImageRequested = false;
-  els.wishImagePreview.src = wishImagePreviewUrl;
-  els.wishImagePreview.hidden = false;
-  els.wishImageName.textContent = file.name;
-  els.wishRemoveImage.hidden = false;
-}
-
-function setWishImagePreview(src, name = "已保存的心愿图片") {
-  clearWishImagePreview();
-  if (!src) return;
-  wishExistingImage = src;
-  els.wishImagePreview.src = src;
-  els.wishImagePreview.hidden = false;
-  els.wishImageName.textContent = name;
-  els.wishRemoveImage.hidden = false;
-}
-
-function clearWishImagePreview() {
-  if (wishImagePreviewUrl) {
-    URL.revokeObjectURL(wishImagePreviewUrl);
-    wishImagePreviewUrl = "";
-  }
-  els.wishImageInput.value = "";
-  if (els.wishImageLinkInput) els.wishImageLinkInput.value = "";
-  wishImageLink = "";
-  els.wishImagePreview.removeAttribute("src");
-  els.wishImagePreview.hidden = true;
-  els.wishImageName.textContent = "还没有选择图片";
-  els.wishRemoveImage.hidden = true;
-}
-
-function removeWishImage() {
-  clearWishImagePreview();
-  wishExistingImage = "";
-  wishRemoveImageRequested = true;
-}
-
-function handleWishImagePaste(event) {
-  const imageItem = Array.from(event.clipboardData?.items || []).find((item) =>
-    item.type.startsWith("image/")
-  );
-  if (!imageItem) {
-    const pastedUrl = getClipboardImageUrl(event.clipboardData);
-    if (applyWishImageUrl(pastedUrl)) event.preventDefault();
-    return;
-  }
-  const file = imageItem.getAsFile();
-  if (!file) return;
-
-  event.preventDefault();
-  const extension = file.type?.split("/")[1] || "png";
-  const transfer = new DataTransfer();
-  transfer.items.add(
-    new File([file], `wish-${Date.now()}.${extension}`, {
-      type: file.type || "image/png",
-    })
-  );
-  els.wishImageInput.files = transfer.files;
-  wishImageLink = "";
-  updateWishImagePreview();
-  setWishlistStatus("已读取剪切板图片。");
-}
-
-function applyWishImageUrl(rawUrl) {
-  const urls = extractImageUrls(rawUrl);
-  if (!urls.length) {
-    setWishlistStatus("请输入完整的 http 或 https 图片链接。");
-    return false;
-  }
-  wishImageLink = urls[0];
-  wishRemoveImageRequested = false;
-  els.wishImageInput.value = "";
-  if (els.wishImageLinkInput) els.wishImageLinkInput.value = "";
-  els.wishImagePreview.src = wishImageLink;
-  els.wishImagePreview.hidden = false;
-  els.wishImageName.textContent = "已添加图片链接";
-  els.wishRemoveImage.hidden = false;
-  setWishlistStatus("已添加图片链接，保存时会复制到 R2。");
-  return true;
-}
-
-async function uploadWishImage(file, title, linkUrl = wishImageLink) {
-  if (!file && linkUrl) {
-    setWishlistStatus("正在把图片链接复制到 R2…");
-    const copied = await copyUrlToR2(linkUrl, `${slugify(title || "wish")}-link`, "wishes");
-    return { imageUrl: copied.url, imagePath: `r2:${copied.key}` };
-  }
-  if (!file) {
-    return {
-      imageUrl: wishRemoveImageRequested ? "" : wishExistingImage,
-      imagePath: wishRemoveImageRequested ? "" : wishExistingImagePath,
-    };
-  }
-
-  setWishlistStatus("正在压缩心愿图片…");
-  const compressed = await compressImage(file);
-  setWishlistStatus(
-    `已压缩 ${formatFileSize(file.size)} → ${formatFileSize(compressed.blob.size)}，正在上传心愿图片…`
-  );
-  const uploaded = await uploadToR2(compressed.blob, slugify(title), "wishes");
-  return { imageUrl: uploaded.url, imagePath: `r2:${uploaded.key}` };
-}
-
-function resetWishForm() {
-  els.wishlistForm.reset();
-  wishEditingId = null;
-  wishExistingImage = "";
-  wishExistingImagePath = "";
-  wishImageLink = "";
-  wishRemoveImageRequested = false;
-  clearWishImagePreview();
-  els.wishlistFormTitle.textContent = "添加心愿";
-  els.wishSubmitButton.textContent = "保存心愿";
-  els.wishCancelEdit.hidden = true;
-}
-
-async function saveWish(event) {
-  event.preventDefault();
-  if (!session) {
-    setWishlistStatus("请先登录后再保存心愿。");
-    return;
-  }
-  if (!cloudSyncAvailable) {
-    setWishlistStatus(
-      "Cloudflare D1 尚未升级，心愿没有保存。请先部署最新版数据库结构。"
-    );
-    return;
-  }
-
-  const title = els.wishTitleInput.value.trim();
-  if (!title) {
-    setWishlistStatus("先写一个心愿。");
-    return;
-  }
-
-  const previous = wishes.find((item) => item.id === wishEditingId);
-  let image;
-  try {
-    image = await uploadWishImage(els.wishImageInput.files?.[0], title, wishImageLink);
-  } catch (error) {
-    setWishlistStatus(`图片上传失败：${error.message}`);
-    return;
-  }
-
-  let wish = {
-    id: normalizeUuid(wishEditingId),
-    userId: previous?.userId || session.user.id,
-    title,
-    type: els.wishTypeInput.value,
-    date: els.wishDateInput.value,
-    priority: els.wishPriorityInput.value,
-    note: els.wishNoteInput.value.trim(),
-    completionNote: els.wishCompletionNoteInput.value.trim(),
-    imageUrl: image.imageUrl,
-    imagePath: image.imagePath,
-    done: previous?.done || false,
-    completedAt: previous?.completedAt || "",
-    createdAt: previous?.createdAt || new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-
-  const { data, error } = await householdRepository.upsert(
-    "wishes",
-    wishToCloudRow(wish, wish.userId),
-    {
-      onConflict: "id",
-      select: "*",
-      single: true,
-    }
-  );
-  if (error) {
-    if (image.imagePath && image.imagePath !== previous?.imagePath) {
-      await cleanupStoredImagePaths([image.imagePath]);
-    }
-    setWishlistStatus(`心愿同步失败：${error.message}`);
-    return;
-  }
-  wish = wishFromCloudRow(data);
-
-  const wasEditing = Boolean(wishEditingId);
-  wishes = wasEditing
-    ? wishes.map((item) => (item.id === wishEditingId ? wish : item))
-    : [wish, ...wishes];
-  if (
-    previous?.imagePath &&
-    previous.imagePath !== wish.imagePath &&
-    cloudDb &&
-    session
-  ) {
-    await cleanupStoredImagePaths([previous.imagePath]);
-  }
-  resetWishForm();
-  setWishlistExpanded(false);
-  const gainedExp = await awardExperience(wasEditing ? "wishEdit" : "wish");
-  setWishlistStatus(
-    `${wasEditing ? "心愿已更新。" : "心愿已保存。"}${gainedExp ? ` 修为 +${gainedExp}` : ""}`
-  );
-  renderWishes();
-}
-
-function renderWishes() {
-  renderOverview();
-  if (!session) setWishlistStatus("");
-  renderWishlist({
-    listElement: els.wishlistList,
-    tabsElement: els.wishTabs,
-    openCountElement: els.wishOpenCount,
-    doneCountElement: els.wishDoneCount,
-    wishes,
-    activeView: activeWishView,
-    signedIn: Boolean(session),
-    dataState: accountDataState,
-    getAuthorName,
-    canManageItem,
-    onEdit: editWish,
-    onOpen: openWishImage,
-    onToggle: toggleWish,
-    onDelete: deleteWish,
-  });
-}
-function editWish(id) {
-  const wish = wishes.find((item) => item.id === id);
-  if (!wish || !canManageItem(wish)) return;
-
-  wishEditingId = id;
-  wishExistingImage = wish.imageUrl || "";
-  wishExistingImagePath = wish.imagePath || "";
-  wishRemoveImageRequested = false;
-  els.wishTitleInput.value = wish.title || "";
-  els.wishTypeInput.value = wish.type || "想做";
-  els.wishDateInput.value = wish.date || "";
-  els.wishPriorityInput.value = wish.priority || "普通";
-  els.wishNoteInput.value = wish.note || "";
-  els.wishCompletionNoteInput.value = wish.completionNote || "";
-  if (wishExistingImage) setWishImagePreview(wishExistingImage);
-  else clearWishImagePreview();
-  els.wishlistFormTitle.textContent = "编辑心愿";
-  els.wishSubmitButton.textContent = "保存修改";
-  els.wishCancelEdit.hidden = false;
-  setWishlistExpanded(true);
-  setWishlistStatus(`正在编辑：${wish.title}`);
-  els.wishlistComposer.scrollIntoView({ behavior: "smooth", block: "start" });
-}
-
-function openWishCompleteDialog(id) {
-  const wish = wishes.find((item) => item.id === id);
-  if (!wish || !canManageItem(wish)) return;
-  wishCompletingId = id;
-  els.wishCompleteTitle.textContent = wish.title || "完成心愿";
-  els.wishCompleteMeta.textContent = `${wish.type || "心愿"} · ${wish.priority || "普通"} · ${getAuthorName(wish.userId)} 发布`;
-  els.wishCompleteNoteInput.value = wish.completionNote || "";
-  els.wishCompleteStatus.textContent = "";
-  els.wishCompletePreview.innerHTML = wish.imageUrl
-    ? `<img src="${escapeHtml(wish.imageUrl)}" alt="${escapeHtml(wish.title)}" />`
-    : `<div><span>${escapeHtml(wish.type || "心愿")}</span><strong>${escapeHtml(wish.title || "完成心愿")}</strong></div>`;
-  els.wishCompleteDialog.showModal();
-  setTimeout(() => els.wishCompleteNoteInput.focus(), 0);
-}
-
-function closeWishCompleteDialog() {
-  wishCompletingId = null;
-  els.wishCompleteForm.reset();
-  els.wishCompleteStatus.textContent = "";
-  els.wishCompleteDialog.close();
-}
-
-function setWishCompletionMessage(message, target = "page") {
-  if (target === "dialog") {
-    els.wishCompleteStatus.textContent = message;
-  } else {
-    setWishlistStatus(message);
-  }
-}
-
-async function saveWishCompletionState(current, done, completionNote = "", target = "page") {
-  if (!cloudSyncAvailable) {
-    setWishCompletionMessage("数据库尚未连接，心愿状态没有修改。", target);
-    return false;
-  }
-  const next = {
-    ...current,
-    done,
-    completionNote: done ? completionNote : "",
-    completedAt: done ? new Date().toISOString() : "",
-    updatedAt: new Date().toISOString(),
-  };
-
-  const updatePayload = {
-    is_done: next.done,
-    completion_note: next.completionNote || "",
-    completed_at: next.completedAt || null,
-    updated_at: next.updatedAt,
-  };
-  const result = await householdRepository.update(
-    "wishes",
-    updatePayload,
-    { id: current.id },
-    { select: "*", single: true }
-  );
-
-  if (result.error) {
-    setWishCompletionMessage(`心愿同步失败：${result.error.message}`, target);
-    return false;
-  }
-  Object.assign(next, wishFromCloudRow(result.data));
-
-  wishes = wishes.map((wish) => (wish.id === current.id ? next : wish));
-  activeWishView = done ? "done" : "open";
-  const gainedExp = await awardExperience(done ? "wishDone" : "wishEdit");
-  setWishlistStatus(
-    `${done ? "心愿已完成，感想已保存。" : "已取消完成状态。"}${gainedExp ? ` 修为 +${gainedExp}` : ""}`
-  );
-  renderWishes();
-  return true;
-}
-
-async function submitWishCompletion(event) {
-  event.preventDefault();
-  const current = wishes.find((wish) => wish.id === wishCompletingId);
-  if (!current || !canManageItem(current)) return;
-  const note = els.wishCompleteNoteInput.value.trim();
-  els.wishCompleteSubmit.disabled = true;
-  els.wishCompleteSubmit.textContent = "保存中...";
-  const saved = await saveWishCompletionState(current, true, note, "dialog");
-  els.wishCompleteSubmit.disabled = false;
-  els.wishCompleteSubmit.textContent = "保存完成感想";
-  if (saved) closeWishCompleteDialog();
-}
-
-async function toggleWish(id) {
-  const current = wishes.find((wish) => wish.id === id);
-  if (!current || !canManageItem(current)) return;
-  if (!current.done) {
-    openWishCompleteDialog(id);
-    return;
-  }
-  const ok = await confirmAction({
-    eyebrow: "更新完成状态",
-    title: "改回待实现？",
-    message: `“${current.title}”的完成感想会保留，之后仍可再次标记完成。`,
-    confirmLabel: "改回待实现",
-    cancelLabel: "保持完成",
-  });
-  if (!ok) return;
-  await saveWishCompletionState(current, false, "");
-}
-
-async function deleteWish(id, triggerButton = null) {
-  const wish = wishes.find((item) => item.id === id);
-  if (!wish || !canManageItem(wish)) return;
-  const ok = await confirmWishDeletion(wish);
-  if (!ok) return;
-  if (!cloudSyncAvailable) {
-    setWishlistStatus("数据库尚未连接，不能删除心愿。");
-    showMiniToast("暂时无法连接云端，请稍后再试", { kind: "error" });
-    return;
-  }
-
-  const originalLabel = triggerButton?.textContent || "删除";
-  if (triggerButton) {
-    triggerButton.disabled = true;
-    triggerButton.textContent = "处理中";
-  }
-  try {
-    let result = await householdRepository.rpc("move_family_item_to_trash", {
-      p_item_type: "wish",
-      p_item_id: wish.id,
-    });
-
-    if (result.error) {
-      const trashSaved = await createTrashItem(
-        "wish",
-        wish.id,
-        wish.title,
-        wishToCloudRow(wish, wish.userId || session.user.id)
-      );
-      if (!trashSaved) {
-        setWishlistStatus("无法写入回收站，已取消删除。");
-        showMiniToast("删除失败，心愿仍然保留", { kind: "error" });
-        return;
-      }
-      const deleteResult = await householdRepository.remove("wishes", { id });
-      const deletedRows = Array.isArray(deleteResult.data) ? deleteResult.data : [];
-      if (deleteResult.error || !deletedRows.length) {
-        await rollbackTrashItem(trashSaved);
-        result = deleteResult.error
-          ? deleteResult
-          : { data: null, error: new Error("数据库没有删除任何记录，请稍后重试。") };
-      } else {
-        result = { data: deletedRows, error: null };
-      }
-    }
-
-    if (result.error) {
-      const message = String(result.error.message || "删除请求失败");
-      setWishlistStatus(`删除同步失败：${message}`);
-      showMiniToast("云端删除失败，心愿仍然保留", { kind: "error" });
-      return;
-    }
-
-    wishes = wishes.filter((item) => item.id !== id);
-    setWishlistStatus("心愿已移到回收站，30 天内可以恢复。");
-    showMiniToast("已移到回收站", { kind: "success" });
-    renderWishes();
-  } finally {
-    if (triggerButton?.isConnected) {
-      triggerButton.disabled = false;
-      triggerButton.textContent = originalLabel;
-    }
-  }
-}
-
-function setWishlistStatus(message) {
-  els.wishlistStatus.textContent = message;
-}
-
-function registerAppShellWorker() {
-  if (!("serviceWorker" in navigator)) return;
-  if (!["https:", "http:"].includes(window.location.protocol)) return;
-  navigator.serviceWorker.register("./service-worker.js", { scope: "./" }).catch(() => {});
-}
-
-function decodeVapidPublicKey(value) {
-  const padding = "=".repeat((4 - (value.length % 4)) % 4);
-  const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
-  return Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
-}
-
-function supportsWebPush() {
-  return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
-}
-
-function isStandaloneWebApp() {
-  return window.matchMedia?.("(display-mode: standalone)").matches || window.navigator.standalone === true;
-}
-
-async function getPushSubscription() {
-  if (!supportsWebPush()) return null;
-  const registration = await navigator.serviceWorker.ready;
-  return registration.pushManager.getSubscription();
-}
-
-async function syncExistingPushSubscription({ force = false } = {}) {
-  if (!session || !supportsWebPush() || Notification.permission !== "granted") return false;
-  if (pushSubscriptionSyncPromise) return pushSubscriptionSyncPromise;
-  const storageKey = `${PUSH_SUBSCRIPTION_SYNC_KEY}:${session.user.id}`;
-  const lastSync = Number(localStorage.getItem(storageKey) || 0);
-  if (!force && Date.now() - lastSync < PUSH_SUBSCRIPTION_SYNC_INTERVAL) return true;
-
-  pushSubscriptionSyncPromise = (async () => {
-    const subscription = await getPushSubscription();
-    if (!subscription) return false;
-    await cloudflareRequest("/api/push/subscribe", {
-      method: "POST",
-      body: JSON.stringify({ subscription: subscription.toJSON() }),
-    });
-    localStorage.setItem(storageKey, String(Date.now()));
-    return true;
-  })()
-    .catch(() => false)
-    .finally(() => {
-      pushSubscriptionSyncPromise = null;
-    });
-  return pushSubscriptionSyncPromise;
-}
-
-async function refreshPushSettings() {
-  const state = document.querySelector("#pushNotificationState");
-  const detail = document.querySelector("#pushNotificationDetail");
-  const enable = document.querySelector("#enablePushNotifications");
-  const disable = document.querySelector("#disablePushNotifications");
-  if (!state || !enable || !disable) return;
-  if (!supportsWebPush()) {
-    state.textContent = "当前设备不支持";
-    detail.textContent = "请使用 iOS 16.4+ 主屏幕 Web App 或现代浏览器。";
-    enable.disabled = true;
-    disable.hidden = true;
-    return;
-  }
-  const subscription = await getPushSubscription().catch(() => null);
-  const enabled = Notification.permission === "granted" && Boolean(subscription);
-  state.textContent = enabled ? "已开启" : Notification.permission === "denied" ? "已被系统关闭" : "未开启";
-  detail.textContent = enabled
-    ? "新日记、评论、回复和感谢留言会发送到这台设备。"
-    : (/(iPhone|iPad|iPod)/i.test(navigator.userAgent) && !isStandaloneWebApp())
-      ? "请先添加到主屏幕，再从桌面图标打开并开启。"
-      : "开启后，即使没有打开页面也能收到家庭消息。";
-  enable.hidden = enabled;
-  enable.disabled = Notification.permission === "denied";
-  disable.hidden = !enabled;
-}
-
-async function enableWebPush() {
-  if (!session || !supportsWebPush()) return;
-  const status = document.querySelector("#pushNotificationStatus");
-  if (/(iPhone|iPad|iPod)/i.test(navigator.userAgent) && !isStandaloneWebApp()) {
-    if (status) status.textContent = "请先把咻蛋之家添加到主屏幕，再从桌面图标打开。";
-    return;
-  }
-  if (status) status.textContent = "正在向系统申请通知权限...";
-  const permission = await Notification.requestPermission();
-  if (permission !== "granted") {
-    if (status) status.textContent = "没有获得通知权限，可在系统设置中重新允许。";
-    await refreshPushSettings();
-    return;
-  }
-  try {
-    const registration = await navigator.serviceWorker.ready;
-    const config = await cloudflareRequest("/api/push/config");
-    const publicKey = String(config?.data?.publicKey || "");
-    if (!publicKey) throw new Error("推送公钥尚未部署");
-    let subscription = await registration.pushManager.getSubscription();
-    if (!subscription) {
-      subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: decodeVapidPublicKey(publicKey),
-      });
-    }
-    await cloudflareRequest("/api/push/subscribe", {
-      method: "POST",
-      body: JSON.stringify({ subscription: subscription.toJSON() }),
-    });
-    localStorage.setItem(`${PUSH_SUBSCRIPTION_SYNC_KEY}:${session.user.id}`, String(Date.now()));
-    if (status) status.textContent = "通知已开启，这台设备会收到家庭新消息。";
-    showMiniToast("通知已开启", { kind: "success", placement: "center" });
-  } catch (error) {
-    if (status) status.textContent = `开启失败：${error.message}`;
-  }
-  await refreshPushSettings();
-}
-
-async function disableWebPush() {
-  const status = document.querySelector("#pushNotificationStatus");
-  try {
-    const subscription = await getPushSubscription();
-    if (subscription) {
-      await cloudflareRequest("/api/push/unsubscribe", {
-        method: "POST",
-        body: JSON.stringify({ endpoint: subscription.endpoint }),
-      });
-      await subscription.unsubscribe();
-    }
-    if (navigator.clearAppBadge) await navigator.clearAppBadge().catch(() => {});
-    if (status) status.textContent = "这台设备的通知已关闭。";
-  } catch (error) {
-    if (status) status.textContent = `关闭失败：${error.message}`;
-  }
-  await refreshPushSettings();
-}
-
-function ensurePushSettingsPage() {
-  const nav = els.settingsDialog?.querySelector(".settings-sidebar nav");
-  const content = els.settingsDialog?.querySelector(".settings-content");
-  if (!nav || !content) return;
-  if (!nav.querySelector('[data-settings-section="settingsNotifications"]')) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.dataset.settingsSection = "settingsNotifications";
-    button.setAttribute("aria-selected", "false");
-    button.textContent = "通知";
-    button.addEventListener("click", () => setActiveSettingsSection("settingsNotifications"));
-    nav.insertBefore(button, nav.querySelector('[data-settings-section="settingsTools"]'));
-  }
-  if (!document.querySelector("#settingsNotifications")) {
-    const group = document.createElement("section");
-    group.className = "settings-group settings-notification-group";
-    group.id = "settingsNotifications";
-    group.hidden = true;
-    group.innerHTML = `<p class="kicker">Web Push</p><h3>消息通知</h3>
-      <div class="push-settings-card"><div><span>这台设备</span><strong id="pushNotificationState">检查中</strong><small id="pushNotificationDetail">正在读取通知状态...</small></div>
-      <div class="push-settings-actions"><button class="primary" id="enablePushNotifications" type="button">开启通知</button><button id="disablePushNotifications" type="button" hidden>关闭这台设备</button></div></div>
-      <p class="status-line" id="pushNotificationStatus"></p>`;
-    content.append(group);
-    group.querySelector("#enablePushNotifications").addEventListener("click", enableWebPush);
-    group.querySelector("#disablePushNotifications").addEventListener("click", disableWebPush);
-  }
-}
-
-async function openPushDestination(data = {}) {
-  if (!session) return;
-  const photoId = String(data.photoId || new URLSearchParams(location.search).get("pushPhoto") || "");
-  const type = String(data.type || new URLSearchParams(location.search).get("pushType") || "");
-  if (data.notificationId && cloudDb) {
-    await notificationRepository.markRead(data.notificationId);
-    void loadNotifications();
-  }
-  if (photoId) {
-    let photo = photos.find((item) => item.id === photoId);
-    if (!photo && cloudDb) {
-      const { data: fetched } = await diaryRepository.getById(photoId);
-      photo = fetched || null;
-      if (photo && !photos.some((item) => item.id === photo.id)) photos.unshift(photo);
-    }
-    if (photo) {
-      switchPage("gallery");
-      requestAnimationFrame(() => openPhoto(photo));
-    }
-  } else if (type === "thanks") {
-    switchPage("thanks");
-  } else {
-    await openNotificationsPanel();
-  }
-  if (location.search.includes("push")) history.replaceState({}, "", location.pathname);
-}
-
-function getAnniversaryStorageKey() {
-  const userId = session?.user?.id || "guest";
-  return `${ANNIVERSARY_KEY}:${String(userId).toLowerCase()}`;
-}
-
-function loadAnniversaries() {
-  const stored = localStorage.getItem(getAnniversaryStorageKey());
-  if (!stored) return [];
-  try {
-    const parsed = JSON.parse(stored);
-    return Array.isArray(parsed) ? parsed.filter((item) => item?.date) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveAnniversaries() {
-  if (!session) return;
-  localStorage.setItem(getAnniversaryStorageKey(), JSON.stringify(anniversaries));
-}
-
-function renderAnniversaries() {
-  renderAnniversariesView({
-    listElement: els.anniversaryList,
-    peekElement: els.anniversaryPeek,
-    items: anniversaries,
-    signedIn: Boolean(session),
-    getAuthorName,
-    canManageItem,
-    onEdit: editAnniversary,
-    onDelete: deleteAnniversary,
-  });
-}
-
-function setAnniversaryFormExpanded(expanded) {
-  els.anniversaryForm.hidden = !expanded;
-  els.anniversaryAdd.setAttribute("aria-expanded", String(expanded));
-  els.anniversaryAdd.textContent = expanded ? "收起编辑器" : "添加纪念日";
-}
-
-function resetAnniversaryForm() {
-  els.anniversaryForm.reset();
-  anniversaryEditingId = null;
-  els.anniversarySubmit.textContent = "保存";
-  els.anniversaryStatus.textContent = "";
-}
-
-function editAnniversary(id) {
-  const item = anniversaries.find((entry) => entry.id === id);
-  if (!item || !canManageItem(item)) return;
-  anniversaryEditingId = id;
-  els.anniversaryTitleInput.value = item.title || "";
-  els.anniversaryTypeInput.value = item.type || "annual";
-  els.anniversaryDateInput.value = item.date || "";
-  els.anniversaryNoteInput.value = item.note || "";
-  els.anniversarySubmit.textContent = "保存修改";
-  setAnniversaryFormExpanded(true);
-  els.anniversaryTitleInput.focus();
-}
-
-async function saveAnniversary(event) {
-  event.preventDefault();
-  if (!session) return;
-  if (!anniversaryCloudAvailable) {
-    els.anniversaryStatus.textContent =
-      "Cloudflare D1 尚未升级，纪念日没有保存。请先部署最新版数据库结构。";
-    return;
-  }
-  const title = els.anniversaryTitleInput.value.trim();
-  const date = els.anniversaryDateInput.value;
-  if (!title || !date) {
-    els.anniversaryStatus.textContent = "请填写名称和日期。";
-    return;
-  }
-
-  const previous = anniversaries.find((item) => item.id === anniversaryEditingId);
-  let item = {
-    id: normalizeUuid(anniversaryEditingId),
-    userId: previous?.userId || session.user.id,
-    title,
-    type: els.anniversaryTypeInput.value,
-    date,
-    note: els.anniversaryNoteInput.value.trim(),
-    createdAt: previous?.createdAt || new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-
-  if (anniversaryCloudAvailable) {
-    const { data, error } = await householdRepository.upsert(
-      "anniversaries",
-      anniversaryToCloudRow(item, item.userId),
-      { onConflict: "id", select: "*", single: true }
-    );
-    if (error) {
-      els.anniversaryStatus.textContent = `同步失败：${error.message}`;
-      return;
-    }
-    item = anniversaryFromCloudRow(data);
-  }
-
-  anniversaries = previous
-    ? anniversaries.map((entry) => (entry.id === anniversaryEditingId ? item : entry))
-    : [item, ...anniversaries];
-  saveAnniversaries();
-  resetAnniversaryForm();
-  setAnniversaryFormExpanded(false);
-  const gainedExp = await awardExperience(previous ? "anniversaryEdit" : "anniversary");
-  els.anniversaryStatus.textContent = `${previous ? "纪念日已更新。" : "纪念日已保存。"}${gainedExp ? ` 修为 +${gainedExp}` : ""}`;
-  renderAnniversaries();
-}
-
-async function deleteAnniversary(id) {
-  const item = anniversaries.find((entry) => entry.id === id);
-  if (!item || !canManageItem(item)) return;
-  const confirmed = await confirmAction({
-    eyebrow: "移到回收站",
-    title: "删除这个纪念日？",
-    message: `“${item.title}”会保留 30 天，期间可以恢复。`,
-    confirmLabel: "删除纪念日",
-    cancelLabel: "先保留",
-    danger: true,
-  });
-  if (!confirmed) return;
-  if (!anniversaryCloudAvailable) {
-    els.anniversaryStatus.textContent = "数据库尚未连接，不能删除纪念日。";
-    return;
-  }
-  const trashSaved = await createTrashItem(
-    "anniversary",
-    item.id,
-    item.title,
-    anniversaryToCloudRow(item, item.userId || session.user.id)
-  );
-  if (!trashSaved) {
-    els.anniversaryStatus.textContent = "无法写入回收站，已取消删除。";
-    return;
-  }
-  const { error } = await householdRepository.remove("anniversaries", { id });
-  if (error) {
-    await rollbackTrashItem(trashSaved);
-    els.anniversaryStatus.textContent = `删除失败：${error.message}`;
-    return;
-  }
-  anniversaries = anniversaries.filter((entry) => entry.id !== id);
-  saveAnniversaries();
-  els.anniversaryStatus.textContent = "纪念日已删除。";
-  renderAnniversaries();
-}
-
-async function synchronizeAnniversaries(userId = session?.user?.id) {
-  if (!cloudDb || !session || !userId) return;
-  try {
-    const { data, error } = await householdRepository.list("anniversaries", {
-      order: [{ column: "created_at", ascending: true }],
-    });
-    if (error) throw error;
-
-    const cloudItems = data || [];
-
-    anniversaryCloudAvailable = true;
-    const cloudMapped = cloudItems.map(anniversaryFromCloudRow);
-    anniversaries = cloudMapped;
-    saveAnniversaries();
-    renderAnniversaries();
-  } catch (error) {
-    anniversaryCloudAvailable = false;
-    anniversaries = loadAnniversaries();
-    renderAnniversaries();
-    if (isMissingCloudSchema(error)) {
-      els.anniversaryStatus.textContent =
-        "纪念日云表尚未初始化，当前先保存在此浏览器。";
-    } else {
-      els.anniversaryStatus.textContent = `纪念日同步失败：${error.message || "请稍后重试"}`;
-    }
-  }
-}
-
-function getWeekendStorageKey() {
-  const name = session ? getSessionDisplayName() : "guest";
-  return `${WEEKEND_KEY}:${String(name).toLowerCase()}`;
-}
-
-function clearWeekendImageState() {
-  weekendPreviewUrls.forEach((url) => URL.revokeObjectURL(url));
-  weekendPreviewUrls = [];
-  weekendSelectedFiles = [];
-  weekendSelectedLinks = [];
-  weekendExistingImages = [];
-  if (els.weekendImageInput) els.weekendImageInput.value = "";
-  if (els.weekendImageLinkInput) els.weekendImageLinkInput.value = "";
-  renderWeekendImagePreviews();
-}
-
-function renderWeekendImagePreviews() {
-  if (!els.weekendImagePreviews) return;
-  weekendPreviewUrls.forEach((url) => URL.revokeObjectURL(url));
-  weekendPreviewUrls = weekendSelectedFiles.map((file) => URL.createObjectURL(file));
-  const entries = [
-    ...weekendExistingImages.map((image, index) => ({ url: image.thumbnail_url || image.image_url, type: "existing", index })),
-    ...weekendPreviewUrls.map((url, index) => ({ url, type: "selected", index })),
-    ...weekendSelectedLinks.map((url, index) => ({ url, type: "link", index })),
-  ];
-  els.weekendImagePreviews.hidden = !entries.length;
-  els.weekendImagePreviews.innerHTML = entries.map((entry) => `<span><img src="${escapeHtml(entry.url)}" alt="周末场景预览" /><button type="button" data-remove-weekend-${entry.type}="${entry.index}" aria-label="删除这张场景图片">×</button></span>`).join("");
-}
-
-function addWeekendFiles(files) {
-  const next = Array.from(files || []).filter((file) => file?.type?.startsWith("image/"));
-  if (!next.length) return;
-  weekendSelectedFiles = [...weekendSelectedFiles, ...next].slice(0, 20);
-  renderWeekendImagePreviews();
-  setWeekendStatus(`已选择 ${weekendExistingImages.length + weekendSelectedFiles.length + weekendSelectedLinks.length} 张场景图片。`);
-}
-
-function handleWeekendImagePaste(event) {
-  const files = getImageFilesFromClipboard(event, "weekend-pasted");
-  if (files.length) {
-    event.preventDefault();
-    addWeekendFiles(files);
-    return;
-  }
-  const pastedUrl = getClipboardImageUrl(event.clipboardData);
-  if (addWeekendImageLinks(pastedUrl)) event.preventDefault();
-}
-
-function addWeekendImageLinks(rawLinks = els.weekendImageLinkInput?.value || "") {
-  const urls = extractImageUrls(rawLinks);
-  if (!urls.length) {
-    if (String(rawLinks || "").trim()) setWeekendStatus("请输入完整的 http 或 https 图片链接。");
-    return false;
-  }
-  weekendSelectedLinks = [...new Set([...weekendSelectedLinks, ...urls])].slice(0, 20);
-  if (els.weekendImageLinkInput) els.weekendImageLinkInput.value = "";
-  renderWeekendImagePreviews();
-  setWeekendStatus(`已添加 ${urls.length} 个图片链接，保存时会复制到 R2。`);
-  return true;
-}
-
-function clearWeekendCompletionState() {
-  weekendCompletionPreviewUrls.forEach((url) => URL.revokeObjectURL(url));
-  weekendCompletionPreviewUrls = [];
-  weekendCompletionFiles = [];
-  weekendCompletionLinks = [];
-  weekendCompletionExistingImages = [];
-  weekendCompletionPlanId = null;
-  if (els.weekendCompletionInput) els.weekendCompletionInput.value = "";
-  if (els.weekendCompletionLinkInput) els.weekendCompletionLinkInput.value = "";
-  if (els.weekendCompletionNote) els.weekendCompletionNote.value = "";
-  if (els.weekendCompletionStatus) els.weekendCompletionStatus.textContent = "";
-  renderWeekendCompletionPreviews();
-}
-
-function renderWeekendCompletionPreviews() {
-  if (!els.weekendCompletionPreviews) return;
-  weekendCompletionPreviewUrls.forEach((url) => URL.revokeObjectURL(url));
-  weekendCompletionPreviewUrls = weekendCompletionFiles.map((file) => URL.createObjectURL(file));
-  const entries = [
-    ...weekendCompletionExistingImages.map((image, index) => ({ url: image.thumbnail_url || image.image_url, type: "existing", index })),
-    ...weekendCompletionPreviewUrls.map((url, index) => ({ url, type: "file", index })),
-    ...weekendCompletionLinks.map((url, index) => ({ url, type: "link", index })),
-  ];
-  els.weekendCompletionPreviews.hidden = !entries.length;
-  els.weekendCompletionPreviews.innerHTML = entries.map((entry) => `
-    <span>
-      <img src="${escapeHtml(entry.url)}" alt="完成回顾预览" />
-      <button type="button" data-remove-weekend-completion-${entry.type}="${entry.index}" aria-label="删除这张回顾图片">×</button>
-    </span>
-  `).join("");
-}
-
-function addWeekendCompletionFiles(files) {
-  const next = Array.from(files || []).filter((file) => file?.type?.startsWith("image/"));
-  if (!next.length) return;
-  weekendCompletionFiles = [...weekendCompletionFiles, ...next].slice(0, 30);
-  renderWeekendCompletionPreviews();
-  els.weekendCompletionStatus.textContent = `已加入 ${weekendCompletionExistingImages.length + weekendCompletionFiles.length + weekendCompletionLinks.length} 张照片。`;
-}
-
-function addWeekendCompletionLinks(rawLinks = els.weekendCompletionLinkInput?.value || "") {
-  const urls = extractImageUrls(rawLinks);
-  if (!urls.length) {
-    if (String(rawLinks || "").trim()) els.weekendCompletionStatus.textContent = "请输入完整的图片链接。";
-    return false;
-  }
-  weekendCompletionLinks = [...new Set([...weekendCompletionLinks, ...urls])].slice(0, 30);
-  els.weekendCompletionLinkInput.value = "";
-  renderWeekendCompletionPreviews();
-  els.weekendCompletionStatus.textContent = `已加入 ${urls.length} 个图片链接。`;
-  return true;
-}
-
-function openWeekendCompletionDialog(plan) {
-  if (!plan || !els.weekendCompletionDialog) return;
-  clearWeekendCompletionState();
-  weekendCompletionPlanId = plan.id;
-  weekendCompletionExistingImages = Array.isArray(plan.completionImages) ? [...plan.completionImages] : [];
-  els.weekendCompletionPlanTitle.textContent = `${plan.title} · ${formatDate(plan.date)}`;
-  els.weekendCompletionNote.value = plan.completionNote || "";
-  els.weekendCompletionSubmit.textContent = plan.done ? "保存回顾" : "完成并保存";
-  renderWeekendCompletionPreviews();
-  els.weekendCompletionDialog.showModal();
-  requestAnimationFrame(() => els.weekendCompletionNote.focus({ preventScroll: true }));
-}
-
-function closeWeekendCompletionDialog() {
-  if (els.weekendCompletionDialog?.open) els.weekendCompletionDialog.close();
-  clearWeekendCompletionState();
-}
-
-async function saveWeekendCompletion(event) {
-  event.preventDefault();
-  const plan = weekendPlans.find((item) => item.id === weekendCompletionPlanId);
-  if (!plan || !canManageItem(plan) || !weekendCloudAvailable) return;
-  els.weekendCompletionSubmit.disabled = true;
-  els.weekendCompletionStatus.textContent = "正在保存这一天…";
-  const uploadedImages = [];
-  const newlyUploadedPaths = [];
-  const previousCompletionPaths = new Set(
-    (plan.completionImages || [])
-      .flatMap((image) => [image.image_path, image.thumbnail_path])
-      .filter(Boolean)
-  );
-  try {
-    for (let index = 0; index < weekendCompletionFiles.length; index += 1) {
-      const uploaded = await uploadImageFile(
-        weekendCompletionFiles[index],
-        `${slugify(plan.title || "weekend-recap")}-${Date.now()}-${index + 1}`,
-        index + 1,
-        weekendCompletionFiles.length,
-        { folder: "weekend-recap", statusSetter: (message) => { els.weekendCompletionStatus.textContent = message; } }
-      );
-      if (!uploaded) throw new Error("照片上传失败，请重试。");
-      uploadedImages.push(uploaded);
-      newlyUploadedPaths.push(...[uploaded.image_path, uploaded.thumbnail_path].filter(Boolean));
-    }
-    for (let index = 0; index < weekendCompletionLinks.length; index += 1) {
-      els.weekendCompletionStatus.textContent = `正在导入第 ${index + 1}/${weekendCompletionLinks.length} 个链接…`;
-      const copied = await copyUrlToR2(
-        weekendCompletionLinks[index],
-        `${slugify(plan.title || "weekend-recap")}-link-${Date.now()}-${index + 1}`,
-        "weekend-recap"
-      );
-      uploadedImages.push({
-        image_path: `r2:${copied.key}`,
-        image_url: copied.url,
-        thumbnail_path: "",
-        thumbnail_url: copied.url,
-        width: 0,
-        height: 0,
-      });
-      newlyUploadedPaths.push(`r2:${copied.key}`);
-    }
-    const next = {
-      ...plan,
-      done: true,
-      completionNote: els.weekendCompletionNote.value.trim(),
-      completionImages: [...weekendCompletionExistingImages, ...uploadedImages],
-      completedAt: plan.completedAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    const { data, error } = await householdRepository.upsert(
-      "weekend_plans",
-      weekendToCloudRow(next, next.userId || session.user.id),
-      { onConflict: "id", select: "*", single: true }
-    );
-    if (error) throw error;
-    const saved = weekendFromCloudRow(data);
-    weekendPlans = weekendPlans.map((item) => (item.id === plan.id ? saved : item));
-    saveWeekendPlans();
-    const retainedCompletionPaths = new Set(
-      (saved.completionImages || [])
-        .flatMap((image) => [image.image_path, image.thumbnail_path])
-        .filter(Boolean)
-    );
-    const removedCompletionPaths = [...previousCompletionPaths].filter(
-      (path) => !retainedCompletionPaths.has(path)
-    );
-    if (removedCompletionPaths.length) void cleanupStoredImagePaths(removedCompletionPaths);
-    closeWeekendCompletionDialog();
-    setWeekendStatus("完成回顾已保存。");
-    renderWeekendPlans();
-  } catch (error) {
-    if (newlyUploadedPaths.length) void cleanupStoredImagePaths(newlyUploadedPaths);
-    els.weekendCompletionStatus.textContent = error.message || "完成回顾保存失败。";
-  } finally {
-    els.weekendCompletionSubmit.disabled = false;
-  }
-}
-
-function loadWeekendPlans() {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(getWeekendStorageKey()) || "[]");
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveWeekendPlans() {
-  if (!session) return;
-  localStorage.setItem(getWeekendStorageKey(), JSON.stringify(weekendPlans));
-}
-
-function setWeekendExpanded(expanded) {
-  els.weekendComposer.classList.toggle("expanded", expanded);
-  els.weekendForm.hidden = !expanded;
-  els.weekendToggle.setAttribute("aria-expanded", String(expanded));
-}
-
-function getNextWeekendDate() {
-  const date = new Date();
-  const daysUntilSaturday = (6 - date.getDay() + 7) % 7;
-  date.setDate(date.getDate() + daysUntilSaturday);
-  return date.toISOString().slice(0, 10);
-}
-
-function resetWeekendForm() {
-  els.weekendForm.reset();
-  clearWeekendImageState();
-  weekendEditingId = null;
-  els.weekendDateInput.value = getNextWeekendDate();
-  els.weekendFormTitle.textContent = "安排周末";
-  els.weekendSubmitButton.textContent = "保存计划";
-  els.weekendCancelEdit.hidden = true;
-}
-
-async function saveWeekendPlan(event) {
-  event.preventDefault();
-  if (!session) {
-    setWeekendStatus("请先登录后再保存周末计划。");
-    return;
-  }
-  if (!weekendCloudAvailable) {
-    setWeekendStatus(
-      "Cloudflare D1 尚未升级，周末计划没有保存。请先部署最新版数据库结构。"
-    );
-    return;
-  }
-
-  const title = els.weekendTitleInput.value.trim();
-  if (!title) {
-    setWeekendStatus("先写下周末想做什么。");
-    return;
-  }
-
-  const previous = weekendPlans.find((item) => item.id === weekendEditingId);
-  const uploadedImages = [];
-  for (let index = 0; index < weekendSelectedFiles.length; index += 1) {
-    const uploaded = await uploadImageFile(
-      weekendSelectedFiles[index],
-      `${slugify(title || "weekend")}-${Date.now()}-${index + 1}`,
-      index + 1,
-      weekendSelectedFiles.length,
-      { folder: "weekend", statusSetter: setWeekendStatus }
-    );
-    if (!uploaded) {
-      setWeekendStatus("场景图片上传失败，请重试。");
-      return;
-    }
-    uploadedImages.push(uploaded);
-  }
-  for (let index = 0; index < weekendSelectedLinks.length; index += 1) {
-    setWeekendStatus(`正在导入第 ${index + 1}/${weekendSelectedLinks.length} 个图片链接…`);
-    let copied;
-    try {
-      copied = await copyUrlToR2(
-        weekendSelectedLinks[index],
-        `${slugify(title || "weekend")}-link-${Date.now()}-${index + 1}`,
-        "weekend"
-      );
-    } catch (error) {
-      setWeekendStatus(`图片链接导入失败：${error.message}`);
-      return;
-    }
-    uploadedImages.push({
-      image_path: `r2:${copied.key}`,
-      image_url: copied.url,
-      thumbnail_path: "",
-      thumbnail_url: copied.url,
-      width: 0,
-      height: 0,
-    });
-  }
-  let plan = {
-    id: normalizeUuid(weekendEditingId),
-    userId: previous?.userId || session.user.id,
-    title,
-    date: els.weekendDateInput.value || getNextWeekendDate(),
-    location: els.weekendLocationInput.value.trim(),
-    type: els.weekendTypeInput.value,
-    note: els.weekendNoteInput.value.trim(),
-    images: [...weekendExistingImages, ...uploadedImages],
-    done: previous?.done || false,
-    completionNote: previous?.completionNote || "",
-    completionImages: previous?.completionImages || [],
-    completedAt: previous?.completedAt || "",
-    createdAt: previous?.createdAt || new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-
-  if (weekendCloudAvailable) {
-    const { data, error } = await householdRepository.upsert(
-      "weekend_plans",
-      weekendToCloudRow(plan, plan.userId),
-      { onConflict: "id", select: "*", single: true }
-    );
-    if (error) {
-      setWeekendStatus(`周末计划同步失败：${error.message}`);
-      return;
-    }
-    plan = weekendFromCloudRow(data);
-  }
-
-  const retainedPaths = new Set((plan.images || []).flatMap((image) => [image.image_path, image.thumbnail_path]).filter(Boolean));
-  const removedPaths = (previous?.images || [])
-    .flatMap((image) => [image.image_path, image.thumbnail_path])
-    .filter((path) => path && !retainedPaths.has(path));
-  if (removedPaths.length) void cleanupStoredImagePaths(removedPaths);
-
-  const wasEditing = Boolean(weekendEditingId);
-  weekendPlans = wasEditing
-    ? weekendPlans.map((item) => (item.id === weekendEditingId ? plan : item))
-    : [plan, ...weekendPlans];
-  saveWeekendPlans();
-  resetWeekendForm();
-  setWeekendExpanded(false);
-  const gainedExp = await awardExperience(wasEditing ? "weekendEdit" : "weekend");
-  setWeekendStatus(`${wasEditing ? "周末计划已更新。" : "周末计划已保存。"}${gainedExp ? ` 修为 +${gainedExp}` : ""}`);
-  renderWeekendPlans();
-}
-
-function renderWeekendPlans() {
-  renderWeekendReminderNotice();
-  renderWeekendPlansView({
-    listElement: els.weekendList,
-    plans: weekendPlans,
-    signedIn: Boolean(session),
-    getAuthorName,
-    canManageItem,
-    onEdit: editWeekendPlan,
-    onToggle: toggleWeekendPlan,
-    onDelete: deleteWeekendPlan,
-    onRecap: openWeekendCompletionDialog,
-    onOpenGallery: openWeekendImageGallery,
-  });
-}
+const foodWheelController = createFoodWheelController({
+  elements: els,
+  storageKey: FOOD_OPTIONS_KEY,
+  defaultOptions: DEFAULT_FOOD_OPTIONS,
+  repository: householdRepository,
+  getSession: () => session,
+  getRecipes: () => recipes,
+  getOptions: () => foodOptions,
+  setOptions: (nextOptions) => {
+    foodOptions = nextOptions;
+    accountProfile.foodOptions = [...nextOptions];
+  },
+  canPersist: () => Boolean(
+    cloudDb && cloudSyncAvailable && foodOptionsCloudAvailable
+  ),
+  closeMobileDiaryPage,
+  closePhotoDialog,
+});
+const {
+  addOption: addFoodOption,
+  close: closeFoodWheel,
+  getStorageKey: getFoodOptionsStorageKey,
+  getWheelOptions,
+  loadOptions: loadFoodOptions,
+  open: openFoodWheel,
+  persistOptions: persistFoodOptions,
+  removeOption: removeFoodOption,
+  render: renderFoodWheel,
+  saveOptionsCache: saveFoodOptionsCache,
+  spin: spinFoodWheel,
+} = foodWheelController;
+foodOptions = loadFoodOptions();
+
+const recipeController = createRecipeController({
+  elements: els,
+  storageKey: RECIPES_KEY,
+  repository: householdRepository,
+  getSession: () => session,
+  getDisplayName: getSessionDisplayName,
+  getRecipes: () => recipes,
+  setRecipes: (items) => {
+    recipes = items;
+  },
+  canSync: () => cloudSyncAvailable,
+  getAuthorName,
+  canManageItem,
+  normalizeUuid,
+  getClipboardFiles: getImageFilesFromClipboard,
+  getClipboardImageUrl,
+  copyUrlToR2,
+  compressImage,
+  uploadToR2,
+  slugify,
+  awardExperience,
+  renderOverview,
+  renderFoodWheel,
+  confirmAction,
+  createTrashItem,
+  rollbackTrashItem,
+});
+const {
+  applyCoverUrl: applyRecipeCoverUrl,
+  edit: editRecipe,
+  handleCoverPaste: handleRecipeCoverPaste,
+  load: loadRecipes,
+  remove: deleteRecipe,
+  render: renderRecipes,
+  resetForm: resetRecipeForm,
+  save: saveRecipes,
+  setExpanded: setRecipeExpanded,
+  setStatus: setRecipeStatus,
+  submit: saveRecipe,
+  updateCoverPreview: updateRecipeCoverPreview,
+} = recipeController;
+
+const wishlistController = createWishlistController({
+  elements: els,
+  repository: householdRepository,
+  getSession: () => session,
+  getDatabase: () => cloudDb,
+  getWishes: () => wishes,
+  setWishes: (items) => {
+    wishes = items;
+  },
+  getActiveView: () => activeWishView,
+  setActiveView: (view) => {
+    activeWishView = view;
+  },
+  getDataState: () => accountDataState,
+  canSync: () => cloudSyncAvailable,
+  getAuthorName,
+  canManageItem,
+  normalizeUuid,
+  extractImageUrls,
+  getClipboardImageUrl,
+  copyUrlToR2,
+  compressImage,
+  uploadToR2,
+  cleanupStoredImagePaths,
+  slugify,
+  formatFileSize,
+  awardExperience,
+  renderOverview,
+  openWishImage,
+  escapeHtml,
+  confirmAction,
+  confirmWishDeletion,
+  createTrashItem,
+  rollbackTrashItem,
+  showToast: showMiniToast,
+});
+const {
+  applyImageUrl: applyWishImageUrl,
+  clearImagePreview: clearWishImagePreview,
+  closeCompleteDialog: closeWishCompleteDialog,
+  edit: editWish,
+  handleImagePaste: handleWishImagePaste,
+  openCompleteDialog: openWishCompleteDialog,
+  remove: deleteWish,
+  removeImage: removeWishImage,
+  render: renderWishes,
+  resetForm: resetWishForm,
+  saveCompletionState: saveWishCompletionState,
+  setExpanded: setWishlistExpanded,
+  setImagePreview: setWishImagePreview,
+  setStatus: setWishlistStatus,
+  submit: saveWish,
+  submitCompletion: submitWishCompletion,
+  toggle: toggleWish,
+  updateImagePreview: updateWishImagePreview,
+} = wishlistController;
+
+const pushController = createPushController({
+  elements: els,
+  request: cloudflareRequest,
+  notificationRepository,
+  diaryRepository,
+  getSession: () => session,
+  getDatabase: () => cloudDb,
+  getPhotos: () => photos,
+  prependPhoto: (photo) => photos.unshift(photo),
+  loadNotifications,
+  openNotificationsPanel,
+  setActiveSettingsSection,
+  switchPage,
+  openPhoto,
+  showToast: showMiniToast,
+});
+const {
+  disable: disableWebPush,
+  enable: enableWebPush,
+  ensureSettingsPage: ensurePushSettingsPage,
+  openDestination: openPushDestination,
+  refreshSettings: refreshPushSettings,
+  registerWorker: registerAppShellWorker,
+  syncExistingSubscription: syncExistingPushSubscription,
+} = pushController;
+
+const anniversaryController = createAnniversaryController({
+  elements: els,
+  storageKey: ANNIVERSARY_KEY,
+  repository: householdRepository,
+  getSession: () => session,
+  getDatabase: () => cloudDb,
+  getItems: () => anniversaries,
+  setItems: (items) => {
+    anniversaries = items;
+  },
+  isCloudAvailable: () => anniversaryCloudAvailable,
+  setCloudAvailable: (available) => {
+    anniversaryCloudAvailable = available;
+  },
+  getAuthorName,
+  canManageItem,
+  normalizeUuid,
+  awardExperience,
+  confirmAction,
+  createTrashItem,
+  rollbackTrashItem,
+  isMissingCloudSchema,
+});
+const {
+  edit: editAnniversary,
+  load: loadAnniversaries,
+  remove: deleteAnniversary,
+  render: renderAnniversaries,
+  resetForm: resetAnniversaryForm,
+  save: saveAnniversaries,
+  setFormExpanded: setAnniversaryFormExpanded,
+  submit: saveAnniversary,
+  synchronize: synchronizeAnniversaries,
+} = anniversaryController;
 
 function openWeekendImageGallery(plan, initialIndex = 0, kind = "plan") {
   const galleryImages = kind === "completion" ? plan?.completionImages : plan?.images;
@@ -11625,259 +5892,102 @@ function openWeekendImageGallery(plan, initialIndex = 0, kind = "plan") {
   showPhotoDialogPreservingScroll();
 }
 
-function editWeekendPlan(id) {
-  const plan = weekendPlans.find((item) => item.id === id);
-  if (!plan || !canManageItem(plan)) return;
-  weekendEditingId = id;
-  els.weekendTitleInput.value = plan.title || "";
-  els.weekendDateInput.value = plan.date || getNextWeekendDate();
-  els.weekendLocationInput.value = plan.location || "";
-  els.weekendTypeInput.value = plan.type || "出门玩";
-  els.weekendNoteInput.value = plan.note || "";
-  weekendExistingImages = Array.isArray(plan.images) ? [...plan.images] : [];
-  weekendSelectedFiles = [];
-  weekendSelectedLinks = [];
-  renderWeekendImagePreviews();
-  els.weekendFormTitle.textContent = "编辑周末计划";
-  els.weekendSubmitButton.textContent = "保存修改";
-  els.weekendCancelEdit.hidden = false;
-  setWeekendExpanded(true);
-  setWeekendStatus(`正在编辑：${plan.title}`);
-  els.weekendComposer.scrollIntoView({ behavior: "smooth", block: "start" });
-}
+const weekendController = createWeekendController({
+  elements: els,
+  storageKey: WEEKEND_KEY,
+  repository: householdRepository,
+  getSession: () => session,
+  getDisplayName: getSessionDisplayName,
+  getPlans: () => weekendPlans,
+  setPlans: (items) => {
+    weekendPlans = items;
+  },
+  canSync: () => weekendCloudAvailable,
+  getAuthorName,
+  canManageItem,
+  getClipboardFiles: getImageFilesFromClipboard,
+  getClipboardImageUrl,
+  extractImageUrls,
+  escapeHtml,
+  formatDate,
+  slugify,
+  normalizeUuid,
+  uploadImageFile,
+  copyUrlToR2,
+  cleanupStoredImagePaths,
+  awardExperience,
+  renderReminder: renderWeekendReminderNotice,
+  openGallery: openWeekendImageGallery,
+  confirmAction,
+  createTrashItem,
+  rollbackTrashItem,
+});
+const {
+  addCompletionFiles: addWeekendCompletionFiles,
+  addCompletionLinks: addWeekendCompletionLinks,
+  addFiles: addWeekendFiles,
+  addImageLinks: addWeekendImageLinks,
+  clearCompletionState: clearWeekendCompletionState,
+  clearImageState: clearWeekendImageState,
+  closeCompletionDialog: closeWeekendCompletionDialog,
+  edit: editWeekendPlan,
+  handleImagePaste: handleWeekendImagePaste,
+  load: loadWeekendPlans,
+  openCompletionDialog: openWeekendCompletionDialog,
+  remove: deleteWeekendPlan,
+  removeCompletionEntry: removeWeekendCompletionEntry,
+  removeImageEntry: removeWeekendImageEntry,
+  render: renderWeekendPlans,
+  renderCompletionPreviews: renderWeekendCompletionPreviews,
+  renderImagePreviews: renderWeekendImagePreviews,
+  resetForm: resetWeekendForm,
+  save: saveWeekendPlans,
+  saveCompletion: saveWeekendCompletion,
+  setExpanded: setWeekendExpanded,
+  setStatus: setWeekendStatus,
+  submit: saveWeekendPlan,
+  toggle: toggleWeekendPlan,
+} = weekendController;
 
-async function toggleWeekendPlan(id) {
-  const current = weekendPlans.find((item) => item.id === id);
-  if (!current || !canManageItem(current)) return;
-  if (!weekendCloudAvailable) {
-    setWeekendStatus("数据库尚未连接，计划状态没有修改。");
-    return;
-  }
-  if (!current.done) {
-    openWeekendCompletionDialog(current);
-    return;
-  }
-  let next = { ...current, done: false, updatedAt: new Date().toISOString() };
-  if (weekendCloudAvailable) {
-    const { data, error } = await householdRepository.update(
-      "weekend_plans",
-      { is_done: next.done, updated_at: next.updatedAt },
-      { id },
-      { select: "*", single: true }
-    );
-    if (error) {
-      setWeekendStatus(`状态同步失败：${error.message}`);
-      return;
-    }
-    next = weekendFromCloudRow(data);
-  }
-  weekendPlans = weekendPlans.map((item) => (item.id === id ? next : item));
-  saveWeekendPlans();
-  setWeekendStatus("周末计划状态已更新。");
-  renderWeekendPlans();
-}
-
-async function deleteWeekendPlan(id) {
-  const plan = weekendPlans.find((item) => item.id === id);
-  if (!plan || !canManageItem(plan)) return;
-  const confirmed = await confirmAction({
-    eyebrow: "移到回收站",
-    title: "删除这个周末计划？",
-    message: `“${plan.title}”会保留 30 天，期间可以恢复。`,
-    confirmLabel: "删除计划",
-    cancelLabel: "先保留",
-    danger: true,
-  });
-  if (!confirmed) return;
-  if (!weekendCloudAvailable) {
-    setWeekendStatus("数据库尚未连接，不能删除周末计划。");
-    return;
-  }
-  const trashSaved = await createTrashItem(
-    "weekend",
-    plan.id,
-    plan.title,
-    weekendToCloudRow(plan, plan.userId || session.user.id)
-  );
-  if (!trashSaved) {
-    setWeekendStatus("无法写入回收站，已取消删除。");
-    return;
-  }
-  const { error } = await householdRepository.remove("weekend_plans", { id });
-  if (error) {
-    await rollbackTrashItem(trashSaved);
-    setWeekendStatus(`删除同步失败：${error.message}`);
-    return;
-  }
-  weekendPlans = weekendPlans.filter((item) => item.id !== id);
-  saveWeekendPlans();
-  setWeekendStatus("周末计划已移到回收站，30 天内可以恢复。");
-  renderWeekendPlans();
-}
-
-function setWeekendStatus(message) {
-  els.weekendStatus.textContent = message;
-}
-
-function normalizeThanksColor(color) {
-  return THANKS_COLORS.has(color) ? color : DEFAULT_THANKS_COLOR;
-}
-
-function getThanksColorStorageKey(userId = session?.user?.id || "guest") {
-  return `${THANKS_COLOR_KEY}:${userId}`;
-}
-
-function loadThanksColor(userId = session?.user?.id || "guest") {
-  const stored =
-    localStorage.getItem(getThanksColorStorageKey(userId)) ||
-    localStorage.getItem(THANKS_COLOR_KEY);
-  return normalizeThanksColor(stored);
-}
-
-function saveThanksColorPreference(
-  color,
-  { userId = session?.user?.id || "guest", syncCloud = false } = {}
-) {
-  const safeColor = normalizeThanksColor(color);
-  localStorage.setItem(getThanksColorStorageKey(userId), safeColor);
-  localStorage.setItem(THANKS_COLOR_KEY, safeColor);
-  if (session && session.user.id === userId) {
-    accountProfile.thanksColor = safeColor;
-  }
-  if (syncCloud) void persistThanksColorToCloud(safeColor);
-  return safeColor;
-}
-
-async function persistThanksColorToCloud(color) {
-  if (!cloudDb || !session || !thanksColorCloudAvailable) return;
-  const safeColor = normalizeThanksColor(color);
-  const { error } = await householdRepository.update(
-    "user_profiles",
-    {
-      preferred_thanks_color: safeColor,
-      updated_at: new Date().toISOString(),
-    },
-    { user_id: session.user.id }
-  );
-  if (error) {
-    thanksColorCloudAvailable = false;
-    console.warn("Thanks color preference sync failed:", error);
-  }
-}
-
-function getSelectedThanksColor() {
-  const selected = els.thanksForm.querySelector('input[name="thanksColor"]:checked');
-  return normalizeThanksColor(selected?.value);
-}
-
-function setSelectedThanksColor(color) {
-  const safeColor = normalizeThanksColor(color);
-  els.thanksForm.querySelectorAll('input[name="thanksColor"]').forEach((input) => {
-    input.checked = input.value === safeColor;
-    input.closest("label")?.classList.toggle("active", input.checked);
-  });
-}
-
-function resetGratitudeForm() {
-  gratitudeEditingId = null;
-  els.thanksForm.reset();
-  setSelectedThanksColor(accountProfile.thanksColor || loadThanksColor());
-  els.thanksSubmitButton.textContent = "贴到留言板";
-  els.thanksCancelEdit.hidden = true;
-  els.thanksStatus.textContent = "";
-}
-
-function renderGratitudeNotes() {
-  renderGratitudeNotesView({
-    boardElement: els.thanksBoard,
-    notes: gratitudeNotes,
-    signedIn: Boolean(session),
-    allowedColors: THANKS_COLORS,
-    getAuthorName,
-    canManageItem,
-    onEdit: editGratitudeNote,
-    onDelete: deleteGratitudeNote,
-  });
-}
-
-async function saveGratitudeNote(event) {
-  event.preventDefault();
-  if (!cloudDb || !session) return;
-  const body = els.thanksBodyInput.value.trim();
-  if (!body) return;
-  const selectedColor = getSelectedThanksColor();
-  const previousNote = gratitudeNotes.find((item) => item.id === gratitudeEditingId);
-  const wasEditing = Boolean(gratitudeEditingId);
-  saveThanksColorPreference(selectedColor, {
-    userId: session.user.id,
-    syncCloud: true,
-  });
-
-  const payload = {
-    user_id: previousNote?.user_id || session.user.id,
-    body,
-    text_color: selectedColor,
-    updated_at: new Date().toISOString(),
-  };
-  els.thanksStatus.textContent = "正在保存...";
-
-  const { error } = gratitudeEditingId
-    ? await householdRepository.updateOwned(
-        "gratitude_notes",
-        payload,
-        { id: gratitudeEditingId }
-      )
-    : await householdRepository.insert("gratitude_notes", payload);
-  if (error) {
-    els.thanksStatus.textContent = isMissingCloudSchema(error)
-      ? "请先部署最新版 Cloudflare D1 结构。"
-      : `保存失败：${error.message}`;
-    return;
-  }
-
-  resetGratitudeForm();
-  await loadGratitudeNotes();
-  const gainedExp = await awardExperience(wasEditing ? "thanksEdit" : "thanks");
-  els.thanksStatus.textContent = `${wasEditing ? "留言已更新。" : "留言已保存。"}${gainedExp ? ` 修为 +${gainedExp}` : ""}`;
-}
-
-function editGratitudeNote(id) {
-  const note = gratitudeNotes.find((item) => item.id === id);
-  if (!note || !canManageItem(note)) return;
-  gratitudeEditingId = id;
-  els.thanksBodyInput.value = note.body;
-  setSelectedThanksColor(note.text_color);
-  els.thanksSubmitButton.textContent = "保存修改";
-  els.thanksCancelEdit.hidden = false;
-  els.thanksBodyInput.focus();
-}
-
-async function deleteGratitudeNote(id) {
-  const note = gratitudeNotes.find((item) => item.id === id);
-  if (!note || !canManageItem(note)) return;
-  const confirmed = await confirmAction({
-    eyebrow: "移到回收站",
-    title: "删除这条感谢留言？",
-    message: "留言会保留 30 天，期间可以恢复。",
-    confirmLabel: "删除留言",
-    cancelLabel: "先保留",
-    danger: true,
-  });
-  if (!confirmed) return;
-  const trashSaved = await createTrashItem("gratitude", note.id, note.body, note);
-  if (!trashSaved) {
-    els.thanksStatus.textContent = "无法写入回收站，已取消删除。";
-    return;
-  }
-  const { error } = await householdRepository.remove("gratitude_notes", { id });
-  if (error) {
-    await rollbackTrashItem(trashSaved);
-    els.thanksStatus.textContent = `删除失败：${error.message}`;
-    return;
-  }
-  if (gratitudeEditingId === id) resetGratitudeForm();
-  await loadGratitudeNotes();
-}
+const gratitudeController = createGratitudeController({
+  elements: els,
+  storageKey: THANKS_COLOR_KEY,
+  allowedColors: THANKS_COLORS,
+  defaultColor: DEFAULT_THANKS_COLOR,
+  repository: householdRepository,
+  getSession: () => session,
+  getDatabase: () => cloudDb,
+  getNotes: () => gratitudeNotes,
+  getProfileColor: () => accountProfile.thanksColor,
+  setProfileColor: (color) => {
+    accountProfile.thanksColor = color;
+  },
+  isCloudAvailable: () => thanksColorCloudAvailable,
+  setCloudAvailable: (available) => {
+    thanksColorCloudAvailable = available;
+  },
+  getAuthorName,
+  canManageItem,
+  loadNotes: loadGratitudeNotes,
+  awardExperience,
+  isMissingCloudSchema,
+  confirmAction,
+  createTrashItem,
+  rollbackTrashItem,
+});
+const {
+  edit: editGratitudeNote,
+  getSelectedColor: getSelectedThanksColor,
+  loadColor: loadThanksColor,
+  normalizeColor: normalizeThanksColor,
+  persistColor: persistThanksColorToCloud,
+  remove: deleteGratitudeNote,
+  render: renderGratitudeNotes,
+  resetForm: resetGratitudeForm,
+  saveColor: saveThanksColorPreference,
+  setSelectedColor: setSelectedThanksColor,
+  submit: saveGratitudeNote,
+} = gratitudeController;
 
 function renderFamilyDialog() {
   if (!els.familyDialog) return;
@@ -12444,13 +6554,6 @@ function setStatus(message) {
   els.uploadStatus.textContent = message;
 }
 
-function setUploadExpanded(expanded) {
-  els.composer.classList.toggle("expanded", expanded);
-  els.uploadForm.hidden = !expanded;
-  els.uploadToggle.setAttribute("aria-expanded", String(expanded));
-  if (expanded) restoreDiaryDraft();
-}
-
 els.setupToggle.addEventListener("click", () => {
   els.setupPanel.hidden = !els.setupPanel.hidden;
 });
@@ -12536,7 +6639,7 @@ els.thanksOpen?.addEventListener("click", () => switchPage("thanks"));
 els.secretPinClose?.addEventListener("click", () => els.secretPinDialog?.close());
 els.secretPinDialog?.addEventListener("close", () => {
   reopenSettingsAfterChildDialog();
-  secretPinManageMode = false;
+  secretPinController.resetManageMode();
 });
 els.secretPinDialog?.addEventListener("click", (event) => {
   if (event.target === els.secretPinDialog) els.secretPinDialog.close();
@@ -12589,9 +6692,6 @@ els.forgotPasswordButton.addEventListener("click", () => {
   els.forgotPasswordStatus.textContent = "";
   els.forgotPasswordDialog.showModal();
   els.resetEmailInput?.focus();
-});
-els.uploadToggle.addEventListener("click", () => {
-  setUploadExpanded(els.uploadForm.hidden);
 });
 els.recipeToggle.addEventListener("click", () => {
   setRecipeExpanded(els.recipeForm.hidden);
@@ -12678,10 +6778,9 @@ els.weekendImagePreviews?.addEventListener("click", (event) => {
   if (!existingButton && !selectedButton && !linkButton) return;
   event.preventDefault();
   event.stopPropagation();
-  if (existingButton) weekendExistingImages.splice(Number(existingButton.dataset.removeWeekendExisting), 1);
-  if (selectedButton) weekendSelectedFiles.splice(Number(selectedButton.dataset.removeWeekendSelected), 1);
-  if (linkButton) weekendSelectedLinks.splice(Number(linkButton.dataset.removeWeekendLink), 1);
-  renderWeekendImagePreviews();
+  if (existingButton) removeWeekendImageEntry("existing", Number(existingButton.dataset.removeWeekendExisting));
+  if (selectedButton) removeWeekendImageEntry("selected", Number(selectedButton.dataset.removeWeekendSelected));
+  if (linkButton) removeWeekendImageEntry("link", Number(linkButton.dataset.removeWeekendLink));
   setWeekendStatus("已移除场景图片，保存计划后生效。");
 });
 els.weekendForm.addEventListener("submit", saveWeekendPlan);
@@ -12708,10 +6807,9 @@ els.weekendCompletionPreviews?.addEventListener("click", (event) => {
   if (!existing && !file && !link) return;
   event.preventDefault();
   event.stopPropagation();
-  if (existing) weekendCompletionExistingImages.splice(Number(existing.dataset.removeWeekendCompletionExisting), 1);
-  if (file) weekendCompletionFiles.splice(Number(file.dataset.removeWeekendCompletionFile), 1);
-  if (link) weekendCompletionLinks.splice(Number(link.dataset.removeWeekendCompletionLink), 1);
-  renderWeekendCompletionPreviews();
+  if (existing) removeWeekendCompletionEntry("existing", Number(existing.dataset.removeWeekendCompletionExisting));
+  if (file) removeWeekendCompletionEntry("file", Number(file.dataset.removeWeekendCompletionFile));
+  if (link) removeWeekendCompletionEntry("link", Number(link.dataset.removeWeekendCompletionLink));
 });
 els.weekendCompletionLinkAdd?.addEventListener("click", () => addWeekendCompletionLinks());
 els.weekendCompletionLinkInput?.addEventListener("keydown", (event) => {
@@ -12861,8 +6959,7 @@ els.avatarDialog.addEventListener("click", (event) => {
   if (event.target === els.avatarDialog) els.avatarDialog.close();
 });
 els.avatarDialog.addEventListener("close", () => {
-  if (avatarPreviewUrl) URL.revokeObjectURL(avatarPreviewUrl);
-  avatarPreviewUrl = "";
+  clearAvatarPreviewUrl();
   reopenSettingsAfterChildDialog();
 });
 els.avatarInput.addEventListener("change", updateAvatarPreview);
@@ -12983,70 +7080,7 @@ document.addEventListener("keydown", (event) => {
     }
   }
 });
-initializePhotoDropHint();
-els.uploadForm.addEventListener("submit", uploadPhoto);
-els.uploadForm.addEventListener("input", saveDiaryDraft);
-els.uploadForm.addEventListener("change", saveDiaryDraft);
-els.photoDrop.addEventListener("paste", handlePasteUpload);
-els.photoLinkAdd?.addEventListener("click", () => addDiaryImageLinks());
-els.photoLinkInput?.addEventListener("keydown", (event) => {
-  if (event.key === "Enter") {
-    event.preventDefault();
-    addDiaryImageLinks();
-  }
-});
-els.photoInput.addEventListener("change", () => {
-  const nextFiles = Array.from(els.photoInput.files || []);
-  logDiaryInputFiles("照片 / Live Photo 入口", nextFiles);
-  const seen = new Set(selectedUploadFiles.map(getDiaryUploadFileKey));
-  selectedUploadFiles = [
-    ...selectedUploadFiles,
-    ...nextFiles.filter((file) => {
-      const key = getDiaryUploadFileKey(file);
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    }),
-  ];
-  updatePhotoPreview();
-});
-els.photoMotionInput?.addEventListener("change", () => {
-  const pickedFiles = Array.from(els.photoMotionInput.files || []);
-  logDiaryInputFiles("视频入口", pickedFiles);
-  const supportedFiles = pickedFiles.filter(
-    (file) => isDiaryUploadStillFile(file) || isDiaryUploadMotionFile(file)
-  );
-  const seen = new Set(selectedUploadFiles.map(getDiaryUploadFileKey));
-  selectedUploadFiles = [
-    ...selectedUploadFiles,
-    ...supportedFiles.filter((file) => {
-      const key = getDiaryUploadFileKey(file);
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    }),
-  ];
-  updatePhotoPreview();
-});
-els.previewStrip.addEventListener("click", (event) => {
-  const button = event.target.closest("[data-remove-preview]");
-  if (!button) return;
-  event.preventDefault();
-  event.stopImmediatePropagation();
-  removeUploadPreview(Number(button.dataset.removePreview));
-}, true);
-els.removeUploadPreview?.addEventListener("click", (event) => {
-  event.preventDefault();
-  event.stopPropagation();
-  removeUploadPreview(activeUploadPreviewIndex);
-});
-document.addEventListener("paste", (event) => {
-  if (event.defaultPrevented || !session || els.uploadForm.hidden) return;
-  const hasImage = Array.from(event.clipboardData?.items || []).some((item) => item.type.startsWith("image/"));
-  const targetsImageLink = event.target === els.photoLinkInput || event.target === els.photoDrop;
-  if (!hasImage && !targetsImageLink) return;
-  handlePasteUpload(event);
-});
+diaryComposerController.bind();
 els.closeDialog.addEventListener("click", closePhotoDialog);
 els.dialog.addEventListener("click", (event) => {
   if (event.target === els.dialog) {

@@ -41,6 +41,13 @@ export function formatCommentTime(value) {
   }).format(date);
 }
 
+export function formatFileSize(bytes) {
+  const size = Math.max(0, Number(bytes) || 0);
+  if (size < 1024) return `${Math.round(size)} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(size < 10240 ? 1 : 0)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(2)} MB`;
+}
+
 export function getInitial(value, fallback = "U") {
   const trimmed = String(value || "").trim();
   return trimmed ? trimmed[0].toUpperCase() : fallback;
