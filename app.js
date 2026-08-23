@@ -11,6 +11,8 @@ import {
   normalizeMediaUrl,
 } from "./modules/media-cache.js";
 import { createUploadQueue } from "./modules/upload-queue.js";
+import { createPhotoFavoritesStore } from "./modules/photo-favorites.js";
+import { formatWishDate, renderWishlist } from "./modules/wishlist-view.js";
 import { refreshAdminStorage as refreshStorage } from "./modules/admin-storage.js";
 import { createVlogMode, filterVlogPhotos, validateVlogUpload } from "./modules/vlog-mode.js";
 import { bindWeekendGalleryInteractions } from "./modules/weekend-gallery.js";
@@ -276,9 +278,6 @@ const demoPhotos = [
 let cloudDb = null;
 let session = null;
 let photos = [];
-let favoritePhotoIds = new Set();
-let favoritesCloudAvailable = false;
-let favoriteDataState = "idle";
 let recipes = [];
 let wishes = [];
 let weekendPlans = [];
@@ -951,6 +950,8 @@ const diaryRepository = createDiaryRepository({
   getDatabase: () => cloudDb,
   getSession: () => session,
 });
+const photoFavorites = createPhotoFavoritesStore({ repository: diaryRepository });
+const isFavoritePhoto = (photoOrId) => photoFavorites.has(photoOrId);
 const secretRepository = createSecretRepository({
   getDatabase: () => cloudDb,
   getSession: () => session,
@@ -1178,9 +1179,9 @@ function updateAuthUI() {
   wishes = signedIn && !needsAccountSync ? wishes : [];
   weekendPlans = signedIn ? loadWeekendPlans() : [];
   anniversaries = signedIn ? loadAnniversaries() : [];
-  if (needsAccountSync || !signedIn) favoritePhotoIds = new Set();
+  if (needsAccountSync) photoFavorites.reset("loading");
+  else if (!signedIn) photoFavorites.reset();
   accountDataState = needsAccountSync ? "loading" : signedIn ? accountDataState : "idle";
-  favoriteDataState = needsAccountSync ? "loading" : signedIn ? favoriteDataState : "idle";
   renderOverview();
   renderRecipes();
   renderWishes();
@@ -1200,8 +1201,6 @@ function updateAuthUI() {
     cloudSyncAvailable = false;
     weekendCloudAvailable = false;
     anniversaryCloudAvailable = false;
-    favoritesCloudAvailable = false;
-    favoriteDataState = "idle";
     photoFlagsCloudAvailable = false;
     secretCloudAvailable = false;
     foodOptionsCloudAvailable = false;
@@ -1599,7 +1598,7 @@ async function loadPhotosInternal() {
       if (!photos.length) photos = [];
     }
     photoFlagsCloudAvailable = false;
-    if (session) favoriteDataState = "error";
+    if (session) photoFavorites.markError();
   } else {
     setGlobalStatus("");
     photos = data || [];
@@ -1609,7 +1608,7 @@ async function loadPhotosInternal() {
     if (session) {
       await Promise.all([
         verifyPhotoFlagSchema(),
-        synchronizePhotoFavorites(),
+        photoFavorites.synchronize(),
         loadPhotoCommentPreviews(),
       ]);
     } else {
@@ -2231,40 +2230,6 @@ async function verifyPhotoFlagSchema() {
   }
   const { error } = await diaryRepository.verifyFlags();
   photoFlagsCloudAvailable = !error;
-}
-
-function normalizeFavoritePhotoId(value) {
-  return String(value ?? "").trim();
-}
-
-function isFavoritePhoto(photoOrId) {
-  const photoId = normalizeFavoritePhotoId(
-    typeof photoOrId === "object" ? photoOrId?.id : photoOrId
-  );
-  return Boolean(photoId && favoritePhotoIds.has(photoId));
-}
-
-async function synchronizePhotoFavorites() {
-  if (!cloudDb || !session) return;
-  try {
-    const { data, error } = await diaryRepository.listFavorites();
-    if (error) throw error;
-
-    const cloudIdSet = new Set(
-      (data || [])
-        .map((row) => normalizeFavoritePhotoId(row.photo_id))
-        .filter(Boolean)
-    );
-
-    favoritesCloudAvailable = true;
-    favoriteDataState = "ready";
-    favoritePhotoIds = cloudIdSet;
-  } catch (error) {
-    favoritesCloudAvailable = false;
-    favoriteDataState = "error";
-    favoritePhotoIds = new Set();
-    console.warn("Favorite sync failed:", error);
-  }
 }
 
 async function uploadPhoto(event) {
@@ -2950,7 +2915,7 @@ function renderGallery() {
     search: diarySearchQuery,
     layout: document.body.dataset.mobileFeedLayout || "",
     visible: visiblePhotoCount,
-    favorites: [...favoritePhotoIds].sort(),
+    favorites: photoFavorites.sortedIds(),
     photos: visible.map((photo) => [photo.id, photo.updated_at, photo.is_featured, photo.is_pinned, getPhotoImages(photo).length]),
     comments: visible.map((photo) => (photoCommentPreviewMap.get(photo.id) || []).map((comment) => [comment.id, comment.updated_at, comment.body])),
   });
@@ -2966,16 +2931,16 @@ function renderGallery() {
         ? "最近七天还没有精选日记。"
         : activeFilter === "favorites"
           ? session
-            ? favoriteDataState === "loading"
+            ? photoFavorites.status === "loading"
               ? "正在同步收藏…"
-              : favoriteDataState === "error"
+              : photoFavorites.status === "error"
                 ? "收藏同步失败，请稍后刷新重试。"
                 : "还没有收藏日记。"
             : "登录后可以收藏喜欢的日记。"
           : activeFilter === "VLOG"
             ? "还没有 VLOG，点击顶部 VLOG 发布第一条视频。"
           : "还没有这个分类的日记。";
-    els.gallery.innerHTML = `<div class="empty"${activeFilter === "favorites" && favoriteDataState === "loading" ? " data-favorite-sync-loading role=\"status\"" : ""}>${emptyMessage}</div>`;
+    els.gallery.innerHTML = `<div class="empty"${activeFilter === "favorites" && photoFavorites.status === "loading" ? " data-favorite-sync-loading role=\"status\"" : ""}>${emptyMessage}</div>`;
     updateFeedLoader(0);
     return;
   }
@@ -3344,22 +3309,11 @@ async function togglePhotoFavorite(photo, button) {
     return;
   }
 
-  const photoId = normalizeFavoritePhotoId(photo.id);
-  if (!photoId) return;
-  const wasFavorite = isFavoritePhoto(photoId);
-  const nextFavorite = !wasFavorite;
+  if (!photo.id) return;
   if (button) button.disabled = true;
-  let error = null;
-  try {
-    const result = await diaryRepository.setFavorite(photoId, nextFavorite);
-    error = result?.error || null;
-  } catch (requestError) {
-    error = requestError;
-  }
+  const { favorite: nextFavorite, error } = await photoFavorites.toggle(photo.id);
 
   if (error) {
-    favoritesCloudAvailable = false;
-    favoriteDataState = "error";
     if (button) button.disabled = false;
     setGlobalStatus(
       isMissingCloudSchema(error)
@@ -3369,9 +3323,6 @@ async function togglePhotoFavorite(photo, button) {
     return;
   }
 
-  favoritePhotoIds[nextFavorite ? "add" : "delete"](photoId);
-  favoritesCloudAvailable = true;
-  favoriteDataState = "ready";
   if (button) button.disabled = false;
   if (button) {
     button.classList.toggle("active", nextFavorite);
@@ -4526,7 +4477,7 @@ async function deletePhoto(photo, triggerButton = null) {
     }
 
     photos = photos.filter((item) => item.id !== photo.id);
-    favoritePhotoIds.delete(photo.id);
+    photoFavorites.remove(photo.id);
     renderGallery();
     setGlobalStatus("日记已移到回收站，可在设置中恢复。");
     showMiniToast("已移到回收站", { kind: "success" });
@@ -7026,7 +6977,7 @@ function updateCloudSyncStatus() {
   }
   const missing = [];
   if (!photoFlagsCloudAvailable) missing.push("置顶/精选");
-  if (!favoritesCloudAvailable) missing.push("收藏");
+  if (!photoFavorites.cloudAvailable) missing.push("收藏");
   if (!weekendCloudAvailable) missing.push("周末计划");
   if (!anniversaryCloudAvailable) missing.push("纪念日");
   if (!foodOptionsCloudAvailable) missing.push("转盘候选");
@@ -7487,7 +7438,7 @@ function getCultivationArchive() {
       0,
       Number(accountProfile.loginStreak) || Number(loadExperience().loginStreak) || 0
     ),
-    favoriteCount: favoritePhotoIds.size,
+    favoriteCount: photoFavorites.size,
   });
 }
 function renderCultivationArchive() {
@@ -12068,163 +12019,24 @@ async function saveWish(event) {
 
 function renderWishes() {
   renderOverview();
-  if (!els.wishlistList) return;
-  updateWishTabs();
-  if (!session) {
-    els.wishlistList.innerHTML = `<div class="empty">登录后可以记录想做、想吃、想去的事。</div>`;
-    setWishlistStatus("");
-    return;
-  }
-
-  if (accountDataState === "loading") {
-    els.wishlistList.innerHTML = `<div class="empty" data-account-sync-loading role="status">正在同步心愿…</div>`;
-    return;
-  }
-
-  if (accountDataState === "error") {
-    els.wishlistList.innerHTML = `<div class="empty">心愿同步失败，请稍后刷新重试。</div>`;
-    return;
-  }
-
-  if (!wishes.length) {
-    els.wishlistList.innerHTML = `<div class="empty">还没有心愿。先写一个以后想完成的小目标。</div>`;
-    return;
-  }
-
-  const visibleWishes = wishes
-    .filter((wish) => (activeWishView === "done" ? wish.done : !wish.done))
-    .sort(compareWishesByPriority);
-
-  if (!visibleWishes.length) {
-    els.wishlistList.innerHTML =
-      activeWishView === "done"
-        ? `<div class="empty">已完成里还没有记录。完成心愿后会放到这里。</div>`
-        : `<div class="empty">未完成心愿已经清空。现在可以写一个新的小目标。</div>`;
-    return;
-  }
-
-  els.wishlistList.innerHTML = visibleWishes
-    .map((wish, index) => {
-      const canManage = canManageItem(wish);
-      const stateText = wish.done ? "已完成" : "待实现";
-      const completedDate = wish.completedAt ? formatWishDate(wish.completedAt) : "";
-      const createdDate = wish.createdAt ? formatWishDate(wish.createdAt) : "";
-      return `
-        <article class="wish-card ${wish.done ? "done" : ""}">
-          <div class="wish-card-top">
-            <div class="wish-index-stack">
-              <span class="wish-seq">Wish ${String(index + 1).padStart(2, "0")}</span>
-              <span class="wish-state-pill ${wish.done ? "done" : "open"}">${stateText}</span>
-            </div>
-          </div>
-          <div class="wish-card-layout">
-            ${
-              wish.imageUrl
-                ? `<button class="wish-card-image-button" type="button" data-view-wish-image="${escapeHtml(wish.id)}" aria-label="查看 ${escapeHtml(wish.title)} 的完整图片和备注">
-                    <img class="wish-card-image" src="${escapeHtml(wish.imageUrl)}" alt="${escapeHtml(wish.title)}" loading="lazy" decoding="async" />
-                  </button>`
-                : `<div class="wish-card-placeholder" aria-hidden="true">
-                    <span>${escapeHtml(wish.type || "心愿")}</span>
-                  </div>`
-            }
-            <div class="wish-card-content">
-              <p class="kicker">${escapeHtml(wish.type)} · ${escapeHtml(wish.priority)} · ${escapeHtml(getAuthorName(wish.userId))}</p>
-              <h3>${escapeHtml(wish.title)}</h3>
-              <div class="wish-meta">
-                ${createdDate ? `<span>添加 ${createdDate}</span>` : ""}
-                ${wish.date ? `<span>计划 ${formatWishDate(wish.date)}</span>` : ""}
-                ${completedDate ? `<span>完成 ${completedDate}</span>` : ""}
-              </div>
-              <div class="wish-card-details">
-                ${wish.note ? `<p class="wish-note">${escapeHtml(wish.note)}</p>` : ""}
-                ${
-                  wish.done && wish.completionNote
-                    ? `<div class="wish-completion-note" data-view-wish-detail="${escapeHtml(wish.id)}" role="button" tabindex="0" aria-label="查看 ${escapeHtml(wish.title)} 的完整完成反馈">
-                        <div class="wish-completion-header">
-                          <strong>完成回执</strong>
-                          <span>查看完整反馈</span>
-                        </div>
-                        <p>${escapeHtml(wish.completionNote)}</p>
-                      </div>`
-                    : wish.done
-                      ? `<div class="wish-completion-note empty" data-view-wish-detail="${escapeHtml(wish.id)}" role="button" tabindex="0" aria-label="查看 ${escapeHtml(wish.title)} 的完成详情">
-                          <div class="wish-completion-header">
-                            <strong>完成回执</strong>
-                            <span>查看详情</span>
-                          </div>
-                          <p>已经完成啦，之后可以编辑补上一句感想。</p>
-                        </div>`
-                      : ""
-                }
-              </div>
-            </div>
-          </div>
-          ${canManage ? `<div class="wish-actions">
-            <button type="button" data-edit-wish="${escapeHtml(wish.id)}">编辑</button>
-            <button class="complete" type="button" data-toggle-wish="${escapeHtml(wish.id)}">
-              ${wish.done ? "取消完成" : "写完成感想"}
-            </button>
-            <button class="danger" type="button" data-delete-wish="${escapeHtml(wish.id)}">删除</button>
-          </div>` : ""}
-        </article>
-      `;
-    })
-    .join("");
-
-  els.wishlistList.querySelectorAll("button[data-edit-wish]").forEach((button) => {
-    button.addEventListener("click", () => editWish(button.dataset.editWish));
-  });
-  els.wishlistList.querySelectorAll("button[data-view-wish-image]").forEach((button) => {
-    button.addEventListener("click", () => {
-      openWishImage(wishes.find((wish) => wish.id === button.dataset.viewWishImage));
-    });
-  });
-  els.wishlistList.querySelectorAll("[data-view-wish-detail]").forEach((control) => {
-    const openDetail = () => openWishImage(wishes.find((wish) => wish.id === control.dataset.viewWishDetail));
-    control.addEventListener("click", openDetail);
-    control.addEventListener("keydown", (event) => {
-      if (event.key !== "Enter" && event.key !== " ") return;
-      event.preventDefault();
-      openDetail();
-    });
-  });
-  els.wishlistList.querySelectorAll("button[data-toggle-wish]").forEach((button) => {
-    button.addEventListener("click", () => toggleWish(button.dataset.toggleWish));
-  });
-  els.wishlistList.querySelectorAll("button[data-delete-wish]").forEach((button) => {
-    button.addEventListener("click", () => deleteWish(button.dataset.deleteWish, button));
+  if (!session) setWishlistStatus("");
+  renderWishlist({
+    listElement: els.wishlistList,
+    tabsElement: els.wishTabs,
+    openCountElement: els.wishOpenCount,
+    doneCountElement: els.wishDoneCount,
+    wishes,
+    activeView: activeWishView,
+    signedIn: Boolean(session),
+    dataState: accountDataState,
+    getAuthorName,
+    canManageItem,
+    onEdit: editWish,
+    onOpen: openWishImage,
+    onToggle: toggleWish,
+    onDelete: deleteWish,
   });
 }
-
-function updateWishTabs() {
-  const openCount = wishes.filter((wish) => !wish.done).length;
-  const doneCount = wishes.filter((wish) => wish.done).length;
-  if (els.wishOpenCount) els.wishOpenCount.textContent = String(openCount);
-  if (els.wishDoneCount) els.wishDoneCount.textContent = String(doneCount);
-  els.wishTabs?.querySelectorAll("[data-wish-view]").forEach((button) => {
-    const active = button.dataset.wishView === activeWishView;
-    button.classList.toggle("active", active);
-    button.setAttribute("aria-selected", String(active));
-  });
-}
-
-function compareWishesByPriority(a, b) {
-  const priorityDifference = getWishPriorityRank(b.priority) - getWishPriorityRank(a.priority);
-  if (priorityDifference) return priorityDifference;
-
-  const dateA = a.date ? new Date(`${a.date}T00:00:00`).getTime() : Number.POSITIVE_INFINITY;
-  const dateB = b.date ? new Date(`${b.date}T00:00:00`).getTime() : Number.POSITIVE_INFINITY;
-  if (dateA !== dateB) return dateA - dateB;
-
-  return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
-}
-
-function getWishPriorityRank(priority) {
-  if (priority === "一定要做") return 3;
-  if (priority === "想尽快") return 2;
-  return 1;
-}
-
 function editWish(id) {
   const wish = wishes.find((item) => item.id === id);
   if (!wish || !canManageItem(wish)) return;
@@ -12415,14 +12227,6 @@ async function deleteWish(id, triggerButton = null) {
       triggerButton.textContent = originalLabel;
     }
   }
-}
-
-function formatWishDate(value) {
-  return new Intl.DateTimeFormat("zh-CN", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  }).format(new Date(value));
 }
 
 function setWishlistStatus(message) {

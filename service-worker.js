@@ -1,4 +1,4 @@
-const CACHE_NAME = "life-vlog-site-20260823-021-pwa";
+const CACHE_NAME = "life-vlog-site-20260823-022-pwa";
 const APP_MEDIA_CACHES = new Set([
   "life-vlog-diary-image-cache",
   "life-vlog-secret-media-cache",
@@ -12,7 +12,7 @@ const CORE_ASSETS = [
   "./diary-detail.css?v=20260823-019",
   "./secret-viewer.css?v=20260814-231",
   "./wardrobe.css?v=20260811-007",
-  "./app.js?v=20260823-021",
+  "./app.js?v=20260823-022",
   "./modules/admin-storage.js",
   "./modules/vlog-mode.js",
   "./modules/weekend-gallery.js",
@@ -32,11 +32,13 @@ const CORE_ASSETS = [
   "./modules/media-metadata.js",
   "./modules/notification-domain.js",
   "./modules/offline-records.js",
+  "./modules/photo-favorites.js",
   "./modules/preferences-store.js",
   "./modules/secret-domain.js?v=20260810-004",
   "./modules/ui-formatters.js",
   "./modules/upload-queue.js",
   "./modules/wardrobe.js?v=20260811-005",
+  "./modules/wishlist-view.js",
   "./manifest.webmanifest",
   "./assets/food-wheel-icon.png",
   "./assets/app-icon-192.png",

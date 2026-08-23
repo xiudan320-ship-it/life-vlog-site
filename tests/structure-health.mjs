@@ -34,7 +34,7 @@ assert.equal(
 );
 
 const sizeBudgets = new Map([
-  ["app.js", 620_000],
+  ["app.js", 610_000],
   ["redesign.css", 340_000],
 ]);
 for (const [file, limit] of sizeBudgets) {

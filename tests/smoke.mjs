@@ -17,6 +17,10 @@ const weekendGalleryModule = await readFile(
   new URL("../modules/weekend-gallery.js", import.meta.url),
   "utf8"
 );
+const wishlistViewModule = await readFile(
+  new URL("../modules/wishlist-view.js", import.meta.url),
+  "utf8"
+);
 const deployScript = await readFile(new URL("../deploy-cloudflare-pages.ps1", import.meta.url), "utf8");
 const releaseTestScript = await readFile(new URL("../test-release.ps1", import.meta.url), "utf8");
 const secretViewerCss = await readFile(
@@ -39,6 +43,12 @@ const cachePolicy = await import(new URL("../modules/cache-policy.js", import.me
 const diaryDomain = await import(new URL("../modules/diary-domain.js", import.meta.url));
 const notificationDomain = await import(
   new URL("../modules/notification-domain.js", import.meta.url)
+);
+const photoFavoritesDomain = await import(
+  new URL("../modules/photo-favorites.js", import.meta.url)
+);
+const wishlistView = await import(
+  new URL("../modules/wishlist-view.js", import.meta.url)
 );
 const secretDomain = await import(new URL("../modules/secret-domain.js", import.meta.url));
 const diaryDomainModule = await readFile(
@@ -181,7 +191,7 @@ const initialPhotoLoadIndex = app.indexOf("await loadPhotos()", initializeCloudf
 assert.ok(initializeCloudflareIndex >= 0, "Cloudflare initialization is missing");
 assert.ok(authListenerIndex > initializeCloudflareIndex, "Auth listener is missing from initialization");
 assert.ok(authListenerIndex < initialPhotoLoadIndex, "Auth listener must be registered before initial photo loading");
-assert.match(serviceWorker, /life-vlog-site-20260823-021-pwa/);
+assert.match(serviceWorker, /life-vlog-site-20260823-022-pwa/);
 assert.match(serviceWorker, /modules\/admin-storage\.js/);
 assert.match(diaryDetailCss, /#photoDialog #dialogImage\[hidden\][\s\S]*?display: none !important/);
 assert.match(app, /const p=!galleryRenderSignature[\s\S]*?if\(p\).*?scrollIntoView\(\)/);
@@ -318,7 +328,7 @@ assert.match(app, /moveSecretAlbumToFolder/);
 assert.doesNotMatch(app, /function createDefaultAnniversaries/);
 assert.match(app, /const userId = session\?\.user\?\.id \|\| "guest"/);
 assert.match(app, /anniversaries = cloudMapped;/);
-assert.match(app, /wish-card-details/);
+assert.match(wishlistViewModule, /wish-card-details/);
 assert.match(css, /Wishlist: compact shopping-cart rows/);
 assert.match(app, /activePage === "gallery" && requestedPage !== "gallery"\) setUploadExpanded\(false\)/);
 assert.match(app, /onOpen:[\s\S]*?renderGallery\(\);[\s\S]*?setUploadExpanded\(false\)/);
@@ -419,7 +429,7 @@ assert.match(css, /Secret archive PIN/);
 assert.match(css, /Mobile secret PIN sheet/);
 assert.match(index, /id="wishDialogFeedback"/);
 assert.match(app, /wish-detail-dialog/);
-assert.match(app, /data-view-wish-detail/);
+assert.match(wishlistViewModule, /data-view-wish-detail/);
 assert.match(css, /Completed wishes: readable feedback/);
 assert.match(worker, /move_family_item_to_trash/);
 assert.match(worker, /RECYCLABLE_FAMILY_ITEMS/);
@@ -484,12 +494,16 @@ assert.match(cachePolicyModule, /export function isClearlyUnmeteredConnection/);
 assert.match(serviceWorker, /modules\/confirm-dialog\.js/);
 assert.match(serviceWorker, /modules\/diary-domain\.js/);
 assert.match(serviceWorker, /modules\/notification-domain\.js/);
+assert.match(serviceWorker, /modules\/photo-favorites\.js/);
 assert.match(serviceWorker, /modules\/secret-domain\.js/);
-assert.match(serviceWorker, /life-vlog-site-20260823-021-pwa/);
+assert.match(serviceWorker, /modules\/wishlist-view\.js/);
+assert.match(app, /from "\.\/modules\/photo-favorites\.js"/);
+assert.match(app, /from "\.\/modules\/wishlist-view\.js"/);
+assert.match(serviceWorker, /life-vlog-site-20260823-022-pwa/);
 assert.match(serviceWorker, /styles\.css\?v=20260823-019/);
 assert.match(serviceWorker, /redesign\.css\?v=20260823-020/);
 assert.match(index, /id="photoInput"[^>]*accept="image\/\*,video\/\*/);
-assert.match(index, /app\.js\?v=20260823-021/);
+assert.match(index, /app\.js\?v=20260823-022/);
 assert.match(serviceWorker, /modules\/vlog-mode\.js/);
 assert.match(serviceWorker, /modules\/weekend-gallery\.js/);
 assert.match(deployScript, /test-release\.ps1/);
@@ -1088,6 +1102,50 @@ assert.equal(
   ),
   "蛋 回复了你 3 次"
 );
+
+const favoriteWrites = [];
+const favoriteStore = photoFavoritesDomain.createPhotoFavoritesStore({
+  repository: {
+    async listFavorites() {
+      return { data: [{ photo_id: "photo-1" }, { photo_id: " photo-2 " }, { photo_id: "" }], error: null };
+    },
+    async setFavorite(photoId, favorite) {
+      favoriteWrites.push([photoId, favorite]);
+      return photoId === "broken" ? { error: new Error("offline") } : { error: null };
+    },
+  },
+  logger: { warn() {} },
+});
+favoriteStore.reset("loading");
+assert.equal(favoriteStore.status, "loading");
+await favoriteStore.synchronize();
+assert.deepEqual(favoriteStore.sortedIds(), ["photo-1", "photo-2"]);
+assert.equal(favoriteStore.cloudAvailable, true);
+assert.equal(favoriteStore.has({ id: "photo-1" }), true);
+assert.deepEqual(await favoriteStore.toggle("photo-1"), { favorite: false, error: null });
+assert.equal(favoriteStore.has("photo-1"), false);
+assert.deepEqual(await favoriteStore.toggle("photo-3"), { favorite: true, error: null });
+assert.equal(favoriteStore.has("photo-3"), true);
+const failedFavorite = await favoriteStore.toggle("broken");
+assert.equal(failedFavorite.error.message, "offline");
+assert.equal(favoriteStore.status, "error");
+assert.equal(favoriteStore.cloudAvailable, false);
+assert.deepEqual(favoriteWrites, [
+  ["photo-1", false],
+  ["photo-3", true],
+  ["broken", true],
+]);
+const wishlistState = wishlistView.buildWishlistView([
+  { id: "normal", done: false, priority: "普通", date: "2026-08-24", createdAt: "2026-08-20" },
+  { id: "soon", done: false, priority: "想尽快", date: "2026-08-25", createdAt: "2026-08-21" },
+  { id: "must", done: false, priority: "一定要做", date: "2026-09-01", createdAt: "2026-08-22" },
+  { id: "done", done: true, priority: "普通", createdAt: "2026-08-23" },
+]);
+assert.equal(wishlistState.openCount, 3);
+assert.equal(wishlistState.doneCount, 1);
+assert.deepEqual(wishlistState.visibleWishes.map((wish) => wish.id), ["must", "soon", "normal"]);
+assert.equal(wishlistView.buildWishlistView([], "done").emptyMessage, "已完成里还没有记录。完成心愿后会放到这里。");
+assert.match(wishlistView.formatWishDate("2026-08-23"), /2026/);
 assert.doesNotThrow(() => JSON.parse(manifestText));
 
 console.log("Smoke checks passed.");
