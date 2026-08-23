@@ -39,6 +39,78 @@ import {
   getVipLevelByRecharge,
   renderVipCenterView,
 } from "./modules/vip-center.js";
+import {
+  getDiaryGalleryEmptyState,
+  prepareFeedImages,
+  renderDiaryGalleryCards,
+  updateReadMoreHints,
+} from "./modules/diary-gallery-view.js";
+import {
+  buildMobileDiaryPageMarkup,
+  createMobileDiaryPage,
+  refreshMobileDiaryComments,
+} from "./modules/mobile-diary-view.js";
+import {
+  clampNumber,
+  getMobileBackEdge,
+  getTouchCenter,
+  getTouchDistance,
+  isEdgeBackSwipe,
+} from "./modules/media-gesture-domain.js";
+import {
+  bindSecretAlbumActions,
+  bindSecretCollectionActions,
+  bindSecretFavoritesActions,
+  bindSecretFilterActions,
+  buildSecretAlbumMarkup,
+  buildSecretCategoryOptions,
+  buildSecretCollectionMarkup,
+  buildSecretFavoritesMarkup,
+  buildSecretFilterMarkup,
+  buildSecretFolderListMarkup,
+  buildSecretFolderOptions,
+} from "./modules/secret-gallery-view.js";
+import {
+  buildFamilyInvitationsMarkup,
+  buildFamilyMembersMarkup,
+  buildFamilyOutgoingInvitationsMarkup,
+  buildSettingsAccountOverviewMarkup,
+  buildSettingsFamilyMarkup,
+  buildSettingsToolOrderMarkup,
+} from "./modules/account-view.js";
+import {
+  bindSecretDialogControls as bindSecretDialogControlsView,
+  fitDialogMedia,
+  renderDialogPagination,
+  renderSecretDialogControls as buildSecretDialogControls,
+  setViewerStatus,
+  updateDiaryViewerToolbar,
+  updateSecretViewerToolbar,
+} from "./modules/photo-dialog-view.js";
+import {
+  buildFamilyMemoryMarkup,
+  buildFamilyTimelineMarkup,
+  buildWeeklyReviewMarkup,
+} from "./modules/family-activity-view.js";
+import { configureCacheManagementUi } from "./modules/cache-management-view.js";
+import {
+  buildAchievementDetailMarkup,
+  buildAchievementFilterMarkup,
+  buildAchievementGridMarkup,
+  buildCultivationArchiveMarkup,
+  buildExperienceRulesMarkup,
+  buildLevelAchievementMarkup,
+  buildLevelAtlasMarkup,
+  buildLevelLeaderboardMarkup,
+  buildLevelWorkspaceMarkup,
+  getAchievementConditionText as formatAchievementCondition,
+} from "./modules/gamification-view.js";
+import {
+  getProfileCapabilities,
+  mergeLoginState,
+  resolvePreferredDisplayName,
+  resolvePreferredHomeName,
+} from "./modules/account-sync-domain.js";
 import { refreshAdminStorage as refreshStorage } from "./modules/admin-storage.js";
 import { createVlogMode, filterVlogPhotos, validateVlogUpload } from "./modules/vlog-mode.js";
 import {
@@ -98,7 +170,6 @@ import {
 import { createPreferenceStore } from "./modules/preferences-store.js";
 import { createHouseholdRepository } from "./modules/household-repository.js";
 import {
-  fitVideoToContainer,
   startDiaryMotionVideo,
   stopDiaryMotionVideo,
 } from "./modules/diary-video-layout.js";
@@ -206,7 +277,6 @@ const DEFAULT_DIARY_CACHE_MB = 100;
 const DEFAULT_SECRET_CACHE_MB = 300;
 const MIN_CACHE_MB = 20;
 const MAX_CACHE_MB = 2000;
-const EAGER_IMAGE_CARD_COUNT = 4;
 const SECRET_ALBUM_IMAGE_LIMIT = 80;
 const DEFAULT_SECRET_SORT_STEP = 1000;
 const TOOL_DOCK_ORDER_KEY = "life-vlog-tool-dock-order";
@@ -343,8 +413,6 @@ let selectedSecretImageIndexes = new Set();
 let secretAlbumEditing = false;
 let secretAppendExpanded = false;
 let secretMobileToolsExpanded = false;
-let secretPhotoLongPressTimer = null;
-let secretPhotoLongPressTriggered = false;
 let diarySearchQuery = "";
 let activeWishView = "open";
 let previewUrls = [];
@@ -2771,179 +2839,43 @@ function renderGallery() {
     return;
   }
   if (!visible.length) {
-    const emptyMessage =
-      diarySearchQuery
-        ? "没有找到匹配的日记。换个日期或关键词试试看。"
-        : activeFilter === "featured7"
-        ? "最近七天还没有精选日记。"
-        : activeFilter === "favorites"
-          ? session
-            ? photoFavorites.status === "loading"
-              ? "正在同步收藏…"
-              : photoFavorites.status === "error"
-                ? "收藏同步失败，请稍后刷新重试。"
-                : "还没有收藏日记。"
-            : "登录后可以收藏喜欢的日记。"
-          : activeFilter === "VLOG"
-            ? "还没有 VLOG，点击顶部 VLOG 发布第一条视频。"
-          : "还没有这个分类的日记。";
-    els.gallery.innerHTML = `<div class="empty"${activeFilter === "favorites" && photoFavorites.status === "loading" ? " data-favorite-sync-loading role=\"status\"" : ""}>${emptyMessage}</div>`;
+    const empty = getDiaryGalleryEmptyState({
+      search: diarySearchQuery,
+      filter: activeFilter,
+      signedIn: Boolean(session),
+      favoriteStatus: photoFavorites.status,
+    });
+    els.gallery.innerHTML = `<div class="empty"${empty.loading ? " data-favorite-sync-loading role=\"status\"" : ""}>${empty.message}</div>`;
     updateFeedLoader(0);
     return;
   }
 
   galleryRenderSignature = nextSignature;
-
-  els.gallery.innerHTML = visible
-    .map(
-        (photo, index) => {
-          const photoOwnerId = getPhotoOwnerId(photo);
-          const canManage = Boolean(session && (!photoOwnerId || photoOwnerId === session.user.id));
-          const canAdminCategorize = Boolean(
-            session && isAdminAccount() && photoOwnerId && photoOwnerId !== session.user.id
-          );
-          const canAdminUnpin = Boolean(session && isAdminAccount() && photo.is_pinned);
-          const displayTitle = getDisplayTitle(photo);
-          const images = getPhotoImages(photo);
-          const noteText = getPlainNote(photo);
-          const sequence = String(index + 1).padStart(2, "0");
-          const titleMarkup = displayTitle ? `<h3>${escapeHtml(displayTitle)}</h3>` : "";
-          const noteMarkup = noteText
-            ? `<p class="diary-excerpt">${escapeHtml(noteText)}</p><span class="read-more-hint" hidden>点击阅读全文</span>`
-            : "";
-          return `
-        <article class="photo-card" data-photo-id="${escapeHtml(photo.id || "")}">
-          <span class="strand-index">${sequence}</span>
-          <div class="photo-status-badges">
-            ${photo.is_pinned ? `<span class="pin-badge">置顶</span>` : ""}
-            ${photo.is_featured ? `<span class="featured-badge">精选</span>` : ""}
-          </div>
-          <div class="photo-open">
-            ${renderPhotoMedia(images, displayTitle, index)}
-            <button class="photo-copy-open" type="button" data-photo-index="${index}" data-image-index="0">
-              <p class="kicker diary-card-meta">
-                <span>${formatDate(photo.taken_at || photo.created_at)}</span>
-                <span class="diary-card-author">
-                  ${renderAvatarMarkup(photo.user_id, "diary-card-author-avatar")}
-                  <span>${escapeHtml(getAuthorName(photo.user_id))}</span>
-                </span>
-              </p>
-              ${titleMarkup}
-              ${noteMarkup}
-            </button>
-          </div>
-          <div class="card-actions">
-            ${
-              session
-                ? `<button class="favorite-photo ${isFavoritePhoto(photo) ? "active" : ""}" type="button" data-favorite-index="${index}" aria-pressed="${String(isFavoritePhoto(photo))}">
-                    ${isFavoritePhoto(photo) ? "♥ 已收藏" : "♡ 收藏"}
-                  </button>`
-                : ""
-            }
-            ${
-              canManage
-                ? `<button class="feature-photo ${photo.is_featured ? "active" : ""}" type="button" data-feature-index="${index}">
-                    ${photo.is_featured ? "取消精选" : "设为精选"}
-                  </button>
-                  <button class="pin-photo ${photo.is_pinned ? "active" : ""}" type="button" data-pin-index="${index}">
-                    ${photo.is_pinned ? "取消置顶" : "置顶"}
-                  </button>
-                  <button class="edit-photo" type="button" data-edit-index="${index}" title="编辑日记">编辑</button>
-                  <button class="delete-photo" type="button" data-delete-index="${index}" title="删除日记">删除</button>`
-                : ""
-            }
-            ${canAdminCategorize ? `<button class="edit-photo" type="button" data-admin-category-index="${index}" title="管理员修改分类">修改分类</button>` : ""}
-            ${canAdminUnpin ? `<button class="pin-photo active admin-unpin-photo" type="button" data-admin-unpin-index="${index}" title="管理员取消置顶">取消置顶</button>` : ""}
-          </div>
-          ${renderPhotoCommentPreview(photo.id, index)}
-        </article>
-      `;
-      }
-    )
-    .join("");
-
-  if(p)requestAnimationFrame(()=>els.gallery.querySelector(".photo-media")?.scrollIntoView());
-
-  els.gallery.querySelectorAll(".photo-media").forEach((media) => {
-    media.addEventListener(
-      "click",
-      (event) => {
-        const button = event.target.closest("button[data-photo-index][data-image-index]");
-        if (!button) return;
-        event.preventDefault();
-        event.stopPropagation();
-        openPhoto(
-          visible[Number(button.dataset.photoIndex)],
-          Number(button.dataset.imageIndex)
-        );
-      },
-      true
-    );
+  renderDiaryGalleryCards({
+    container: els.gallery,
+    photos: visible,
+    initialRender: p,
+    signedIn: Boolean(session),
+    currentUserId: session?.user?.id || "",
+    admin: isAdminAccount(),
+    mobile: isMobileViewport(),
+    getPhotoOwnerId,
+    getDisplayTitle,
+    getPhotoImages,
+    getPlainNote,
+    getAuthorName,
+    renderAvatar: renderAvatarMarkup,
+    renderCommentPreview: renderPhotoCommentPreview,
+    isFavorite: isFavoritePhoto,
+    handlers: {
+      open: openPhoto,
+      delete: deletePhoto,
+      favorite: togglePhotoFavorite,
+      flag: togglePhotoFlag,
+      edit: openEditPhoto,
+      adminCategory: adminUpdatePhotoCategory,
+    },
   });
-
-  els.gallery.querySelectorAll("button[data-photo-index][data-image-index]").forEach((button) => {
-    button.addEventListener("click", () => {
-      openPhoto(
-        visible[Number(button.dataset.photoIndex)],
-        Number(button.dataset.imageIndex)
-      );
-    });
-  });
-
-  els.gallery.querySelectorAll("button[data-delete-index]").forEach((button) => {
-    button.addEventListener("click", async () => {
-      await deletePhoto(visible[Number(button.dataset.deleteIndex)], button);
-    });
-  });
-
-  els.gallery.querySelectorAll("button[data-favorite-index]").forEach((button) => {
-    button.addEventListener("click", () => {
-      togglePhotoFavorite(visible[Number(button.dataset.favoriteIndex)], button);
-    });
-  });
-
-  els.gallery.querySelectorAll("button[data-feature-index]").forEach((button) => {
-    button.addEventListener("click", () => {
-      togglePhotoFlag(visible[Number(button.dataset.featureIndex)], "is_featured");
-    });
-  });
-
-  els.gallery.querySelectorAll("button[data-pin-index]").forEach((button) => {
-    button.addEventListener("click", () => {
-      togglePhotoFlag(visible[Number(button.dataset.pinIndex)], "is_pinned");
-    });
-  });
-
-  els.gallery.querySelectorAll("button[data-edit-index]").forEach((button) => {
-    button.addEventListener("click", () => {
-      openEditPhoto(visible[Number(button.dataset.editIndex)]);
-    });
-  });
-
-  els.gallery.querySelectorAll("button[data-admin-category-index]").forEach((button) => {
-    button.addEventListener("click", () => {
-      void adminUpdatePhotoCategory(visible[Number(button.dataset.adminCategoryIndex)]);
-    });
-  });
-
-  els.gallery.querySelectorAll("button[data-admin-unpin-index]").forEach((button) => {
-    button.addEventListener("click", () => {
-      void togglePhotoFlag(
-        visible[Number(button.dataset.adminUnpinIndex)],
-        "is_pinned",
-        { adminUnpin: true }
-      );
-    });
-  });
-
-  els.gallery.querySelectorAll("button[data-open-comments-index]").forEach((button) => {
-    button.addEventListener("click", () => {
-      openPhoto(visible[Number(button.dataset.openCommentsIndex)]);
-    });
-  });
-
-  prepareFeedImages(els.gallery);
-  updateReadMoreHints(els.gallery);
   observeGalleryMasonry();
   layoutGalleryMasonry();
   warmUpcomingFeedImages(filtered, visible.length);
@@ -3183,110 +3115,6 @@ async function togglePhotoFavorite(photo, button) {
   renderGallery();
 }
 
-function renderPhotoMedia(images, title, photoIndex) {
-  const altText = title || "日记图片";
-  if (images.length <= 1) {
-    const image = images[0] || {};
-    return `
-      <div class="photo-media single"${getPhotoAspectStyle(image)}>
-        <button type="button" data-photo-index="${photoIndex}" data-image-index="0">
-          ${renderFeedImage(image, altText, photoIndex, 0)}
-          ${isDiaryLiveMedia(image) ? `<span class="live-photo-badge" aria-label="Live Photo">LIVE</span>` : ""}
-        </button>
-      </div>
-    `;
-  }
-
-  const previewImages = images.slice(0, 9);
-  return `
-    <div class="photo-media collage count-${previewImages.length}">
-      ${previewImages
-        .map(
-          (image, index) => `
-            <button type="button" data-photo-index="${photoIndex}" data-image-index="${index}">
-              ${renderFeedImage(image, `${altText} ${index + 1}`, photoIndex, index)}
-              ${isDiaryLiveMedia(image) ? '<i class="multi-motion-dot"></i>' : ""}
-            </button>
-          `
-        )
-        .join("")}
-      <span class="media-count">${images.length} 张</span>
-    </div>
-  `;
-}
-
-function renderFeedImage(image, altText, photoIndex, imageIndex) {
-  const eagerCount = isMobileViewport() ? 2 : EAGER_IMAGE_CARD_COUNT;
-  const loading = photoIndex < eagerCount ? "eager" : "lazy";
-  const fetchPriority = photoIndex < (isMobileViewport() ? 1 : 2) && imageIndex === 0 ? "high" : "low";
-  const width = Number(image?.width);
-  const height = Number(image?.height);
-  const widthAttr = Number.isFinite(width) && width > 0 ? ` width="${Math.round(width)}"` : "";
-  const heightAttr = Number.isFinite(height) && height > 0 ? ` height="${Math.round(height)}"` : "";
-  const posterUrl = getDiaryMediaPosterUrl(image);
-  const motionUrl = getDiaryMediaVideoUrl(image);
-  const videoUrl = shouldAutoplayDiaryFeedMedia(photoIndex) ? motionUrl : "";
-  const videoPreviewStyle = motionUrl
-    ? ' style="width:100%;height:100%;object-fit:contain;background:#080b09;"'
-    : "";
-
-  if (videoUrl) {
-    return `<video class="feed-image" src="${escapeHtml(videoUrl)}" poster="${escapeHtml(posterUrl)}" data-full-src="${escapeHtml(posterUrl)}" aria-label="${escapeHtml(altText)}" autoplay muted loop playsinline preload="metadata"${videoPreviewStyle}${widthAttr}${heightAttr}></video>`;
-  }
-
-  return `<img class="feed-image" src="${escapeHtml(image?.thumbnail_url || posterUrl)}" data-full-src="${escapeHtml(posterUrl)}" alt="${escapeHtml(altText)}" loading="${loading}" decoding="async" fetchpriority="${fetchPriority}"${videoPreviewStyle}${widthAttr}${heightAttr} />`;
-}
-
-function shouldAutoplayDiaryFeedMedia(photoIndex = 0) {
-  if (isMobileViewport()) return photoIndex < 5;
-  const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-  if (!connection) return true;
-  if (connection.saveData || connection.type === "cellular") return false;
-  if (connection.type === "wifi" || connection.type === "ethernet") return true;
-  return !/(^|-)2g$/.test(connection.effectiveType || "");
-}
-
-function getPhotoAspectStyle(image) {
-  return ` style="aspect-ratio: ${getPhotoAspectRatio(image)};"`;
-}
-
-function getPhotoAspectRatio(image) {
-  const width = Number(image?.width);
-  const height = Number(image?.height);
-  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
-    return "0.8";
-  }
-
-  const ratio = width / height;
-  return String(Math.min(1.55, Math.max(0.72, ratio)).toFixed(3));
-}
-
-function prepareFeedImages(root = document) {
-  root.querySelectorAll("img.feed-image, video.feed-image, img.secret-progressive-image").forEach((image) => {
-    const markLoaded = () => {
-      image.classList.add("is-loaded");
-      image.closest("button")?.classList.add("media-loaded");
-    };
-
-    if (image.tagName === "VIDEO" ? image.readyState >= 2 : image.complete) {
-      markLoaded();
-      return;
-    }
-
-    image.addEventListener(image.tagName === "VIDEO" ? "loadeddata" : "load", markLoaded, { once: true });
-    image.addEventListener("error", markLoaded, { once: true });
-  });
-}
-
-function updateReadMoreHints(root = document) {
-  root.querySelectorAll(".diary-excerpt").forEach((excerpt) => {
-    const hint = excerpt.nextElementSibling;
-    if (!hint?.classList.contains("read-more-hint")) return;
-    const isClamped = excerpt.scrollHeight > excerpt.clientHeight + 1;
-    hint.hidden = !isClamped;
-  });
-}
-
 function warmUpcomingFeedImages(filteredPhotos, startIndex) {
   const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
   if (isMobileViewport() || connection?.saveData || /(^|-)2g$/.test(connection?.effectiveType || "")) return;
@@ -3364,10 +3192,6 @@ function getPlainNote(photo) {
   return stripDiaryMediaMetadata(photo.note || "");
 }
 
-function clampNumber(value, min, max) {
-  return Math.min(Math.max(value, min), max);
-}
-
 function isSecretImageDialogOpen() {
   return Boolean(els.dialog?.open && els.dialog.classList.contains("secret-image-dialog"));
 }
@@ -3409,72 +3233,53 @@ function applySecretImageZoom() {
     : "";
   els.dialogImage.classList.toggle("is-zoomed", scale > 1.01);
   els.dialogMedia?.classList.toggle("is-zoomed", scale > 1.01);
-  updateDiaryViewerToolbar();
-  updateSecretViewerToolbar();
+  refreshDiaryViewerToolbar();
+  refreshSecretViewerToolbar();
 }
 
-function updateDiaryViewerToolbar() {
-  if (!els.diaryViewerToolbar) return;
-  const isOpen = Boolean(els.dialog?.classList.contains("diary-image-fullscreen"));
-  els.diaryViewerToolbar.hidden = !isOpen;
-  if (!isOpen) return;
-  const total = Math.max(1, dialogImages.length);
-  els.diaryViewerCounter.textContent = `${Math.min(dialogImageIndex + 1, total)} / ${total}`;
-  els.diaryViewerZoomValue.textContent = `${Math.round(secretImageZoom.scale * 100)}%`;
-  els.diaryViewerPrev.disabled = total <= 1;
-  els.diaryViewerNext.disabled = total <= 1;
+function refreshDiaryViewerToolbar() {
+  updateDiaryViewerToolbar({
+    toolbar: els.diaryViewerToolbar,
+    counter: els.diaryViewerCounter,
+    zoomValue: els.diaryViewerZoomValue,
+    previousButton: els.diaryViewerPrev,
+    nextButton: els.diaryViewerNext,
+    open: Boolean(els.dialog?.classList.contains("diary-image-fullscreen")),
+    total: dialogImages.length,
+    index: dialogImageIndex,
+    zoomScale: secretImageZoom.scale,
+  });
 }
 
-function updateSecretViewerToolbar() {
-  if (!els.secretViewerToolbar) return;
-  const isOpen = Boolean(isSecretImageDialogOpen() && els.dialog.classList.contains("secret-image-fullscreen"));
-  els.secretViewerToolbar.hidden = !isOpen;
-  if (!isOpen) return;
-  const total = Math.max(1, dialogImages.length);
-  els.secretViewerCounter.textContent = `${Math.min(dialogImageIndex + 1, total)} / ${total}`;
-  els.secretViewerZoomValue.textContent = `${Math.round(secretImageZoom.scale * 100)}%`;
-  els.secretViewerPrev.disabled = dialogImageIndex <= 0;
-  els.secretViewerNext.disabled = dialogImageIndex >= total - 1;
-  els.secretViewerZoomOut.disabled = secretImageZoom.scale <= 1.01;
-  els.secretViewerZoomIn.disabled = secretImageZoom.scale >= 5.99;
-  els.secretViewerInfo.setAttribute("aria-pressed", String(secretViewerInfoOpen));
-  els.secretViewerInfo.classList.toggle("active", secretViewerInfoOpen);
+function refreshSecretViewerToolbar() {
+  updateSecretViewerToolbar({
+    toolbar: els.secretViewerToolbar,
+    counter: els.secretViewerCounter,
+    zoomValue: els.secretViewerZoomValue,
+    previousButton: els.secretViewerPrev,
+    nextButton: els.secretViewerNext,
+    zoomOutButton: els.secretViewerZoomOut,
+    zoomInButton: els.secretViewerZoomIn,
+    infoButton: els.secretViewerInfo,
+    open: Boolean(isSecretImageDialogOpen() && els.dialog.classList.contains("secret-image-fullscreen")),
+    total: dialogImages.length,
+    index: dialogImageIndex,
+    zoomScale: secretImageZoom.scale,
+    infoOpen: secretViewerInfoOpen,
+  });
 }
 
 function setSecretViewerStatus(state, message = "") {
-  if (!els.secretViewerStatus) return;
-  const visible = Boolean(state);
-  els.secretViewerStatus.hidden = !visible;
-  els.secretViewerStatus.dataset.state = state || "";
-  els.secretViewerStatusText.textContent = message || (state === "error" ? "图片加载失败" : "正在加载图片");
+  setViewerStatus(
+    { status: els.secretViewerStatus, text: els.secretViewerStatusText },
+    state,
+    message
+  );
 }
 
 function fitSecretViewerImage() {
-  fitVideoToContainer(els.dialogVideo, els.dialogMedia);
-  if (!isFittableImageDialogOpen() || !els.dialogImage?.naturalWidth || !els.dialogMedia) return;
-  const mediaStyle = getComputedStyle(els.dialogMedia);
-  const availableWidth = Math.max(
-    1,
-    els.dialogMedia.clientWidth - parseFloat(mediaStyle.paddingLeft || 0) - parseFloat(mediaStyle.paddingRight || 0)
-  );
-  const availableHeight = Math.max(
-    1,
-    els.dialogMedia.clientHeight - parseFloat(mediaStyle.paddingTop || 0) - parseFloat(mediaStyle.paddingBottom || 0)
-  );
-  const fitScale = Math.min(
-    availableWidth / els.dialogImage.naturalWidth,
-    availableHeight / els.dialogImage.naturalHeight
-  );
-  els.dialogImage.style.setProperty(
-    "width",
-    `${Math.max(1, els.dialogImage.naturalWidth * fitScale)}px`,
-    "important"
-  );
-  els.dialogImage.style.setProperty(
-    "height",
-    `${Math.max(1, els.dialogImage.naturalHeight * fitScale)}px`,
-    "important"
-  );
+  if (!isFittableImageDialogOpen()) return;
+  fitDialogMedia({ image: els.dialogImage, video: els.dialogVideo, container: els.dialogMedia });
 }
 
 function normalizeSecretImageZoom(zoom) {
@@ -3556,19 +3361,6 @@ async function downloadCurrentDiaryImage() {
   } catch (_error) {
     window.open(url, "_blank", "noopener,noreferrer");
   }
-}
-
-function getTouchDistance(touches) {
-  const [first, second] = touches;
-  return Math.hypot(first.clientX - second.clientX, first.clientY - second.clientY);
-}
-
-function getTouchCenter(touches) {
-  const [first, second] = touches;
-  return {
-    x: (first.clientX + second.clientX) / 2,
-    y: (first.clientY + second.clientY) / 2,
-  };
 }
 
 function beginSecretImageTouch(event) {
@@ -3815,111 +3607,38 @@ function renderDialogMedia(entryDirection = 0) {
   } else {
     els.dialogNote.textContent = els.dialogNote.textContent || "";
   }
-  const hasMultiple = dialogImages.length > 1;
-  els.dialogPrev.hidden = !hasMultiple;
-  els.dialogNext.hidden = !hasMultiple;
-  els.dialogCounter.hidden = !hasMultiple;
-  els.dialogDots.hidden = !hasMultiple;
-  els.dialogThumbs.hidden = !hasMultiple;
-  els.dialogCounter.textContent = hasMultiple
-    ? `${dialogImageIndex + 1}/${dialogImages.length}`
-    : "";
-  els.dialogPrev.disabled = activeSecretDialogItem ? dialogImageIndex <= 0 : !hasMultiple;
-  els.dialogNext.disabled = activeSecretDialogItem ? dialogImageIndex >= dialogImages.length - 1 : !hasMultiple;
-  updateSecretViewerToolbar();
-
-  if (!hasMultiple) {
-    els.dialogDots.innerHTML = "";
-    els.dialogThumbs.innerHTML = "";
-    bindSecretDialogControls();
-    return;
-  }
-
-  els.dialogDots.innerHTML = dialogImages
-    .map(
-      (_, index) => `
-        <button
-          class="${index === dialogImageIndex ? "active" : ""}"
-          type="button"
-          role="tab"
-          data-dialog-dot="${index}"
-          aria-label="查看第 ${index + 1} 张"
-          aria-selected="${index === dialogImageIndex}"
-        ></button>
-      `
-    )
-    .join("");
-
-  els.dialogThumbs.innerHTML = dialogImages
-    .map(
-      (thumb, index) => `
-        <button class="${index === dialogImageIndex ? "active" : ""}" type="button" data-dialog-thumb="${index}" aria-label="查看第 ${index + 1} 张">
-          <img src="${escapeHtml(thumb.image_url)}" alt="" />
-        </button>
-      `
-    )
-    .join("");
-
-  els.dialogThumbs.querySelectorAll("button[data-dialog-thumb]").forEach((button) => {
-    button.addEventListener("click", () => {
-      dialogImageIndex = Number(button.dataset.dialogThumb);
+  renderDialogPagination({
+    images: dialogImages,
+    index: dialogImageIndex,
+    secret: Boolean(activeSecretDialogItem),
+    previousButton: els.dialogPrev,
+    nextButton: els.dialogNext,
+    counter: els.dialogCounter,
+    dots: els.dialogDots,
+    thumbs: els.dialogThumbs,
+    onSelect: (index) => {
+      dialogImageIndex = index;
       renderDialogMedia();
-    });
+    },
   });
+  refreshSecretViewerToolbar();
   bindSecretDialogControls();
 }
 
 function renderSecretDialogControls(image) {
-  const tags = normalizeSecretPhotoTags(image);
-  const favorite = Boolean(image?.favorite);
-  return `
-    <div class="secret-dialog-tools secret-dialog-readonly-tools">
-      <button class="secret-dialog-favorite ${favorite ? "active" : ""}" type="button" data-secret-dialog-favorite>
-        ${favorite ? "♥ 已收藏" : "♡ 收藏"}
-      </button>
-      <div class="secret-dialog-current-tags">
-        <span>展品 Tag</span>
-        <div>
-        ${tags
-          .map(
-            (tag) => `
-              <button type="button" data-secret-dialog-remove-tag="${escapeHtml(tag)}">
-                ${escapeHtml(tag)} <b>×</b>
-              </button>
-            `
-          )
-          .join("")}
-        </div>
-      </div>
-      <form class="secret-dialog-add-tag" data-secret-dialog-tag-form>
-        <label>
-          <span>添加 Tag</span>
-          <input name="secretDialogTag" maxlength="32" list="secretCategoryList" autocomplete="off" placeholder="输入或选择已有 Tag" />
-        </label>
-        <button type="submit">添加</button>
-      </form>
-      <p data-secret-dialog-status></p>
-    </div>
-  `;
+  return buildSecretDialogControls(image);
 }
 
 function bindSecretDialogControls() {
   if (!activeSecretDialogItem) return;
-  els.dialogNote.querySelector("[data-secret-dialog-favorite]")?.addEventListener("click", () => {
-    const current = dialogImages[dialogImageIndex] || {};
-    void updateSecretDialogImage({ favorite: !current.favorite });
-  });
-  els.dialogNote.querySelectorAll("[data-secret-dialog-remove-tag]").forEach((button) => {
-    button.addEventListener("click", () => {
-      void updateSecretDialogImage({ removeTag: button.dataset.secretDialogRemoveTag || "" });
-    });
-  });
-  els.dialogNote.querySelector("[data-secret-dialog-tag-form]")?.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const input = event.currentTarget.elements.secretDialogTag;
-    const tag = String(input?.value || "").trim();
-    if (!tag) return;
-    void updateSecretDialogImage({ addTag: tag });
+  bindSecretDialogControlsView({
+    container: els.dialogNote,
+    onFavorite: () => {
+      const current = dialogImages[dialogImageIndex] || {};
+      void updateSecretDialogImage({ favorite: !current.favorite });
+    },
+    onRemoveTag: (tag) => void updateSecretDialogImage({ removeTag: tag }),
+    onAddTag: (tag) => void updateSecretDialogImage({ addTag: tag }),
   });
 }
 
@@ -3936,24 +3655,6 @@ function moveDialogImage(step, animate = false) {
   }
   dialogImageIndex = nextIndex;
   renderDialogMedia(animate ? (step > 0 ? 1 : -1) : 0);
-}
-
-function isEdgeBackSwipe(start, event, { threshold = 72, ratio = 1.35, maxElapsed = 1200 } = {}) {
-  if (!start) return false;
-  const deltaX = event.clientX - start.x;
-  const deltaY = Math.abs(event.clientY - start.y);
-  const elapsed = Date.now() - start.time;
-  const fromLeft = start.edge === "left" && deltaX > threshold;
-  const fromRight = start.edge === "right" && deltaX < -threshold;
-  return (fromLeft || fromRight) && Math.abs(deltaX) > deltaY * ratio && elapsed < maxElapsed;
-}
-
-function getMobileBackEdge(clientX) {
-  if (!isMobileViewport()) return "";
-  const edgeSize = 38;
-  if (clientX <= edgeSize) return "left";
-  if (clientX >= window.innerWidth - edgeSize) return "right";
-  return "";
 }
 
 function beginDialogSwipe(event) {
@@ -4518,145 +4219,68 @@ function restoreDialogReturnTarget(restoreScroll = dialogRestoreScrollY) {
 
 function ensureMobileDiaryPage() {
   if (mobileDiaryPage) return mobileDiaryPage;
-  mobileDiaryPage = document.createElement("section");
-  mobileDiaryPage.className = "mobile-diary-page";
-  mobileDiaryPage.hidden = true;
-  mobileDiaryPage.addEventListener("click", (event) => {
-    const closeButton = event.target.closest("[data-mobile-diary-close]");
-    if (closeButton) {
-      closeMobileDiaryPage();
-      return;
-    }
-    const imageButton = event.target.closest("[data-mobile-diary-image]");
-    if (imageButton) {
-      mobileDiaryImageIndex = Number(imageButton.dataset.mobileDiaryImage) || 0;
-      renderMobileDiaryPage();
-      return;
-    }
-    const openImageButton = event.target.closest("[data-mobile-diary-open-image]");
-    if (openImageButton && mobileDiaryPhoto) {
-      if (Date.now() < mobileDiarySuppressImageClickUntil) return;
-      openMobileDiaryImageViewer();
-      return;
-    }
-    const replyButton = event.target.closest("[data-mobile-diary-reply]");
-    if (replyButton) {
-      startMobileDiaryReply(replyButton.dataset.mobileDiaryReply);
-      return;
-    }
-    const deleteButton = event.target.closest("[data-mobile-diary-delete-comment]");
-    if (deleteButton) {
-      void deletePhotoComment(deleteButton.dataset.mobileDiaryDeleteComment);
-      return;
-    }
-    const cancelReply = event.target.closest("[data-mobile-diary-cancel-reply]");
-    if (cancelReply) {
-      cancelMobileDiaryReply();
-      return;
-    }
-    const favoriteButton = event.target.closest("[data-mobile-diary-favorite]");
-    if (favoriteButton && mobileDiaryPhoto) {
-      void togglePhotoFavorite(mobileDiaryPhoto, favoriteButton).then(() => {
-        if (!mobileDiaryPage?.hidden && mobileDiaryPhoto) renderMobileDiaryPage();
-      });
-      return;
-    }
-    if (event.target.closest("[data-mobile-diary-edit]") && mobileDiaryPhoto) {
-      const photo = mobileDiaryPhoto;
-      closeMobileDiaryPage();
-      openEditPhoto(photo);
-      return;
-    }
-    if (event.target.closest("[data-mobile-diary-admin-category]") && mobileDiaryPhoto) {
-      void adminUpdatePhotoCategory(mobileDiaryPhoto);
-      return;
-    }
-    if (event.target.closest("[data-mobile-diary-admin-unpin]") && mobileDiaryPhoto) {
-      void togglePhotoFlag(mobileDiaryPhoto, "is_pinned", { adminUnpin: true });
-      return;
-    }
-    if (event.target.closest("[data-mobile-diary-delete]") && mobileDiaryPhoto) {
-      const photo = mobileDiaryPhoto;
-      void deletePhoto(photo).then((deleted) => {
-        if (deleted) closeMobileDiaryPage();
-      });
-    }
+  mobileDiaryPage = createMobileDiaryPage({
+    handlers: {
+      close: closeMobileDiaryPage,
+      selectImage: (index) => {
+        mobileDiaryImageIndex = index;
+        renderMobileDiaryPage();
+      },
+      openImage: () => {
+        if (!mobileDiaryPhoto || Date.now() < mobileDiarySuppressImageClickUntil) return;
+        openMobileDiaryImageViewer();
+      },
+      reply: startMobileDiaryReply,
+      deleteComment: (id) => void deletePhotoComment(id),
+      cancelReply: cancelMobileDiaryReply,
+      favorite: (button) => {
+        if (!mobileDiaryPhoto) return;
+        void togglePhotoFavorite(mobileDiaryPhoto, button).then(() => {
+          if (!mobileDiaryPage?.hidden && mobileDiaryPhoto) renderMobileDiaryPage();
+        });
+      },
+      edit: () => {
+        if (!mobileDiaryPhoto) return;
+        const photo = mobileDiaryPhoto;
+        closeMobileDiaryPage();
+        openEditPhoto(photo);
+      },
+      adminCategory: () => {
+        if (mobileDiaryPhoto) void adminUpdatePhotoCategory(mobileDiaryPhoto);
+      },
+      adminUnpin: () => {
+        if (mobileDiaryPhoto) void togglePhotoFlag(mobileDiaryPhoto, "is_pinned", { adminUnpin: true });
+      },
+      deleteDiary: () => {
+        if (!mobileDiaryPhoto) return;
+        const photo = mobileDiaryPhoto;
+        void deletePhoto(photo).then((deleted) => {
+          if (deleted) closeMobileDiaryPage();
+        });
+      },
+      submitComment: (event) => void saveMobileDiaryComment(event),
+      beginBackSwipe: beginMobileDiaryBackSwipe,
+      moveBackSwipe: moveMobileDiaryBackSwipe,
+      endBackSwipe: endMobileDiaryBackSwipe,
+      cancelBackSwipe: cancelMobileDiaryBackSwipe,
+      beginImageSwipe: beginMobileDiaryImageSwipe,
+      moveImageSwipe: moveMobileDiaryImageSwipe,
+      endImageSwipe: endMobileDiaryImageSwipe,
+      cancelImageSwipe: cancelMobileDiaryImageSwipe,
+    },
   });
-  mobileDiaryPage.addEventListener("submit", (event) => {
-    if (event.target.matches("[data-mobile-diary-comment-form]")) {
-      void saveMobileDiaryComment(event);
-    }
-  });
-  mobileDiaryPage.addEventListener("pointerdown", beginMobileDiaryBackSwipe, { passive: true });
-  mobileDiaryPage.addEventListener("pointermove", moveMobileDiaryBackSwipe, { passive: false });
-  mobileDiaryPage.addEventListener("pointerup", endMobileDiaryBackSwipe, { passive: true });
-  mobileDiaryPage.addEventListener("pointerdown", beginMobileDiaryImageSwipe, { passive: true });
-  mobileDiaryPage.addEventListener("pointermove", moveMobileDiaryImageSwipe, { passive: true });
-  mobileDiaryPage.addEventListener("pointerup", endMobileDiaryImageSwipe, { passive: true });
-  mobileDiaryPage.addEventListener("pointercancel", () => {
-    cancelMobileDiaryBackSwipe();
-    cancelMobileDiaryImageSwipe();
-  });
-  document.body.append(mobileDiaryPage);
   return mobileDiaryPage;
 }
-
-function renderMobileDiaryCommentTree() {
-  if (!photoComments.length) return `<p class="photo-comments-empty">还没有留言。</p>`;
-  const byParent = new Map();
-  photoComments.forEach((comment) => {
-    const parentId = comment.parent_id || "root";
-    if (!byParent.has(parentId)) byParent.set(parentId, []);
-    byParent.get(parentId).push(comment);
-  });
-  const renderBranch = (parentId = "root", depth = 0) =>
-    (byParent.get(parentId) || [])
-      .map((comment) => {
-        const replyTarget = comment.parent_id
-          ? photoComments.find((item) => item.id === comment.parent_id)
-          : null;
-        const isAuthor = comment.user_id === mobileDiaryPhoto?.user_id;
-        return `
-          <div class="photo-comment-thread" style="--comment-depth:${Math.min(depth, 3)}">
-            <article class="photo-comment">
-              ${renderAvatarMarkup(comment.user_id)}
-              <div class="photo-comment-main">
-                <header>
-                  <span class="photo-comment-author-line">
-                    <strong>${escapeHtml(getAuthorName(comment.user_id))}</strong>
-                    ${isAuthor ? `<small class="photo-comment-author-badge">作者</small>` : ""}
-                  </span>
-                </header>
-                ${replyTarget ? `<small class="reply-target">回复 ${escapeHtml(getAuthorName(replyTarget.user_id))}</small>` : ""}
-                <p>${escapeHtml(comment.body)}</p>
-                <time>${formatCommentTime(comment.created_at)}</time>
-                <div class="photo-comment-actions">
-                  <button type="button" data-mobile-diary-reply="${escapeHtml(comment.id)}">回复</button>
-                  ${comment.user_id === session?.user?.id ? `<button type="button" data-mobile-diary-delete-comment="${escapeHtml(comment.id)}">删除</button>` : ""}
-                </div>
-              </div>
-            </article>
-            ${renderBranch(comment.id, depth + 1)}
-          </div>
-        `;
-      })
-      .join("");
-  return renderBranch();
-}
-
 function renderMobileDiaryComments() {
-  if (!mobileDiaryPage || mobileDiaryPage.hidden) return;
-  const list = mobileDiaryPage.querySelector("[data-mobile-diary-comments]");
-  if (list) list.innerHTML = renderMobileDiaryCommentTree();
-  const heading = mobileDiaryPage.querySelector(".photo-comments-head h3");
-  if (heading) heading.textContent = `共 ${photoComments.length} 条评论`;
-  const replyBar = mobileDiaryPage.querySelector("[data-mobile-diary-replying]");
-  const replyText = mobileDiaryPage.querySelector("[data-mobile-diary-replying-text]");
-  const input = mobileDiaryPage.querySelector("[data-mobile-diary-comment-input]");
-  const replyComment = photoComments.find((item) => item.id === mobileDiaryReplyToId);
-  if (replyBar) replyBar.hidden = !replyComment;
-  if (replyText) replyText.textContent = replyComment ? `正在回复 ${getAuthorName(replyComment.user_id)}` : "";
-  if (input) input.placeholder = replyComment ? `回复 ${getAuthorName(replyComment.user_id)}` : "给这篇日记留句话";
+  refreshMobileDiaryComments({
+    page: mobileDiaryPage,
+    comments: photoComments,
+    replyToId: mobileDiaryReplyToId,
+    photoOwnerId: mobileDiaryPhoto?.user_id || "",
+    currentUserId: session?.user?.id || "",
+    getAuthorName,
+    renderAvatar: renderAvatarMarkup,
+  });
 }
 
 function renderMobileDiaryPage() {
@@ -4665,83 +4289,26 @@ function renderMobileDiaryPage() {
   if (!photo) return;
   const images = getPhotoImages(photo);
   mobileDiaryImageIndex = Math.min(Math.max(0, mobileDiaryImageIndex), Math.max(0, images.length - 1));
-  const image = images[mobileDiaryImageIndex] || images[0] || {};
   const canComment = Boolean(
     session &&
       photo &&
       (photo.user_id === session.user.id || familyMemberMap.has(photo.user_id))
   );
-  const canManageDiary = Boolean(session && photo.user_id === session.user.id);
-  const canAdminCategorize = Boolean(session && isAdminAccount() && photo.user_id && photo.user_id !== session.user.id);
-  const canAdminUnpinDiary = Boolean(session && isAdminAccount() && photo.is_pinned);
-  page.innerHTML = `
-    <button class="mobile-diary-close" type="button" data-mobile-diary-close aria-label="返回">返回</button>
-    <div class="mobile-diary-media">
-      <button class="mobile-diary-image-button" type="button" data-mobile-diary-open-image aria-label="放大查看日记图片">
-        ${getDiaryMediaVideoUrl(image)
-          ? `<video class="mobile-diary-motion" src="${escapeHtml(getDiaryMediaVideoUrl(image))}" poster="${escapeHtml(getDiaryMediaPosterUrl(image))}" autoplay muted loop playsinline preload="metadata" aria-label="${escapeHtml(getDisplayTitle(photo) || "日记视频")}"></video>`
-          : `<img src="${escapeHtml(getDiaryMediaPosterUrl(image))}" alt="${escapeHtml(getDisplayTitle(photo) || "日记图片")}" />`}
-        ${images.length === 1 && isDiaryLiveMedia(image) ? `<span class="live-photo-badge" aria-label="Live Photo">LIVE</span>` : ""}
-      </button>
-      ${images.length > 1 ? `<span class="mobile-diary-count">${mobileDiaryImageIndex + 1} / ${images.length}</span>` : ""}
-    </div>
-    ${
-      images.length > 1
-        ? `<div class="mobile-diary-thumbs">
-            ${images
-              .map(
-                (thumb, index) => `
-                  <button class="${index === mobileDiaryImageIndex ? "active" : ""}" type="button" data-mobile-diary-image="${index}">
-                    <img src="${escapeHtml(thumb.image_url)}" alt="" />
-                  </button>
-                `
-              )
-              .join("")}
-          </div>`
-        : ""
-    }
-    <article class="mobile-diary-article">
-      <p class="kicker mobile-diary-meta">
-        <span>${escapeHtml(photo.category || "日常")} · ${formatDateTime(photo.created_at)}</span>
-        <span class="diary-card-author">
-          ${renderAvatarMarkup(photo.user_id, "diary-card-author-avatar")}
-          <span>${escapeHtml(getAuthorName(photo.user_id))}</span>
-        </span>
-      </p>
-      ${getDisplayTitle(photo) ? `<h1>${escapeHtml(getDisplayTitle(photo))}</h1>` : ""}
-      ${getPlainNote(photo) ? `<p class="mobile-diary-note">${escapeHtml(getPlainNote(photo))}</p>` : ""}
-      ${session ? `<div class="mobile-diary-actions" aria-label="日记操作">
-        <button class="mobile-diary-action ${isFavoritePhoto(photo) ? "is-active" : ""}" type="button" data-mobile-diary-favorite aria-pressed="${isFavoritePhoto(photo)}">
-          <span class="mobile-diary-action-mark" aria-hidden="true">${isFavoritePhoto(photo) ? "♥" : "♡"}</span>
-          <span>${isFavoritePhoto(photo) ? "已收藏" : "收藏"}</span>
-        </button>
-        ${canManageDiary ? `<button class="mobile-diary-action" type="button" data-mobile-diary-edit><span class="mobile-diary-action-mark" aria-hidden="true">编</span><span>编辑</span></button>` : ""}
-        ${canAdminCategorize ? `<button class="mobile-diary-action" type="button" data-mobile-diary-admin-category><span class="mobile-diary-action-mark" aria-hidden="true">类</span><span>分类</span></button>` : ""}
-        ${canAdminUnpinDiary ? `<button class="mobile-diary-action" type="button" data-mobile-diary-admin-unpin><span class="mobile-diary-action-mark" aria-hidden="true">顶</span><span>取消置顶</span></button>` : ""}
-        ${canManageDiary ? `<button class="mobile-diary-action danger" type="button" data-mobile-diary-delete><span class="mobile-diary-action-mark" aria-hidden="true">删</span><span>删除</span></button>` : ""}
-      </div>` : ""}
-    </article>
-    <section class="mobile-diary-comments">
-      <div class="photo-comments-head">
-        <p class="kicker">Family Comments</p>
-        <h3>共 ${photoComments.length} 条评论</h3>
-      </div>
-      <div class="photo-comments-list" data-mobile-diary-comments>${renderMobileDiaryCommentTree()}</div>
-      ${
-        canComment
-          ? `<form data-mobile-diary-comment-form>
-              <div class="comment-replying" data-mobile-diary-replying hidden>
-                <span data-mobile-diary-replying-text></span>
-                <button type="button" data-mobile-diary-cancel-reply aria-label="取消回复">×</button>
-              </div>
-              <input data-mobile-diary-comment-input maxlength="300" required placeholder="给这篇日记留句话" />
-              <button type="submit">发送</button>
-              <p class="status-line" data-mobile-diary-comment-status></p>
-            </form>`
-          : ""
-      }
-    </section>
-  `;
+  page.innerHTML = buildMobileDiaryPageMarkup({
+    photo,
+    images,
+    imageIndex: mobileDiaryImageIndex,
+    comments: photoComments,
+    signedIn: Boolean(session),
+    currentUserId: session?.user?.id || "",
+    canComment,
+    admin: isAdminAccount(),
+    favorite: isFavoritePhoto(photo),
+    getDisplayTitle,
+    getPlainNote,
+    getAuthorName,
+    renderAvatar: renderAvatarMarkup,
+  });
   startDiaryMotionVideo(page.querySelector(".mobile-diary-motion"));
   renderMobileDiaryComments();
 }
@@ -5800,112 +5367,26 @@ function applyCacheLimitPreset(value) {
 }
 
 function ensureCacheManagementUi() {
-  if (!els.cacheLimitDialog || !els.cacheLimitInput || !els.cacheLimitButton) return;
-  const settingsNav = els.settingsDialog?.querySelector(".settings-sidebar nav");
-  let cacheNav = settingsNav?.querySelector('[data-settings-section="settingsCache"]');
-  if (settingsNav && !cacheNav) {
-    cacheNav = document.createElement("button");
-    cacheNav.type = "button";
-    cacheNav.dataset.settingsSection = "settingsCache";
-    cacheNav.setAttribute("aria-selected", "false");
-    cacheNav.textContent = "缓存";
-    cacheNav.addEventListener("click", () => setActiveSettingsSection("settingsCache"));
-    settingsNav.insertBefore(cacheNav, settingsNav.querySelector('[data-settings-section="settingsAccount"]'));
-  }
-  let cacheGroup = document.querySelector("#settingsCache");
-  if (!cacheGroup) {
-    cacheGroup = document.createElement("section");
-    cacheGroup.className = "settings-group";
-    cacheGroup.id = "settingsCache";
-    cacheGroup.hidden = true;
-    cacheGroup.innerHTML = '<p class="kicker">Offline</p><h3>缓存与离线</h3>';
-    document.querySelector("#settingsTools")?.before(cacheGroup);
-  }
-  [els.refreshCacheInfoButton, els.cacheLimitButton, document.querySelector("#clearDiaryCacheButton"), document.querySelector("#clearSecretCacheButton"), els.clearAppCacheButton]
-    .filter(Boolean)
-    .forEach((button) => cacheGroup.append(button));
-  els.cacheLimitButton.querySelector("span").textContent = "缓存容量上限";
-  const summary = els.cacheLimitButton.querySelector("small");
-  if (summary) summary.textContent = "日记和秘藏分别按容量自动淘汰旧图片";
-
-  let policyButton = document.querySelector("#mediaCachePolicyButton");
-  if (!policyButton) {
-    policyButton = document.createElement("button");
-    policyButton.id = "mediaCachePolicyButton";
-    policyButton.type = "button";
-    policyButton.addEventListener("click", () => {
-      const next = loadMediaCachePolicy() === "wifi" ? "off" : "wifi";
-      saveMediaCachePolicy(next);
-      showMiniToast(next === "wifi" ? "仅在明确识别为 Wi-Fi 时自动缓存" : "已关闭自动缓存", { kind: "success" });
-    });
-    cacheGroup.insertBefore(policyButton, els.cacheLimitButton);
-  }
-
-  if (!document.querySelector("#downloadDiaryOfflineButton")) {
-    const diaryDownload = document.createElement("button");
-    diaryDownload.id = "downloadDiaryOfflineButton";
-    diaryDownload.type = "button";
-    diaryDownload.innerHTML = "<span>下载日记离线包</span><strong>手动缓存当前日记文字和图片</strong>";
-    diaryDownload.addEventListener("click", () => downloadOfflinePool("diary"));
-    cacheGroup.insertBefore(diaryDownload, els.clearAppCacheButton);
-
-    const secretDownload = document.createElement("button");
-    secretDownload.id = "downloadSecretOfflineButton";
-    secretDownload.type = "button";
-    secretDownload.innerHTML = "<span>下载全部秘藏离线包</span><strong>缓存全部秘藏相册和图片，直到达到容量上限</strong>";
-    secretDownload.addEventListener("click", () => downloadOfflinePool("secret"));
-    cacheGroup.insertBefore(secretDownload, els.clearAppCacheButton);
-  }
-
-  const form = els.cacheLimitForm;
-  const heading = form?.querySelector("h2");
-  const intro = heading?.nextElementSibling;
-  if (heading) heading.textContent = "本地缓存容量";
-  if (intro) intro.textContent = "分别设置日记和秘藏图片在本机可占用的空间。达到上限后自动淘汰较旧图片，不影响云端原图。";
-  const diaryLabel = els.cacheLimitInput.closest("label");
-  if (diaryLabel?.querySelector("span")) diaryLabel.querySelector("span").textContent = "日记图片（MB）";
-  els.cacheLimitInput.min = String(MIN_CACHE_MB);
-  els.cacheLimitInput.max = String(MAX_CACHE_MB);
-  els.cacheLimitInput.step = "10";
-
-  if (!document.querySelector("#secretCacheLimitInput") && diaryLabel) {
-    const label = document.createElement("label");
-    label.className = "cache-limit-field";
-    label.innerHTML = `<span>秘藏图片（MB）</span><input id="secretCacheLimitInput" type="number" min="${MIN_CACHE_MB}" max="${MAX_CACHE_MB}" step="10" inputmode="numeric" required />`;
-    diaryLabel.after(label);
-  }
-  const presets = form?.querySelectorAll("[data-cache-limit-preset]") || [];
-  const presetValues = [50, 100, 200, 500];
-  presets.forEach((button, index) => {
-    const value = presetValues[index] || 100;
-    button.dataset.cacheLimitPreset = String(value);
-    button.textContent = `${value} / ${value * 3} MB`;
+  configureCacheManagementUi({
+    elements: {
+      cacheLimitDialog: els.cacheLimitDialog,
+      cacheLimitInput: els.cacheLimitInput,
+      cacheLimitButton: els.cacheLimitButton,
+      settingsDialog: els.settingsDialog,
+      refreshCacheInfoButton: els.refreshCacheInfoButton,
+      clearAppCacheButton: els.clearAppCacheButton,
+      cacheLimitForm: els.cacheLimitForm,
+    },
+    minMb: MIN_CACHE_MB,
+    maxMb: MAX_CACHE_MB,
+    setActiveSection: setActiveSettingsSection,
+    loadPolicy: loadMediaCachePolicy,
+    savePolicy: saveMediaCachePolicy,
+    showToast: showMiniToast,
+    downloadPool: downloadOfflinePool,
+    clearPool: clearCachePool,
   });
-  const hint = form?.querySelector(".cache-limit-hint");
-  if (hint) hint.textContent = "前一个数字是日记容量，后一个是秘藏容量。Wi-Fi 下自动保留最新 20 条日记；手动离线包会缓存到容量上限。";
-
-  const group = els.cacheLimitButton.parentElement;
-  if (group && !document.querySelector("#clearDiaryCacheButton")) {
-    const diaryClear = document.createElement("button");
-    diaryClear.id = "clearDiaryCacheButton";
-    diaryClear.type = "button";
-    diaryClear.innerHTML = "<span>清除日记缓存</span><strong>只清除日记文字与图片</strong>";
-    diaryClear.addEventListener("click", () => clearCachePool("diary"));
-    group.insertBefore(diaryClear, els.clearAppCacheButton);
-
-    const secretClear = document.createElement("button");
-    secretClear.id = "clearSecretCacheButton";
-    secretClear.type = "button";
-    secretClear.innerHTML = "<span>清除秘藏缓存</span><strong>只清除秘藏相册与图片</strong>";
-    secretClear.addEventListener("click", () => clearCachePool("secret"));
-    group.insertBefore(secretClear, els.clearAppCacheButton);
-  }
-  [document.querySelector("#clearDiaryCacheButton"), document.querySelector("#clearSecretCacheButton")]
-    .filter(Boolean)
-    .forEach((button) => cacheGroup.append(button));
-  cacheGroup.append(els.clearAppCacheButton);
 }
-
 async function downloadOfflinePool(type) {
   if (!navigator.onLine) {
     showMiniToast("当前离线，无法补充缓存", { kind: "error" });
@@ -6592,11 +6073,12 @@ async function synchronizeAccountData() {
       const loginName = normalizeNickname(getSessionLoginName());
       const sessionDisplayName = normalizeNickname(getSessionDisplayName());
       const profileDisplayName = normalizeNickname(profile.username);
-      const preferredDisplayName =
-        profileDisplayName &&
-        !(loginName && profileDisplayName === loginName && sessionDisplayName && sessionDisplayName !== loginName)
-          ? profileDisplayName
-          : sessionDisplayName || profileDisplayName || displayName;
+      const preferredDisplayName = resolvePreferredDisplayName({
+        loginName,
+        sessionDisplayName,
+        profileDisplayName,
+        fallback: displayName,
+      });
       if (preferredDisplayName && preferredDisplayName !== getSessionDisplayName()) {
         updateSessionDisplayName(preferredDisplayName);
       }
@@ -6615,22 +6097,13 @@ async function synchronizeAccountData() {
       );
       const cloudLastLoginDate = normalizeLoginDateKey(profile.last_login_date);
       const localLastLoginDate = normalizeLoginDateKey(localExperience.lastLoginDate);
-      let lastLoginDate = cloudLastLoginDate || localLastLoginDate || "";
-      let loginStreak = Math.max(0, Number(profile.login_streak) || 0);
-      const localLoginStreak = Math.max(0, Number(localExperience.loginStreak) || 0);
-      if (
-        localLastLoginDate &&
-        (!cloudLastLoginDate || localLastLoginDate > cloudLastLoginDate)
-      ) {
-        lastLoginDate = localLastLoginDate;
-        loginStreak = localLoginStreak;
-      } else if (
-        localLastLoginDate &&
-        localLastLoginDate === cloudLastLoginDate
-      ) {
-        loginStreak = Math.max(loginStreak, localLoginStreak);
-      }
-      if (lastLoginDate === today) loginStreak = Math.max(1, loginStreak);
+      let { lastLoginDate, loginStreak } = mergeLoginState({
+        cloudDate: cloudLastLoginDate,
+        cloudStreak: profile.login_streak,
+        localDate: localLastLoginDate,
+        localStreak: localExperience.loginStreak,
+        today,
+      });
       let todayExperienceDate = profile.today_experience_date || "";
       let todayExperienceAmount = todayExperienceDate === today
         ? Math.max(0, Number(profile.today_experience_amount) || 0)
@@ -6643,27 +6116,20 @@ async function synchronizeAccountData() {
       const preferredTheme = cloudTheme || loadTheme(userId);
       const cloudHomeName = normalizeHomeName(familyInfo?.name || profile.home_name);
       const localHomeName = loadHomeName(userId);
-      const preferredHomeName =
-        cloudHomeName && (cloudHomeName !== "咻蛋之家" || localHomeName === "咻蛋之家")
-          ? cloudHomeName
-          : localHomeName;
+      const preferredHomeName = resolvePreferredHomeName({
+        cloudName: cloudHomeName,
+        localName: localHomeName,
+      });
       const cloudThanksColor = normalizeThanksColor(profile.preferred_thanks_color);
       const preferredThanksColor =
         Object.prototype.hasOwnProperty.call(profile, "preferred_thanks_color") &&
         cloudThanksColor
           ? cloudThanksColor
           : localThanksColor;
-      foodOptionsCloudAvailable = Object.prototype.hasOwnProperty.call(
-        profile,
-        "food_options"
-      );
-      thanksColorCloudAvailable = Object.prototype.hasOwnProperty.call(
-        profile,
-        "preferred_thanks_color"
-      );
-      profilePreferencesCloudAvailable =
-        Object.prototype.hasOwnProperty.call(profile, "theme_preference") &&
-        Object.prototype.hasOwnProperty.call(profile, "home_name");
+      const capabilities = getProfileCapabilities(profile);
+      foodOptionsCloudAvailable = capabilities.foodOptions;
+      thanksColorCloudAvailable = capabilities.thanksColor;
+      profilePreferencesCloudAvailable = capabilities.preferences;
 
       const vipLevel = getVipLevelByRecharge(rechargeTotal)?.level || 0;
       let loginRewardGained = 0;
@@ -7188,33 +6654,14 @@ async function loadFamilyLevelProfiles() {
 }
 
 function renderLevelLeaderboard() {
-  const ranks = getLevelRankProfiles();
-  if (!ranks.length) return `<div class="level-rank-empty">登录后显示家庭修为排行。</div>`;
-  return `
-    <div class="level-rank-list">
-      ${ranks
-        .map((profile, index) => {
-          const isCurrent = profile.user_id === session?.user?.id;
-          const avatarUrl = getProfileAvatarUrl(profile) || loadCachedAvatarUrl(profile.user_id);
-          return `
-            <article class="level-rank-row ${isCurrent ? "current" : ""}">
-              <span class="level-rank-index">${index + 1}</span>
-              ${avatarUrl
-                ? `<span class="level-rank-avatar" data-avatar-fallback="${escapeHtml(getInitial(profile.username))}"><img src="${escapeHtml(avatarUrl)}" alt="${escapeHtml(profile.username)}的头像" decoding="async" /></span>`
-                : `<span class="level-rank-avatar">${escapeHtml(getInitial(profile.username))}</span>`}
-              <div>
-                <strong>${escapeHtml(profile.username || "家庭成员")}${isCurrent ? "（我）" : ""}</strong>
-                <small>${escapeHtml(profile.progress.title)} · ${Number(profile.experience_total || 0).toLocaleString()} EXP</small>
-              </div>
-              <em>${profile.role === "owner" ? "创始人" : "成员"}</em>
-            </article>
-          `;
-        })
-        .join("")}
-    </div>
-  `;
+  return buildLevelLeaderboardMarkup({
+    ranks: getLevelRankProfiles(),
+    currentUserId: session?.user?.id || "",
+    getAvatarUrl: getProfileAvatarUrl,
+    getCachedAvatarUrl: loadCachedAvatarUrl,
+    getInitial,
+  });
 }
-
 function getCultivationArchive() {
   return buildCultivationArchive({
     photos,
@@ -7234,42 +6681,9 @@ function getCultivationArchive() {
 }
 function renderCultivationArchive() {
   const archive = getCultivationArchive();
-  const previewBadges = [
-    ...archive.badges.filter((badge) => badge.unlocked),
-    ...archive.badges.filter((badge) => !badge.unlocked).sort((a, b) => b.percent - a.percent),
-  ].slice(0, 4);
   const monthLabel = new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "long" }).format(new Date());
-  return `
-    <section class="cultivation-archive">
-      <div class="cultivation-panel cultivation-badges">
-        <div class="cultivation-panel-head"><span>称号与徽章</span><button type="button" data-open-achievements>查看全部 · ${archive.badges.filter((badge) => badge.unlocked).length}/${archive.badges.length}</button></div>
-        <div class="cultivation-badge-grid">
-          ${previewBadges.map((badge) => `
-            <article class="cultivation-badge ${badge.unlocked ? "unlocked" : "locked"}">
-              <i>${badge.icon}</i><div><strong>${badge.title}</strong><small>${badge.unlocked ? "已解锁" : badge.detail}</small></div>
-            </article>`).join("")}
-        </div>
-      </div>
-      <div class="cultivation-panel cultivation-monthly">
-        <div class="cultivation-panel-head"><span>修行月报</span><strong>${monthLabel}</strong></div>
-        <div class="cultivation-month-grid">
-          <span><b>${archive.month.diaries}</b><small>日记</small></span>
-          <span><b>${archive.month.comments}</b><small>留言</small></span>
-          <span><b>${archive.month.wishes}</b><small>圆梦</small></span>
-          <span><b>${archive.month.recipes}</b><small>菜谱</small></span>
-          <span><b>${archive.month.secrets}</b><small>秘藏</small></span>
-        </div>
-      </div>
-      <div class="cultivation-panel cultivation-roots">
-        <div class="cultivation-panel-head"><span>灵根谱</span><strong>主灵根 · ${archive.primaryRoot}</strong></div>
-        <div class="cultivation-root-list">
-          ${archive.roots.map((root) => `<div><span>${root.key}</span><i><b style="width:${root.percent}%"></b></i><em>${root.percent}%</em></div>`).join("")}
-        </div>
-      </div>
-    </section>
-  `;
+  return buildCultivationArchiveMarkup(archive, monthLabel);
 }
-
 function openLevelGuidePage() {
   activeLevelSection = "atlas";
   renderLevelDialog();
@@ -7328,70 +6742,36 @@ function scrollLevelAtlasToCurrent() {
 }
 
 function renderLevelAtlasPanel(experience, progress) {
-  const dailyExp = getDailyLoginReward(getNextLoginStreak(experience));
-  const milestones = loadRealmMilestones(experience);
-  return `<section class="level-atlas-panel"><div class="level-atlas-intro"><strong>${experience.total.toLocaleString()} EXP</strong><span>${escapeHtml(getUpgradeEta(progress))}</span></div>
-    <div class="level-guide-timeline">${CULTIVATION_REALMS.map((realm, index) => {
-      const nextThreshold = Number.isFinite(realm.next) ? realm.next : Infinity;
-      const unlocked = experience.total >= realm.threshold;
-      const active = progress.realm === realm.name;
-      const remaining = Math.max(0, realm.threshold - experience.total);
-      const reachedDate = formatRealmMilestoneDate(milestones[realm.name]);
-      const eta = unlocked ? (active ? "当前境界" : `达成于 ${reachedDate}`) : `${formatUpgradeDays(Math.ceil(remaining / Math.max(1, dailyExp)))}可抵达`;
-      const range = Number.isFinite(nextThreshold) ? `${realm.threshold.toLocaleString()} - ${(nextThreshold - 1).toLocaleString()} EXP` : `${realm.threshold.toLocaleString()}+ EXP`;
-      return `<article class="${active ? "active" : ""} ${unlocked ? "unlocked" : "locked"}"><i>${String(index + 1).padStart(2, "0")}</i><div><small>${range}</small><h2>${escapeHtml(realm.name)}</h2><p>${escapeHtml(CULTIVATION_DESCRIPTIONS[realm.name] || "")}</p><em>${eta}</em></div></article>`;
-  }).join("")}</div></section>`;
+  return buildLevelAtlasMarkup({
+    experienceTotal: experience.total,
+    progress,
+    realms: CULTIVATION_REALMS,
+    descriptions: CULTIVATION_DESCRIPTIONS,
+    milestones: loadRealmMilestones(experience),
+    dailyExp: getDailyLoginReward(getNextLoginStreak(experience)),
+    formatMilestoneDate: formatRealmMilestoneDate,
+    formatUpgradeDays,
+    upgradeEta: getUpgradeEta(progress),
+  });
 }
 
 function renderExperienceRulesPanel(experience) {
-  const currentStreak = Math.max(0, Number(experience.loginStreak) || 0);
   const nextStreak = getNextLoginStreak(experience);
-  const streakBonus = getLoginStreakBonusBase(nextStreak);
-  const rules = [
-    ["每日登录", `+${DAILY_LOGIN_EXP} EXP`, "每天首次进入并完成同步时获得一次。"],
-    ["发布日记", `+${EXPERIENCE_REWARDS.diary} EXP`, "发布一篇日记，记录一次真实发生。"],
-    ["留言 / 回复", `+${EXPERIENCE_REWARDS.comment} EXP`, "给家庭成员的日记留下评论或回复。"],
-    ["发布菜谱", `+${EXPERIENCE_REWARDS.recipe} EXP`, "保存一份新的菜谱。"],
-    ["发布心愿", `+${EXPERIENCE_REWARDS.wish} EXP`, "把想做、想去或想吃的事写进心愿单。"],
-    ["完成心愿", `+${EXPERIENCE_REWARDS.wishDone} EXP`, "完成心愿后补上一句感想，获得额外修为。"],
-    ["安排周末", `+${EXPERIENCE_REWARDS.weekend} EXP`, "新增一次周末计划。"],
-    ["时间纪念册", `+${EXPERIENCE_REWARDS.anniversary} EXP`, "新增一个值得记住的日期。"],
-    ["感谢留言", `+${EXPERIENCE_REWARDS.thanks} EXP`, "在感谢留言板留下新的记录。"],
-    ["编辑已有日记", `+${EXPERIENCE_REWARDS.diaryEdit} EXP`, "补充或修改已经发布的日记内容。"],
-  ];
-  const vipRows = [0, 1, 2, 3, 4, 5].map((level) => {
-    const multiplier = getVipExpMultiplier(level);
-    return `<span><b>LV.${level}</b><small>${multiplier}x 经验倍率</small></span>`;
-  }).join("");
-  return `<section class="experience-rules-panel">
-    <header class="experience-rules-head">
-      <div><small>HOW EXP GROWS</small><h3>经验增加规则</h3><p>经验只记录你们认真生活的痕迹，不会扣除，也不会因为切换设备而分开计算。</p></div>
-      <strong>今日 +${loadTodayExperience()} EXP</strong>
-    </header>
-    <div class="experience-streak-card">
-      <div><span>连续登录</span><strong>${currentStreak} 天</strong></div>
-      <p>连续第 ${nextStreak} 天预计登录基础 +${DAILY_LOGIN_EXP} EXP${streakBonus ? `，本次连续奖励 +${streakBonus} EXP` : ""}。连续奖励每 2 天增加 5 EXP，最高 +40 EXP。</p>
-    </div>
-    <div class="experience-rule-list">
-      ${rules.map(([label, amount, detail]) => `<article class="experience-rule-row"><div><strong>${label}</strong><small>${detail}</small></div><b>${amount}</b></article>`).join("")}
-    </div>
-    <section class="experience-vip-rules"><div><small>MEMBER BONUS</small><h4>会员经验倍率</h4></div><div class="experience-vip-grid">${vipRows}</div><p>倍率会作用于发布、互动和每日登录奖励；升级境界仍只看累计 EXP。</p></section>
-  </section>`;
+  return buildExperienceRulesMarkup({
+    experience,
+    nextStreak,
+    streakBonus: getLoginStreakBonusBase(nextStreak),
+    todayExperience: loadTodayExperience(),
+  });
 }
 
 function renderLevelAchievementPanel() {
-  const badges = getCultivationArchive().badges;
-  return `<section class="level-achievement-panel"><div class="level-section-heading"><div><small>Achievements</small><h3>成就徽章</h3></div><span>${badges.filter((badge) => badge.unlocked).length}/${badges.length}</span></div>
-    <div class="level-achievement-grid">${badges.map((badge) => `<button type="button" data-level-achievement="${escapeHtml(badge.id)}" class="${badge.unlocked ? "unlocked" : "locked"}"><i>${escapeHtml(badge.icon)}</i><span><strong>${escapeHtml(badge.title)}</strong><small>${escapeHtml(getAchievementConditionText(badge))}</small><em>${badge.unlocked ? "已达成" : `${Math.min(badge.current, badge.target)} / ${badge.target}`}</em></span></button>`).join("")}</div></section>`;
+  return buildLevelAchievementMarkup(getCultivationArchive().badges);
 }
 
 function getAchievementConditionText(badge) {
-  if (!badge) return "查看具体达成条件";
-  if (badge.unlocked) return `达成条件：${badge.detail}。已经完成。`;
-  const remaining = Math.max(0, Number(badge.target) - Number(badge.current));
-  return `达成条件：${badge.detail}。当前 ${Math.min(badge.current, badge.target)} / ${badge.target}，还差 ${remaining}。`;
+  return formatAchievementCondition(badge);
 }
-
 function openAchievementDetail(badge) {
   if (!badge) return;
   let dialog = document.querySelector("#achievementDetailDialog");
@@ -7404,12 +6784,7 @@ function openAchievementDetail(badge) {
     });
     document.body.append(dialog);
   }
-  dialog.innerHTML = `<button type="button" data-close-achievement-detail aria-label="关闭">×</button>
-    <div class="achievement-detail-icon ${badge.unlocked ? "unlocked" : ""}">${escapeHtml(badge.icon)}</div>
-    <small>${escapeHtml(badge.category)} · ${badge.unlocked ? "已解锁" : "修行中"}</small>
-    <h2>${escapeHtml(badge.title)}</h2>
-    <p>${escapeHtml(badge.lore || "每一枚徽章，都是普通日子认真发生过的证据。")}</p>
-    <section><span>详细达成条件</span><strong>${escapeHtml(badge.detail)}</strong><p>${escapeHtml(getAchievementConditionText(badge))}</p><em>${Math.min(badge.current, badge.target)} / ${badge.target}</em><i><b style="width:${badge.percent}%"></b></i></section>`;
+  dialog.innerHTML = buildAchievementDetailMarkup(badge);
   dialog.showModal();
 }
 
@@ -7442,10 +6817,11 @@ function renderLevelDialog() {
   } else {
     content = `<section class="level-rank-panel"><div class="level-rank-head"><div><span>Family Ranking</span><strong>家庭修为榜</strong></div><small>共同记录，各自成长</small></div>${renderLevelLeaderboard()}</section>`;
   }
-  els.levelList.innerHTML = `<div class="level-workspace">
-    <nav class="level-section-nav" aria-label="成长等级页面">${sections.map((section) => `<button class="${activeLevelSection === section.id ? "active" : ""}" type="button" data-level-section="${section.id}"><i>${section.icon}</i><span>${section.label}</span></button>`).join("")}</nav>
-    <div class="level-section-content">${content}</div>
-  </div>`;
+  els.levelList.innerHTML = buildLevelWorkspaceMarkup({
+    sections,
+    activeSection: activeLevelSection,
+    content,
+  });
   els.levelList.querySelectorAll("[data-level-section]").forEach((button) => {
     button.addEventListener("click", () => {
       activeLevelSection = button.dataset.levelSection || "ranking";
@@ -7469,18 +6845,8 @@ function renderAchievementDialog() {
   const unlocked = badges.filter((badge) => badge.unlocked).length;
   const categories = ["全部", "记录", "陪伴", "探索", "料理", "收藏"];
   els.achievementSummary.textContent = `已解锁 ${unlocked} / ${badges.length} · 成就只记录生活，不影响境界强弱。`;
-  els.achievementFilters.innerHTML = categories.map((category) => `
-    <button class="${achievementFilter === category ? "active" : ""}" type="button" data-achievement-filter="${category}">${category}</button>
-  `).join("");
-  const visible = achievementFilter === "全部" ? badges : badges.filter((badge) => badge.category === achievementFilter);
-  els.achievementGrid.innerHTML = visible.map((badge) => `
-    <button class="achievement-card ${badge.unlocked ? "unlocked" : "locked"}" type="button" data-achievement-id="${escapeHtml(badge.id)}">
-      <i>${badge.icon}</i>
-      <div><small>${badge.category} · ${badge.unlocked ? "已达成" : "进行中"}</small><strong>${badge.title}</strong><p>${escapeHtml(getAchievementConditionText(badge))}</p></div>
-      <em>${badge.unlocked ? "完成" : `${Math.min(badge.current, badge.target)} / ${badge.target}`}</em>
-      <span><b style="width:${badge.percent}%"></b></span>
-    </button>
-  `).join("");
+  els.achievementFilters.innerHTML = buildAchievementFilterMarkup(categories, achievementFilter);
+  els.achievementGrid.innerHTML = buildAchievementGridMarkup(badges, achievementFilter);
   els.achievementFilters.querySelectorAll("[data-achievement-filter]").forEach((button) => {
     button.addEventListener("click", () => {
       achievementFilter = button.dataset.achievementFilter || "全部";
@@ -8644,12 +8010,11 @@ function renderSecretFolderControls() {
     })),
   ];
   els.secretFolderList.hidden = Boolean(activeSecretAlbumId);
-  els.secretFolderList.innerHTML = folderButtons.map((folder) => `
-    <button class="${activeSecretFolderId === folder.id ? "active" : ""} ${!folder.virtual && defaultFolderId === folder.id ? "is-default" : ""} ${folder.isFavorites ? "is-favorites" : ""} ${folder.isAll ? "is-all" : ""}" type="button" data-secret-folder="${escapeHtml(folder.id)}" title="${folder.virtual ? (folder.isFavorites ? "查看所有已收藏照片" : "查看全部相册") : "右键可设为秘藏默认入口或删除文件夹"}">
-      <i class="secret-folder-glyph" aria-hidden="true"></i>
-      <span><strong>${escapeHtml(folder.name)}</strong><small>${folder.isFavorites ? `${folder.count} 张照片` : `${folder.count} 个相册${!folder.virtual && defaultFolderId === folder.id ? " · 默认入口" : ""}`}</small></span>
-    </button>
-  `).join("");
+  els.secretFolderList.innerHTML = buildSecretFolderListMarkup({
+    folders: folderButtons,
+    activeFolderId: activeSecretFolderId,
+    defaultFolderId,
+  });
   els.secretFolderList.querySelectorAll("[data-secret-folder]").forEach((button) => {
     button.addEventListener("click", () => {
       activeSecretFolderId = button.dataset.secretFolder || SECRET_ALL_FOLDER_ID;
@@ -8663,9 +8028,7 @@ function renderSecretFolderControls() {
     });
   });
   if (els.secretFolderInput) {
-    els.secretFolderInput.innerHTML = `<option value="">不放入文件夹</option>${secretFolders
-      .map((folder) => `<option value="${escapeHtml(folder.id)}">${escapeHtml(folder.name)}</option>`)
-      .join("")}`;
+    els.secretFolderInput.innerHTML = buildSecretFolderOptions(secretFolders);
   }
 }
 
@@ -9190,44 +8553,18 @@ function getSecretFavoriteEntries() {
 
 function renderSecretFavoritesView() {
   const entries = getSecretFavoriteEntries();
-  const albumCount = new Set(entries.map(({ item }) => item.id)).size;
   activeSecretFilter = "全部";
   els.secretFilters.hidden = true;
   els.secretFilters.innerHTML = "";
-  els.secretGallery.innerHTML = `
-    <section class="secret-favorites-view">
-      <header class="secret-collection-header">
-        <div>
-          <p class="kicker">FAVORITES</p>
-          <h3>收藏夹</h3>
-          <p>${entries.length ? `${entries.length} 张照片 · 来自 ${albumCount} 个相册` : "还没有收藏照片，点开照片后选择收藏即可"}</p>
-        </div>
-      </header>
-      ${entries.length
-        ? `<div class="secret-album-grid secret-favorites-grid">
-            ${entries.map(({ item, image }, index) => `
-              <button class="secret-album-photo" type="button" data-secret-favorite-photo="${index}">
-                <img class="secret-progressive-image" src="${escapeHtml(image.thumbnail_url || image.image_url)}" data-full-src="${escapeHtml(image.image_url)}" alt="${escapeHtml(item.title || "收藏照片")}" loading="lazy" decoding="async" />
-                <small class="secret-photo-tag">${escapeHtml(item.title || "未命名相册")} · ${escapeHtml(normalizeSecretPhotoTags(image).slice(0, 2).join(" · "))}</small>
-                <strong class="secret-photo-favorite">♥</strong>
-              </button>
-            `).join("")}
-          </div>`
-        : `<div class="empty">收藏后，照片会自动出现在这里。</div>`}
-    </section>
-  `;
+  els.secretGallery.innerHTML = buildSecretFavoritesMarkup(entries);
   prepareFeedImages(els.secretGallery);
-  els.secretGallery.querySelectorAll("[data-secret-favorite-photo]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const entry = entries[Number(button.dataset.secretFavoritePhoto)];
-      if (!entry) return;
-      openSecretItem(entry.item, entry.favoriteIndex, {
+  bindSecretFavoritesActions(els.secretGallery, entries, (entry, button) => {
+    openSecretItem(entry.item, entry.favoriteIndex, {
         images: entry.favoriteImages,
         returnImageUrl: entry.image.image_url,
         returnElementTop: button.getBoundingClientRect().top,
         triggerElement: button,
       });
-    });
   });
 }
 
@@ -9242,10 +8579,7 @@ function renderSecretGallery() {
   const allPhotoTags = activeAlbum
     ? getSecretAlbumTagCounts(activeAlbum).map(({ tag }) => tag)
     : [DEFAULT_SECRET_PHOTO_TAG];
-  els.secretCategoryList.innerHTML = allPhotoTags
-    .filter((tag) => tag !== "全部")
-    .map((tag) => `<option value="${escapeHtml(tag)}"></option>`)
-    .join("");
+  els.secretCategoryList.innerHTML = buildSecretCategoryOptions(allPhotoTags);
   if (els.secretCategoryTags) {
     els.secretCategoryTags.hidden = true;
     els.secretCategoryTags.innerHTML = "";
@@ -9265,23 +8599,11 @@ function renderSecretGallery() {
     const photoTags = photoTagCounts.map(({ tag }) => tag);
     if (!photoTags.includes(activeSecretFilter)) activeSecretFilter = "全部";
     els.secretFilters.hidden = false;
-    els.secretFilters.innerHTML = photoTags
-      .map((tag) => {
-        const count = photoTagCounts.find((entry) => entry.tag === tag)?.count || 0;
-        return `
-          <button class="${tag === activeSecretFilter ? "active" : ""}" type="button" data-secret-filter="${escapeHtml(tag)}">
-            <span>${escapeHtml(tag)}</span><small>${count}</small>
-          </button>
-        `;
-      }
-      )
-      .join("");
-    els.secretFilters.querySelectorAll("[data-secret-filter]").forEach((button) => {
-      button.addEventListener("click", () => {
-        activeSecretFilter = button.dataset.secretFilter || "全部";
-        selectedSecretImageIndexes = new Set();
-        renderSecretGallery();
-      });
+    els.secretFilters.innerHTML = buildSecretFilterMarkup(photoTagCounts, activeSecretFilter);
+    bindSecretFilterActions(els.secretFilters, (filter) => {
+      activeSecretFilter = filter;
+      selectedSecretImageIndexes = new Set();
+      renderSecretGallery();
     });
     renderSecretAlbumView(activeAlbum);
     return;
@@ -9303,60 +8625,20 @@ function renderSecretGallery() {
       : item.folderId === activeSecretFolderId;
     return folderMatch && secretItemMatchesSearch(item);
   });
-  const albumCards = visible
-    .map((item, index) => {
-      const itemImages = normalizeSecretImages(item.images);
-      const cover = item.coverImage || itemImages[0]?.image_url || "";
-      const mosaicImages = [
-        cover,
-        ...itemImages.map((image) => image.thumbnail_url || image.image_url),
-      ].filter((url, imageIndex, urls) => url && urls.indexOf(url) === imageIndex).slice(0, 3);
-      const linkedPhoto = photos.find((photo) => photo.id === item.linkedPhotoId);
-      const linkedTitle = linkedPhoto ? getDisplayTitle(linkedPhoto) || "关联日记" : "";
-      return `
-        <article class="secret-card" data-secret-album-card="${escapeHtml(item.id)}">
-          <button class="secret-cover" type="button" data-secret-index="${index}">
-            <span class="secret-cover-mosaic secret-cover-mosaic-${Math.max(1, mosaicImages.length)}">
-              ${mosaicImages.length
-                ? mosaicImages.map((url, mosaicIndex) => `<img src="${escapeHtml(url)}" alt="${mosaicIndex === 0 ? escapeHtml(item.title || item.category || "相册封面") : ""}" loading="lazy" decoding="async" />`).join("")
-                : `<i aria-hidden="true">Empty</i>`}
-            </span>
-            <span class="secret-cover-count">${String(itemImages.length).padStart(2, "0")}</span>
-          </button>
-          <div class="secret-card-copy">
-            <div>
-              <p class="kicker">ALBUM</p>
-              <h3>${escapeHtml(item.title || "未命名相册")}</h3>
-            </div>
-            ${item.note ? `<p>${escapeHtml(item.note)}</p>` : ""}
-            ${linkedTitle ? `<small>关联：${escapeHtml(linkedTitle)}</small>` : ""}
-            <div class="secret-card-sort">
-              <button type="button" data-secret-album-move="${escapeHtml(item.id)}:-1" aria-label="向前移动相册" title="向前移动" ${index === 0 ? "disabled" : ""}>↑</button>
-              <button type="button" data-secret-album-move="${escapeHtml(item.id)}:1" aria-label="向后移动相册" title="向后移动" ${index === visible.length - 1 ? "disabled" : ""}>↓</button>
-            </div>
-          </div>
-        </article>
-      `;
-    })
-    .join("");
-  els.secretGallery.innerHTML = `
-    <header class="secret-collection-header">
-      <div>
-        <p class="kicker">Collection</p>
-        <h3>${escapeHtml(activeFolderName)}</h3>
-        <p>${visible.length ? `${visible.length} 个相册，${visible.reduce((total, item) => total + normalizeSecretImages(item.images).length, 0)} 件展品` : "这里还没有相册"}</p>
-      </div>
-      <div class="secret-collection-actions">
-        ${activeFolder ? `<button type="button" data-secret-folder-rename>重命名</button><button class="danger" type="button" data-secret-folder-delete>删除收藏夹</button>` : ""}
-        <button class="primary" type="button" data-secret-create-album>新建相册</button>
-      </div>
-    </header>
-    ${visible.length
-      ? `<div class="secret-album-wall">${albumCards}</div>`
-      : `<button class="secret-empty-collection" type="button" data-secret-create-album><span>＋</span><strong>建立第一本相册</strong><small>照片会保存在私人秘藏中</small></button>`}
-  `;
-  els.secretGallery.querySelectorAll("[data-secret-create-album]").forEach((button) => {
-    button.addEventListener("click", () => {
+  els.secretGallery.innerHTML = buildSecretCollectionMarkup({
+    activeFolderName,
+    activeFolder,
+    visible,
+    getLinkedTitle: (photoId) => {
+      const linkedPhoto = photos.find((photo) => photo.id === photoId);
+      return linkedPhoto ? getDisplayTitle(linkedPhoto) || "关联日记" : "";
+    },
+  });
+  bindSecretCollectionActions({
+    container: els.secretGallery,
+    items: visible,
+    mobile: isMobileViewport(),
+    onCreate: () => {
       if (els.secretComposer?.hidden) els.secretComposer.hidden = false;
       setSecretExpanded(true);
       if (els.secretFolderInput) {
@@ -9365,46 +8647,13 @@ function renderSecretGallery() {
           : activeSecretFolderId;
       }
       els.secretComposer?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-  });
-  els.secretGallery.querySelector("[data-secret-folder-rename]")?.addEventListener("click", renameActiveSecretFolder);
-  els.secretGallery.querySelector("[data-secret-folder-delete]")?.addEventListener("click", deleteActiveSecretFolder);
-  els.secretGallery.querySelectorAll("[data-secret-index]").forEach((button) => {
-    let longPressTimer = null;
-    let longPressTriggered = false;
-    const item = visible[Number(button.dataset.secretIndex)];
-    const clearLongPress = () => {
-      if (longPressTimer) window.clearTimeout(longPressTimer);
-      longPressTimer = null;
-    };
-    button.addEventListener("pointerdown", (event) => {
-      if (event.pointerType === "mouse" && event.button !== 0) return;
-      clearLongPress();
-      longPressTriggered = false;
-      longPressTimer = window.setTimeout(() => {
-        longPressTimer = null;
-        longPressTriggered = true;
-        if (navigator.vibrate) navigator.vibrate(24);
-        void openSecretAlbumFolderDialog(item);
-      }, 480);
-    });
-    button.addEventListener("pointerup", clearLongPress);
-    button.addEventListener("pointercancel", clearLongPress);
-    button.addEventListener("pointerleave", clearLongPress);
-    button.addEventListener("contextmenu", (event) => {
-      if (isMobileViewport()) {
-        if (longPressTriggered) event.preventDefault();
-        return;
-      }
-      event.preventDefault();
-      openSecretAlbumContextMenu(item, event.clientX, event.clientY);
-    });
-    button.addEventListener("click", () => {
-      if (longPressTriggered) {
-        longPressTriggered = false;
-        return;
-      }
-      activeSecretAlbumId = visible[Number(button.dataset.secretIndex)]?.id || "";
+    },
+    onRename: renameActiveSecretFolder,
+    onDelete: deleteActiveSecretFolder,
+    onMoveToFolder: (item) => void openSecretAlbumFolderDialog(item),
+    onContextMenu: openSecretAlbumContextMenu,
+    onOpen: (item) => {
+      activeSecretAlbumId = item?.id || "";
       activeSecretFilter = "全部";
       secretSelectionMode = false;
       selectedSecretImageIndexes = new Set();
@@ -9412,14 +8661,8 @@ function renderSecretGallery() {
       secretAppendExpanded = false;
       secretMobileToolsExpanded = false;
       renderSecretGallery();
-    });
-  });
-  els.secretGallery.querySelectorAll("[data-secret-album-move]").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.stopPropagation();
-      const [id, direction] = String(button.dataset.secretAlbumMove || "").split(":");
-      moveSecretAlbum(id, Number(direction) || 0, visible);
-    });
+    },
+    onMove: moveSecretAlbum,
   });
 }
 
@@ -9490,353 +8733,128 @@ function renderSecretAlbumView(item) {
   const linkedPhoto = photos.find((photo) => photo.id === item.linkedPhotoId);
   const linkedTitle = linkedPhoto ? getDisplayTitle(linkedPhoto) || "关联日记" : "";
   const validSelectedIndexes = [...selectedSecretImageIndexes].filter((index) => index >= 0 && index < images.length);
-  const selectedCount = validSelectedIndexes.length;
-  const singleSelectedIndex = selectedCount === 1 ? validSelectedIndexes[0] : -1;
-  const singleSelectedDisplayPosition = displayEntries.findIndex(({ index }) => index === singleSelectedIndex);
   const knownTags = getSecretAlbumTagCounts(item)
     .map(({ tag }) => tag)
     .filter((tag) => !["全部", FAVORITE_SECRET_PHOTO_TAG].includes(tag));
   const selectedTags = [...new Set(
     validSelectedIndexes.flatMap((index) => normalizeSecretPhotoTags(images[index]))
   )].filter((tag) => tag !== DEFAULT_SECRET_PHOTO_TAG);
-  const moveTargetOptions = sortSecretItems(secretItems)
-    .filter((entry) => entry.id !== item.id)
-    .map((entry) => `<option value="${escapeHtml(entry.id)}">${escapeHtml(entry.title || entry.category || "未命名相册")}</option>`)
-    .join("");
-  els.secretGallery.innerHTML = `
-    <section class="secret-album-view ${secretSelectionMode ? "selection-active" : ""} ${secretSelectionMode && secretMobileToolsExpanded ? "tools-expanded" : ""}">
-      <header class="secret-album-head">
-        <button class="secret-back-button" type="button" data-secret-back aria-label="返回收藏夹">←</button>
-        <div class="secret-album-heading-copy">
-          <p class="kicker">ALBUM</p>
-          <div class="secret-album-title-row">
-            <h3>${escapeHtml(item.title || "未命名相册")}</h3>
-          </div>
-          <small>${images.length} 件展品${linkedTitle ? ` · 关联 ${escapeHtml(linkedTitle)}` : ""}</small>
-          ${item.note ? `<p>${escapeHtml(item.note)}</p>` : ""}
-        </div>
-        <div class="secret-album-actions">
-          <button class="primary" type="button" data-secret-toggle-append aria-label="${secretAppendExpanded ? "收起添加相片" : "添加相片"}">${secretAppendExpanded ? "收起" : "+ 添加相片"}</button>
-          <button type="button" data-secret-edit-album aria-label="${secretAlbumEditing ? "收起相册设置" : "相册设置"}">${secretAlbumEditing ? "收起编辑" : "相册设置"}</button>
-        </div>
-      </header>
-      <button class="secret-mobile-back" type="button" data-secret-back aria-label="返回相册">‹ <span>返回相册</span></button>
-      <div class="secret-album-toolbar ${secretSelectionMode && secretMobileToolsExpanded ? "tools-expanded" : ""}">
-        <div class="secret-toolbar-primary">
-          ${
-          secretSelectionMode
-              ? `<div class="secret-inspector-heading"><span>Selection</span><strong>已选 ${selectedCount} 张</strong></div><div class="secret-selection-primary-actions"><button type="button" data-secret-select-mode>取消选择</button><button class="delete-secret danger" type="button" data-secret-delete-selected ${selectedCount ? "" : "disabled"}>删除</button></div>`
-              : `
-                <button type="button" data-secret-select-mode>选择图片</button>
-              `
-          }
-        </div>
-        ${
-          secretSelectionMode
-            ? `
-              <div class="secret-quick-move-actions">
-                <button type="button" data-secret-move="-1" title="${hasNumericPhotoOrder ? "当前相册按数字 Tag 自然顺序排列" : "前移图片"}" ${!hasNumericPhotoOrder && singleSelectedDisplayPosition > 0 ? "" : "disabled"}>前移</button>
-                <button type="button" data-secret-move="1" title="${hasNumericPhotoOrder ? "当前相册按数字 Tag 自然顺序排列" : "后移图片"}" ${!hasNumericPhotoOrder && singleSelectedDisplayPosition >= 0 && singleSelectedDisplayPosition < displayEntries.length - 1 ? "" : "disabled"}>后移</button>
-              </div>
-              <button class="secret-tools-toggle" type="button" data-secret-tools-toggle>
-                ${secretMobileToolsExpanded ? "收起工具" : `编辑工具 · 已选 ${selectedCount}`}
-              </button>
-              <div class="secret-selection-actions">
-                <button type="button" data-secret-select-all>${displayEntries.length && displayEntries.every(({ index }) => selectedSecretImageIndexes.has(index)) ? "取消全选" : "全选"}</button>
-                <button type="button" data-secret-set-cover ${singleSelectedIndex >= 0 ? "" : "disabled"}>设为封面</button>
-                <div class="secret-photo-move-editor">
-                  <select data-secret-move-album-select ${selectedCount && moveTargetOptions ? "" : "disabled"}>
-                    <option value="">移动到其它相册</option>
-                    ${moveTargetOptions}
-                  </select>
-                  <button type="button" data-secret-move-album ${selectedCount && moveTargetOptions ? "" : "disabled"}>移动</button>
-                </div>
-                <div class="secret-photo-tag-editor">
-                  <span class="secret-editor-label">为选中照片添加 Tag</span>
-                  <input data-secret-photo-tag-input maxlength="32" list="secretCategoryList" placeholder="${DEFAULT_SECRET_PHOTO_TAG}" />
-                  <button type="button" data-secret-apply-photo-tag ${selectedCount ? "" : "disabled"}>保存 tag</button>
-                  ${selectedTags.length ? `<div class="secret-selected-tags">${selectedTags.map((tag) => `<button type="button" data-secret-remove-selected-tag="${escapeHtml(tag)}" title="从选中照片移除">${escapeHtml(tag)} <b>×</b></button>`).join("")}</div>` : ""}
-                  <div class="secret-photo-tag-picks">
-                    ${knownTags
-                      .map((tag) => `<button type="button" data-secret-pick-photo-tag="${escapeHtml(tag)}">${escapeHtml(tag)}</button>`)
-                      .join("")}
-                  </div>
-                </div>
-              </div>
-            `
-            : ""
-        }
-      </div>
-      <div class="secret-album-content">
-      ${
-        secretAlbumEditing
-          ? `
-            <form class="secret-album-edit" data-secret-edit-form>
-              <input data-secret-edit-title maxlength="80" value="${escapeHtml(item.title || "")}" placeholder="相册名" />
-              <label class="secret-sort-setting">
-                <span>照片顺序</span>
-                <select data-secret-edit-sort title="${hasNumericPhotoOrder ? "存在数字 Tag 时，始终优先按编号从大到小显示" : "设置没有数字 Tag 的照片顺序"}">
-                  <option value="desc" ${photoSortDescending ? "selected" : ""}>新到旧 · 倒序</option>
-                  <option value="asc" ${photoSortDescending ? "" : "selected"}>旧到新 · 正序</option>
-                </select>
-                ${hasNumericPhotoOrder ? `<small>数字 Tag 已优先按自然顺序排列：1、2……9、10……99</small>` : ""}
-              </label>
-              <select data-secret-edit-folder>
-                <option value="" ${item.folderId ? "" : "selected"}>不放入文件夹</option>
-                ${secretFolders.map((folder) => `<option value="${escapeHtml(folder.id)}" ${item.folderId === folder.id ? "selected" : ""}>${escapeHtml(folder.name)}</option>`).join("")}
-              </select>
-              <textarea data-secret-edit-note rows="2" placeholder="备注">${escapeHtml(item.note || "")}</textarea>
-              <div>
-                <button class="primary" type="submit">保存相册</button>
-                <button type="button" data-secret-edit-cancel>取消</button>
-                <button class="danger" type="button" data-secret-delete-current>删除相册</button>
-              </div>
-              ${moveTargetOptions ? `
-                <div class="secret-album-merge">
-                  <span><strong>移动整个相册</strong><small>全部图片将并入目标相册，完成后删除当前空相册。</small></span>
-                  <select data-secret-merge-target>
-                    <option value="">选择目标相册</option>
-                    ${moveTargetOptions}
-                  </select>
-                  <button class="danger" type="button" data-secret-merge-album>移动并合并</button>
-                </div>
-              ` : ""}
-            </form>
-          `
-          : ""
-      }
-      ${
-        secretAppendExpanded
-          ? `
-            <form class="secret-append-panel" data-secret-append-form>
-              <textarea data-secret-append-links rows="3" placeholder="粘贴图片链接，每行一个"></textarea>
-              <label class="secret-append-files">
-                <span>选择图片</span>
-                <input data-secret-append-files type="file" accept="image/*" multiple />
-              </label>
-              <div class="secret-append-actions">
-                <button class="primary" type="submit">添加到相册</button>
-                ${linkedPhoto ? `<button type="button" data-secret-open-linked>打开关联日记</button>` : ""}
-              </div>
-            </form>
-          `
-          : linkedPhoto
-            ? `<button class="secret-linked-button" type="button" data-secret-open-linked>打开关联日记</button>`
-            : ""
-      }
-      <button class="secret-back-top" type="button" data-secret-back-top aria-label="回到秘藏相册顶部">↑</button>
-      <div class="secret-photo-filter-row">
-        <button class="secret-photo-sort" type="button" data-secret-photo-sort aria-label="按上传时间排序">
-          ${photoSortDescending ? "新到旧" : "旧到新"} <span>${photoSortDescending ? "↓" : "↑"}</span>
-        </button>
-        ${
-          !["全部", DEFAULT_SECRET_PHOTO_TAG, FAVORITE_SECRET_PHOTO_TAG].includes(activeSecretFilter)
-            ? `<button class="secret-delete-tag" type="button" data-secret-delete-tag>删除当前 tag</button>`
-            : ""
-        }
-      </div>
-      <div class="secret-album-grid">
-        ${displayEntries
-          .map(
-            ({ image, index }) => `
-              <button class="secret-album-photo ${secretSelectionMode ? "selectable" : ""} ${selectedSecretImageIndexes.has(index) ? "selected" : ""} ${Number(image.width) && Number(image.height) && Number(image.height) / Number(image.width) > 1.65 ? "is-long" : ""}" type="button" data-secret-photo="${index}">
-                <img class="secret-progressive-image" src="${escapeHtml(isMobileViewport() ? (image.thumbnail_url || image.image_url) : image.image_url)}" data-full-src="${escapeHtml(image.image_url)}" alt="${escapeHtml(item.title || item.category || "秘藏图片")} ${index + 1}" loading="lazy" decoding="async" />
-                <small class="secret-photo-tag">${escapeHtml(normalizeSecretPhotoTags(image).slice(0, 2).join(" · "))}</small>
-                ${image.favorite ? `<strong class="secret-photo-favorite">♥</strong>` : ""}
-                ${secretSelectionMode ? `<span>${selectedSecretImageIndexes.has(index) ? "已选" : String(index + 1).padStart(2, "0")}</span>` : ""}
-              </button>
-            `
-          )
-          .join("") || `<div class="empty">这个 tag 下还没有照片。</div>`}
-      </div>
-      </div>
-    </section>
-  `;
+  const moveTargets = sortSecretItems(secretItems).filter((entry) => entry.id !== item.id);
+  els.secretGallery.innerHTML = buildSecretAlbumMarkup({
+    item,
+    images,
+    displayEntries,
+    linkedTitle,
+    selectionMode: secretSelectionMode,
+    mobileToolsExpanded: secretMobileToolsExpanded,
+    selectedIndexes: selectedSecretImageIndexes,
+    appendExpanded: secretAppendExpanded,
+    albumEditing: secretAlbumEditing,
+    activeFilter: activeSecretFilter,
+    photoSortDescending,
+    hasNumericPhotoOrder,
+    knownTags,
+    selectedTags,
+    folders: secretFolders,
+    moveTargets,
+    mobile: isMobileViewport(),
+  });
   updateSecretToolbarTop();
   requestAnimationFrame(updateSecretToolbarTop);
   prepareFeedImages(els.secretGallery);
-  els.secretGallery.querySelectorAll("[data-secret-back]").forEach((button) => {
-    button.addEventListener("click", () => {
-      activeSecretAlbumId = "";
-      secretSelectionMode = false;
-      selectedSecretImageIndexes = new Set();
-      secretAlbumEditing = false;
-      secretAppendExpanded = false;
-      secretMobileToolsExpanded = false;
-      renderSecretGallery();
-    });
-  });
-  els.secretGallery.querySelector("[data-secret-toggle-append]")?.addEventListener("click", () => {
-    secretAppendExpanded = !secretAppendExpanded;
-    renderSecretGallery();
-  });
-  els.secretGallery.querySelector("[data-secret-merge-album]")?.addEventListener("click", () => {
-    const targetId = els.secretGallery.querySelector("[data-secret-merge-target]")?.value || "";
-    mergeSecretAlbumInto(item, targetId);
-  });
-  els.secretGallery.querySelector("[data-secret-edit-album]")?.addEventListener("click", () => {
-    secretAlbumEditing = !secretAlbumEditing;
-    renderSecretGallery();
-  });
-  els.secretGallery.querySelector("[data-secret-edit-cancel]")?.addEventListener("click", () => {
-    secretAlbumEditing = false;
-    renderSecretGallery();
-  });
-  els.secretGallery.querySelector("[data-secret-edit-form]")?.addEventListener("submit", (event) => saveSecretAlbumEdit(event, item));
-  els.secretGallery.querySelector("[data-secret-append-form]")?.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const form = event.currentTarget;
-    appendSecretAlbumImages({
-      files: Array.from(form.querySelector("[data-secret-append-files]")?.files || []),
-      linksText: form.querySelector("[data-secret-append-links]")?.value || "",
-      form,
-    });
-  });
-  els.secretGallery.querySelector("[data-secret-append-files]")?.addEventListener("click", (event) => {
-    event.currentTarget.value = "";
-  });
-  els.secretGallery.querySelector("[data-secret-append-files]")?.addEventListener("change", (event) => {
-    const files = Array.from(event.currentTarget.files || []);
-    if (!files.length) return;
-    const form = event.currentTarget.closest("[data-secret-append-form]");
-    appendSecretAlbumImages({
-      files,
-      form,
-    });
-  });
-  els.secretGallery.querySelector("[data-secret-append-form]")?.addEventListener("paste", (event) => {
-    const pastedFiles = getImageFilesFromClipboard(event, "secret-append-pasted");
-    if (!pastedFiles.length) return;
-    event.preventDefault();
-    appendSecretAlbumImages({
-      files: pastedFiles,
-      form: event.currentTarget,
-    });
-  });
-  els.secretGallery.querySelector("[data-secret-open-linked]")?.addEventListener("click", () => {
-    activeSecretDialogItem = item;
-    openSecretLinkedDiary();
-  });
-  els.secretGallery.querySelector("[data-secret-delete-current]")?.addEventListener("click", () => deleteSecretItem(item));
-  els.secretGallery.querySelector("[data-secret-photo-sort]")?.addEventListener("click", async (event) => {
-    const button = event.currentTarget;
-    if (button.disabled) return;
-    button.disabled = true;
-    const saved = await setSecretPhotoSortDescending(item, !getSecretPhotoSortDescending(item));
-    if (saved) renderSecretGallery();
-    else button.disabled = false;
-  });
-  els.secretGallery.querySelector("[data-secret-delete-tag]")?.addEventListener("click", () => deleteCurrentSecretTag(item));
-  els.secretGallery.querySelector("[data-secret-select-mode]")?.addEventListener("click", () => {
-    secretSelectionMode = !secretSelectionMode;
-    secretMobileToolsExpanded = false;
-    if (!secretSelectionMode) selectedSecretImageIndexes = new Set();
-    renderSecretGallery();
-  });
-  els.secretGallery.querySelector("[data-secret-tools-toggle]")?.addEventListener("click", () => {
-    secretMobileToolsExpanded = !secretMobileToolsExpanded;
-    renderSecretGallery();
-  });
-  els.secretGallery.querySelector("[data-secret-select-all]")?.addEventListener("click", () => {
-    if (!secretSelectionMode) return;
-    const visibleIndexes = displayEntries.map(({ index }) => index);
-    const allVisibleSelected = visibleIndexes.length > 0 && visibleIndexes.every((index) => selectedSecretImageIndexes.has(index));
-    selectedSecretImageIndexes =
-      allVisibleSelected
-        ? new Set()
-        : new Set(visibleIndexes);
-    renderSecretGallery();
-  });
-  els.secretGallery.querySelector("[data-secret-delete-selected]")?.addEventListener("click", () => deleteSelectedSecretImages(item));
-  els.secretGallery.querySelector("[data-secret-set-cover]")?.addEventListener("click", () => setSelectedSecretCover(item));
-  els.secretGallery.querySelector("[data-secret-move-album]")?.addEventListener("click", () => {
-    const select = els.secretGallery.querySelector("[data-secret-move-album-select]");
-    moveSelectedSecretImagesToAlbum(item, select?.value || "");
-  });
-  els.secretGallery.querySelector("[data-secret-apply-photo-tag]")?.addEventListener("click", () => {
-    const input = els.secretGallery.querySelector("[data-secret-photo-tag-input]");
-    applySecretPhotoTag(item, input?.value || "");
-  });
-  els.secretGallery.querySelectorAll("[data-secret-pick-photo-tag]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const input = els.secretGallery.querySelector("[data-secret-photo-tag-input]");
-      if (input) input.value = button.dataset.secretPickPhotoTag || DEFAULT_SECRET_PHOTO_TAG;
-      applySecretPhotoTag(item, button.dataset.secretPickPhotoTag || DEFAULT_SECRET_PHOTO_TAG);
-    });
-  });
-  els.secretGallery.querySelectorAll("[data-secret-remove-selected-tag]").forEach((button) => {
-    button.addEventListener("click", () => {
-      removeSecretPhotoTagFromSelection(item, button.dataset.secretRemoveSelectedTag || "");
-    });
-  });
-  els.secretGallery.querySelector("[data-secret-back-top]")?.addEventListener("click", () => {
-    scrollSecretAlbumToTop();
-  });
-  els.secretGallery.querySelectorAll("[data-secret-move]").forEach((button) => {
-    button.addEventListener("click", async () => {
-      if (button.disabled) return;
-      button.disabled = true;
-      await moveSelectedSecretImage(item, Number(button.dataset.secretMove) || 0);
-    });
-  });
-  els.secretGallery.querySelectorAll("[data-secret-photo]").forEach((button) => {
-    let longPressStart = null;
-    const clearLongPress = () => {
-      if (!secretPhotoLongPressTimer) return;
-      window.clearTimeout(secretPhotoLongPressTimer);
-      secretPhotoLongPressTimer = null;
-      longPressStart = null;
-    };
-    button.addEventListener("pointerdown", (event) => {
-      if (secretSelectionMode || (event.pointerType === "mouse" && event.button !== 0)) return;
-      clearLongPress();
-      secretPhotoLongPressTriggered = false;
-      longPressStart = { id: event.pointerId, x: event.clientX, y: event.clientY };
-      const index = Number(button.dataset.secretPhoto) || 0;
-      secretPhotoLongPressTimer = window.setTimeout(() => {
-        secretPhotoLongPressTriggered = true;
-        secretPhotoLongPressTimer = null;
-        longPressStart = null;
+  bindSecretAlbumActions({
+    container: els.secretGallery,
+    selectionMode: secretSelectionMode,
+    selectedIndexes: selectedSecretImageIndexes,
+    handlers: {
+      back: () => {
+        activeSecretAlbumId = "";
+        secretSelectionMode = false;
+        selectedSecretImageIndexes = new Set();
+        secretAlbumEditing = false;
+        secretAppendExpanded = false;
+        secretMobileToolsExpanded = false;
+        renderSecretGallery();
+      },
+      toggleAppend: () => {
+        secretAppendExpanded = !secretAppendExpanded;
+        renderSecretGallery();
+      },
+      merge: (targetId) => mergeSecretAlbumInto(item, targetId),
+      toggleEdit: () => {
+        secretAlbumEditing = !secretAlbumEditing;
+        renderSecretGallery();
+      },
+      cancelEdit: () => {
+        secretAlbumEditing = false;
+        renderSecretGallery();
+      },
+      saveEdit: (event) => saveSecretAlbumEdit(event, item),
+      append: appendSecretAlbumImages,
+      getClipboardFiles: (event) => getImageFilesFromClipboard(event, "secret-append-pasted"),
+      openLinked: () => {
+        activeSecretDialogItem = item;
+        openSecretLinkedDiary();
+      },
+      deleteCurrent: () => deleteSecretItem(item),
+      toggleSort: async (button) => {
+        if (button.disabled) return;
+        button.disabled = true;
+        const saved = await setSecretPhotoSortDescending(item, !getSecretPhotoSortDescending(item));
+        if (saved) renderSecretGallery();
+        else button.disabled = false;
+      },
+      deleteTag: () => deleteCurrentSecretTag(item),
+      toggleSelection: () => {
+        secretSelectionMode = !secretSelectionMode;
+        secretMobileToolsExpanded = false;
+        if (!secretSelectionMode) selectedSecretImageIndexes = new Set();
+        renderSecretGallery();
+      },
+      toggleTools: () => {
+        secretMobileToolsExpanded = !secretMobileToolsExpanded;
+        renderSecretGallery();
+      },
+      toggleSelectAll: () => {
+        if (!secretSelectionMode) return;
+        const visibleIndexes = displayEntries.map(({ index }) => index);
+        const allSelected = visibleIndexes.length > 0 && visibleIndexes.every((index) => selectedSecretImageIndexes.has(index));
+        selectedSecretImageIndexes = allSelected ? new Set() : new Set(visibleIndexes);
+        renderSecretGallery();
+      },
+      deleteSelected: () => deleteSelectedSecretImages(item),
+      setCover: () => setSelectedSecretCover(item),
+      moveToAlbum: (targetId) => moveSelectedSecretImagesToAlbum(item, targetId),
+      applyTag: (tag) => applySecretPhotoTag(item, tag),
+      removeTag: (tag) => removeSecretPhotoTagFromSelection(item, tag),
+      backTop: scrollSecretAlbumToTop,
+      moveSelected: async (direction, button) => {
+        if (button.disabled) return;
+        button.disabled = true;
+        await moveSelectedSecretImage(item, direction);
+      },
+      enterSelection: (index) => {
         secretSelectionMode = true;
         secretMobileToolsExpanded = false;
         selectedSecretImageIndexes = new Set([index]);
-        if (navigator.vibrate) navigator.vibrate(18);
         renderSecretGallery();
-      }, 450);
-    });
-    button.addEventListener("pointermove", (event) => {
-      if (!longPressStart || longPressStart.id !== event.pointerId) return;
-      if (Math.hypot(event.clientX - longPressStart.x, event.clientY - longPressStart.y) > 10) {
-        clearLongPress();
-      }
-    });
-    button.addEventListener("pointerup", clearLongPress);
-    button.addEventListener("pointercancel", clearLongPress);
-    button.addEventListener("pointerleave", clearLongPress);
-    button.addEventListener("dragstart", (event) => event.preventDefault());
-    button.addEventListener("contextmenu", (event) => {
-      if (secretSelectionMode || secretPhotoLongPressTriggered) event.preventDefault();
-    });
-    button.addEventListener("click", () => {
-      if (secretPhotoLongPressTriggered) {
-        secretPhotoLongPressTriggered = false;
-        return;
-      }
-      const index = Number(button.dataset.secretPhoto) || 0;
-      if (secretSelectionMode) {
-        if (selectedSecretImageIndexes.has(index)) selectedSecretImageIndexes.delete(index);
-        else selectedSecretImageIndexes.add(index);
-        renderSecretGallery();
-        return;
-      }
-      const visibleIndex = displayEntries.findIndex((entry) => entry.index === index);
-      openSecretItem(item, Math.max(0, visibleIndex), {
-        images: displayEntries.map((entry) => entry.image),
-        returnImageUrl: displayEntries[Math.max(0, visibleIndex)]?.image?.image_url || "",
-        returnElementTop: button.getBoundingClientRect().top,
-        triggerElement: button,
-      });
-    });
+      },
+      selectPhoto: (index, button, selected) => {
+        if (secretSelectionMode) {
+          if (selected) selectedSecretImageIndexes.delete(index);
+          else selectedSecretImageIndexes.add(index);
+          renderSecretGallery();
+          return;
+        }
+        const visibleIndex = displayEntries.findIndex((entry) => entry.index === index);
+        openSecretItem(item, Math.max(0, visibleIndex), {
+          images: displayEntries.map((entry) => entry.image),
+          returnImageUrl: displayEntries[Math.max(0, visibleIndex)]?.image?.image_url || "",
+          returnElementTop: button.getBoundingClientRect().top,
+          triggerElement: button,
+        });
+      },
+    },
   });
 }
 
@@ -9909,7 +8927,7 @@ function toggleDialogImageFullscreen({ bypassSuppression = false } = {}) {
     els.dialogImage.style.removeProperty("height");
     setSecretViewerStatus("");
   }
-  updateSecretViewerToolbar();
+  refreshSecretViewerToolbar();
 }
 
 function toggleDiaryImageFullscreen({ bypassSuppression = false } = {}) {
@@ -9932,7 +8950,7 @@ function toggleDiaryImageFullscreen({ bypassSuppression = false } = {}) {
     els.dialogImage.style.removeProperty("height");
     requestAnimationFrame(() => fitSecretViewerImage());
   }
-  updateDiaryViewerToolbar();
+  refreshDiaryViewerToolbar();
 }
 
 function openSecretLinkedDiary() {
@@ -10630,27 +9648,16 @@ async function loadWeeklyReview() {
       ? `这一周留下了 ${weekPhotos.length} 篇日记和 ${weekComments.length + thanks.length} 次交流${completedWishes.length ? `，还完成了 ${completedWishes.length} 个心愿` : ""}。`
       : "这一周还很安静。生活没有缺席，只是暂时没有被写下来。";
 
-    els.weeklyReviewContent.innerHTML = `
-      <section class="weekly-review-intro">
-        <span>${activity.length ? "本周共同记录" : "等待第一条记录"}</span>
-        <strong>${escapeHtml(summary)}</strong>
-        ${leadingMember ? `<small>本周记录最活跃：${escapeHtml(getAuthorName(leadingMember[0]))} · ${leadingMember[1]} 次</small>` : ""}
-      </section>
-      <section class="weekly-review-stats">
-        <article><strong>${weekPhotos.length}</strong><span>篇日记</span></article>
-        <article><strong>${weekComments.length + thanks.length}</strong><span>次交流</span></article>
-        <article><strong>${completedWishes.length}</strong><span>心愿达成</span></article>
-        <article><strong>${weekendMoments.length}</strong><span>周末足迹</span></article>
-      </section>
-      <section class="weekly-review-stream">
-        <header><strong>这一周发生了什么</strong><span>${activity.length} 条共同动态</span></header>
-        ${activity.slice(0, 30).map((item) => `
-          <button type="button" ${item.photoId ? `data-weekly-photo="${escapeHtml(item.photoId)}"` : ""}>
-            <i>${escapeHtml(item.type.slice(0, 1))}</i>
-            <span><small>${escapeHtml(item.type)} · ${escapeHtml(getAuthorName(item.userId))}</small><strong>${escapeHtml(item.title || "未命名")}</strong></span>
-            <time>${formatCommentTime(item.date)}</time>
-          </button>`).join("") || '<p class="settings-empty">本周还没有动态，下周回顾会从第一条记录开始。</p>'}
-      </section>`;
+    els.weeklyReviewContent.innerHTML = buildWeeklyReviewMarkup({
+      summary,
+      leadingMember,
+      photoCount: weekPhotos.length,
+      interactionCount: weekComments.length + thanks.length,
+      completedWishCount: completedWishes.length,
+      weekendCount: weekendMoments.length,
+      activity,
+      getAuthorName,
+    });
     els.weeklyReviewContent.querySelectorAll("[data-weekly-photo]").forEach((button) => {
       button.addEventListener("click", () => {
         const photo = photos.find((item) => item.id === button.dataset.weeklyPhoto);
@@ -10691,25 +9698,17 @@ function renderFamilyTimeline(mode = "activity") {
       return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
     });
     const monthWishes = wishes.filter((wish) => wish.done && new Date(wish.completedAt || wish.updatedAt).getMonth() === now.getMonth());
-    output.innerHTML = `
-      <section class="family-recap-stats">
-        <article><strong>${monthPhotos.length}</strong><span>本月日记</span></article>
-        <article><strong>${monthWishes.length}</strong><span>完成心愿</span></article>
-        <article><strong>${gratitudeNotes.filter((note) => new Date(note.created_at).getMonth() === now.getMonth()).length}</strong><span>本月留言</span></article>
-      </section>
-      <div class="family-timeline-title"><strong>往年今日</strong><span>${sameDayPhotos.length ? `${sameDayPhotos.length} 篇回忆` : "今天还没有往年回忆"}</span></div>
-      <section class="family-memory-grid">${sameDayPhotos.map((photo) => {
-        const image = getPhotoImages(photo)[0];
-        return `<button type="button" data-timeline-photo="${escapeHtml(photo.id)}">${image ? `<img src="${escapeHtml(image.thumbnail_url || image.image_url)}" alt="" loading="lazy" decoding="async" />` : ""}<span>${escapeHtml(getPhotoLabel(photo))}</span><small>${new Date(photo.created_at).getFullYear()} 年</small></button>`;
-      }).join("") || '<p class="settings-empty">日子继续积累，明年的今天这里就会有故事。</p>'}</section>`;
+    output.innerHTML = buildFamilyMemoryMarkup({
+      monthPhotoCount: monthPhotos.length,
+      monthWishCount: monthWishes.length,
+      monthMessageCount: gratitudeNotes.filter((note) => new Date(note.created_at).getMonth() === now.getMonth()).length,
+      photos: sameDayPhotos,
+      getImage: (photo) => getPhotoImages(photo)[0],
+      getLabel: getPhotoLabel,
+    });
   } else {
     const entries = getFamilyTimelineEntries().slice(0, 60);
-    output.innerHTML = `<section class="family-activity-list">${entries.map((item) => `
-      <button type="button" ${item.photoId ? `data-timeline-photo="${escapeHtml(item.photoId)}"` : ""}>
-        <i>${escapeHtml(item.type.slice(0, 1))}</i>
-        <span><small>${escapeHtml(item.type)} · ${escapeHtml(getAuthorName(item.userId))}</small><strong>${escapeHtml(item.title || "未命名")}</strong><em>${escapeHtml(item.detail || "")}</em></span>
-        <time>${formatCommentTime(item.date)}</time>
-      </button>`).join("") || '<p class="settings-empty">家庭动态还是空的。</p>'}</section>`;
+    output.innerHTML = buildFamilyTimelineMarkup(entries, getAuthorName);
   }
   output.querySelectorAll("[data-timeline-photo]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -10804,24 +9803,7 @@ function applyToolDockOrder(userId = session?.user?.id || "guest") {
 function renderSettingsToolOrderPanel() {
   if (!els.settingsToolOrderList) return;
   const order = loadToolDockOrder();
-  els.settingsToolOrderList.innerHTML = order
-    .map((id, index) => {
-      const meta = TOOL_DOCK_LABELS[id] || { title: id, subtitle: "" };
-      return `
-        <article class="settings-tool-card" data-tool-order-id="${escapeHtml(id)}">
-          <div class="settings-tool-copy">
-            <span>${String(index + 1).padStart(2, "0")}</span>
-            <strong>${escapeHtml(meta.title)}</strong>
-            <small>${escapeHtml(meta.subtitle)}</small>
-          </div>
-          <div class="settings-tool-actions">
-            <button type="button" data-tool-order-move="${escapeHtml(id)}:-1" aria-label="上移${escapeHtml(meta.title)}" title="上移" ${index === 0 ? "disabled" : ""}>↑</button>
-            <button type="button" data-tool-order-move="${escapeHtml(id)}:1" aria-label="下移${escapeHtml(meta.title)}" title="下移" ${index === order.length - 1 ? "disabled" : ""}>↓</button>
-          </div>
-        </article>
-      `;
-    })
-    .join("");
+  els.settingsToolOrderList.innerHTML = buildSettingsToolOrderMarkup(order, TOOL_DOCK_LABELS);
   els.settingsToolOrderList
     .querySelectorAll("[data-tool-order-move]")
     .forEach((button) => {
@@ -10850,9 +9832,12 @@ function renderSettingsAccountOverview() {
   }
   const displayName = session ? getSessionDisplayName() : "未登录";
   const username = session?.user?.user_metadata?.username || session?.user?.email?.split("@")[0] || "";
-  overview.innerHTML = `
-    <div class="settings-account-avatar">${renderAvatarMarkup(session?.user?.id, "settings-account-avatar-image")}</div>
-    <div><strong>${escapeHtml(displayName)}</strong><span>@${escapeHtml(username || displayName)}</span><small>${session ? "账户已安全同步到 Cloudflare" : "请先登录"}</small></div>`;
+  overview.innerHTML = buildSettingsAccountOverviewMarkup({
+    signedIn: Boolean(session),
+    displayName,
+    username,
+    avatarMarkup: renderAvatarMarkup(session?.user?.id, "settings-account-avatar-image"),
+  });
 }
 
 function ensureToolDockSortControls() {
@@ -12903,28 +11888,10 @@ function renderFamilyDialog() {
   if (!hasFamily) {
     els.familyMembers.innerHTML = "";
     const incoming = familyInvitations.filter((invitation) => invitation.is_incoming);
-    els.familyInvitations.innerHTML = incoming
-      .map(
-        (invitation) => `
-          <article class="family-invitation">
-            <div>
-              <span>${escapeHtml(invitation.inviter_username)} 邀请你加入</span>
-              <strong>${escapeHtml(invitation.family_name)}</strong>
-            </div>
-            <span class="family-invitation-actions">
-              <button type="button" data-family-response="${escapeHtml(invitation.invitation_id)}" data-accept="true">接受</button>
-              <button type="button" data-family-response="${escapeHtml(invitation.invitation_id)}" data-accept="false">拒绝</button>
-            </span>
-          </article>
-        `
-      )
-      .join("");
+    els.familyInvitations.innerHTML = buildFamilyInvitationsMarkup(incoming);
     els.familyInvitations.querySelectorAll("[data-family-response]").forEach((button) => {
       button.addEventListener("click", () =>
-        respondFamilyInvitation(
-          button.dataset.familyResponse,
-          button.dataset.accept === "true"
-        )
+        respondFamilyInvitation(button.dataset.familyResponse, button.dataset.accept === "true")
       );
     });
     return;
@@ -12933,129 +11900,31 @@ function renderFamilyDialog() {
   els.familyInvitations.innerHTML = "";
   els.familyName.textContent = familyInfo.name;
   els.familyInviteForm.hidden = !familyInfo.isOwner;
-  els.familyMembers.innerHTML = familyMembers
-    .map((member) => {
-      const isCurrent = member.user_id === session?.user?.id;
-      const canRemove = familyInfo.isOwner && member.role !== "owner";
-      return `
-        <article class="family-member">
-          ${renderAvatarMarkup(member.user_id, "family-member-avatar")}
-          <div>
-            <strong>${escapeHtml(member.username)}${isCurrent ? "（我）" : ""}</strong>
-            <small>${member.role === "owner" ? "家庭创建者" : "家庭成员"}</small>
-          </div>
-          ${canRemove ? `<button type="button" data-remove-family-member="${escapeHtml(member.user_id)}">移除</button>` : ""}
-        </article>
-      `;
-    })
-    .join("");
-
+  els.familyMembers.innerHTML = buildFamilyMembersMarkup({
+    members: familyMembers,
+    currentUserId: session?.user?.id || "",
+    owner: familyInfo.isOwner,
+    renderAvatar: renderAvatarMarkup,
+  });
   els.familyMembers.querySelectorAll("[data-remove-family-member]").forEach((button) => {
     button.addEventListener("click", () => removeFamilyMember(button.dataset.removeFamilyMember));
   });
-
   const outgoing = familyInvitations.filter((invitation) => !invitation.is_incoming);
-  els.familyOutgoingInvitations.innerHTML = outgoing
-    .map(
-      (invitation) => `
-        <article class="family-invitation pending">
-          <div>
-            <span>等待对方接受邀请</span>
-            <strong>${escapeHtml(invitation.invited_username)}</strong>
-          </div>
-          <small>邀请已发送</small>
-        </article>
-      `
-    )
-    .join("");
+  els.familyOutgoingInvitations.innerHTML = buildFamilyOutgoingInvitationsMarkup(outgoing);
 }
 
 function renderSettingsFamilyPanel() {
   if (!els.settingsFamilyPanel) return;
-  if (!session) {
-    els.settingsFamilyPanel.innerHTML = `<div class="settings-family-empty">登录后可以查看家庭成员。</div>`;
-    return;
-  }
-
-  const incoming = familyInvitations.filter((invitation) => invitation.is_incoming);
-  if (!familyInfo) {
-    els.settingsFamilyPanel.innerHTML = `
-      <div class="settings-family-empty">
-        <strong>还没有加入家庭</strong>
-        <p>创建家庭或接受邀请后，这里会直接显示家庭成员。</p>
-      </div>
-      ${incoming
-        .map(
-          (invitation) => `
-            <article class="settings-family-invite">
-              <div>
-                <span>${escapeHtml(invitation.inviter_username)} 邀请你加入</span>
-                <strong>${escapeHtml(invitation.family_name)}</strong>
-              </div>
-              <span>
-                <button type="button" data-settings-family-response="${escapeHtml(invitation.invitation_id)}" data-accept="true">接受</button>
-                <button type="button" data-settings-family-response="${escapeHtml(invitation.invitation_id)}" data-accept="false">拒绝</button>
-              </span>
-            </article>
-          `
-        )
-        .join("")}
-    `;
-    bindSettingsFamilyActions();
-    return;
-  }
-
-  const outgoing = familyInvitations.filter((invitation) => !invitation.is_incoming);
-  els.settingsFamilyPanel.innerHTML = `
-    <div class="settings-family-summary">
-      <span>当前家庭</span>
-      <strong>${escapeHtml(familyInfo.name || "我们的家")}</strong>
-      <small>${familyMembers.length} 位成员</small>
-    </div>
-    <div class="settings-family-members">
-      ${familyMembers
-        .map((member) => {
-          const isCurrent = member.user_id === session?.user?.id;
-          return `
-            <article class="settings-family-member">
-              ${renderAvatarMarkup(member.user_id, "family-member-avatar")}
-              <div>
-                <strong>${escapeHtml(member.username)}${isCurrent ? "（我）" : ""}</strong>
-                <small>${member.role === "owner" ? "家庭创建者" : "家庭成员"}</small>
-              </div>
-            </article>
-          `;
-        })
-        .join("")}
-    </div>
-    ${familyInfo.isOwner
-      ? `<div class="settings-family-invite-code">
-          <div>
-            <span>注册邀请码</span>
-            <small>仅家庭创建者可见。可用它创建独立测试账号，测试完成后再删除。</small>
-          </div>
-          <code data-settings-signup-invite-value hidden></code>
-          <button type="button" data-settings-signup-invite>获取邀请码</button>
-        </div>`
-      : ""}
-    ${outgoing.length
-      ? `<div class="settings-family-pending">
-          ${outgoing
-            .map(
-              (invitation) => `
-                <article>
-                  <span>邀请中</span>
-                  <strong>${escapeHtml(invitation.invited_username)}</strong>
-                </article>
-              `
-            )
-            .join("")}
-        </div>`
-      : ""}
-  `;
+  els.settingsFamilyPanel.innerHTML = buildSettingsFamilyMarkup({
+    signedIn: Boolean(session),
+    familyInfo,
+    members: familyMembers,
+    invitations: familyInvitations,
+    currentUserId: session?.user?.id || "",
+    renderAvatar: renderAvatarMarkup,
+  });
   bindSettingsFamilyActions();
 }
-
 async function readSignupInviteCode(button) {
   if (!session?.access_token || !familyInfo?.isOwner) return;
   const originalLabel = button.textContent;
@@ -14298,7 +13167,7 @@ els.secretViewerInfo?.addEventListener("click", () => {
   if (!isSecretImageDialogOpen()) return;
   secretViewerInfoOpen = !secretViewerInfoOpen;
   els.dialog.classList.toggle("secret-viewer-info-open", secretViewerInfoOpen);
-  updateSecretViewerToolbar();
+  refreshSecretViewerToolbar();
 });
 els.dialogMedia.addEventListener("click", (event) => {
   if (event.target.closest("button")) return;
