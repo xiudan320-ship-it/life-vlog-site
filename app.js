@@ -13,9 +13,34 @@ import {
 import { createUploadQueue } from "./modules/upload-queue.js";
 import { createPhotoFavoritesStore } from "./modules/photo-favorites.js";
 import { formatWishDate, renderWishlist } from "./modules/wishlist-view.js";
+import {
+  createDiaryUploadPayload,
+  getDiaryUploadEntryCount,
+  getDiaryUploadFileExtension,
+  getDiaryUploadFileKey,
+  getDiaryUploadPreviewItems,
+  isDiaryUploadMotionFile,
+  isDiaryUploadStillFile,
+  pairDiaryUploadFiles,
+} from "./modules/diary-upload-domain.js";
+import {
+  buildFoodWheelOptions,
+  normalizeFoodOptions,
+  renderFoodWheelView,
+} from "./modules/food-wheel-view.js";
+import { renderRecipesView } from "./modules/recipe-view.js";
+import { renderAnniversariesView } from "./modules/anniversary-view.js";
+import { renderWeekendPlansView } from "./modules/weekend-plans-view.js";
+import { renderGratitudeNotesView } from "./modules/gratitude-view.js";
+import { renderNotificationsView } from "./modules/notification-view.js";
+import {
+  formatMoney,
+  getVipLevel,
+  getVipLevelByRecharge,
+  renderVipCenterView,
+} from "./modules/vip-center.js";
 import { refreshAdminStorage as refreshStorage } from "./modules/admin-storage.js";
 import { createVlogMode, filterVlogPhotos, validateVlogUpload } from "./modules/vlog-mode.js";
-import { bindWeekendGalleryInteractions } from "./modules/weekend-gallery.js";
 import {
   CULTIVATION_DESCRIPTIONS,
   CULTIVATION_REALMS,
@@ -101,10 +126,7 @@ import {
   normalizeDiarySearchText,
   sortDiaryEntries,
 } from "./modules/diary-domain.js";
-import {
-  aggregateInteractionNotifications,
-  buildNotificationText,
-} from "./modules/notification-domain.js";
+import { buildNotificationText } from "./modules/notification-domain.js";
 import {
   DEFAULT_SECRET_PHOTO_TAG,
   FAVORITE_SECRET_PHOTO_TAG,
@@ -204,49 +226,6 @@ const SECRET_ALL_FOLDER_ID = "all";
 const SECRET_FAVORITES_FOLDER_ID = "favorites";
 const DEFAULT_FOOD_OPTIONS = ["拉面", "寿喜烧", "咖喱饭", "烤肉", "火锅", "寿司", "麻婆豆腐", "披萨"];
 const GENERATED_TITLE_PREFIXES = ["今日小星星", "软乎乎的一天", "闪闪生活碎片", "快乐收藏夹"];
-
-const VIP_LEVELS = [
-  {
-    level: 1,
-    name: "小窝",
-    label: "小窝会员",
-    price: 9,
-    limit: 3,
-    perks: ["修炼经验 +5%", "专属 VIP 标识", "一篇笔记最多 3 张图"],
-  },
-  {
-    level: 2,
-    name: "同行",
-    label: "同行会员",
-    price: 29,
-    limit: 6,
-    perks: ["修炼经验 +10%", "合集九宫格封面", "一篇笔记最多 6 张图"],
-  },
-  {
-    level: 3,
-    name: "珍藏",
-    label: "珍藏会员",
-    price: 68,
-    limit: 9,
-    perks: ["修炼经验 +20%", "高质压缩上传", "9 图完整宫格"],
-  },
-  {
-    level: 4,
-    name: "星河",
-    label: "星河会员",
-    price: 128,
-    limit: 12,
-    perks: ["修炼经验 +35%", "私密内容共享", "一篇笔记最多 12 张图"],
-  },
-  {
-    level: 5,
-    name: "传说",
-    label: "传说会员",
-    price: 298,
-    limit: 18,
-    perks: ["修炼经验 +50%", "黑金导演模式", "一篇笔记最多 18 张图"],
-  },
-];
 
 const demoPhotos = [
   {
@@ -2274,7 +2253,18 @@ async function uploadPhoto(event) {
   setUploadSubmitting(true);
   let payload;
   try {
-    payload = getDiaryUploadPayload(finalTitle, files, linkUrls, uploadPairing);
+    payload = createDiaryUploadPayload({
+      title: finalTitle,
+      rawTitle: els.titleInput.value.trim(),
+      note: els.noteInput.value.trim(),
+      category: vlogMode.isActive() ? "VLOG" : els.categoryInput.value,
+      takenAt: els.dateInput.value,
+      isPublic: els.publicInput.value === "true",
+      userId: session?.user?.id || "",
+      files,
+      linkUrls,
+      pairing: uploadPairing,
+    });
     if (!navigator.onLine) {
       await enqueueDiaryUpload(payload);
       clearDiaryDraft();
@@ -2297,149 +2287,6 @@ async function uploadPhoto(event) {
     setUploadSubmitting(false);
     void processDiaryUploadQueue();
   }
-}
-
-function getDiaryUploadFileExtension(file) {
-  return String(file?.name || "").match(/\.([a-z0-9]{1,8})$/i)?.[1].toLowerCase() || "";
-}
-
-function isDiaryUploadStillFile(file) {
-  return (
-    String(file?.type || "").toLowerCase().startsWith("image/") ||
-    /\.(avif|gif|heic|heif|jpe?g|png|tiff?|webp)$/i.test(file?.name || "")
-  );
-}
-
-function isDiaryUploadMotionFile(file) {
-  return String(file?.type || "").toLowerCase().startsWith("video/") ||
-    /\.(mov|mp4|m4v|webm)$/i.test(file?.name || "");
-}
-
-function getDiaryUploadEntryCount(pairing) {
-  return pairing.entries.length + pairing.videoFiles.length;
-}
-
-function getDiaryUploadFileKey(file) {
-  return [file?.name || "", file?.size || 0, file?.lastModified || 0, file?.type || ""].join("|");
-}
-
-function getDiaryUploadFileStem(file) {
-  return String(file?.name || "")
-    .replace(/\.[^.]+$/, "")
-    .trim()
-    .toLocaleLowerCase();
-}
-
-function pairDiaryUploadFiles(files = []) {
-  const stillFiles = [];
-  const motionFiles = [];
-  const unsupportedFiles = [];
-  for (const file of files) {
-    if (isDiaryUploadStillFile(file)) {
-      stillFiles.push(file);
-    } else if (isDiaryUploadMotionFile(file)) {
-      motionFiles.push(file);
-    } else {
-      unsupportedFiles.push(file);
-    }
-  }
-
-  const unusedMotionFiles = new Set(motionFiles);
-  const entries = stillFiles.map((file) => {
-    const stem = getDiaryUploadFileStem(file);
-    const motionFile = motionFiles.find(
-      (candidate) => unusedMotionFiles.has(candidate) && getDiaryUploadFileStem(candidate) === stem
-    );
-    if (motionFile) unusedMotionFiles.delete(motionFile);
-    return { file, motionFile: motionFile || null };
-  });
-
-  const unpairedEntries = entries.filter((entry) => !entry.motionFile);
-  const remainingMotionFiles = motionFiles.filter((file) => unusedMotionFiles.has(file));
-  if (remainingMotionFiles.length > 0 && unpairedEntries.length > 0) {
-    unpairedEntries.slice(0, remainingMotionFiles.length).forEach((entry, index) => {
-      entry.motionFile = remainingMotionFiles[index];
-      unusedMotionFiles.delete(remainingMotionFiles[index]);
-    });
-  }
-
-  return {
-    stillFiles,
-    entries,
-    motionFiles,
-    videoFiles: [...unusedMotionFiles],
-    unsupportedFiles,
-  };
-}
-
-function getDiaryUploadPreviewItems(files) {
-  const pairing = pairDiaryUploadFiles(files);
-  return {
-    pairing,
-    items: [
-      ...pairing.entries.map((entry) => ({
-        kind: entry.motionFile ? "live" : "image",
-        file: entry.file,
-        files: [entry.file, entry.motionFile].filter(Boolean),
-        label: entry.motionFile ? `${entry.file.name} · Live Photo` : entry.file.name,
-      })),
-      ...pairing.videoFiles.map((file) => ({
-        kind: "video",
-        file,
-        files: [file],
-        label: `${file.name} · 普通视频`,
-      })),
-      ...pairing.unsupportedFiles.map((file) => ({
-        kind: "unsupported",
-        file,
-        files: [file],
-        label: `${file.name} · 不支持`,
-      })),
-      ...selectedUploadLinks.map((url) => ({
-        kind: "link",
-        url,
-        files: [],
-        label: "图片链接",
-      })),
-    ],
-  };
-}
-
-function getDiaryUploadPayload(finalTitle, files, linkUrls = [], pairing = pairDiaryUploadFiles(files)) {
-  if (pairing.unsupportedFiles.length) {
-    throw new Error("只支持图片和视频文件。");
-  }
-  return {
-    id: crypto.randomUUID(),
-    userId: session?.user?.id || "",
-    title: finalTitle,
-    rawTitle: els.titleInput.value.trim(),
-    note: els.noteInput.value.trim(),
-    category: vlogMode.isActive() ? "VLOG" : els.categoryInput.value,
-    takenAt: els.dateInput.value,
-    isPublic: els.publicInput.value === "true",
-    createdAt: new Date().toISOString(),
-    files: [
-      ...pairing.entries.map(({ file, motionFile }) => ({
-        kind: motionFile ? "live" : "image",
-        file,
-        name: file.name || "diary-image",
-        type: file.type || "image/jpeg",
-        size: file.size || 0,
-        lastModified: file.lastModified || Date.now(),
-        motionFile: motionFile || null,
-      })),
-      ...pairing.videoFiles.map((file) => ({
-        kind: "video",
-        file,
-        name: file.name || "diary-video",
-        type: file.type || "video/quicktime",
-        size: file.size || 0,
-        lastModified: file.lastModified || Date.now(),
-      })),
-    ],
-    linkUrls: [...linkUrls],
-  };
 }
 
 async function publishDiaryPayload(payload, { queued = false } = {}) {
@@ -6995,16 +6842,6 @@ function isVipUser(value) {
   return VIP_USERS.has(String(value || "").trim().toLowerCase());
 }
 
-function getVipLevel(level = activeVipLevel) {
-  return VIP_LEVELS.find((item) => item.level === level) || VIP_LEVELS[0];
-}
-
-function getVipLevelByRecharge(amount) {
-  return [...VIP_LEVELS]
-    .reverse()
-    .find((level) => amount >= level.price) || null;
-}
-
 function getCurrentImageLimit() {
   return activeVipLevel > 0 ? getVipLevel(activeVipLevel).limit : 1;
 }
@@ -7049,67 +6886,25 @@ function saveRechargeTotal(amount, displayName = getSessionDisplayName()) {
 function renderVipCenter() {
   const displayName = session ? getSessionDisplayName() : "";
   const rechargeTotal = session ? loadRechargeTotal(displayName) : 0;
-  const currentLevel = getVipLevelByRecharge(rechargeTotal);
-  const nextLevel = VIP_LEVELS.find((level) => rechargeTotal < level.price);
-  const vip = Boolean(currentLevel);
-  els.vipCurrentLevel.textContent = currentLevel ? `LV.${currentLevel.level}` : "FREE";
-  els.vipCurrentName.textContent = currentLevel?.name || "Visitor";
-  els.vipRechargeTotal.textContent = formatMoney(rechargeTotal);
-  els.vipTierAmount.textContent = currentLevel ? formatMoney(currentLevel.price) : "¥0";
-  els.vipSummary.textContent = session
-    ? `${displayName} 累计充值 ${formatMoney(rechargeTotal)}，${currentLevel ? `当前为 ${currentLevel.label}，修炼经验 ${getVipExpMultiplier(currentLevel.level)}x` : "还未开通 VIP"}。`
-    : "登录后可充值激活 5 个 VIP 档位。";
-  els.vipNext.innerHTML = nextLevel
-    ? `<strong>下一档 ${nextLevel.label}</strong><span>还差 ${formatMoney(nextLevel.price - rechargeTotal)}</span>`
-    : `<strong>已解锁最高档</strong><span>传说档位已满级</span>`;
-
-  els.vipLevels.innerHTML = VIP_LEVELS.map((level) => {
-    const unlocked = rechargeTotal >= level.price;
-    const active = currentLevel?.level === level.level;
-    const diff = Math.max(0, level.price - rechargeTotal);
-    return `
-      <article class="vip-level ${active ? "active" : ""} ${unlocked ? "unlocked" : ""}">
-        <span>LV.${level.level}</span>
-        <strong>${escapeHtml(level.name)}</strong>
-        <p>${escapeHtml(level.label)} · 累计 ${formatMoney(level.price)}</p>
-        <small>最多 ${level.limit} 张/篇 · 经验 ${getVipExpMultiplier(level.level)}x</small>
-        <button type="button" data-top-up-level="${level.level}" ${!session || active || unlocked ? "disabled" : ""}>
-          ${active ? "当前档位" : unlocked ? "已解锁" : `补 ${formatMoney(diff)}`}
-        </button>
-      </article>
-    `;
-  }).join("");
-
-  const rechargePacks = VIP_LEVELS.map((level) => {
-    const amount = Math.max(0, level.price - rechargeTotal);
-    return { level, amount: amount || level.price };
-  });
-
-  els.vipRecharge.innerHTML = rechargePacks
-    .map(
-      ({ level, amount }) => `
-        <button type="button" data-recharge-amount="${amount}">
-          <span>${level.label}</span>
-          <strong>${formatMoney(amount)}</strong>
-        </button>
-      `
-    )
-    .join("");
-
-  els.vipPerks.innerHTML = (currentLevel || VIP_LEVELS[0]).perks
-    .map((perk) => `<span>${escapeHtml(perk)}</span>`)
-    .join("");
-  els.vipStatus.textContent = session
-    ? cloudSyncAvailable
-      ? "这是模拟充值，不会真实扣款；会员档位已同步到你的云端账户。"
-      : "这是模拟充值，不会真实扣款；数据库初始化前暂存于当前浏览器。"
-    : "请先登录再使用充值档位。";
-
-  els.vipLevels.querySelectorAll("button[data-top-up-level]").forEach((button) => {
-    button.addEventListener("click", () => topUpToLevel(Number(button.dataset.topUpLevel)));
-  });
-  els.vipRecharge.querySelectorAll("button[data-recharge-amount]").forEach((button) => {
-    button.addEventListener("click", () => rechargeVip(Number(button.dataset.rechargeAmount)));
+  renderVipCenterView({
+    elements: {
+      currentLevel: els.vipCurrentLevel,
+      currentName: els.vipCurrentName,
+      rechargeTotal: els.vipRechargeTotal,
+      tierAmount: els.vipTierAmount,
+      summary: els.vipSummary,
+      next: els.vipNext,
+      levels: els.vipLevels,
+      recharge: els.vipRecharge,
+      perks: els.vipPerks,
+      status: els.vipStatus,
+    },
+    signedIn: Boolean(session),
+    displayName,
+    rechargeTotal,
+    cloudSyncAvailable,
+    onTopUp: topUpToLevel,
+    onRecharge: rechargeVip,
   });
 }
 
@@ -7165,10 +6960,6 @@ async function rechargeVip(amount) {
   updateAuthUI();
   renderVipCenter();
   els.vipStatus.textContent = `模拟充值 ${formatMoney(numericAmount)} 成功，累计 ${formatMoney(nextTotal)}，已同步。`;
-}
-
-function formatMoney(value) {
-  return `¥${Math.max(0, Math.round(Number(value) || 0))}`;
 }
 
 function getExperienceStorageKey(displayName = getSessionDisplayName()) {
@@ -8075,7 +7866,7 @@ function logDiaryInputFiles(source, files) {
 
 function updatePhotoPreview() {
   const files = selectedUploadFiles;
-  const { pairing, items } = getDiaryUploadPreviewItems(files);
+  const { pairing, items } = getDiaryUploadPreviewItems(files, selectedUploadLinks);
   if (!items.length) {
     clearPhotoPreview();
     return;
@@ -8244,7 +8035,7 @@ function renderPreviewStrip(files, urls) {
 }
 
 function removeUploadPreview(index) {
-  const { items } = getDiaryUploadPreviewItems(selectedUploadFiles);
+  const { items } = getDiaryUploadPreviewItems(selectedUploadFiles, selectedUploadLinks);
   const total = items.length;
   if (index < 0 || index >= total) return;
   const item = items[index];
@@ -11205,17 +10996,6 @@ function exitToolDockTouchSort() {
   }, 0);
 }
 
-function normalizeFoodOptions(values) {
-  if (!Array.isArray(values)) return [];
-  return [
-    ...new Set(
-      values
-        .map((value) => String(value || "").trim().slice(0, 24))
-        .filter(Boolean)
-    ),
-  ].slice(0, 14);
-}
-
 function getFoodOptionsStorageKey(userId = session?.user?.id || "guest") {
   return `${FOOD_OPTIONS_KEY}:${userId}`;
 }
@@ -11272,65 +11052,15 @@ async function persistFoodOptions(nextOptions) {
 }
 
 function getWheelOptions() {
-  return [...new Set([...foodOptions, ...recipes.map((recipe) => recipe.name)].filter(Boolean))].slice(0, 14);
+  return buildFoodWheelOptions(foodOptions, recipes);
 }
 
 function renderFoodWheel() {
-  if (!els.foodWheel) return;
-  const options = getWheelOptions();
-  const canvas = els.foodWheel;
-  const context = canvas.getContext("2d");
-  const size = canvas.width;
-  const center = size / 2;
-  const radius = center - 18;
-  const colors = ["#55d6b5", "#ff806d", "#8798f2", "#f0c85f", "#e8f2ed", "#bd9ee8"];
-  context.clearRect(0, 0, size, size);
-
-  const segment = (Math.PI * 2) / options.length;
-  options.forEach((option, index) => {
-    const start = -Math.PI / 2 + index * segment;
-    const end = start + segment;
-    context.beginPath();
-    context.moveTo(center, center);
-    context.arc(center, center, radius, start, end);
-    context.closePath();
-    context.fillStyle = colors[index % colors.length];
-    context.fill();
-    context.strokeStyle = "#151816";
-    context.lineWidth = 5;
-    context.stroke();
-
-    context.save();
-    context.translate(center, center);
-    context.rotate(start + segment / 2);
-    context.textAlign = "right";
-    context.textBaseline = "middle";
-    context.fillStyle = "#111512";
-    context.font = `800 ${options.length > 10 ? 22 : 27}px "Microsoft YaHei", sans-serif`;
-    const label = option.length > 7 ? `${option.slice(0, 7)}…` : option;
-    context.fillText(label, radius - 30, 0);
-    context.restore();
-  });
-
-  context.beginPath();
-  context.arc(center, center, 62, 0, Math.PI * 2);
-  context.fillStyle = "#151816";
-  context.fill();
-  context.strokeStyle = "#f2f4ef";
-  context.lineWidth = 9;
-  context.stroke();
-
-  els.foodOptions.innerHTML = options
-    .map(
-      (option) => `
-        <button type="button" data-remove-food="${escapeHtml(option)}" title="从转盘移除">
-          ${escapeHtml(option)}<span>×</span>
-        </button>
-      `
-    )
-    .join("");
-  els.foodOptions.querySelectorAll("[data-remove-food]").forEach((button) => {
-    button.addEventListener("click", () => removeFoodOption(button.dataset.removeFood));
+  renderFoodWheelView({
+    canvas: els.foodWheel,
+    optionsElement: els.foodOptions,
+    options: getWheelOptions(),
+    onRemove: removeFoodOption,
   });
 }
 
@@ -11638,84 +11368,16 @@ async function saveRecipe(event) {
 function renderRecipes() {
   renderOverview();
   renderFoodWheel();
-  if (!els.recipesList) return;
-  if (!session) {
-    els.recipesList.innerHTML = `<div class="empty">登录后可以记录自己的菜谱。</div>`;
-    setRecipeStatus("");
-    return;
-  }
-
-  if (!recipes.length) {
-    els.recipesList.innerHTML = `<div class="empty">还没有菜谱。先记录一道最近想复刻的菜。</div>`;
-    return;
-  }
-
-  els.recipesList.innerHTML = recipes
-    .map((recipe, index) => {
-      const canManage = canManageItem(recipe);
-      return `
-        <article class="recipe-card">
-          <div class="recipe-card-head">
-            <span>${String(index + 1).padStart(2, "0")}</span>
-            ${canManage ? `<div>
-              <button type="button" data-edit-recipe="${escapeHtml(recipe.id)}">编辑</button>
-              <button type="button" data-delete-recipe="${escapeHtml(recipe.id)}">删除</button>
-            </div>` : ""}
-          </div>
-          ${renderRecipeCover(recipe)}
-          <div class="recipe-card-content">
-            <p class="kicker">${escapeHtml(recipe.category)} · ${formatRecipeDate(recipe.createdAt)} · ${escapeHtml(getAuthorName(recipe.userId))}</p>
-            <h3>${escapeHtml(recipe.name)}</h3>
-            <div class="recipe-meta">
-              ${recipe.time ? `<span>${escapeHtml(recipe.time)}</span>` : ""}
-              ${recipe.servings ? `<span>${escapeHtml(recipe.servings)}</span>` : ""}
-            </div>
-            ${renderSeasonings(recipe.seasonings)}
-            <div class="recipe-columns">
-              <section>
-                <strong>食材</strong>
-                ${renderRecipeList(recipe.ingredients, "还没写食材")}
-              </section>
-              <section>
-                <strong>步骤</strong>
-                ${renderRecipeList(recipe.steps, "还没写步骤")}
-              </section>
-            </div>
-            ${recipe.note ? `<p class="recipe-note">${escapeHtml(recipe.note)}</p>` : ""}
-          </div>
-        </article>
-      `;
-    })
-    .join("");
-
-  els.recipesList.querySelectorAll("button[data-edit-recipe]").forEach((button) => {
-    button.addEventListener("click", () => editRecipe(button.dataset.editRecipe));
+  if (!session) setRecipeStatus("");
+  renderRecipesView({
+    listElement: els.recipesList,
+    recipes,
+    signedIn: Boolean(session),
+    getAuthorName,
+    canManageItem,
+    onEdit: editRecipe,
+    onDelete: deleteRecipe,
   });
-  els.recipesList.querySelectorAll("button[data-delete-recipe]").forEach((button) => {
-    button.addEventListener("click", () => deleteRecipe(button.dataset.deleteRecipe));
-  });
-}
-
-function renderRecipeCover(recipe) {
-  if (recipe.coverImage) {
-    return `
-      <div class="recipe-cover">
-        <img class="recipe-cover-backdrop" src="${escapeHtml(recipe.coverImage)}" alt="" aria-hidden="true" loading="lazy" decoding="async" />
-        <img class="recipe-cover-image" src="${escapeHtml(recipe.coverImage)}" alt="${escapeHtml(recipe.name)} 封面" loading="lazy" decoding="async" />
-      </div>
-    `;
-  }
-
-  return `<div class="recipe-cover placeholder"><span>${escapeHtml(recipe.name.slice(0, 1))}</span></div>`;
-}
-
-function renderSeasonings(seasonings = []) {
-  if (!seasonings.length) return "";
-  return `
-    <div class="seasoning-tags">
-      ${seasonings.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}
-    </div>
-  `;
 }
 
 function editRecipe(id) {
@@ -11787,18 +11449,6 @@ function splitLines(value) {
     .split(/\r?\n/)
     .map((item) => item.trim())
     .filter(Boolean);
-}
-
-function renderRecipeList(items, emptyText) {
-  if (!items?.length) return `<p class="recipe-empty">${emptyText}</p>`;
-  return `<ol>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ol>`;
-}
-
-function formatRecipeDate(value) {
-  return new Intl.DateTimeFormat("zh-CN", {
-    month: "short",
-    day: "numeric",
-  }).format(new Date(value));
 }
 
 function setRecipeStatus(message) {
@@ -12443,137 +12093,17 @@ function saveAnniversaries() {
   localStorage.setItem(getAnniversaryStorageKey(), JSON.stringify(anniversaries));
 }
 
-function parseLocalDay(value) {
-  const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) return null;
-  return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
-}
-
-function startOfToday() {
-  const today = new Date();
-  return new Date(today.getFullYear(), today.getMonth(), today.getDate());
-}
-
-function differenceInDays(later, earlier) {
-  return Math.max(0, Math.round((later.getTime() - earlier.getTime()) / 86_400_000));
-}
-
-function getCalendarAge(startDate, today) {
-  let years = today.getFullYear() - startDate.getFullYear();
-  let months = today.getMonth() - startDate.getMonth();
-  let days = today.getDate() - startDate.getDate();
-  if (days < 0) {
-    months -= 1;
-    days += new Date(today.getFullYear(), today.getMonth(), 0).getDate();
-  }
-  if (months < 0) {
-    years -= 1;
-    months += 12;
-  }
-  return {
-    years: Math.max(0, years),
-    months: Math.max(0, months),
-    days: Math.max(0, days),
-  };
-}
-
-function getAnniversaryMetrics(item) {
-  const start = parseLocalDay(item.date);
-  if (!start) {
-    return {
-      pending: true,
-      value: "设置日期",
-      unit: "",
-      detail: "点击编辑，填写这个重要日子的开始日期。",
-    };
-  }
-
-  const today = startOfToday();
-  if (item.type === "pet") {
-    const age = getCalendarAge(start, today);
-    return {
-      value: age.years,
-      unit: "岁",
-      detail: `生日 ${formatDate(item.date)} · ${age.months} 个月 ${age.days} 天 · 已来到世界 ${differenceInDays(today, start)} 天`,
-    };
-  }
-
-  const totalDays = differenceInDays(today, start);
-  if (item.type === "together") {
-    return {
-      value: totalDays,
-      unit: "天",
-      detail: `从 ${formatDate(item.date)} 开始，一起走过的每一天。`,
-    };
-  }
-
-  let next = new Date(today.getFullYear(), start.getMonth(), start.getDate());
-  if (next < today) next = new Date(today.getFullYear() + 1, start.getMonth(), start.getDate());
-  const countdown = differenceInDays(next, today);
-  return {
-    value: countdown,
-    unit: countdown === 0 ? "就是今天" : "天后",
-    detail: `已经过去 ${totalDays} 天 · 下一次是 ${formatDate(next)}`,
-  };
-}
-
-function getAnniversaryTypeLabel(type) {
-  if (type === "pet") return "宠物生日";
-  if (type === "together") return "相伴天数";
-  return "纪念日倒计时";
-}
-
 function renderAnniversaries() {
-  if (!els.anniversaryList) return;
-  if (!session) {
-    els.anniversaryList.innerHTML = "";
-    els.anniversaryPeek.textContent = "设置重要日子";
-    return;
-  }
-
-  els.anniversaryList.innerHTML = anniversaries
-    .map((item, index) => {
-      const metrics = getAnniversaryMetrics(item);
-      const canManage = canManageItem(item);
-      return `
-        <article class="anniversary-card ${metrics.pending ? "pending" : ""}">
-          <div class="anniversary-card-head">
-            <span class="anniversary-card-index">${getAnniversaryTypeLabel(item.type)} · ${String(index + 1).padStart(2, "0")} · ${escapeHtml(getAuthorName(item.userId))}</span>
-            ${canManage ? `<div class="anniversary-card-actions">
-              <button type="button" data-edit-anniversary="${escapeHtml(item.id)}">编辑</button>
-              <button type="button" data-delete-anniversary="${escapeHtml(item.id)}">删除</button>
-            </div>` : ""}
-          </div>
-          <div>
-            <h3>${escapeHtml(item.title)}</h3>
-            <p class="anniversary-value">
-              <strong>${escapeHtml(metrics.value)}</strong>
-              ${metrics.unit ? `<span>${escapeHtml(metrics.unit)}</span>` : ""}
-            </p>
-          </div>
-          <p class="anniversary-detail">${escapeHtml(item.note || metrics.detail)}</p>
-          ${item.note ? `<p class="anniversary-detail">${escapeHtml(metrics.detail)}</p>` : ""}
-        </article>
-      `;
-    })
-    .join("");
-
-  els.anniversaryList.querySelectorAll("[data-edit-anniversary]").forEach((button) => {
-    button.addEventListener("click", () => editAnniversary(button.dataset.editAnniversary));
+  renderAnniversariesView({
+    listElement: els.anniversaryList,
+    peekElement: els.anniversaryPeek,
+    items: anniversaries,
+    signedIn: Boolean(session),
+    getAuthorName,
+    canManageItem,
+    onEdit: editAnniversary,
+    onDelete: deleteAnniversary,
   });
-  els.anniversaryList.querySelectorAll("[data-delete-anniversary]").forEach((button) => {
-    button.addEventListener("click", () => deleteAnniversary(button.dataset.deleteAnniversary));
-  });
-
-  const relationship =
-    anniversaries.find((item) => item.type === "together" && item.date) ||
-    anniversaries.find((item) => item.date);
-  if (relationship) {
-    const metrics = getAnniversaryMetrics(relationship);
-    els.anniversaryPeek.textContent = `${relationship.title} ${metrics.value}${metrics.unit}`;
-  } else {
-    els.anniversaryPeek.textContent = "设置重要日子";
-  }
 }
 
 function setAnniversaryFormExpanded(expanded) {
@@ -13074,76 +12604,18 @@ async function saveWeekendPlan(event) {
 }
 
 function renderWeekendPlans() {
-  if (!els.weekendList) return;
   renderWeekendReminderNotice();
-  if (!session) {
-    els.weekendList.innerHTML = `<div class="empty">登录后可以安排周末去哪、吃什么和做什么。</div>`;
-    return;
-  }
-  if (!weekendPlans.length) {
-    els.weekendList.innerHTML = `<div class="empty">这个周末还没有安排。给自己留一个值得期待的计划。</div>`;
-    return;
-  }
-
-  const sorted = [...weekendPlans].sort(
-    (a, b) => Number(a.done) - Number(b.done) || new Date(a.date) - new Date(b.date)
-  );
-  els.weekendList.innerHTML = sorted
-    .map((plan, index) => {
-      const canManage = canManageItem(plan);
-      return `
-        <article class="weekend-card ${plan.done ? "done" : ""}">
-          ${plan.done ? `<span class="weekend-complete-mark">完成</span>` : ""}
-          <div class="weekend-date">
-            <span>${new Intl.DateTimeFormat("zh-CN", { month: "short" }).format(new Date(plan.date))}</span>
-            <strong>${new Intl.DateTimeFormat("zh-CN", { day: "2-digit" }).format(new Date(plan.date))}</strong>
-            <small>${new Intl.DateTimeFormat("zh-CN", { weekday: "short" }).format(new Date(plan.date))}</small>
-          </div>
-          <div class="weekend-card-body">
-            <p class="kicker">${escapeHtml(plan.type)} · PLAN ${String(index + 1).padStart(2, "0")} · ${escapeHtml(getAuthorName(plan.userId))}</p>
-            <h3>${escapeHtml(plan.title)}</h3>
-            ${plan.location ? `<p class="weekend-location">地点：${escapeHtml(plan.location)}</p>` : ""}
-            ${plan.note ? `<p>${escapeHtml(plan.note)}</p>` : ""}
-            ${plan.images?.length ? `<div class="weekend-scenes">${plan.images.map((image, imageIndex) => `<button type="button" data-weekend-gallery="${escapeHtml(plan.id)}" data-weekend-image="${imageIndex}" aria-label="查看第 ${imageIndex + 1} 张场景"><img src="${escapeHtml(image.thumbnail_url || image.image_url)}" alt="${escapeHtml(plan.title)}场景 ${imageIndex + 1}" loading="lazy" decoding="async" /></button>`).join("")}</div>` : ""}
-            ${plan.done && (plan.completionNote || plan.completionImages?.length) ? `
-              <section class="weekend-recap">
-                <header><span>完成回顾</span>${plan.completedAt ? `<time>${escapeHtml(formatCommentTime(plan.completedAt))}</time>` : ""}</header>
-                ${plan.completionNote ? `<p>${escapeHtml(plan.completionNote)}</p>` : ""}
-                ${plan.completionImages?.length ? `<div class="weekend-scenes weekend-recap-scenes">${plan.completionImages.map((image, imageIndex) => `<button type="button" data-weekend-gallery="${escapeHtml(plan.id)}" data-weekend-gallery-kind="completion" data-weekend-image="${imageIndex}" aria-label="查看第 ${imageIndex + 1} 张回顾照片"><img src="${escapeHtml(image.thumbnail_url || image.image_url)}" alt="${escapeHtml(plan.title)}回顾 ${imageIndex + 1}" loading="lazy" decoding="async" /></button>`).join("")}</div>` : ""}
-              </section>
-            ` : ""}
-            ${canManage ? `<div class="weekend-card-actions">
-              <button type="button" data-edit-weekend="${escapeHtml(plan.id)}">编辑</button>
-              <button type="button" data-toggle-weekend="${escapeHtml(plan.id)}">
-                ${plan.done ? "重新计划" : "完成"}
-              </button>
-              ${plan.done ? `<button type="button" data-recap-weekend="${escapeHtml(plan.id)}">${plan.completionNote || plan.completionImages?.length ? "编辑回顾" : "补充回顾"}</button>` : ""}
-              <button type="button" data-delete-weekend="${escapeHtml(plan.id)}">删除</button>
-            </div>` : ""}
-          </div>
-        </article>
-      `;
-    })
-    .join("");
-
-  els.weekendList.querySelectorAll("[data-edit-weekend]").forEach((button) => {
-    button.addEventListener("click", () => editWeekendPlan(button.dataset.editWeekend));
-  });
-  els.weekendList.querySelectorAll("[data-toggle-weekend]").forEach((button) => {
-    button.addEventListener("click", () => toggleWeekendPlan(button.dataset.toggleWeekend));
-  });
-  els.weekendList.querySelectorAll("[data-delete-weekend]").forEach((button) => {
-    button.addEventListener("click", () => deleteWeekendPlan(button.dataset.deleteWeekend));
-  });
-  els.weekendList.querySelectorAll("[data-recap-weekend]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const plan = weekendPlans.find((item) => item.id === button.dataset.recapWeekend);
-      openWeekendCompletionDialog(plan);
-    });
-  });
-  bindWeekendGalleryInteractions(els.weekendList, {
-    getPlan: (id) => weekendPlans.find((item) => item.id === id),
-    openGallery: openWeekendImageGallery,
+  renderWeekendPlansView({
+    listElement: els.weekendList,
+    plans: weekendPlans,
+    signedIn: Boolean(session),
+    getAuthorName,
+    canManageItem,
+    onEdit: editWeekendPlan,
+    onToggle: toggleWeekendPlan,
+    onDelete: deleteWeekendPlan,
+    onRecap: openWeekendCompletionDialog,
+    onOpenGallery: openWeekendImageGallery,
   });
 }
 
@@ -13331,42 +12803,15 @@ function resetGratitudeForm() {
 }
 
 function renderGratitudeNotes() {
-  if (!els.thanksBoard) return;
-  if (!session) {
-    els.thanksBoard.innerHTML = `<div class="empty">登录后可以和家人留下一句话。</div>`;
-    return;
-  }
-  if (!gratitudeNotes.length) {
-    els.thanksBoard.innerHTML = `<div class="empty">留言板还是空的。先留下一句今天想感谢的话。</div>`;
-    return;
-  }
-
-  els.thanksBoard.innerHTML = gratitudeNotes
-    .map((note, index) => {
-      const canManage = canManageItem(note);
-      const safeColor = THANKS_COLORS.has(note.text_color) ? note.text_color : "#2f6b3b";
-      return `
-        <article class="thanks-note" style="--note-color:${safeColor}">
-          <span class="thanks-note-index">${String(index + 1).padStart(2, "0")}</span>
-          <p>${escapeHtml(note.body)}</p>
-          <footer>
-            <span>${escapeHtml(getAuthorName(note.user_id))}</span>
-            <time>${formatCommentTime(note.created_at)}</time>
-            ${canManage ? `<span class="thanks-note-actions">
-              <button type="button" data-edit-thanks="${escapeHtml(note.id)}">编辑</button>
-              <button type="button" data-delete-thanks="${escapeHtml(note.id)}">删除</button>
-            </span>` : ""}
-          </footer>
-        </article>
-      `;
-    })
-    .join("");
-
-  els.thanksBoard.querySelectorAll("[data-edit-thanks]").forEach((button) => {
-    button.addEventListener("click", () => editGratitudeNote(button.dataset.editThanks));
-  });
-  els.thanksBoard.querySelectorAll("[data-delete-thanks]").forEach((button) => {
-    button.addEventListener("click", () => deleteGratitudeNote(button.dataset.deleteThanks));
+  renderGratitudeNotesView({
+    boardElement: els.thanksBoard,
+    notes: gratitudeNotes,
+    signedIn: Boolean(session),
+    allowedColors: THANKS_COLORS,
+    getAuthorName,
+    canManageItem,
+    onEdit: editGratitudeNote,
+    onDelete: deleteGratitudeNote,
   });
 }
 
@@ -13882,39 +13327,16 @@ async function loadNotifications() {
 }
 
 function renderNotifications() {
-  const unread = notifications.filter((item) => !item.is_read).length;
-  els.notificationBadge.hidden = unread === 0;
-  els.notificationBadge.textContent = unread > 99 ? "99+" : String(unread);
-  void syncAppIconBadge(unread);
-  if (!els.notificationList) return;
-  if (!notifications.length) {
-    els.notificationList.innerHTML = `<div class="empty">还没有新的互动。</div>`;
-    return;
-  }
-  els.notificationList.innerHTML = aggregateInteractionNotifications(notifications)
-    .slice(0, 15)
-    .map((item) => {
-      const actorName = getNotificationActorName(item);
-      const actorAvatar = getNotificationActorAvatar(item);
-      const avatar = actorAvatar
-        ? `<span class="notification-avatar"><img src="${escapeHtml(actorAvatar)}" alt="" loading="lazy" decoding="async" /></span>`
-        : `<span class="notification-avatar">${escapeHtml(getInitial(actorName))}</span>`;
-      const stateClass = item.just_seen ? "just-seen" : item.is_read ? "" : "unread";
-      return `
-        <button class="notification-item ${stateClass}" type="button" data-notification-id="${escapeHtml(item.notification_id || item.id || "")}" data-notification-type="${escapeHtml(item.type || "")}" data-notification-photo="${escapeHtml(item.photo_id || "")}">
-          ${avatar}
-          <span>
-            <strong>${escapeHtml(getNotificationText(item))}${item.just_seen ? `<em>刚看到</em>` : ""}</strong>
-            ${item.body ? `<small>${escapeHtml(item.body)}</small>` : ""}
-            <time>${formatCommentTime(item.created_at)}</time>
-          </span>
-          ${item.photo_image_url ? `<img class="notification-photo" src="${escapeHtml(item.photo_image_url)}" alt="" loading="lazy" decoding="async" />` : ""}
-        </button>`;
-    })
-    .join("");
-  els.notificationList.querySelectorAll("[data-notification-id]").forEach((button) => {
-    button.addEventListener("click", () => openNotification(button));
+  const unread = renderNotificationsView({
+    listElement: els.notificationList,
+    badgeElement: els.notificationBadge,
+    notifications,
+    getText: getNotificationText,
+    getActorName: getNotificationActorName,
+    getActorAvatar: getNotificationActorAvatar,
+    onOpen: openNotification,
   });
+  void syncAppIconBadge(unread);
 }
 
 async function openNotification(button) {

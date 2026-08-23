@@ -21,6 +21,14 @@ const wishlistViewModule = await readFile(
   new URL("../modules/wishlist-view.js", import.meta.url),
   "utf8"
 );
+const diaryUploadDomainModule = await readFile(
+  new URL("../modules/diary-upload-domain.js", import.meta.url),
+  "utf8"
+);
+const notificationViewModule = await readFile(
+  new URL("../modules/notification-view.js", import.meta.url),
+  "utf8"
+);
 const deployScript = await readFile(new URL("../deploy-cloudflare-pages.ps1", import.meta.url), "utf8");
 const releaseTestScript = await readFile(new URL("../test-release.ps1", import.meta.url), "utf8");
 const secretViewerCss = await readFile(
@@ -50,6 +58,14 @@ const photoFavoritesDomain = await import(
 const wishlistView = await import(
   new URL("../modules/wishlist-view.js", import.meta.url)
 );
+const diaryUploadDomain = await import(new URL("../modules/diary-upload-domain.js", import.meta.url));
+const foodWheelView = await import(new URL("../modules/food-wheel-view.js", import.meta.url));
+const recipeView = await import(new URL("../modules/recipe-view.js", import.meta.url));
+const anniversaryView = await import(new URL("../modules/anniversary-view.js", import.meta.url));
+const weekendPlansView = await import(new URL("../modules/weekend-plans-view.js", import.meta.url));
+const gratitudeView = await import(new URL("../modules/gratitude-view.js", import.meta.url));
+const notificationView = await import(new URL("../modules/notification-view.js", import.meta.url));
+const vipCenter = await import(new URL("../modules/vip-center.js", import.meta.url));
 const secretDomain = await import(new URL("../modules/secret-domain.js", import.meta.url));
 const diaryDomainModule = await readFile(
   new URL("../modules/diary-domain.js", import.meta.url),
@@ -137,7 +153,7 @@ const expandedTrashMigration = await readFile(
 assert.match(index, /id="secretViewerToolbar"/);
 assert.match(index, /id="dialogExpandImage"/);
 assert.match(index, /redesign\.css\?v=20260823-020/);
-assert.match(index, /styles\.css\?v=20260823-019/);
+assert.match(index, /styles\.css\?v=20260823-024/);
 assert.match(index, /id="adminStorageMeter"/);
 assert.match(index, /R2 对象存储/);
 assert.match(index, /id="adminStorageMonth"/);
@@ -154,7 +170,7 @@ assert.match(app, /dialogVideo\.style\.display = hasMotion/);
 assert.match(app, /dialogVideo\.controls = !isMobileViewport\(\)/);
 assert.doesNotMatch(index, /id="dialogVideo"[^>]*controls/);
 assert.match(index, /option value="pet">宠物生日</);
-assert.match(app, /if \(type === "pet"\) return "宠物生日"/);
+assert.equal(anniversaryView.getAnniversaryTypeLabel("pet"), "宠物生日");
 assert.match(app, /life-vlog-diary-image-cache/);
 assert.match(serviceWorker, /life-vlog-diary-image-cache/);
 assert.match(mediaCacheModule, /startsWith\("video\/"\)/);
@@ -191,7 +207,7 @@ const initialPhotoLoadIndex = app.indexOf("await loadPhotos()", initializeCloudf
 assert.ok(initializeCloudflareIndex >= 0, "Cloudflare initialization is missing");
 assert.ok(authListenerIndex > initializeCloudflareIndex, "Auth listener is missing from initialization");
 assert.ok(authListenerIndex < initialPhotoLoadIndex, "Auth listener must be registered before initial photo loading");
-assert.match(serviceWorker, /life-vlog-site-20260823-022-pwa/);
+assert.match(serviceWorker, /life-vlog-site-20260823-024-pwa/);
 assert.match(serviceWorker, /modules\/admin-storage\.js/);
 assert.match(diaryDetailCss, /#photoDialog #dialogImage\[hidden\][\s\S]*?display: none !important/);
 assert.match(app, /const p=!galleryRenderSignature[\s\S]*?if\(p\).*?scrollIntoView\(\)/);
@@ -207,7 +223,7 @@ assert.match(app, /connection\.saveData \|\| connection\.type === "cellular"/);
 assert.match(mediaMetadataModule, /export function getDiaryMediaType\(media = \{\}\)/);
 assert.match(app, /type: "video"/);
 assert.match(app, /video_url: video.url/);
-assert.match(app, /unpairedEntries\.slice\(0, remainingMotionFiles\.length\)/);
+assert.match(diaryUploadDomainModule, /unpairedEntries\.slice\(0, remainingMotionFiles\.length\)/);
 assert.match(worker, /fileType\.startsWith\("video\/"\)/);
 assert.match(worker, /upsertRows\(env, table, sanitizedRows, config\.columns, conflict\)/);
 assert.match(app, /photo-comment-author-badge/);
@@ -371,7 +387,7 @@ assert.match(index, /id="diarySearchSuggestions"/);
 assert.match(index, /id="secretSearchSuggestions"/);
 assert.match(index, /id="secretFolderList"/);
 assert.match(app, /enableWebPush/);
-assert.match(app, /aggregateInteractionNotifications\(notifications\)\s*\.slice\(0, 15\)/);
+assert.match(notificationViewModule, /aggregateInteractionNotifications\(notifications\)\s*\.slice\(0, 15\)/);
 assert.match(index, /id="weeklyReviewDialog"/);
 assert.match(index, /data-tool-id="weekly"/);
 assert.match(app, /loadWeeklyReview/);
@@ -493,17 +509,33 @@ assert.match(confirmDialogModule, /export function confirmAction/);
 assert.match(cachePolicyModule, /export function isClearlyUnmeteredConnection/);
 assert.match(serviceWorker, /modules\/confirm-dialog\.js/);
 assert.match(serviceWorker, /modules\/diary-domain\.js/);
+assert.match(serviceWorker, /modules\/diary-upload-domain\.js/);
+assert.match(serviceWorker, /modules\/food-wheel-view\.js/);
+assert.match(serviceWorker, /modules\/gratitude-view\.js/);
 assert.match(serviceWorker, /modules\/notification-domain\.js/);
+assert.match(serviceWorker, /modules\/notification-view\.js/);
 assert.match(serviceWorker, /modules\/photo-favorites\.js/);
+assert.match(serviceWorker, /modules\/recipe-view\.js/);
 assert.match(serviceWorker, /modules\/secret-domain\.js/);
+assert.match(serviceWorker, /modules\/anniversary-view\.js/);
+assert.match(serviceWorker, /modules\/vip-center\.js/);
+assert.match(serviceWorker, /modules\/weekend-plans-view\.js/);
 assert.match(serviceWorker, /modules\/wishlist-view\.js/);
 assert.match(app, /from "\.\/modules\/photo-favorites\.js"/);
 assert.match(app, /from "\.\/modules\/wishlist-view\.js"/);
-assert.match(serviceWorker, /life-vlog-site-20260823-022-pwa/);
-assert.match(serviceWorker, /styles\.css\?v=20260823-019/);
+assert.match(app, /from "\.\/modules\/diary-upload-domain\.js"/);
+assert.match(app, /from "\.\/modules\/food-wheel-view\.js"/);
+assert.match(app, /from "\.\/modules\/recipe-view\.js"/);
+assert.match(app, /from "\.\/modules\/anniversary-view\.js"/);
+assert.match(app, /from "\.\/modules\/weekend-plans-view\.js"/);
+assert.match(app, /from "\.\/modules\/gratitude-view\.js"/);
+assert.match(app, /from "\.\/modules\/notification-view\.js"/);
+assert.match(app, /from "\.\/modules\/vip-center\.js"/);
+assert.match(serviceWorker, /life-vlog-site-20260823-024-pwa/);
+assert.match(serviceWorker, /styles\.css\?v=20260823-024/);
 assert.match(serviceWorker, /redesign\.css\?v=20260823-020/);
 assert.match(index, /id="photoInput"[^>]*accept="image\/\*,video\/\*/);
-assert.match(index, /app\.js\?v=20260823-022/);
+assert.match(index, /app\.js\?v=20260823-024/);
 assert.match(serviceWorker, /modules\/vlog-mode\.js/);
 assert.match(serviceWorker, /modules\/weekend-gallery\.js/);
 assert.match(deployScript, /test-release\.ps1/);
@@ -1102,6 +1134,66 @@ assert.equal(
   ),
   "蛋 回复了你 3 次"
 );
+
+const uploadStill = { name: "IMG_0001.HEIC", type: "image/heic", size: 10, lastModified: 1 };
+const uploadMotion = { name: "IMG_0001.MOV", type: "video/quicktime", size: 20, lastModified: 2 };
+const uploadVideo = { name: "weekend.mp4", type: "video/mp4", size: 30, lastModified: 3 };
+const uploadUnsupported = { name: "notes.txt", type: "text/plain", size: 4, lastModified: 4 };
+const uploadPairing = diaryUploadDomain.pairDiaryUploadFiles([
+  uploadStill,
+  uploadMotion,
+  uploadVideo,
+  uploadUnsupported,
+]);
+assert.equal(uploadPairing.entries.length, 1);
+assert.equal(uploadPairing.entries[0].motionFile, uploadMotion);
+assert.deepEqual(uploadPairing.videoFiles, [uploadVideo]);
+assert.deepEqual(uploadPairing.unsupportedFiles, [uploadUnsupported]);
+assert.equal(diaryUploadDomain.getDiaryUploadEntryCount(uploadPairing), 2);
+assert.equal(diaryUploadDomain.getDiaryUploadFileExtension(uploadMotion), "mov");
+assert.equal(diaryUploadDomain.isDiaryUploadStillFile(uploadStill), true);
+assert.equal(diaryUploadDomain.isDiaryUploadMotionFile(uploadVideo), true);
+const previewItems = diaryUploadDomain.getDiaryUploadPreviewItems(
+  [uploadStill, uploadMotion, uploadVideo],
+  ["https://example.com/photo.jpg"]
+);
+assert.deepEqual(previewItems.items.map((item) => item.kind), ["live", "video", "link"]);
+const uploadPayload = diaryUploadDomain.createDiaryUploadPayload({
+  id: "upload-1",
+  createdAt: "2026-08-23T00:00:00.000Z",
+  title: "周末",
+  userId: "user-1",
+  files: [uploadStill, uploadMotion],
+});
+assert.equal(uploadPayload.files[0].kind, "live");
+assert.equal(uploadPayload.files[0].motionFile, uploadMotion);
+assert.equal(uploadPayload.id, "upload-1");
+assert.deepEqual(foodWheelView.normalizeFoodOptions([" 拉面 ", "拉面", "寿司"]), ["拉面", "寿司"]);
+assert.deepEqual(
+  foodWheelView.buildFoodWheelOptions(["拉面"], [{ name: "寿司" }, { name: "拉面" }]),
+  ["拉面", "寿司"]
+);
+assert.match(recipeView.renderRecipeList(["<盐>"], "空"), /&lt;盐&gt;/);
+assert.match(recipeView.renderRecipeCover({ name: "汤", coverImage: "" }), /recipe-cover placeholder/);
+const togetherMetrics = anniversaryView.getAnniversaryMetrics(
+  { type: "together", date: "2026-08-20" },
+  new Date(2026, 7, 23)
+);
+assert.equal(togetherMetrics.value, 3);
+assert.equal(togetherMetrics.unit, "天");
+assert.deepEqual(
+  weekendPlansView.sortWeekendPlans([
+    { id: "done", done: true, date: "2026-08-20" },
+    { id: "later", done: false, date: "2026-08-25" },
+    { id: "first", done: false, date: "2026-08-24" },
+  ]).map((plan) => plan.id),
+  ["first", "later", "done"]
+);
+assert.equal(gratitudeView.normalizeGratitudeColor("#bad", new Set(["#good"])), "#2f6b3b");
+assert.equal(notificationView.getUnreadNotificationCount([{ is_read: false }, { is_read: true }]), 1);
+assert.equal(vipCenter.getVipLevelByRecharge(68).level, 3);
+assert.equal(vipCenter.getVipLevel(5).limit, 18);
+assert.equal(vipCenter.formatMoney(29.4), "¥29");
 
 const favoriteWrites = [];
 const favoriteStore = photoFavoritesDomain.createPhotoFavoritesStore({

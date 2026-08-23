@@ -291,6 +291,47 @@ async function assertFavoriteRoundTrip(page, label) {
   await page.fill("#diarySearchInput", "");
 }
 
+async function assertModularViews(page, label) {
+  await page.click("#recipesToolOpen");
+  await page.waitForSelector("#recipesPage:not([hidden])");
+  await page.waitForFunction(() => (document.querySelector("#recipesList")?.textContent || "").trim().length > 0);
+  await assertNoHorizontalOverflow(page, `${label} recipes`);
+  await page.screenshot({ path: join(screenshotDir, `modules-recipes-${label}.png`), fullPage: true });
+
+  await page.click("#foodWheelOpen");
+  await page.waitForSelector("#foodWheelDialog[open]");
+  assert.ok(await page.locator("#foodOptions [data-remove-food]").count() >= 2, `${label} food wheel has too few options`);
+  await assertNoHorizontalOverflow(page, `${label} food wheel`);
+  await page.screenshot({ path: join(screenshotDir, `modules-food-wheel-${label}.png`) });
+  await page.click("#foodWheelClose");
+
+  await page.click("#anniversaryOpen");
+  await page.waitForSelector("#anniversaryDialog[open]");
+  await page.waitForFunction(() => Boolean(document.querySelector("#anniversaryList")));
+  await assertNoHorizontalOverflow(page, `${label} anniversaries`);
+  await page.screenshot({ path: join(screenshotDir, `modules-anniversary-${label}.png`) });
+  await page.click("#anniversaryClose");
+
+  await page.click("#thanksOpen");
+  await page.waitForSelector("#thanksPage:not([hidden])");
+  await page.waitForFunction(() => (document.querySelector("#thanksBoard")?.textContent || "").trim().length > 0);
+  await assertNoHorizontalOverflow(page, `${label} gratitude`);
+
+  await page.click("#notificationButton");
+  await page.waitForSelector("#notificationDialog[open]");
+  await page.waitForFunction(() => (document.querySelector("#notificationList")?.textContent || "").trim().length > 0);
+  await page.click("#closeNotificationDialog");
+
+  await page.click("#avatarButton");
+  await page.waitForSelector("#vipPopoverBadge", { state: "visible" });
+  await page.click("#vipPopoverBadge");
+  await page.waitForSelector("#vipDialog[open]");
+  assert.equal(await page.locator("#vipLevels .vip-level").count(), 5, `${label} VIP levels are incomplete`);
+  await assertNoHorizontalOverflow(page, `${label} VIP center`);
+  await page.screenshot({ path: join(screenshotDir, `modules-vip-${label}.png`) });
+  await page.click("#closeVipDialog");
+}
+
 try {
   const desktopContext = await browser.newContext({
     viewport: { width: 1440, height: 900 },
@@ -308,8 +349,7 @@ try {
   await desktop.waitForSelector("#accountSettingsButton", { state: "hidden" });
   await assertNoHorizontalOverflow(desktop, "desktop home");
 
-  await desktop.click("#recipesToolOpen");
-  await desktop.waitForSelector("#recipesPage:not([hidden])");
+  await assertModularViews(desktop, "desktop");
   await assertWishlistReceiptFlow(desktop, "desktop", desktopErrors);
   await assertFavoriteRoundTrip(desktop, "desktop");
   await desktop.click("#galleryNav");
@@ -333,8 +373,7 @@ try {
   await mobile.waitForSelector("#accountSettingsButton", { state: "visible" });
   await mobile.click("#avatarButton");
   await mobile.waitForSelector("#accountSettingsButton", { state: "hidden" });
-  await mobile.click("#recipesToolOpen");
-  await mobile.waitForSelector("#recipesPage:not([hidden])");
+  await assertModularViews(mobile, "mobile");
   await assertWishlistReceiptFlow(mobile, "mobile", mobileErrors);
   await assertFavoriteRoundTrip(mobile, "mobile");
   await mobile.click("#galleryNav");

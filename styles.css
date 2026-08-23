@@ -1897,6 +1897,7 @@ dialog article {
 
 .vip-dialog {
   width: min(980px, calc(100% - 24px));
+  overflow-x: hidden;
 }
 
 .vip-center {
@@ -2161,23 +2162,23 @@ body.theme-dark .dialog-close {
   }
 
   .vip-levels {
-    display: flex;
-    overflow-x: auto;
-    padding-bottom: 4px;
+    grid-template-columns: 1fr;
+    overflow-x: visible;
+    padding-bottom: 0;
   }
 
   .vip-level {
-    flex: 0 0 210px;
+    min-width: 0;
   }
 
   .vip-recharge {
-    display: flex;
-    overflow-x: auto;
-    padding-bottom: 4px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    overflow-x: visible;
+    padding-bottom: 0;
   }
 
   .vip-recharge button {
-    flex: 0 0 150px;
+    min-width: 0;
   }
 
   .section-title,
