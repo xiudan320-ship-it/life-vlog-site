@@ -7,6 +7,7 @@ import {
 import { normalizeFoodOptions } from "./food-wheel-view.js";
 import {
   recipeFromCloudRow,
+  shoppingFromCloudRow,
   weekendFromCloudRow,
   weekendToCloudRow,
   wishFromCloudRow,
@@ -64,6 +65,7 @@ export function createAccountSyncController({
   renderVipCenter,
   renderRecipes,
   renderWishes,
+  renderShopping,
   renderFoodWheel,
   synchronizeAnniversaries,
   loadPhotos,
@@ -205,7 +207,7 @@ export function createAccountSyncController({
       try {
         setGlobalStatus("正在同步账户数据…");
         await loadFamilyContext();
-        const [profileResult, recipesResult, wishesResult] = await Promise.all([
+        const [profileResult, recipesResult, wishesResult, shoppingResult] = await Promise.all([
           householdRepository.list("user_profiles", {
             filters: { user_id: userId },
             maybeSingle: true,
@@ -216,9 +218,12 @@ export function createAccountSyncController({
           householdRepository.list("wishes", {
             order: [{ column: "created_at", ascending: false }],
           }),
+          householdRepository.list("shopping_items", {
+            order: [{ column: "created_at", ascending: false }],
+          }),
         ]);
   
-        const firstError = profileResult.error || recipesResult.error || wishesResult.error;
+        const firstError = profileResult.error || recipesResult.error || wishesResult.error || shoppingResult.error;
         if (firstError) throw firstError;
         if (!state.session || state.session.user.id !== userId) return;
   
@@ -266,6 +271,7 @@ export function createAccountSyncController({
   
         const cloudRecipes = recipesResult.data || [];
         const cloudWishes = wishesResult.data || [];
+        const cloudShoppingItems = shoppingResult.data || [];
   
         const today = getLocalDateKey();
         let rechargeTotal = Math.max(
@@ -403,6 +409,7 @@ export function createAccountSyncController({
         setSelectedThanksColor(state.accountProfile.thanksColor);
         state.recipes = cloudRecipes.map(recipeFromCloudRow);
         state.wishes = cloudWishes.map(wishFromCloudRow);
+        state.shoppingItems = cloudShoppingItems.map(shoppingFromCloudRow);
         state.foodOptions = state.accountProfile.foodOptions.length
           ? state.accountProfile.foodOptions
           : [...defaultFoodOptions];
@@ -435,6 +442,7 @@ export function createAccountSyncController({
         renderVipCenter();
         renderRecipes();
         renderWishes();
+        renderShopping();
         renderFoodWheel();
         await synchronizeWeekendPlans(userId);
         await synchronizeAnniversaries(userId);
@@ -448,6 +456,7 @@ export function createAccountSyncController({
         state.cloudSyncAvailable = false;
         state.accountDataState = "error";
         renderWishes();
+        renderShopping();
         awardDailyExperience(displayName);
         renderExperience(displayName);
         if (isMissingCloudSchema(error)) {

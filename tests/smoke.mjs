@@ -21,6 +21,10 @@ const wishlistViewModule = await readFile(
   new URL("../modules/wishlist-view.js", import.meta.url),
   "utf8"
 );
+const shoppingViewModule = await readFile(new URL("../modules/shopping-view.js", import.meta.url), "utf8");
+const shoppingController = await import(new URL("../modules/shopping-controller.js", import.meta.url));
+const shoppingControllerModule = await readFile(new URL("../modules/shopping-controller.js", import.meta.url), "utf8");
+const wishlistHubController = await import(new URL("../modules/wishlist-hub-controller.js", import.meta.url));
 const diaryUploadDomainModule = await readFile(
   new URL("../modules/diary-upload-domain.js", import.meta.url),
   "utf8"
@@ -275,7 +279,7 @@ const expandedTrashMigration = await readFile(
 
 assert.match(index, /id="secretViewerToolbar"/);
 assert.match(index, /id="dialogExpandImage"/);
-assert.match(index, /redesign\.css\?v=20260824-027/);
+assert.match(index, /redesign\.css\?v=20260824-031/);
 assert.match(index, /styles\.css\?v=20260824-026/);
 assert.match(index, /id="adminStorageMeter"/);
 assert.match(index, /R2 对象存储/);
@@ -336,7 +340,7 @@ const initialPhotoLoadIndex = app.indexOf("await loadPhotos()", initializeCloudf
 assert.ok(initializeCloudflareIndex >= 0, "Cloudflare initialization is missing");
 assert.ok(authListenerIndex > initializeCloudflareIndex, "Auth listener is missing from initialization");
 assert.ok(authListenerIndex < initialPhotoLoadIndex, "Auth listener must be registered before initial photo loading");
-assert.match(serviceWorker, /life-vlog-site-20260824-030-pwa/);
+assert.match(serviceWorker, /life-vlog-site-20260824-031-pwa/);
 assert.match(serviceWorker, /modules\/admin-storage\.js/);
 assert.match(diaryDetailCss, /#photoDialog #dialogImage\[hidden\][\s\S]*?display: none !important/);
 assert.match(applicationSource, /const p=!state\.galleryRenderSignature[\s\S]*?initialRender: p/);
@@ -706,11 +710,25 @@ assert.equal(typeof wishlistController.createWishlistController, "function");
 assert.equal(typeof weekendController.createWeekendController, "function");
 assert.equal(typeof authController.createAuthController, "function");
 assert.equal(typeof offlineCacheController.createOfflineCacheController, "function");
-assert.match(serviceWorker, /life-vlog-site-20260824-030-pwa/);
+assert.match(serviceWorker, /life-vlog-site-20260824-031-pwa/);
 assert.match(serviceWorker, /styles\.css\?v=20260824-026/);
-assert.match(serviceWorker, /redesign\.css\?v=20260824-027/);
+assert.match(serviceWorker, /redesign\.css\?v=20260824-031/);
 assert.match(index, /id="photoInput"[^>]*accept="image\/\*,video\/\*/);
-assert.match(index, /app\.js\?v=20260824-030/);
+assert.match(index, /app\.js\?v=20260824-031/);
+assert.match(index, /id="wishlistModuleTabs"/);
+assert.match(index, /data-wishlist-module="shopping"/);
+assert.match(index, /id="shoppingImageInput"[^>]*accept="image\/\*"/);
+assert.match(index, /data-shopping-filter="all"/);
+assert.match(schema, /CREATE TABLE IF NOT EXISTS shopping_items/);
+assert.match(worker, /shopping_items:\s*\{/);
+assert.match(serviceWorker, /modules\/shopping-controller\.js/);
+assert.match(serviceWorker, /modules\/shopping-view\.js/);
+assert.match(shoppingControllerModule, /repository\.upsert\("shopping_items"/);
+assert.match(shoppingControllerModule, /确定要删除这个商品吗/);
+assert.match(shoppingControllerModule, /cleanupStoredImagePaths/);
+assert.match(shoppingViewModule, /shopping-card-placeholder/);
+assert.equal(typeof shoppingController.createShoppingController, "function");
+assert.equal(typeof wishlistHubController.createWishlistHubController, "function");
 assert.match(serviceWorker, /modules\/vlog-mode\.js/);
 assert.match(serviceWorker, /modules\/weekend-gallery\.js/);
 assert.match(weekendGalleryModule, /weekend-album-lightbox-closed/);

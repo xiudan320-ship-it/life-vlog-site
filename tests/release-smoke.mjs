@@ -506,6 +506,77 @@ async function assertModularViews(page, label) {
   await page.click("#closeVipDialog");
 }
 
+async function assertShoppingFlow(page, label) {
+  const itemName = `自动验收商品-${label}-${Date.now()}`;
+  const editedName = `${itemName}-已编辑`;
+  const imagePath = join(process.cwd(), "assets", "home-logo.jpg");
+
+  await page.click("#wishlistNav");
+  await page.waitForSelector("#wishlistPage:not([hidden])");
+  await page.click('[data-wishlist-module="shopping"]');
+  await page.waitForSelector("#shoppingContent:not([hidden])");
+  await page.click("#shoppingToggle");
+  await page.fill("#shoppingNameInput", itemName);
+  await page.fill("#shoppingPriceInput", "128.50");
+  await page.fill("#shoppingLinkInput", "https://example.com/product");
+  await page.fill("#shoppingNoteInput", "自动验收：初始备注");
+  await page.setInputFiles("#shoppingImageInput", imagePath);
+  await page.click("#shoppingSubmitButton");
+
+  let card = page.locator("#shoppingList .shopping-card", { hasText: itemName });
+  await card.waitFor({ state: "visible", timeout: 30000 });
+  assert.match(await card.locator("img").getAttribute("src"), /^https?:\/\//, `${label} shopping image was not uploaded`);
+  assert.match(await card.textContent(), /¥128\.5/);
+
+  await card.locator("[data-edit-shopping]").click();
+  await page.fill("#shoppingNameInput", editedName);
+  await page.fill("#shoppingNoteInput", "自动验收：编辑成功");
+  await page.click("#shoppingSubmitButton");
+  card = page.locator("#shoppingList .shopping-card", { hasText: editedName });
+  await card.waitFor({ state: "visible", timeout: 30000 });
+  assert.match(await card.textContent(), /编辑成功/);
+
+  await card.locator("[data-toggle-shopping]").click();
+  await page.waitForFunction(
+    (name) => [...document.querySelectorAll("#shoppingList .shopping-card")].some(
+      (entry) => entry.textContent.includes(name) && entry.classList.contains("completed")
+    ),
+    editedName,
+    { timeout: 30000 }
+  );
+  await page.click('[data-shopping-filter="open"]');
+  assert.equal(await page.locator("#shoppingList .shopping-card", { hasText: editedName }).count(), 0, `${label} completed item appears in unfinished filter`);
+  await page.click('[data-shopping-filter="done"]');
+  card = page.locator("#shoppingList .shopping-card", { hasText: editedName });
+  await card.waitFor({ state: "visible" });
+  await assertNoHorizontalOverflow(page, `${label} shopping cart`);
+  await mkdir(screenshotDir, { recursive: true });
+  await page.screenshot({ path: join(screenshotDir, `shopping-${label}.png`), fullPage: true });
+
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await waitForSignedInAccount(page, `${label} shopping reload`);
+  await page.click("#wishlistNav");
+  await page.click('[data-wishlist-module="shopping"]');
+  card = page.locator("#shoppingList .shopping-card", { hasText: editedName });
+  await card.waitFor({ state: "visible", timeout: 30000 });
+  assert.ok(await card.evaluate((entry) => entry.classList.contains("completed")), `${label} completed state did not survive reload`);
+
+  await card.locator("[data-toggle-shopping]").click();
+  await page.waitForFunction(
+    (name) => [...document.querySelectorAll("#shoppingList .shopping-card")].some(
+      (entry) => entry.textContent.includes(name) && !entry.classList.contains("completed")
+    ),
+    editedName,
+    { timeout: 30000 }
+  );
+  card = page.locator("#shoppingList .shopping-card", { hasText: editedName });
+  await card.locator("[data-delete-shopping]").click();
+  await page.waitForSelector(".action-confirm-dialog[open]");
+  assert.match(await page.locator(".action-confirm-dialog h2").textContent(), /确定要删除这个商品吗/);
+  await page.click('.action-confirm-dialog button[value="confirm"]');
+  await card.waitFor({ state: "detached", timeout: 30000 });
+}
+
 try {
   const desktopContext = await browser.newContext({
     viewport: { width: 1440, height: 900 },
@@ -527,6 +598,7 @@ try {
 
   await assertModularViews(desktop, "desktop");
   await assertWishlistReceiptFlow(desktop, "desktop", desktopErrors);
+  await assertShoppingFlow(desktop, "desktop");
   await assertFavoriteRoundTrip(desktop, "desktop");
   await assertDiaryDetailFlow(desktop, "desktop", false, desktopErrors);
   await desktop.click("#galleryNav");
@@ -556,6 +628,7 @@ try {
   await mobile.waitForSelector("#accountSettingsButton", { state: "hidden" });
   await assertModularViews(mobile, "mobile");
   await assertWishlistReceiptFlow(mobile, "mobile", mobileErrors);
+  await assertShoppingFlow(mobile, "mobile");
   await assertFavoriteRoundTrip(mobile, "mobile");
   await assertDiaryDetailFlow(mobile, "mobile", true, mobileErrors);
   await mobile.click("#galleryNav");

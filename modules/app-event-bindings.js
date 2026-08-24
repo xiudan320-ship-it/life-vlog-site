@@ -150,6 +150,7 @@ export function bindAppEvents({
     submitCompletion: submitWishCompletion,
     closeCompleteDialog: closeWishCompleteDialog,
   } = controllers.wishlist;
+  const wishlistHubController = controllers.wishlistHub;
   const {
     setExpanded: setWeekendExpanded,
     addFiles: addWeekendFiles,
@@ -241,7 +242,10 @@ export function bindAppEvents({
     switchPage("recipes");
     els.recipesPage?.scrollIntoView({ behavior: "smooth", block: "start" });
   });
-  els.wishlistNav.addEventListener("click", () => switchPage("wishlist"));
+  els.wishlistNav.addEventListener("click", () => {
+    wishlistHubController.showWishlist();
+    switchPage("wishlist");
+  });
   els.weekendNav.addEventListener("click", () => switchPage("weekend"));
   els.wardrobeNav?.addEventListener("click", () => switchPage("wardrobe"));
   els.thanksNav?.addEventListener("click", () => switchPage("thanks"));
@@ -341,6 +345,7 @@ export function bindAppEvents({
     els.recipeComposer.scrollIntoView({ behavior: "smooth", block: "start" });
   });
   els.quickWish.addEventListener("click", () => {
+    wishlistHubController.showWishlist();
     switchPage("wishlist");
     setWishlistExpanded(true);
     els.wishlistComposer.scrollIntoView({ behavior: "smooth", block: "start" });

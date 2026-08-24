@@ -4,6 +4,7 @@ const ALLOWED_TABLES = new Set([
   "photo_favorites",
   "recipes",
   "secret_folders",
+  "shopping_items",
   "trash_items",
   "user_profiles",
   "weekend_plans",

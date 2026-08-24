@@ -187,6 +187,24 @@ CREATE TABLE IF NOT EXISTS wishes (
 
 CREATE INDEX IF NOT EXISTS wishes_user_done_created_idx ON wishes (user_id, is_done, created_at DESC);
 
+CREATE TABLE IF NOT EXISTS shopping_items (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  image_url TEXT NOT NULL DEFAULT '',
+  image_path TEXT NOT NULL DEFAULT '',
+  price REAL,
+  product_link TEXT NOT NULL DEFAULT '',
+  note TEXT NOT NULL DEFAULT '',
+  is_completed INTEGER NOT NULL DEFAULT 0,
+  completed_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+
+CREATE INDEX IF NOT EXISTS shopping_items_user_completed_created_idx
+  ON shopping_items (user_id, is_completed, created_at DESC);
+
 CREATE TABLE IF NOT EXISTS weekend_plans (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

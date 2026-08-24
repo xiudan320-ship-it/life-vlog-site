@@ -127,6 +127,25 @@ const TABLE_CONFIG = {
     ownerColumn: "user_id",
     booleanColumns: ["is_done"],
   },
+  shopping_items: {
+    columns: [
+      "id",
+      "user_id",
+      "name",
+      "image_url",
+      "image_path",
+      "price",
+      "product_link",
+      "note",
+      "is_completed",
+      "completed_at",
+      "created_at",
+      "updated_at",
+    ],
+    scope: "family",
+    ownerColumn: "user_id",
+    booleanColumns: ["is_completed"],
+  },
   weekend_plans: {
     columns: [
       "id",
@@ -1940,7 +1959,7 @@ async function handleD1Export(request, env, user) {
   const familyIds = await getFamilyIds(env, user.id);
   const userPlaceholders = familyUserIds.map(() => "?").join(",");
   const familyPlaceholders = familyIds.map(() => "?").join(",");
-  const [families, members, invitations, profiles, photos, favorites, comments, recipes, wishes, weekends, wardrobeLocations, wardrobeItems, wardrobeWearLogs, anniversaries, thanks, notifications, secrets] =
+  const [families, members, invitations, profiles, photos, favorites, comments, recipes, wishes, shoppingItems, weekends, wardrobeLocations, wardrobeItems, wardrobeWearLogs, anniversaries, thanks, notifications, secrets] =
     await Promise.all([
       familyIds.length
         ? env.DB.prepare(`select * from families where id in (${familyPlaceholders})`)
@@ -1972,6 +1991,7 @@ async function handleD1Export(request, env, user) {
         .all(),
       selectVisibleRows(env, "recipes", user.id, "created_at desc"),
       selectVisibleRows(env, "wishes", user.id, "created_at desc"),
+      selectVisibleRows(env, "shopping_items", user.id, "created_at desc"),
       selectVisibleRows(env, "weekend_plans", user.id, "plan_date asc"),
       selectVisibleRows(env, "wardrobe_locations", user.id, "sort_order asc, created_at asc"),
       selectVisibleRows(env, "wardrobe_items", user.id, "updated_at desc"),
@@ -1995,6 +2015,7 @@ async function handleD1Export(request, env, user) {
     photo_comments: comments.results || [],
     recipes: recipes.results || [],
     wishes: wishes.results || [],
+    shopping_items: shoppingItems.results || [],
     weekend_plans: weekends.results || [],
     wardrobe_locations: wardrobeLocations.results || [],
     wardrobe_items: (wardrobeItems.results || []).map((row) => denormalizeRow("wardrobe_items", row)),
@@ -2420,6 +2441,7 @@ const BACKUP_TABLES = [
   "photo_comments",
   "recipes",
   "wishes",
+  "shopping_items",
   "weekend_plans",
   "wardrobe_locations",
   "wardrobe_items",

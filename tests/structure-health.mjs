@@ -35,7 +35,7 @@ assert.equal(
 
 const sizeBudgets = new Map([
   ["app.js", 300_000],
-  ["redesign.css", 340_000],
+  ["redesign.css", 350_000],
 ]);
 for (const [file, limit] of sizeBudgets) {
   const { size } = await stat(path.join(root, file));

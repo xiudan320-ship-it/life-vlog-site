@@ -94,6 +94,40 @@ export function wishFromCloudRow(row) {
   };
 }
 
+export function shoppingToCloudRow(item, userId) {
+  return {
+    id: normalizeUuid(item.id),
+    user_id: userId,
+    name: item.name,
+    image_url: item.imageUrl || "",
+    image_path: item.imagePath || "",
+    price: item.price === null || item.price === undefined ? null : Number(item.price),
+    product_link: item.link || "",
+    note: item.note || "",
+    is_completed: Boolean(item.completed),
+    completed_at: item.completedAt || null,
+    created_at: item.createdAt || new Date().toISOString(),
+    updated_at: item.updatedAt || new Date().toISOString(),
+  };
+}
+
+export function shoppingFromCloudRow(row) {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    name: row.name,
+    imageUrl: row.image_url || "",
+    imagePath: row.image_path || "",
+    price: row.price === null || row.price === undefined ? null : Number(row.price),
+    link: row.product_link || "",
+    note: row.note || "",
+    completed: Boolean(row.is_completed),
+    completedAt: row.completed_at || "",
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
 export function weekendToCloudRow(plan, userId) {
   return {
     id: normalizeUuid(plan.id),

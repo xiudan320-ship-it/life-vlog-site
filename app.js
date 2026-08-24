@@ -25,6 +25,8 @@ import { createMediaCacheService } from "./modules/media-cache.js";
 import { createUploadQueue } from "./modules/upload-queue.js";
 import { createPhotoFavoritesStore } from "./modules/photo-favorites.js";
 import { createWishlistController } from "./modules/wishlist-controller.js";
+import { createShoppingController } from "./modules/shopping-controller.js?v=20260824-031";
+import { createWishlistHubController } from "./modules/wishlist-hub-controller.js?v=20260824-031";
 import { createFoodWheelController } from "./modules/food-wheel-controller.js";
 import { createPushController } from "./modules/push-controller.js";
 import { createAuthController } from "./modules/auth-controller.js";
@@ -186,6 +188,7 @@ let session = null;
 let photos = [];
 let recipes = [];
 let wishes = [];
+let shoppingItems = [];
 let weekendPlans = [];
 let anniversaries = [];
 let gratitudeNotes = [];
@@ -259,6 +262,7 @@ let secretAppendExpanded = false;
 let secretMobileToolsExpanded = false;
 let diarySearchQuery = "";
 let activeWishView = "open";
+let activeShoppingFilter = "all";
 const activeUploadTasks = new Map();
 let visiblePhotoCount = PAGE_SIZE;
 let filteredPhotoCount = 0;
@@ -801,6 +805,7 @@ const accountSyncState = {
   get accountDataState() { return accountDataState; }, set accountDataState(value) { accountDataState = value; },
   get recipes() { return recipes; }, set recipes(value) { recipes = value; },
   get wishes() { return wishes; }, set wishes(value) { wishes = value; },
+  get shoppingItems() { return shoppingItems; }, set shoppingItems(value) { shoppingItems = value; },
   get foodOptions() { return foodOptions; }, set foodOptions(value) { foodOptions = value; },
   get activeVipLevel() { return activeVipLevel; }, set activeVipLevel(value) { activeVipLevel = value; },
   get photoFlagsCloudAvailable() { return photoFlagsCloudAvailable; },
@@ -858,6 +863,7 @@ const accountSyncController = createAccountSyncController({
   renderVipCenter,
   renderRecipes: (...args) => renderRecipes(...args),
   renderWishes: (...args) => renderWishes(...args),
+  renderShopping: (...args) => renderShopping(...args),
   renderFoodWheel: (...args) => renderFoodWheel(...args),
   synchronizeAnniversaries: (...args) => synchronizeAnniversaries(...args),
   loadPhotos,
@@ -1434,6 +1440,7 @@ function updateAuthUI() {
   renderVipCenter();
   recipes = signedIn ? loadRecipes() : [];
   wishes = signedIn && !needsAccountSync ? wishes : [];
+  shoppingItems = signedIn && !needsAccountSync ? shoppingItems : [];
   weekendPlans = signedIn ? loadWeekendPlans() : [];
   anniversaries = signedIn ? loadAnniversaries() : [];
   if (needsAccountSync) photoFavorites.reset("loading");
@@ -1442,6 +1449,7 @@ function updateAuthUI() {
   renderOverview();
   renderRecipes();
   renderWishes();
+  renderShopping();
   renderWeekendPlans();
   renderAnniversaries();
   renderGratitudeNotes();
@@ -2155,11 +2163,12 @@ function switchPage(page, { skipSecretGate = false } = {}) {
   els.secretPage.hidden = !showSecret;
   els.recipeComposer.hidden = !showRecipes || !session;
   els.wishlistComposer.hidden = !showWishlist || !session;
+  els.shoppingComposer.hidden = !showWishlist || !session;
   els.weekendComposer.hidden = !showWeekend || !session;
   els.thanksForm.hidden = !showThanks || !session;
   els.secretComposer.hidden = !showSecret || !session;
   if (showRecipes) renderRecipes();
-  if (showWishlist) renderWishes();
+  if (showWishlist) wishlistHubController.show(wishlistHubController.getActiveModule());
   if (showWeekend) renderWeekendPlans();
   if (showWardrobe) void wardrobeController.load();
   if (showThanks) renderGratitudeNotes();
@@ -2398,6 +2407,42 @@ const {
   updateImagePreview: updateWishImagePreview,
 } = wishlistController;
 
+const shoppingController = createShoppingController({
+  elements: els,
+  repository: householdRepository,
+  getSession: () => session,
+  getDatabase: () => cloudDb,
+  getItems: () => shoppingItems,
+  setItems: (items) => {
+    shoppingItems = items;
+  },
+  getActiveFilter: () => activeShoppingFilter,
+  setActiveFilter: (filter) => {
+    activeShoppingFilter = ["open", "done"].includes(filter) ? filter : "all";
+  },
+  getDataState: () => accountDataState,
+  canSync: () => cloudSyncAvailable,
+  canManageItem,
+  normalizeUuid,
+  compressImage,
+  uploadToR2,
+  cleanupStoredImagePaths,
+  slugify,
+  formatFileSize,
+  escapeHtml,
+  confirmAction,
+  showToast: showMiniToast,
+});
+const { render: renderShopping } = shoppingController;
+
+const wishlistHubController = createWishlistHubController({
+  elements: els,
+  renderWishes,
+  renderShopping,
+});
+shoppingController.bind();
+wishlistHubController.bind();
+
 const pushController = createPushController({
   elements: els,
   request: cloudflareRequest,
@@ -2605,6 +2650,7 @@ bindAppEvents({
     anniversary: anniversaryController,
     recipe: recipeController,
     wishlist: wishlistController,
+    wishlistHub: wishlistHubController,
     weekend: weekendController,
     gratitude: gratitudeController,
     familySettings: familySettingsController,
