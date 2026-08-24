@@ -25,15 +25,20 @@ async function enableLocalBackendProxy(context) {
     "access-control-allow-headers": "Authorization, Content-Type",
   };
   await context.route(`${backendUrl}/**`, async (route) => {
-    if (route.request().method() === "OPTIONS") {
-      await route.fulfill({ status: 204, headers: corsHeaders });
-      return;
+    try {
+      if (route.request().method() === "OPTIONS") {
+        await route.fulfill({ status: 204, headers: corsHeaders });
+        return;
+      }
+      const response = await route.fetch();
+      await route.fulfill({
+        response,
+        headers: { ...response.headers(), ...corsHeaders },
+      });
+    } catch (error) {
+      if (/context disposed|target closed/i.test(String(error?.message || error))) return;
+      throw error;
     }
-    const response = await route.fetch();
-    await route.fulfill({
-      response,
-      headers: { ...response.headers(), ...corsHeaders },
-    });
   });
 }
 
