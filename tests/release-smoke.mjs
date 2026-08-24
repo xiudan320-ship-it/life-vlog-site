@@ -173,8 +173,13 @@ async function assertVlogMediaBadge(page, label) {
     await page.waitForSelector(".mobile-diary-page:not([hidden]) .mobile-diary-media-badge");
     const detailBadge = page.locator(".mobile-diary-page:not([hidden]) .mobile-diary-media-badge");
     const box = await detailBadge.boundingBox();
+    const closeBox = await page.locator(".mobile-diary-page:not([hidden]) .mobile-diary-close").boundingBox();
     assert.ok(box && box.width < 90, `mobile VIDEO badge is too wide: ${box?.width || 0}px`);
     assert.ok(box && box.height < 40, `mobile VIDEO badge is too tall: ${box?.height || 0}px`);
+    assert.ok(
+      box && closeBox && box.y >= closeBox.y + closeBox.height,
+      `mobile VIDEO badge overlaps the back button: badge=${JSON.stringify(box)}, back=${JSON.stringify(closeBox)}`
+    );
     await page.screenshot({ path: join(screenshotDir, "vlog-detail-badge-mobile.png"), fullPage: true });
     await page.click("[data-mobile-diary-close]");
   }
