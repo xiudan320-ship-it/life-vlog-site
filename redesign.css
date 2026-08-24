@@ -14713,6 +14713,11 @@ body.mobile-dialog-open {
   bottom:auto;
 }
 
+.mobile-diary-media > .mobile-diary-media-badge {
+  top: 12px;
+  right: 12px;
+}
+
 .mobile-diary-media > .mobile-diary-count {
   right: 12px;
   bottom: 12px;

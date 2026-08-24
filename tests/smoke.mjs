@@ -279,7 +279,7 @@ const expandedTrashMigration = await readFile(
 
 assert.match(index, /id="secretViewerToolbar"/);
 assert.match(index, /id="dialogExpandImage"/);
-assert.match(index, /redesign\.css\?v=20260824-031/);
+assert.match(index, /redesign\.css\?v=20260824-032/);
 assert.match(index, /styles\.css\?v=20260824-026/);
 assert.match(index, /id="adminStorageMeter"/);
 assert.match(index, /R2 对象存储/);
@@ -340,7 +340,7 @@ const initialPhotoLoadIndex = app.indexOf("await loadPhotos()", initializeCloudf
 assert.ok(initializeCloudflareIndex >= 0, "Cloudflare initialization is missing");
 assert.ok(authListenerIndex > initializeCloudflareIndex, "Auth listener is missing from initialization");
 assert.ok(authListenerIndex < initialPhotoLoadIndex, "Auth listener must be registered before initial photo loading");
-assert.match(serviceWorker, /life-vlog-site-20260824-031-pwa/);
+assert.match(serviceWorker, /life-vlog-site-20260824-032-pwa/);
 assert.match(serviceWorker, /modules\/admin-storage\.js/);
 assert.match(diaryDetailCss, /#photoDialog #dialogImage\[hidden\][\s\S]*?display: none !important/);
 assert.match(applicationSource, /const p=!state\.galleryRenderSignature[\s\S]*?initialRender: p/);
@@ -710,11 +710,11 @@ assert.equal(typeof wishlistController.createWishlistController, "function");
 assert.equal(typeof weekendController.createWeekendController, "function");
 assert.equal(typeof authController.createAuthController, "function");
 assert.equal(typeof offlineCacheController.createOfflineCacheController, "function");
-assert.match(serviceWorker, /life-vlog-site-20260824-031-pwa/);
+assert.match(serviceWorker, /life-vlog-site-20260824-032-pwa/);
 assert.match(serviceWorker, /styles\.css\?v=20260824-026/);
-assert.match(serviceWorker, /redesign\.css\?v=20260824-031/);
+assert.match(serviceWorker, /redesign\.css\?v=20260824-032/);
 assert.match(index, /id="photoInput"[^>]*accept="image\/\*,video\/\*/);
-assert.match(index, /app\.js\?v=20260824-031/);
+assert.match(index, /app\.js\?v=20260824-032/);
 assert.match(index, /id="wishlistModuleTabs"/);
 assert.match(index, /data-wishlist-module="shopping"/);
 assert.match(index, /id="shoppingImageInput"[^>]*accept="image\/\*"/);
@@ -1427,6 +1427,24 @@ assert.match(
   ),
   /media-count[\s\S]*2 张/
 );
+assert.match(
+  diaryGalleryView.renderPhotoMedia(
+    [{ type: "video", image_url: "poster.jpg", video_url: "clip.mp4" }],
+    "视频",
+    0,
+    { mobile: false }
+  ),
+  /live-photo-badge[\s\S]*VIDEO/
+);
+assert.match(
+  diaryGalleryView.renderPhotoMedia(
+    [{ image_url: "one.jpg" }, { type: "video", image_url: "poster.jpg", video_url: "clip.mp4" }],
+    "混合相册",
+    0,
+    { mobile: false }
+  ),
+  /multi-motion-dot/
+);
 const mobileCommentMarkup = mobileDiaryView.renderMobileDiaryCommentTree({
   comments: [{ id: "c1", user_id: "owner", body: "<你好>", created_at: "2026-08-23T00:00:00Z" }],
   photoOwnerId: "owner",
@@ -1462,7 +1480,7 @@ const mobileVlogMarkup = mobileDiaryView.buildMobileDiaryPageMarkup({
 });
 assert.match(mobileVlogMarkup, /class="mobile-diary-video"[\s\S]*playsinline/);
 assert.doesNotMatch(mobileVlogMarkup, /class="mobile-diary-video"[^>]*(?:autoplay|muted|loop|controls)/);
-assert.doesNotMatch(mobileVlogMarkup, /live-photo-badge/);
+assert.match(mobileVlogMarkup, /mobile-diary-media-badge[\s\S]*VIDEO/);
 const mobileLivePhotoMarkup = mobileDiaryView.buildMobileDiaryPageMarkup({
   photo: { id: "l1", user_id: "owner", title: "Live Photo", created_at: "2026-08-24T00:00:00Z" },
   images: [{ type: "live", image_url: "still.jpg", motion_url: "motion.mov" }],
@@ -1472,9 +1490,11 @@ const mobileLivePhotoMarkup = mobileDiaryView.buildMobileDiaryPageMarkup({
   renderAvatar: () => "<i></i>",
 });
 assert.match(mobileLivePhotoMarkup, /class="mobile-diary-motion"[^>]*autoplay muted loop/);
-assert.match(mobileLivePhotoMarkup, /live-photo-badge/);
+assert.match(mobileLivePhotoMarkup, /mobile-diary-media-badge[\s\S]*LIVE/);
 assert.equal(mediaMetadata.isDiaryLiveMedia({ type: "video", video_url: "vlog.mp4" }), false);
 assert.equal(mediaMetadata.isDiaryLiveMedia({ type: "live", motion_url: "motion.mov" }), true);
+assert.equal(mediaMetadata.isDiaryMotionMedia({ type: "video", video_url: "vlog.mp4" }), true);
+assert.equal(mediaMetadata.isDiaryMotionMedia({ type: "image", image_url: "still.jpg" }), false);
 assert.equal(mediaGestureDomain.clampNumber(8, 1, 6), 6);
 assert.equal(
   mediaGestureDomain.getTouchDistance([

@@ -3,7 +3,7 @@ import {
   buildMobileDiaryPageMarkup,
   createMobileDiaryPage,
   refreshMobileDiaryComments,
-} from "./mobile-diary-view.js?v=20260824-030";
+} from "./mobile-diary-view.js?v=20260824-032";
 import {
   clampNumber,
   getMobileBackEdge,

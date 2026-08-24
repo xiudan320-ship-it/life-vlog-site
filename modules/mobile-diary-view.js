@@ -2,7 +2,6 @@ import {
   getDiaryMediaPosterUrl,
   getDiaryMediaType,
   getDiaryMediaVideoUrl,
-  isDiaryLiveMedia,
 } from "./media-metadata.js";
 import { escapeHtml, formatCommentTime, formatDateTime } from "./ui-formatters.js";
 
@@ -127,8 +126,11 @@ export function buildMobileDiaryPageMarkup({
             ${mediaType === "live"
               ? `<video class="mobile-diary-motion" src="${escapeHtml(getDiaryMediaVideoUrl(image))}" poster="${escapeHtml(getDiaryMediaPosterUrl(image))}" autoplay muted loop playsinline preload="metadata" aria-label="${escapeHtml(displayTitle || "Live Photo")}"></video>`
               : `<img src="${escapeHtml(getDiaryMediaPosterUrl(image))}" alt="${escapeHtml(displayTitle || "日记图片")}" />`}
-            ${images.length === 1 && isDiaryLiveMedia(image) ? `<span class="live-photo-badge" aria-label="Live Photo">LIVE</span>` : ""}
           </button>`}
+      ${images.length === 1 && mediaType !== "image"
+        ? `<span class="live-photo-badge mobile-diary-media-badge" aria-label="${mediaType === "live" ? "Live Photo" : "Video"}">${mediaType === "live" ? "LIVE" : "VIDEO"}</span>`
+        : ""}
+      ${images.length > 1 && mediaType !== "image" ? '<i class="multi-motion-dot" aria-label="动态媒体"></i>' : ""}
       ${images.length > 1 ? `<span class="mobile-diary-count">${imageIndex + 1} / ${images.length}</span>` : ""}
     </div>
     ${images.length > 1 ? `<div class="mobile-diary-thumbs">

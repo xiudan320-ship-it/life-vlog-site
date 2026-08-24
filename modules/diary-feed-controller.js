@@ -8,7 +8,7 @@ import { filterVlogPhotos } from "./vlog-mode.js";
 import {
   getDiaryGalleryEmptyState,
   renderDiaryGalleryCards,
-} from "./diary-gallery-view.js";
+} from "./diary-gallery-view.js?v=20260824-032";
 import {
   getDiaryMediaType,
   parseDiaryStoredImages,

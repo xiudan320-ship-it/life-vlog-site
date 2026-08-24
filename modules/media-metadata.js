@@ -28,6 +28,10 @@ export function isDiaryLiveMedia(media = {}) {
   return getDiaryMediaType(media) === "live";
 }
 
+export function isDiaryMotionMedia(media = {}) {
+  return getDiaryMediaType(media) !== "image";
+}
+
 function stripEmbeddedPayload(value, startMarker, endMarker) {
   const text = String(value || "");
   const start = text.indexOf(startMarker);

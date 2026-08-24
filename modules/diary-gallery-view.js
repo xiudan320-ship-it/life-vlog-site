@@ -1,7 +1,8 @@
 import {
   getDiaryMediaPosterUrl,
+  getDiaryMediaType,
   getDiaryMediaVideoUrl,
-  isDiaryLiveMedia,
+  isDiaryMotionMedia,
 } from "./media-metadata.js";
 import { escapeHtml, formatDate } from "./ui-formatters.js";
 
@@ -77,11 +78,13 @@ export function renderPhotoMedia(images, title, photoIndex, { mobile = false } =
   const altText = title || "日记图片";
   if (images.length <= 1) {
     const image = images[0] || {};
+    const mediaType = getDiaryMediaType(image);
+    const badgeLabel = mediaType === "live" ? "LIVE" : mediaType === "video" ? "VIDEO" : "";
     return `
       <div class="photo-media single"${getPhotoAspectStyle(image)}>
         <button type="button" data-photo-index="${photoIndex}" data-image-index="0">
           ${renderFeedImage(image, altText, photoIndex, 0, { mobile })}
-          ${isDiaryLiveMedia(image) ? `<span class="live-photo-badge" aria-label="Live Photo">LIVE</span>` : ""}
+          ${badgeLabel ? `<span class="live-photo-badge" aria-label="${badgeLabel === "LIVE" ? "Live Photo" : "Video"}">${badgeLabel}</span>` : ""}
         </button>
       </div>
     `;
@@ -93,7 +96,7 @@ export function renderPhotoMedia(images, title, photoIndex, { mobile = false } =
       ${previewImages.map((image, index) => `
         <button type="button" data-photo-index="${photoIndex}" data-image-index="${index}">
           ${renderFeedImage(image, `${altText} ${index + 1}`, photoIndex, index, { mobile })}
-          ${isDiaryLiveMedia(image) ? '<i class="multi-motion-dot"></i>' : ""}
+          ${isDiaryMotionMedia(image) ? '<i class="multi-motion-dot" aria-label="动态媒体"></i>' : ""}
         </button>
       `).join("")}
       <span class="media-count">${images.length} 张</span>

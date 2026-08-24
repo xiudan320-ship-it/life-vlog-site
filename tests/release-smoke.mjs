@@ -147,6 +147,23 @@ async function assertVlogAudioUi(page, label) {
   assert.equal(state.detailLoop, false, `${label} VLOG detail video should not loop`);
 }
 
+async function assertVlogMediaBadge(page, label) {
+  await page.click("#vlogNav");
+  await page.waitForSelector("#gallery:not([hidden]) .photo-card", { timeout: 30000 });
+  await page.waitForFunction(
+    () => [...document.querySelectorAll("#gallery .live-photo-badge")].some(
+      (badge) => badge.textContent.trim() === "VIDEO"
+    ),
+    undefined,
+    { timeout: 30000 }
+  );
+  const badges = await page.locator("#gallery .live-photo-badge").allTextContents();
+  assert.ok(badges.includes("VIDEO"), `${label} ordinary video has no VIDEO badge`);
+  await assertNoHorizontalOverflow(page, `${label} VLOG badges`);
+  await mkdir(screenshotDir, { recursive: true });
+  await page.screenshot({ path: join(screenshotDir, `vlog-badges-${label}.png`), fullPage: true });
+}
+
 async function assertMobileUploadStatusLayout(page) {
   const message = "已发布 1 篇合集，共 2 张图。自动压缩 5.75 MB → 2.76 MB，节省 52%。修为 +30";
   const state = await page.evaluate((text) => {
@@ -590,6 +607,7 @@ try {
   await desktop.waitForSelector("#userMenu:not([hidden])");
   await assertAccountIdentity(desktop, "desktop account");
   await assertVlogAudioUi(desktop, "desktop");
+  await assertVlogMediaBadge(desktop, "desktop");
   await desktop.click("#avatarButton");
   await desktop.waitForSelector("#accountSettingsButton", { state: "visible" });
   await desktop.click("#avatarButton");
@@ -621,6 +639,7 @@ try {
   await mobile.waitForSelector("#userMenu:not([hidden])");
   await assertAccountIdentity(mobile, "mobile account");
   await assertVlogAudioUi(mobile, "mobile");
+  await assertVlogMediaBadge(mobile, "mobile");
   await assertMobileUploadStatusLayout(mobile);
   await mobile.click("#avatarButton");
   await mobile.waitForSelector("#accountSettingsButton", { state: "visible" });
