@@ -1,4 +1,4 @@
-const CACHE_NAME = "life-vlog-site-20260824-026-pwa";
+const CACHE_NAME = "life-vlog-site-20260824-027-pwa";
 const APP_MEDIA_CACHES = new Set([
   "life-vlog-diary-image-cache",
   "life-vlog-secret-media-cache",
@@ -6,13 +6,13 @@ const APP_MEDIA_CACHES = new Set([
 const CORE_ASSETS = [
   "./",
   "./styles.css?v=20260824-026",
-  "./redesign.css?v=20260823-020",
+  "./redesign.css?v=20260824-027",
   "./weekend-board.css?v=20260823-241",
   "./assets/weekend-complete-stamp.png",
   "./diary-detail.css?v=20260823-019",
   "./secret-viewer.css?v=20260814-231",
   "./wardrobe.css?v=20260811-007",
-  "./app.js?v=20260824-026",
+  "./app.js?v=20260824-027",
   "./modules/admin-storage.js",
   "./modules/app-elements.js",
   "./modules/auth-controller.js",

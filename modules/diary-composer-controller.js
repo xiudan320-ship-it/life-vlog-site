@@ -334,6 +334,8 @@ export function createDiaryComposerController({
     else els.photoPreview.src = url || "";
     if (!els.photoVideoPreview) return;
     els.photoVideoPreview.pause();
+    els.photoVideoPreview.defaultMuted = false;
+    els.photoVideoPreview.muted = false;
     els.photoVideoPreview.hidden = !isVideo;
     if (!isVideo) els.photoVideoPreview.removeAttribute("src");
     else {

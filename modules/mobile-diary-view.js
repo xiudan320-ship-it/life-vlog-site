@@ -1,5 +1,6 @@
 import {
   getDiaryMediaPosterUrl,
+  getDiaryMediaType,
   getDiaryMediaVideoUrl,
   isDiaryLiveMedia,
 } from "./media-metadata.js";
@@ -105,6 +106,7 @@ export function buildMobileDiaryPageMarkup({
   renderAvatar,
 }) {
   const image = images[imageIndex] || images[0] || {};
+  const mediaType = getDiaryMediaType(image);
   const displayTitle = getDisplayTitle(photo);
   const canManage = Boolean(signedIn && photo.user_id === currentUserId);
   const canAdminCategorize = Boolean(signedIn && admin && photo.user_id && photo.user_id !== currentUserId);
@@ -119,12 +121,14 @@ export function buildMobileDiaryPageMarkup({
   return `
     <button class="mobile-diary-close" type="button" data-mobile-diary-close aria-label="返回">返回</button>
     <div class="mobile-diary-media">
-      <button class="mobile-diary-image-button" type="button" data-mobile-diary-open-image aria-label="放大查看日记图片">
-        ${getDiaryMediaVideoUrl(image)
-          ? `<video class="mobile-diary-motion" src="${escapeHtml(getDiaryMediaVideoUrl(image))}" poster="${escapeHtml(getDiaryMediaPosterUrl(image))}" autoplay muted loop playsinline preload="metadata" aria-label="${escapeHtml(displayTitle || "日记视频")}"></video>`
-          : `<img src="${escapeHtml(getDiaryMediaPosterUrl(image))}" alt="${escapeHtml(displayTitle || "日记图片")}" />`}
-        ${images.length === 1 && isDiaryLiveMedia(image) ? `<span class="live-photo-badge" aria-label="Live Photo">LIVE</span>` : ""}
-      </button>
+      ${mediaType === "video"
+        ? `<video class="mobile-diary-video" src="${escapeHtml(getDiaryMediaVideoUrl(image))}" poster="${escapeHtml(getDiaryMediaPosterUrl(image))}" controls playsinline preload="metadata" aria-label="${escapeHtml(displayTitle || "VLOG 视频")}"></video>`
+        : `<button class="mobile-diary-image-button" type="button" data-mobile-diary-open-image aria-label="放大查看日记图片">
+            ${mediaType === "live"
+              ? `<video class="mobile-diary-motion" src="${escapeHtml(getDiaryMediaVideoUrl(image))}" poster="${escapeHtml(getDiaryMediaPosterUrl(image))}" autoplay muted loop playsinline preload="metadata" aria-label="${escapeHtml(displayTitle || "Live Photo")}"></video>`
+              : `<img src="${escapeHtml(getDiaryMediaPosterUrl(image))}" alt="${escapeHtml(displayTitle || "日记图片")}" />`}
+            ${images.length === 1 && isDiaryLiveMedia(image) ? `<span class="live-photo-badge" aria-label="Live Photo">LIVE</span>` : ""}
+          </button>`}
       ${images.length > 1 ? `<span class="mobile-diary-count">${imageIndex + 1} / ${images.length}</span>` : ""}
     </div>
     ${images.length > 1 ? `<div class="mobile-diary-thumbs">

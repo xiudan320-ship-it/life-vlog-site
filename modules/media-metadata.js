@@ -25,7 +25,7 @@ export function getDiaryMediaPosterUrl(media = {}) {
 }
 
 export function isDiaryLiveMedia(media = {}) {
-  return Boolean(getDiaryMediaVideoUrl(media));
+  return getDiaryMediaType(media) === "live";
 }
 
 function stripEmbeddedPayload(value, startMarker, endMarker) {

@@ -14445,6 +14445,40 @@ body.mobile-dialog-open {
   bottom: 12px;
 }
 
+.mobile-diary-video {
+  touch-action: auto !important;
+}
+
+/* Keep the compact mobile upload action and its long completion message in separate rows. */
+@media (max-width: 700px) {
+  #galleryHead .composer:not(.expanded):not([hidden]),
+  #galleryHead .composer:not(.expanded):not([hidden]) .section-title {
+    display: contents;
+  }
+
+  #galleryHead .composer:not(.expanded):not([hidden]) .section-heading-button {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+
+  #galleryHead .composer:not(.expanded):not([hidden]) #uploadStatus:not(:empty) {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+    margin: 4px 0 0;
+    line-height: 1.45;
+  }
+
+  #galleryHead > .status-line {
+    grid-row: 2;
+  }
+
+  #galleryHead:has(.composer:not(.expanded):not([hidden]) #uploadStatus:not(:empty)) > .status-line {
+    grid-row: 3;
+  }
+}
+
 .preview-thumb > img,
 .preview-thumb > video {
   display: block;

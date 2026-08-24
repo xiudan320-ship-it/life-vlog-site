@@ -113,6 +113,72 @@ async function assertNoHorizontalOverflow(page, label) {
   );
 }
 
+async function assertVlogAudioUi(page, label) {
+  const state = await page.evaluate(async () => {
+    const preview = document.querySelector("#photoVideoPreview");
+    const { startDiaryMotionVideo } = await import("./modules/diary-video-layout.js");
+    const video = document.createElement("video");
+    startDiaryMotionVideo(video, null, { audible: true });
+    const result = {
+      previewMuted: preview?.muted ?? true,
+      previewControls: preview?.controls ?? false,
+      detailMuted: video.muted,
+      detailControls: video.controls,
+      detailAutoplay: video.autoplay,
+      detailLoop: video.loop,
+    };
+    video.remove();
+    return result;
+  });
+  assert.equal(state.previewMuted, false, `${label} VLOG upload preview is muted`);
+  assert.equal(state.previewControls, true, `${label} VLOG upload preview has no controls`);
+  assert.equal(state.detailMuted, false, `${label} VLOG detail video is muted`);
+  assert.equal(state.detailControls, true, `${label} VLOG detail video has no controls`);
+  assert.equal(state.detailAutoplay, false, `${label} VLOG detail video should wait for user playback`);
+  assert.equal(state.detailLoop, false, `${label} VLOG detail video should not loop`);
+}
+
+async function assertMobileUploadStatusLayout(page) {
+  const message = "已发布 1 篇合集，共 2 张图。自动压缩 5.75 MB → 2.76 MB，节省 52%。修为 +30";
+  const state = await page.evaluate((text) => {
+    const status = document.querySelector("#uploadStatus");
+    const composer = document.querySelector("#composer");
+    const form = document.querySelector("#uploadForm");
+    composer?.classList.remove("expanded");
+    if (form) form.hidden = true;
+    if (status) status.textContent = text;
+    const rect = (element) => {
+      const value = element?.getBoundingClientRect();
+      return value ? { left: value.left, right: value.right, top: value.top, bottom: value.bottom } : null;
+    };
+    return {
+      head: rect(document.querySelector("#galleryHead")),
+      title: rect(document.querySelector("#galleryHead > div:first-child")),
+      button: rect(document.querySelector("#galleryHead .section-heading-button")),
+      status: rect(status),
+    };
+  }, message);
+  assert.ok(state.head && state.title && state.button && state.status, "mobile upload status fixture is incomplete");
+  assert.ok(
+    state.status.top >= Math.max(state.title.bottom, state.button.bottom) - 1,
+    `mobile upload status overlaps heading: ${JSON.stringify(state)}`
+  );
+  assert.ok(
+    state.status.left >= state.head.left - 1 && state.status.right <= state.head.right + 1,
+    `mobile upload status overflows heading: ${JSON.stringify(state)}`
+  );
+  await page.evaluate(() => {
+    document.querySelector("#galleryHead")?.scrollIntoView({ block: "start" });
+    window.scrollBy(0, -160);
+  });
+  await page.waitForTimeout(100);
+  await page.locator("#galleryHead").screenshot({ path: join(screenshotDir, "diary-upload-status-mobile.png") });
+  await page.evaluate(() => {
+    const status = document.querySelector("#uploadStatus");
+    if (status) status.textContent = "";
+  });
+}
+
 async function assertAccountIdentity(page, label) {
   await page.waitForFunction(
     () => {
@@ -386,6 +452,7 @@ try {
   await desktop.waitForSelector(".topbar");
   await desktop.waitForSelector("#userMenu:not([hidden])");
   await assertAccountIdentity(desktop, "desktop account");
+  await assertVlogAudioUi(desktop, "desktop");
   await desktop.click("#avatarButton");
   await desktop.waitForSelector("#accountSettingsButton", { state: "visible" });
   await desktop.click("#avatarButton");
@@ -413,6 +480,8 @@ try {
   await mobile.waitForSelector(".topbar");
   await mobile.waitForSelector("#userMenu:not([hidden])");
   await assertAccountIdentity(mobile, "mobile account");
+  await assertVlogAudioUi(mobile, "mobile");
+  await assertMobileUploadStatusLayout(mobile);
   await mobile.click("#avatarButton");
   await mobile.waitForSelector("#accountSettingsButton", { state: "visible" });
   await mobile.click("#avatarButton");

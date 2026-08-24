@@ -16,6 +16,7 @@ import {
 } from "./photo-dialog-view.js";
 import {
   getDiaryMediaPosterUrl,
+  getDiaryMediaType,
   getDiaryMediaVideoUrl,
 } from "./media-metadata.js";
 import { normalizeSecretPhotoTags } from "./secret-domain.js?v=20260810-004";
@@ -362,6 +363,7 @@ export function createPhotoViewerController({
       els.dialogMedia.scrollLeft = 0;
     }
     const image = state.dialogImages[state.dialogImageIndex] || state.dialogImages[0] || {};
+    const mediaType = getDiaryMediaType(image);
     const imageUrl = getDiaryMediaPosterUrl(image);
     const motionUrl = getDiaryMediaVideoUrl(image);
     const hasMotion = Boolean(motionUrl);
@@ -375,14 +377,14 @@ export function createPhotoViewerController({
     els.dialogImage.dataset.dialogImageRequestId = String(imageRequestId);
     els.dialogImage.removeAttribute("src");
     if (els.dialogVideo) {
-      els.dialogVideo.controls = !isMobileViewport();
+      els.dialogVideo.controls = mediaType === "video" || !isMobileViewport();
       stopDiaryMotionVideo(els.dialogVideo);
       els.dialogVideo.hidden = !hasMotion;
       els.dialogVideo.style.display = hasMotion ? "block" : "none";
       if (hasMotion) {
         els.dialogVideo.poster = imageUrl;
         els.dialogVideo.src = motionUrl;
-        startDiaryMotionVideo(els.dialogVideo, els.dialogMedia);
+        startDiaryMotionVideo(els.dialogVideo, els.dialogMedia, { audible: mediaType === "video" });
       }
     }
     if (isSecretImageViewerOpen()) {

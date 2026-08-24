@@ -14,15 +14,17 @@ export function fitVideoToContainer(video, container) {
   video.style.setProperty("height", `${Math.max(1, video.videoHeight * scale)}px`, "important");
 }
 
-export function startDiaryMotionVideo(video, container) {
+export function startDiaryMotionVideo(video, container, { audible = false } = {}) {
   if (!video) return;
   video.preload = "metadata";
-  video.autoplay = true;
-  video.muted = true;
-  video.loop = true;
+  video.autoplay = !audible;
+  video.defaultMuted = !audible;
+  video.muted = !audible;
+  video.loop = !audible;
   video.playsInline = true;
+  if (audible) video.controls = true;
   const play = () => {
-    if (video.hidden || !video.currentSrc) return;
+    if (audible || video.hidden || !video.currentSrc) return;
     const promise = video.play();
     promise?.catch(() => {});
   };

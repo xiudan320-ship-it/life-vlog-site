@@ -16,7 +16,7 @@
     <link rel="apple-touch-icon" href="./assets/app-icon-180.png" />
     <link rel="icon" type="image/png" sizes="32x32" href="./assets/app-icon-32.png" />
     <link rel="stylesheet" href="./styles.css?v=20260824-026" />
-    <link rel="stylesheet" href="./redesign.css?v=20260823-020" />
+    <link rel="stylesheet" href="./redesign.css?v=20260824-027" />
     <link rel="stylesheet" href="./weekend-board.css?v=20260823-241" />
     <link rel="stylesheet" href="./diary-detail.css?v=20260823-019" />
     <link rel="stylesheet" href="./secret-viewer.css?v=20260814-231" />
@@ -301,7 +301,7 @@
             <input class="native-file-input" id="photoInput" type="file" accept="image/*,video/*,.mov,.heic,.heif" multiple />
             <div class="upload-main-preview" id="uploadMainPreview" hidden>
               <img id="photoPreview" alt="照片预览" />
-              <video id="photoVideoPreview" playsinline muted controls hidden></video>
+              <video id="photoVideoPreview" playsinline controls hidden></video>
               <button class="upload-main-remove" id="removeUploadPreview" type="button" aria-label="删除当前图片">×</button>
             </div>
             <div class="preview-strip" id="previewStrip" hidden></div>
@@ -1254,7 +1254,7 @@
       <div class="dialog-media">
         <button class="carousel-button prev" id="dialogPrev" type="button" aria-label="上一张">‹</button>
         <img id="dialogImage" alt="" />
-        <video id="dialogVideo" playsinline autoplay muted loop preload="metadata" style="width:auto;height:auto;max-width:100%;max-height:100%;object-fit:contain;background:#080b09;" hidden></video>
+        <video id="dialogVideo" playsinline preload="metadata" style="width:auto;height:auto;max-width:100%;max-height:100%;object-fit:contain;background:#080b09;" hidden></video>
         <button class="carousel-button next" id="dialogNext" type="button" aria-label="下一张">›</button>
         <span class="media-counter" id="dialogCounter"></span>
         <div class="dialog-dots" id="dialogDots" role="tablist" aria-label="图片位置" hidden></div>
@@ -1499,6 +1499,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260824-026"></script>
+    <script type="module" src="./app.js?v=20260824-027"></script>
   </body>
 </html>
