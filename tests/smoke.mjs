@@ -83,6 +83,28 @@ const weekendControllerModule = await readFile(new URL("../modules/weekend-contr
 const authController = await import(new URL("../modules/auth-controller.js", import.meta.url));
 const offlineCacheController = await import(new URL("../modules/offline-cache-controller.js", import.meta.url));
 const offlineCacheControllerModule = await readFile(new URL("../modules/offline-cache-controller.js", import.meta.url), "utf8");
+const offlineSettingsController = await import(new URL("../modules/offline-settings-controller.js", import.meta.url));
+const offlineSettingsControllerModule = await readFile(new URL("../modules/offline-settings-controller.js", import.meta.url), "utf8");
+const dataSafetyController = await import(new URL("../modules/data-safety-controller.js", import.meta.url));
+const dataSafetyControllerModule = await readFile(new URL("../modules/data-safety-controller.js", import.meta.url), "utf8");
+const accountSyncController = await import(new URL("../modules/account-sync-controller.js", import.meta.url));
+const accountSyncControllerModule = await readFile(new URL("../modules/account-sync-controller.js", import.meta.url), "utf8");
+const trashController = await import(new URL("../modules/trash-controller.js", import.meta.url));
+const trashControllerModule = await readFile(new URL("../modules/trash-controller.js", import.meta.url), "utf8");
+const diaryFeedController = await import(new URL("../modules/diary-feed-controller.js", import.meta.url));
+const diaryFeedControllerModule = await readFile(new URL("../modules/diary-feed-controller.js", import.meta.url), "utf8");
+const socialController = await import(new URL("../modules/social-controller.js", import.meta.url));
+const socialControllerModule = await readFile(new URL("../modules/social-controller.js", import.meta.url), "utf8");
+const familySettingsController = await import(new URL("../modules/family-settings-controller.js", import.meta.url));
+const familySettingsControllerModule = await readFile(new URL("../modules/family-settings-controller.js", import.meta.url), "utf8");
+const familyActivityController = await import(new URL("../modules/family-activity-controller.js", import.meta.url));
+const familyActivityControllerModule = await readFile(new URL("../modules/family-activity-controller.js", import.meta.url), "utf8");
+const toolDockController = await import(new URL("../modules/tool-dock-controller.js", import.meta.url));
+const toolDockControllerModule = await readFile(new URL("../modules/tool-dock-controller.js", import.meta.url), "utf8");
+const layoutSettingsController = await import(new URL("../modules/layout-settings-controller.js", import.meta.url));
+const layoutSettingsControllerModule = await readFile(new URL("../modules/layout-settings-controller.js", import.meta.url), "utf8");
+const appEventBindings = await import(new URL("../modules/app-event-bindings.js", import.meta.url));
+const appEventBindingsModule = await readFile(new URL("../modules/app-event-bindings.js", import.meta.url), "utf8");
 const assetController = await import(new URL("../modules/asset-controller.js", import.meta.url));
 const assetControllerModule = await readFile(new URL("../modules/asset-controller.js", import.meta.url), "utf8");
 const diaryComposerController = await import(new URL("../modules/diary-composer-controller.js", import.meta.url));
@@ -95,15 +117,33 @@ const secretController = await import(new URL("../modules/secret-controller.js",
 const secretControllerModule = await readFile(new URL("../modules/secret-controller.js", import.meta.url), "utf8");
 const secretPinController = await import(new URL("../modules/secret-pin-controller.js", import.meta.url));
 const secretPinControllerModule = await readFile(new URL("../modules/secret-pin-controller.js", import.meta.url), "utf8");
+const photoViewerController = await import(new URL("../modules/photo-viewer-controller.js", import.meta.url));
+const photoViewerControllerModule = await readFile(new URL("../modules/photo-viewer-controller.js", import.meta.url), "utf8");
+const photoDetailController = await import(new URL("../modules/photo-detail-controller.js", import.meta.url));
+const photoDetailControllerModule = await readFile(new URL("../modules/photo-detail-controller.js", import.meta.url), "utf8");
 const applicationSource = [
   app,
+  offlineSettingsControllerModule,
+  dataSafetyControllerModule,
+  accountSyncControllerModule,
+  trashControllerModule,
+  diaryFeedControllerModule,
+  socialControllerModule,
+  familySettingsControllerModule,
+  familyActivityControllerModule,
+  toolDockControllerModule,
+  layoutSettingsControllerModule,
+  appEventBindingsModule,
   assetControllerModule,
   diaryComposerControllerModule,
   gamificationControllerModule,
   profilePreferencesControllerModule,
+  photoViewerControllerModule,
+  photoDetailControllerModule,
   secretControllerModule,
   secretPinControllerModule,
 ].join("\n");
+assert.doesNotMatch(applicationSource, /dataset\.state\./);
 const deployScript = await readFile(new URL("../deploy-cloudflare-pages.ps1", import.meta.url), "utf8");
 const releaseTestScript = await readFile(new URL("../test-release.ps1", import.meta.url), "utf8");
 const secretViewerCss = await readFile(
@@ -236,7 +276,7 @@ const expandedTrashMigration = await readFile(
 assert.match(index, /id="secretViewerToolbar"/);
 assert.match(index, /id="dialogExpandImage"/);
 assert.match(index, /redesign\.css\?v=20260823-020/);
-assert.match(index, /styles\.css\?v=20260823-025/);
+assert.match(index, /styles\.css\?v=20260824-026/);
 assert.match(index, /id="adminStorageMeter"/);
 assert.match(index, /R2 对象存储/);
 assert.match(index, /id="adminStorageMonth"/);
@@ -290,10 +330,10 @@ const initialPhotoLoadIndex = app.indexOf("await loadPhotos()", initializeCloudf
 assert.ok(initializeCloudflareIndex >= 0, "Cloudflare initialization is missing");
 assert.ok(authListenerIndex > initializeCloudflareIndex, "Auth listener is missing from initialization");
 assert.ok(authListenerIndex < initialPhotoLoadIndex, "Auth listener must be registered before initial photo loading");
-assert.match(serviceWorker, /life-vlog-site-20260823-025-pwa/);
+assert.match(serviceWorker, /life-vlog-site-20260824-026-pwa/);
 assert.match(serviceWorker, /modules\/admin-storage\.js/);
 assert.match(diaryDetailCss, /#photoDialog #dialogImage\[hidden\][\s\S]*?display: none !important/);
-assert.match(applicationSource, /const p=!galleryRenderSignature[\s\S]*?initialRender: p/);
+assert.match(applicationSource, /const p=!state\.galleryRenderSignature[\s\S]*?initialRender: p/);
 assert.match(diaryGalleryViewModule, /if \(initialRender\) requestAnimationFrame[\s\S]*?scrollIntoView\(\)/);
 assert.match(styles, /\.gallery \.photo-media[\s\S]*?scroll-margin-top: 76px/);
 assert.match(styles, /@media \(max-width: 700px\)[\s\S]*?\.gallery \.photo-media[\s\S]*?scroll-margin-top: calc\(136px \+ env\(safe-area-inset-top\)\)/);
@@ -334,6 +374,7 @@ assert.match(applicationSource, /else if \(event\.target === els\.dialogImage\) 
 assert.match(applicationSource, /activeSecretDialogItem && !isSecretImageViewerOpen\(\)/);
 assert.match(secretGalleryViewModule, /mobile \? \(image\.thumbnail_url \|\| image\.image_url\) : image\.image_url/);
 assert.match(applicationSource, /function zoomImageViewerAt\(nextScale, clientX, clientY\)/);
+assert.match(secretControllerModule, /return \{[\s\S]*toggleDiaryImageFullscreen/);
 assert.match(applicationSource, /clampNumber\(Number\(zoom\.scale\) \|\| 1, 1, 6\)/);
 assert.match(mediaGestureDomainModule, /export function clampNumber/);
 assert.match(applicationSource, /secretViewerReturnFocus = options\.triggerElement \|\| document\.activeElement/);
@@ -477,7 +518,7 @@ assert.match(notificationViewModule, /aggregateInteractionNotifications\(notific
 assert.match(index, /id="weeklyReviewDialog"/);
 assert.match(index, /data-tool-id="weekly"/);
 assert.match(applicationSource, /loadWeeklyReview/);
-assert.match(applicationSource, /if \(photosLoadPromise\) return photosLoadPromise/);
+assert.match(applicationSource, /if \(state\.photosLoadPromise\) return state\.photosLoadPromise/);
 assert.match(css, /content-visibility:\s*auto/);
 assert.match(index, /id="photoLinkInput"/);
 assert.match(index, /id="recipeCoverLinkInput"/);
@@ -487,7 +528,7 @@ assert.match(index, /id="secretImageLinkInput"/);
 assert.match(wishlistControllerModule, /copyUrlToR2\(\s*linkUrl/);
 assert.match(worker, /fetchAllowedImage/);
 assert.match(worker, /contentType\.startsWith\("image\/"\)/);
-assert.match(applicationSource, /composeWeekendStoredNote/);
+assert.match(mediaMetadataModule, /composeWeekendStoredNote/);
 assert.match(applicationSource, /openWeekendImageGallery/);
 assert.match(index, /id="weekendImageInput"/);
 assert.match(index, /id="weekendCompletionDialog"/);
@@ -512,7 +553,7 @@ assert.match(
 );
 assert.match(index, /id="weekendReminderNotice"/);
 assert.match(applicationSource, /getUpcomingWeekendPlans/);
-assert.match(applicationSource, /String\(photo\.user_id \|\| ""\) !== String\(session\.user\.id\)/);
+assert.match(applicationSource, /String\(photo\.user_id \|\| ""\) !== String\(state\.session\.user\.id\)/);
 assert.match(diaryGalleryViewModule, /img\.feed-image, video\.feed-image, img\.secret-progressive-image/);
 assert.match(css, /\.secret-album-photo\.media-loaded::before/);
 assert.match(index, /id="secretPinDialog"/);
@@ -563,8 +604,8 @@ assert.match(pageHeaders, /X-Content-Type-Options:\s*nosniff/);
 assert.match(applicationSource, /from "\.\/modules\/confirm-dialog\.js"/);
 assert.match(applicationSource, /from "\.\/modules\/offline-cache-controller\.js"/);
 assert.match(offlineCacheControllerModule, /from "\.\/cache-policy\.js"/);
-assert.match(applicationSource, /from "\.\/modules\/diary-domain\.js"/);
-assert.match(applicationSource, /from "\.\/modules\/notification-domain\.js"/);
+assert.match(applicationSource, /from "\.\/(?:modules\/)?diary-domain\.js"/);
+assert.match(applicationSource, /from "\.\/(?:modules\/)?notification-domain\.js"/);
 assert.match(applicationSource, /from "\.\/modules\/secret-domain\.js\?v=20260810-004"/);
 assert.match(applicationSource, /from "\.\/modules\/cloudflare-client\.js\?v=20260811-010"/);
 assert.match(worker, /SESSION_REFRESH_WINDOW_MS = 30 \* 86400 \* 1000/);
@@ -629,25 +670,25 @@ assert.match(serviceWorker, /modules\/wishlist-view\.js/);
 assert.match(serviceWorker, /modules\/wishlist-controller\.js/);
 assert.match(serviceWorker, /modules\/weekend-controller\.js/);
 assert.match(applicationSource, /from "\.\/modules\/photo-favorites\.js"/);
-assert.match(applicationSource, /from "\.\/modules\/wishlist-view\.js"/);
+assert.match(wishlistControllerModule, /from "\.\/wishlist-view\.js"/);
 assert.match(diaryComposerControllerModule, /from "\.\/diary-upload-domain\.js"/);
-assert.match(applicationSource, /from "\.\/modules\/food-wheel-view\.js"/);
+assert.match(applicationSource, /from "\.\/(?:modules\/)?food-wheel-view\.js"/);
 assert.match(applicationSource, /from "\.\/modules\/recipe-controller\.js"/);
 assert.match(applicationSource, /from "\.\/anniversary-controller\.js"|from "\.\/modules\/anniversary-controller\.js"/);
 assert.match(applicationSource, /from "\.\/modules\/weekend-controller\.js"/);
 assert.match(applicationSource, /from "\.\/modules\/gratitude-controller\.js"/);
-assert.match(applicationSource, /from "\.\/modules\/notification-view\.js"/);
+assert.match(applicationSource, /from "\.\/(?:modules\/)?notification-view\.js"/);
 assert.match(applicationSource, /from "\.\/modules\/vip-center\.js"/);
-assert.match(applicationSource, /from "\.\/modules\/diary-gallery-view\.js"/);
-assert.match(applicationSource, /from "\.\/modules\/mobile-diary-view\.js"/);
-assert.match(applicationSource, /from "\.\/modules\/media-gesture-domain\.js"/);
-assert.match(applicationSource, /from "\.\/modules\/secret-gallery-view\.js"/);
-assert.match(applicationSource, /from "\.\/modules\/account-view\.js"/);
-assert.match(applicationSource, /from "\.\/modules\/photo-dialog-view\.js"/);
-assert.match(applicationSource, /from "\.\/modules\/family-activity-view\.js"/);
+assert.match(applicationSource, /from "\.\/(?:modules\/)?diary-gallery-view\.js"/);
+assert.match(applicationSource, /from "\.\/(?:modules\/)?mobile-diary-view\.js"/);
+assert.match(applicationSource, /from "\.\/(?:modules\/)?media-gesture-domain\.js"/);
+assert.match(applicationSource, /from "\.\/(?:modules\/)?secret-gallery-view\.js"/);
+assert.match(applicationSource, /from "\.\/(?:modules\/)?account-view\.js"/);
+assert.match(applicationSource, /from "\.\/(?:modules\/)?photo-dialog-view\.js"/);
+assert.match(applicationSource, /from "\.\/(?:modules\/)?family-activity-view\.js"/);
 assert.match(applicationSource, /from "\.\/modules\/cache-management-view\.js"/);
 assert.match(gamificationControllerModule, /from "\.\/gamification-view\.js"/);
-assert.match(applicationSource, /from "\.\/modules\/account-sync-domain\.js"/);
+assert.match(applicationSource, /from "\.\/(?:modules\/)?account-sync-domain\.js"/);
 assert.match(applicationSource, /from "\.\/modules\/app-elements\.js"/);
 assert.equal(typeof appElements.collectAppElements, "function");
 assert.equal(typeof foodWheelController.createFoodWheelController, "function");
@@ -659,11 +700,11 @@ assert.equal(typeof wishlistController.createWishlistController, "function");
 assert.equal(typeof weekendController.createWeekendController, "function");
 assert.equal(typeof authController.createAuthController, "function");
 assert.equal(typeof offlineCacheController.createOfflineCacheController, "function");
-assert.match(serviceWorker, /life-vlog-site-20260823-025-pwa/);
-assert.match(serviceWorker, /styles\.css\?v=20260823-025/);
+assert.match(serviceWorker, /life-vlog-site-20260824-026-pwa/);
+assert.match(serviceWorker, /styles\.css\?v=20260824-026/);
 assert.match(serviceWorker, /redesign\.css\?v=20260823-020/);
 assert.match(index, /id="photoInput"[^>]*accept="image\/\*,video\/\*/);
-assert.match(index, /app\.js\?v=20260823-025/);
+assert.match(index, /app\.js\?v=20260824-026/);
 assert.match(serviceWorker, /modules\/vlog-mode\.js/);
 assert.match(serviceWorker, /modules\/weekend-gallery\.js/);
 assert.match(deployScript, /test-release\.ps1/);

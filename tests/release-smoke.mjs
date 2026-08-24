@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { chromium } from "playwright";
 
 const baseUrl = (process.env.RELEASE_BASE_URL || "https://life-vlog-site.pages.dev").replace(/\/+$/, "");
+const backendUrl = "https://life-vlog-r2-upload.xiudan320-life.workers.dev";
 const username = process.env.RELEASE_TEST_USERNAME;
 const password = process.env.RELEASE_TEST_PASSWORD;
 const displayName = process.env.RELEASE_TEST_DISPLAY_NAME || "呱噗救火大队";
@@ -14,6 +15,26 @@ const screenshotDir = join(process.env.TEMP || process.cwd(), "life-vlog-release
 if (!username || !password || !favoriteFixturePhotoId || !favoriteFixtureTitle) {
   console.error("Missing release test credentials or favorite fixture. Run test-release.ps1.");
   process.exit(1);
+}
+
+async function enableLocalBackendProxy(context) {
+  if (!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?$/i.test(baseUrl)) return;
+  const corsHeaders = {
+    "access-control-allow-origin": baseUrl,
+    "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+    "access-control-allow-headers": "Authorization, Content-Type",
+  };
+  await context.route(`${backendUrl}/**`, async (route) => {
+    if (route.request().method() === "OPTIONS") {
+      await route.fulfill({ status: 204, headers: corsHeaders });
+      return;
+    }
+    const response = await route.fetch();
+    await route.fulfill({
+      response,
+      headers: { ...response.headers(), ...corsHeaders },
+    });
+  });
 }
 
 const browser = await chromium.launch({ headless: true });
@@ -39,22 +60,35 @@ async function login(page, runtimeErrors) {
   await page.fill("#passwordInput", password);
   const initialHint = await page.locator("#authHint").textContent();
   await page.click("#loginButton");
-  await page.waitForFunction(
-    (previousHint) => {
-      const signedIn =
-        document.querySelector("#loginButton")?.hidden === true &&
-        document.querySelector("#logoutButton")?.hidden === false;
-      const hint = document.querySelector("#authHint")?.textContent?.trim() || "";
-      return signedIn || (
-        hint &&
-        hint !== previousHint &&
-        hint !== "正在登录..." &&
-        hint !== "登录成功。"
-      );
-    },
-    initialHint?.trim() || "",
-    { timeout: 30000 }
-  );
+  try {
+    await page.waitForFunction(
+      (previousHint) => {
+        const signedIn =
+          document.querySelector("#loginButton")?.hidden === true &&
+          document.querySelector("#logoutButton")?.hidden === false;
+        const hint = document.querySelector("#authHint")?.textContent?.trim() || "";
+        return signedIn || (
+          hint &&
+          hint !== previousHint &&
+          hint !== "正在登录..." &&
+          hint !== "登录成功。"
+        );
+      },
+      initialHint?.trim() || "",
+      { timeout: 30000 }
+    );
+  } catch (error) {
+    const timedOutState = await page.evaluate(() => ({
+      hint: document.querySelector("#authHint")?.textContent?.trim() || "",
+      loginHidden: document.querySelector("#loginButton")?.hidden ?? true,
+      logoutHidden: document.querySelector("#logoutButton")?.hidden ?? true,
+    }));
+    assert.fail(
+      `test account login timed out: ${JSON.stringify(timedOutState)}` +
+      (runtimeErrors.length ? `; ${runtimeErrors.slice(-5).join(" | ")}` : "") +
+      `; ${error.message}`
+    );
+  }
   const loginState = await page.evaluate(() => ({
     signedIn:
       document.querySelector("#loginButton")?.hidden === true &&
@@ -224,7 +258,15 @@ async function assertWishlistReceiptFlow(page, label, runtimeErrors) {
   await mkdir(screenshotDir, { recursive: true });
   await page.screenshot({ path: join(screenshotDir, `wishlist-done-${label}.png`), fullPage: true });
   await page.locator("[data-view-wish-detail]").first().click();
-  await page.waitForSelector("#photoDialog.wish-detail-dialog[open]", { timeout: 10000 });
+  try {
+    await page.waitForSelector("#photoDialog.wish-detail-dialog[open]", { timeout: 10000 });
+  } catch (error) {
+    assert.fail(
+      `${label} wish detail did not open` +
+      (runtimeErrors.length ? `; ${runtimeErrors.slice(-5).join(" | ")}` : "") +
+      `; ${error.message}`
+    );
+  }
   const feedback = await page.evaluate(() => ({
     visible: !document.querySelector("#wishDialogFeedback")?.hidden,
     text: document.querySelector("#wishDialogFeedbackText")?.textContent?.trim() || "",
@@ -337,6 +379,7 @@ try {
     viewport: { width: 1440, height: 900 },
     serviceWorkers: "block",
   });
+  await enableLocalBackendProxy(desktopContext);
   const desktop = await desktopContext.newPage();
   const desktopErrors = attachRuntimeChecks(desktop, "desktop");
   await login(desktop, desktopErrors);
@@ -363,6 +406,7 @@ try {
     viewport: { width: 390, height: 844 },
     serviceWorkers: "block",
   });
+  await enableLocalBackendProxy(mobileContext);
   const mobile = await mobileContext.newPage();
   const mobileErrors = attachRuntimeChecks(mobile, "mobile");
   await login(mobile, mobileErrors);

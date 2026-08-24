@@ -1833,6 +1833,7 @@ export function createSecretController({
     saveSecretItem,
     setSecretExpanded,
     setSelectedSecretCover,
+    toggleDiaryImageFullscreen,
     toggleDialogImageFullscreen,
     updateSecretDialogImage,
     updateSecretPreview,

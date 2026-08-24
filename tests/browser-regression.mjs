@@ -51,8 +51,11 @@ async function assertNoHorizontalOverflow(page, label) {
 async function testHomeShell(viewport, label) {
   const context = await browser.newContext({ viewport, serviceWorkers: "block" });
   const page = await context.newPage();
+  const pageErrors = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
   await page.goto(`${baseUrl}/`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector(".topbar");
+  assert.deepEqual(pageErrors, [], `${label} home shell runtime errors:\n${pageErrors.join("\n")}`);
   assert.equal(await page.locator("#brandName").textContent(), "咻蛋之家");
   await assertNoHorizontalOverflow(page, `${label} home shell`);
 
