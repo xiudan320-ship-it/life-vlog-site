@@ -1,4 +1,4 @@
-const CACHE_NAME = "life-vlog-site-20260824-028-pwa";
+const CACHE_NAME = "life-vlog-site-20260824-029-pwa";
 const APP_MEDIA_CACHES = new Set([
   "life-vlog-diary-image-cache",
   "life-vlog-secret-media-cache",
@@ -12,7 +12,7 @@ const CORE_ASSETS = [
   "./diary-detail.css?v=20260823-019",
   "./secret-viewer.css?v=20260814-231",
   "./wardrobe.css?v=20260811-007",
-  "./app.js?v=20260824-028",
+  "./app.js?v=20260824-029",
   "./modules/admin-storage.js",
   "./modules/app-elements.js",
   "./modules/auth-controller.js",
@@ -33,7 +33,7 @@ const CORE_ASSETS = [
   "./modules/diary-domain.js",
   "./modules/diary-gallery-view.js",
   "./modules/diary-upload-domain.js",
-  "./modules/diary-video-layout.js",
+  "./modules/diary-video-layout.js?v=20260824-029",
   "./modules/food-wheel-view.js",
   "./modules/food-wheel-controller.js",
   "./modules/gamification-controller.js",
@@ -67,8 +67,8 @@ const CORE_ASSETS = [
   "./modules/offline-records.js",
   "./modules/photo-favorites.js",
   "./modules/photo-dialog-view.js",
-  "./modules/photo-viewer-controller.js",
-  "./modules/photo-detail-controller.js?v=20260824-028",
+  "./modules/photo-viewer-controller.js?v=20260824-029",
+  "./modules/photo-detail-controller.js?v=20260824-029",
   "./modules/preferences-store.js",
   "./modules/push-controller.js",
   "./modules/recipe-controller.js",

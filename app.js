@@ -18,8 +18,8 @@ import { createGamificationController } from "./modules/gamification-controller.
 import { createProfilePreferencesController } from "./modules/profile-preferences-controller.js";
 import { createSecretPinController } from "./modules/secret-pin-controller.js";
 import { createSecretController } from "./modules/secret-controller.js";
-import { createPhotoViewerController } from "./modules/photo-viewer-controller.js";
-import { createPhotoDetailController } from "./modules/photo-detail-controller.js?v=20260824-028";
+import { createPhotoViewerController } from "./modules/photo-viewer-controller.js?v=20260824-029";
+import { createPhotoDetailController } from "./modules/photo-detail-controller.js?v=20260824-029";
 import { createCloudflareBackend } from "./modules/cloudflare-client.js?v=20260811-010";
 import { createMediaCacheService } from "./modules/media-cache.js";
 import { createUploadQueue } from "./modules/upload-queue.js";

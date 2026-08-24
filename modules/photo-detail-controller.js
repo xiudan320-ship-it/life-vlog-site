@@ -10,7 +10,7 @@ import {
   isEdgeBackSwipe,
 } from "./media-gesture-domain.js";
 import { composeDiaryStoredNote } from "./media-metadata.js";
-import { startDiaryMotionVideo, stopDiaryMotionVideo } from "./diary-video-layout.js";
+import { startDiaryMotionVideo, stopDiaryMotionVideo } from "./diary-video-layout.js?v=20260824-029";
 import { escapeHtml, formatDate, formatDateTime, slugify } from "./ui-formatters.js";
 import { formatWishDate } from "./wishlist-view.js";
 
@@ -317,7 +317,9 @@ export function createPhotoDetailController({
       getAuthorName,
       renderAvatar: renderAvatarMarkup,
     });
-    startDiaryMotionVideo(page.querySelector(".mobile-diary-motion"));
+    const vlogVideo = page.querySelector(".mobile-diary-video");
+    if (vlogVideo) startDiaryMotionVideo(vlogVideo, null, { audible: true });
+    else startDiaryMotionVideo(page.querySelector(".mobile-diary-motion"));
     renderMobileDiaryComments();
   }
   

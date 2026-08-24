@@ -138,7 +138,7 @@ async function assertVlogAudioUi(page, label) {
   assert.equal(state.previewControls, true, `${label} VLOG upload preview has no controls`);
   assert.equal(state.detailMuted, false, `${label} VLOG detail video is muted`);
   assert.equal(state.detailControls, true, `${label} VLOG detail video has no controls`);
-  assert.equal(state.detailAutoplay, false, `${label} VLOG detail video should wait for user playback`);
+  assert.equal(state.detailAutoplay, true, `${label} VLOG detail video should autoplay after opening`);
   assert.equal(state.detailLoop, false, `${label} VLOG detail video should not loop`);
 }
 
@@ -377,7 +377,7 @@ async function assertFavoriteRoundTrip(page, label) {
     { timeout: 10000 }
   );
 
-  await page.reload();
+  await page.reload({ waitUntil: "domcontentloaded" });
   await waitForSignedInAccount(page, label);
   await page.click('[data-filter="favorites"]');
   await page.fill("#diarySearchInput", favoriteFixtureTitle);
@@ -510,6 +510,7 @@ try {
   await assertWeekendAlbumFlow(desktop, "desktop");
   await assertNoHorizontalOverflow(desktop, "desktop navigation");
   assert.deepEqual(desktopErrors, [], desktopErrors.join("\n"));
+  await desktopContext.unrouteAll({ behavior: "ignoreErrors" });
   await desktopContext.close();
 
   const mobileContext = await browser.newContext({
@@ -538,6 +539,7 @@ try {
   await assertWeekendAlbumFlow(mobile, "mobile");
   await assertNoHorizontalOverflow(mobile, "mobile navigation");
   assert.deepEqual(mobileErrors, [], mobileErrors.join("\n"));
+  await mobileContext.unrouteAll({ behavior: "ignoreErrors" });
   await mobileContext.close();
 
   console.log(`Release smoke checks passed: ${baseUrl} (desktop + mobile). Screenshots: ${screenshotDir}`);

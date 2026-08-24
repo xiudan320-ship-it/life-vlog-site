@@ -17,14 +17,14 @@ export function fitVideoToContainer(video, container) {
 export function startDiaryMotionVideo(video, container, { audible = false } = {}) {
   if (!video) return;
   video.preload = "metadata";
-  video.autoplay = !audible;
+  video.autoplay = true;
   video.defaultMuted = !audible;
   video.muted = !audible;
   video.loop = !audible;
   video.playsInline = true;
   if (audible) video.controls = true;
   const play = () => {
-    if (audible || video.hidden || !video.currentSrc) return;
+    if (video.hidden || (!video.currentSrc && !video.src)) return;
     const promise = video.play();
     promise?.catch(() => {});
   };
@@ -32,7 +32,7 @@ export function startDiaryMotionVideo(video, container, { audible = false } = {}
   video.oncanplay = play;
   video.onloadedmetadata = () => fitVideoToContainer(video, container);
   video.load();
-  if (video.readyState >= 2) play();
+  play();
 }
 
 export function stopDiaryMotionVideo(video) {

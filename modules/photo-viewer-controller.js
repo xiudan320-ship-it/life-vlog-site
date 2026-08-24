@@ -20,7 +20,7 @@ import {
   getDiaryMediaVideoUrl,
 } from "./media-metadata.js";
 import { normalizeSecretPhotoTags } from "./secret-domain.js?v=20260810-004";
-import { startDiaryMotionVideo, stopDiaryMotionVideo } from "./diary-video-layout.js";
+import { startDiaryMotionVideo, stopDiaryMotionVideo } from "./diary-video-layout.js?v=20260824-029";
 
 export function createPhotoViewerController({
   elements,
