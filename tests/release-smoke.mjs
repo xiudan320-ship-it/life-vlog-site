@@ -558,7 +558,15 @@ async function assertShoppingFlow(page, label) {
 
   let card = page.locator("#shoppingList .shopping-card", { hasText: itemName });
   await card.waitFor({ state: "visible", timeout: 30000 });
-  assert.match(await card.locator("img").getAttribute("src"), /^https?:\/\//, `${label} shopping image was not uploaded`);
+  const itemImage = card.locator("img");
+  assert.match(await itemImage.getAttribute("src"), /^https?:\/\//, `${label} shopping image was not uploaded`);
+  await itemImage.evaluate((image) => {
+    if (image.complete && image.naturalWidth > 0) return;
+    return new Promise((resolve, reject) => {
+      image.addEventListener("load", resolve, { once: true });
+      image.addEventListener("error", () => reject(new Error("shopping image failed to load")), { once: true });
+    });
+  });
   assert.match(await card.textContent(), /¥128\.5/);
 
   await card.locator("[data-edit-shopping]").click();
