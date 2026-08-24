@@ -75,7 +75,7 @@ function Invoke-ReleaseD1([string]$Sql) {
 $safeUsername = $credential.UserName.Replace("'", "''")
 $safeTitle = $fixtureTitle.Replace("'", "''")
 $safeBaseUrl = $env:RELEASE_BASE_URL.Replace("'", "''")
-$insertFixtureSql = "insert into photos (id,user_id,title,note,category,taken_at,is_public,image_path,image_url,width,height,is_featured,is_pinned,created_at,updated_at) select '$fixturePhotoId',id,'$safeTitle','Automated favorite release fixture.','QA','2000-01-01T00:00:00.000Z',0,'','$safeBaseUrl/assets/home-logo.jpg',512,512,0,0,strftime('%Y-%m-%dT%H:%M:%fZ','now'),strftime('%Y-%m-%dT%H:%M:%fZ','now') from users where username='$safeUsername' limit 1;"
+$insertFixtureSql = "insert into photos (id,user_id,title,note,category,taken_at,is_public,image_path,image_url,width,height,is_featured,is_pinned,created_at,updated_at) select '$fixturePhotoId',id,'$safeTitle','Automated favorite release fixture.','QA','2000-01-01T00:00:00.000Z',0,'','$safeBaseUrl/assets/home-logo.jpg',512,512,0,0,strftime('%Y-%m-%dT%H:%M:%fZ','now'),strftime('%Y-%m-%dT%H:%M:%fZ','now') from users where username='$safeUsername' limit 1; insert into notifications (id,user_id,actor_id,type,photo_id,body,is_read,created_at) select '$fixturePhotoId',id,id,'diary','$fixturePhotoId','Automated diary detail release fixture.',0,strftime('%Y-%m-%dT%H:%M:%fZ','now') from users where username='$safeUsername' limit 1;"
 $cleanupFixtureSql = "delete from notifications where photo_id='$fixturePhotoId'; delete from photo_favorites where photo_id='$fixturePhotoId'; delete from photo_comments where photo_id='$fixturePhotoId'; delete from photos where id='$fixturePhotoId';"
 $locationPushed = $false
 

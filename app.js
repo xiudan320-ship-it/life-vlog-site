@@ -5,7 +5,7 @@ import { createOfflineSettingsController } from "./modules/offline-settings-cont
 import { createDataSafetyController } from "./modules/data-safety-controller.js";
 import { createAccountSyncController } from "./modules/account-sync-controller.js";
 import { createTrashController } from "./modules/trash-controller.js";
-import { createDiaryFeedController } from "./modules/diary-feed-controller.js";
+import { createDiaryFeedController } from "./modules/diary-feed-controller.js?v=20260824-028";
 import { createSocialController } from "./modules/social-controller.js";
 import { createFamilySettingsController } from "./modules/family-settings-controller.js";
 import { createFamilyActivityController } from "./modules/family-activity-controller.js";
@@ -19,7 +19,7 @@ import { createProfilePreferencesController } from "./modules/profile-preference
 import { createSecretPinController } from "./modules/secret-pin-controller.js";
 import { createSecretController } from "./modules/secret-controller.js";
 import { createPhotoViewerController } from "./modules/photo-viewer-controller.js";
-import { createPhotoDetailController } from "./modules/photo-detail-controller.js";
+import { createPhotoDetailController } from "./modules/photo-detail-controller.js?v=20260824-028";
 import { createCloudflareBackend } from "./modules/cloudflare-client.js?v=20260811-010";
 import { createMediaCacheService } from "./modules/media-cache.js";
 import { createUploadQueue } from "./modules/upload-queue.js";
@@ -1064,6 +1064,7 @@ const photoDetailController = createPhotoDetailController({
   loadPhotoCommentPreviews,
   loadPhotoComments: (...args) => loadPhotoComments(...args),
   loadPhotos,
+  renderAvatarMarkup,
   renderDialogMedia,
   resetSecretImageZoom,
   setGlobalStatus,

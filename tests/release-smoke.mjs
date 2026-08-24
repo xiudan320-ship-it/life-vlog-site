@@ -43,7 +43,11 @@ function attachRuntimeChecks(page, label) {
   const errors = [];
   page.on("pageerror", (error) => errors.push(`${label} pageerror: ${error.message}`));
   page.on("console", (message) => {
-    if (message.type() === "error") errors.push(`${label} console: ${message.text()}`);
+    if (message.type() === "error") {
+      const location = message.location();
+      const source = location.url ? ` (${location.url}:${location.lineNumber || 0})` : "";
+      errors.push(`${label} console: ${message.text()}${source}`);
+    }
   });
   page.on("requestfailed", (request) => {
     const errorText = request.failure()?.errorText || "unknown";
@@ -399,6 +403,44 @@ async function assertFavoriteRoundTrip(page, label) {
   await page.fill("#diarySearchInput", "");
 }
 
+async function assertDiaryDetailFlow(page, label, mobile, runtimeErrors) {
+  const card = await findFavoriteFixture(page);
+  await card.locator("[data-photo-index][data-image-index]").first().click();
+  try {
+    if (mobile) {
+      const detail = page.locator(".mobile-diary-page:not([hidden])");
+      await detail.waitFor({ state: "visible", timeout: 10000 });
+      await detail.locator(".mobile-diary-article").waitFor({ state: "visible", timeout: 10000 });
+      assert.equal(
+        await detail.locator(".mobile-diary-article h1").textContent(),
+        favoriteFixtureTitle,
+        `${label} mobile diary detail title mismatch`
+      );
+      await page.screenshot({ path: join(screenshotDir, `diary-detail-${label}.png`) });
+      await detail.locator("[data-mobile-diary-close]").click();
+      await detail.waitFor({ state: "hidden", timeout: 10000 });
+    } else {
+      await page.waitForSelector("#photoDialog.diary-detail-dialog[open]", { timeout: 10000 });
+      assert.equal(
+        await page.locator("#dialogTitle").textContent(),
+        favoriteFixtureTitle,
+        `${label} desktop diary detail title mismatch`
+      );
+      await page.screenshot({ path: join(screenshotDir, `diary-detail-${label}.png`) });
+      await page.click("#closeDialog");
+      await page.waitForSelector("#photoDialog:not([open])", { state: "hidden", timeout: 10000 });
+    }
+  } catch (error) {
+    assert.fail(
+      `${label} diary detail did not open correctly` +
+      (runtimeErrors.length ? `; ${runtimeErrors.slice(-5).join(" | ")}` : "") +
+      `; ${error.message}`
+    );
+  } finally {
+    await page.fill("#diarySearchInput", "");
+  }
+}
+
 async function assertModularViews(page, label) {
   await page.click("#recipesToolOpen");
   await page.waitForSelector("#recipesPage:not([hidden])");
@@ -462,6 +504,7 @@ try {
   await assertModularViews(desktop, "desktop");
   await assertWishlistReceiptFlow(desktop, "desktop", desktopErrors);
   await assertFavoriteRoundTrip(desktop, "desktop");
+  await assertDiaryDetailFlow(desktop, "desktop", false, desktopErrors);
   await desktop.click("#galleryNav");
   await desktop.waitForSelector("#galleryFilters");
   await assertWeekendAlbumFlow(desktop, "desktop");
@@ -489,6 +532,7 @@ try {
   await assertModularViews(mobile, "mobile");
   await assertWishlistReceiptFlow(mobile, "mobile", mobileErrors);
   await assertFavoriteRoundTrip(mobile, "mobile");
+  await assertDiaryDetailFlow(mobile, "mobile", true, mobileErrors);
   await mobile.click("#galleryNav");
   await mobile.waitForSelector("#galleryFilters");
   await assertWeekendAlbumFlow(mobile, "mobile");

@@ -1,4 +1,4 @@
-const CACHE_NAME = "life-vlog-site-20260824-027-pwa";
+const CACHE_NAME = "life-vlog-site-20260824-028-pwa";
 const APP_MEDIA_CACHES = new Set([
   "life-vlog-diary-image-cache",
   "life-vlog-secret-media-cache",
@@ -12,7 +12,7 @@ const CORE_ASSETS = [
   "./diary-detail.css?v=20260823-019",
   "./secret-viewer.css?v=20260814-231",
   "./wardrobe.css?v=20260811-007",
-  "./app.js?v=20260824-027",
+  "./app.js?v=20260824-028",
   "./modules/admin-storage.js",
   "./modules/app-elements.js",
   "./modules/auth-controller.js",
@@ -56,7 +56,7 @@ const CORE_ASSETS = [
   "./modules/data-safety-controller.js",
   "./modules/account-sync-controller.js",
   "./modules/trash-controller.js",
-  "./modules/diary-feed-controller.js",
+  "./modules/diary-feed-controller.js?v=20260824-028",
   "./modules/social-controller.js",
   "./modules/family-settings-controller.js",
   "./modules/family-activity-controller.js",
@@ -68,7 +68,7 @@ const CORE_ASSETS = [
   "./modules/photo-favorites.js",
   "./modules/photo-dialog-view.js",
   "./modules/photo-viewer-controller.js",
-  "./modules/photo-detail-controller.js",
+  "./modules/photo-detail-controller.js?v=20260824-028",
   "./modules/preferences-store.js",
   "./modules/push-controller.js",
   "./modules/recipe-controller.js",
@@ -161,6 +161,21 @@ self.addEventListener("fetch", (event) => {
         .catch(async () => {
           return (await caches.match(request)) || (await caches.match("./"));
         })
+    );
+    return;
+  }
+
+  if (request.destination === "script") {
+    event.respondWith(
+      fetch(request, { cache: "no-cache" })
+        .then(async (response) => {
+          if (response.ok || response.type === "opaque") {
+            const cache = await caches.open(CACHE_NAME);
+            await cache.put(request, response.clone());
+          }
+          return response;
+        })
+        .catch(() => caches.match(request))
     );
     return;
   }

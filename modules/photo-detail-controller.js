@@ -35,6 +35,7 @@ export function createPhotoDetailController({
   loadPhotoCommentPreviews,
   loadPhotoComments,
   loadPhotos,
+  renderAvatarMarkup,
   renderDialogMedia,
   resetSecretImageZoom,
   setGlobalStatus,
@@ -47,6 +48,7 @@ export function createPhotoDetailController({
   const els = elements;
   const diaryRepository = repository;
   const { cleanupStoredImagePaths, uploadImageFile } = assets;
+  const cssEscapeValue = (value) => CSS.escape(String(value || ""));
 
   function lockDialogBackgroundScroll(scrollY = window.scrollY || window.pageYOffset || 0) {
     state.lockedDialogScrollY = Math.max(0, Number(scrollY) || 0);

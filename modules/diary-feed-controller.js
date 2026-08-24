@@ -250,9 +250,8 @@ export function createDiaryFeedController({
     });
     if (changed) renderNotifications();
   
-    if (state.cloudDb && state.session) {
-      const { error } = await notificationRepository.markDiaryRead(state.session.user.id, id);
-      if (!error && !changed) void loadNotifications();
+    if (state.cloudDb && state.session && changed) {
+      await notificationRepository.markDiaryRead(state.session.user.id, id);
     }
   
     if ("serviceWorker" in navigator) {
