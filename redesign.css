@@ -14716,6 +14716,13 @@ body.mobile-dialog-open {
 .mobile-diary-media > .mobile-diary-media-badge {
   top: 12px;
   right: 12px;
+  bottom: auto;
+  left: auto;
+  width: max-content;
+  height: auto;
+  min-height: 0;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .mobile-diary-media > .mobile-diary-count {

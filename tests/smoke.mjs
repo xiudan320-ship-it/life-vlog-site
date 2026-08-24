@@ -279,7 +279,7 @@ const expandedTrashMigration = await readFile(
 
 assert.match(index, /id="secretViewerToolbar"/);
 assert.match(index, /id="dialogExpandImage"/);
-assert.match(index, /redesign\.css\?v=20260824-032/);
+assert.match(index, /redesign\.css\?v=20260824-033/);
 assert.match(index, /styles\.css\?v=20260824-026/);
 assert.match(index, /id="adminStorageMeter"/);
 assert.match(index, /R2 对象存储/);
@@ -340,7 +340,7 @@ const initialPhotoLoadIndex = app.indexOf("await loadPhotos()", initializeCloudf
 assert.ok(initializeCloudflareIndex >= 0, "Cloudflare initialization is missing");
 assert.ok(authListenerIndex > initializeCloudflareIndex, "Auth listener is missing from initialization");
 assert.ok(authListenerIndex < initialPhotoLoadIndex, "Auth listener must be registered before initial photo loading");
-assert.match(serviceWorker, /life-vlog-site-20260824-032-pwa/);
+assert.match(serviceWorker, /life-vlog-site-20260824-033-pwa/);
 assert.match(serviceWorker, /modules\/admin-storage\.js/);
 assert.match(diaryDetailCss, /#photoDialog #dialogImage\[hidden\][\s\S]*?display: none !important/);
 assert.match(applicationSource, /const p=!state\.galleryRenderSignature[\s\S]*?initialRender: p/);
@@ -710,9 +710,10 @@ assert.equal(typeof wishlistController.createWishlistController, "function");
 assert.equal(typeof weekendController.createWeekendController, "function");
 assert.equal(typeof authController.createAuthController, "function");
 assert.equal(typeof offlineCacheController.createOfflineCacheController, "function");
-assert.match(serviceWorker, /life-vlog-site-20260824-032-pwa/);
+assert.match(serviceWorker, /life-vlog-site-20260824-033-pwa/);
 assert.match(serviceWorker, /styles\.css\?v=20260824-026/);
-assert.match(serviceWorker, /redesign\.css\?v=20260824-032/);
+assert.match(serviceWorker, /redesign\.css\?v=20260824-033/);
+assert.match(css, /mobile-diary-media > \.mobile-diary-media-badge[\s\S]*?bottom: auto[\s\S]*?width: max-content/);
 assert.match(index, /id="photoInput"[^>]*accept="image\/\*,video\/\*/);
 assert.match(index, /app\.js\?v=20260824-032/);
 assert.match(index, /id="wishlistModuleTabs"/);

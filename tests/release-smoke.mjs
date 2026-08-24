@@ -162,6 +162,17 @@ async function assertVlogMediaBadge(page, label) {
   await assertNoHorizontalOverflow(page, `${label} VLOG badges`);
   await mkdir(screenshotDir, { recursive: true });
   await page.screenshot({ path: join(screenshotDir, `vlog-badges-${label}.png`), fullPage: true });
+  if (label === "mobile") {
+    const videoBadge = page.locator("#gallery .photo-card .live-photo-badge", { hasText: "VIDEO" }).first();
+    await videoBadge.locator("xpath=..").click();
+    await page.waitForSelector(".mobile-diary-page:not([hidden]) .mobile-diary-media-badge");
+    const detailBadge = page.locator(".mobile-diary-page:not([hidden]) .mobile-diary-media-badge");
+    const box = await detailBadge.boundingBox();
+    assert.ok(box && box.width < 90, `mobile VIDEO badge is too wide: ${box?.width || 0}px`);
+    assert.ok(box && box.height < 40, `mobile VIDEO badge is too tall: ${box?.height || 0}px`);
+    await page.screenshot({ path: join(screenshotDir, "vlog-detail-badge-mobile.png"), fullPage: true });
+    await page.click("[data-mobile-diary-close]");
+  }
 }
 
 async function assertMobileUploadStatusLayout(page) {
