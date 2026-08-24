@@ -600,6 +600,13 @@ async function assertShoppingFlow(page, label) {
   await page.click('[data-wishlist-module="shopping"]');
   card = page.locator("#shoppingList .shopping-card", { hasText: editedName });
   await card.waitFor({ state: "visible", timeout: 30000 });
+  await card.locator("img").evaluate((image) => {
+    if (image.complete && image.naturalWidth > 0) return;
+    return new Promise((resolve, reject) => {
+      image.addEventListener("load", resolve, { once: true });
+      image.addEventListener("error", () => reject(new Error("persisted shopping image failed to load")), { once: true });
+    });
+  });
   assert.ok(await card.evaluate((entry) => entry.classList.contains("completed")), `${label} completed state did not survive reload`);
 
   await card.locator("[data-toggle-shopping]").click();
