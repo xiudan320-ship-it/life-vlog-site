@@ -20,7 +20,7 @@ import {
   getDiaryMediaVideoUrl,
 } from "./media-metadata.js";
 import { normalizeSecretPhotoTags } from "./secret-domain.js?v=20260810-004";
-import { startDiaryMotionVideo, stopDiaryMotionVideo } from "./diary-video-layout.js?v=20260824-029";
+import { startDiaryMotionVideo, stopDiaryMotionVideo } from "./diary-video-layout.js?v=20260824-030";
 
 export function createPhotoViewerController({
   elements,
@@ -309,7 +309,8 @@ export function createPhotoViewerController({
     const isDiaryViewer = els.dialog.classList.contains("diary-image-fullscreen");
     const isSecretDialog = isSecretImageDialogOpen();
     const isSecretViewer = isSecretImageViewerOpen();
-    if (!isDiaryDetail && !isDiaryViewer && !isSecretDialog) return;
+    const isWeekendDialog = els.dialog.classList.contains("weekend-image-dialog");
+    if (!isDiaryDetail && !isDiaryViewer && !isSecretDialog && !isWeekendDialog) return;
   
     if (isDiaryViewer || isSecretViewer) {
       if (state.secretImageZoom.scale > 1.01) {
@@ -384,7 +385,10 @@ export function createPhotoViewerController({
       if (hasMotion) {
         els.dialogVideo.poster = imageUrl;
         els.dialogVideo.src = motionUrl;
-        startDiaryMotionVideo(els.dialogVideo, els.dialogMedia, { audible: mediaType === "video" });
+        startDiaryMotionVideo(els.dialogVideo, els.dialogMedia, {
+          audible: mediaType === "video",
+          controlsOnTap: mediaType === "video" && isMobileViewport(),
+        });
       }
     }
     if (isSecretImageViewerOpen()) {

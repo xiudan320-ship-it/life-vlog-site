@@ -1,4 +1,4 @@
-import { bindWeekendGalleryInteractions } from "./weekend-gallery.js";
+import { bindWeekendGalleryInteractions } from "./weekend-gallery.js?v=20260824-030";
 import { escapeHtml, formatCommentTime } from "./ui-formatters.js";
 
 export function sortWeekendPlans(plans = []) {

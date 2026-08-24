@@ -791,7 +791,7 @@ export function bindAppEvents({
     els.photoCommentForm.reset();
     cancelCommentReply();
     els.photoCommentStatus.textContent = "";
-    els.dialog.classList.remove("no-comments-dialog", "secret-image-dialog", "mobile-page-dialog", "secret-image-fullscreen", "diary-detail-dialog", "diary-image-fullscreen", "wish-detail-dialog", "wish-detail-no-image");
+    els.dialog.classList.remove("no-comments-dialog", "secret-image-dialog", "mobile-page-dialog", "secret-image-fullscreen", "diary-detail-dialog", "diary-image-fullscreen", "weekend-image-dialog", "wish-detail-dialog", "wish-detail-no-image");
     if (els.wishDialogFeedback) {
       els.wishDialogFeedback.hidden = true;
       els.wishDialogFeedback.classList.remove("empty");

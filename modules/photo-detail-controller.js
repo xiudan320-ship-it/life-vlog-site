@@ -3,14 +3,14 @@ import {
   buildMobileDiaryPageMarkup,
   createMobileDiaryPage,
   refreshMobileDiaryComments,
-} from "./mobile-diary-view.js";
+} from "./mobile-diary-view.js?v=20260824-030";
 import {
   clampNumber,
   getMobileBackEdge,
   isEdgeBackSwipe,
 } from "./media-gesture-domain.js";
 import { composeDiaryStoredNote } from "./media-metadata.js";
-import { startDiaryMotionVideo, stopDiaryMotionVideo } from "./diary-video-layout.js?v=20260824-029";
+import { startDiaryMotionVideo, stopDiaryMotionVideo } from "./diary-video-layout.js?v=20260824-030";
 import { escapeHtml, formatDate, formatDateTime, slugify } from "./ui-formatters.js";
 import { formatWishDate } from "./wishlist-view.js";
 
@@ -113,10 +113,12 @@ export function createPhotoDetailController({
       return;
     }
     if (!els.dialog.open) return;
+    const returnToWeekendAlbum = els.dialog.classList.contains("weekend-image-dialog");
     els.dialog.removeAttribute("open");
     ensurePhotoDialogBackdrop().hidden = true;
     document.body.classList.remove("photo-dialog-open");
     els.dialog.dispatchEvent(new Event("close"));
+    if (returnToWeekendAlbum) document.dispatchEvent(new Event("weekend-album-lightbox-closed"));
   }
   
   function openMobileDiaryImageViewer() {
@@ -318,7 +320,7 @@ export function createPhotoDetailController({
       renderAvatar: renderAvatarMarkup,
     });
     const vlogVideo = page.querySelector(".mobile-diary-video");
-    if (vlogVideo) startDiaryMotionVideo(vlogVideo, null, { audible: true });
+    if (vlogVideo) startDiaryMotionVideo(vlogVideo, null, { audible: true, controlsOnTap: true });
     else startDiaryMotionVideo(page.querySelector(".mobile-diary-motion"));
     renderMobileDiaryComments();
   }
@@ -942,7 +944,7 @@ export function createPhotoDetailController({
     state.activeSecretDialogItem = null;
     state.dialogSecretSourceItem = null;
     els.dialog.classList.remove("mobile-page-dialog", "secret-image-dialog", "secret-image-fullscreen");
-    els.dialog.classList.add("no-comments-dialog");
+    els.dialog.classList.add("no-comments-dialog", "weekend-image-dialog");
     state.dialogImages = galleryImages;
     state.dialogImageIndex = Math.max(0, Math.min(initialIndex, state.dialogImages.length - 1));
     els.dialogTitle.textContent = kind === "completion" ? `${plan.title || "周末"} · 完成回顾` : plan.title || "周末场景";

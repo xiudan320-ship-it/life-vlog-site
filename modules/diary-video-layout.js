@@ -14,7 +14,7 @@ export function fitVideoToContainer(video, container) {
   video.style.setProperty("height", `${Math.max(1, video.videoHeight * scale)}px`, "important");
 }
 
-export function startDiaryMotionVideo(video, container, { audible = false } = {}) {
+export function startDiaryMotionVideo(video, container, { audible = false, controlsOnTap = false } = {}) {
   if (!video) return;
   video.preload = "metadata";
   video.autoplay = true;
@@ -22,7 +22,13 @@ export function startDiaryMotionVideo(video, container, { audible = false } = {}
   video.muted = !audible;
   video.loop = !audible;
   video.playsInline = true;
-  if (audible) video.controls = true;
+  video.controls = audible && !controlsOnTap;
+  video.onclick = audible && controlsOnTap
+    ? () => {
+        video.controls = true;
+        video.onclick = null;
+      }
+    : null;
   const play = () => {
     if (video.hidden || (!video.currentSrc && !video.src)) return;
     const promise = video.play();
@@ -37,6 +43,7 @@ export function startDiaryMotionVideo(video, container, { audible = false } = {}
 
 export function stopDiaryMotionVideo(video) {
   if (!video) return;
+  video.onclick = null;
   video.onloadeddata = null;
   video.oncanplay = null;
   video.onloadedmetadata = null;

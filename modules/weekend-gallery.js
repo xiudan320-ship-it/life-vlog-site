@@ -18,9 +18,18 @@ function ensureWeekendAlbumDialog(documentTarget) {
       </header>
       <div class="weekend-album-grid" aria-label="全部照片"></div>
     </section>`;
-  dialog.querySelector(".weekend-album-close").addEventListener("click", () => dialog.close());
+  const closeAlbum = () => {
+    delete dialog.dataset.resumeAfterLightbox;
+    dialog.close();
+  };
+  dialog.querySelector(".weekend-album-close").addEventListener("click", closeAlbum);
   dialog.addEventListener("click", (event) => {
-    if (event.target === dialog) dialog.close();
+    if (event.target === dialog) closeAlbum();
+  });
+  documentTarget.addEventListener("weekend-album-lightbox-closed", () => {
+    if (dialog.dataset.resumeAfterLightbox !== "true" || dialog.open) return;
+    delete dialog.dataset.resumeAfterLightbox;
+    dialog.showModal();
   });
   documentTarget.body.append(dialog);
   return dialog;
@@ -31,6 +40,7 @@ function openWeekendAlbumDialog(plan, kind, openGallery, documentTarget) {
   if (!images?.length) return;
 
   const dialog = ensureWeekendAlbumDialog(documentTarget);
+  delete dialog.dataset.resumeAfterLightbox;
   const title = kind === "completion" ? `${plan.title || "周末"} · 完成回顾` : plan.title || "周末相册";
   dialog.querySelector("#weekendAlbumTitle").textContent = title;
   dialog.querySelector("#weekendAlbumSummary").textContent = `共 ${images.length} 张 · 点击单张放大`;
@@ -48,6 +58,7 @@ function openWeekendAlbumDialog(plan, kind, openGallery, documentTarget) {
       preview.decoding = "async";
       button.append(preview);
       button.addEventListener("click", () => {
+        dialog.dataset.resumeAfterLightbox = "true";
         dialog.close();
         openGallery(plan, index, kind);
       });

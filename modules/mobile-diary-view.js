@@ -122,7 +122,7 @@ export function buildMobileDiaryPageMarkup({
     <button class="mobile-diary-close" type="button" data-mobile-diary-close aria-label="返回">返回</button>
     <div class="mobile-diary-media">
       ${mediaType === "video"
-        ? `<video class="mobile-diary-video" src="${escapeHtml(getDiaryMediaVideoUrl(image))}" poster="${escapeHtml(getDiaryMediaPosterUrl(image))}" controls playsinline preload="metadata" aria-label="${escapeHtml(displayTitle || "VLOG 视频")}"></video>`
+        ? `<video class="mobile-diary-video" src="${escapeHtml(getDiaryMediaVideoUrl(image))}" poster="${escapeHtml(getDiaryMediaPosterUrl(image))}" playsinline preload="metadata" aria-label="${escapeHtml(displayTitle || "VLOG 视频")}"></video>`
         : `<button class="mobile-diary-image-button" type="button" data-mobile-diary-open-image aria-label="放大查看日记图片">
             ${mediaType === "live"
               ? `<video class="mobile-diary-motion" src="${escapeHtml(getDiaryMediaVideoUrl(image))}" poster="${escapeHtml(getDiaryMediaPosterUrl(image))}" autoplay muted loop playsinline preload="metadata" aria-label="${escapeHtml(displayTitle || "Live Photo")}"></video>`

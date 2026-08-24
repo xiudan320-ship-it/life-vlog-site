@@ -118,26 +118,31 @@ async function assertNoHorizontalOverflow(page, label) {
 }
 
 async function assertVlogAudioUi(page, label) {
-  const state = await page.evaluate(async () => {
+  const controlsOnTap = label === "mobile";
+  const state = await page.evaluate(async (hideControlsUntilTap) => {
     const preview = document.querySelector("#photoVideoPreview");
     const { startDiaryMotionVideo } = await import("./modules/diary-video-layout.js");
     const video = document.createElement("video");
-    startDiaryMotionVideo(video, null, { audible: true });
+    startDiaryMotionVideo(video, null, { audible: true, controlsOnTap: hideControlsUntilTap });
+    const initialControls = video.controls;
+    video.click();
     const result = {
       previewMuted: preview?.muted ?? true,
       previewControls: preview?.controls ?? false,
       detailMuted: video.muted,
-      detailControls: video.controls,
+      detailInitialControls: initialControls,
+      detailRevealedControls: video.controls,
       detailAutoplay: video.autoplay,
       detailLoop: video.loop,
     };
     video.remove();
     return result;
-  });
+  }, controlsOnTap);
   assert.equal(state.previewMuted, false, `${label} VLOG upload preview is muted`);
   assert.equal(state.previewControls, true, `${label} VLOG upload preview has no controls`);
   assert.equal(state.detailMuted, false, `${label} VLOG detail video is muted`);
-  assert.equal(state.detailControls, true, `${label} VLOG detail video has no controls`);
+  assert.equal(state.detailInitialControls, !controlsOnTap, `${label} VLOG initial control visibility mismatch`);
+  assert.equal(state.detailRevealedControls, true, `${label} VLOG controls were not revealed by tapping`);
   assert.equal(state.detailAutoplay, true, `${label} VLOG detail video should autoplay after opening`);
   assert.equal(state.detailLoop, false, `${label} VLOG detail video should not loop`);
 }
@@ -239,7 +244,26 @@ async function assertWeekendAlbumFlow(page, label) {
   await page.screenshot({ path: join(screenshotDir, `weekend-album-${label}.png`) });
   await page.locator("[data-weekend-album-image]").first().click();
   await page.waitForSelector("#photoDialog[open]", { timeout: 10000 });
+  if (label === "desktop" && target.photoCount > 1) {
+    const initialCounter = await page.locator("#dialogCounter").textContent();
+    await page.locator("#photoDialog .dialog-media").evaluate((media) => {
+      media.dispatchEvent(new WheelEvent("wheel", { deltaY: 140, bubbles: true, cancelable: true }));
+    });
+    await page.waitForFunction(
+      (previous) => document.querySelector("#dialogCounter")?.textContent !== previous,
+      initialCounter,
+      { timeout: 10000 }
+    );
+  }
   await page.click("#closeDialog");
+  await page.waitForSelector("#weekendAlbumDialog[open]", { timeout: 10000 });
+  assert.equal(
+    await page.locator("[data-weekend-album-image]").count(),
+    target.photoCount,
+    `${label} weekend album was not restored after closing the lightbox`
+  );
+  await page.click(".weekend-album-close");
+  await page.waitForSelector("#weekendAlbumDialog:not([open])", { state: "hidden", timeout: 10000 });
 }
 
 async function assertWishlistReceiptFlow(page, label, runtimeErrors) {

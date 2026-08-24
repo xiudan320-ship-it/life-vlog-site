@@ -18,8 +18,8 @@ import { createGamificationController } from "./modules/gamification-controller.
 import { createProfilePreferencesController } from "./modules/profile-preferences-controller.js";
 import { createSecretPinController } from "./modules/secret-pin-controller.js";
 import { createSecretController } from "./modules/secret-controller.js";
-import { createPhotoViewerController } from "./modules/photo-viewer-controller.js?v=20260824-029";
-import { createPhotoDetailController } from "./modules/photo-detail-controller.js?v=20260824-029";
+import { createPhotoViewerController } from "./modules/photo-viewer-controller.js?v=20260824-030";
+import { createPhotoDetailController } from "./modules/photo-detail-controller.js?v=20260824-030";
 import { createCloudflareBackend } from "./modules/cloudflare-client.js?v=20260811-010";
 import { createMediaCacheService } from "./modules/media-cache.js";
 import { createUploadQueue } from "./modules/upload-queue.js";
@@ -33,7 +33,7 @@ import { createAnniversaryController } from "./modules/anniversary-controller.js
 import {
   createWeekendController,
   getNextWeekendDate,
-} from "./modules/weekend-controller.js";
+} from "./modules/weekend-controller.js?v=20260824-030";
 import { createGratitudeController } from "./modules/gratitude-controller.js";
 import {
   getVipLevel,
