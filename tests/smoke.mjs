@@ -109,6 +109,18 @@ const layoutSettingsController = await import(new URL("../modules/layout-setting
 const layoutSettingsControllerModule = await readFile(new URL("../modules/layout-settings-controller.js", import.meta.url), "utf8");
 const appEventBindings = await import(new URL("../modules/app-event-bindings.js", import.meta.url));
 const appEventBindingsModule = await readFile(new URL("../modules/app-event-bindings.js", import.meta.url), "utf8");
+const contentFormEventBindingsModule = await readFile(
+  new URL("../modules/content-form-event-bindings.js", import.meta.url),
+  "utf8"
+);
+const mediaEventBindingsModule = await readFile(
+  new URL("../modules/media-event-bindings.js", import.meta.url),
+  "utf8"
+);
+const settingsEventBindingsModule = await readFile(
+  new URL("../modules/settings-event-bindings.js", import.meta.url),
+  "utf8"
+);
 const appNavigationControllerModule = await readFile(
   new URL("../modules/app-navigation-controller.js", import.meta.url),
   "utf8"
@@ -139,6 +151,14 @@ const profilePreferencesController = await import(new URL("../modules/profile-pr
 const profilePreferencesControllerModule = await readFile(new URL("../modules/profile-preferences-controller.js", import.meta.url), "utf8");
 const secretController = await import(new URL("../modules/secret-controller.js", import.meta.url));
 const secretControllerModule = await readFile(new URL("../modules/secret-controller.js", import.meta.url), "utf8");
+const secretFolderControllerModule = await readFile(
+  new URL("../modules/secret-folder-controller.js", import.meta.url),
+  "utf8"
+);
+const secretFilterDomainModule = await readFile(
+  new URL("../modules/secret-filter-domain.js", import.meta.url),
+  "utf8"
+);
 const secretPinController = await import(new URL("../modules/secret-pin-controller.js", import.meta.url));
 const secretPinControllerModule = await readFile(new URL("../modules/secret-pin-controller.js", import.meta.url), "utf8");
 const photoViewerController = await import(new URL("../modules/photo-viewer-controller.js", import.meta.url));
@@ -158,6 +178,9 @@ const applicationSource = [
   toolDockControllerModule,
   layoutSettingsControllerModule,
   appEventBindingsModule,
+  contentFormEventBindingsModule,
+  mediaEventBindingsModule,
+  settingsEventBindingsModule,
   appNavigationControllerModule,
   appIdentityControllerModule,
   appSessionControllerModule,
@@ -170,6 +193,8 @@ const applicationSource = [
   photoViewerControllerModule,
   photoDetailControllerModule,
   secretControllerModule,
+  secretFolderControllerModule,
+  secretFilterDomainModule,
   secretPinControllerModule,
 ].join("\n");
 assert.doesNotMatch(applicationSource, /dataset\.state\./);
@@ -365,7 +390,7 @@ const initialPhotoLoadIndex = appSessionControllerModule.indexOf("await actions.
 assert.ok(initializeCloudflareIndex >= 0, "Session initialization is missing");
 assert.ok(authListenerIndex > initializeCloudflareIndex, "Auth listener is missing from session initialization");
 assert.ok(authListenerIndex < initialPhotoLoadIndex, "Auth listener must be registered before initial photo loading");
-assert.match(serviceWorker, /life-vlog-site-20260825-001-pwa/);
+assert.match(serviceWorker, /life-vlog-site-20260825-002-pwa/);
 assert.match(serviceWorker, /modules\/admin-storage\.js/);
 assert.match(diaryDetailCss, /#photoDialog #dialogImage\[hidden\][\s\S]*?display: none !important/);
 assert.match(applicationSource, /const p=!state\.galleryRenderSignature[\s\S]*?initialRender: p/);
@@ -749,12 +774,12 @@ assert.equal(typeof wishlistController.createWishlistController, "function");
 assert.equal(typeof weekendController.createWeekendController, "function");
 assert.equal(typeof authController.createAuthController, "function");
 assert.equal(typeof offlineCacheController.createOfflineCacheController, "function");
-assert.match(serviceWorker, /life-vlog-site-20260825-001-pwa/);
+assert.match(serviceWorker, /life-vlog-site-20260825-002-pwa/);
 assert.match(serviceWorker, /styles\.css\?v=20260824-026/);
 assert.match(serviceWorker, /redesign\.css\?v=20260824-034/);
 assert.match(css, /mobile-diary-media > \.mobile-diary-media-badge[\s\S]*?bottom: auto[\s\S]*?width: max-content/);
 assert.match(index, /id="photoInput"[^>]*accept="image\/\*,video\/\*/);
-assert.match(index, /app\.js\?v=20260825-001/);
+assert.match(index, /app\.js\?v=20260825-002/);
 assert.match(index, /id="wishlistModuleTabs"/);
 assert.match(index, /data-wishlist-module="shopping"/);
 assert.match(index, /id="shoppingImageInput"[^>]*accept="image\/\*"/);

@@ -1,4 +1,4 @@
-const CACHE_NAME = "life-vlog-site-20260825-001-pwa";
+const CACHE_NAME = "life-vlog-site-20260825-002-pwa";
 const APP_MEDIA_CACHES = new Set([
   "life-vlog-diary-image-cache",
   "life-vlog-secret-media-cache",
@@ -12,7 +12,7 @@ const CORE_ASSETS = [
   "./diary-detail.css?v=20260823-019",
   "./secret-viewer.css?v=20260814-231",
   "./wardrobe.css?v=20260811-007",
-  "./app.js?v=20260825-001",
+  "./app.js?v=20260825-002",
   "./modules/admin-storage.js",
   "./modules/app-elements.js",
   "./modules/app-domain.js",
@@ -70,6 +70,9 @@ const CORE_ASSETS = [
   "./modules/tool-dock-controller.js",
   "./modules/layout-settings-controller.js",
   "./modules/app-event-bindings.js",
+  "./modules/content-form-event-bindings.js",
+  "./modules/media-event-bindings.js",
+  "./modules/settings-event-bindings.js",
   "./modules/profile-preferences-controller.js",
   "./modules/offline-records.js",
   "./modules/photo-favorites.js",
@@ -82,6 +85,8 @@ const CORE_ASSETS = [
   "./modules/recipe-view.js",
   "./modules/secret-domain.js?v=20260810-004",
   "./modules/secret-controller.js",
+  "./modules/secret-filter-domain.js",
+  "./modules/secret-folder-controller.js",
   "./modules/secret-pin-controller.js",
   "./modules/secret-entry-preference-controller.js",
   "./modules/secret-gallery-view.js",

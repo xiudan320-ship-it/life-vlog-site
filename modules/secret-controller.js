@@ -9,8 +9,6 @@ import {
   buildSecretCollectionMarkup,
   buildSecretFavoritesMarkup,
   buildSecretFilterMarkup,
-  buildSecretFolderListMarkup,
-  buildSecretFolderOptions,
 } from "./secret-gallery-view.js";
 import {
   DEFAULT_SECRET_PHOTO_TAG,
@@ -26,13 +24,20 @@ import {
   removeSecretImageTag,
   secretImageHasTag,
   setSecretImageTags,
-  sortSecretDisplayEntries as sortSecretEntriesByAlbumOrder,
   sortSecretItems,
 } from "./secret-domain.js?v=20260810-004";
+import {
+  getSecretAlbumFilterTags,
+  getSecretAlbumTagCounts,
+  getSecretPhotoSortDescending,
+  imageMatchesSecretFilter,
+  sortSecretDisplayEntries,
+} from "./secret-filter-domain.js";
 import { secretFolderFromCloudRow, secretFromCloudRow, secretToCloudRow } from "./cloud-models.js";
 import { extractImageUrls, getClipboardImageUrl } from "./media-metadata.js";
 import { prepareFeedImages } from "./diary-gallery-view.js";
 import { escapeHtml, formatDate, slugify } from "./ui-formatters.js";
+import { createSecretFolderController } from "./secret-folder-controller.js";
 
 export function createSecretController({
   elements,
@@ -80,14 +85,35 @@ export function createSecretController({
     uploadImageFile,
   } = assets;
 
+  const secretFolderController = createSecretFolderController({
+    elements: els,
+    state,
+    repository: secretRepository,
+    allFolderId: SECRET_ALL_FOLDER_ID,
+    favoritesFolderId: SECRET_FAVORITES_FOLDER_ID,
+    getDefaultFolderId: getSecretDefaultFolderId,
+    setDefaultFolderId: setSecretDefaultFolderId,
+    saveItemsCache: saveSecretItemsCache,
+    setStatus: setSecretStatus,
+    showToast: showMiniToast,
+    isMobileViewport,
+    renderGallery: (...args) => renderSecretGallery(...args),
+    deleteAlbum: (...args) => deleteSecretItem(...args),
+  });
+  const {
+    closeSecretAlbumContextMenu,
+    closeSecretFolderContextMenu,
+    createSecretFolder,
+    deleteActiveSecretFolder,
+    openSecretAlbumContextMenu,
+    renameActiveSecretFolder,
+    renderSecretFolderControls,
+  } = secretFolderController;
+
   function setSecretExpanded(expanded) {
     if (!els.secretForm || !els.secretToggle) return;
     els.secretForm.hidden = !expanded;
     els.secretToggle.setAttribute("aria-expanded", String(expanded));
-  }
-  
-  function getSecretPhotoSortDescending(item) {
-    return item?.photoSortDescending !== false;
   }
   
   async function setSecretPhotoSortDescending(item, descending) {
@@ -103,364 +129,6 @@ export function createSecretController({
     }
     item.photoSortDescending = Boolean(descending);
     return true;
-  }
-  
-  function sortSecretDisplayEntries(entries, item) {
-    return sortSecretEntriesByAlbumOrder(entries, getSecretPhotoSortDescending(item));
-  }
-  
-  function getSecretPhotoTags(items = state.secretItems) {
-    const tags = [];
-    items.forEach((item) => {
-      normalizeSecretImages(item.images).forEach((image) => {
-        normalizeSecretPhotoTags(image).forEach((tag) => {
-          if (!isSecretNumericTag(tag) && !tags.includes(tag)) tags.push(tag);
-        });
-      });
-    });
-    return [
-      FAVORITE_SECRET_PHOTO_TAG,
-      STORY_SECRET_PHOTO_TAG,
-      DEFAULT_SECRET_PHOTO_TAG,
-      ...tags.filter(
-        (tag) =>
-          tag !== FAVORITE_SECRET_PHOTO_TAG &&
-          tag !== STORY_SECRET_PHOTO_TAG &&
-          tag !== DEFAULT_SECRET_PHOTO_TAG
-      ),
-    ];
-  }
-  
-  function getSecretAlbumFilterTags(item) {
-    return getSecretAlbumTagCounts(item).map(({ tag }) => tag).filter((tag) => tag !== "全部");
-  }
-  
-  function getSecretAlbumTagCounts(item) {
-    const images = normalizeSecretImages(item?.images);
-    const counts = new Map();
-    images.forEach((image) => {
-      normalizeSecretPhotoTags(image).forEach((tag) => {
-        if (!isSecretNumericTag(tag)) {
-          counts.set(tag, (counts.get(tag) || 0) + 1);
-        }
-      });
-      if (image.favorite) {
-        counts.set(FAVORITE_SECRET_PHOTO_TAG, (counts.get(FAVORITE_SECRET_PHOTO_TAG) || 0) + 1);
-      }
-    });
-    return [
-      { tag: "全部", count: images.length },
-      ...[...counts.entries()]
-        .map(([tag, count]) => ({ tag, count }))
-        .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag, "zh-CN")),
-    ];
-  }
-  
-  function imageMatchesSecretFilter(image) {
-    if (state.activeSecretFilter === "全部") return true;
-    if (state.activeSecretFilter === FAVORITE_SECRET_PHOTO_TAG) return Boolean(image?.favorite);
-    return secretImageHasTag(image, state.activeSecretFilter);
-  }
-  
-  function closeSecretFolderContextMenu() {
-    if (!state.secretFolderContextMenu) return;
-    document.removeEventListener("pointerdown", state.secretFolderContextMenu.closeOnOutside, true);
-    window.removeEventListener("resize", closeSecretFolderContextMenu);
-    window.removeEventListener("scroll", closeSecretFolderContextMenu, true);
-    state.secretFolderContextMenu.element.remove();
-    state.secretFolderContextMenu = null;
-  }
-  
-  function closeSecretAlbumContextMenu() {
-    if (!state.secretAlbumContextMenu) return;
-    document.removeEventListener("pointerdown", state.secretAlbumContextMenu.closeOnOutside, true);
-    window.removeEventListener("resize", closeSecretAlbumContextMenu);
-    window.removeEventListener("scroll", closeSecretAlbumContextMenu, true);
-    state.secretAlbumContextMenu.element.remove();
-    state.secretAlbumContextMenu = null;
-  }
-  
-  function openSecretFolderContextMenu(folder, clientX, clientY) {
-    if (!folder || folder.virtual || isMobileViewport()) return;
-    closeSecretFolderContextMenu();
-    closeSecretAlbumContextMenu();
-    const currentDefaultId = getSecretDefaultFolderId();
-    const menu = document.createElement("div");
-    menu.className = "secret-folder-context-menu";
-    menu.setAttribute("role", "menu");
-    menu.innerHTML = `
-      <span>${escapeHtml(folder.name)}</span>
-      <button type="button" role="menuitem" data-secret-folder-default ${currentDefaultId === folder.id ? "disabled" : ""}>
-        ${currentDefaultId === folder.id ? "当前默认入口" : "设为默认入口"}
-      </button>
-      <button class="danger" type="button" role="menuitem" data-secret-folder-delete>删除文件夹</button>
-    `;
-    document.body.append(menu);
-    const rect = menu.getBoundingClientRect();
-    menu.style.left = `${Math.max(10, Math.min(clientX, window.innerWidth - rect.width - 10))}px`;
-    menu.style.top = `${Math.max(10, Math.min(clientY, window.innerHeight - rect.height - 10))}px`;
-    const closeOnOutside = (event) => {
-      if (!menu.contains(event.target)) closeSecretFolderContextMenu();
-    };
-    state.secretFolderContextMenu = { element: menu, closeOnOutside };
-    document.addEventListener("pointerdown", closeOnOutside, true);
-    window.addEventListener("resize", closeSecretFolderContextMenu);
-    window.addEventListener("scroll", closeSecretFolderContextMenu, true);
-    menu.querySelector("[data-secret-folder-default]")?.addEventListener("click", () => {
-      void setSecretDefaultFolderId(folder.id);
-      closeSecretFolderContextMenu();
-      showMiniToast(`以后进入秘藏会先打开「${folder.name}」`, { kind: "success" });
-    });
-    menu.querySelector("[data-secret-folder-delete]")?.addEventListener("click", async () => {
-      closeSecretFolderContextMenu();
-      await deleteSecretFolder(folder);
-    });
-  }
-  
-  function openSecretAlbumContextMenu(item, clientX, clientY) {
-    if (!item || isMobileViewport()) return;
-    closeSecretFolderContextMenu();
-    closeSecretAlbumContextMenu();
-    const menu = document.createElement("div");
-    menu.className = "secret-folder-context-menu secret-album-context-menu";
-    menu.setAttribute("role", "menu");
-    menu.innerHTML = `
-      <span>${escapeHtml(item.title || "未命名相册")}</span>
-      <button class="danger" type="button" role="menuitem">删除相册</button>
-    `;
-    document.body.append(menu);
-    const rect = menu.getBoundingClientRect();
-    menu.style.left = `${Math.max(10, Math.min(clientX, window.innerWidth - rect.width - 10))}px`;
-    menu.style.top = `${Math.max(10, Math.min(clientY, window.innerHeight - rect.height - 10))}px`;
-    const closeOnOutside = (event) => {
-      if (!menu.contains(event.target)) closeSecretAlbumContextMenu();
-    };
-    state.secretAlbumContextMenu = { element: menu, closeOnOutside };
-    document.addEventListener("pointerdown", closeOnOutside, true);
-    window.addEventListener("resize", closeSecretAlbumContextMenu);
-    window.addEventListener("scroll", closeSecretAlbumContextMenu, true);
-    menu.querySelector("button")?.addEventListener("click", async () => {
-      closeSecretAlbumContextMenu();
-      await deleteSecretItem(item);
-    });
-  }
-  
-  function renderSecretFolderControls() {
-    if (!els.secretFolderList) return;
-    const defaultFolderId = getSecretDefaultFolderId();
-    const favoriteCount = state.secretItems.reduce(
-      (total, item) => total + normalizeSecretImages(item.images).filter((image) => image.favorite).length,
-      0
-    );
-    const folderButtons = [
-      { id: SECRET_ALL_FOLDER_ID, name: "全部相册", count: state.secretItems.length, virtual: true, isAll: true },
-      { id: SECRET_FAVORITES_FOLDER_ID, name: "收藏夹", count: favoriteCount, virtual: true, isFavorites: true },
-      ...state.secretFolders.map((folder) => ({
-        id: folder.id,
-        name: folder.name,
-        count: state.secretItems.filter((item) => item.folderId === folder.id).length,
-      })),
-    ];
-    els.secretFolderList.hidden = Boolean(state.activeSecretAlbumId);
-    els.secretFolderList.innerHTML = buildSecretFolderListMarkup({
-      folders: folderButtons,
-      activeFolderId: state.activeSecretFolderId,
-      defaultFolderId,
-    });
-    els.secretFolderList.querySelectorAll("[data-secret-folder]").forEach((button) => {
-      button.addEventListener("click", () => {
-        state.activeSecretFolderId = button.dataset.secretFolder || SECRET_ALL_FOLDER_ID;
-        renderSecretGallery();
-      });
-      button.addEventListener("contextmenu", (event) => {
-        const folder = folderButtons.find((entry) => entry.id === (button.dataset.secretFolder || SECRET_ALL_FOLDER_ID));
-        if (folder?.virtual) return;
-        event.preventDefault();
-        openSecretFolderContextMenu(folder, event.clientX, event.clientY);
-      });
-    });
-    if (els.secretFolderInput) {
-      els.secretFolderInput.innerHTML = buildSecretFolderOptions(state.secretFolders);
-    }
-  }
-  
-  async function createSecretFolder() {
-    if (!state.cloudDb || !state.session) {
-      showMiniToast("请先登录后再创建收藏夹", { kind: "error" });
-      return;
-    }
-    const name = await requestSecretFolderName();
-    if (!name) return;
-    const button = els.secretCreateFolderButton;
-    const now = new Date().toISOString();
-    const record = {
-      id: crypto.randomUUID(),
-      user_id: state.session.user.id,
-      name,
-      sort_order: state.secretFolders.length * 1000,
-      created_at: now,
-      updated_at: now,
-    };
-    if (button) button.disabled = true;
-    setSecretStatus("正在创建收藏夹...");
-    try {
-      const { data, error } = await secretRepository.insertFolder(record, { select: "*", single: true });
-      if (error) throw error;
-      const saved = data && typeof data === "object" ? data : record;
-      state.secretFolders.push(secretFolderFromCloudRow(saved));
-      state.activeSecretFolderId = saved.id || record.id;
-      renderSecretGallery();
-      setSecretStatus("");
-      showMiniToast(`已创建「${name}」`, { kind: "success" });
-    } catch (error) {
-      const message = error?.message || "Cloudflare 暂时没有完成创建";
-      setSecretStatus(`新建文件夹失败：${message}`);
-      showMiniToast("新建收藏夹失败，请稍后重试", { kind: "error" });
-    } finally {
-      if (button) button.disabled = false;
-    }
-  }
-  
-  async function renameActiveSecretFolder() {
-    const folder = state.secretFolders.find((entry) => entry.id === state.activeSecretFolderId);
-    if (!folder || !state.cloudDb || !state.session) return;
-    const name = await requestSecretFolderName({
-      value: folder.name,
-      title: "重命名收藏夹",
-      confirmLabel: "保存名称",
-    });
-    if (!name || name === folder.name) return;
-    const updatedAt = new Date().toISOString();
-    const { error } = await secretRepository.updateFolder(folder.id, {
-      name,
-      updated_at: updatedAt,
-    });
-    if (error) {
-      showMiniToast(error.message || "重命名失败", { kind: "error" });
-      return;
-    }
-    folder.name = name;
-    folder.updatedAt = updatedAt;
-    renderSecretGallery();
-    showMiniToast("收藏夹名称已更新", { kind: "success" });
-  }
-  
-  async function deleteSecretFolder(folder) {
-    if (!folder || !state.cloudDb || !state.session) return;
-    const wasActive = state.activeSecretFolderId === folder.id;
-    const albums = state.secretItems.filter((item) => item.folderId === folder.id);
-    const confirmed = await confirmAction({
-      eyebrow: "整理收藏夹",
-      title: `删除「${folder.name}」？`,
-      message: albums.length
-        ? `其中 ${albums.length} 个相册会移回全部相册，照片不会被删除。`
-        : "这个空收藏夹会被删除，照片和相册不会受到影响。",
-      confirmLabel: "删除收藏夹",
-      cancelLabel: "保留",
-      danger: true,
-    });
-    if (!confirmed) return;
-    setSecretStatus("正在整理收藏夹...");
-    for (const album of albums) {
-      const { error } = await secretRepository.updateOwnedItem(album.id, {
-        folder_id: null,
-        updated_at: new Date().toISOString(),
-      });
-      if (error) {
-        setSecretStatus(error.message || "移动相册失败，收藏夹未删除。");
-        showMiniToast("收藏夹删除失败", { kind: "error" });
-        return;
-      }
-      album.folderId = "";
-    }
-    const { error } = await secretRepository.removeFolder(folder.id);
-    if (error) {
-      setSecretStatus(error.message || "删除收藏夹失败。");
-      showMiniToast("收藏夹删除失败", { kind: "error" });
-      return;
-    }
-    state.secretFolders = state.secretFolders.filter((entry) => entry.id !== folder.id);
-    if (getSecretDefaultFolderId() === folder.id) {
-      await setSecretDefaultFolderId("");
-    }
-    if (wasActive) state.activeSecretFolderId = SECRET_ALL_FOLDER_ID;
-    saveSecretItemsCache(state.session.user.id);
-    renderSecretGallery();
-    setSecretStatus("");
-    showMiniToast("文件夹已删除，相册已移回全部相册", { kind: "success" });
-  }
-  
-  function deleteActiveSecretFolder() {
-    const folder = state.secretFolders.find((entry) => entry.id === state.activeSecretFolderId);
-    return deleteSecretFolder(folder);
-  }
-  
-  function requestSecretFolderName({ value = "", title = "新建文件夹", confirmLabel = "创建" } = {}) {
-    return new Promise((resolve) => {
-      let dialog = document.querySelector("#secretFolderDialog");
-      if (!dialog) {
-        dialog = document.createElement("dialog");
-        dialog.id = "secretFolderDialog";
-        dialog.className = "secret-folder-dialog";
-        document.body.append(dialog);
-      }
-      dialog.innerHTML = `<form novalidate>
-        <button class="secret-folder-dialog-close" data-action="cancel" type="button" aria-label="关闭">×</button>
-        <header><span>Collection</span><h2>${escapeHtml(title)}</h2><p>用收藏夹整理相册，不会改变里面的照片。</p></header>
-        <label><span>收藏夹名称</span><input name="folderName" maxlength="40" autocomplete="off" value="${escapeHtml(value)}" placeholder="例如：旅行、灵感、一起生活" required /></label>
-        <p class="secret-folder-dialog-error" role="alert" hidden></p>
-        <div class="secret-folder-dialog-actions"><button data-action="cancel" type="button">取消</button><button class="primary" data-action="confirm" type="submit">${escapeHtml(confirmLabel)}</button></div>
-      </form>`;
-      const form = dialog.querySelector("form");
-      const input = dialog.querySelector("input");
-      const errorLabel = dialog.querySelector(".secret-folder-dialog-error");
-      let settled = false;
-      const cleanup = () => {
-        form.removeEventListener("submit", submit);
-        dialog.removeEventListener("cancel", cancel);
-        dialog.removeEventListener("close", close);
-        dialog.querySelectorAll('[data-action="cancel"]').forEach((button) => button.removeEventListener("click", cancel));
-      };
-      const finish = (result = "") => {
-        if (settled) return;
-        settled = true;
-        cleanup();
-        if (dialog.open) dialog.close();
-        resolve(result);
-      };
-      const submit = (event) => {
-        event.preventDefault();
-        const folderName = String(input.value || "").trim().slice(0, 40);
-        if (!folderName) {
-          errorLabel.textContent = "请先写一个收藏夹名称";
-          errorLabel.hidden = false;
-          input.setAttribute("aria-invalid", "true");
-          input.focus();
-          return;
-        }
-        finish(folderName);
-      };
-      const cancel = (event) => {
-        event?.preventDefault?.();
-        finish("");
-      };
-      const close = () => finish("");
-      input.addEventListener("input", () => {
-        errorLabel.hidden = true;
-        input.removeAttribute("aria-invalid");
-      });
-      form.addEventListener("submit", submit);
-      dialog.addEventListener("cancel", cancel);
-      dialog.addEventListener("close", close);
-      dialog.querySelectorAll('[data-action="cancel"]').forEach((button) => button.addEventListener("click", cancel));
-      if (dialog.open) dialog.close();
-      try {
-        dialog.showModal();
-      } catch {
-        dialog.setAttribute("open", "");
-      };
-      window.setTimeout(() => input.focus({ preventScroll: true }), 0);
-    });
   }
   
   function updateSecretSearchSuggestions() {
@@ -975,7 +643,7 @@ export function createSecretController({
     const displayEntries = sortSecretDisplayEntries(
       images
         .map((image, index) => ({ image, index }))
-        .filter(({ image }) => imageMatchesSecretFilter(image) && secretImageMatchesSearch(image)),
+        .filter(({ image }) => imageMatchesSecretFilter(image, state.activeSecretFilter) && secretImageMatchesSearch(image)),
       item
     );
     const photoSortDescending = getSecretPhotoSortDescending(item);
@@ -1340,7 +1008,7 @@ export function createSecretController({
     const displayEntries = sortSecretDisplayEntries(
       images
         .map((image, imageIndex) => ({ image, index: imageIndex }))
-        .filter(({ image }) => imageMatchesSecretFilter(image) && secretImageMatchesSearch(image)),
+        .filter(({ image }) => imageMatchesSecretFilter(image, state.activeSecretFilter) && secretImageMatchesSearch(image)),
       item
     );
     const displayPosition = displayEntries.findIndex((entry) => entry.index === index);

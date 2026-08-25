@@ -6,10 +6,11 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (file) => readFile(path.join(root, file), "utf8");
 
-const [html, app, serviceWorker] = await Promise.all([
+const [html, app, serviceWorker, moduleMap] = await Promise.all([
   read("index.html"),
   read("app.js"),
   read("service-worker.js"),
+  read("docs/MODULE_MAP.md"),
 ]);
 
 const ids = [...html.matchAll(/\bid=["']([^"']+)["']/g)].map((match) => match[1]);
@@ -35,6 +36,8 @@ assert.equal(
 
 const sizeBudgets = new Map([
   ["app.js", 90_000],
+  ["modules/app-event-bindings.js", 12_000],
+  ["modules/secret-controller.js", 65_000],
   ["redesign.css", 350_000],
 ]);
 for (const [file, limit] of sizeBudgets) {
@@ -43,6 +46,17 @@ for (const [file, limit] of sizeBudgets) {
     size <= limit,
     `${file} is ${size.toLocaleString()} bytes; split or simplify it before exceeding ${limit.toLocaleString()} bytes.`,
   );
+}
+
+for (const requiredModule of [
+  "content-form-event-bindings.js",
+  "media-event-bindings.js",
+  "settings-event-bindings.js",
+  "secret-filter-domain.js",
+  "secret-folder-controller.js",
+]) {
+  assert.ok(moduleMap.includes(requiredModule), `Module map is missing ${requiredModule}.`);
+  assert.ok(serviceWorker.includes(`./modules/${requiredModule}`), `Offline shell is missing ${requiredModule}.`);
 }
 
 const appLineCount = app.split(/\r?\n/).length;
