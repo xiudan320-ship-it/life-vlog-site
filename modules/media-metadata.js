@@ -32,6 +32,16 @@ export function isDiaryMotionMedia(media = {}) {
   return getDiaryMediaType(media) !== "image";
 }
 
+export function getStoredPhotoMediaPaths(media = {}) {
+  return [
+    media.image_path,
+    media.thumbnail_path,
+    media.motion_path,
+    media.poster_path,
+    media.video_path,
+  ].filter(Boolean);
+}
+
 function stripEmbeddedPayload(value, startMarker, endMarker) {
   const text = String(value || "");
   const start = text.indexOf(startMarker);

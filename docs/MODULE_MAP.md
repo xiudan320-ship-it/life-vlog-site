@@ -16,7 +16,12 @@
 | 周末计划、完成相册 | `modules/weekend-controller.js` | `modules/weekend-gallery.js`, `modules/weekend-plans-view.js`, `modules/content-form-event-bindings.js` |
 | 心愿单 | `modules/wishlist-controller.js` | `modules/wishlist-view.js`, `modules/wishlist-hub-controller.js`, `modules/content-form-event-bindings.js` |
 | 购物车 / 想买清单 | `modules/shopping-controller.js` | `modules/shopping-view.js`, `modules/wishlist-hub-controller.js` |
-| 秘藏相册加载、保存、相册详情 | `modules/secret-controller.js` | `modules/secret-gallery-view.js`, `modules/secret-domain.js` |
+| 秘藏相册加载、列表与详情编排 | `modules/secret-controller.js` | `modules/secret-gallery-view.js`, `modules/secret-domain.js` |
+| 秘藏新建表单与预览 | `modules/secret-composer-controller.js` | `modules/secret-controller.js` |
+| 秘藏相册编辑、图片批量操作与删除 | `modules/secret-album-actions-controller.js` | `modules/secret-controller.js` |
+| 日记、心愿和周末媒体详情编排 | `modules/photo-detail-controller.js` | `modules/photo-viewer-controller.js` |
+| 日记编辑、图片替换和删除 | `modules/photo-editor-controller.js` | `modules/photo-detail-controller.js` |
+| 手机日记详情、留言与返回手势 | `modules/mobile-diary-controller.js` | `modules/mobile-diary-view.js` |
 | 秘藏筛选、标签计数、照片排序 | `modules/secret-filter-domain.js` | `modules/secret-domain.js` |
 | 秘藏文件夹、默认入口、右键菜单 | `modules/secret-folder-controller.js` | `modules/secret-gallery-view.js` |
 | 秘藏密码与解锁 | `modules/secret-pin-controller.js` | `modules/secret-entry-preference-controller.js` |
@@ -25,6 +30,19 @@
 | 菜谱、留言、纪念日、吃什么 | 对应的 `*-controller.js` | 对应的 `*-view.js`, `modules/content-form-event-bindings.js` |
 | 离线缓存与容量 | `modules/offline-cache-controller.js`, `modules/offline-settings-controller.js` | `modules/cache-policy.js`, `modules/cache-management-view.js` |
 | 云端数据访问 | `modules/data-repositories.js`, `modules/household-repository.js` | `modules/cloudflare-client.js`, `modules/cloud-models.js` |
+
+## 样式快速定位
+
+| 范围 | 样式文件 |
+| --- | --- |
+| 设计变量、页面骨架、通用布局 | `styles/redesign-foundation.css` |
+| 通用卡片、按钮、弹窗组件 | `styles/redesign-components.css` |
+| 发布与编辑表单 | `styles/content-forms.css`, `styles/media-upload.css` |
+| 手机日记、阅读器与留言 | `styles/mobile-diary.css`, `styles/diary-reader.css`, `styles/diary-comments.css` |
+| 账户与设置弹窗 | `styles/account-dialogs.css` |
+| 秘藏相册与筛选 | `styles/secret-gallery.css`, `styles/secret-filters.css` |
+| 心愿单与购物车 | `styles/wishlist-compact.css` |
+| 功能检查和管理界面 | `styles/feature-inspector.css` |
 
 ## 事件入口边界
 

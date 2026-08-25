@@ -1,0 +1,77 @@
+/* Keep the compact mobile upload action and its long completion message in separate rows. */
+@media (max-width: 700px) {
+  #galleryHead .composer:not(.expanded):not([hidden]),
+  #galleryHead .composer:not(.expanded):not([hidden]) .section-title {
+    display: contents;
+  }
+
+  #galleryHead .composer:not(.expanded):not([hidden]) .section-heading-button {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+
+  #galleryHead .composer:not(.expanded):not([hidden]) #uploadStatus:not(:empty) {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+    margin: 4px 0 0;
+    line-height: 1.45;
+  }
+
+  #galleryHead > .status-line {
+    grid-row: 2;
+  }
+
+  #galleryHead:has(.composer:not(.expanded):not([hidden]) #uploadStatus:not(:empty)) > .status-line {
+    grid-row: 3;
+  }
+}
+
+.preview-thumb > img,
+.preview-thumb > video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.preview-thumb > .preview-live-badge {
+  right: 4px;
+  top: 4px;
+  padding: 4px 5px;
+  font-size: 8px;
+}
+
+#photoPreview[hidden],
+#photoVideoPreview[hidden],
+#dialogImage[hidden],
+#dialogVideo[hidden] {
+  display: none !important;
+}
+
+.file-drop .upload-main-preview #photoVideoPreview {
+  display: block;
+  width: min(100%, 460px);
+  max-height: 260px;
+  border-radius: 6px;
+  background: #080b09;
+  object-fit: contain;
+}
+
+#photoDialog .dialog-media #dialogVideo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: #080b09;
+  object-fit: contain;
+}
+
+@media (min-width: 701px) {
+  #photoDialog.diary-detail-dialog.diary-image-fullscreen .dialog-media #dialogVideo {
+    width: auto;
+    height: auto;
+    max-width: calc(96vw - 112px);
+    max-height: calc(94dvh - 100px);
+  }
+}

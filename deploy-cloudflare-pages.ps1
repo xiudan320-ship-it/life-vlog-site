@@ -56,7 +56,6 @@ New-Item -ItemType Directory -Path $dist | Out-Null
 Copy-Item -LiteralPath `
   (Join-Path $root "index.html"), `
   (Join-Path $root "app.js"), `
-  (Join-Path $root "redesign.css"), `
   (Join-Path $root "weekend-board.css"), `
   (Join-Path $root "diary-detail.css"), `
   (Join-Path $root "secret-viewer.css"), `
@@ -69,5 +68,6 @@ Copy-Item -LiteralPath `
   -Destination $dist
 Copy-Item -LiteralPath (Join-Path $root "assets") -Destination $dist -Recurse
 Copy-Item -LiteralPath (Join-Path $root "modules") -Destination $dist -Recurse
+Copy-Item -LiteralPath (Join-Path $root "styles") -Destination $dist -Recurse
 
 & $pnpmCommand.Source dlx wrangler@latest pages deploy $dist --project-name life-vlog-site

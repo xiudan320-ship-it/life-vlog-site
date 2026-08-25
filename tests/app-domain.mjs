@@ -13,6 +13,7 @@ import {
   usernameToEmail,
 } from "../modules/app-domain.js";
 import { createDiaryMetadata } from "../modules/diary-metadata.js";
+import { getStoredPhotoMediaPaths } from "../modules/media-metadata.js";
 
 test("account text and login identifiers are normalized consistently", () => {
   assert.equal(normalizeHomeName("  我   们 的 家  "), "我 们 的 家");
@@ -51,4 +52,23 @@ test("diary metadata hides generated titles and builds stable upload names", () 
   assert.equal(metadata.getDisplayTitle({ title: "今日小星星 · 12:30" }), "");
   assert.equal(metadata.getPhotoLabel({ title: "" }), "无标题日记");
   assert.equal(metadata.getUploadFileNameBase("Summer Photo", 1, 3), "summer-photo-02");
+});
+
+test("stored diary media paths include every persisted variant", () => {
+  assert.deepEqual(
+    getStoredPhotoMediaPaths({
+      image_path: "images/main.jpg",
+      thumbnail_path: "images/thumb.jpg",
+      motion_path: "motion/live.mov",
+      poster_path: "videos/poster.jpg",
+      video_path: "videos/clip.mp4",
+    }),
+    [
+      "images/main.jpg",
+      "images/thumb.jpg",
+      "motion/live.mov",
+      "videos/poster.jpg",
+      "videos/clip.mp4",
+    ],
+  );
 });

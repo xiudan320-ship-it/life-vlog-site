@@ -5,6 +5,20 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (file) => readFile(path.join(root, file), "utf8");
+const redesignStyleFiles = [
+  "redesign-foundation.css",
+  "redesign-components.css",
+  "content-forms.css",
+  "mobile-diary.css",
+  "account-dialogs.css",
+  "secret-gallery.css",
+  "diary-reader.css",
+  "secret-filters.css",
+  "diary-comments.css",
+  "feature-inspector.css",
+  "wishlist-compact.css",
+  "media-upload.css",
+];
 
 const [html, app, serviceWorker, moduleMap] = await Promise.all([
   read("index.html"),
@@ -36,9 +50,16 @@ assert.equal(
 
 const sizeBudgets = new Map([
   ["app.js", 90_000],
+  ["tests/smoke.mjs", 55_000],
+  ["tests/static-contracts.mjs", 45_000],
+  ["tests/smoke-fixture.mjs", 30_000],
   ["modules/app-event-bindings.js", 12_000],
-  ["modules/secret-controller.js", 65_000],
-  ["redesign.css", 350_000],
+  ["modules/secret-controller.js", 35_000],
+  ["modules/secret-composer-controller.js", 15_000],
+  ["modules/secret-album-actions-controller.js", 30_000],
+  ["modules/photo-detail-controller.js", 20_000],
+  ["modules/photo-editor-controller.js", 15_000],
+  ["modules/mobile-diary-controller.js", 20_000],
 ]);
 for (const [file, limit] of sizeBudgets) {
   const { size } = await stat(path.join(root, file));
@@ -48,12 +69,27 @@ for (const [file, limit] of sizeBudgets) {
   );
 }
 
+let redesignStyleSize = 0;
+for (const file of redesignStyleFiles) {
+  const relativePath = `styles/${file}`;
+  const { size } = await stat(path.join(root, relativePath));
+  redesignStyleSize += size;
+  assert.ok(size <= 150_000, `${relativePath} is too large; keep feature styles focused.`);
+  assert.ok(html.includes(`./${relativePath}`), `index.html is missing ${relativePath}.`);
+  assert.ok(serviceWorker.includes(`./${relativePath}`), `Offline shell is missing ${relativePath}.`);
+}
+assert.ok(redesignStyleSize <= 350_000, `Redesign styles total ${redesignStyleSize.toLocaleString()} bytes.`);
+
 for (const requiredModule of [
   "content-form-event-bindings.js",
   "media-event-bindings.js",
   "settings-event-bindings.js",
   "secret-filter-domain.js",
   "secret-folder-controller.js",
+  "secret-composer-controller.js",
+  "secret-album-actions-controller.js",
+  "photo-editor-controller.js",
+  "mobile-diary-controller.js",
 ]) {
   assert.ok(moduleMap.includes(requiredModule), `Module map is missing ${requiredModule}.`);
   assert.ok(serviceWorker.includes(`./modules/${requiredModule}`), `Offline shell is missing ${requiredModule}.`);

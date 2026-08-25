@@ -1,0 +1,281 @@
+/* Diary comments follow a compact social-feed rhythm: avatar, author, body,
+   timestamp, then the small reply actions. Keep the same stream on desktop
+   and on the dedicated mobile diary page. */
+#photoCommentsSection .photo-comments-head,
+.mobile-diary-comments .photo-comments-head {
+  display: flex !important;
+  align-items: flex-start !important;
+  flex-direction: column !important;
+  justify-content: flex-start !important;
+  gap: 4px !important;
+  margin: 0 0 12px !important;
+  border-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+#photoCommentsSection .photo-comments-head .kicker,
+.mobile-diary-comments .photo-comments-head .kicker {
+  order: 0;
+  margin: 0;
+  color: var(--accent);
+  font-size: 11px;
+  letter-spacing: .12em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+#photoDialog.diary-detail-dialog:not(.diary-image-fullscreen) #photoCommentsSection .photo-comments-head h3,
+.mobile-diary-comments .photo-comments-head h3 {
+  order: 1 !important;
+  margin: 0 !important;
+  color: var(--ink);
+  font-size: 23px !important;
+  font-weight: 850;
+  letter-spacing: 0;
+  line-height: 1.2 !important;
+}
+
+#photoCommentsSection .photo-comments-list,
+.mobile-diary-comments .photo-comments-list {
+  display: grid;
+  gap: 0;
+}
+
+#photoCommentsSection .photo-comment,
+.mobile-diary-comments .photo-comment {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: start;
+  gap: 11px;
+  min-width: 0;
+  padding: 14px 0 16px;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 90%, var(--accent) 10%);
+}
+
+#photoCommentsSection .photo-comment-main,
+.mobile-diary-comments .photo-comment-main {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
+#photoCommentsSection .photo-comment header,
+.mobile-diary-comments .photo-comment header {
+  display: block;
+  min-width: 0;
+}
+
+.photo-comment-author-line {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.photo-comment-author-line strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.photo-comment-author-badge {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  min-height: 20px;
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent-strong);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  padding: 0 7px;
+}
+
+#photoCommentsSection .photo-comment p,
+.mobile-diary-comments .photo-comment p {
+  margin: 0;
+  color: var(--ink);
+  font-size: 16px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+#photoCommentsSection .photo-comment time,
+.mobile-diary-comments .photo-comment time {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+#photoCommentsSection .photo-comment .reply-target,
+.mobile-diary-comments .photo-comment .reply-target {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+#photoCommentsSection .photo-comment-actions,
+.mobile-diary-comments .photo-comment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 1px;
+}
+
+#photoCommentsSection .photo-comment-actions button,
+.mobile-diary-comments .photo-comment-actions button {
+  min-height: 24px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+  padding: 0;
+}
+
+#photoCommentsSection .photo-comment-actions button:hover,
+#photoCommentsSection .photo-comment-actions button:focus-visible,
+.mobile-diary-comments .photo-comment-actions button:hover,
+.mobile-diary-comments .photo-comment-actions button:focus-visible {
+  color: var(--accent-strong);
+  outline: 0;
+}
+
+#photoCommentsSection .photo-comment-avatar,
+.mobile-diary-comments .photo-comment-avatar {
+  width: 40px;
+  height: 40px;
+}
+
+#photoCommentsSection .photo-comment-thread,
+.mobile-diary-comments .photo-comment-thread {
+  margin-left: calc(var(--comment-depth) * 30px);
+}
+
+@media (max-width: 720px) {
+  .mobile-diary-comments .photo-comments-head h3 {
+    font-size: 20px !important;
+  }
+
+  .mobile-diary-comments .photo-comment,
+  #photoCommentsSection .photo-comment {
+    grid-template-columns: 36px minmax(0, 1fr);
+    gap: 10px;
+    padding: 13px 0 15px;
+  }
+
+  .mobile-diary-comments .photo-comment-avatar,
+  #photoCommentsSection .photo-comment-avatar {
+    width: 36px;
+    height: 36px;
+  }
+
+  .mobile-diary-comments .photo-comment p,
+  #photoCommentsSection .photo-comment p {
+    font-size: 15px;
+    line-height: 1.5;
+  }
+
+  .mobile-diary-comments .photo-comment-thread,
+  #photoCommentsSection .photo-comment-thread {
+    margin-left: calc(var(--comment-depth) * 18px);
+  }
+}
+
+/* Comment rows must hug their content. A flex-filling list with the default
+   grid stretch behavior was distributing spare height between short comments. */
+#photoCommentsSection .photo-comments-list,
+.mobile-diary-comments .photo-comments-list {
+  align-content: start !important;
+  grid-auto-rows: max-content !important;
+  justify-content: stretch !important;
+}
+
+#photoCommentsSection .photo-comment-thread,
+.mobile-diary-comments .photo-comment-thread {
+  align-self: start !important;
+  height: auto !important;
+  min-height: 0 !important;
+}
+
+#photoCommentsSection .photo-comment,
+.mobile-diary-comments .photo-comment {
+  min-height: 0 !important;
+  padding: 8px 0 10px !important;
+}
+
+#photoCommentsSection .photo-comment-main,
+.mobile-diary-comments .photo-comment-main {
+  gap: 3px !important;
+}
+
+#photoCommentsSection .photo-comment p,
+.mobile-diary-comments .photo-comment p {
+  line-height: 1.38 !important;
+}
+
+#photoCommentsSection .photo-comment-actions,
+.mobile-diary-comments .photo-comment-actions {
+  gap: 12px !important;
+  margin-top: 0 !important;
+}
+
+/* The inline diary preview has its own comment stream. Keep its grid from
+   stretching short rows to fill the card and let each preview hug its text. */
+.photo-card-comments {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  align-content: start !important;
+  grid-auto-rows: max-content !important;
+  height: auto !important;
+  min-height: 0 !important;
+  gap: 5px !important;
+}
+
+.photo-card-comments > article {
+  align-self: start !important;
+  height: auto !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.photo-card-comments > article > div {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 1px;
+}
+
+/* Keep authorship visible without turning it into a bright green pill. */
+#photoCommentsSection .photo-comment-author-badge,
+.mobile-diary-comments .photo-comment-author-badge {
+  min-height: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--muted) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  padding: 0 !important;
+}
+
+/* Replies stay indented without the heavy green rail. */
+#photoCommentsSection .photo-comment-thread .photo-comment-thread,
+.mobile-diary-comments .photo-comment-thread .photo-comment-thread {
+  border-left: 0 !important;
+  padding-left: 0 !important;
+}
+

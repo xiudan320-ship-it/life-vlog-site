@@ -1,5 +1,9 @@
 import { confirmAction } from "./confirm-dialog.js";
-import { parseWeekendStoredNote, parseWishStoredNote } from "./media-metadata.js";
+import {
+  getStoredPhotoMediaPaths,
+  parseWeekendStoredNote,
+  parseWishStoredNote,
+} from "./media-metadata.js";
 
 export function createTrashController({
   state,
@@ -99,16 +103,6 @@ export function createTrashController({
         .filter(Boolean);
     }
     return [];
-  }
-  
-  function getStoredPhotoMediaPaths(image = {}) {
-    return [
-      image.image_path,
-      image.thumbnail_path,
-      image.motion_path,
-      image.poster_path,
-      image.video_path,
-    ].filter(Boolean);
   }
   
   async function loadTrashItems() {
@@ -243,7 +237,6 @@ export function createTrashController({
     rollbackTrashItem,
     confirmWishDeletion,
     getTrashImagePaths,
-    getStoredPhotoMediaPaths,
     loadTrashItems,
     restoreTrashItem,
     permanentlyDeleteTrashItem,

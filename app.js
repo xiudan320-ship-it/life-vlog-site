@@ -16,9 +16,9 @@ import { createDiaryComposerController } from "./modules/diary-composer-controll
 import { createGamificationController } from "./modules/gamification-controller.js";
 import { createProfilePreferencesController } from "./modules/profile-preferences-controller.js";
 import { createSecretPinController } from "./modules/secret-pin-controller.js";
-import { createSecretController } from "./modules/secret-controller.js";
+import { createSecretController } from "./modules/secret-controller.js?v=20260825-003";
 import { createPhotoViewerController } from "./modules/photo-viewer-controller.js?v=20260824-030";
-import { createPhotoDetailController } from "./modules/photo-detail-controller.js?v=20260824-032";
+import { createPhotoDetailController } from "./modules/photo-detail-controller.js?v=20260825-003";
 import { createCloudflareBackend } from "./modules/cloudflare-client.js?v=20260811-010";
 import { createMediaCacheService } from "./modules/media-cache.js";
 import { createUploadQueue } from "./modules/upload-queue.js";
@@ -1284,7 +1284,6 @@ const {
   rollbackTrashItem,
   confirmWishDeletion,
   getTrashImagePaths,
-  getStoredPhotoMediaPaths,
   loadTrashItems,
   restoreTrashItem,
   permanentlyDeleteTrashItem,
