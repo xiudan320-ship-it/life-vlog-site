@@ -572,6 +572,15 @@ async function assertShoppingFlow(page, label) {
       image.addEventListener("error", () => reject(new Error("shopping image failed to load")), { once: true });
     });
   });
+  await itemImage.click();
+  await page.waitForSelector(".shopping-image-dialog[open]", { timeout: 10000 });
+  assert.equal(
+    await page.locator(".shopping-image-dialog img").getAttribute("src"),
+    await itemImage.getAttribute("src"),
+    `${label} shopping image preview opened with the wrong image`
+  );
+  await page.click(".shopping-image-dialog-close");
+  await page.waitForFunction(() => !document.querySelector(".shopping-image-dialog")?.open);
   assert.match(await card.textContent(), /¥128\.5/);
 
   await card.locator("[data-edit-shopping]").click();
@@ -595,6 +604,16 @@ async function assertShoppingFlow(page, label) {
   await page.click('[data-shopping-filter="done"]');
   card = page.locator("#shoppingList .shopping-card", { hasText: editedName });
   await card.waitFor({ state: "visible" });
+  if (label === "mobile") {
+    const compactMetrics = await card.evaluate((entry) => ({
+      cardHeight: entry.getBoundingClientRect().height,
+      imageWidth: entry.querySelector(".shopping-card-image")?.getBoundingClientRect().width || 0,
+      actionWidth: entry.querySelector(".shopping-card-actions")?.getBoundingClientRect().width || 0,
+    }));
+    assert.ok(compactMetrics.cardHeight <= 100, `mobile shopping row is too tall: ${JSON.stringify(compactMetrics)}`);
+    assert.ok(compactMetrics.imageWidth <= 72, `mobile shopping thumbnail is too large: ${JSON.stringify(compactMetrics)}`);
+    assert.ok(compactMetrics.actionWidth <= 62, `mobile shopping actions are too wide: ${JSON.stringify(compactMetrics)}`);
+  }
   await assertNoHorizontalOverflow(page, `${label} shopping cart`);
   await mkdir(screenshotDir, { recursive: true });
   await page.screenshot({ path: join(screenshotDir, `shopping-${label}.png`), fullPage: true });

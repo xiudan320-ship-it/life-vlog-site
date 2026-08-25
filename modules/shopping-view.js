@@ -71,7 +71,9 @@ export function renderShoppingItems({
       ? `<a class="shopping-card-link" href="${escapeHtml(item.link)}" target="_blank" rel="noopener noreferrer">查看商品链接 ↗</a>`
       : "";
     const image = item.imageUrl
-      ? `<img src="${escapeHtml(item.imageUrl)}" alt="${name}" loading="lazy" />`
+      ? `<button class="shopping-card-image-button" type="button" data-shopping-image="${escapeHtml(item.imageUrl)}" data-shopping-image-alt="${name}" aria-label="查看${name}大图">
+          <img src="${escapeHtml(item.imageUrl)}" alt="${name}" loading="lazy" />
+        </button>`
       : '<span class="shopping-card-placeholder" aria-hidden="true">🛍</span>';
     return `
       <article class="shopping-card${item.completed ? " completed" : ""}" data-shopping-id="${escapeHtml(item.id)}">

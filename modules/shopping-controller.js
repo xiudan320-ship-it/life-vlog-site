@@ -28,6 +28,7 @@ export function createShoppingController({
   let existingImagePath = "";
   let previewUrl = "";
   let removeImageRequested = false;
+  let imageDialog = null;
 
   function setStatus(message) {
     elements.shoppingStatus.textContent = message || "";
@@ -114,6 +115,38 @@ export function createShoppingController({
       canManageItem,
       escapeHtml,
     });
+  }
+
+  function ensureImageDialog() {
+    if (imageDialog?.isConnected) return imageDialog;
+    imageDialog = document.createElement("dialog");
+    imageDialog.className = "shopping-image-dialog";
+    imageDialog.setAttribute("aria-label", "商品图片预览");
+    imageDialog.innerHTML = `
+      <button class="shopping-image-dialog-close" type="button" aria-label="关闭商品图片预览">×</button>
+      <img alt="商品图片大图" />
+    `;
+    imageDialog.addEventListener("click", (event) => {
+      if (event.target === imageDialog || event.target.closest(".shopping-image-dialog-close")) {
+        imageDialog.close();
+      }
+    });
+    imageDialog.addEventListener("close", () => {
+      const image = imageDialog.querySelector("img");
+      image.removeAttribute("src");
+      image.alt = "商品图片大图";
+    });
+    document.body.append(imageDialog);
+    return imageDialog;
+  }
+
+  function openImage(url, alt = "商品图片") {
+    if (!url) return;
+    const dialog = ensureImageDialog();
+    const image = dialog.querySelector("img");
+    image.src = url;
+    image.alt = alt || "商品图片";
+    dialog.showModal();
   }
 
   async function submit(event) {
@@ -257,6 +290,10 @@ export function createShoppingController({
         setExpanded(true);
         elements.shoppingComposer.scrollIntoView({ behavior: "smooth", block: "start" });
         return;
+      }
+      const imageButton = event.target.closest("[data-shopping-image]");
+      if (imageButton) {
+        return openImage(imageButton.dataset.shoppingImage, imageButton.dataset.shoppingImageAlt || "商品图片");
       }
       const toggleButton = event.target.closest("[data-toggle-shopping]");
       if (toggleButton) return void toggle(toggleButton.dataset.toggleShopping);
