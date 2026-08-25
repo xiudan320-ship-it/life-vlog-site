@@ -109,6 +109,26 @@ const layoutSettingsController = await import(new URL("../modules/layout-setting
 const layoutSettingsControllerModule = await readFile(new URL("../modules/layout-settings-controller.js", import.meta.url), "utf8");
 const appEventBindings = await import(new URL("../modules/app-event-bindings.js", import.meta.url));
 const appEventBindingsModule = await readFile(new URL("../modules/app-event-bindings.js", import.meta.url), "utf8");
+const appNavigationControllerModule = await readFile(
+  new URL("../modules/app-navigation-controller.js", import.meta.url),
+  "utf8"
+);
+const appIdentityControllerModule = await readFile(
+  new URL("../modules/app-identity-controller.js", import.meta.url),
+  "utf8"
+);
+const appSessionControllerModule = await readFile(
+  new URL("../modules/app-session-controller.js", import.meta.url),
+  "utf8"
+);
+const householdBrandingControllerModule = await readFile(
+  new URL("../modules/household-branding-controller.js", import.meta.url),
+  "utf8"
+);
+const diaryMetadataModule = await readFile(
+  new URL("../modules/diary-metadata.js", import.meta.url),
+  "utf8"
+);
 const assetController = await import(new URL("../modules/asset-controller.js", import.meta.url));
 const assetControllerModule = await readFile(new URL("../modules/asset-controller.js", import.meta.url), "utf8");
 const diaryComposerController = await import(new URL("../modules/diary-composer-controller.js", import.meta.url));
@@ -138,6 +158,11 @@ const applicationSource = [
   toolDockControllerModule,
   layoutSettingsControllerModule,
   appEventBindingsModule,
+  appNavigationControllerModule,
+  appIdentityControllerModule,
+  appSessionControllerModule,
+  householdBrandingControllerModule,
+  diaryMetadataModule,
   assetControllerModule,
   diaryComposerControllerModule,
   gamificationControllerModule,
@@ -334,13 +359,13 @@ assert.match(index, /id="recipesToolOpen"[^>]*data-tool-id="recipes"/);
 assert.doesNotMatch(index, /id="recipesNav"/);
 assert.match(index, /href="https:\/\/dash\.cloudflare\.com\/"/);
 assert.match(applicationSource, /category: vlogMode\.isActive\(\) \? "VLOG"/);
-const initializeCloudflareIndex = app.indexOf("async function initializeCloudflare()");
-const authListenerIndex = app.indexOf("cloudDb.auth.onAuthStateChange", initializeCloudflareIndex);
-const initialPhotoLoadIndex = app.indexOf("await loadPhotos()", initializeCloudflareIndex);
-assert.ok(initializeCloudflareIndex >= 0, "Cloudflare initialization is missing");
-assert.ok(authListenerIndex > initializeCloudflareIndex, "Auth listener is missing from initialization");
+const initializeCloudflareIndex = appSessionControllerModule.indexOf("async function initialize()");
+const authListenerIndex = appSessionControllerModule.indexOf("state.cloudDb.auth.onAuthStateChange", initializeCloudflareIndex);
+const initialPhotoLoadIndex = appSessionControllerModule.indexOf("await actions.loadPhotos()", initializeCloudflareIndex);
+assert.ok(initializeCloudflareIndex >= 0, "Session initialization is missing");
+assert.ok(authListenerIndex > initializeCloudflareIndex, "Auth listener is missing from session initialization");
 assert.ok(authListenerIndex < initialPhotoLoadIndex, "Auth listener must be registered before initial photo loading");
-assert.match(serviceWorker, /life-vlog-site-20260824-034-pwa/);
+assert.match(serviceWorker, /life-vlog-site-20260825-001-pwa/);
 assert.match(serviceWorker, /modules\/admin-storage\.js/);
 assert.match(diaryDetailCss, /#photoDialog #dialogImage\[hidden\][\s\S]*?display: none !important/);
 assert.match(applicationSource, /const p=!state\.galleryRenderSignature[\s\S]*?initialRender: p/);
@@ -365,7 +390,7 @@ assert.match(mobileDiaryViewModule, /共 \$\{comments\.length\} 条评论/);
 assert.match(applicationSource, /const AVATAR_CACHE_KEY = "life-vlog-avatar-cache"/);
 assert.match(applicationSource, /function getProfileAvatarUrl\(profile = \{\}\)/);
 assert.match(applicationSource, /getProfileAvatarUrl\(member\)/);
-assert.match(applicationSource, /getProfileAvatarUrl\(accountProfile\)/);
+assert.match(appIdentityControllerModule, /getProfileAvatarUrl\(state\.accountProfile\)/);
 assert.match(applicationSource, /function renderExperienceRulesPanel\(experience\)/);
 assert.match(applicationSource, /profileUpdates\.login_streak = loginStreak/);
 assert.match(applicationSource, /loadCachedAvatarUrl\(member\.user_id\)/);
@@ -482,7 +507,10 @@ assert.doesNotMatch(applicationSource, /function createDefaultAnniversaries/);
 assert.equal(typeof anniversaryController.createAnniversaryController, "function");
 assert.match(wishlistViewModule, /wish-card-details/);
 assert.match(css, /Wishlist: compact shopping-cart rows/);
-assert.match(applicationSource, /activePage === "gallery" && requestedPage !== "gallery"\) setUploadExpanded\(false\)/);
+assert.match(
+  appNavigationControllerModule,
+  /state\.activePage === "gallery" && requestedPage !== "gallery"[\s\S]*?actions\.setUploadExpanded\(false\)/
+);
 assert.match(applicationSource, /onOpen:[\s\S]*?renderGallery\(\);[\s\S]*?setUploadExpanded\(false\)/);
 assert.match(applicationSource, /els\.galleryNav\.addEventListener[\s\S]*?setUploadExpanded\(false\)/);
 assert.match(weekendBoardCss, /\.weekend-album-dialog/);
@@ -577,7 +605,10 @@ assert.match(applicationSource, /updateAdminUnpin/);
 assert.match(worker, /secret_default_folder_id/);
 assert.match(worker, /adminUnpinRequest/);
 assert.match(secretPinControllerModule, /async function hashPin/);
-assert.match(applicationSource, /requestedPage === "secret" && !skipSecretGate && !isSecretUnlocked\(\)/);
+assert.match(
+  appNavigationControllerModule,
+  /requestedPage === "secret" && !skipSecretGate && !actions\.isSecretUnlocked\(\)/
+);
 assert.match(css, /Secret archive PIN/);
 assert.match(css, /Mobile secret PIN sheet/);
 assert.match(index, /id="wishDialogFeedback"/);
@@ -660,6 +691,14 @@ assert.match(serviceWorker, /modules\/gamification-view\.js/);
 assert.match(serviceWorker, /modules\/account-sync-domain\.js/);
 assert.match(serviceWorker, /modules\/offline-cache-controller\.js/);
 assert.match(serviceWorker, /modules\/app-elements\.js/);
+assert.match(serviceWorker, /modules\/app-domain\.js/);
+assert.match(serviceWorker, /modules\/app-feedback-view\.js/);
+assert.match(serviceWorker, /modules\/app-identity-controller\.js/);
+assert.match(serviceWorker, /modules\/app-navigation-controller\.js/);
+assert.match(serviceWorker, /modules\/app-session-controller\.js/);
+assert.match(serviceWorker, /modules\/diary-metadata\.js/);
+assert.match(serviceWorker, /modules\/household-branding-controller\.js/);
+assert.match(serviceWorker, /modules\/secret-entry-preference-controller\.js/);
 assert.match(serviceWorker, /modules\/auth-controller\.js/);
 assert.match(serviceWorker, /modules\/food-wheel-controller\.js/);
 assert.match(serviceWorker, /modules\/push-controller\.js/);
@@ -688,7 +727,7 @@ assert.match(applicationSource, /from "\.\/anniversary-controller\.js"|from "\.\
 assert.match(applicationSource, /from "\.\/modules\/weekend-controller\.js(?:\?[^\"]+)?"/);
 assert.match(applicationSource, /from "\.\/modules\/gratitude-controller\.js"/);
 assert.match(applicationSource, /from "\.\/(?:modules\/)?notification-view\.js"/);
-assert.match(applicationSource, /from "\.\/modules\/vip-center\.js"/);
+assert.match(applicationSource, /from "\.\/(?:modules\/)?vip-center\.js"/);
 assert.match(applicationSource, /from "\.\/(?:modules\/)?diary-gallery-view\.js"/);
 assert.match(applicationSource, /from "\.\/(?:modules\/)?mobile-diary-view\.js(?:\?[^\"]+)?"/);
 assert.match(applicationSource, /from "\.\/(?:modules\/)?media-gesture-domain\.js"/);
@@ -710,12 +749,12 @@ assert.equal(typeof wishlistController.createWishlistController, "function");
 assert.equal(typeof weekendController.createWeekendController, "function");
 assert.equal(typeof authController.createAuthController, "function");
 assert.equal(typeof offlineCacheController.createOfflineCacheController, "function");
-assert.match(serviceWorker, /life-vlog-site-20260824-034-pwa/);
+assert.match(serviceWorker, /life-vlog-site-20260825-001-pwa/);
 assert.match(serviceWorker, /styles\.css\?v=20260824-026/);
 assert.match(serviceWorker, /redesign\.css\?v=20260824-034/);
 assert.match(css, /mobile-diary-media > \.mobile-diary-media-badge[\s\S]*?bottom: auto[\s\S]*?width: max-content/);
 assert.match(index, /id="photoInput"[^>]*accept="image\/\*,video\/\*/);
-assert.match(index, /app\.js\?v=20260824-032/);
+assert.match(index, /app\.js\?v=20260825-001/);
 assert.match(index, /id="wishlistModuleTabs"/);
 assert.match(index, /data-wishlist-module="shopping"/);
 assert.match(index, /id="shoppingImageInput"[^>]*accept="image\/\*"/);

@@ -34,7 +34,7 @@ assert.equal(
 );
 
 const sizeBudgets = new Map([
-  ["app.js", 300_000],
+  ["app.js", 90_000],
   ["redesign.css", 350_000],
 ]);
 for (const [file, limit] of sizeBudgets) {
@@ -42,6 +42,25 @@ for (const [file, limit] of sizeBudgets) {
   assert.ok(
     size <= limit,
     `${file} is ${size.toLocaleString()} bytes; split or simplify it before exceeding ${limit.toLocaleString()} bytes.`,
+  );
+}
+
+const appLineCount = app.split(/\r?\n/).length;
+assert.ok(
+  appLineCount <= 2300,
+  `app.js is ${appLineCount.toLocaleString()} lines; keep feature logic in modules instead of expanding the application shell.`,
+);
+for (const forbiddenDefinition of [
+  "function updateAuthUI(",
+  "function switchPage(",
+  "function showMiniToast(",
+  "function renderAccountAvatar(",
+  "function getFinalTitle(",
+]) {
+  assert.equal(
+    app.includes(forbiddenDefinition),
+    false,
+    `${forbiddenDefinition} belongs in a focused module, not app.js.`,
   );
 }
 

@@ -1,5 +1,4 @@
-﻿const CONFIG_KEY = "life-vlog-cloudflare-config";
-import { confirmAction } from "./modules/confirm-dialog.js";
+﻿import { confirmAction } from "./modules/confirm-dialog.js";
 import { createOfflineCacheController } from "./modules/offline-cache-controller.js";
 import { createOfflineSettingsController } from "./modules/offline-settings-controller.js";
 import { createDataSafetyController } from "./modules/data-safety-controller.js";
@@ -37,10 +36,6 @@ import {
   getNextWeekendDate,
 } from "./modules/weekend-controller.js?v=20260824-030";
 import { createGratitudeController } from "./modules/gratitude-controller.js";
-import {
-  getVipLevel,
-  getVipLevelByRecharge,
-} from "./modules/vip-center.js";
 import { configureCacheManagementUi } from "./modules/cache-management-view.js";
 import { collectAppElements } from "./modules/app-elements.js";
 import { refreshAdminStorage as refreshStorage } from "./modules/admin-storage.js";
@@ -64,11 +59,30 @@ import {
 import { createPreferenceStore } from "./modules/preferences-store.js";
 import { createHouseholdRepository } from "./modules/household-repository.js";
 import { createAppLifecycleController } from "./modules/app-lifecycle.js";
+import { createAppFeedbackView } from "./modules/app-feedback-view.js";
+import { createAppNavigationController } from "./modules/app-navigation-controller.js";
+import { createAppIdentityController } from "./modules/app-identity-controller.js";
+import { createAppSessionController } from "./modules/app-session-controller.js";
+import { createDiaryMetadata } from "./modules/diary-metadata.js";
+import { createHouseholdBrandingController } from "./modules/household-branding-controller.js";
+import { createSecretEntryPreferenceController } from "./modules/secret-entry-preference-controller.js";
+import {
+  getLocalDateKey,
+  getOffsetLocalDateKey,
+  getPhotoOwnerId,
+  getRedirectUrl as resolveRedirectUrl,
+  isMissingCloudSchema,
+  isYesterdayLoginDate,
+  normalizeLoginDateKey,
+  normalizeNickname,
+  normalizeUuid,
+  toDateInputValue,
+  usernameToEmail,
+} from "./modules/app-domain.js";
 import {
   escapeHtml,
   formatDate,
   formatFileSize,
-  getInitial,
   slugify,
 } from "./modules/ui-formatters.js";
 import {
@@ -199,7 +213,6 @@ let familyMembers = [];
 let familyInvitations = [];
 let familyMemberMap = new Map();
 let familyLevelProfiles = new Map();
-let levelGuideVisible = false;
 let activeDialogPhoto = null;
 let mobileDiaryPhoto = null;
 let mobileDiaryPage = null;
@@ -232,6 +245,11 @@ let dialogRestoreElementTop = 0;
 let foodOptions = [];
 let activePage = "gallery";
 let activeFilter = "全部";
+let appNavigationController = null;
+const switchPage = (...args) => appNavigationController?.switchPage(...args) ?? false;
+const renderOverview = (...args) => appNavigationController?.renderOverview(...args);
+const getMemoryPhotos = (...args) => appNavigationController?.getMemoryPhotos(...args) || [];
+const openRandomMemory = (...args) => appNavigationController?.openRandomMemory(...args);
 const vlogMode = createVlogMode({
   canOpen: () => Boolean(session),
   onOpen: () => {
@@ -301,8 +319,6 @@ let dialogLockUsesFixed = false;
 let dialogRandomMode = false;
 let dialogSecretSourceItem = null;
 let activeSecretDialogItem = null;
-let secretWheelDelta = 0;
-let secretWheelLockedUntil = 0;
 let photoDialogBackdrop = null;
 let mobileDiaryImageViewerOpen = false;
 let toolDockDragState = null;
@@ -319,7 +335,7 @@ let cloudSyncAvailable = false;
 let cloudSyncInFlight = null;
 let syncedUserId = "";
 let accountDataState = "idle";
-let accountProfile = {
+const DEFAULT_ACCOUNT_PROFILE = Object.freeze({
   rechargeTotal: 0,
   vipLevel: 0,
   experienceTotal: 0,
@@ -334,9 +350,101 @@ let accountProfile = {
   avatarUrl: "",
   avatarPath: "",
   foodOptions: [],
-};
+});
+let accountProfile = { ...DEFAULT_ACCOUNT_PROFILE, foodOptions: [] };
 
 const els = collectAppElements(document);
+const appFeedbackView = createAppFeedbackView({
+  elements: els,
+  escapeHtml,
+  getActivePage: () => activePage,
+});
+const {
+  dismissMiniToast,
+  isMobileViewport,
+  setGlobalStatus,
+  setHint,
+  setSecretStatus,
+  setStatus,
+  showMiniToast,
+  updateDiaryBackTopButton,
+  updateNetworkStatus,
+} = appFeedbackView;
+
+const diaryMetadata = createDiaryMetadata({
+  elements: els,
+  generatedTitlePrefixes: GENERATED_TITLE_PREFIXES,
+  slugify,
+});
+const {
+  getDisplayTitle,
+  getFinalTitle,
+  getPhotoLabel,
+  getUploadFileNameBase,
+} = diaryMetadata;
+
+const identityState = {
+  get session() { return session; },
+  get cloudDb() { return cloudDb; },
+  get familyInfo() { return familyInfo; },
+  get familyMemberMap() { return familyMemberMap; },
+  get familyLevelProfiles() { return familyLevelProfiles; },
+  get accountProfile() { return accountProfile; },
+  get mobileDiaryPhoto() { return mobileDiaryPhoto; },
+};
+const identityController = createAppIdentityController({
+  elements: els,
+  state: identityState,
+  avatarCacheKey: AVATAR_CACHE_KEY,
+  photoCategories: PHOTO_CATEGORIES,
+  getProfileAvatarUrl: (...args) => getProfileAvatarUrl(...args),
+  renderSettingsSummary: (...args) => renderSettingsSummary(...args),
+  renderExperience: (...args) => renderExperience(...args),
+  renderGallery: (...args) => renderGallery(...args),
+  renderMobileDiaryPage: (...args) => renderMobileDiaryPage(...args),
+  showToast: showMiniToast,
+});
+const {
+  adminUpdatePhotoCategory,
+  canManageItem,
+  getAuthorName,
+  getSessionBoundEmail,
+  getSessionDisplayName,
+  getSessionLoginName,
+  isAdminAccount,
+  loadCachedAvatarUrl,
+  renderAccountAvatar,
+  renderAvatarMarkup,
+  saveCachedAvatarUrl,
+  updateSessionDisplayName,
+} = identityController;
+
+const brandingState = {
+  get session() { return session; },
+  get familyInfo() { return familyInfo; },
+  get accountProfile() { return accountProfile; },
+};
+const householdBrandingController = createHouseholdBrandingController({
+  elements: els,
+  state: brandingState,
+  preferenceStore,
+  keys: { homeName: HOME_NAME_KEY, familyTagline: FAMILY_TAGLINE_KEY },
+  defaults: { homeName: "咻蛋之家", familyTagline: DEFAULT_FAMILY_TAGLINE },
+  renderSettingsSummary: (...args) => renderSettingsSummary(...args),
+  setHint,
+});
+const {
+  applyFamilyTagline,
+  applyHomeName,
+  loadFamilyTagline,
+  loadHomeName,
+  normalizeFamilyTagline,
+  normalizeHomeName,
+  saveConfig,
+} = householdBrandingController;
+
+let appSessionController = null;
+const updateAuthUI = (...args) => appSessionController?.updateAuthUI(...args);
 
 els.dateInput.valueAsDate = new Date();
 els.weekendDateInput.value = getNextWeekendDate();
@@ -646,6 +754,23 @@ const householdRepository = createHouseholdRepository({
   getDatabase: () => cloudDb,
   getSession: () => session,
 });
+const secretEntryPreferenceState = {
+  get session() { return session; },
+  get secretDefaultFolderId() { return secretDefaultFolderId; },
+  set secretDefaultFolderId(value) { secretDefaultFolderId = value; },
+};
+const secretEntryPreferenceController = createSecretEntryPreferenceController({
+  state: secretEntryPreferenceState,
+  repository: householdRepository,
+  allFolderId: SECRET_ALL_FOLDER_ID,
+  favoritesFolderId: SECRET_FAVORITES_FOLDER_ID,
+  renderFolderControls: (...args) => renderSecretFolderControls(...args),
+  setGlobalStatus,
+});
+const {
+  getDefaultFolderId: getSecretDefaultFolderId,
+  setDefaultFolderId: setSecretDefaultFolderId,
+} = secretEntryPreferenceController;
 const wardrobeRepository = createWardrobeRepository({
   getDatabase: () => cloudDb,
 });
@@ -1284,246 +1409,13 @@ const wardrobeController = createWardrobeController({
   notify: showMiniToast,
   onExperience: (action) => awardExperience(action),
 });
-function saveConfig() {
-  els.setupPanel.hidden = true;
-  setHint("Cloudflare 已接管登录、数据库和图片存储。");
-}
-
-function getHomeNameStorageKey(userId = session?.user?.id || null) {
-  return userId ? preferenceStore.scopedKey(HOME_NAME_KEY, userId) : HOME_NAME_KEY;
-}
-
-function normalizeHomeName(value) {
-  return String(value || "")
-    .trim()
-    .replace(/\s+/g, " ")
-    .slice(0, 20);
-}
-
-function normalizeFamilyTagline(value) {
-  return String(value || "").trim().replace(/\s+/g, " ").slice(0, 120);
-}
-
-function getFamilyTaglineStorageKey(familyId = familyInfo?.id || session?.user?.id || "guest") {
-  return preferenceStore.scopedKey(FAMILY_TAGLINE_KEY, familyId || "guest");
-}
-
-function loadFamilyTagline() {
-  return normalizeFamilyTagline(preferenceStore.read(getFamilyTaglineStorageKey())) || DEFAULT_FAMILY_TAGLINE;
-}
-
-function applyFamilyTagline(value, { persist = false } = {}) {
-  const tagline = normalizeFamilyTagline(value) || DEFAULT_FAMILY_TAGLINE;
-  if (els.heroSignature) els.heroSignature.textContent = tagline;
-  accountProfile.familyTagline = tagline;
-  if (persist) preferenceStore.write(getFamilyTaglineStorageKey(), tagline);
-  const settingsValue = document.querySelector("#settingsFamilyTaglineValue");
-  if (settingsValue) settingsValue.textContent = tagline;
-  return tagline;
-}
-
-function loadHomeName(userId = session?.user?.id || null) {
-  return normalizeHomeName(preferenceStore.read(getHomeNameStorageKey(userId))) || "咻蛋之家";
-}
-
-function applyHomeName(value, { persist = false, userId = session?.user?.id || null } = {}) {
-  const homeName = normalizeHomeName(value) || "咻蛋之家";
-  els.brandName.textContent = homeName;
-  els.heroHomeName.textContent = homeName;
-  els.vipHomeName.textContent = homeName;
-  els.brandName.title = homeName;
-  els.heroHomeName.classList.toggle("long-home-name", Array.from(homeName).length > 8);
-  document.title = homeName;
-  accountProfile.homeName = homeName;
-  if (persist && userId) {
-    localStorage.setItem(getHomeNameStorageKey(userId), homeName);
-  }
-  renderSettingsSummary();
-  return homeName;
-}
-
-async function initializeCloudflare() {
-  els.setupToggle.hidden = true;
-  els.setupPanel.hidden = true;
-  cloudDb = createCloudflareClient();
-  ensurePushSettingsPage();
-
-  cloudDb.auth.onAuthStateChange((_event, nextSession) => {
-    const previousUserId = session?.user?.id || "";
-    const nextUserId = nextSession?.user?.id || "";
-    if (previousUserId !== nextUserId) {
-      secretPinController.resetSession();
-    }
-    session = nextSession;
-    updateAuthUI();
-    renderCachedPhotoFeed(session?.user?.id || "public");
-    loadPhotos();
-    if (session) {
-      void loadNotifications();
-      void processDiaryUploadQueue();
-      void syncExistingPushSubscription();
-    }
-  });
-
-  const { data } = await cloudDb.auth.getSession();
-  session = data.session;
-  updateAuthUI();
-  if (session) void syncExistingPushSubscription();
-  renderCachedPhotoFeed(session?.user?.id || "public");
-  await loadPhotos();
-  if (new URLSearchParams(location.search).has("pushPhoto") || new URLSearchParams(location.search).has("pushType")) {
-    void openPushDestination();
-  }
-  syncMobileComposerPlacement();
-  void processDiaryUploadQueue();
-
-  appLifecycleController.start();
-}
-
-function updateAuthUI() {
-  const signedIn = Boolean(session);
-  const needsAccountSync = Boolean(signedIn && session.user.id !== syncedUserId);
-  if (!signedIn) vlogMode.close();
-  const displayName = signedIn ? getSessionDisplayName() : "";
-  if (signedIn && !accountProfile.avatarUrl) {
-    accountProfile.avatarUrl = loadCachedAvatarUrl(session.user.id);
-  }
-  const localHomeName = signedIn ? loadHomeName(session.user.id) : "咻蛋之家";
-  applyHomeName(localHomeName, { persist: false, userId: signedIn ? session.user.id : null });
-  applyFamilyTagline(loadFamilyTagline(), { persist: false });
-  applyTheme(loadTheme(signedIn ? session.user.id : null), {
-    persist: false,
-    userId: signedIn ? session.user.id : null,
-  });
-  applyMobileFeedLayout(loadMobileFeedLayout(signedIn ? session.user.id : "guest"));
-  applyMobileSecretLayout(loadMobileSecretLayout(signedIn ? session.user.id : "guest"));
-  const rechargeTotal = signedIn ? loadRechargeTotal(displayName) : 0;
-  activeVipLevel = signedIn ? getVipLevelByRecharge(rechargeTotal)?.level || 0 : 0;
-  const vip = signedIn && activeVipLevel > 0;
-  document.body.classList.toggle("signed-in", signedIn);
-  document.body.classList.toggle("vip-member", vip);
-  document.body.dataset.vipLevel = String(activeVipLevel);
-  els.composer.hidden = !signedIn;
-  els.anniversarySection.hidden = !signedIn;
-  els.anniversaryOpen.hidden = !signedIn;
-  els.memoryButton.hidden = !signedIn;
-  if (els.vlogNav) els.vlogNav.hidden = !signedIn;
-  if (els.weeklyReviewOpen) els.weeklyReviewOpen.hidden = !signedIn;
-  const timelineTool = document.querySelector('[data-tool-id="timeline"]');
-  if (timelineTool) timelineTool.hidden = !signedIn;
-  if (els.secretOpen) els.secretOpen.hidden = !signedIn;
-  if (els.thanksOpen) els.thanksOpen.hidden = !signedIn;
-  applyToolDockOrder(signedIn ? session.user.id : "guest");
-  els.authCard.hidden = signedIn;
-  els.userMenu.hidden = !signedIn;
-  els.notificationButton.hidden = !signedIn;
-  els.loginButton.hidden = signedIn;
-  els.signupButton.hidden = signedIn;
-  els.usernameInput.hidden = signedIn;
-  els.passwordInput.hidden = signedIn;
-  if (els.inviteCodeInput) els.inviteCodeInput.hidden = signedIn;
-  els.userPopover.hidden = true;
-  els.profileName.textContent = displayName;
-  els.avatarInitial.textContent = getInitial(displayName);
-  renderAccountAvatar(accountProfile.avatarUrl, displayName);
-  renderSettingsSummary();
-  if (signedIn) {
-    setSelectedThanksColor(accountProfile.thanksColor || loadThanksColor(session.user.id));
-    renderExperience(displayName);
-  }
-  els.vipBadge.hidden = !signedIn;
-  els.vipPopoverBadge.hidden = !signedIn;
-  els.vipPopoverBadge.textContent = vip
-    ? `${localHomeName} ${getVipLevel(activeVipLevel).label}`
-    : `开通 ${localHomeName} VIP`;
-  if (signedIn) renderTopLevelBadge();
-  renderVipCenter();
-  recipes = signedIn ? loadRecipes() : [];
-  wishes = signedIn && !needsAccountSync ? wishes : [];
-  shoppingItems = signedIn && !needsAccountSync ? shoppingItems : [];
-  weekendPlans = signedIn ? loadWeekendPlans() : [];
-  anniversaries = signedIn ? loadAnniversaries() : [];
-  if (needsAccountSync) photoFavorites.reset("loading");
-  else if (!signedIn) photoFavorites.reset();
-  accountDataState = needsAccountSync ? "loading" : signedIn ? accountDataState : "idle";
-  renderOverview();
-  renderRecipes();
-  renderWishes();
-  renderShopping();
-  renderWeekendPlans();
-  renderAnniversaries();
-  renderGratitudeNotes();
-  renderFoodWheel();
-  switchPage(activePage);
-  setHint(
-    signedIn
-      ? ""
-      : "输入用户名和密码登录。注册新账号需要 xiudan320 给的邀请码。"
-  );
-  setGlobalStatus("");
-  if (!signedIn) {
-    void refreshStorage(cloudflareRequest, () => false);
-    cloudSyncAvailable = false;
-    weekendCloudAvailable = false;
-    anniversaryCloudAvailable = false;
-    photoFlagsCloudAvailable = false;
-    secretCloudAvailable = false;
-    foodOptionsCloudAvailable = false;
-      profilePreferencesCloudAvailable = false;
-      thanksColorCloudAvailable = false;
-    gratitudeNotes = [];
-    secretItems = [];
-    secretDefaultFolderId = "";
-    closeSecretFolderContextMenu();
-    closeSecretAlbumContextMenu();
-    secretAlbumContextMenu = null;
-    notifications = [];
-    commentReplyToId = null;
-    familyInfo = null;
-    familyMembers = [];
-    familyInvitations = [];
-    familyMemberMap = new Map();
-    wardrobeController.clear();
-    photoComments = [];
-    activeDialogPhoto = null;
-    cloudSyncInFlight = null;
-    accountDataState = "idle";
-    syncedUserId = "";
-    accountProfile = {
-      rechargeTotal: 0,
-      vipLevel: 0,
-      experienceTotal: 0,
-      lastLoginDate: "",
-      loginStreak: 0,
-      todayExperienceDate: "",
-      todayExperienceAmount: 0,
-      themePreference: "",
-      homeName: "咻蛋之家",
-      familyTagline: DEFAULT_FAMILY_TAGLINE,
-      thanksColor: DEFAULT_THANKS_COLOR,
-      avatarUrl: "",
-      avatarPath: "",
-      foodOptions: [],
-    };
-    renderNotifications();
-    renderSettingsSummary();
-    applyHomeName("咻蛋之家");
-    return;
-  }
-
-  if (needsAccountSync) {
-    syncedUserId = session.user.id;
-    void synchronizeAccountData();
-  }
-}
-
 const authController = createAuthController({
   elements: els,
   endpoint: R2_UPLOAD_ENDPOINT,
   getDatabase: () => cloudDb,
   getSession: () => session,
   usernameToEmail,
-  getRedirectUrl,
+  getRedirectUrl: () => resolveRedirectUrl(PRODUCTION_URL),
   setHint,
   getBoundEmail: getSessionBoundEmail,
   renderSettingsSummary,
@@ -1781,499 +1673,6 @@ const {
   renderUploadCenter,
   ensureStabilitySettingsUi,
 } = dataSafetyController;
-
-function toDateInputValue(value) {
-  if (!value) return new Date().toISOString().slice(0, 10);
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return new Date().toISOString().slice(0, 10);
-  return date.toISOString().slice(0, 10);
-}
-
-function getFinalTitle() {
-  return els.titleInput.value.trim();
-}
-
-function getUploadFileNameBase(title, index = 0, total = 1) {
-  const dateText = els.dateInput.value || toDateInputValue(new Date());
-  const base = title || `photo-${dateText}`;
-  return total > 1 ? `${slugify(base)}-${String(index + 1).padStart(2, "0")}` : slugify(base);
-}
-
-function getDisplayTitle(photo) {
-  const title = String(photo.title || "").trim();
-  if (!title || isGeneratedTitle(title)) return "";
-
-  return title;
-}
-
-function getPhotoLabel(photo) {
-  return getDisplayTitle(photo) || "无标题日记";
-}
-
-function isGeneratedTitle(title) {
-  if (title === "未命名照片") return true;
-  return GENERATED_TITLE_PREFIXES.some((prefix) => title.startsWith(`${prefix} · `));
-}
-
-function getRedirectUrl() {
-  if (["localhost", "127.0.0.1"].includes(window.location.hostname)) {
-    return PRODUCTION_URL;
-  }
-
-  return new URL("./", window.location.href).toString();
-}
-
-function usernameToEmail(username) {
-  const normalized = username
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9_\-\u4e00-\u9fa5]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-
-  if (!normalized) return "";
-
-  const ascii = normalized
-    .replace(/[\u4e00-\u9fa5]/g, (char) => `u${char.codePointAt(0).toString(16)}`)
-    .replace(/[^a-z0-9_-]+/g, "-")
-    .slice(0, 48);
-
-  return `${ascii || "user"}@life-vlog.local`;
-}
-
-function getSessionDisplayName() {
-  const metadataName = session?.user?.user_metadata?.username;
-  if (metadataName) return metadataName;
-
-  const emailPrefix = session?.user?.email?.split("@")[0];
-  return emailPrefix || "User";
-}
-
-function getSessionBoundEmail() {
-  const metadataEmail = String(session?.user?.user_metadata?.bound_email || "").trim().toLowerCase();
-  if (metadataEmail) return metadataEmail;
-  const sessionEmail = String(session?.user?.email || "").trim().toLowerCase();
-  return /@life-vlog\.local$/i.test(sessionEmail) ? "" : sessionEmail;
-}
-
-function getAvatarCacheKey(userId = session?.user?.id) {
-  return userId ? `${AVATAR_CACHE_KEY}:${userId}` : "";
-}
-
-function loadCachedAvatarUrl(userId = session?.user?.id) {
-  const key = getAvatarCacheKey(userId);
-  if (!key) return "";
-  try {
-    return String(localStorage.getItem(key) || "").trim();
-  } catch {
-    return "";
-  }
-}
-
-function saveCachedAvatarUrl(userId, avatarUrl) {
-  const key = getAvatarCacheKey(userId);
-  if (!key) return;
-  try {
-    if (avatarUrl) localStorage.setItem(key, String(avatarUrl));
-    else localStorage.removeItem(key);
-  } catch {
-  }
-}
-
-function getSessionLoginName() {
-  const metadataName = session?.user?.user_metadata?.login_username;
-  if (metadataName) return metadataName;
-
-  const emailPrefix = session?.user?.email?.split("@")[0];
-  return emailPrefix || getSessionDisplayName();
-}
-
-function getPhotoOwnerId(photo) {
-  return String(photo?.user_id || photo?.userId || photo?.owner_id || "").trim();
-}
-
-function isAdminAccount() {
-  if (!session?.user?.id) return false;
-  if (familyInfo?.isOwner) return true;
-  return [
-    getSessionLoginName(),
-    getSessionDisplayName(),
-    session.user.user_metadata?.username,
-    session.user.user_metadata?.login_username,
-  ]
-    .map((value) => String(value || "").trim().toLowerCase())
-    .includes("xiudan320");
-}
-
-async function adminUpdatePhotoCategory(photo) {
-  if (!photo || !cloudDb || !session || !isAdminAccount()) return;
-  const category = await choosePhotoCategory(photo.category || "日常");
-  if (!category || category === photo.category) return;
-  const { data, error } = await cloudDb.rpc("admin_update_photo_category", {
-    p_photo_id: photo.id,
-    p_category: category,
-  });
-  if (error) {
-    showMiniToast(`分类修改失败：${error.message}`, { kind: "error", duration: 3200 });
-    return;
-  }
-  photo.category = data?.category || category;
-  if (mobileDiaryPhoto?.id === photo.id) {
-    mobileDiaryPhoto.category = photo.category;
-    renderMobileDiaryPage();
-  }
-  renderGallery();
-  showMiniToast(`已改为“${photo.category}”`, { kind: "success" });
-}
-
-function choosePhotoCategory(current = "日常") {
-  return new Promise((resolve) => {
-    let dialog = document.querySelector("#adminCategoryDialog");
-    if (!dialog) {
-      dialog = document.createElement("dialog");
-      dialog.id = "adminCategoryDialog";
-      dialog.className = "admin-category-dialog";
-      document.body.append(dialog);
-    }
-    dialog.innerHTML = `
-      <form method="dialog">
-        <div><p class="kicker">Admin</p><h2>修改日记分类</h2><p>选择正确的现有分类。</p></div>
-        <label>分类<select name="category">${PHOTO_CATEGORIES.map((item) => `<option value="${item}" ${item === current ? "selected" : ""}>${item}</option>`).join("")}</select></label>
-        <div class="admin-category-actions"><button value="cancel" type="submit">取消</button><button class="primary" value="confirm" type="submit">保存分类</button></div>
-      </form>`;
-    const finish = () => {
-      const value = dialog.returnValue === "confirm" ? dialog.querySelector("select")?.value || "" : "";
-      dialog.removeEventListener("close", finish);
-      resolve(value);
-    };
-    dialog.addEventListener("close", finish);
-    dialog.showModal();
-  });
-}
-
-function normalizeNickname(value) {
-  return String(value || "")
-    .trim()
-    .replace(/\s+/g, " ")
-    .slice(0, 24);
-}
-
-function updateSessionDisplayName(nickname) {
-  const nextName = normalizeNickname(nickname);
-  if (!nextName || !session?.user) return;
-  session.user.user_metadata = {
-    ...(session.user.user_metadata || {}),
-    username: nextName,
-    login_username: getSessionLoginName(),
-  };
-  els.profileName.textContent = nextName;
-  renderAccountAvatar(accountProfile.avatarUrl, nextName);
-  renderSettingsSummary();
-  renderExperience(nextName);
-}
-
-function isMissingCloudSchema(error) {
-  const code = String(error?.code || "");
-  const message = String(error?.message || "").toLowerCase();
-  return (
-    code === "42P01" ||
-    code === "42883" ||
-    code === "PGRST202" ||
-    code === "PGRST205" ||
-    message.includes("schema cache") ||
-    message.includes("does not exist")
-  );
-}
-
-function normalizeUuid(value) {
-  const candidate = String(value || "");
-  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(candidate)) {
-    return candidate;
-  }
-  return crypto.randomUUID();
-}
-
-function getAuthorName(userId) {
-  if (!userId) return "我";
-  if (userId === session?.user?.id) return getSessionDisplayName();
-  return (
-    familyMemberMap.get(userId)?.username ||
-    familyLevelProfiles.get(userId)?.username ||
-    "其他用户"
-  );
-}
-
-function getAuthorAvatar(userId) {
-  const familyAvatar = getProfileAvatarUrl(familyMemberMap.get(userId) || {});
-  const cloudAvatar = getProfileAvatarUrl(familyLevelProfiles.get(userId) || {});
-  if (userId === session?.user?.id) {
-    return (
-      getProfileAvatarUrl(accountProfile) ||
-      cloudAvatar ||
-      familyAvatar ||
-      loadCachedAvatarUrl(userId)
-    );
-  }
-  return cloudAvatar || familyAvatar || loadCachedAvatarUrl(userId);
-}
-
-function renderAvatarMarkup(userId, className = "photo-comment-avatar") {
-  const name = getAuthorName(userId);
-  const avatarUrl = getAuthorAvatar(userId);
-  return avatarUrl
-    ? `<span class="${className}" data-avatar-fallback="${escapeHtml(getInitial(name))}"><img src="${escapeHtml(avatarUrl)}" alt="${escapeHtml(name)}的头像" decoding="async" /></span>`
-    : `<span class="${className}">${escapeHtml(getInitial(name))}</span>`;
-}
-
-document.addEventListener(
-  "error",
-  (event) => {
-    const image = event.target;
-    if (!(image instanceof HTMLImageElement)) return;
-    const avatar = image.closest("[data-avatar-fallback]");
-    if (!avatar) return;
-    avatar.textContent = avatar.dataset.avatarFallback || "";
-  },
-  true
-);
-
-function renderAccountAvatar(avatarUrl = "", displayName = getSessionDisplayName()) {
-  const resolvedAvatarUrl =
-    getProfileAvatarUrl({
-      avatar_url: avatarUrl || accountProfile.avatarUrl,
-      avatar_path: accountProfile.avatarPath,
-    }) ||
-    loadCachedAvatarUrl(session?.user?.id);
-  const hasAvatar = Boolean(resolvedAvatarUrl);
-  els.avatarImage.hidden = !hasAvatar;
-  els.avatarInitial.hidden = hasAvatar;
-  if (hasAvatar) {
-    els.avatarImage.src = resolvedAvatarUrl;
-    if (session?.user?.id) saveCachedAvatarUrl(session.user.id, resolvedAvatarUrl);
-  }
-  else els.avatarImage.removeAttribute("src");
-  els.avatarInitial.textContent = getInitial(displayName);
-}
-
-function canManageItem(item) {
-  if (!session) return false;
-  const ownerId = item?.userId || item?.user_id || "";
-  if (!ownerId) return true;
-  return ownerId === session.user.id || familyMemberMap.has(ownerId);
-}
-
-function getLocalDateKey() {
-  return getOffsetLocalDateKey(0);
-}
-
-function normalizeLoginDateKey(value) {
-  const match = String(value || "").trim().match(/^(\d{4}-\d{2}-\d{2})/);
-  return match ? match[1] : "";
-}
-
-function isYesterdayLoginDate(value) {
-  return normalizeLoginDateKey(value) === getOffsetLocalDateKey(-1);
-}
-
-function getOffsetLocalDateKey(offsetDays = 0) {
-  const date = new Date();
-  date.setHours(12, 0, 0, 0);
-  date.setDate(date.getDate() + offsetDays);
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(date);
-  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-  return `${values.year}-${values.month}-${values.day}`;
-}
-
-function getSecretDefaultFolderId() {
-  return session ? secretDefaultFolderId || SECRET_ALL_FOLDER_ID : SECRET_ALL_FOLDER_ID;
-}
-
-async function setSecretDefaultFolderId(folderId) {
-  if (!session) return;
-  const nextFolderId = folderId && ![SECRET_ALL_FOLDER_ID, SECRET_FAVORITES_FOLDER_ID].includes(folderId)
-    ? folderId
-    : "";
-  secretDefaultFolderId = nextFolderId;
-  renderSecretFolderControls();
-  try {
-    const { error } = await householdRepository.update(
-      "user_profiles",
-      { secret_default_folder_id: nextFolderId || null },
-      { user_id: session.user.id }
-    );
-    if (error) throw error;
-  } catch (error) {
-    setGlobalStatus(`默认入口同步失败：${error.message || "请稍后重试"}`);
-  }
-}
-
-function switchPage(page, { skipSecretGate = false } = {}) {
-  const requestedPage = ["recipes", "wishlist", "weekend", "wardrobe", "thanks", "secret"].includes(page) ? page : "gallery";
-  if (requestedPage === "secret" && !skipSecretGate && !isSecretUnlocked()) {
-    openSecretPinDialog();
-    return false;
-  }
-  if (activePage === "gallery" && requestedPage !== "gallery") setUploadExpanded(false);
-  if (requestedPage !== "gallery") vlogMode.close();
-  const enteringSecret = activePage !== "secret" && requestedPage === "secret";
-  if (activePage === "secret" && requestedPage !== "secret") markSecretLeft();
-  closeMobileDiaryPage();
-  activePage = requestedPage;
-  if (enteringSecret) {
-    activeSecretAlbumId = "";
-    activeSecretFolderId = getSecretDefaultFolderId();
-    secretSelectionMode = false;
-    selectedSecretImageIndexes.clear();
-  }
-  const showRecipes = activePage === "recipes";
-  const showWishlist = activePage === "wishlist";
-  const showWeekend = activePage === "weekend";
-  const showWardrobe = activePage === "wardrobe";
-  const showThanks = activePage === "thanks";
-  const showSecret = activePage === "secret";
-  els.galleryNav.classList.toggle("active", activePage === "gallery" && activeFilter !== "VLOG");
-  els.vlogNav?.classList.toggle("active", activePage === "gallery" && activeFilter === "VLOG");
-  els.recipesNav?.classList.toggle("active", showRecipes);
-  els.wishlistNav.classList.toggle("active", showWishlist);
-  els.weekendNav.classList.toggle("active", showWeekend);
-  els.wardrobeNav?.classList.toggle("active", showWardrobe);
-  els.thanksNav?.classList.toggle("active", showThanks);
-  els.secretNav?.classList.toggle("active", showSecret);
-  els.composer.hidden = activePage !== "gallery" || !session;
-  els.overview.hidden = activePage !== "gallery" || !session;
-  els.foodWheelSection.hidden = !session;
-  els.galleryHead.hidden = activePage !== "gallery";
-  els.feedRefreshNotice.hidden = activePage !== "gallery" || !pendingNewPhotos.length;
-  els.todayPostsNotice.hidden = activePage !== "gallery";
-  renderWeekendReminderNotice();
-  els.galleryFilters.hidden = activePage !== "gallery";
-  els.gallery.hidden = activePage !== "gallery";
-  if (activePage !== "gallery") {
-    els.feedLoader.hidden = true;
-  }
-  els.recipesPage.hidden = !showRecipes;
-  els.wishlistPage.hidden = !showWishlist;
-  els.weekendPage.hidden = !showWeekend;
-  els.wardrobePage.hidden = !showWardrobe;
-  els.thanksPage.hidden = !showThanks;
-  els.secretPage.hidden = !showSecret;
-  els.recipeComposer.hidden = !showRecipes || !session;
-  els.wishlistComposer.hidden = !showWishlist || !session;
-  els.shoppingComposer.hidden = !showWishlist || !session;
-  els.weekendComposer.hidden = !showWeekend || !session;
-  els.thanksForm.hidden = !showThanks || !session;
-  els.secretComposer.hidden = !showSecret || !session;
-  if (showRecipes) renderRecipes();
-  if (showWishlist) wishlistHubController.show(wishlistHubController.getActiveModule());
-  if (showWeekend) renderWeekendPlans();
-  if (showWardrobe) void wardrobeController.load();
-  if (showThanks) renderGratitudeNotes();
-  if (showSecret) {
-    applyMobileSecretLayout();
-    if (!secretItems.length && session) renderCachedSecretItems(session.user.id);
-    renderSecretGallery();
-    if (session && cloudDb && Date.now() - lastSecretSyncAt > 60000) void loadSecretItems();
-  }
-  if (activePage === "gallery") {
-    if (session && !isAdminAccount()) setGlobalStatus("");
-    renderFeedRefreshNotice();
-    renderGallery();
-    updateFeedLoader(filteredPhotoCount);
-  }
-  return true;
-}
-
-function renderOverview() {
-  if (!els.overview) return;
-  const signedIn = Boolean(session);
-  els.overview.hidden = !signedIn || activePage !== "gallery";
-  if (!signedIn) return;
-
-  const familyVisiblePhotos = getMemoryPhotos();
-  const unfinishedWishes = wishes.filter((wish) => !wish.done).length;
-  const experience = loadExperience();
-  const progress = getExperienceLevel(experience.total);
-  els.overviewPhotos.textContent = String(familyVisiblePhotos.length);
-  els.overviewRecipes.textContent = String(recipes.length);
-  els.overviewWishes.textContent = String(unfinishedWishes);
-  els.overviewLevel.textContent = progress.title;
-  els.overviewProgress.style.width = `${progress.percent}%`;
-  els.memoryButton.disabled = familyVisiblePhotos.length === 0;
-}
-
-function getMemoryPhotos() {
-  if (!session) return [];
-  return photos.filter((photo) => photo.category !== "VLOG" && (photo?.image_url || getPhotoImages(photo).length));
-}
-
-function openRandomMemory() {
-  const memoryPhotos = getMemoryPhotos();
-  if (!memoryPhotos.length) return;
-  const currentId = activeDialogPhoto?.id;
-  const candidates =
-    memoryPhotos.length > 1
-      ? memoryPhotos.filter((photo) => photo.id !== currentId)
-      : memoryPhotos;
-  const randomPhoto = candidates[Math.floor(Math.random() * candidates.length)];
-  openPhoto(randomPhoto, 0, { randomMode: true });
-}
-
-function setSecretStatus(message) {
-  if (els.secretStatus) els.secretStatus.textContent = message;
-}
-
-function isMobileViewport() {
-  return window.innerWidth <= MOBILE_DIALOG_BREAKPOINT;
-}
-
-function showMiniToast(message, { kind = "info", duration = 2200, persist = false, placement = "corner" } = {}) {
-  const centered = placement === "center";
-  const hostId = centered ? "miniToastHostCenter" : "miniToastHost";
-  let host = document.querySelector(`#${hostId}`);
-  if (!host) {
-    host = document.createElement("div");
-    host.id = hostId;
-    host.className = centered ? "mini-toast-host mini-toast-host-center" : "mini-toast-host";
-    document.body.appendChild(host);
-  }
-  const toast = document.createElement("div");
-  toast.className = `mini-toast mini-toast-${kind}`;
-  toast.innerHTML = `
-    <span class="mini-toast-icon" aria-hidden="true"></span>
-    <span class="mini-toast-text">${escapeHtml(message || "")}</span>
-  `;
-  host.appendChild(toast);
-  requestAnimationFrame(() => toast.classList.add("visible"));
-  if (persist) return toast;
-  window.setTimeout(() => dismissMiniToast(toast), duration);
-  return toast;
-}
-
-function dismissMiniToast(toast) {
-  if (!toast) return;
-  toast.classList.remove("visible");
-  window.setTimeout(() => toast.remove(), 180);
-}
-
-function updateNetworkStatus() {
-  let badge = document.querySelector("#offlineStatusBadge");
-  if (!navigator.onLine) {
-    if (!badge) {
-      badge = document.createElement("div");
-      badge.id = "offlineStatusBadge";
-      badge.className = "offline-status-badge";
-      badge.textContent = "离线模式 · 正在显示本地缓存";
-      document.body.append(badge);
-    }
-    badge.hidden = false;
-    return;
-  }
-  if (badge) badge.hidden = true;
-}
 
 const foodWheelController = createFoodWheelController({
   elements: els,
@@ -2601,36 +2000,163 @@ const {
   submit: saveGratitudeNote,
 } = gratitudeController;
 
-function setHint(message) {
-  els.authHint.textContent = message;
-}
+const appNavigationState = {
+  get activePage() { return activePage; }, set activePage(value) { activePage = value; },
+  get activeFilter() { return activeFilter; },
+  get activeSecretAlbumId() { return activeSecretAlbumId; }, set activeSecretAlbumId(value) { activeSecretAlbumId = value; },
+  get activeSecretFolderId() { return activeSecretFolderId; }, set activeSecretFolderId(value) { activeSecretFolderId = value; },
+  get secretSelectionMode() { return secretSelectionMode; }, set secretSelectionMode(value) { secretSelectionMode = value; },
+  get selectedSecretImageIndexes() { return selectedSecretImageIndexes; },
+  get session() { return session; },
+  get cloudDb() { return cloudDb; },
+  get pendingNewPhotos() { return pendingNewPhotos; },
+  get secretItems() { return secretItems; },
+  get lastSecretSyncAt() { return lastSecretSyncAt; },
+  get filteredPhotoCount() { return filteredPhotoCount; },
+  get photos() { return photos; },
+  get wishes() { return wishes; },
+  get recipes() { return recipes; },
+  get activeDialogPhoto() { return activeDialogPhoto; },
+};
+appNavigationController = createAppNavigationController({
+  elements: els,
+  state: appNavigationState,
+  vlogMode,
+  controllers: {
+    wardrobe: wardrobeController,
+    wishlistHub: wishlistHubController,
+  },
+  actions: {
+    applyMobileSecretLayout,
+    closeMobileDiaryPage,
+    getExperienceLevel,
+    getPhotoImages,
+    getSecretDefaultFolderId,
+    isAdminAccount,
+    isSecretUnlocked,
+    loadExperience,
+    loadSecretItems,
+    markSecretLeft,
+    openPhoto,
+    openSecretPinDialog,
+    renderCachedSecretItems,
+    renderFeedRefreshNotice,
+    renderGallery,
+    renderGratitudeNotes,
+    renderRecipes,
+    renderSecretGallery,
+    renderWeekendPlans,
+    renderWeekendReminderNotice,
+    setGlobalStatus,
+    setUploadExpanded,
+    updateFeedLoader,
+  },
+});
 
-function setGlobalStatus(message) {
-  if (!els.globalStatus) return;
-  els.globalStatus.textContent = message || "";
-  els.globalStatus.hidden = !message;
-}
-
-function updateDiaryBackTopButton() {
-  let button = document.querySelector("#diaryBackTop");
-  const shouldShow = !isMobileViewport() && activePage === "gallery" && window.scrollY > 720;
-  if (!button && shouldShow) {
-    button = document.createElement("button");
-    button.id = "diaryBackTop";
-    button.className = "diary-back-top";
-    button.type = "button";
-    button.textContent = "↑";
-    button.setAttribute("aria-label", "回到日记顶部");
-    button.title = "回到顶部";
-    button.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
-    document.body.append(button);
-  }
-  if (button) button.hidden = !shouldShow;
-}
-
-function setStatus(message) {
-  els.uploadStatus.textContent = message;
-}
+const appSessionState = {
+  get cloudDb() { return cloudDb; }, set cloudDb(value) { cloudDb = value; },
+  get session() { return session; }, set session(value) { session = value; },
+  get syncedUserId() { return syncedUserId; }, set syncedUserId(value) { syncedUserId = value; },
+  get accountProfile() { return accountProfile; }, set accountProfile(value) { accountProfile = value; },
+  get activeVipLevel() { return activeVipLevel; }, set activeVipLevel(value) { activeVipLevel = value; },
+  get recipes() { return recipes; }, set recipes(value) { recipes = value; },
+  get wishes() { return wishes; }, set wishes(value) { wishes = value; },
+  get shoppingItems() { return shoppingItems; }, set shoppingItems(value) { shoppingItems = value; },
+  get weekendPlans() { return weekendPlans; }, set weekendPlans(value) { weekendPlans = value; },
+  get anniversaries() { return anniversaries; }, set anniversaries(value) { anniversaries = value; },
+  get accountDataState() { return accountDataState; }, set accountDataState(value) { accountDataState = value; },
+  get activePage() { return activePage; },
+  get cloudSyncAvailable() { return cloudSyncAvailable; }, set cloudSyncAvailable(value) { cloudSyncAvailable = value; },
+  get weekendCloudAvailable() { return weekendCloudAvailable; }, set weekendCloudAvailable(value) { weekendCloudAvailable = value; },
+  get anniversaryCloudAvailable() { return anniversaryCloudAvailable; }, set anniversaryCloudAvailable(value) { anniversaryCloudAvailable = value; },
+  get photoFlagsCloudAvailable() { return photoFlagsCloudAvailable; }, set photoFlagsCloudAvailable(value) { photoFlagsCloudAvailable = value; },
+  get secretCloudAvailable() { return secretCloudAvailable; }, set secretCloudAvailable(value) { secretCloudAvailable = value; },
+  get foodOptionsCloudAvailable() { return foodOptionsCloudAvailable; }, set foodOptionsCloudAvailable(value) { foodOptionsCloudAvailable = value; },
+  get profilePreferencesCloudAvailable() { return profilePreferencesCloudAvailable; }, set profilePreferencesCloudAvailable(value) { profilePreferencesCloudAvailable = value; },
+  get thanksColorCloudAvailable() { return thanksColorCloudAvailable; }, set thanksColorCloudAvailable(value) { thanksColorCloudAvailable = value; },
+  get gratitudeNotes() { return gratitudeNotes; }, set gratitudeNotes(value) { gratitudeNotes = value; },
+  get secretItems() { return secretItems; }, set secretItems(value) { secretItems = value; },
+  get secretDefaultFolderId() { return secretDefaultFolderId; }, set secretDefaultFolderId(value) { secretDefaultFolderId = value; },
+  get secretAlbumContextMenu() { return secretAlbumContextMenu; }, set secretAlbumContextMenu(value) { secretAlbumContextMenu = value; },
+  get notifications() { return notifications; }, set notifications(value) { notifications = value; },
+  get commentReplyToId() { return commentReplyToId; }, set commentReplyToId(value) { commentReplyToId = value; },
+  get familyInfo() { return familyInfo; }, set familyInfo(value) { familyInfo = value; },
+  get familyMembers() { return familyMembers; }, set familyMembers(value) { familyMembers = value; },
+  get familyInvitations() { return familyInvitations; }, set familyInvitations(value) { familyInvitations = value; },
+  get familyMemberMap() { return familyMemberMap; }, set familyMemberMap(value) { familyMemberMap = value; },
+  get photoComments() { return photoComments; }, set photoComments(value) { photoComments = value; },
+  get activeDialogPhoto() { return activeDialogPhoto; }, set activeDialogPhoto(value) { activeDialogPhoto = value; },
+  get cloudSyncInFlight() { return cloudSyncInFlight; }, set cloudSyncInFlight(value) { cloudSyncInFlight = value; },
+};
+appSessionController = createAppSessionController({
+  elements: els,
+  state: appSessionState,
+  defaults: {
+    homeName: "咻蛋之家",
+    accountProfile: DEFAULT_ACCOUNT_PROFILE,
+  },
+  vlogMode,
+  photoFavorites,
+  controllers: {
+    wardrobe: wardrobeController,
+    secretPin: secretPinController,
+    lifecycle: appLifecycleController,
+  },
+  backend: {
+    createClient: createCloudflareClient,
+    request: cloudflareRequest,
+  },
+  actions: {
+    applyFamilyTagline,
+    applyHomeName,
+    applyMobileFeedLayout,
+    applyMobileSecretLayout,
+    applyTheme,
+    applyToolDockOrder,
+    closeSecretAlbumContextMenu,
+    closeSecretFolderContextMenu,
+    ensurePushSettingsPage,
+    getSessionDisplayName,
+    loadAnniversaries,
+    loadCachedAvatarUrl,
+    loadFamilyTagline,
+    loadHomeName,
+    loadMobileFeedLayout,
+    loadMobileSecretLayout,
+    loadNotifications,
+    loadPhotos,
+    loadRechargeTotal,
+    loadRecipes,
+    loadThanksColor,
+    loadTheme,
+    loadWeekendPlans,
+    openPushDestination,
+    processDiaryUploadQueue,
+    refreshStorage,
+    renderAccountAvatar,
+    renderAnniversaries,
+    renderCachedPhotoFeed,
+    renderExperience,
+    renderFoodWheel,
+    renderGratitudeNotes,
+    renderNotifications,
+    renderOverview,
+    renderRecipes,
+    renderSettingsSummary,
+    renderShopping,
+    renderTopLevelBadge,
+    renderVipCenter,
+    renderWeekendPlans,
+    renderWishes,
+    setGlobalStatus,
+    setHint,
+    setSelectedThanksColor,
+    switchPage,
+    syncExistingPushSubscription,
+    syncMobileComposerPlacement,
+    synchronizeAccountData,
+  },
+});
 
 bindAppEvents({
   elements: els,
@@ -2685,5 +2211,5 @@ initializePullToRefresh();
 applyMobileFeedLayout();
 applyMobileSecretLayout();
 syncMobileComposerPlacement();
-restoreCloudflareSessionBackup().finally(() => initializeCloudflare());
+restoreCloudflareSessionBackup().finally(() => appSessionController.initialize());
 
