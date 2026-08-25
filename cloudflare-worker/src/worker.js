@@ -1,4 +1,5 @@
 import { buildPushPayload } from "@block65/webcrypto-web-push";
+import { auditR2Objects } from "./r2-audit.js";
 
 const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
 const SESSION_DAYS = 3650;
@@ -1737,6 +1738,16 @@ async function handleAdminR2Usage(request, env, user) {
   });
 }
 
+async function handleAdminR2Audit(request, env, user) {
+  const dbError = requireDb(request, env);
+  if (dbError) return dbError;
+  const namedAdmin = String(user.username || "").trim().toLowerCase() === "xiudan320";
+  if (!namedAdmin && !(await isFamilyOwner(env, user.id))) {
+    return jsonResponse(request, env, { error: "Only the family administrator can audit R2 objects." }, 403);
+  }
+  return jsonResponse(request, env, { data: await auditR2Objects(env) });
+}
+
 function getPushCopy(type, actorName, body = "", aggregateCount = 1) {
   const name = actorName || "家庭成员";
   const count = Math.max(1, Number(aggregateCount) || 1);
@@ -2640,6 +2651,9 @@ export default {
       }
       if (url.pathname === "/api/admin/r2-usage" && request.method === "GET") {
         return handleAdminR2Usage(request, env, user);
+      }
+      if (url.pathname === "/api/admin/r2-audit" && request.method === "GET") {
+        return handleAdminR2Audit(request, env, user);
       }
 
       if (url.pathname === "/upload" && request.method === "POST") {
