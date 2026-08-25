@@ -258,7 +258,11 @@ export function createShoppingController({
       danger: true,
     });
     if (!confirmed) return;
-    const result = await repository.remove("shopping_items", { id }, { owned: true, select: "id" });
+    // Shopping items are family-scoped in the data API.  The card is shown only
+    // when canManageItem allows the current family member to manage it, so do
+    // not add an extra current-user filter here; that made a partner's item
+    // look deletable but caused the server request to match zero rows.
+    const result = await repository.remove("shopping_items", { id }, { select: "id" });
     if (result.error) return setStatus(`删除失败：${result.error.message}`);
     setItems(getItems().filter((entry) => entry.id !== id));
     if (item.imagePath && getDatabase()) await cleanupStoredImagePaths([item.imagePath]);
