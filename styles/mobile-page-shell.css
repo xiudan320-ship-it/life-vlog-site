@@ -1,0 +1,8 @@
+/* Keep the mobile home hero/tool dock on the diary feed only. Other pages
+   start directly below the persistent account/navigation bar. */
+@media (max-width: 700px) {
+  body:not(.mobile-gallery-shell) > main > .hero,
+  body:not(.mobile-gallery-shell) > main > .tool-dock {
+    display: none !important;
+  }
+}

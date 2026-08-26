@@ -56,6 +56,10 @@ export const mobileDiaryViewModule = await readFile(
   new URL("../modules/mobile-diary-view.js", import.meta.url),
   "utf8"
 );
+export const mobilePageShellCss = await readFile(
+  new URL("../styles/mobile-page-shell.css", import.meta.url),
+  "utf8"
+);
 export const mediaGestureDomainModule = await readFile(
   new URL("../modules/media-gesture-domain.js", import.meta.url),
   "utf8"

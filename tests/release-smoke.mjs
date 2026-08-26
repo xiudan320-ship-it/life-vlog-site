@@ -122,6 +122,32 @@ async function assertNoHorizontalOverflow(page, label) {
   );
 }
 
+async function assertMobilePageShell(page, label) {
+  if (label !== "mobile") return;
+  const diaryShell = await page.evaluate(() => ({
+    className: document.body.className,
+    heroDisplay: getComputedStyle(document.querySelector(".hero")).display,
+    toolDockDisplay: getComputedStyle(document.querySelector("#toolDock")).display,
+  }));
+  assert.match(diaryShell.className, /\bmobile-gallery-shell\b/, `${label} diary shell class is missing`);
+  assert.notEqual(diaryShell.heroDisplay, "none", `${label} diary hero is hidden`);
+  assert.notEqual(diaryShell.toolDockDisplay, "none", `${label} diary tool dock is hidden`);
+
+  await page.click("#wishlistNav");
+  await page.waitForSelector("#wishlistPage:not([hidden])");
+  const nonDiaryShell = await page.evaluate(() => ({
+    className: document.body.className,
+    heroDisplay: getComputedStyle(document.querySelector(".hero")).display,
+    toolDockDisplay: getComputedStyle(document.querySelector("#toolDock")).display,
+  }));
+  assert.doesNotMatch(nonDiaryShell.className, /\bmobile-gallery-shell\b/, `${label} non-diary shell class is still active`);
+  assert.equal(nonDiaryShell.heroDisplay, "none", `${label} non-diary hero is still visible`);
+  assert.equal(nonDiaryShell.toolDockDisplay, "none", `${label} non-diary tool dock is still visible`);
+
+  await page.click("#galleryNav");
+  await page.waitForSelector("#galleryFilters");
+}
+
 async function assertVlogAudioUi(page, label) {
   const controlsOnTap = label === "mobile";
   const state = await page.evaluate(async (hideControlsUntilTap) => {
@@ -510,6 +536,8 @@ async function assertModularViews(page, label) {
   await assertNoHorizontalOverflow(page, `${label} recipes`);
   await page.screenshot({ path: join(screenshotDir, `modules-recipes-${label}.png`), fullPage: true });
 
+  await page.click("#galleryNav");
+  await page.waitForSelector("#galleryFilters");
   await page.click("#foodWheelOpen");
   await page.waitForSelector("#foodWheelDialog[open]");
   assert.ok(await page.locator("#foodOptions [data-remove-food]").count() >= 2, `${label} food wheel has too few options`);
@@ -696,6 +724,7 @@ try {
   await assertVlogAudioUi(mobile, "mobile");
   await assertVlogMediaBadge(mobile, "mobile");
   await assertMobileUploadStatusLayout(mobile);
+  await assertMobilePageShell(mobile, "mobile");
   await mobile.click("#avatarButton");
   await mobile.waitForSelector("#accountSettingsButton", { state: "visible" });
   await mobile.click("#avatarButton");

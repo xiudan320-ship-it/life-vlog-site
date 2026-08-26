@@ -122,6 +122,7 @@ import {
   vipCenter,
   diaryGalleryView,
   mobileDiaryView,
+  mobilePageShellCss,
   mediaGestureDomain,
   secretGalleryView,
   accountView,
@@ -218,7 +219,7 @@ const initialPhotoLoadIndex = appSessionControllerModule.indexOf("await actions.
 assert.ok(initializeCloudflareIndex >= 0, "Session initialization is missing");
 assert.ok(authListenerIndex > initializeCloudflareIndex, "Auth listener is missing from session initialization");
 assert.ok(authListenerIndex < initialPhotoLoadIndex, "Auth listener must be registered before initial photo loading");
-assert.match(serviceWorker, /life-vlog-site-20260825-005-pwa/);
+assert.match(serviceWorker, /life-vlog-site-20260826-001-pwa/);
 assert.match(serviceWorker, /modules\/admin-storage\.js/);
 assert.match(diaryDetailCss, /#photoDialog #dialogImage\[hidden\][\s\S]*?display: none !important/);
 assert.match(applicationSource, /const p=!state\.galleryRenderSignature[\s\S]*?initialRender: p/);
@@ -602,13 +603,15 @@ assert.equal(typeof wishlistController.createWishlistController, "function");
 assert.equal(typeof weekendController.createWeekendController, "function");
 assert.equal(typeof authController.createAuthController, "function");
 assert.equal(typeof offlineCacheController.createOfflineCacheController, "function");
-assert.match(serviceWorker, /life-vlog-site-20260825-005-pwa/);
+assert.match(serviceWorker, /life-vlog-site-20260826-001-pwa/);
 assert.match(serviceWorker, /styles\.css\?v=20260824-026/);
 assert.match(serviceWorker, /styles\/redesign-foundation\.css\?v=20260825-035/);
 assert.match(serviceWorker, /styles\/media-upload\.css\?v=20260825-035/);
 assert.match(css, /mobile-diary-media > \.mobile-diary-media-badge[\s\S]*?bottom: auto[\s\S]*?width: max-content/);
 assert.match(index, /id="photoInput"[^>]*accept="image\/\*,video\/\*/);
-assert.match(index, /app\.js\?v=20260825-005/);
+assert.match(index, /app\.js\?v=20260826-001/);
+assert.match(index, /mobile-page-shell\.css\?v=20260826-001/);
+assert.match(serviceWorker, /styles\/mobile-page-shell\.css\?v=20260826-001/);
 assert.match(index, /styles\/wishlist-compact\.css\?v=20260825-036/);
 assert.match(index, /id="wishlistModuleTabs"/);
 assert.match(index, /data-wishlist-module="shopping"/);
@@ -635,6 +638,8 @@ assert.match(serviceWorker, /modules\/vlog-mode\.js/);
 assert.match(serviceWorker, /modules\/weekend-gallery\.js/);
 assert.match(weekendGalleryModule, /weekend-album-lightbox-closed/);
 assert.match(photoViewerControllerModule, /classList\.contains\("weekend-image-dialog"\)/);
+assert.match(appNavigationControllerModule, /mobile-gallery-shell/);
+assert.match(mobilePageShellCss, /body:not\(\.mobile-gallery-shell\)[\s\S]*?\.hero/);
 assert.match(deployScript, /test-release\.ps1/);
 assert.match(deployScript, /VerificationBaseUrl/);
 assert.match(deployScript, /-BaseUrl \$VerificationBaseUrl/);

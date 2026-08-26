@@ -13,7 +13,12 @@ export function createAppNavigationController({
   vlogMode,
   controllers,
   actions,
+  documentTarget = document,
 } = {}) {
+  function syncMobilePageShell() {
+    documentTarget?.body?.classList.toggle("mobile-gallery-shell", state.activePage === "gallery");
+  }
+
   function switchPage(page, { skipSecretGate = false } = {}) {
     const requestedPage = PAGE_NAMES.has(page) ? page : "gallery";
     if (requestedPage === "secret" && !skipSecretGate && !actions.isSecretUnlocked()) {
@@ -28,6 +33,7 @@ export function createAppNavigationController({
     if (state.activePage === "secret" && requestedPage !== "secret") actions.markSecretLeft();
     actions.closeMobileDiaryPage();
     state.activePage = requestedPage;
+    syncMobilePageShell();
     if (enteringSecret) {
       state.activeSecretAlbumId = "";
       state.activeSecretFolderId = actions.getSecretDefaultFolderId();
