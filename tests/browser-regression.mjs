@@ -193,6 +193,40 @@ async function testComponentStates(viewport, label) {
   await context.close();
 }
 
+async function testSecretAppendLinkPaste(viewport, label) {
+  const context = await browser.newContext({ viewport, serviceWorkers: "block" });
+  const page = await context.newPage();
+  await page.goto(`${baseUrl}/tests/component-regression.html`, { waitUntil: "load" });
+  const result = await page.evaluate(async () => {
+    const { bindSecretAlbumActions } = await import("../modules/secret-gallery-view.js");
+    const host = document.createElement("div");
+    host.innerHTML = `
+      <form data-secret-append-form>
+        <textarea data-secret-append-links></textarea>
+        <input data-secret-append-files type="file" />
+      </form>`;
+    document.body.append(host);
+    const calls = [];
+    bindSecretAlbumActions({
+      container: host,
+      handlers: {
+        getClipboardFiles: () => [],
+        append: (payload) => calls.push({ linksText: payload.linksText || "", hasForm: payload.form === host.querySelector("[data-secret-append-form]") }),
+      },
+    });
+    const clipboardData = new DataTransfer();
+    clipboardData.setData("text/plain", "https://example.com/secret-image.png");
+    const event = new Event("paste", { bubbles: true, cancelable: true });
+    Object.defineProperty(event, "clipboardData", { value: clipboardData });
+    host.querySelector("[data-secret-append-form]").dispatchEvent(event);
+    host.remove();
+    return { prevented: event.defaultPrevented, calls };
+  });
+  assert.equal(result.prevented, true, `${label} secret URL paste was not handled`);
+  assert.deepEqual(result.calls, [{ linksText: "https://example.com/secret-image.png", hasForm: true }], `${label} secret URL paste did not enter append upload`);
+  await context.close();
+}
+
 try {
   await testHomeShell({ width: 1440, height: 900 }, "desktop");
   await testHomeShell({ width: 390, height: 844 }, "mobile");
@@ -200,6 +234,8 @@ try {
   await testDiaryDetail({ width: 390, height: 844 }, "mobile");
   await testComponentStates({ width: 1440, height: 900 }, "desktop");
   await testComponentStates({ width: 390, height: 844 }, "mobile");
+  await testSecretAppendLinkPaste({ width: 1440, height: 900 }, "desktop");
+  await testSecretAppendLinkPaste({ width: 390, height: 844 }, "mobile");
   console.log("Browser regression checks passed for desktop and mobile.");
 } finally {
   await browser.close();

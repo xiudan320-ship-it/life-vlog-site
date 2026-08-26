@@ -4,6 +4,7 @@ import {
   normalizeSecretImages,
   normalizeSecretPhotoTags,
 } from "./secret-domain.js?v=20260810-004";
+import { getClipboardImageUrl } from "./media-metadata.js";
 import { escapeHtml } from "./ui-formatters.js";
 
 export function buildSecretFolderListMarkup({ folders = [], activeFolderId = "", defaultFolderId = "" }) {
@@ -341,10 +342,17 @@ export function bindSecretAlbumActions({
     if (files.length) handlers.append({ files, form: event.currentTarget.closest("[data-secret-append-form]") });
   });
   container.querySelector("[data-secret-append-form]")?.addEventListener("paste", (event) => {
+    const form = event.currentTarget;
     const files = handlers.getClipboardFiles(event);
-    if (!files.length) return;
+    if (files.length) {
+      event.preventDefault();
+      handlers.append({ files, form });
+      return;
+    }
+    const pastedUrl = getClipboardImageUrl(event.clipboardData);
+    if (!pastedUrl) return;
     event.preventDefault();
-    handlers.append({ files, form: event.currentTarget });
+    handlers.append({ linksText: pastedUrl, form });
   });
   container.querySelector("[data-secret-open-linked]")?.addEventListener("click", handlers.openLinked);
   container.querySelector("[data-secret-delete-current]")?.addEventListener("click", handlers.deleteCurrent);
