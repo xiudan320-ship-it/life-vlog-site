@@ -10,14 +10,14 @@ import { createFamilySettingsController } from "./modules/family-settings-contro
 import { createFamilyActivityController } from "./modules/family-activity-controller.js";
 import { createToolDockController } from "./modules/tool-dock-controller.js";
 import { createLayoutSettingsController } from "./modules/layout-settings-controller.js";
-import { bindAppEvents } from "./modules/app-event-bindings.js";
+import { bindAppEvents } from "./modules/app-event-bindings.js?v=20260826-001";
 import { createAssetController } from "./modules/asset-controller.js";
 import { createDiaryComposerController } from "./modules/diary-composer-controller.js";
-import { createGamificationController } from "./modules/gamification-controller.js";
+import { createGamificationController } from "./modules/gamification-controller.js?v=20260826-002";
 import { createProfilePreferencesController } from "./modules/profile-preferences-controller.js";
 import { createSecretPinController } from "./modules/secret-pin-controller.js";
-import { createSecretController } from "./modules/secret-controller.js?v=20260825-003";
-import { createPhotoViewerController } from "./modules/photo-viewer-controller.js?v=20260824-030";
+import { createSecretController } from "./modules/secret-controller.js?v=20260826-001";
+import { createPhotoViewerController } from "./modules/photo-viewer-controller.js?v=20260826-001";
 import { createPhotoDetailController } from "./modules/photo-detail-controller.js?v=20260825-003";
 import { createCloudflareBackend } from "./modules/cloudflare-client.js?v=20260811-010";
 import { createMediaCacheService } from "./modules/media-cache.js";
@@ -1140,6 +1140,7 @@ const photoViewerController = createPhotoViewerController({
   isMobileViewport,
   closePhotoDialog: (...args) => closePhotoDialog(...args),
   getSecretAlbumFilterTags: (...args) => getSecretAlbumFilterTags(...args),
+  deleteSecretDialogImage: (...args) => deleteSecretDialogImage(...args),
   updateSecretDialogImage: (...args) => updateSecretDialogImage(...args),
 });
 const {
@@ -1332,6 +1333,7 @@ const {
   createSecretFolder,
   deleteActiveSecretFolder,
   deleteCurrentSecretTag,
+  deleteSecretDialogImage,
   deleteSecretItem,
   deleteSelectedSecretImages,
   getImageFilesFromClipboard,

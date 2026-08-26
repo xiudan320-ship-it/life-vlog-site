@@ -8,6 +8,7 @@
 | --- | --- | --- |
 | 页面切换、顶部导航、返回行为 | `modules/app-navigation-controller.js` | `modules/app-event-bindings.js` |
 | 登录、注册、邮箱与密码 | `modules/auth-controller.js` | `modules/app-session-controller.js`, `modules/settings-event-bindings.js` |
+| 顶部等级 / 经验面板点击无响应 | `modules/gamification-controller.js` | `modules/app-event-bindings.js`, `modules/settings-event-bindings.js` |
 | 账户资料、头像、家庭设置、缓存设置 | `modules/profile-preferences-controller.js`, `modules/family-settings-controller.js` | `modules/settings-event-bindings.js`, `modules/account-view.js` |
 | 日记列表、搜索、筛选、瀑布流 | `modules/diary-feed-controller.js` | `modules/diary-gallery-view.js`, `modules/diary-domain.js` |
 | 发布 / 编辑日记、上传队列 | `modules/diary-composer-controller.js`, `modules/photo-detail-controller.js` | `modules/diary-upload-domain.js`, `modules/content-form-event-bindings.js` |
@@ -18,7 +19,7 @@
 | 购物车 / 想买清单 | `modules/shopping-controller.js` | `modules/shopping-view.js`, `modules/wishlist-hub-controller.js` |
 | 秘藏相册加载、列表与详情编排 | `modules/secret-controller.js` | `modules/secret-gallery-view.js`, `modules/secret-domain.js` |
 | 秘藏新建表单与预览 | `modules/secret-composer-controller.js` | `modules/secret-controller.js` |
-| 秘藏相册编辑、图片批量操作与删除 | `modules/secret-album-actions-controller.js` | `modules/secret-controller.js` |
+| 秘藏相册编辑、图片批量操作与删除 | `modules/secret-album-actions-controller.js` | `modules/secret-controller.js`, `modules/photo-viewer-controller.js`, `modules/photo-dialog-view.js` |
 | 日记、心愿和周末媒体详情编排 | `modules/photo-detail-controller.js` | `modules/photo-viewer-controller.js` |
 | 日记编辑、图片替换和删除 | `modules/photo-editor-controller.js` | `modules/photo-detail-controller.js` |
 | 手机日记详情、留言与返回手势 | `modules/mobile-diary-controller.js` | `modules/mobile-diary-view.js` |

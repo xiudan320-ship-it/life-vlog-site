@@ -13,7 +13,7 @@ import {
   setViewerStatus,
   updateDiaryViewerToolbar,
   updateSecretViewerToolbar,
-} from "./photo-dialog-view.js";
+} from "./photo-dialog-view.js?v=20260826-001";
 import {
   getDiaryMediaPosterUrl,
   getDiaryMediaType,
@@ -28,6 +28,7 @@ export function createPhotoViewerController({
   isMobileViewport,
   closePhotoDialog,
   getSecretAlbumFilterTags,
+  deleteSecretDialogImage = () => {},
   updateSecretDialogImage,
 }) {
   const els = elements;
@@ -482,6 +483,7 @@ export function createPhotoViewerController({
         const current = state.dialogImages[state.dialogImageIndex] || {};
         void updateSecretDialogImage({ favorite: !current.favorite });
       },
+      onDelete: () => void deleteSecretDialogImage(),
       onRemoveTag: (tag) => void updateSecretDialogImage({ removeTag: tag }),
       onAddTag: (tag) => void updateSecretDialogImage({ addTag: tag }),
     });

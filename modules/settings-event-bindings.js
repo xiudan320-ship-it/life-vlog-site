@@ -52,7 +52,7 @@ export function bindSettingsEvents({ elements, state, controllers, core }) {
   } = controllers.offlineSettings;
   const { loadMobileFeedLayout, setMobileFeedLayout } = controllers.layoutSettings;
   const {
-    openDialog: openLevelDialog,
+    openLevelDialog,
     openLevelGuidePage,
     renderVipCenter,
   } = controllers.gamification;

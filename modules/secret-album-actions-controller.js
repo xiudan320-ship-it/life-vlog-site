@@ -326,6 +326,91 @@ export function createSecretAlbumActionsController({
     const nextStatus = els.dialogNote?.querySelector("[data-secret-dialog-status]");
     if (nextStatus) nextStatus.textContent = message;
   }
+
+  async function deleteSecretDialogImage() {
+    const item = state.activeSecretDialogItem;
+    if (!item || !state.cloudDb || !state.session) return;
+    const status = els.dialogNote?.querySelector("[data-secret-dialog-status]");
+    const images = normalizeSecretImages(item.images);
+    const displayedImage = state.dialogImages[state.dialogImageIndex] || {};
+    const matchesImage = (image, target) => Boolean(
+      target?.image_path && image?.image_path === target.image_path
+    ) || Boolean(target?.image_url && image?.image_url === target.image_url);
+    const matchedIndex = images.findIndex((image) => matchesImage(image, displayedImage));
+    const index = matchedIndex >= 0
+      ? matchedIndex
+      : Math.min(Math.max(0, state.dialogImageIndex), Math.max(0, images.length - 1));
+    if (!images[index]) return;
+    if (images.length <= 1) {
+      const message = "至少保留一张图片。如果要全部删除，请删除整个相册。";
+      if (status) status.textContent = message;
+      setSecretStatus(message);
+      return;
+    }
+
+    const confirmed = await confirmAction({
+      eyebrow: "秘藏相片",
+      title: "确定要删除这张相片吗？",
+      message: "删除后会从当前秘藏相册移除，无法在相册内恢复。",
+      confirmLabel: "删除相片",
+      cancelLabel: "保留",
+      danger: true,
+    });
+    if (!confirmed) return;
+
+    if (status) status.textContent = "正在删除...";
+    const removedImage = images[index];
+    const nextImages = images.filter((_, imageIndex) => imageIndex !== index);
+    const coverStillExists = nextImages.some((image) => image.image_url === item.coverImage);
+    const cover = coverStillExists
+      ? { cover_image: item.coverImage || "", cover_path: item.coverPath || "" }
+      : {
+          cover_image: nextImages[0]?.image_url || "",
+          cover_path: nextImages[0]?.image_path || "",
+        };
+    const updatedAt = new Date().toISOString();
+    const { error } = await secretRepository.updateOwnedItem(item.id, {
+      images: nextImages,
+      ...cover,
+      updated_at: updatedAt,
+    });
+    if (error) {
+      if (status) status.textContent = error.message || "删除相片失败。";
+      setSecretStatus(error.message || "删除相片失败。");
+      return;
+    }
+
+    const nextDialogImages = state.dialogImages.filter((image) => !matchesImage(image, removedImage));
+    const nextItem = {
+      ...item,
+      images: nextImages,
+      coverImage: cover.cover_image,
+      coverPath: cover.cover_path,
+      updatedAt,
+    };
+    const itemIndex = state.secretItems.findIndex((entry) => entry.id === item.id);
+    if (itemIndex >= 0) state.secretItems[itemIndex] = nextItem;
+    state.activeSecretDialogItem = nextItem;
+    state.dialogImages = nextDialogImages;
+    state.dialogImageIndex = Math.min(
+      state.dialogImageIndex,
+      Math.max(0, nextDialogImages.length - 1)
+    );
+    if (state.session?.user?.id) saveSecretItemsCache(state.session.user.id);
+    renderSecretGallery();
+
+    const paths = [removedImage.image_path, removedImage.thumbnail_path].filter(Boolean);
+    if (paths.length) cleanupStoredImagePaths(paths).catch(() => {});
+    if (!nextDialogImages.length) {
+      els.dialog?.close();
+    } else {
+      renderDialogMedia();
+      const nextStatus = els.dialogNote?.querySelector("[data-secret-dialog-status]");
+      if (nextStatus) nextStatus.textContent = "相片已删除。";
+    }
+    setSecretStatus("相片已删除。秘藏相册已更新。");
+    showMiniToast("相片已删除", { kind: "success" });
+  }
   
   async function deleteSelectedSecretImages(item) {
     const images = normalizeSecretImages(item.images);
@@ -617,6 +702,7 @@ export function createSecretAlbumActionsController({
     deleteCurrentSecretTag,
     deleteSecretItem,
     deleteSelectedSecretImages,
+    deleteSecretDialogImage,
     getImageFilesFromClipboard,
     mergeSecretAlbumInto,
     moveSecretAlbum,
@@ -629,4 +715,3 @@ export function createSecretAlbumActionsController({
     updateSecretDialogImage,
   };
 }
-

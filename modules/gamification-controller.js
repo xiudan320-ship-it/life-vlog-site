@@ -613,11 +613,24 @@ export function createGamificationController({
   }
   
   async function openLevelDialog() {
-    if (!state.session) return;
-    await loadFamilyLevelProfiles();
+    if (!state.session || !els.levelDialog) return;
     activeLevelSection = "ranking";
     renderLevelDialog();
     els.levelDialog.showModal();
+    // Show the panel immediately. Family ranking is a secondary cloud read and
+    // must not make the top-level badge look unresponsive on a slow connection.
+    try {
+      await loadFamilyLevelProfiles();
+      if (els.levelDialog.open) renderLevelDialog();
+    } catch (error) {
+      if (els.levelDialog.open) renderLevelDialog();
+      setTimeout(() => {
+        if (els.levelDialog.open) {
+          const status = els.levelList?.querySelector(".level-rank-empty");
+          if (status) status.textContent = "家庭排行暂时无法同步，稍后再试。";
+        }
+      }, 0);
+    }
   }
   
   function getLevelNeed(level) {

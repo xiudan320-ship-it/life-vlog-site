@@ -32,7 +32,7 @@ import { prepareFeedImages } from "./diary-gallery-view.js";
 import { escapeHtml } from "./ui-formatters.js";
 import { createSecretFolderController } from "./secret-folder-controller.js";
 import { createSecretComposerController } from "./secret-composer-controller.js";
-import { createSecretAlbumActionsController } from "./secret-album-actions-controller.js";
+import { createSecretAlbumActionsController } from "./secret-album-actions-controller.js?v=20260826-001";
 
 export function createSecretController({
   elements,
@@ -152,6 +152,7 @@ export function createSecretController({
     applySecretPhotoTag,
     deleteCurrentSecretTag,
     deleteSecretItem,
+    deleteSecretDialogImage,
     deleteSelectedSecretImages,
     getImageFilesFromClipboard,
     mergeSecretAlbumInto,
@@ -755,6 +756,7 @@ export function createSecretController({
     createSecretFolder,
     deleteActiveSecretFolder,
     deleteCurrentSecretTag,
+    deleteSecretDialogImage,
     deleteSecretItem,
     deleteSelectedSecretImages,
     getImageFilesFromClipboard,

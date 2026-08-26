@@ -1,6 +1,6 @@
 import { bindContentFormEvents } from "./content-form-event-bindings.js";
 import { bindMediaEvents } from "./media-event-bindings.js";
-import { bindSettingsEvents } from "./settings-event-bindings.js";
+import { bindSettingsEvents } from "./settings-event-bindings.js?v=20260826-001";
 
 export function bindAppEvents({
   elements,
@@ -65,7 +65,7 @@ export function bindAppEvents({
     resetEmailRecoveryUi,
     signup: signupWithPassword,
   } = controllers.auth;
-  const { openDialog: openLevelDialog } = controllers.gamification;
+  const { openLevelDialog } = controllers.gamification;
 
   els.setupToggle.addEventListener("click", () => {
     els.setupPanel.hidden = !els.setupPanel.hidden;

@@ -83,6 +83,7 @@ export function renderSecretDialogControls(image) {
   return `
     <div class="secret-dialog-tools secret-dialog-readonly-tools">
       <button class="secret-dialog-favorite ${favorite ? "active" : ""}" type="button" data-secret-dialog-favorite>${favorite ? "♥ 已收藏" : "♡ 收藏"}</button>
+      <button class="secret-dialog-delete" type="button" data-secret-dialog-delete>删除相片</button>
       <div class="secret-dialog-current-tags">
         <span>展品 Tag</span>
         <div>${tags.map((tag) => `<button type="button" data-secret-dialog-remove-tag="${escapeHtml(tag)}">${escapeHtml(tag)} <b>×</b></button>`).join("")}</div>
@@ -96,9 +97,10 @@ export function renderSecretDialogControls(image) {
   `;
 }
 
-export function bindSecretDialogControls({ container, onFavorite, onRemoveTag, onAddTag }) {
+export function bindSecretDialogControls({ container, onFavorite, onDelete = () => {}, onRemoveTag, onAddTag }) {
   if (!container) return;
   container.querySelector("[data-secret-dialog-favorite]")?.addEventListener("click", onFavorite);
+  container.querySelector("[data-secret-dialog-delete]")?.addEventListener("click", onDelete);
   container.querySelectorAll("[data-secret-dialog-remove-tag]").forEach((button) => {
     button.addEventListener("click", () => onRemoveTag(button.dataset.secretDialogRemoveTag || ""));
   });

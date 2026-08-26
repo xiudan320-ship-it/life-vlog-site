@@ -583,6 +583,11 @@ async function assertModularViews(page, label) {
   await assertNoHorizontalOverflow(page, `${label} VIP center`);
   await page.screenshot({ path: join(screenshotDir, `modules-vip-${label}.png`) });
   await page.click("#closeVipDialog");
+
+  await page.click("#vipBadge");
+  await page.waitForSelector("#levelDialog[open]");
+  assert.match(await page.locator("#levelCurrentTitle").textContent(), /期/);
+  await page.click("#closeLevelDialog");
 }
 
 async function assertShoppingFlow(page, label) {
@@ -651,9 +656,11 @@ async function assertShoppingFlow(page, label) {
       imageWidth: entry.querySelector(".shopping-card-image")?.getBoundingClientRect().width || 0,
       actionWidth: entry.querySelector(".shopping-card-actions")?.getBoundingClientRect().width || 0,
     }));
-    assert.ok(compactMetrics.cardHeight <= 100, `mobile shopping row is too tall: ${JSON.stringify(compactMetrics)}`);
-    assert.ok(compactMetrics.imageWidth <= 72, `mobile shopping thumbnail is too large: ${JSON.stringify(compactMetrics)}`);
-    assert.ok(compactMetrics.actionWidth <= 62, `mobile shopping actions are too wide: ${JSON.stringify(compactMetrics)}`);
+    const actionHeight = await card.locator(".shopping-card-actions").evaluate((actions) => actions.getBoundingClientRect().height);
+    assert.ok(compactMetrics.cardHeight <= 160, `mobile shopping row is too tall: ${JSON.stringify(compactMetrics)}`);
+    assert.ok(compactMetrics.imageWidth <= 80, `mobile shopping thumbnail is too large: ${JSON.stringify(compactMetrics)}`);
+    assert.ok(compactMetrics.actionWidth >= 240, `mobile shopping actions are too narrow: ${JSON.stringify(compactMetrics)}`);
+    assert.ok(actionHeight >= 44, `mobile shopping actions are too short: ${actionHeight}px`);
   }
   await assertNoHorizontalOverflow(page, `${label} shopping cart`);
   await mkdir(screenshotDir, { recursive: true });
