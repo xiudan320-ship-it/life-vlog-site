@@ -3,6 +3,7 @@ import {
   getShoppingStats,
   sortShoppingItems,
 } from "./shopping-domain.js";
+import { renderListIcon } from "./list-icons.js";
 
 function formatPrice(value) {
   if (value === null || value === undefined || value === "") return "";
@@ -25,7 +26,7 @@ function formatDate(value) {
 
 function renderImage(item, name, escapeHtml) {
   if (!item.imageUrl) {
-    return '<span class="shopping-card-placeholder" aria-hidden="true">🛍</span>';
+    return `<span class="shopping-card-placeholder" aria-hidden="true">${renderListIcon("bag")}</span>`;
   }
   return `<button class="shopping-card-image-button" type="button" data-shopping-image="${escapeHtml(item.imageUrl)}" data-shopping-image-alt="${name}" aria-label="查看${name}大图">
     <img src="${escapeHtml(item.imageUrl)}" alt="${name}" loading="lazy" />
@@ -38,7 +39,7 @@ function renderCard(item, { canManageItem, escapeHtml }) {
   const price = formatPrice(item.price);
   const note = item.note ? `<p class="shopping-card-note">${escapeHtml(item.note)}</p>` : "";
   const link = item.link
-    ? `<a class="shopping-card-link" href="${escapeHtml(item.link)}" target="_blank" rel="noopener noreferrer">查看商品链接 <span aria-hidden="true">↗</span></a>`
+    ? `<a class="shopping-card-link" href="${escapeHtml(item.link)}" target="_blank" rel="noopener noreferrer">查看商品链接 ${renderListIcon("external", "list-icon-inline")}</a>`
     : "";
   const completedLabel = item.completed ? "已购买" : "未完成";
 
@@ -52,14 +53,13 @@ function renderCard(item, { canManageItem, escapeHtml }) {
         <div class="shopping-card-body">
           <h3>${name}</h3>
           ${price ? `<strong class="shopping-card-price">${price}</strong>` : ""}
-          <span class="shopping-card-status${item.completed ? " is-complete" : ""}">${completedLabel}</span>
           ${note}
           ${link}
           <time datetime="${escapeHtml(item.createdAt || "")}">${formatDate(item.createdAt)} 加入</time>
         </div>
         ${manageable ? `<div class="shopping-card-tools">
-          <button class="shopping-menu-button" type="button" data-shopping-menu="${escapeHtml(item.id)}" aria-label="更多操作" aria-haspopup="menu">•••</button>
-          <button class="shopping-check-button${item.completed ? " is-complete" : ""}" type="button" data-toggle-shopping="${escapeHtml(item.id)}" aria-label="${item.completed ? "取消已购买" : "标记为已购买"}" aria-pressed="${String(item.completed)}"><span aria-hidden="true">✓</span></button>
+          <button class="shopping-menu-button" type="button" data-shopping-menu="${escapeHtml(item.id)}" aria-label="更多操作" aria-haspopup="menu">${renderListIcon("more")}</button>
+          <button class="shopping-check-button${item.completed ? " is-complete" : ""}" type="button" data-toggle-shopping="${escapeHtml(item.id)}" aria-label="${item.completed ? "取消已购买" : "标记为已购买"}" aria-pressed="${String(item.completed)}">${renderListIcon("check")}</button>
         </div>` : ""}
       </div>
     </article>`;
@@ -69,7 +69,7 @@ export function renderShoppingDetail(item, { escapeHtml }) {
   const name = escapeHtml(item.name || "未命名商品");
   const image = item.imageUrl
     ? `<img src="${escapeHtml(item.imageUrl)}" alt="${name}" />`
-    : '<span class="shopping-detail-placeholder" aria-hidden="true">🛍</span>';
+    : `<span class="shopping-detail-placeholder" aria-hidden="true">${renderListIcon("bag")}</span>`;
   const price = formatPrice(item.price);
   return `
     <div class="shopping-detail-image">${image}</div>
@@ -78,7 +78,7 @@ export function renderShoppingDetail(item, { escapeHtml }) {
       <h2>${name}</h2>
       ${price ? `<strong class="shopping-card-price">${price}</strong>` : ""}
       ${item.note ? `<p class="shopping-detail-note">${escapeHtml(item.note)}</p>` : ""}
-      ${item.link ? `<a class="shopping-detail-link" href="${escapeHtml(item.link)}" target="_blank" rel="noopener noreferrer">打开商品链接 ↗</a>` : ""}
+      ${item.link ? `<a class="shopping-detail-link" href="${escapeHtml(item.link)}" target="_blank" rel="noopener noreferrer">打开商品链接 ${renderListIcon("external", "list-icon-inline")}</a>` : ""}
       <time datetime="${escapeHtml(item.createdAt || "")}">${formatDate(item.createdAt)} 加入</time>
     </div>`;
 }
@@ -110,11 +110,11 @@ export function renderShoppingItems({
   });
 
   if (!signedIn) {
-    listElement.innerHTML = '<div class="shopping-empty"><span class="shopping-empty-icon" aria-hidden="true">🛒</span><strong>登录后开始记录想买的东西</strong></div>';
+    listElement.innerHTML = `<div class="shopping-empty"><span class="shopping-empty-icon" aria-hidden="true">${renderListIcon("bag")}</span><strong>登录后开始记录想买的东西</strong></div>`;
     return;
   }
   if (dataState === "loading") {
-    listElement.innerHTML = '<div class="shopping-empty"><span class="shopping-empty-icon" aria-hidden="true">…</span><strong>正在读取购物车</strong></div>';
+    listElement.innerHTML = `<div class="shopping-empty"><span class="shopping-empty-icon is-loading" aria-hidden="true">${renderListIcon("loader")}</span><strong>正在读取购物车</strong></div>`;
     return;
   }
 
@@ -125,7 +125,7 @@ export function renderShoppingItems({
         ? "还没有已经买到的商品。"
         : "待购买清单已经完成啦。"
       : "购物车还是空的，把想买的东西放进来吧。";
-    listElement.innerHTML = `<div class="shopping-empty"><span class="shopping-empty-icon" aria-hidden="true">🛒</span><strong>${message}</strong><button class="shopping-empty-add" type="button" data-add-shopping>添加商品</button></div>`;
+    listElement.innerHTML = `<div class="shopping-empty"><span class="shopping-empty-icon" aria-hidden="true">${renderListIcon("bag")}</span><strong>${message}</strong><button class="shopping-empty-add" type="button" data-add-shopping>添加商品</button></div>`;
     return;
   }
 

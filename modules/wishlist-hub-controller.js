@@ -9,6 +9,8 @@ export function createWishlistHubController({ elements, renderWishes, renderShop
     elements.wishlistPage.classList.toggle("shopping-active", showingShopping);
     elements.wishlistPageKicker.textContent = showingShopping ? "Buy List" : "Wishlist";
     elements.wishlistPageTitle.textContent = showingShopping ? "购物车" : "心愿单";
+    elements.wishlistSummary.hidden = showingShopping;
+    elements.shoppingSummary.hidden = !showingShopping;
     elements.wishlistStatus.hidden = showingShopping;
     elements.shoppingStatus.hidden = !showingShopping;
     elements.wishlistModuleTabs.querySelectorAll("[data-wishlist-module]").forEach((button) => {

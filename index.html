@@ -27,8 +27,8 @@
     <link rel="stylesheet" href="./styles/secret-filters.css?v=20260825-035" />
     <link rel="stylesheet" href="./styles/diary-comments.css?v=20260825-035" />
     <link rel="stylesheet" href="./styles/feature-inspector.css?v=20260826-038" />
-    <link rel="stylesheet" href="./styles/wishlist.css?v=20260826-001" />
-    <link rel="stylesheet" href="./styles/shopping.css?v=20260826-003" />
+    <link rel="stylesheet" href="./styles/wishlist.css?v=20260826-002" />
+    <link rel="stylesheet" href="./styles/shopping.css?v=20260826-004" />
     <link rel="stylesheet" href="./styles/media-upload.css?v=20260825-035" />
     <link rel="stylesheet" href="./weekend-board.css?v=20260823-241" />
     <link rel="stylesheet" href="./diary-detail.css?v=20260823-019" />
@@ -504,13 +504,16 @@
 
       <section class="wishlist-page" id="wishlistPage" hidden>
         <div class="feed-head wishlist-page-header">
-          <div>
+          <div class="wishlist-page-heading">
             <p class="kicker" id="wishlistPageKicker">WISHLIST</p>
             <h2 id="wishlistPageTitle">心愿单</h2>
             <p class="wishlist-summary" id="wishlistSummary">0 个心愿 · 0 个已完成</p>
+            <p class="wishlist-summary" id="shoppingSummary" hidden>0 件商品 · 0 件已完成</p>
           </div>
-          <p class="status-line" id="wishlistStatus"></p>
-          <p class="status-line" id="shoppingStatus" hidden></p>
+          <div class="wishlist-page-statuses" aria-live="polite">
+            <p class="status-line" id="wishlistStatus"></p>
+            <p class="status-line" id="shoppingStatus" hidden></p>
+          </div>
         </div>
 
         <div class="wishlist-module-tabs" id="wishlistModuleTabs" role="tablist" aria-label="清单类型">
@@ -523,9 +526,10 @@
         <section class="wishlist-composer" id="wishlistComposer" hidden>
           <div class="section-title">
             <button class="section-heading-button" id="wishlistToggle" type="button" aria-expanded="false">
-              <span class="wishlist-add-icon" aria-hidden="true">+</span>
+              <span class="wishlist-add-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false"><path d="M12 5v14M5 12h14" /></svg>
+              </span>
               <span id="wishlistFormTitle">添加心愿</span>
-              <span class="wishlist-add-arrow" aria-hidden="true">↗</span>
             </button>
           </div>
 
@@ -599,18 +603,14 @@
         </div>
 
         <div id="shoppingContent" class="shopping-content" hidden>
-          <header class="shopping-page-header">
-            <p class="shopping-page-kicker">BUY LIST</p>
-            <div class="shopping-page-title-row">
-              <h2>购物车</h2>
-              <p id="shoppingSummary">0 件商品 · 0 件已完成</p>
-            </div>
+          <div class="shopping-primary-actions">
             <button class="shopping-add-button" id="shoppingToggle" type="button" aria-expanded="false">
-              <span class="shopping-add-icon" aria-hidden="true">+</span>
+              <span class="shopping-add-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false"><path d="M12 5v14M5 12h14" /></svg>
+              </span>
               <span>添加商品</span>
-              <span class="shopping-add-arrow" aria-hidden="true">↗</span>
             </button>
-          </header>
+          </div>
 
           <section class="shopping-composer" id="shoppingComposer">
             <form class="shopping-form" id="shoppingForm" hidden>
@@ -1584,6 +1584,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260826-006"></script>
+    <script type="module" src="./app.js?v=20260826-007"></script>
   </body>
 </html>

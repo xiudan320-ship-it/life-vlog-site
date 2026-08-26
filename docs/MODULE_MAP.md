@@ -15,8 +15,8 @@
 | VLOG 模式、视频声音、自动播放、控件 | `modules/vlog-mode.js`, `modules/photo-viewer-controller.js` | `modules/diary-video-layout.js`, `modules/media-event-bindings.js` |
 | 图片 / 视频详情、缩放、前后切换、手势 | `modules/photo-viewer-controller.js`, `modules/photo-detail-controller.js` | `modules/media-event-bindings.js`, `modules/media-gesture-domain.js`, `modules/photo-dialog-view.js` |
 | 周末计划、完成相册 | `modules/weekend-controller.js` | `modules/weekend-gallery.js`, `modules/weekend-plans-view.js`, `modules/content-form-event-bindings.js` |
-| 心愿单 | `modules/wishlist-controller.js` | `modules/wishlist-view.js`, `modules/wishlist-hub-controller.js`, `modules/content-form-event-bindings.js` |
-| 购物车 / 想买清单 | `modules/shopping-controller.js` | `modules/shopping-view.js`, `modules/shopping-domain.js`, `modules/shopping-interactions.js`, `modules/wishlist-hub-controller.js` |
+| 心愿单 | `modules/wishlist-controller.js` | `modules/wishlist-view.js`, `modules/list-icons.js`, `modules/wishlist-hub-controller.js`, `modules/content-form-event-bindings.js` |
+| 购物车 / 想买清单 | `modules/shopping-controller.js` | `modules/shopping-view.js`, `modules/list-icons.js`, `modules/shopping-domain.js`, `modules/shopping-interactions.js`, `modules/wishlist-hub-controller.js` |
 | 秘藏相册加载、列表与详情编排 | `modules/secret-controller.js` | `modules/secret-gallery-view.js`, `modules/secret-domain.js` |
 | 秘藏新建表单与预览 | `modules/secret-composer-controller.js` | `modules/secret-controller.js` |
 | 秘藏相册编辑、图片批量操作与删除 | `modules/secret-album-actions-controller.js` | `modules/secret-controller.js`, `modules/photo-viewer-controller.js`, `modules/photo-dialog-view.js` |

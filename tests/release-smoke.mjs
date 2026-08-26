@@ -515,7 +515,7 @@ async function assertWishlistReceiptFlow(page, label, runtimeErrors) {
     })),
     activeColor: (() => {
       const probe = document.createElement("span");
-      probe.style.color = "var(--accent)";
+      probe.style.color = "var(--lv-accent)";
       document.body.append(probe);
       const color = getComputedStyle(probe).color;
       probe.remove();
@@ -883,6 +883,67 @@ async function assertShoppingFlow(page, label) {
   assert.equal(await page.locator("#shoppingList .shopping-card", { hasText: editedName }).count(), 0, `${label} deleted shopping item returned after reload`);
 }
 
+async function assertAdaptiveListLayouts(page) {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.click("#wishlistNav");
+  await page.click('[data-wishlist-module="wishlist"]');
+  await page.waitForSelector("#wishlistPage:not([hidden])");
+  await page.evaluate(() => { document.documentElement.style.fontSize = "20px"; });
+  await page.waitForTimeout(120);
+
+  const smallPhone = await page.evaluate(() => {
+    const segment = document.querySelector("#wishlistModuleTabs");
+    const targets = [...document.querySelectorAll(
+      "#wishlistModuleTabs button, #wishlistContent .wish-tabs button, #wishlistContent .wish-menu-button, #wishlistContent .wish-check-button"
+    )].filter((element) => element.offsetParent !== null);
+    return {
+      overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      segmentWidth: segment?.getBoundingClientRect().width || 0,
+      smallestTarget: Math.min(...targets.map((element) => {
+        const rect = element.getBoundingClientRect();
+        return Math.min(rect.width, rect.height);
+      })),
+      reducedMotion: getComputedStyle(document.querySelector(".wish-check-button") || segment).transitionDuration,
+    };
+  });
+  assert.ok(smallPhone.overflow <= 1, `375px wishlist overflows by ${smallPhone.overflow}px`);
+  assert.ok(smallPhone.segmentWidth <= 240, `375px list switch is too wide: ${smallPhone.segmentWidth}`);
+  assert.ok(smallPhone.smallestTarget >= 44, `375px list touch target is too small: ${smallPhone.smallestTarget}`);
+  assert.equal(smallPhone.reducedMotion, "0s", "reduced-motion did not disable list transitions");
+  await page.screenshot({ path: join(screenshotDir, "wishlist-375-dynamic-type.png"), fullPage: true });
+
+  await page.evaluate(() => { document.documentElement.style.fontSize = ""; });
+  await page.setViewportSize({ width: 430, height: 932 });
+  await page.click('[data-wishlist-module="shopping"]');
+  await page.waitForSelector("#shoppingContent:not([hidden])");
+  const largePhone = await page.evaluate(() => ({
+    overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    segmentWidth: document.querySelector("#wishlistModuleTabs")?.getBoundingClientRect().width || 0,
+    cardsInside: [...document.querySelectorAll("#shoppingList .shopping-card")].every((card) => {
+      const rect = card.getBoundingClientRect();
+      return rect.left >= 0 && rect.right <= innerWidth + 1;
+    }),
+  }));
+  assert.ok(largePhone.overflow <= 1, `430px shopping overflows by ${largePhone.overflow}px`);
+  assert.ok(largePhone.segmentWidth <= 240, `430px list switch is too wide: ${largePhone.segmentWidth}`);
+  assert.equal(largePhone.cardsInside, true, "430px shopping card escaped the viewport");
+  await page.screenshot({ path: join(screenshotDir, "shopping-430.png"), fullPage: true });
+
+  await page.setViewportSize({ width: 844, height: 390 });
+  const landscape = await page.evaluate(() => ({
+    overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    segmentWidth: document.querySelector("#wishlistModuleTabs")?.getBoundingClientRect().width || 0,
+    headerVisible: document.querySelector("#wishlistPageTitle")?.getBoundingClientRect().height > 0,
+    filtersVisible: document.querySelector("#shoppingFilters")?.getBoundingClientRect().height >= 44,
+  }));
+  assert.ok(landscape.overflow <= 1, `landscape shopping overflows by ${landscape.overflow}px`);
+  assert.ok(landscape.segmentWidth <= 240, `landscape list switch is too wide: ${landscape.segmentWidth}`);
+  assert.equal(landscape.headerVisible, true, "landscape shopping title is hidden");
+  assert.equal(landscape.filtersVisible, true, "landscape shopping filters are not touchable");
+  await page.screenshot({ path: join(screenshotDir, "shopping-landscape.png"), fullPage: true });
+}
+
 try {
   const desktopContext = await browser.newContext({
     viewport: { width: 1440, height: 900 },
@@ -940,6 +1001,8 @@ try {
   await assertModularViews(mobile, "mobile");
   await assertWishlistReceiptFlow(mobile, "mobile", mobileErrors);
   await assertShoppingFlow(mobile, "mobile");
+  await assertAdaptiveListLayouts(mobile);
+  await mobile.setViewportSize({ width: 390, height: 844 });
   await assertFavoriteRoundTrip(mobile, "mobile");
   await assertDiaryDetailFlow(mobile, "mobile", true, mobileErrors);
   await mobile.click("#galleryNav");
