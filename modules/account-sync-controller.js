@@ -219,7 +219,10 @@ export function createAccountSyncController({
             order: [{ column: "created_at", ascending: false }],
           }),
           householdRepository.list("shopping_items", {
-            order: [{ column: "created_at", ascending: false }],
+            order: [
+              { column: "sort_order", ascending: true },
+              { column: "created_at", ascending: false },
+            ],
           }),
         ]);
   

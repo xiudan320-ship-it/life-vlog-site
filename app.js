@@ -24,7 +24,7 @@ import { createMediaCacheService } from "./modules/media-cache.js";
 import { createUploadQueue } from "./modules/upload-queue.js";
 import { createPhotoFavoritesStore } from "./modules/photo-favorites.js";
 import { createWishlistController } from "./modules/wishlist-controller.js";
-import { createShoppingController } from "./modules/shopping-controller.js?v=20260825-005";
+import { createShoppingController } from "./modules/shopping-controller.js?v=20260826-002";
 import { createWishlistHubController } from "./modules/wishlist-hub-controller.js?v=20260824-031";
 import { createFoodWheelController } from "./modules/food-wheel-controller.js";
 import { createPushController } from "./modules/push-controller.js";

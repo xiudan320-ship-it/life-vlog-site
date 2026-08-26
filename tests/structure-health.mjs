@@ -17,6 +17,7 @@ const redesignStyleFiles = [
   "diary-comments.css",
   "feature-inspector.css",
   "wishlist-compact.css",
+  "shopping.css",
   "media-upload.css",
 ];
 

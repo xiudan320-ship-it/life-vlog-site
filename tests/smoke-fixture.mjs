@@ -13,6 +13,7 @@ export const redesignStyleUrls = [
   "diary-comments.css",
   "feature-inspector.css",
   "wishlist-compact.css",
+  "shopping.css",
   "media-upload.css",
 ];
 export const [app, redesignStyles, styles, worker, schema, index, manifestText] = await Promise.all([
@@ -39,6 +40,8 @@ export const wishlistViewModule = await readFile(
 export const shoppingViewModule = await readFile(new URL("../modules/shopping-view.js", import.meta.url), "utf8");
 export const shoppingController = await import(new URL("../modules/shopping-controller.js", import.meta.url));
 export const shoppingControllerModule = await readFile(new URL("../modules/shopping-controller.js", import.meta.url), "utf8");
+export const shoppingDomainModule = await readFile(new URL("../modules/shopping-domain.js", import.meta.url), "utf8");
+export const shoppingInteractionsModule = await readFile(new URL("../modules/shopping-interactions.js", import.meta.url), "utf8");
 export const wishlistHubController = await import(new URL("../modules/wishlist-hub-controller.js", import.meta.url));
 export const diaryUploadDomainModule = await readFile(
   new URL("../modules/diary-upload-domain.js", import.meta.url),

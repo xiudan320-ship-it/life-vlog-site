@@ -17,7 +17,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="./assets/app-icon-32.png" />
     <link rel="stylesheet" href="./styles.css?v=20260824-026" />
     <link rel="stylesheet" href="./styles/redesign-foundation.css?v=20260825-035" />
-    <link rel="stylesheet" href="./styles/redesign-components.css?v=20260825-035" />
+    <link rel="stylesheet" href="./styles/redesign-components.css?v=20260826-001" />
     <link rel="stylesheet" href="./styles/content-forms.css?v=20260825-035" />
     <link rel="stylesheet" href="./styles/mobile-diary.css?v=20260825-035" />
     <link rel="stylesheet" href="./styles/mobile-page-shell.css?v=20260826-002" />
@@ -27,7 +27,8 @@
     <link rel="stylesheet" href="./styles/secret-filters.css?v=20260825-035" />
     <link rel="stylesheet" href="./styles/diary-comments.css?v=20260825-035" />
     <link rel="stylesheet" href="./styles/feature-inspector.css?v=20260825-035" />
-    <link rel="stylesheet" href="./styles/wishlist-compact.css?v=20260826-004" />
+    <link rel="stylesheet" href="./styles/wishlist-compact.css?v=20260826-005" />
+    <link rel="stylesheet" href="./styles/shopping.css?v=20260826-002" />
     <link rel="stylesheet" href="./styles/media-upload.css?v=20260825-035" />
     <link rel="stylesheet" href="./weekend-board.css?v=20260823-241" />
     <link rel="stylesheet" href="./diary-detail.css?v=20260823-019" />
@@ -595,15 +596,29 @@
         <section class="wishlist-list" id="wishlistList" aria-live="polite"></section>
         </div>
 
-        <div id="shoppingContent" hidden>
-          <section class="shopping-composer" id="shoppingComposer">
-            <div class="section-title">
-              <button class="section-heading-button" id="shoppingToggle" type="button" aria-expanded="false">
-                <p class="kicker">New Item</p>
-                <h2 id="shoppingFormTitle">添加商品</h2>
-              </button>
+        <div id="shoppingContent" class="shopping-content" hidden>
+          <header class="shopping-page-header">
+            <p class="shopping-page-kicker">BUY LIST</p>
+            <div class="shopping-page-title-row">
+              <h2>购物车</h2>
+              <p id="shoppingSummary">0 件商品 · 0 件已完成</p>
             </div>
+            <button class="shopping-add-button" id="shoppingToggle" type="button" aria-expanded="false">
+              <span class="shopping-add-icon" aria-hidden="true">+</span>
+              <span>添加商品</span>
+              <span class="shopping-add-arrow" aria-hidden="true">↗</span>
+            </button>
+          </header>
+
+          <section class="shopping-composer" id="shoppingComposer">
             <form class="shopping-form" id="shoppingForm" hidden>
+              <div class="shopping-form-heading">
+                <div>
+                  <p class="kicker">NEW ITEM</p>
+                  <h3 id="shoppingFormTitle">添加商品</h3>
+                </div>
+                <button class="shopping-form-close" id="shoppingCancelEdit" type="button" hidden>取消</button>
+              </div>
               <label class="shopping-image-drop">
                 <input class="native-file-input" id="shoppingImageInput" type="file" accept="image/*" />
                 <img id="shoppingImagePreview" alt="商品图片预览" hidden />
@@ -631,16 +646,15 @@
               </label>
               <div class="wish-form-actions">
                 <button class="primary" id="shoppingSubmitButton" type="submit">保存商品</button>
-                <button class="ghost-button" id="shoppingCancelEdit" type="button" hidden>取消编辑</button>
               </div>
             </form>
           </section>
 
-          <div class="shopping-filters" id="shoppingFilters" role="tablist" aria-label="购物车状态">
+          <nav class="shopping-filters" id="shoppingFilters" role="tablist" aria-label="购物车状态">
             <button class="active" type="button" data-shopping-filter="all" role="tab" aria-selected="true">全部 <span id="shoppingAllCount">0</span></button>
             <button type="button" data-shopping-filter="open" role="tab" aria-selected="false">未完成 <span id="shoppingOpenCount">0</span></button>
             <button type="button" data-shopping-filter="done" role="tab" aria-selected="false">已完成 <span id="shoppingDoneCount">0</span></button>
-          </div>
+          </nav>
           <section class="shopping-list" id="shoppingList" aria-live="polite"></section>
         </div>
       </section>
@@ -1569,6 +1583,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260826-003"></script>
+    <script type="module" src="./app.js?v=20260826-005"></script>
   </body>
 </html>

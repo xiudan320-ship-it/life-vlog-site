@@ -198,12 +198,13 @@ CREATE TABLE IF NOT EXISTS shopping_items (
   note TEXT NOT NULL DEFAULT '',
   is_completed INTEGER NOT NULL DEFAULT 0,
   completed_at TEXT,
+  sort_order INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
 
-CREATE INDEX IF NOT EXISTS shopping_items_user_completed_created_idx
-  ON shopping_items (user_id, is_completed, created_at DESC);
+CREATE INDEX IF NOT EXISTS shopping_items_user_completed_sort_idx
+  ON shopping_items (user_id, is_completed, sort_order ASC, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS weekend_plans (
   id TEXT PRIMARY KEY,

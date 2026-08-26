@@ -1,5 +1,6 @@
 import { shoppingFromCloudRow, shoppingToCloudRow } from "./cloud-models.js";
-import { renderShoppingItems } from "./shopping-view.js";
+import { renderShoppingDetail, renderShoppingItems } from "./shopping-view.js";
+import { createShoppingInteractions } from "./shopping-interactions.js";
 
 export function createShoppingController({
   elements,
@@ -29,6 +30,9 @@ export function createShoppingController({
   let previewUrl = "";
   let removeImageRequested = false;
   let imageDialog = null;
+  let actionDialog = null;
+  let detailDialog = null;
+  const deletingIds = new Set();
 
   function setStatus(message) {
     elements.shoppingStatus.textContent = message || "";
@@ -87,6 +91,16 @@ export function createShoppingController({
     elements.shoppingCancelEdit.hidden = true;
   }
 
+  async function cleanupImagePaths(paths) {
+    if (!getDatabase() || !paths?.length) return null;
+    try {
+      await cleanupStoredImagePaths(paths);
+      return null;
+    } catch (error) {
+      return error;
+    }
+  }
+
   async function uploadImage(file, name) {
     if (!file) {
       return {
@@ -108,6 +122,7 @@ export function createShoppingController({
       allCountElement: elements.shoppingAllCount,
       openCountElement: elements.shoppingOpenCount,
       doneCountElement: elements.shoppingDoneCount,
+      summaryElement: elements.shoppingSummary,
       items: getItems(),
       activeFilter: getActiveFilter(),
       signedIn: Boolean(getSession()),
@@ -146,7 +161,73 @@ export function createShoppingController({
     const image = dialog.querySelector("img");
     image.src = url;
     image.alt = alt || "商品图片";
-    dialog.showModal();
+    if (!dialog.open) dialog.showModal();
+  }
+
+  function ensureActionDialog() {
+    if (actionDialog?.isConnected) return actionDialog;
+    actionDialog = document.createElement("dialog");
+    actionDialog.className = "shopping-action-dialog";
+    actionDialog.setAttribute("aria-label", "商品操作");
+    actionDialog.innerHTML = `
+      <div class="shopping-action-dialog-head"><strong>商品操作</strong><button type="button" data-shopping-action="close" aria-label="关闭">×</button></div>
+      <div class="shopping-action-dialog-actions">
+        <button type="button" data-shopping-action="edit">编辑</button>
+        <button type="button" data-shopping-action="toggle">标记完成</button>
+        <button type="button" data-shopping-action="delete" class="is-danger">删除</button>
+      </div>
+    `;
+    actionDialog.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-shopping-action]");
+      if (!button) return;
+      const action = button.dataset.shoppingAction;
+      const id = actionDialog.dataset.shoppingItemId;
+      if (action === "close") return actionDialog.close();
+      actionDialog.close();
+      if (!id) return;
+      if (action === "edit") edit(id);
+      if (action === "toggle") void toggle(id);
+      if (action === "delete") void remove(id);
+    });
+    actionDialog.addEventListener("click", (event) => {
+      if (event.target === actionDialog) actionDialog.close();
+    });
+    document.body.append(actionDialog);
+    return actionDialog;
+  }
+
+  function openActionMenu(id) {
+    const item = getItems().find((entry) => entry.id === id);
+    if (!item || !canManageItem(item)) return;
+    const dialog = ensureActionDialog();
+    dialog.dataset.shoppingItemId = id;
+    const toggleButton = dialog.querySelector('[data-shopping-action="toggle"]');
+    toggleButton.textContent = item.completed ? "取消完成" : "标记完成";
+    if (!dialog.open) dialog.showModal();
+  }
+
+  function ensureDetailDialog() {
+    if (detailDialog?.isConnected) return detailDialog;
+    detailDialog = document.createElement("dialog");
+    detailDialog.className = "shopping-detail-dialog";
+    detailDialog.setAttribute("aria-label", "商品详情");
+    detailDialog.innerHTML = `
+      <button class="shopping-detail-close" type="button" aria-label="关闭商品详情">×</button>
+      <div class="shopping-detail-content"></div>
+    `;
+    detailDialog.addEventListener("click", (event) => {
+      if (event.target === detailDialog || event.target.closest(".shopping-detail-close")) detailDialog.close();
+    });
+    document.body.append(detailDialog);
+    return detailDialog;
+  }
+
+  function openDetail(id) {
+    const item = getItems().find((entry) => entry.id === id);
+    if (!item) return;
+    const dialog = ensureDetailDialog();
+    dialog.querySelector(".shopping-detail-content").innerHTML = renderShoppingDetail(item, { escapeHtml });
+    if (!dialog.open) dialog.showModal();
   }
 
   async function submit(event) {
@@ -186,6 +267,7 @@ export function createShoppingController({
       note: elements.shoppingNoteInput.value.trim(),
       completed: previous?.completed || false,
       completedAt: previous?.completedAt || "",
+      sortOrder: previous?.sortOrder ?? 0,
       createdAt: previous?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -195,19 +277,20 @@ export function createShoppingController({
       single: true,
     });
     if (result.error) {
-      if (image.imagePath && image.imagePath !== previous?.imagePath) await cleanupStoredImagePaths([image.imagePath]);
+      if (image.imagePath && image.imagePath !== previous?.imagePath) await cleanupImagePaths([image.imagePath]);
       setStatus(`商品同步失败：${result.error.message}`);
       return;
     }
     item = shoppingFromCloudRow(result.data);
     setItems(previous ? items.map((entry) => entry.id === item.id ? item : entry) : [item, ...items]);
-    if (previous?.imagePath && previous.imagePath !== item.imagePath && getDatabase()) {
-      await cleanupStoredImagePaths([previous.imagePath]);
-    }
     resetForm();
     setExpanded(false);
     setStatus(previous ? "商品已更新。" : "商品已加入购物车。");
     render();
+    if (previous?.imagePath && previous.imagePath !== item.imagePath) {
+      const cleanupError = await cleanupImagePaths([previous.imagePath]);
+      if (cleanupError) setStatus("商品已更新，但旧图片清理失败。");
+    }
   }
 
   function edit(id) {
@@ -247,6 +330,7 @@ export function createShoppingController({
   }
 
   async function remove(id) {
+    if (deletingIds.has(id)) return;
     const item = getItems().find((entry) => entry.id === id);
     if (!item || !canManageItem(item)) return;
     const confirmed = await confirmAction({
@@ -257,18 +341,51 @@ export function createShoppingController({
       cancelLabel: "取消",
       danger: true,
     });
-    if (!confirmed) return;
-    // Shopping items are family-scoped in the data API.  The card is shown only
-    // when canManageItem allows the current family member to manage it, so do
-    // not add an extra current-user filter here; that made a partner's item
-    // look deletable but caused the server request to match zero rows.
-    const result = await repository.remove("shopping_items", { id }, { select: "id" });
-    if (result.error) return setStatus(`删除失败：${result.error.message}`);
-    setItems(getItems().filter((entry) => entry.id !== id));
-    if (item.imagePath && getDatabase()) await cleanupStoredImagePaths([item.imagePath]);
-    setStatus("商品已删除。");
-    showToast?.("商品已删除", { kind: "success" });
+    if (!confirmed || deletingIds.has(id)) return;
+    deletingIds.add(id);
+    try {
+      const result = await repository.remove("shopping_items", { id }, { select: "id" });
+      if (result.error) {
+        setStatus(`删除失败：${result.error.message}`);
+        return;
+      }
+      if (Array.isArray(result.data) && result.data.length === 0) {
+        setStatus("删除失败：数据库没有删除任何记录，请稍后重试。");
+        return;
+      }
+      setItems(getItems().filter((entry) => entry.id !== id));
+      setStatus("商品已删除。");
+      showToast?.("商品已删除", { kind: "success" });
+      render();
+      const cleanupError = await cleanupImagePaths(item.imagePath ? [item.imagePath] : []);
+      if (cleanupError) setStatus("商品已删除，但图片清理失败。");
+    } finally {
+      deletingIds.delete(id);
+    }
+  }
+
+  async function reorder(ids) {
+    if (getActiveFilter() !== "all") return render();
+    const previous = getItems();
+    const byId = new Map(previous.map((item) => [item.id, item]));
+    const reordered = ids.map((id) => byId.get(id)).filter(Boolean).map((item, index) => ({ ...item, sortOrder: index }));
+    if (reordered.length !== previous.length) return render();
+    setItems(reordered);
     render();
+    if (!canSync()) return;
+    const results = await Promise.all(reordered.map((item) => repository.update(
+      "shopping_items",
+      { sort_order: item.sortOrder, updated_at: new Date().toISOString() },
+      { id: item.id },
+    )));
+    const failure = results.find((result) => result?.error);
+    if (failure) {
+      setItems(previous);
+      render();
+      setStatus(`排序保存失败：${failure.error.message}`);
+      return;
+    }
+    setStatus("排序已保存。");
   }
 
   function bind() {
@@ -287,26 +404,26 @@ export function createShoppingController({
       setActiveFilter(button.dataset.shoppingFilter);
       render();
     });
-    elements.shoppingList.addEventListener("click", (event) => {
-      const addButton = event.target.closest("[data-add-shopping]");
-      if (addButton) {
+    createShoppingInteractions({
+      listElement: elements.shoppingList,
+      onAdd: () => {
         resetForm();
         setExpanded(true);
         elements.shoppingComposer.scrollIntoView({ behavior: "smooth", block: "start" });
-        return;
-      }
-      const imageButton = event.target.closest("[data-shopping-image]");
-      if (imageButton) {
-        return openImage(imageButton.dataset.shoppingImage, imageButton.dataset.shoppingImageAlt || "商品图片");
-      }
-      const toggleButton = event.target.closest("[data-toggle-shopping]");
-      if (toggleButton) return void toggle(toggleButton.dataset.toggleShopping);
-      const editButton = event.target.closest("[data-edit-shopping]");
-      if (editButton) return edit(editButton.dataset.editShopping);
-      const deleteButton = event.target.closest("[data-delete-shopping]");
-      if (deleteButton) void remove(deleteButton.dataset.deleteShopping);
-    });
+      },
+      onOpenImage: openImage,
+      onOpenDetail: openDetail,
+      onToggle: (id) => void toggle(id),
+      onOpenMenu: openActionMenu,
+      onSwipeToggle: (id) => void toggle(id),
+      onRemove: (id) => void remove(id),
+      canReorder: (card) => {
+        const item = getItems().find((entry) => entry.id === card.dataset.shoppingId);
+        return getActiveFilter() === "all" && Boolean(item && canManageItem(item) && canSync());
+      },
+      onReorder: (ids) => void reorder(ids),
+    }).bind();
   }
 
-  return { bind, edit, render, resetForm, setExpanded, setStatus, submit, toggle, remove };
+  return { bind, edit, render, resetForm, setExpanded, setStatus, submit, toggle, remove, reorder };
 }

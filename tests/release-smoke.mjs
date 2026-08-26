@@ -656,7 +656,9 @@ async function assertShoppingFlow(page, label) {
   assert.equal(await page.locator(".shopping-image-dialog").isVisible(), false, `${label} shopping image preview stayed visible after closing`);
   assert.match(await card.textContent(), /¥128\.5/);
 
-  await card.locator("[data-edit-shopping]").click();
+  await card.locator("[data-shopping-menu]").click();
+  await page.waitForSelector(".shopping-action-dialog[open]");
+  await page.click('[data-shopping-action="edit"]');
   await page.fill("#shoppingNameInput", editedName);
   await page.fill("#shoppingNoteInput", "自动验收：编辑成功");
   await page.click("#shoppingSubmitButton");
@@ -681,13 +683,11 @@ async function assertShoppingFlow(page, label) {
     const compactMetrics = await card.evaluate((entry) => ({
       cardHeight: entry.getBoundingClientRect().height,
       imageWidth: entry.querySelector(".shopping-card-image")?.getBoundingClientRect().width || 0,
-      actionWidth: entry.querySelector(".shopping-card-actions")?.getBoundingClientRect().width || 0,
+      actionWidth: entry.querySelector(".shopping-card-tools")?.getBoundingClientRect().width || 0,
     }));
-    const actionHeight = await card.locator(".shopping-card-actions").evaluate((actions) => actions.getBoundingClientRect().height);
-    assert.ok(compactMetrics.cardHeight <= 180, `mobile shopping row is too tall: ${JSON.stringify(compactMetrics)}`);
-    assert.ok(compactMetrics.imageWidth <= 80, `mobile shopping thumbnail is too large: ${JSON.stringify(compactMetrics)}`);
-    assert.ok(compactMetrics.actionWidth >= 78 && compactMetrics.actionWidth <= 100, `mobile shopping actions have the wrong width: ${JSON.stringify(compactMetrics)}`);
-    assert.ok(actionHeight >= 140 && actionHeight <= 155, `mobile shopping actions have the wrong height: ${actionHeight}px`);
+    assert.ok(compactMetrics.cardHeight <= 150, `mobile shopping row is too tall: ${JSON.stringify(compactMetrics)}`);
+    assert.ok(compactMetrics.imageWidth >= 86 && compactMetrics.imageWidth <= 90, `mobile shopping thumbnail is the wrong size: ${JSON.stringify(compactMetrics)}`);
+    assert.ok(compactMetrics.actionWidth >= 40 && compactMetrics.actionWidth <= 52, `mobile shopping actions have the wrong width: ${JSON.stringify(compactMetrics)}`);
   }
   await assertNoHorizontalOverflow(page, `${label} shopping cart`);
   await mkdir(screenshotDir, { recursive: true });
@@ -708,6 +708,12 @@ async function assertShoppingFlow(page, label) {
   });
   assert.ok(await card.evaluate((entry) => entry.classList.contains("completed")), `${label} completed state did not survive reload`);
 
+  await card.click({ position: { x: 170, y: 55 } });
+  await page.waitForSelector(".shopping-detail-dialog[open]");
+  assert.match(await page.locator(".shopping-detail-dialog").textContent(), new RegExp(editedName));
+  await page.click(".shopping-detail-close");
+  await page.waitForFunction(() => !document.querySelector(".shopping-detail-dialog")?.open);
+
   await card.locator("[data-toggle-shopping]").click();
   await page.waitForFunction(
     (name) => [...document.querySelectorAll("#shoppingList .shopping-card")].some(
@@ -717,11 +723,23 @@ async function assertShoppingFlow(page, label) {
     { timeout: 30000 }
   );
   card = page.locator("#shoppingList .shopping-card", { hasText: editedName });
-  await card.locator("[data-delete-shopping]").click();
+  const countBeforeDelete = await page.locator("#shoppingList .shopping-card").count();
+  const allCountBeforeDelete = Number(await page.locator("#shoppingAllCount").textContent());
+  await card.locator("[data-shopping-menu]").click();
+  await page.waitForSelector(".shopping-action-dialog[open]");
+  await page.click('[data-shopping-action="delete"]');
   await page.waitForSelector(".action-confirm-dialog[open]");
   assert.match(await page.locator(".action-confirm-dialog h2").textContent(), /确定要删除这个商品吗/);
   await page.click('.action-confirm-dialog button[value="confirm"]');
   await card.waitFor({ state: "detached", timeout: 30000 });
+  assert.equal(await page.locator("#shoppingList .shopping-card").count(), countBeforeDelete - 1, `${label} deleted shopping item stayed in the DOM`);
+  assert.equal(Number(await page.locator("#shoppingAllCount").textContent()), allCountBeforeDelete - 1, `${label} shopping total did not update after deletion`);
+
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await waitForSignedInAccount(page, `${label} shopping delete reload`);
+  await page.click("#wishlistNav");
+  await page.click('[data-wishlist-module="shopping"]');
+  assert.equal(await page.locator("#shoppingList .shopping-card", { hasText: editedName }).count(), 0, `${label} deleted shopping item returned after reload`);
 }
 
 try {

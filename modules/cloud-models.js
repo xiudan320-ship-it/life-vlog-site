@@ -106,6 +106,7 @@ export function shoppingToCloudRow(item, userId) {
     note: item.note || "",
     is_completed: Boolean(item.completed),
     completed_at: item.completedAt || null,
+    sort_order: Number.isFinite(Number(item.sortOrder)) ? Number(item.sortOrder) : 0,
     created_at: item.createdAt || new Date().toISOString(),
     updated_at: item.updatedAt || new Date().toISOString(),
   };
@@ -123,6 +124,7 @@ export function shoppingFromCloudRow(row) {
     note: row.note || "",
     completed: Boolean(row.is_completed),
     completedAt: row.completed_at || "",
+    sortOrder: Number.isFinite(Number(row.sort_order)) ? Number(row.sort_order) : 0,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

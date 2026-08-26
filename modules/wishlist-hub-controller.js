@@ -6,6 +6,7 @@ export function createWishlistHubController({ elements, renderWishes, renderShop
     const showingShopping = activeModule === "shopping";
     elements.wishlistContent.hidden = showingShopping;
     elements.shoppingContent.hidden = !showingShopping;
+    elements.wishlistPage.classList.toggle("shopping-active", showingShopping);
     elements.wishlistPageKicker.textContent = showingShopping ? "Buy List" : "Wishlist";
     elements.wishlistPageTitle.textContent = showingShopping ? "购物车" : "心愿单";
     elements.wishlistStatus.hidden = showingShopping;

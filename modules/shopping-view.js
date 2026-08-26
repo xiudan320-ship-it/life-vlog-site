@@ -1,3 +1,9 @@
+import {
+  filterShoppingItems,
+  getShoppingStats,
+  sortShoppingItems,
+} from "./shopping-domain.js";
+
 function formatPrice(value) {
   if (value === null || value === undefined || value === "") return "";
   const amount = Number(value);
@@ -5,14 +11,75 @@ function formatPrice(value) {
   return `¥${amount.toLocaleString("zh-CN", { maximumFractionDigits: 2 })}`;
 }
 
-function formatCreatedAt(value) {
+function formatDate(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat("zh-CN", {
+  const parts = new Intl.DateTimeFormat("zh-CN", {
     year: "numeric",
-    month: "short",
-    day: "numeric",
-  }).format(date);
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map(({ type, value: part }) => [type, part]));
+  return `${values.year}.${values.month}.${values.day}`;
+}
+
+function renderImage(item, name, escapeHtml) {
+  if (!item.imageUrl) {
+    return '<span class="shopping-card-placeholder" aria-hidden="true">🛍</span>';
+  }
+  return `<button class="shopping-card-image-button" type="button" data-shopping-image="${escapeHtml(item.imageUrl)}" data-shopping-image-alt="${name}" aria-label="查看${name}大图">
+    <img src="${escapeHtml(item.imageUrl)}" alt="${name}" loading="lazy" />
+  </button>`;
+}
+
+function renderCard(item, { canManageItem, escapeHtml }) {
+  const manageable = canManageItem(item);
+  const name = escapeHtml(item.name || "未命名商品");
+  const price = formatPrice(item.price);
+  const note = item.note ? `<p class="shopping-card-note">${escapeHtml(item.note)}</p>` : "";
+  const link = item.link
+    ? `<a class="shopping-card-link" href="${escapeHtml(item.link)}" target="_blank" rel="noopener noreferrer">查看商品链接 <span aria-hidden="true">↗</span></a>`
+    : "";
+  const completedLabel = item.completed ? "已购买" : "未完成";
+
+  return `
+    <article class="shopping-card${item.completed ? " completed" : ""}" data-shopping-id="${escapeHtml(item.id)}" data-shopping-detail="true" aria-label="${name}，${completedLabel}">
+      <div class="shopping-card-swipe-actions" aria-hidden="true">
+        ${manageable ? `<button type="button" data-shopping-swipe-action="toggle">${item.completed ? "取消完成" : "完成"}</button><button type="button" data-shopping-swipe-action="delete">删除</button>` : ""}
+      </div>
+      <div class="shopping-card-main">
+        <div class="shopping-card-image">${renderImage(item, name, escapeHtml)}</div>
+        <div class="shopping-card-body">
+          <h3>${name}</h3>
+          ${price ? `<strong class="shopping-card-price">${price}</strong>` : ""}
+          ${note}
+          ${link}
+          <time datetime="${escapeHtml(item.createdAt || "")}">${formatDate(item.createdAt)} 加入</time>
+        </div>
+        ${manageable ? `<div class="shopping-card-tools">
+          <button class="shopping-menu-button" type="button" data-shopping-menu="${escapeHtml(item.id)}" aria-label="更多操作" aria-haspopup="menu">•••</button>
+          <button class="shopping-check-button${item.completed ? " is-complete" : ""}" type="button" data-toggle-shopping="${escapeHtml(item.id)}" aria-label="${item.completed ? "取消已购买" : "标记为已购买"}" aria-pressed="${String(item.completed)}"><span aria-hidden="true">✓</span></button>
+        </div>` : ""}
+      </div>
+    </article>`;
+}
+
+export function renderShoppingDetail(item, { escapeHtml }) {
+  const name = escapeHtml(item.name || "未命名商品");
+  const image = item.imageUrl
+    ? `<img src="${escapeHtml(item.imageUrl)}" alt="${name}" />`
+    : '<span class="shopping-detail-placeholder" aria-hidden="true">🛍</span>';
+  const price = formatPrice(item.price);
+  return `
+    <div class="shopping-detail-image">${image}</div>
+    <div class="shopping-detail-copy">
+      <p class="shopping-detail-status">${item.completed ? "已购买" : "想买清单"}</p>
+      <h2>${name}</h2>
+      ${price ? `<strong class="shopping-card-price">${price}</strong>` : ""}
+      ${item.note ? `<p class="shopping-detail-note">${escapeHtml(item.note)}</p>` : ""}
+      ${item.link ? `<a class="shopping-detail-link" href="${escapeHtml(item.link)}" target="_blank" rel="noopener noreferrer">打开商品链接 ↗</a>` : ""}
+      <time datetime="${escapeHtml(item.createdAt || "")}">${formatDate(item.createdAt)} 加入</time>
+    </div>`;
 }
 
 export function renderShoppingItems({
@@ -21,6 +88,7 @@ export function renderShoppingItems({
   allCountElement,
   openCountElement,
   doneCountElement,
+  summaryElement,
   items,
   activeFilter,
   signedIn,
@@ -28,11 +96,13 @@ export function renderShoppingItems({
   canManageItem,
   escapeHtml,
 }) {
-  const openCount = items.filter((item) => !item.completed).length;
-  const doneCount = items.length - openCount;
-  allCountElement.textContent = String(items.length);
-  openCountElement.textContent = String(openCount);
-  doneCountElement.textContent = String(doneCount);
+  const stats = getShoppingStats(items);
+  allCountElement.textContent = String(stats.all);
+  openCountElement.textContent = String(stats.open);
+  doneCountElement.textContent = String(stats.done);
+  if (summaryElement) {
+    summaryElement.textContent = `${stats.all} 件商品 · ${stats.done} 件已完成`;
+  }
 
   filtersElement.querySelectorAll("[data-shopping-filter]").forEach((button) => {
     const selected = button.dataset.shoppingFilter === activeFilter;
@@ -41,58 +111,24 @@ export function renderShoppingItems({
   });
 
   if (!signedIn) {
-    listElement.innerHTML = '<div class="shopping-empty"><span aria-hidden="true">🛒</span><strong>登录后开始记录想买的东西</strong></div>';
+    listElement.innerHTML = '<div class="shopping-empty"><span class="shopping-empty-icon" aria-hidden="true">🛒</span><strong>登录后开始记录想买的东西</strong></div>';
     return;
   }
   if (dataState === "loading") {
-    listElement.innerHTML = '<div class="shopping-empty"><span aria-hidden="true">…</span><strong>正在读取购物车</strong></div>';
+    listElement.innerHTML = '<div class="shopping-empty"><span class="shopping-empty-icon" aria-hidden="true">…</span><strong>正在读取购物车</strong></div>';
     return;
   }
 
-  const visibleItems = items.filter((item) => {
-    if (activeFilter === "open") return !item.completed;
-    if (activeFilter === "done") return item.completed;
-    return true;
-  });
+  const visibleItems = sortShoppingItems(filterShoppingItems(items, activeFilter));
   if (!visibleItems.length) {
     const message = items.length
       ? activeFilter === "done"
         ? "还没有已经买到的商品。"
         : "待购买清单已经完成啦。"
       : "购物车还是空的，把想买的东西放进来吧。";
-    listElement.innerHTML = `<div class="shopping-empty"><span aria-hidden="true">🛒</span><strong>${message}</strong><button class="primary" type="button" data-add-shopping>+ 添加商品</button></div>`;
+    listElement.innerHTML = `<div class="shopping-empty"><span class="shopping-empty-icon" aria-hidden="true">🛒</span><strong>${message}</strong><button class="shopping-empty-add" type="button" data-add-shopping>添加商品</button></div>`;
     return;
   }
 
-  listElement.innerHTML = visibleItems.map((item) => {
-    const manageable = canManageItem(item);
-    const name = escapeHtml(item.name || "未命名商品");
-    const link = item.link
-      ? `<a class="shopping-card-link" href="${escapeHtml(item.link)}" target="_blank" rel="noopener noreferrer">查看商品链接 ↗</a>`
-      : "";
-    const image = item.imageUrl
-      ? `<button class="shopping-card-image-button" type="button" data-shopping-image="${escapeHtml(item.imageUrl)}" data-shopping-image-alt="${name}" aria-label="查看${name}大图">
-          <img src="${escapeHtml(item.imageUrl)}" alt="${name}" loading="lazy" />
-        </button>`
-      : '<span class="shopping-card-placeholder" aria-hidden="true">🛍</span>';
-    return `
-      <article class="shopping-card${item.completed ? " completed" : ""}" data-shopping-id="${escapeHtml(item.id)}">
-        <div class="shopping-card-image">${image}</div>
-        <div class="shopping-card-body">
-          <div class="shopping-card-heading">
-            <h3>${name}</h3>
-            ${item.completed ? '<span class="shopping-completed-mark">✓ 已购买</span>' : ""}
-          </div>
-          ${formatPrice(item.price) ? `<strong class="shopping-card-price">${formatPrice(item.price)}</strong>` : ""}
-          ${item.note ? `<p>${escapeHtml(item.note)}</p>` : ""}
-          ${link}
-          <small>${formatCreatedAt(item.createdAt)} 加入</small>
-        </div>
-        ${manageable ? `<div class="shopping-card-actions">
-          <button type="button" data-toggle-shopping="${escapeHtml(item.id)}">${item.completed ? "取消完成" : "完成"}</button>
-          <button type="button" data-edit-shopping="${escapeHtml(item.id)}">编辑</button>
-          <button type="button" data-delete-shopping="${escapeHtml(item.id)}">删除</button>
-        </div>` : ""}
-      </article>`;
-  }).join("");
+  listElement.innerHTML = visibleItems.map((item) => renderCard(item, { canManageItem, escapeHtml })).join("");
 }

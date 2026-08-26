@@ -15,6 +15,8 @@ import {
   weekendGalleryModule,
   wishlistViewModule,
   shoppingViewModule,
+  shoppingDomainModule,
+  shoppingInteractionsModule,
   shoppingController,
   shoppingControllerModule,
   wishlistHubController,
@@ -158,6 +160,7 @@ import {
 assert.match(index, /id="secretViewerToolbar"/);
 assert.match(index, /id="dialogExpandImage"/);
 assert.match(index, /styles\/redesign-foundation\.css\?v=20260825-035/);
+assert.match(index, /styles\/redesign-components\.css\?v=20260826-001/);
 assert.match(index, /styles\/media-upload\.css\?v=20260825-035/);
 assert.match(index, /styles\.css\?v=20260824-026/);
 assert.match(index, /id="adminStorageMeter"/);
@@ -219,7 +222,7 @@ const initialPhotoLoadIndex = appSessionControllerModule.indexOf("await actions.
 assert.ok(initializeCloudflareIndex >= 0, "Session initialization is missing");
 assert.ok(authListenerIndex > initializeCloudflareIndex, "Auth listener is missing from session initialization");
 assert.ok(authListenerIndex < initialPhotoLoadIndex, "Auth listener must be registered before initial photo loading");
-assert.match(serviceWorker, /life-vlog-site-20260826-004-pwa/);
+assert.match(serviceWorker, /life-vlog-site-20260826-006-pwa/);
 assert.match(serviceWorker, /modules\/admin-storage\.js/);
 assert.match(diaryDetailCss, /#photoDialog #dialogImage\[hidden\][\s\S]*?display: none !important/);
 assert.match(applicationSource, /const p=!state\.galleryRenderSignature[\s\S]*?initialRender: p/);
@@ -360,7 +363,7 @@ assert.match(applicationSource, /moveSecretAlbumToFolder/);
 assert.doesNotMatch(applicationSource, /function createDefaultAnniversaries/);
 assert.equal(typeof anniversaryController.createAnniversaryController, "function");
 assert.match(wishlistViewModule, /wish-card-details/);
-assert.match(css, /Wishlist: compact shopping-cart rows/);
+assert.match(css, /Wishlist: compact rows/);
 assert.match(
   appNavigationControllerModule,
   /state\.activePage === "gallery" && requestedPage !== "gallery"[\s\S]*?actions\.setUploadExpanded\(false\)/
@@ -603,36 +606,45 @@ assert.equal(typeof wishlistController.createWishlistController, "function");
 assert.equal(typeof weekendController.createWeekendController, "function");
 assert.equal(typeof authController.createAuthController, "function");
 assert.equal(typeof offlineCacheController.createOfflineCacheController, "function");
-assert.match(serviceWorker, /life-vlog-site-20260826-004-pwa/);
+assert.match(serviceWorker, /life-vlog-site-20260826-006-pwa/);
 assert.match(serviceWorker, /styles\.css\?v=20260824-026/);
 assert.match(serviceWorker, /styles\/redesign-foundation\.css\?v=20260825-035/);
+assert.match(serviceWorker, /styles\/redesign-components\.css\?v=20260826-001/);
 assert.match(serviceWorker, /styles\/media-upload\.css\?v=20260825-035/);
 assert.match(css, /mobile-diary-media > \.mobile-diary-media-badge[\s\S]*?bottom: auto[\s\S]*?width: max-content/);
 assert.match(index, /id="photoInput"[^>]*accept="image\/\*,video\/\*/);
-assert.match(index, /app\.js\?v=20260826-003/);
+assert.match(index, /app\.js\?v=20260826-005/);
 assert.match(index, /mobile-page-shell\.css\?v=20260826-002/);
 assert.match(serviceWorker, /styles\/mobile-page-shell\.css\?v=20260826-002/);
-assert.match(index, /styles\/wishlist-compact\.css\?v=20260826-004/);
+assert.match(index, /styles\/wishlist-compact\.css\?v=20260826-005/);
+assert.match(index, /styles\/shopping\.css\?v=20260826-002/);
 assert.match(index, /id="wishlistModuleTabs"/);
 assert.match(index, /data-wishlist-module="shopping"/);
 assert.match(index, /id="shoppingImageInput"[^>]*accept="image\/\*"/);
 assert.match(index, /data-shopping-filter="all"/);
 assert.match(schema, /CREATE TABLE IF NOT EXISTS shopping_items/);
 assert.match(worker, /shopping_items:\s*\{/);
+assert.match(schema, /shopping_items[\s\S]*sort_order INTEGER NOT NULL DEFAULT 0/);
+assert.match(worker, /shopping_items[\s\S]*sort_order/);
 assert.match(serviceWorker, /modules\/shopping-controller\.js/);
 assert.match(serviceWorker, /modules\/shopping-view\.js/);
+assert.match(serviceWorker, /modules\/shopping-domain\.js/);
+assert.match(serviceWorker, /modules\/shopping-interactions\.js/);
 assert.match(shoppingControllerModule, /repository\.upsert\("shopping_items"/);
 assert.match(shoppingControllerModule, /确定要删除这个商品吗/);
 assert.match(shoppingControllerModule, /repository\.remove\("shopping_items", \{ id \}, \{ select: "id" \}\)/);
 assert.doesNotMatch(shoppingControllerModule, /repository\.remove\("shopping_items", \{ id \}, \{ owned: true/);
 assert.match(shoppingControllerModule, /cleanupStoredImagePaths/);
 assert.match(shoppingControllerModule, /shopping-image-dialog/);
-assert.match(shoppingControllerModule, /data-shopping-image/);
+assert.match(shoppingViewModule, /data-shopping-image/);
 assert.match(shoppingViewModule, /shopping-card-placeholder/);
 assert.match(shoppingViewModule, /shopping-card-image-button/);
-assert.match(css, /shopping-card\s*\{[\s\S]*?grid-template-areas:/);
+assert.match(css, /shopping-card\s*\{[\s\S]*?background: var\(--shopping-card\)/);
 assert.match(css, /shopping-image-dialog::backdrop/);
 assert.match(css, /shopping-image-dialog:not\(\[open\]\)/);
+assert.match(shoppingViewModule, /data-shopping-menu/);
+assert.match(shoppingViewModule, /data-toggle-shopping/);
+assert.match(shoppingInteractionsModule, /LONG_PRESS_DELAY/);
 assert.equal(typeof shoppingController.createShoppingController, "function");
 assert.equal(typeof wishlistHubController.createWishlistHubController, "function");
 assert.match(photoDialogViewModule, /data-secret-dialog-delete/);
