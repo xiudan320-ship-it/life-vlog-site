@@ -225,7 +225,7 @@ const initialPhotoLoadIndex = appSessionControllerModule.indexOf("await actions.
 assert.ok(initializeCloudflareIndex >= 0, "Session initialization is missing");
 assert.ok(authListenerIndex > initializeCloudflareIndex, "Auth listener is missing from session initialization");
 assert.ok(authListenerIndex < initialPhotoLoadIndex, "Auth listener must be registered before initial photo loading");
-assert.match(serviceWorker, /life-vlog-site-20260826-014-pwa/);
+assert.match(serviceWorker, /life-vlog-site-20260826-015-pwa/);
 assert.match(serviceWorker, /modules\/admin-storage\.js/);
 assert.match(diaryDetailCss, /#photoDialog #dialogImage\[hidden\][\s\S]*?display: none !important/);
 assert.match(applicationSource, /const p=!state\.galleryRenderSignature[\s\S]*?initialRender: p/);
@@ -309,7 +309,7 @@ assert.match(css, /Compact, explicit creation actions in the mobile secret libra
 assert.match(secretViewerCss, /touch-action: none/);
 assert.match(secretViewerCss, /width: 100dvw !important/);
 assert.match(serviceWorker, /secret-viewer\.css\?v=20260814-231/);
-assert.match(serviceWorker, /weekend-board\.css\?v=20260823-241/);
+assert.match(serviceWorker, /weekend-board\.css\?v=20260826-041/);
 assert.match(serviceWorker, /assets\/weekend-complete-stamp\.png/);
 assert.match(serviceWorker, /diary-detail\.css\?v=20260823-019/);
 assert.match(deployScript, /weekend-board\.css/);
@@ -609,7 +609,7 @@ assert.equal(typeof wishlistController.createWishlistController, "function");
 assert.equal(typeof weekendController.createWeekendController, "function");
 assert.equal(typeof authController.createAuthController, "function");
 assert.equal(typeof offlineCacheController.createOfflineCacheController, "function");
-assert.match(serviceWorker, /life-vlog-site-20260826-014-pwa/);
+assert.match(serviceWorker, /life-vlog-site-20260826-015-pwa/);
 assert.match(serviceWorker, /styles\.css\?v=20260826-027/);
 assert.match(serviceWorker, /styles\/redesign-foundation\.css\?v=20260826-036/);
 assert.match(serviceWorker, /styles\/redesign-components\.css\?v=20260826-002/);

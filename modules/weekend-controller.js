@@ -398,6 +398,7 @@ export function createWeekendController({
     renderReminder();
     renderWeekendPlansView({
       listElement: elements.weekendList,
+      summaryElement: elements.weekendSummary,
       plans: getPlans(),
       signedIn: Boolean(getSession()),
       getAuthorName,

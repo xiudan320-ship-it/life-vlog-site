@@ -117,7 +117,6 @@ export function bindContentFormEvents({ elements, state, controllers }) {
   });
   els.wishCompleteForm.addEventListener("submit", submitWishCompletion);
   els.wishCompleteClose.addEventListener("click", closeWishCompleteDialog);
-  els.wishCompleteCancel.addEventListener("click", closeWishCompleteDialog);
   els.wishCompleteDialog.addEventListener("click", (event) => {
     if (event.target === els.wishCompleteDialog) closeWishCompleteDialog();
   });

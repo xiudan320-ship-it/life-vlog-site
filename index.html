@@ -30,7 +30,7 @@
     <link rel="stylesheet" href="./styles/wishlist.css?v=20260826-002" />
     <link rel="stylesheet" href="./styles/shopping.css?v=20260826-004" />
     <link rel="stylesheet" href="./styles/media-upload.css?v=20260825-035" />
-    <link rel="stylesheet" href="./weekend-board.css?v=20260823-241" />
+    <link rel="stylesheet" href="./weekend-board.css?v=20260826-041" />
     <link rel="stylesheet" href="./diary-detail.css?v=20260823-019" />
     <link rel="stylesheet" href="./secret-viewer.css?v=20260814-231" />
     <link rel="stylesheet" href="./wardrobe.css?v=20260811-007" />
@@ -682,26 +682,33 @@
           </div>
           <p class="status-line" id="wishCompleteStatus"></p>
           <div class="wish-complete-actions">
-            <button class="ghost-button" id="wishCompleteCancel" type="button">先不完成</button>
             <button class="primary" id="wishCompleteSubmit" type="submit">保存完成感想</button>
           </div>
         </form>
       </dialog>
 
       <section class="weekend-page" id="weekendPage" hidden>
-        <div class="feed-head">
-          <div>
-            <p class="kicker">Weekend Planner</p>
-            <h2>周末去哪</h2>
+        <div class="feed-head weekend-page-header">
+          <div class="weekend-page-heading">
+            <p class="kicker">WEEKEND</p>
+            <h2>周末计划</h2>
+            <p class="weekend-summary" id="weekendSummary">0 个计划 · 0 个已完成</p>
           </div>
-          <p class="status-line" id="weekendStatus"></p>
+          <div class="weekend-page-statuses" aria-live="polite">
+            <p class="status-line" id="weekendStatus"></p>
+          </div>
         </div>
 
         <section class="weekend-composer" id="weekendComposer" hidden>
           <div class="section-title">
-            <button class="section-heading-button" id="weekendToggle" type="button" aria-expanded="false">
-              <p class="kicker">New Plan</p>
-              <h2 id="weekendFormTitle">安排周末</h2>
+            <button class="section-heading-button weekend-add-button" id="weekendToggle" type="button" aria-expanded="false" aria-controls="weekendForm">
+              <span class="weekend-add-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false"><path d="M12 5v14M5 12h14" /></svg>
+              </span>
+              <span class="weekend-add-copy">
+                <small>NEW PLAN</small>
+                <strong id="weekendFormTitle">安排周末</strong>
+              </span>
             </button>
           </div>
           <form class="weekend-form" id="weekendForm" hidden>
