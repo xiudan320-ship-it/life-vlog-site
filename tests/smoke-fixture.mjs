@@ -12,7 +12,7 @@ export const redesignStyleUrls = [
   "secret-filters.css",
   "diary-comments.css",
   "feature-inspector.css",
-  "wishlist-compact.css",
+  "wishlist.css",
   "shopping.css",
   "media-upload.css",
 ];
@@ -42,6 +42,8 @@ export const shoppingController = await import(new URL("../modules/shopping-cont
 export const shoppingControllerModule = await readFile(new URL("../modules/shopping-controller.js", import.meta.url), "utf8");
 export const shoppingDomainModule = await readFile(new URL("../modules/shopping-domain.js", import.meta.url), "utf8");
 export const shoppingInteractionsModule = await readFile(new URL("../modules/shopping-interactions.js", import.meta.url), "utf8");
+export const wishlistDomainModule = await readFile(new URL("../modules/wishlist-domain.js", import.meta.url), "utf8");
+export const wishlistInteractionsModule = await readFile(new URL("../modules/wishlist-interactions.js", import.meta.url), "utf8");
 export const wishlistHubController = await import(new URL("../modules/wishlist-hub-controller.js", import.meta.url));
 export const diaryUploadDomainModule = await readFile(
   new URL("../modules/diary-upload-domain.js", import.meta.url),
@@ -269,6 +271,7 @@ export const photoFavoritesDomain = await import(
 export const wishlistView = await import(
   new URL("../modules/wishlist-view.js", import.meta.url)
 );
+export const wishlistDomain = await import(new URL("../modules/wishlist-domain.js", import.meta.url));
 export const diaryUploadDomain = await import(new URL("../modules/diary-upload-domain.js", import.meta.url));
 export const foodWheelView = await import(new URL("../modules/food-wheel-view.js", import.meta.url));
 export const recipeView = await import(new URL("../modules/recipe-view.js", import.meta.url));

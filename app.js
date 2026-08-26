@@ -280,7 +280,7 @@ let secretAppendExpanded = false;
 let secretMobileToolsExpanded = false;
 let diarySearchQuery = "";
 let activeWishView = "open";
-let activeShoppingFilter = "all";
+let activeShoppingFilter = "open";
 const activeUploadTasks = new Map();
 let visiblePhotoCount = PAGE_SIZE;
 let filteredPhotoCount = 0;
@@ -1818,7 +1818,7 @@ const shoppingController = createShoppingController({
   },
   getActiveFilter: () => activeShoppingFilter,
   setActiveFilter: (filter) => {
-    activeShoppingFilter = ["open", "done"].includes(filter) ? filter : "all";
+    activeShoppingFilter = ["open", "done"].includes(filter) ? filter : "open";
   },
   getDataState: () => accountDataState,
   canSync: () => cloudSyncAvailable,
@@ -1840,6 +1840,7 @@ const wishlistHubController = createWishlistHubController({
   renderWishes,
   renderShopping,
 });
+wishlistController.bind();
 shoppingController.bind();
 wishlistHubController.bind();
 

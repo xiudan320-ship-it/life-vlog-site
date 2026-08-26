@@ -52,6 +52,7 @@ function renderCard(item, { canManageItem, escapeHtml }) {
         <div class="shopping-card-body">
           <h3>${name}</h3>
           ${price ? `<strong class="shopping-card-price">${price}</strong>` : ""}
+          <span class="shopping-card-status${item.completed ? " is-complete" : ""}">${completedLabel}</span>
           ${note}
           ${link}
           <time datetime="${escapeHtml(item.createdAt || "")}">${formatDate(item.createdAt)} 加入</time>
@@ -85,7 +86,6 @@ export function renderShoppingDetail(item, { escapeHtml }) {
 export function renderShoppingItems({
   listElement,
   filtersElement,
-  allCountElement,
   openCountElement,
   doneCountElement,
   summaryElement,
@@ -97,7 +97,6 @@ export function renderShoppingItems({
   escapeHtml,
 }) {
   const stats = getShoppingStats(items);
-  allCountElement.textContent = String(stats.all);
   openCountElement.textContent = String(stats.open);
   doneCountElement.textContent = String(stats.done);
   if (summaryElement) {

@@ -181,11 +181,13 @@ CREATE TABLE IF NOT EXISTS wishes (
   completion_note TEXT NOT NULL DEFAULT '',
   is_done INTEGER NOT NULL DEFAULT 0,
   completed_at TEXT,
+  sort_order INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
 
-CREATE INDEX IF NOT EXISTS wishes_user_done_created_idx ON wishes (user_id, is_done, created_at DESC);
+CREATE INDEX IF NOT EXISTS wishes_user_done_sort_idx
+  ON wishes (user_id, is_done, sort_order ASC, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS shopping_items (
   id TEXT PRIMARY KEY,

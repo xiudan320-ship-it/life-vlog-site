@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "check": "node --check app.js && node --check service-worker.js && node --check cloudflare-worker/src/worker.js && node --check cloudflare-worker/src/r2-audit.js",
-    "test:unit": "node --test tests/r2-audit.mjs tests/app-domain.mjs tests/secret-filter-domain.mjs tests/shopping-controller.mjs",
+    "test:unit": "node --test tests/r2-audit.mjs tests/app-domain.mjs tests/secret-filter-domain.mjs tests/shopping-controller.mjs tests/wishlist-domain.mjs",
     "test:static": "node tests/static-contracts.mjs && node tests/smoke.mjs",
     "test:structure": "node tests/structure-health.mjs && node tests/css-health.mjs",
     "test:browser": "node tests/browser-regression.mjs",

@@ -1,5 +1,7 @@
 import { renderWishlist } from "./wishlist-view.js";
 import { wishFromCloudRow, wishToCloudRow } from "./cloud-models.js";
+import { reorderWishlistItems } from "./wishlist-domain.js";
+import { createWishlistInteractions } from "./wishlist-interactions.js";
 
 export function createWishlistController({
   elements,
@@ -40,6 +42,8 @@ export function createWishlistController({
   let imagePreviewUrl = "";
   let removeImageRequested = false;
   let completingId = null;
+  let actionDialog = null;
+  const deletingIds = new Set();
 
   function setExpanded(expanded) {
     elements.wishlistComposer.classList.toggle("expanded", expanded);
@@ -86,6 +90,52 @@ export function createWishlistController({
     elements.wishImagePreview.hidden = true;
     elements.wishImageName.textContent = "还没有选择图片";
     elements.wishRemoveImage.hidden = true;
+  }
+
+  function ensureActionDialog() {
+    if (actionDialog?.isConnected) return actionDialog;
+    actionDialog = document.createElement("dialog");
+    actionDialog.className = "wish-action-dialog";
+    actionDialog.setAttribute("aria-label", "心愿操作");
+    actionDialog.innerHTML = `
+      <div class="wish-action-dialog-head"><strong>心愿操作</strong><button type="button" data-wish-action="close" aria-label="关闭">×</button></div>
+      <div class="wish-action-dialog-actions">
+        <button type="button" data-wish-action="edit">编辑</button>
+        <button type="button" data-wish-action="toggle">标记完成</button>
+        <button type="button" data-wish-action="delete" class="is-danger">删除</button>
+      </div>`;
+    actionDialog.addEventListener("click", (event) => {
+      if (event.target === actionDialog) {
+        actionDialog.close();
+        return;
+      }
+      const button = event.target.closest("[data-wish-action]");
+      if (!button) return;
+      const action = button.dataset.wishAction;
+      const id = actionDialog.dataset.wishId;
+      if (action === "close") return actionDialog.close();
+      actionDialog.close();
+      if (!id) return;
+      if (action === "edit") edit(id);
+      if (action === "toggle") void toggle(id);
+      if (action === "delete") void remove(id);
+    });
+    document.body.append(actionDialog);
+    return actionDialog;
+  }
+
+  function openActionMenu(id) {
+    const wish = getWishes().find((item) => item.id === id);
+    if (!wish || !canManageItem(wish)) return;
+    const dialog = ensureActionDialog();
+    dialog.dataset.wishId = id;
+    dialog.querySelector('[data-wish-action="toggle"]').textContent = wish.done ? "改回未完成" : "标记完成";
+    if (!dialog.open) dialog.showModal();
+  }
+
+  function openDetail(id) {
+    const wish = getWishes().find((item) => item.id === id);
+    if (wish) openWishImage(wish);
   }
 
   function removeImage() {
@@ -213,6 +263,7 @@ export function createWishlistController({
       imagePath: image.imagePath,
       done: previous?.done || false,
       completedAt: previous?.completedAt || "",
+      sortOrder: previous?.sortOrder ?? 0,
       createdAt: previous?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -235,14 +286,14 @@ export function createWishlistController({
         ? wishes.map((item) => (item.id === editingId ? wish : item))
         : [wish, ...wishes]
     );
-    if (previous?.imagePath && previous.imagePath !== wish.imagePath && getDatabase()) {
-      await cleanupStoredImagePaths([previous.imagePath]);
-    }
     resetForm();
     setExpanded(false);
     const gainedExp = await awardExperience(wasEditing ? "wishEdit" : "wish");
     setStatus(`${wasEditing ? "心愿已更新。" : "心愿已保存。"}${gainedExp ? ` 修为 +${gainedExp}` : ""}`);
     render();
+    if (previous?.imagePath && previous.imagePath !== wish.imagePath && getDatabase()) {
+      await cleanupStoredImagePaths([previous.imagePath]);
+    }
   }
 
   function render() {
@@ -253,16 +304,13 @@ export function createWishlistController({
       tabsElement: elements.wishTabs,
       openCountElement: elements.wishOpenCount,
       doneCountElement: elements.wishDoneCount,
+      summaryElement: elements.wishlistSummary,
       wishes: getWishes(),
       activeView: getActiveView(),
       signedIn: Boolean(getSession()),
       dataState: getDataState(),
       getAuthorName,
       canManageItem,
-      onEdit: edit,
-      onOpen: openWishImage,
-      onToggle: toggle,
-      onDelete: remove,
     });
   }
 
@@ -383,6 +431,7 @@ export function createWishlistController({
   }
 
   async function remove(id, triggerButton = null) {
+    if (deletingIds.has(id)) return;
     const session = getSession();
     const wish = getWishes().find((item) => item.id === id);
     if (!session || !wish || !canManageItem(wish)) return;
@@ -392,6 +441,7 @@ export function createWishlistController({
       showToast("暂时无法连接云端，请稍后再试", { kind: "error" });
       return;
     }
+    deletingIds.add(id);
     const originalLabel = triggerButton?.textContent || "删除";
     if (triggerButton) {
       triggerButton.disabled = true;
@@ -436,6 +486,7 @@ export function createWishlistController({
       showToast("已移到回收站", { kind: "success" });
       render();
     } finally {
+      deletingIds.delete(id);
       if (triggerButton?.isConnected) {
         triggerButton.disabled = false;
         triggerButton.textContent = originalLabel;
@@ -443,8 +494,56 @@ export function createWishlistController({
     }
   }
 
+  async function reorder(ids) {
+    const previous = getWishes();
+    const reordered = reorderWishlistItems(previous, ids);
+    if (!reordered.length || reordered.length !== previous.length) {
+      render();
+      return;
+    }
+    setWishes(reordered);
+    render();
+    if (!canSync()) return;
+    const results = await Promise.all(reordered.map((wish) => repository.update(
+      "wishes",
+      { sort_order: wish.sortOrder, updated_at: new Date().toISOString() },
+      { id: wish.id },
+    )));
+    const failure = results.find((result) => result?.error);
+    if (failure) {
+      setWishes(previous);
+      render();
+      setStatus(`排序保存失败：${failure.error.message}`);
+      return;
+    }
+    setStatus("排序已保存。");
+  }
+
+  function bind() {
+    createWishlistInteractions({
+      listElement: elements.wishlistList,
+      onAdd: () => {
+        resetForm();
+        setExpanded(true);
+        elements.wishlistComposer.scrollIntoView({ behavior: "smooth", block: "start" });
+      },
+      onOpenImage: openDetail,
+      onOpenDetail: openDetail,
+      onToggle: (id) => void toggle(id),
+      onOpenMenu: openActionMenu,
+      onSwipeToggle: (id) => void toggle(id),
+      onRemove: (id) => void remove(id),
+      canReorder: (card) => {
+        const wish = getWishes().find((item) => item.id === card.dataset.wishId);
+        return Boolean(wish && canManageItem(wish) && canSync());
+      },
+      onReorder: (ids) => void reorder(ids),
+    }).bind();
+  }
+
   return {
     applyImageUrl,
+    bind,
     clearImagePreview,
     closeCompleteDialog,
     edit,

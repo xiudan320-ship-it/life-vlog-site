@@ -15,7 +15,7 @@ const styleFiles = [
   "secret-filters.css",
   "diary-comments.css",
   "feature-inspector.css",
-  "wishlist-compact.css",
+  "wishlist.css",
   "shopping.css",
   "media-upload.css",
 ];

@@ -349,13 +349,13 @@ async function assertWishlistReceiptFlow(page, label, runtimeErrors) {
   await page.click('[data-wish-view="done"]');
   await page.waitForFunction(
     () =>
-      document.querySelectorAll("#wishlistList .wish-card.done").length > 0 ||
+      document.querySelectorAll("#wishlistList .wish-card.completed").length > 0 ||
       !document.querySelector("#wishlistList [data-account-sync-loading]"),
     undefined,
     { timeout: 30000 }
   );
 
-  const completedWishCount = await page.locator("#wishlistList .wish-card.done").count();
+  const completedWishCount = await page.locator("#wishlistList .wish-card.completed").count();
   if (!completedWishCount) {
     const syncMessage = await page.evaluate(() => ({
       wishlist: document.querySelector("#wishlistList")?.textContent?.trim() || "",
@@ -375,26 +375,27 @@ async function assertWishlistReceiptFlow(page, label, runtimeErrors) {
       view: button.dataset.wishView,
       active: button.classList.contains("active"),
       selected: button.getAttribute("aria-selected"),
-      background: getComputedStyle(button).backgroundColor,
+      color: getComputedStyle(button).color,
+      indicator: getComputedStyle(button, "::after").opacity,
     })),
-    activeBackground: (() => {
+    activeColor: (() => {
       const probe = document.createElement("span");
-      probe.style.backgroundColor = "var(--accent-strong)";
+      probe.style.color = "var(--accent)";
       document.body.append(probe);
-      const color = getComputedStyle(probe).backgroundColor;
+      const color = getComputedStyle(probe).color;
       probe.remove();
       return color;
     })(),
-    cards: [...document.querySelectorAll("#wishlistList .wish-card.done")].map((card) => {
+    cards: [...document.querySelectorAll("#wishlistList .wish-card.completed")].map((card) => {
       const receipt = card.querySelector(".wish-completion-note");
       const header = receipt?.querySelector(".wish-completion-header");
       const body = receipt?.querySelector(":scope > p");
-      const actions = card.querySelector(".wish-actions");
+      const tools = card.querySelector(".wish-card-tools");
       const cardRect = card.getBoundingClientRect();
       const receiptRect = receipt?.getBoundingClientRect();
       const headerRect = header?.getBoundingClientRect();
       const bodyRect = body?.getBoundingClientRect();
-      const actionsRect = actions?.getBoundingClientRect();
+      const toolsRect = tools?.getBoundingClientRect();
       return {
         hasReceipt: Boolean(receipt),
         receiptInside:
@@ -403,7 +404,8 @@ async function assertWishlistReceiptFlow(page, label, runtimeErrors) {
           receiptRect.right <= cardRect.right + 1 &&
           receiptRect.bottom <= cardRect.bottom + 1,
         headerBodyOverlap: Boolean(headerRect && bodyRect && headerRect.bottom > bodyRect.top + 1),
-        actionsInside: !actionsRect || actionsRect.bottom <= cardRect.bottom + 1,
+        actionsInside: !toolsRect || toolsRect.bottom <= cardRect.bottom + 1,
+        readable: getComputedStyle(card).opacity === "1" && getComputedStyle(card.querySelector("h3")).textDecorationLine === "none",
       };
     }),
     loadingVisible: Boolean(document.querySelector("#wishlistList [data-account-sync-loading]")),
@@ -415,8 +417,9 @@ async function assertWishlistReceiptFlow(page, label, runtimeErrors) {
   assert.equal(openTab?.selected, "false", `${label} unfinished tab aria state mismatch`);
   assert.equal(doneTab?.active, true, `${label} completed tab is not active`);
   assert.equal(doneTab?.selected, "true", `${label} completed tab aria state mismatch`);
-  assert.equal(doneTab?.background, state.activeBackground, `${label} completed tab active color mismatch`);
-  assert.notEqual(openTab?.background, doneTab?.background, `${label} wishlist tabs are visually indistinguishable`);
+  assert.equal(doneTab?.color, state.activeColor, `${label} completed tab active color mismatch`);
+  assert.equal(doneTab?.indicator, "1", `${label} completed tab indicator is missing`);
+  assert.notEqual(openTab?.color, doneTab?.color, `${label} wishlist tabs are visually indistinguishable`);
   assert.ok(state.cards.length > 0, `${label} completed wishlist is empty`);
   assert.equal(state.loadingVisible, false, `${label} wishlist still shows a loading state`);
   state.cards.forEach((card, index) => {
@@ -424,6 +427,7 @@ async function assertWishlistReceiptFlow(page, label, runtimeErrors) {
     assert.equal(card.receiptInside, true, `${label} wish ${index + 1} receipt overflows its card`);
     assert.equal(card.headerBodyOverlap, false, `${label} wish ${index + 1} receipt text overlaps`);
     assert.equal(card.actionsInside, true, `${label} wish ${index + 1} actions overflow its card`);
+    assert.equal(card.readable, true, `${label} completed wish became dimmed or struck through`);
   });
 
   await mkdir(screenshotDir, { recursive: true });
@@ -697,6 +701,7 @@ async function assertShoppingFlow(page, label) {
   await waitForSignedInAccount(page, `${label} shopping reload`);
   await page.click("#wishlistNav");
   await page.click('[data-wishlist-module="shopping"]');
+  await page.click('[data-shopping-filter="done"]');
   card = page.locator("#shoppingList .shopping-card", { hasText: editedName });
   await card.waitFor({ state: "visible", timeout: 30000 });
   await card.locator("img").evaluate((image) => {
@@ -724,7 +729,7 @@ async function assertShoppingFlow(page, label) {
   );
   card = page.locator("#shoppingList .shopping-card", { hasText: editedName });
   const countBeforeDelete = await page.locator("#shoppingList .shopping-card").count();
-  const allCountBeforeDelete = Number(await page.locator("#shoppingAllCount").textContent());
+  const openCountBeforeDelete = Number(await page.locator("#shoppingOpenCount").textContent());
   await card.locator("[data-shopping-menu]").click();
   await page.waitForSelector(".shopping-action-dialog[open]");
   await page.click('[data-shopping-action="delete"]');
@@ -733,12 +738,13 @@ async function assertShoppingFlow(page, label) {
   await page.click('.action-confirm-dialog button[value="confirm"]');
   await card.waitFor({ state: "detached", timeout: 30000 });
   assert.equal(await page.locator("#shoppingList .shopping-card").count(), countBeforeDelete - 1, `${label} deleted shopping item stayed in the DOM`);
-  assert.equal(Number(await page.locator("#shoppingAllCount").textContent()), allCountBeforeDelete - 1, `${label} shopping total did not update after deletion`);
+  assert.equal(Number(await page.locator("#shoppingOpenCount").textContent()), openCountBeforeDelete - 1, `${label} shopping unfinished count did not update after deletion`);
 
   await page.reload({ waitUntil: "domcontentloaded" });
   await waitForSignedInAccount(page, `${label} shopping delete reload`);
   await page.click("#wishlistNav");
   await page.click('[data-wishlist-module="shopping"]');
+  await page.click('[data-shopping-filter="open"]');
   assert.equal(await page.locator("#shoppingList .shopping-card", { hasText: editedName }).count(), 0, `${label} deleted shopping item returned after reload`);
 }
 

@@ -69,6 +69,7 @@ export function wishToCloudRow(wish, userId) {
     completion_note: wish.completionNote || "",
     is_done: Boolean(wish.done),
     completed_at: wish.completedAt || null,
+    sort_order: Number.isFinite(Number(wish.sortOrder)) ? Number(wish.sortOrder) : 0,
     created_at: wish.createdAt || new Date().toISOString(),
     updated_at: wish.updatedAt || new Date().toISOString(),
   };
@@ -89,6 +90,7 @@ export function wishFromCloudRow(row) {
     imagePath: media.imagePath,
     done: Boolean(row.is_done),
     completedAt: row.completed_at || "",
+    sortOrder: Number.isFinite(Number(row.sort_order)) ? Number(row.sort_order) : 0,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

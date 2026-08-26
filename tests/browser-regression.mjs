@@ -122,7 +122,7 @@ async function testComponentStates(viewport, label) {
       width: Math.round(card.getBoundingClientRect().width),
       imageHeight: Math.round(card.querySelector(".wish-card-image-button").getBoundingClientRect().height),
       imageWidth: Math.round(card.querySelector(".wish-card-image-button").getBoundingClientRect().width),
-      actionsBottom: Math.round(card.querySelector(".wish-actions").getBoundingClientRect().bottom),
+      actionsBottom: Math.round(card.querySelector(".wish-card-tools").getBoundingClientRect().bottom),
       cardBottom: Math.round(card.getBoundingClientRect().bottom),
     }))
   );

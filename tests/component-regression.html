@@ -20,33 +20,27 @@
     <main>
       <section class="wishlist-page">
         <div class="wishlist-list">
-          <article class="wish-card">
-            <div class="wish-card-top"><span>Wish 01</span><time>8月13日</time></div>
-            <div class="wish-card-layout">
-              <button class="wish-card-image-button" type="button" aria-label="查看心愿图片">
-                <img class="wish-card-image" src="../assets/black-cat-cover.jpg" alt="" />
-              </button>
-              <div class="wish-card-content">
-                <p class="kicker">想做 · 普通</p>
-                <h3>一起去看夏天的烟花</h3>
+          <article class="wish-card" data-wish-id="fixture-open" data-wish-detail="true">
+            <div class="wish-card-main">
+              <div class="wish-card-image"><button class="wish-card-image-button" type="button" aria-label="查看心愿图片"><img class="wish-card-image" src="../assets/black-cat-cover.jpg" alt="" /></button></div>
+              <div class="wish-card-body">
+                <div class="wish-card-kicker-row"><p class="kicker">想做 · 普通</p><span class="wish-state-pill open">待实现</span></div>
+                <span class="wish-seq">Wish 01</span><h3>一起去看夏天的烟花</h3>
                 <div class="wish-card-details"><p class="wish-note">准备好相机，也给彼此留下一张照片。</p></div>
               </div>
+              <div class="wish-card-tools"><button class="wish-menu-button" type="button">•••</button><button class="wish-check-button" type="button"><span>✓</span></button></div>
             </div>
-            <div class="wish-actions"><button type="button">编辑</button><button class="complete" type="button">完成</button><button class="danger" type="button">删除</button></div>
           </article>
-          <article class="wish-card done">
-            <div class="wish-card-top"><span>Wish 02</span><time>8月12日</time></div>
-            <div class="wish-card-layout">
-              <button class="wish-card-image-button" type="button" aria-label="查看心愿图片">
-                <img class="wish-card-image" src="../assets/home-logo.jpg" alt="" />
-              </button>
-              <div class="wish-card-content">
-                <p class="kicker">想吃 · 已完成</p>
-                <h3>一起吃一顿认真准备的晚饭</h3>
+          <article class="wish-card completed" data-wish-id="fixture-done" data-wish-detail="true">
+            <div class="wish-card-main">
+              <div class="wish-card-image"><button class="wish-card-image-button" type="button" aria-label="查看心愿图片"><img class="wish-card-image" src="../assets/home-logo.jpg" alt="" /></button></div>
+              <div class="wish-card-body">
+                <div class="wish-card-kicker-row"><p class="kicker">想吃 · 已完成</p><span class="wish-state-pill done">已完成</span></div>
+                <span class="wish-seq">Wish 02</span><h3>一起吃一顿认真准备的晚饭</h3>
                 <div class="wish-card-details"><p class="wish-note">照片比例不同也不能把卡片撑歪。</p><div class="wish-completion-note"><div class="wish-completion-header"><strong>完成回执</strong><span>查看完整反馈</span></div><p>比计划里的那天更开心。</p></div></div>
               </div>
+              <div class="wish-card-tools"><button class="wish-menu-button" type="button">•••</button><button class="wish-check-button is-complete" type="button"><span>✓</span></button></div>
             </div>
-            <div class="wish-actions"><button type="button">编辑</button><button class="complete" type="button">查看</button><button class="danger" type="button">删除</button></div>
           </article>
         </div>
       </section>

@@ -440,6 +440,18 @@ body:has(#wishlistPage.shopping-active:not([hidden])) .wishlist-module-tabs {
   line-height: 1.25;
 }
 
+.shopping-card-status {
+  width: max-content;
+  max-width: 100%;
+  color: var(--shopping-faint);
+  font-size: 0.68rem;
+  line-height: 1.2;
+}
+
+.shopping-card-status.is-complete {
+  color: var(--shopping-green);
+}
+
 .shopping-card-note {
   display: -webkit-box;
   margin: 0;
@@ -532,12 +544,11 @@ body:has(#wishlistPage.shopping-active:not([hidden])) .wishlist-module-tabs {
 }
 
 .shopping-card.completed {
-  opacity: 0.62;
+  opacity: 1;
 }
 
 .shopping-card.completed h3 {
-  text-decoration: line-through;
-  text-decoration-thickness: 1px;
+  text-decoration: none;
 }
 
 .shopping-card.is-dragging {

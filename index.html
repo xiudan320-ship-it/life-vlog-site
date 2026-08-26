@@ -15,9 +15,9 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="apple-touch-icon" href="./assets/app-icon-180.png" />
     <link rel="icon" type="image/png" sizes="32x32" href="./assets/app-icon-32.png" />
-    <link rel="stylesheet" href="./styles.css?v=20260824-026" />
-    <link rel="stylesheet" href="./styles/redesign-foundation.css?v=20260825-035" />
-    <link rel="stylesheet" href="./styles/redesign-components.css?v=20260826-001" />
+    <link rel="stylesheet" href="./styles.css?v=20260826-027" />
+    <link rel="stylesheet" href="./styles/redesign-foundation.css?v=20260826-036" />
+    <link rel="stylesheet" href="./styles/redesign-components.css?v=20260826-002" />
     <link rel="stylesheet" href="./styles/content-forms.css?v=20260825-035" />
     <link rel="stylesheet" href="./styles/mobile-diary.css?v=20260825-035" />
     <link rel="stylesheet" href="./styles/mobile-page-shell.css?v=20260826-002" />
@@ -27,8 +27,8 @@
     <link rel="stylesheet" href="./styles/secret-filters.css?v=20260825-035" />
     <link rel="stylesheet" href="./styles/diary-comments.css?v=20260825-035" />
     <link rel="stylesheet" href="./styles/feature-inspector.css?v=20260825-035" />
-    <link rel="stylesheet" href="./styles/wishlist-compact.css?v=20260826-005" />
-    <link rel="stylesheet" href="./styles/shopping.css?v=20260826-002" />
+    <link rel="stylesheet" href="./styles/wishlist.css?v=20260826-001" />
+    <link rel="stylesheet" href="./styles/shopping.css?v=20260826-003" />
     <link rel="stylesheet" href="./styles/media-upload.css?v=20260825-035" />
     <link rel="stylesheet" href="./weekend-board.css?v=20260823-241" />
     <link rel="stylesheet" href="./diary-detail.css?v=20260823-019" />
@@ -503,10 +503,11 @@
       </section>
 
       <section class="wishlist-page" id="wishlistPage" hidden>
-        <div class="feed-head">
+        <div class="feed-head wishlist-page-header">
           <div>
-            <p class="kicker" id="wishlistPageKicker">Wishlist</p>
+            <p class="kicker" id="wishlistPageKicker">WISHLIST</p>
             <h2 id="wishlistPageTitle">心愿单</h2>
+            <p class="wishlist-summary" id="wishlistSummary">0 个心愿 · 0 个已完成</p>
           </div>
           <p class="status-line" id="wishlistStatus"></p>
           <p class="status-line" id="shoppingStatus" hidden></p>
@@ -522,8 +523,9 @@
         <section class="wishlist-composer" id="wishlistComposer" hidden>
           <div class="section-title">
             <button class="section-heading-button" id="wishlistToggle" type="button" aria-expanded="false">
-              <p class="kicker">New Wish</p>
-              <h2 id="wishlistFormTitle">添加心愿</h2>
+              <span class="wishlist-add-icon" aria-hidden="true">+</span>
+              <span id="wishlistFormTitle">添加心愿</span>
+              <span class="wishlist-add-arrow" aria-hidden="true">↗</span>
             </button>
           </div>
 
@@ -651,8 +653,7 @@
           </section>
 
           <nav class="shopping-filters" id="shoppingFilters" role="tablist" aria-label="购物车状态">
-            <button class="active" type="button" data-shopping-filter="all" role="tab" aria-selected="true">全部 <span id="shoppingAllCount">0</span></button>
-            <button type="button" data-shopping-filter="open" role="tab" aria-selected="false">未完成 <span id="shoppingOpenCount">0</span></button>
+            <button class="active" type="button" data-shopping-filter="open" role="tab" aria-selected="true">未完成 <span id="shoppingOpenCount">0</span></button>
             <button type="button" data-shopping-filter="done" role="tab" aria-selected="false">已完成 <span id="shoppingDoneCount">0</span></button>
           </nav>
           <section class="shopping-list" id="shoppingList" aria-live="polite"></section>
@@ -1583,6 +1584,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260826-005"></script>
+    <script type="module" src="./app.js?v=20260826-006"></script>
   </body>
 </html>

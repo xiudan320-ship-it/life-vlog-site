@@ -42,7 +42,7 @@
 | 手机日记、阅读器与留言 | `styles/mobile-diary.css`, `styles/diary-reader.css`, `styles/diary-comments.css` |
 | 账户与设置弹窗 | `styles/account-dialogs.css` |
 | 秘藏相册与筛选 | `styles/secret-gallery.css`, `styles/secret-filters.css` |
-| 心愿单 | `styles/wishlist-compact.css` |
+| 心愿单 | `styles/wishlist.css` |
 | 购物车 / 想买清单 | `styles/shopping.css` |
 | 功能检查和管理界面 | `styles/feature-inspector.css` |
 

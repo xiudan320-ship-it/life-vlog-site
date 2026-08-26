@@ -119,7 +119,6 @@ export function createShoppingController({
     renderShoppingItems({
       listElement: elements.shoppingList,
       filtersElement: elements.shoppingFilters,
-      allCountElement: elements.shoppingAllCount,
       openCountElement: elements.shoppingOpenCount,
       doneCountElement: elements.shoppingDoneCount,
       summaryElement: elements.shoppingSummary,
@@ -325,6 +324,7 @@ export function createShoppingController({
     if (result.error) return setStatus(`状态同步失败：${result.error.message}`);
     const saved = shoppingFromCloudRow(result.data);
     setItems(getItems().map((entry) => entry.id === id ? saved : entry));
+    setActiveFilter(completed ? "done" : "open");
     setStatus(completed ? "已标记为已购买。" : "已恢复为未完成。");
     render();
   }
@@ -365,11 +365,22 @@ export function createShoppingController({
   }
 
   async function reorder(ids) {
-    if (getActiveFilter() !== "all") return render();
     const previous = getItems();
     const byId = new Map(previous.map((item) => [item.id, item]));
-    const reordered = ids.map((id) => byId.get(id)).filter(Boolean).map((item, index) => ({ ...item, sortOrder: index }));
-    if (reordered.length !== previous.length) return render();
+    const visibleIds = ids.filter((id) => byId.has(id));
+    const visibleSet = new Set(visibleIds);
+    const visibleItems = visibleIds.map((id) => byId.get(id));
+    const orderedPrevious = [...previous].sort((a, b) => (Number(a.sortOrder) || 0) - (Number(b.sortOrder) || 0));
+    const slots = orderedPrevious
+      .map((item, index) => ({ item, index }))
+      .filter(({ item }) => visibleSet.has(item.id))
+      .map(({ index }) => index);
+    if (!visibleItems.length || visibleItems.length !== slots.length) return render();
+    const merged = [...orderedPrevious];
+    slots.forEach((slot, index) => {
+      merged[slot] = visibleItems[index];
+    });
+    const reordered = merged.map((item, index) => ({ ...item, sortOrder: index }));
     setItems(reordered);
     render();
     if (!canSync()) return;
@@ -419,7 +430,7 @@ export function createShoppingController({
       onRemove: (id) => void remove(id),
       canReorder: (card) => {
         const item = getItems().find((entry) => entry.id === card.dataset.shoppingId);
-        return getActiveFilter() === "all" && Boolean(item && canManageItem(item) && canSync());
+        return Boolean(item && canManageItem(item) && canSync());
       },
       onReorder: (ids) => void reorder(ids),
     }).bind();

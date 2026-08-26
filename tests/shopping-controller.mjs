@@ -8,7 +8,6 @@ function createElements() {
     shoppingStatus: { textContent: "" },
     shoppingList: { innerHTML: "" },
     shoppingFilters: { querySelectorAll: () => [] },
-    shoppingAllCount: { textContent: "" },
     shoppingOpenCount: { textContent: "" },
     shoppingDoneCount: { textContent: "" },
     shoppingSummary: { textContent: "" },
@@ -24,7 +23,7 @@ function createController({ elements, items, repository, cleanupStoredImagePaths
     getDatabase: () => ({}),
     getItems: () => currentItems,
     setItems: (next) => { currentItems = next; },
-    getActiveFilter: () => "all",
+    getActiveFilter: () => "open",
     setActiveFilter: () => {},
     getDataState: () => "ready",
     canSync: () => true,
@@ -73,7 +72,6 @@ test("shopping deletion renders before a failed R2 cleanup finishes", async () =
   await new Promise((resolve) => setImmediate(resolve));
 
   assert.equal(cleanupStarted, true);
-  assert.equal(elements.shoppingAllCount.textContent, "0");
   assert.equal(elements.shoppingOpenCount.textContent, "0");
   assert.equal(elements.shoppingSummary.textContent, "0 件商品 · 0 件已完成");
   assert.match(elements.shoppingList.innerHTML, /购物车还是空的/);

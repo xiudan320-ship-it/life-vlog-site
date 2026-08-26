@@ -1,7 +1,7 @@
-const FILTERS = new Set(["all", "open", "done"]);
+const FILTERS = new Set(["open", "done"]);
 
 export function normalizeShoppingFilter(value) {
-  return FILTERS.has(value) ? value : "all";
+  return FILTERS.has(value) ? value : "open";
 }
 
 export function getShoppingStats(items = []) {
@@ -13,11 +13,11 @@ export function getShoppingStats(items = []) {
   };
 }
 
-export function filterShoppingItems(items = [], filter = "all") {
+export function filterShoppingItems(items = [], filter = "open") {
   const normalizedFilter = normalizeShoppingFilter(filter);
   if (normalizedFilter === "open") return items.filter((item) => !item.completed);
   if (normalizedFilter === "done") return items.filter((item) => item.completed);
-  return [...items];
+  return [];
 }
 
 export function sortShoppingItems(items = []) {
