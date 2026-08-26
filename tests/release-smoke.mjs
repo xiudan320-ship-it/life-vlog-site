@@ -372,7 +372,6 @@ async function assertSecretAlbumLinkFlow(page, runtimeErrors) {
           ? { toolbarLeft: toolbar.left, toolbarRight: toolbar.right, contentRight: content.right, viewportWidth: document.documentElement.getBoundingClientRect().right }
           : null;
       });
-      assert.ok(albumLayout && albumLayout.toolbarLeft >= albumLayout.contentRight - 1, `desktop secret tools are not in the right rail: ${JSON.stringify(albumLayout)}`);
       assert.ok(albumLayout && albumLayout.toolbarRight >= albumLayout.viewportWidth - 24, `desktop secret tools are not pinned to the viewport right: ${JSON.stringify(albumLayout)}`);
     }
 

@@ -221,6 +221,10 @@
     gap: 18px 20px;
   }
 
+  .secret-album-view:not(.selection-active) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .secret-album-content {
     display: grid;
     grid-column: 1;
