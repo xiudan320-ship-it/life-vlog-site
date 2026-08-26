@@ -625,8 +625,35 @@ async function assertShoppingFlow(page, label) {
     await itemImage.getAttribute("src"),
     `${label} shopping image preview opened with the wrong image`
   );
+  await page.locator(".shopping-image-dialog img").evaluate((image) => {
+    if (image.complete && image.naturalWidth > 0) return;
+    return new Promise((resolve, reject) => {
+      image.addEventListener("load", resolve, { once: true });
+      image.addEventListener("error", () => reject(new Error("shopping preview image failed to load")), { once: true });
+    });
+  });
+  const previewMetrics = await page.evaluate(() => {
+    const dialog = document.querySelector(".shopping-image-dialog");
+    const image = dialog?.querySelector("img");
+    const dialogRect = dialog?.getBoundingClientRect();
+    const imageRect = image?.getBoundingClientRect();
+    return {
+      viewportCenter: { x: window.innerWidth / 2, y: window.innerHeight / 2 },
+      dialogCenter: dialogRect ? { x: dialogRect.left + dialogRect.width / 2, y: dialogRect.top + dialogRect.height / 2 } : null,
+      imageCenter: imageRect ? { x: imageRect.left + imageRect.width / 2, y: imageRect.top + imageRect.height / 2 } : null,
+    };
+  });
+  for (const [name, center] of [["dialog", previewMetrics.dialogCenter], ["image", previewMetrics.imageCenter]]) {
+    assert.ok(center, `${label} shopping ${name} preview has no bounds`);
+    assert.ok(
+      Math.abs(center.x - previewMetrics.viewportCenter.x) <= 4 &&
+      Math.abs(center.y - previewMetrics.viewportCenter.y) <= 4,
+      `${label} shopping ${name} preview is not centered: ${JSON.stringify(previewMetrics)}`
+    );
+  }
   await page.click(".shopping-image-dialog-close");
   await page.waitForFunction(() => !document.querySelector(".shopping-image-dialog")?.open);
+  assert.equal(await page.locator(".shopping-image-dialog").isVisible(), false, `${label} shopping image preview stayed visible after closing`);
   assert.match(await card.textContent(), /¥128\.5/);
 
   await card.locator("[data-edit-shopping]").click();
@@ -657,10 +684,10 @@ async function assertShoppingFlow(page, label) {
       actionWidth: entry.querySelector(".shopping-card-actions")?.getBoundingClientRect().width || 0,
     }));
     const actionHeight = await card.locator(".shopping-card-actions").evaluate((actions) => actions.getBoundingClientRect().height);
-    assert.ok(compactMetrics.cardHeight <= 160, `mobile shopping row is too tall: ${JSON.stringify(compactMetrics)}`);
+    assert.ok(compactMetrics.cardHeight <= 180, `mobile shopping row is too tall: ${JSON.stringify(compactMetrics)}`);
     assert.ok(compactMetrics.imageWidth <= 80, `mobile shopping thumbnail is too large: ${JSON.stringify(compactMetrics)}`);
-    assert.ok(compactMetrics.actionWidth >= 240, `mobile shopping actions are too narrow: ${JSON.stringify(compactMetrics)}`);
-    assert.ok(actionHeight >= 44, `mobile shopping actions are too short: ${actionHeight}px`);
+    assert.ok(compactMetrics.actionWidth >= 78 && compactMetrics.actionWidth <= 100, `mobile shopping actions have the wrong width: ${JSON.stringify(compactMetrics)}`);
+    assert.ok(actionHeight >= 140 && actionHeight <= 155, `mobile shopping actions have the wrong height: ${actionHeight}px`);
   }
   await assertNoHorizontalOverflow(page, `${label} shopping cart`);
   await mkdir(screenshotDir, { recursive: true });

@@ -490,14 +490,29 @@
 }
 
 .shopping-image-dialog {
-  position: relative;
+  position: fixed !important;
+  top: 50dvh !important;
+  left: 50vw !important;
+  right: auto !important;
+  bottom: auto !important;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
   width: min(92vw, 900px);
+  height: auto;
   max-width: none;
-  max-height: 92vh;
+  max-height: 92dvh;
+  margin: 0 !important;
+  overflow: hidden;
+  transform: translate(-50%, -50%) !important;
   padding: 14px;
   border: 1px solid var(--line, rgba(255, 255, 255, 0.16));
   border-radius: 20px;
   background: var(--surface, #111512);
+}
+
+.shopping-image-dialog:not([open]) {
+  display: none !important;
 }
 
 .shopping-image-dialog::backdrop {
@@ -506,8 +521,10 @@
 
 .shopping-image-dialog img {
   display: block;
-  width: 100%;
-  max-height: calc(92vh - 28px);
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: calc(92dvh - 28px);
   border-radius: 12px;
   object-fit: contain;
 }
@@ -537,11 +554,10 @@
 
   .shopping-card {
     grid-template-areas:
-      "image body"
-      "actions actions";
-    grid-template-columns: 76px minmax(0, 1fr);
+      "image body actions";
+    grid-template-columns: 76px minmax(0, 1fr) 86px;
     gap: 8px;
-    align-items: start;
+    align-items: center;
     padding: 8px 9px;
     border-radius: 14px;
   }
@@ -632,19 +648,19 @@
   .shopping-card-actions {
     display: grid;
     grid-area: actions;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    grid-template-rows: 44px;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: repeat(3, 44px);
     gap: 6px;
-    width: 100%;
-    min-height: 44px;
+    width: 86px;
+    min-height: 0;
   }
 
   .shopping-card-actions button {
-    width: 100%;
+    width: 86px;
     min-width: 0;
     min-height: 44px;
     height: 44px;
-    padding: 0 7px;
+    padding: 0 4px;
     border-radius: 9px;
     font-size: 0.72rem;
     line-height: 1.15;
@@ -695,13 +711,24 @@
   }
 
   .shopping-image-dialog {
+    position: fixed !important;
+    top: 50dvh !important;
+    left: 50vw !important;
+    right: auto !important;
+    bottom: auto !important;
+    display: grid;
+    place-items: center;
     width: min(94vw, 560px);
+    max-height: 88dvh;
+    margin: 0 !important;
+    transform: translate(-50%, -50%) !important;
     padding: 8px;
     border-radius: 14px;
   }
 
   .shopping-image-dialog img {
-    max-height: calc(88vh - 16px);
+    max-width: 100%;
+    max-height: calc(88dvh - 16px);
     border-radius: 9px;
   }
 
