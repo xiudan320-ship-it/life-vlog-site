@@ -677,7 +677,8 @@ async function assertDiaryDetailFlow(page, label, mobile, runtimeErrors) {
       `; ${error.message}`
     );
   } finally {
-    await page.fill("#diarySearchInput", "");
+    const searchInput = page.locator("#diarySearchInput");
+    if (await searchInput.isVisible().catch(() => false)) await searchInput.fill("");
   }
 }
 
@@ -870,7 +871,13 @@ async function assertShoppingFlow(page, label) {
   await page.click('[data-shopping-action="delete"]');
   await page.waitForSelector(".action-confirm-dialog[open]");
   assert.match(await page.locator(".action-confirm-dialog h2").textContent(), /确定要删除这个商品吗/);
+  const cleanupResponsePromise = page.waitForResponse(
+    (response) => response.request().method() === "DELETE" && response.url().endsWith("/object"),
+    { timeout: 30000 }
+  );
   await page.click('.action-confirm-dialog button[value="confirm"]');
+  const cleanupResponse = await cleanupResponsePromise;
+  assert.ok(cleanupResponse.ok(), `${label} shopping image cleanup failed with HTTP ${cleanupResponse.status()}`);
   await card.waitFor({ state: "detached", timeout: 30000 });
   assert.equal(await page.locator("#shoppingList .shopping-card").count(), countBeforeDelete - 1, `${label} deleted shopping item stayed in the DOM`);
   assert.equal(Number(await page.locator("#shoppingOpenCount").textContent()), openCountBeforeDelete - 1, `${label} shopping unfinished count did not update after deletion`);

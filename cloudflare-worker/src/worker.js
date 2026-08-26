@@ -2441,10 +2441,23 @@ async function upsertRows(env, table, rows, columns, conflictColumns = null) {
   return count;
 }
 
+function isFamilyShoppingObjectKey(key) {
+  const segments = String(key || "").split("/");
+  return segments.length >= 3 && segments[1] === "shopping";
+}
+
+async function canDeleteR2Object(env, user, key) {
+  const ownerId = String(key || "").split("/")[0] || "";
+  if (ownerId === user.id) return true;
+  if (!isFamilyShoppingObjectKey(key)) return false;
+  const familyUserIds = await getFamilyUserIds(env, user.id);
+  return familyUserIds.includes(ownerId);
+}
+
 async function handleDelete(request, env, user) {
   const payload = await request.json().catch(() => ({}));
   const key = String(payload.key || "").replace(/^r2:/, "");
-  if (!key || !key.startsWith(`${user.id}/`)) {
+  if (!key || !(await canDeleteR2Object(env, user, key))) {
     return jsonResponse(request, env, { error: "Invalid key." }, 400);
   }
   await env.R2_BUCKET.delete(key);
