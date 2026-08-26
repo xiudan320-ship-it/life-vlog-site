@@ -284,6 +284,112 @@ async function assertAccountIdentity(page, label) {
   assert.equal(identity.avatarLoaded, true, `${label} avatar did not load`);
 }
 
+async function cleanupSecretAlbumFixture(page, albumId, imageUrls = []) {
+  if (!albumId) return;
+  const result = await page.evaluate(async ({ apiUrl, itemId, urls }) => {
+    const session = JSON.parse(localStorage.getItem("life-vlog-cloudflare-auth") || "null");
+    const token = session?.access_token || "";
+    if (!token) return { row: false, images: false };
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    };
+    const removeRow = await fetch(`${apiUrl}/api/table/secret_items`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        action: "delete",
+        values: null,
+        filters: [{ op: "eq", column: "id", value: itemId }],
+        onConflict: "",
+      }),
+    });
+    const keys = [...new Set(urls.map((url) => {
+      try {
+        return new URL(url).pathname.replace(/^\/+/, "");
+      } catch {
+        return "";
+      }
+    }).filter(Boolean))];
+    const removals = await Promise.all(keys.map((key) => fetch(`${apiUrl}/object`, {
+      method: "DELETE",
+      headers,
+      body: JSON.stringify({ key }),
+    })));
+    return { row: removeRow.ok, images: removals.every((response) => response.ok) };
+  }, { apiUrl: backendUrl, itemId: albumId, urls: imageUrls });
+  assert.equal(result.row, true, "secret album release fixture row was not cleaned up");
+  assert.equal(result.images, true, "secret album release fixture images were not cleaned up");
+}
+
+async function assertSecretAlbumLinkFlow(page, runtimeErrors) {
+  const title = `自动验收秘藏-${Date.now()}`;
+  const sourceBaseUrl = /^https:\/\//i.test(baseUrl)
+    ? baseUrl
+    : "https://life-vlog-site.pages.dev";
+  const sourceUrl = `${sourceBaseUrl}/assets/home-logo.jpg`;
+  let albumId = "";
+  let imageUrls = [];
+
+  try {
+    await page.click("#secretOpen");
+    await page.waitForSelector("#secretPinDialog[open]", { timeout: 10000 });
+    for (let round = 0; round < 2; round += 1) {
+      for (const digit of ["1", "2", "3", "4"]) {
+        await page.click(`[data-secret-pin-digit="${digit}"]`);
+      }
+      if (round === 0) await page.waitForTimeout(180);
+    }
+    await page.waitForSelector("#secretPage:not([hidden])", { timeout: 10000 });
+    await page.waitForSelector("[data-secret-create-album]", { timeout: 30000 });
+    await page.locator("[data-secret-create-album]").first().click();
+    await page.waitForSelector("#secretForm:not([hidden])", { timeout: 10000 });
+    await page.fill("#secretTitleInput", title);
+    await page.fill("#secretImageLinkInput", sourceUrl);
+    await page.click("#secretSubmitButton");
+
+    const card = page.locator(".secret-card", { hasText: title });
+    try {
+      await card.waitFor({ state: "visible", timeout: 30000 });
+    } catch (error) {
+      const status = await page.locator("#secretStatus").textContent();
+      assert.fail(
+        `new secret album link upload failed: ${status?.trim() || "no status"}` +
+        (runtimeErrors.length ? `; ${runtimeErrors.slice(-5).join(" | ")}` : "") +
+        `; ${error.message}`
+      );
+    }
+    albumId = await card.getAttribute("data-secret-album-card") || "";
+    assert.ok(albumId, "new secret album has no item id");
+    await card.locator("[data-secret-index]").click();
+    await page.waitForSelector(".secret-album-view", { timeout: 10000 });
+    assert.equal(await page.locator("[data-secret-photo]").count(), 1, "new secret album did not save its link image");
+
+    await page.click("[data-secret-toggle-append]");
+    await page.fill("[data-secret-append-links]", sourceUrl);
+    await page.click('[data-secret-append-form] button[type="submit"]');
+    try {
+      await page.waitForFunction(
+        () => document.querySelectorAll("[data-secret-photo]").length === 2,
+        undefined,
+        { timeout: 30000 }
+      );
+    } catch (error) {
+      const status = await page.locator("#secretStatus").textContent();
+      assert.fail(
+        `existing secret album link append failed: ${status?.trim() || "no status"}` +
+        (runtimeErrors.length ? `; ${runtimeErrors.slice(-5).join(" | ")}` : "") +
+        `; ${error.message}`
+      );
+    }
+    imageUrls = await page.locator("[data-secret-photo] img").evaluateAll(
+      (images) => images.map((image) => image.getAttribute("data-full-src") || image.src).filter(Boolean)
+    );
+  } finally {
+    await cleanupSecretAlbumFixture(page, albumId, imageUrls);
+  }
+}
+
 async function assertWeekendAlbumFlow(page, label) {
   await page.click("#weekendNav");
   await page.waitForSelector("#weekendPage:not([hidden])");
@@ -760,6 +866,7 @@ try {
   await desktop.waitForSelector(".topbar");
   await desktop.waitForSelector("#userMenu:not([hidden])");
   await assertAccountIdentity(desktop, "desktop account");
+  await assertSecretAlbumLinkFlow(desktop, desktopErrors);
   await assertVlogAudioUi(desktop, "desktop");
   await assertVlogMediaBadge(desktop, "desktop");
   await desktop.click("#avatarButton");

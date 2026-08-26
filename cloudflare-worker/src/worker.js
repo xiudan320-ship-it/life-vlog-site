@@ -900,7 +900,13 @@ async function fetchAllowedImage(sourceUrl, env) {
   let currentUrl = sourceUrl;
   for (let redirectCount = 0; redirectCount <= 3; redirectCount += 1) {
     if (!isAllowedCopySource(currentUrl, env)) throw new Error("Invalid source URL.");
-    const response = await fetch(currentUrl, { redirect: "manual" });
+    const response = await fetch(currentUrl, {
+      redirect: "manual",
+      headers: {
+        Accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+        "User-Agent": "Mozilla/5.0 (compatible; LifeVlogImageImporter/1.0)",
+      },
+    });
     if ([301, 302, 303, 307, 308].includes(response.status)) {
       const location = response.headers.get("Location");
       if (!location || redirectCount === 3) throw new Error("Too many image redirects.");

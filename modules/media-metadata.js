@@ -197,11 +197,27 @@ export function parseWeekendStoredNote(value) {
 
 export function extractImageUrls(text) {
   const matches = String(text || "").match(/https?:\/\/[^\s"'<>，。；、]+/gi) || [];
-  return [...new Set(matches.map((url) => url.trim()).filter(Boolean))];
+  return [...new Set(matches
+    .map((url) => url.trim().replace(/[\])}>]+$/g, ""))
+    .filter(Boolean))];
+}
+
+function decodeClipboardHtmlUrl(value) {
+  return String(value || "")
+    .replace(/&amp;/gi, "&")
+    .replace(/&#38;/g, "&")
+    .replace(/&#x26;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/g, "'");
 }
 
 export function getClipboardImageUrl(clipboardData) {
   if (!clipboardData) return "";
+  const html = clipboardData.getData("text/html");
+  const htmlImage = html.match(/<img\b[^>]*?\b(?:src|data-src)\s*=\s*["']([^"']+)["']/i)?.[1] || "";
+  const decodedHtmlImage = decodeClipboardHtmlUrl(htmlImage);
+  if (/^https?:\/\//i.test(decodedHtmlImage)) return decodedHtmlImage;
+  if (/^\/\//.test(decodedHtmlImage)) return `https:${decodedHtmlImage}`;
   const uriList = clipboardData
     .getData("text/uri-list")
     .split(/\r?\n/)
@@ -211,6 +227,5 @@ export function getClipboardImageUrl(clipboardData) {
   const plainText = clipboardData.getData("text/plain").trim();
   const plainUrl = plainText.match(/https?:\/\/[^\s<>"']+/i)?.[0];
   if (plainUrl) return plainUrl;
-  const html = clipboardData.getData("text/html");
-  return html.match(/<img[^>]+src=["']([^"']+)["']/i)?.[1] || "";
+  return "";
 }

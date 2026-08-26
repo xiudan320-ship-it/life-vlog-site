@@ -131,7 +131,13 @@ export function createSecretComposerController({
       return;
     }
     const files = Array.from(els.secretImageInput.files || []);
-    const links = [...selectedLinks];
+    const pendingLinkText = els.secretImageLinkInput?.value || "";
+    const pendingLinks = extractImageUrls(pendingLinkText);
+    if (String(pendingLinkText).trim() && !pendingLinks.length) {
+      setStatus("请输入完整的 http 或 https 图片链接。");
+      return;
+    }
+    const links = [...new Set([...selectedLinks, ...pendingLinks])];
     if (!files.length && !links.length) {
       setStatus("请先选择图片或粘贴图片链接。");
       return;

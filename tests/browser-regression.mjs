@@ -214,16 +214,34 @@ async function testSecretAppendLinkPaste(viewport, label) {
         append: (payload) => calls.push({ linksText: payload.linksText || "", hasForm: payload.form === host.querySelector("[data-secret-append-form]") }),
       },
     });
-    const clipboardData = new DataTransfer();
-    clipboardData.setData("text/plain", "https://example.com/secret-image.png");
-    const event = new Event("paste", { bubbles: true, cancelable: true });
-    Object.defineProperty(event, "clipboardData", { value: clipboardData });
-    host.querySelector("[data-secret-append-form]").dispatchEvent(event);
+    const plainClipboard = new DataTransfer();
+    plainClipboard.setData("text/plain", "https://example.com/secret-image.png");
+    const plainEvent = new Event("paste", { bubbles: true, cancelable: true });
+    Object.defineProperty(plainEvent, "clipboardData", { value: plainClipboard });
+    host.querySelector("[data-secret-append-form]").dispatchEvent(plainEvent);
+
+    const richClipboard = new DataTransfer();
+    richClipboard.setData("text/plain", "https://example.com/image-page");
+    richClipboard.setData(
+      "text/html",
+      '<a href="https://example.com/image-page"><img src="https://cdn.example.com/secret-image.jpg?width=1200&amp;quality=90"></a>'
+    );
+    const richEvent = new Event("paste", { bubbles: true, cancelable: true });
+    Object.defineProperty(richEvent, "clipboardData", { value: richClipboard });
+    host.querySelector("[data-secret-append-form]").dispatchEvent(richEvent);
     host.remove();
-    return { prevented: event.defaultPrevented, calls };
+    return {
+      plainPrevented: plainEvent.defaultPrevented,
+      richPrevented: richEvent.defaultPrevented,
+      calls,
+    };
   });
-  assert.equal(result.prevented, true, `${label} secret URL paste was not handled`);
-  assert.deepEqual(result.calls, [{ linksText: "https://example.com/secret-image.png", hasForm: true }], `${label} secret URL paste did not enter append upload`);
+  assert.equal(result.plainPrevented, true, `${label} plain secret URL paste was not handled`);
+  assert.equal(result.richPrevented, true, `${label} rich secret image paste was not handled`);
+  assert.deepEqual(result.calls, [
+    { linksText: "https://example.com/secret-image.png", hasForm: true },
+    { linksText: "https://cdn.example.com/secret-image.jpg?width=1200&quality=90", hasForm: true },
+  ], `${label} secret URL paste did not choose the actual image source`);
   await context.close();
 }
 
