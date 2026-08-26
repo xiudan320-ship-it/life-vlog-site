@@ -45,6 +45,7 @@ export function sanitizeSecretRecord(
     coverPath: item.coverPath || "",
     images,
     linkedPhotoId: item.linkedPhotoId || "",
+    isPinned: Boolean(item.isPinned),
     sortOrder: Number.isFinite(Number(item.sortOrder))
       ? Number(item.sortOrder)
       : defaultSortOrder,

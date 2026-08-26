@@ -223,6 +223,7 @@ assert.deepEqual(
     coverPath: "",
     images: [{ image_url: "one.jpg" }],
     linkedPhotoId: "",
+    isPinned: false,
     sortOrder: 123,
     createdAt: "2026-07-31",
     updatedAt: "",
@@ -900,6 +901,17 @@ assert.match(
   }),
   /旅行[\s\S]*1 个相册，1 件展品[\s\S]*data-secret-folder-rename[\s\S]*东京/
 );
+const pinnedAlbumMarkup = secretGalleryView.buildSecretCollectionMarkup({
+  visible: [{
+    id: "pinned-album",
+    title: "置顶相册",
+    isPinned: true,
+    coverImage: "cover.jpg",
+    images: [{ image_url: "cover.jpg" }, { image_url: "other.jpg" }],
+  }],
+});
+assert.equal((pinnedAlbumMarkup.match(/<img\b/g) || []).length, 1);
+assert.match(pinnedAlbumMarkup, /data-secret-album-pin="pinned-album"[\s\S]*aria-pressed="true"/);
 assert.match(
   secretGalleryView.buildSecretAlbumMarkup({
     item: { id: "a1", title: "东京" },

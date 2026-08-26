@@ -3,7 +3,7 @@ import {
   FAVORITE_SECRET_PHOTO_TAG,
   normalizeSecretImages,
   normalizeSecretPhotoTags,
-} from "./secret-domain.js?v=20260810-004";
+} from "./secret-domain.js?v=20260826-005";
 import { getClipboardImageUrl } from "./media-metadata.js";
 import { escapeHtml } from "./ui-formatters.js";
 
@@ -87,16 +87,15 @@ export function buildSecretCollectionMarkup({
   const albumCards = visible.map((item, index) => {
     const images = normalizeSecretImages(item.images);
     const cover = item.coverImage || images[0]?.image_url || "";
-    const mosaicImages = [cover, ...images.map((image) => image.thumbnail_url || image.image_url)]
-      .filter((url, imageIndex, urls) => url && urls.indexOf(url) === imageIndex)
-      .slice(0, 3);
+    const isPinned = Boolean(item.isPinned);
     const linkedTitle = getLinkedTitle(item.linkedPhotoId);
     return `
       <article class="secret-card" data-secret-album-card="${escapeHtml(item.id)}">
+        <button class="secret-card-pin ${isPinned ? "is-pinned" : ""}" type="button" data-secret-album-pin="${escapeHtml(item.id)}" aria-label="${isPinned ? "取消置顶相册" : "置顶相册"}" aria-pressed="${isPinned ? "true" : "false"}" title="${isPinned ? "取消置顶" : "置顶相册"}"><span aria-hidden="true">📌</span></button>
         <button class="secret-cover" type="button" data-secret-index="${index}">
-          <span class="secret-cover-mosaic secret-cover-mosaic-${Math.max(1, mosaicImages.length)}">
-            ${mosaicImages.length
-              ? mosaicImages.map((url, mosaicIndex) => `<img src="${escapeHtml(url)}" alt="${mosaicIndex === 0 ? escapeHtml(item.title || item.category || "相册封面") : ""}" loading="lazy" decoding="async" />`).join("")
+          <span class="secret-cover-mosaic secret-cover-mosaic-1">
+            ${cover
+              ? `<img src="${escapeHtml(cover)}" alt="${escapeHtml(item.title || item.category || "相册封面")}" loading="lazy" decoding="async" />`
               : `<i aria-hidden="true">Empty</i>`}
           </span>
           <span class="secret-cover-count">${String(images.length).padStart(2, "0")}</span>
@@ -143,6 +142,7 @@ export function bindSecretCollectionActions({
   onContextMenu,
   onOpen,
   onMove,
+  onPin,
 }) {
   container.querySelectorAll("[data-secret-create-album]").forEach((button) => {
     button.addEventListener("click", onCreate);
@@ -192,6 +192,19 @@ export function bindSecretCollectionActions({
       event.stopPropagation();
       const [id, direction] = String(button.dataset.secretAlbumMove || "").split(":");
       onMove(id, Number(direction) || 0, items);
+    });
+  });
+  container.querySelectorAll("[data-secret-album-pin]").forEach((button) => {
+    button.addEventListener("click", async (event) => {
+      event.stopPropagation();
+      const item = items.find((entry) => entry.id === button.dataset.secretAlbumPin);
+      if (!item || !onPin) return;
+      button.disabled = true;
+      try {
+        await onPin(item);
+      } finally {
+        if (button.isConnected) button.disabled = false;
+      }
     });
   });
 }

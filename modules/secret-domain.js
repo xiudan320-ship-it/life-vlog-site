@@ -11,6 +11,9 @@ export function getDefaultSecretSortOrder(createdAt = "") {
 
 export function sortSecretItems(items = []) {
   return [...items].sort((a, b) => {
+    const pinnedA = Boolean(a.isPinned);
+    const pinnedB = Boolean(b.isPinned);
+    if (pinnedA !== pinnedB) return pinnedA ? -1 : 1;
     const orderA = Number.isFinite(Number(a.sortOrder))
       ? Number(a.sortOrder)
       : getDefaultSecretSortOrder(a.createdAt);

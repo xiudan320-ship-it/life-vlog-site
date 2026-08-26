@@ -225,7 +225,7 @@ const initialPhotoLoadIndex = appSessionControllerModule.indexOf("await actions.
 assert.ok(initializeCloudflareIndex >= 0, "Session initialization is missing");
 assert.ok(authListenerIndex > initializeCloudflareIndex, "Auth listener is missing from session initialization");
 assert.ok(authListenerIndex < initialPhotoLoadIndex, "Auth listener must be registered before initial photo loading");
-assert.match(serviceWorker, /life-vlog-site-20260826-010-pwa/);
+assert.match(serviceWorker, /life-vlog-site-20260826-011-pwa/);
 assert.match(serviceWorker, /modules\/admin-storage\.js/);
 assert.match(diaryDetailCss, /#photoDialog #dialogImage\[hidden\][\s\S]*?display: none !important/);
 assert.match(applicationSource, /const p=!state\.galleryRenderSignature[\s\S]*?initialRender: p/);
@@ -507,7 +507,7 @@ assert.match(applicationSource, /from "\.\/modules\/offline-cache-controller\.js
 assert.match(offlineCacheControllerModule, /from "\.\/cache-policy\.js"/);
 assert.match(applicationSource, /from "\.\/(?:modules\/)?diary-domain\.js"/);
 assert.match(applicationSource, /from "\.\/(?:modules\/)?notification-domain\.js"/);
-assert.match(applicationSource, /from "\.\/modules\/secret-domain\.js\?v=20260810-004"/);
+assert.match(applicationSource, /from "\.\/modules\/secret-domain\.js\?v=20260826-005"/);
 assert.match(applicationSource, /from "\.\/modules\/cloudflare-client\.js\?v=20260811-010"/);
 assert.match(worker, /SESSION_REFRESH_WINDOW_MS = 30 \* 86400 \* 1000/);
 assert.match(worker, /update sessions set expires_at=\? where id=\?/);
@@ -609,7 +609,7 @@ assert.equal(typeof wishlistController.createWishlistController, "function");
 assert.equal(typeof weekendController.createWeekendController, "function");
 assert.equal(typeof authController.createAuthController, "function");
 assert.equal(typeof offlineCacheController.createOfflineCacheController, "function");
-assert.match(serviceWorker, /life-vlog-site-20260826-010-pwa/);
+assert.match(serviceWorker, /life-vlog-site-20260826-011-pwa/);
 assert.match(serviceWorker, /styles\.css\?v=20260826-027/);
 assert.match(serviceWorker, /styles\/redesign-foundation\.css\?v=20260826-036/);
 assert.match(serviceWorker, /styles\/redesign-components\.css\?v=20260826-002/);

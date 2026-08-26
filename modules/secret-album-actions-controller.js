@@ -11,7 +11,7 @@ import {
   secretImageHasTag,
   setSecretImageTags,
   sortSecretItems,
-} from "./secret-domain.js?v=20260810-004";
+} from "./secret-domain.js?v=20260826-005";
 import {
   imageMatchesSecretFilter,
   sortSecretDisplayEntries,

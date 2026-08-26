@@ -212,6 +212,7 @@ export function secretFromCloudRow(row) {
     images: normalizeSecretImages(row.images),
     linkedPhotoId: row.linked_photo_id || "",
     photoSortDescending: row.photo_sort_descending !== 0,
+    isPinned: Boolean(row.is_pinned),
     sortOrder: Number.isFinite(Number(row.sort_order))
       ? Number(row.sort_order)
       : getDefaultSecretSortOrder(row.created_at),
@@ -233,6 +234,7 @@ export function secretToCloudRow(item, userId) {
     images: normalizeSecretImages(item.images),
     linked_photo_id: item.linkedPhotoId || null,
     photo_sort_descending: item.photoSortDescending === false ? 0 : 1,
+    is_pinned: item.isPinned ? 1 : 0,
     sort_order: Number.isFinite(Number(item.sortOrder))
       ? Number(item.sortOrder)
       : getDefaultSecretSortOrder(item.createdAt),

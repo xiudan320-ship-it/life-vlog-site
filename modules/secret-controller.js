@@ -19,7 +19,7 @@ import {
   normalizeSecretPhotoTag,
   normalizeSecretPhotoTags,
   sortSecretItems,
-} from "./secret-domain.js?v=20260810-004";
+} from "./secret-domain.js?v=20260826-005";
 import {
   getSecretAlbumFilterTags,
   getSecretAlbumTagCounts,
@@ -94,6 +94,7 @@ export function createSecretController({
     isMobileViewport,
     renderGallery: (...args) => renderSecretGallery(...args),
     deleteAlbum: (...args) => deleteSecretItem(...args),
+    toggleAlbumPin: (...args) => toggleSecretAlbumPin(...args),
   });
   const {
     closeSecretAlbumContextMenu,
@@ -425,6 +426,7 @@ export function createSecretController({
         renderSecretGallery();
       },
       onMove: moveSecretAlbum,
+      onPin: toggleSecretAlbumPin,
     });
   }
   
@@ -478,6 +480,30 @@ export function createSecretController({
     renderSecretGallery();
     setSecretStatus("相册已移动。");
     showMiniToast("相册已移动", { kind: "success" });
+  }
+
+  async function toggleSecretAlbumPin(item) {
+    if (!item || !state.cloudDb || !state.session) return false;
+    const nextPinned = !Boolean(item.isPinned);
+    const updatedAt = new Date().toISOString();
+    setSecretStatus(nextPinned ? "正在置顶相册..." : "正在取消置顶...");
+    const { error } = await secretRepository.updateOwnedItem(item.id, {
+      is_pinned: nextPinned ? 1 : 0,
+      updated_at: updatedAt,
+    });
+    if (error) {
+      setSecretStatus(error.message || "相册置顶失败。");
+      showMiniToast("相册置顶失败", { kind: "error" });
+      return false;
+    }
+    item.isPinned = nextPinned;
+    item.updatedAt = updatedAt;
+    state.secretItems = sortSecretItems(state.secretItems);
+    saveSecretItemsCache(state.session.user.id);
+    renderSecretGallery();
+    setSecretStatus(nextPinned ? "相册已置顶。" : "已取消置顶。");
+    showMiniToast(nextPinned ? "相册已置顶" : "已取消置顶", { kind: "success" });
+    return true;
   }
   
   function renderSecretAlbumView(item) {
@@ -781,6 +807,7 @@ export function createSecretController({
     setSelectedSecretCover,
     toggleDiaryImageFullscreen,
     toggleDialogImageFullscreen,
+    toggleSecretAlbumPin,
     updateSecretDialogImage,
     updateSecretPreview,
   };

@@ -8,6 +8,7 @@ import {
   imageMatchesSecretFilter,
   sortSecretDisplayEntries,
 } from "../modules/secret-filter-domain.js";
+import { sortSecretItems } from "../modules/secret-domain.js";
 
 const album = {
   images: [
@@ -44,4 +45,13 @@ test("secret display order follows album direction while honoring numeric positi
     sortSecretDisplayEntries(entries, { photoSortDescending: false }).map(({ index }) => index),
     [0, 2, 1],
   );
+});
+
+test("pinned albums stay ahead of the regular album order", () => {
+  const items = [
+    { id: "regular", isPinned: false, sortOrder: 0 },
+    { id: "pinned", isPinned: true, sortOrder: 999 },
+    { id: "pinned-first", isPinned: true, sortOrder: 1 },
+  ];
+  assert.deepEqual(sortSecretItems(items).map(({ id }) => id), ["pinned-first", "pinned", "regular"]);
 });

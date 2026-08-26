@@ -222,11 +222,12 @@ const TABLE_CONFIG = {
     booleanColumns: ["is_read"],
   },
   secret_items: {
-    columns: ["id", "user_id", "folder_id", "title", "category", "note", "cover_image", "cover_path", "images", "linked_photo_id", "photo_sort_descending", "sort_order", "created_at", "updated_at"],
+    columns: ["id", "user_id", "folder_id", "title", "category", "note", "cover_image", "cover_path", "images", "linked_photo_id", "photo_sort_descending", "is_pinned", "sort_order", "created_at", "updated_at"],
     scope: "own",
     writeScope: "own",
     ownerColumn: "user_id",
     jsonColumns: ["images"],
+    booleanColumns: ["is_pinned"],
   },
   secret_folders: {
     columns: ["id", "user_id", "name", "sort_order", "created_at", "updated_at"],
@@ -2020,7 +2021,7 @@ async function handleD1Export(request, env, user) {
       env.DB.prepare("select * from notifications where user_id=? order by created_at desc limit 100")
         .bind(user.id)
         .all(),
-      env.DB.prepare("select * from secret_items where user_id=? order by created_at desc")
+      env.DB.prepare("select * from secret_items where user_id=? order by is_pinned desc, sort_order asc, created_at desc")
         .bind(user.id)
         .all(),
     ]);

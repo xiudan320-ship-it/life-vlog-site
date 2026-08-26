@@ -364,6 +364,14 @@ async function assertSecretAlbumLinkFlow(page, runtimeErrors) {
     await card.locator("[data-secret-index]").click();
     await page.waitForSelector(".secret-album-view", { timeout: 10000 });
     assert.equal(await page.locator("[data-secret-photo]").count(), 1, "new secret album did not save its link image");
+    if ((page.viewportSize()?.width || 0) >= 701) {
+      const albumLayout = await page.evaluate(() => {
+        const toolbar = document.querySelector(".secret-album-toolbar")?.getBoundingClientRect();
+        const content = document.querySelector(".secret-album-content")?.getBoundingClientRect();
+        return toolbar && content ? { toolbarLeft: toolbar.left, contentRight: content.right } : null;
+      });
+      assert.ok(albumLayout && albumLayout.toolbarLeft >= albumLayout.contentRight - 1, `desktop secret tools are not in the right rail: ${JSON.stringify(albumLayout)}`);
+    }
 
     await page.click("[data-secret-toggle-append]");
     await page.fill("[data-secret-append-links]", sourceUrl);
@@ -384,6 +392,25 @@ async function assertSecretAlbumLinkFlow(page, runtimeErrors) {
     }
     imageUrls = await page.locator("[data-secret-photo] img").evaluateAll(
       (images) => images.map((image) => image.getAttribute("data-full-src") || image.src).filter(Boolean)
+    );
+
+    await page.locator("[data-secret-back]").first().click();
+    await page.waitForSelector(`.secret-card[data-secret-album-card="${albumId}"]`, { timeout: 10000 });
+    const fixtureCard = page.locator(`.secret-card[data-secret-album-card="${albumId}"]`);
+    assert.equal(await fixtureCard.locator(".secret-cover img").count(), 1, "secret album cards must only show the selected cover");
+    const pinButton = fixtureCard.locator("[data-secret-album-pin]");
+    assert.equal(await pinButton.getAttribute("aria-pressed"), "false", "new secret album pin state is incorrect");
+    await pinButton.click();
+    await page.waitForFunction(
+      (id) => document.querySelector(`.secret-card[data-secret-album-card="${id}"] [data-secret-album-pin]`)?.getAttribute("aria-pressed") === "true",
+      albumId,
+      { timeout: 10000 }
+    );
+    await page.locator(`.secret-card[data-secret-album-card="${albumId}"] [data-secret-album-pin]`).click();
+    await page.waitForFunction(
+      (id) => document.querySelector(`.secret-card[data-secret-album-card="${id}"] [data-secret-album-pin]`)?.getAttribute("aria-pressed") === "false",
+      albumId,
+      { timeout: 10000 }
     );
   } finally {
     await cleanupSecretAlbumFixture(page, albumId, imageUrls);
@@ -899,6 +926,7 @@ try {
   await mobile.waitForSelector(".topbar");
   await mobile.waitForSelector("#userMenu:not([hidden])");
   await assertAccountIdentity(mobile, "mobile account");
+  await assertSecretAlbumLinkFlow(mobile, mobileErrors);
   await assertVlogAudioUi(mobile, "mobile");
   await assertVlogMediaBadge(mobile, "mobile");
   await assertMobileUploadStatusLayout(mobile);

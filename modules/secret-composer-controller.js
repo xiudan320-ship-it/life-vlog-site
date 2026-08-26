@@ -1,5 +1,5 @@
 import { secretToCloudRow } from "./cloud-models.js";
-import { DEFAULT_SECRET_PHOTO_TAG } from "./secret-domain.js?v=20260810-004";
+import { DEFAULT_SECRET_PHOTO_TAG } from "./secret-domain.js?v=20260826-005";
 import { extractImageUrls, getClipboardImageUrl } from "./media-metadata.js";
 import { escapeHtml, formatDate, slugify } from "./ui-formatters.js";
 

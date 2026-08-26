@@ -3,7 +3,7 @@ import {
   buildSecretFolderListMarkup,
   buildSecretFolderOptions,
 } from "./secret-gallery-view.js";
-import { normalizeSecretImages } from "./secret-domain.js?v=20260810-004";
+import { normalizeSecretImages } from "./secret-domain.js?v=20260826-005";
 import { secretFolderFromCloudRow } from "./cloud-models.js";
 import { escapeHtml } from "./ui-formatters.js";
 
@@ -21,6 +21,7 @@ export function createSecretFolderController({
   isMobileViewport,
   renderGallery,
   deleteAlbum,
+  toggleAlbumPin,
   documentTarget = document,
   windowTarget = window,
 }) {
@@ -90,6 +91,7 @@ export function createSecretFolderController({
     menu.setAttribute("role", "menu");
     menu.innerHTML = `
       <span>${escapeHtml(item.title || "未命名相册")}</span>
+      <button type="button" role="menuitem" data-secret-album-pin>${item.isPinned ? "取消置顶" : "置顶相册"}</button>
       <button class="danger" type="button" role="menuitem">删除相册</button>
     `;
     documentTarget.body.append(menu);
@@ -103,7 +105,11 @@ export function createSecretFolderController({
     documentTarget.addEventListener("pointerdown", closeOnOutside, true);
     windowTarget.addEventListener("resize", closeSecretAlbumContextMenu);
     windowTarget.addEventListener("scroll", closeSecretAlbumContextMenu, true);
-    menu.querySelector("button")?.addEventListener("click", async () => {
+    menu.querySelector("[data-secret-album-pin]")?.addEventListener("click", async () => {
+      closeSecretAlbumContextMenu();
+      await toggleAlbumPin?.(item);
+    });
+    menu.querySelector("button.danger")?.addEventListener("click", async () => {
       closeSecretAlbumContextMenu();
       await deleteAlbum(item);
     });

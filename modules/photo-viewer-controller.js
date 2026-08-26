@@ -19,7 +19,7 @@ import {
   getDiaryMediaType,
   getDiaryMediaVideoUrl,
 } from "./media-metadata.js";
-import { normalizeSecretPhotoTags } from "./secret-domain.js?v=20260810-004";
+import { normalizeSecretPhotoTags } from "./secret-domain.js?v=20260826-005";
 import { startDiaryMotionVideo, stopDiaryMotionVideo } from "./diary-video-layout.js?v=20260824-030";
 
 export function createPhotoViewerController({

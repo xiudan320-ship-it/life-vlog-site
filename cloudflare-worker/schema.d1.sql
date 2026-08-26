@@ -316,12 +316,14 @@ CREATE TABLE IF NOT EXISTS secret_items (
   images TEXT NOT NULL DEFAULT '[]',
   linked_photo_id TEXT REFERENCES photos(id) ON DELETE SET NULL,
   photo_sort_descending INTEGER NOT NULL DEFAULT 1,
+  is_pinned INTEGER NOT NULL DEFAULT 0,
   sort_order INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
 
 CREATE INDEX IF NOT EXISTS secret_items_user_sort_idx ON secret_items (user_id, sort_order ASC);
+CREATE INDEX IF NOT EXISTS secret_items_user_pinned_sort_idx ON secret_items (user_id, is_pinned DESC, sort_order ASC);
 CREATE INDEX IF NOT EXISTS secret_items_user_created_idx ON secret_items (user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS secret_items_user_category_idx ON secret_items (user_id, category, created_at DESC);
 CREATE INDEX IF NOT EXISTS secret_items_folder_sort_idx ON secret_items (folder_id, sort_order ASC);

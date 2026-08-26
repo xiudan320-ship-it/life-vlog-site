@@ -1,4 +1,4 @@
-import { normalizeSecretPhotoTags } from "./secret-domain.js?v=20260810-004";
+import { normalizeSecretPhotoTags } from "./secret-domain.js?v=20260826-005";
 import { escapeHtml } from "./ui-formatters.js";
 import { fitVideoToContainer } from "./diary-video-layout.js";
 

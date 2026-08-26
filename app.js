@@ -89,7 +89,7 @@ import {
   getDefaultSecretSortOrder,
   normalizeSecretImages,
   SECRET_ALBUM_IMAGE_LIMIT,
-} from "./modules/secret-domain.js?v=20260810-004";
+} from "./modules/secret-domain.js?v=20260826-005";
 
 const CLOUDFLARE_AUTH_KEY = "life-vlog-cloudflare-auth";
 const AUTH_BACKUP_DB = "life-vlog-auth-backup";
