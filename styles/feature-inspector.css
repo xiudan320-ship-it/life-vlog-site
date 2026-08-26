@@ -231,16 +231,13 @@
   }
 
   .secret-album-view:not(.selection-active) .secret-album-toolbar {
-    position: sticky;
+    position: fixed;
     top: var(--secret-toolbar-top, calc(152px + env(safe-area-inset-top)));
-    right: auto;
-    z-index: 42;
-    grid-column: 2;
-    grid-row: 2;
-    width: auto;
+    right: max(20px, env(safe-area-inset-right));
+    z-index: 120;
+    width: 320px;
     height: max-content;
     max-height: calc(100dvh - 172px - env(safe-area-inset-top));
-    align-self: start;
     overflow-x: hidden;
     overflow-y: auto;
     box-sizing: border-box;

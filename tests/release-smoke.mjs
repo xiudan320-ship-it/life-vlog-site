@@ -368,9 +368,12 @@ async function assertSecretAlbumLinkFlow(page, runtimeErrors) {
       const albumLayout = await page.evaluate(() => {
         const toolbar = document.querySelector(".secret-album-toolbar")?.getBoundingClientRect();
         const content = document.querySelector(".secret-album-content")?.getBoundingClientRect();
-        return toolbar && content ? { toolbarLeft: toolbar.left, contentRight: content.right } : null;
+        return toolbar && content
+          ? { toolbarLeft: toolbar.left, toolbarRight: toolbar.right, contentRight: content.right, viewportWidth: document.documentElement.getBoundingClientRect().right }
+          : null;
       });
       assert.ok(albumLayout && albumLayout.toolbarLeft >= albumLayout.contentRight - 1, `desktop secret tools are not in the right rail: ${JSON.stringify(albumLayout)}`);
+      assert.ok(albumLayout && albumLayout.toolbarRight >= albumLayout.viewportWidth - 24, `desktop secret tools are not pinned to the viewport right: ${JSON.stringify(albumLayout)}`);
     }
 
     await page.click("[data-secret-toggle-append]");
