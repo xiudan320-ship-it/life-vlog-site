@@ -124,12 +124,14 @@ async function assertNoHorizontalOverflow(page, label) {
 
 async function assertMobilePageShell(page, label) {
   if (label !== "mobile") return;
+  await page.click("#galleryNav");
+  await page.waitForSelector("#galleryFilters");
   const diaryShell = await page.evaluate(() => ({
     className: document.body.className,
     heroDisplay: getComputedStyle(document.querySelector(".hero")).display,
     toolDockDisplay: getComputedStyle(document.querySelector("#toolDock")).display,
   }));
-  assert.match(diaryShell.className, /\bmobile-gallery-shell\b/, `${label} diary shell class is missing`);
+  assert.match(diaryShell.className, /\bmobile-diary-shell\b/, `${label} diary shell class is missing`);
   assert.notEqual(diaryShell.heroDisplay, "none", `${label} diary hero is hidden`);
   assert.notEqual(diaryShell.toolDockDisplay, "none", `${label} diary tool dock is hidden`);
 
@@ -140,9 +142,20 @@ async function assertMobilePageShell(page, label) {
     heroDisplay: getComputedStyle(document.querySelector(".hero")).display,
     toolDockDisplay: getComputedStyle(document.querySelector("#toolDock")).display,
   }));
-  assert.doesNotMatch(nonDiaryShell.className, /\bmobile-gallery-shell\b/, `${label} non-diary shell class is still active`);
+  assert.doesNotMatch(nonDiaryShell.className, /\bmobile-diary-shell\b/, `${label} non-diary shell class is still active`);
   assert.equal(nonDiaryShell.heroDisplay, "none", `${label} non-diary hero is still visible`);
   assert.equal(nonDiaryShell.toolDockDisplay, "none", `${label} non-diary tool dock is still visible`);
+
+  await page.click("#vlogNav");
+  await page.waitForSelector("#gallery:not([hidden])");
+  const vlogShell = await page.evaluate(() => ({
+    className: document.body.className,
+    heroDisplay: getComputedStyle(document.querySelector(".hero")).display,
+    toolDockDisplay: getComputedStyle(document.querySelector("#toolDock")).display,
+  }));
+  assert.doesNotMatch(vlogShell.className, /\bmobile-diary-shell\b/, `${label} VLOG shell class is still active`);
+  assert.equal(vlogShell.heroDisplay, "none", `${label} VLOG hero is still visible`);
+  assert.equal(vlogShell.toolDockDisplay, "none", `${label} VLOG tool dock is still visible`);
 
   await page.click("#galleryNav");
   await page.waitForSelector("#galleryFilters");

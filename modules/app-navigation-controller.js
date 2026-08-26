@@ -16,7 +16,10 @@ export function createAppNavigationController({
   documentTarget = document,
 } = {}) {
   function syncMobilePageShell() {
-    documentTarget?.body?.classList.toggle("mobile-gallery-shell", state.activePage === "gallery");
+    documentTarget?.body?.classList.toggle(
+      "mobile-diary-shell",
+      state.activePage === "gallery" && state.activeFilter !== "VLOG"
+    );
   }
 
   function switchPage(page, { skipSecretGate = false } = {}) {
