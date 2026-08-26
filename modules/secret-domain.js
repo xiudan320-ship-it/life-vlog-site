@@ -1,6 +1,8 @@
 export const DEFAULT_SECRET_PHOTO_TAG = "未标记";
 export const STORY_SECRET_PHOTO_TAG = "故事集";
 export const FAVORITE_SECRET_PHOTO_TAG = "收藏";
+// Keep the JSON payload in one D1 row bounded while allowing practical large albums.
+export const SECRET_ALBUM_IMAGE_LIMIT = 500;
 
 export function getDefaultSecretSortOrder(createdAt = "") {
   const time = new Date(createdAt || Date.now()).getTime();

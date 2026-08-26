@@ -88,6 +88,7 @@ import {
 import {
   getDefaultSecretSortOrder,
   normalizeSecretImages,
+  SECRET_ALBUM_IMAGE_LIMIT,
 } from "./modules/secret-domain.js?v=20260810-004";
 
 const CLOUDFLARE_AUTH_KEY = "life-vlog-cloudflare-auth";
@@ -151,7 +152,6 @@ const DEFAULT_DIARY_CACHE_MB = 100;
 const DEFAULT_SECRET_CACHE_MB = 300;
 const MIN_CACHE_MB = 20;
 const MAX_CACHE_MB = 2000;
-const SECRET_ALBUM_IMAGE_LIMIT = 80;
 const TOOL_DOCK_ORDER_KEY = "life-vlog-tool-dock-order";
 const TOOL_DOCK_DEFAULT_ORDER = ["food", "recipes", "anniversary", "memory", "weekly", "timeline", "secret", "thanks"];
 const TOOL_DOCK_LABELS = {
