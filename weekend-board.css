@@ -277,6 +277,17 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
   text-align: center;
 }
 
+.weekend-image-drop > input,
+.weekend-completion-drop > input {
+  display: none;
+}
+
+.weekend-image-drop > .upload-native-trigger,
+.weekend-completion-drop > .upload-native-trigger {
+  color: var(--lv-accent);
+  font-weight: 720;
+}
+
 .weekend-image-drop > small,
 .weekend-completion-drop > small {
   color: var(--lv-text-faint);
@@ -340,7 +351,9 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
 
 .weekend-card {
   position: relative;
+  display: block;
   min-width: 0;
+  min-height: 0;
   overflow: hidden;
   border: 0;
   border-radius: var(--lv-radius-card);
@@ -364,7 +377,7 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: 88px minmax(0, 1fr) 44px;
+  grid-template-columns: 88px minmax(0, 1fr);
   min-height: 116px;
   align-items: stretch;
   gap: 14px;
@@ -372,7 +385,12 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
   background: inherit;
 }
 
+.weekend-card-main:has(.weekend-card-tools) {
+  grid-template-columns: 88px minmax(0, 1fr) 44px;
+}
+
 .weekend-date {
+  position: static;
   display: grid;
   width: 88px;
   height: 88px;
@@ -380,9 +398,13 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
   justify-items: center;
   gap: 2px;
   box-sizing: border-box;
+  padding: 0;
+  border: 0;
   border-radius: 14px;
   color: var(--lv-on-accent);
   background: var(--lv-accent);
+  box-shadow: none;
+  transform: none;
 }
 
 .weekend-date span,
@@ -412,8 +434,10 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
 .weekend-card-body {
   display: grid;
   min-width: 0;
+  min-height: 0;
   align-content: center;
   gap: 5px;
+  padding: 0;
 }
 
 .weekend-card-kicker-row {
@@ -496,6 +520,37 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
   line-height: 1.4;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+}
+
+.weekend-recap {
+  display: grid;
+  gap: 8px;
+  margin-top: 7px;
+  padding-top: 10px;
+  border-top: 1px solid var(--lv-border);
+}
+
+.weekend-recap header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--lv-accent);
+  font-size: .7rem;
+  font-weight: 700;
+}
+
+.weekend-recap time {
+  color: var(--lv-text-faint);
+  font-weight: 500;
+}
+
+.weekend-recap > p {
+  margin: 0;
+  color: var(--lv-text-muted);
+  font-size: .78rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
 }
 
 .weekend-card-tools {
@@ -691,15 +746,23 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
     font-size: 1rem;
   }
 
+  .weekend-form-actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .weekend-card {
     border-radius: 16px;
   }
 
   .weekend-card-main {
-    grid-template-columns: 64px minmax(0, 1fr) 44px;
+    grid-template-columns: 64px minmax(0, 1fr);
     min-height: 0;
     gap: 10px;
     padding: 12px;
+  }
+
+  .weekend-card-main:has(.weekend-card-tools) {
+    grid-template-columns: 64px minmax(0, 1fr);
   }
 
   .weekend-date {
@@ -743,12 +806,19 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
   }
 
   .weekend-card-tools {
-    min-height: 64px;
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    min-height: 0;
   }
 
   .weekend-card-actions {
     gap: 8px;
     margin-top: 6px;
+  }
+
+  .weekend-card:has(.weekend-card-tools) .weekend-card-actions {
+    padding-right: 54px;
   }
 
   .weekend-card-actions button {

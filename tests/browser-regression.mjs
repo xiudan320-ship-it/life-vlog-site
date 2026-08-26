@@ -106,6 +106,52 @@ async function testDiaryDetail(viewport, label) {
   await context.close();
 }
 
+async function testWeekendLayout(viewport, label) {
+  const context = await browser.newContext({ viewport, serviceWorkers: "block", reducedMotion: "reduce" });
+  const page = await context.newPage();
+  await page.goto(`${baseUrl}/tests/weekend-visual.html`, { waitUntil: "load" });
+  await assertNoHorizontalOverflow(page, `${label} weekend layout`);
+  await page.screenshot({ path: join(root, "tests", `weekend-layout-${label}.png`), fullPage: true });
+
+  const cards = await page.locator(".weekend-card").evaluateAll((elements) =>
+    elements.map((card) => {
+      const main = card.querySelector(".weekend-card-main");
+      const date = card.querySelector(".weekend-date");
+      const body = card.querySelector(".weekend-card-body");
+      const check = card.querySelector(".weekend-check-button");
+      const cardRect = card.getBoundingClientRect();
+      const mainRect = main.getBoundingClientRect();
+      const dateRect = date.getBoundingClientRect();
+      const bodyRect = body.getBoundingClientRect();
+      const checkRect = check.getBoundingClientRect();
+      return {
+        cardDisplay: getComputedStyle(card).display,
+        cardWidth: Math.round(cardRect.width),
+        cardHeight: Math.round(cardRect.height),
+        mainWidth: Math.round(mainRect.width),
+        datePosition: getComputedStyle(date).position,
+        dateWidth: Math.round(dateRect.width),
+        bodyWidth: Math.round(bodyRect.width),
+        checkWidth: Math.round(checkRect.width),
+        checkHeight: Math.round(checkRect.height),
+      };
+    })
+  );
+  assert.equal(cards.length, 3, `${label} weekend fixture is incomplete`);
+  for (const card of cards) {
+    assert.equal(card.cardDisplay, "block", `${label} weekend card inherited the legacy grid: ${JSON.stringify(card)}`);
+    assert.equal(card.datePosition, "static", `${label} weekend date inherited legacy absolute positioning: ${JSON.stringify(card)}`);
+    assert.ok(Math.abs(card.cardWidth - card.mainWidth) <= 1, `${label} weekend card main does not fill its card: ${JSON.stringify(card)}`);
+    assert.ok(card.bodyWidth >= 130, `${label} weekend card body is squeezed: ${JSON.stringify(card)}`);
+    assert.ok(card.checkWidth >= 44 && card.checkHeight >= 44, `${label} weekend completion target is too small: ${JSON.stringify(card)}`);
+  }
+  assert.ok(cards[0].cardHeight <= (viewport.width <= 700 ? 300 : 240), `${label} simple weekend card is too tall: ${JSON.stringify(cards[0])}`);
+  assert.ok(cards[0].dateWidth <= (viewport.width <= 700 ? 64 : 88), `${label} weekend date tile is oversized: ${JSON.stringify(cards[0])}`);
+  await page.addStyleTag({ content: "html { font-size: 125%; }" });
+  await assertNoHorizontalOverflow(page, `${label} weekend layout with larger text`);
+  await context.close();
+}
+
 async function testComponentStates(viewport, label) {
   const context = await browser.newContext({ viewport, serviceWorkers: "block" });
   const page = await context.newPage();
@@ -250,6 +296,10 @@ try {
   await testHomeShell({ width: 390, height: 844 }, "mobile");
   await testDiaryDetail({ width: 1440, height: 900 }, "desktop");
   await testDiaryDetail({ width: 390, height: 844 }, "mobile");
+  await testWeekendLayout({ width: 1440, height: 900 }, "desktop");
+  await testWeekendLayout({ width: 390, height: 844 }, "mobile");
+  await testWeekendLayout({ width: 375, height: 812 }, "small-mobile");
+  await testWeekendLayout({ width: 844, height: 390 }, "mobile-landscape");
   await testComponentStates({ width: 1440, height: 900 }, "desktop");
   await testComponentStates({ width: 390, height: 844 }, "mobile");
   await testSecretAppendLinkPaste({ width: 1440, height: 900 }, "desktop");

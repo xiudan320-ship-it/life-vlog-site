@@ -6,46 +6,79 @@
   <title>周末卡片视觉验收</title>
   <link rel="stylesheet" href="../styles.css" />
   <link rel="stylesheet" href="./test-redesign.css" />
-  <link rel="stylesheet" href="../weekend-board.css?v=20260826-041" />
+  <link rel="stylesheet" href="../weekend-board.css?v=20260826-042" />
   <style>
-    body { min-height: 100vh; margin: 0; padding: 72px 7vw; background: var(--bg); }
-    .weekend-list { width: min(1500px, 100%); margin: 0 auto; }
-    @media (max-width: 700px) { body { padding: 28px 14px; } }
+    body { min-height: 100vh; margin: 0; padding: 32px 18px; background: #0d0f0e; }
+    @media (max-width: 700px) { body { padding: 20px 12px; } }
   </style>
 </head>
 <body class="theme-dark">
-  <section class="weekend-list">
-    <article class="weekend-card done">
-      <span class="weekend-complete-mark">完成</span>
-      <div class="weekend-date"><span>7月</span><strong>16日</strong><small>周四</small></div>
-      <div class="weekend-card-body">
-        <p class="kicker">出门玩 · PLAN 04 · 嘴</p>
-        <h3>国立科学博物馆</h3>
-        <p class="weekend-location">地点：上野</p>
-        <div class="weekend-card-actions"><button>编辑</button><button>重新计划</button><button>编辑回顾</button><button>删除</button></div>
+  <section class="weekend-page" id="weekendPage">
+    <div class="feed-head weekend-page-header">
+      <div class="weekend-page-heading">
+        <p class="kicker">WEEKEND</p>
+        <h2>周末计划</h2>
+        <p class="weekend-summary">3 个计划 · 2 个已完成</p>
       </div>
-    </article>
-    <article class="weekend-card done">
-      <span class="weekend-complete-mark">完成</span>
-      <div class="weekend-date"><span>7月</span><strong>19日</strong><small>周日</small></div>
-      <div class="weekend-card-body">
-        <p class="kicker">出门玩 · PLAN 05 · 嘴</p>
-        <h3>去所泽看眼镜！</h3>
-        <p class="weekend-location">地点：所泽</p>
-        <section class="weekend-recap"><header><span>完成回顾</span><time>7月19日</time></header><p>逛了很久，也拍下了几张很喜欢的照片。</p></section>
-        <div class="weekend-card-actions"><button>编辑</button><button>重新计划</button><button>编辑回顾</button><button>删除</button></div>
+    </div>
+    <section class="weekend-composer">
+      <div class="section-title">
+        <button class="section-heading-button weekend-add-button" type="button">
+          <span class="weekend-add-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg></span>
+          <span class="weekend-add-copy"><small>NEW PLAN</small><strong>安排周末</strong></span>
+        </button>
       </div>
-    </article>
-    <article class="weekend-card">
-      <div class="weekend-date"><span>8月</span><strong>08日</strong><small>周六</small></div>
-      <div class="weekend-card-body">
-        <p class="kicker">吃好吃的 · PLAN 06 · 嘴</p>
-        <h3>はま寿司</h3>
-        <p class="weekend-location">地点：所泽站</p>
-        <p>想点的东西很多，先把这段计划写得长一点，检查内容换行后日期和操作按钮仍然稳定。</p>
-        <div class="weekend-card-actions"><button>编辑</button><button>完成</button><button>删除</button></div>
-      </div>
-    </article>
+    </section>
+    <section class="weekend-list">
+      <article class="weekend-card">
+        <div class="weekend-card-main">
+          <div class="weekend-date"><span>8月</span><strong>30</strong><small>周日</small></div>
+          <div class="weekend-card-body">
+            <div class="weekend-card-kicker-row"><p class="kicker">吃好吃的 · PLAN 01 · 嘴</p><span class="weekend-state-pill open">待完成</span></div>
+            <h3>去所泽吃一顿期待很久的寿司</h3>
+            <div class="weekend-card-details">
+              <p class="weekend-location">所泽站</p>
+              <p class="weekend-note">想点的东西很多，提前看看预约时间，顺便沿河散步。</p>
+            </div>
+            <div class="weekend-card-actions"><button>编辑</button><button>删除</button></div>
+          </div>
+          <div class="weekend-card-tools"><button class="weekend-check-button" aria-label="标记完成"><span>✓</span></button></div>
+        </div>
+      </article>
+      <article class="weekend-card done">
+        <div class="weekend-card-main">
+          <div class="weekend-date"><span>8月</span><strong>23</strong><small>周日</small></div>
+          <div class="weekend-card-body">
+            <div class="weekend-card-kicker-row"><p class="kicker">出门玩 · PLAN 02 · 蛋</p><span class="weekend-state-pill done">已完成</span></div>
+            <h3>国立科学博物馆</h3>
+            <div class="weekend-card-details">
+              <p class="weekend-location">上野</p>
+              <div class="weekend-scenes">
+                <button><img src="../assets/black-cat-cover.jpg" alt="博物馆照片 1" /></button>
+                <button><img src="../assets/home-logo.jpg" alt="博物馆照片 2" /></button>
+                <button><img src="../assets/black-cat-cover.jpg" alt="博物馆照片 3" /></button>
+                <button><img src="../assets/home-logo.jpg" alt="博物馆照片 4" /></button>
+              </div>
+              <section class="weekend-recap"><header><span>完成回顾</span><time>8月23日</time></header><p>慢慢逛了一下午，留下了几张很喜欢的照片。</p></section>
+            </div>
+            <div class="weekend-card-actions"><button>编辑</button><button>编辑回顾</button><button>删除</button></div>
+          </div>
+          <div class="weekend-card-tools"><button class="weekend-check-button is-complete" aria-label="取消完成"><span>✓</span></button></div>
+        </div>
+      </article>
+      <article class="weekend-card done">
+        <div class="weekend-card-main">
+          <div class="weekend-date"><span>8月</span><strong>16</strong><small>周日</small></div>
+          <div class="weekend-card-body">
+            <div class="weekend-card-kicker-row"><p class="kicker">宅家 · PLAN 03 · 嘴</p><span class="weekend-state-pill done">已完成</span></div>
+            <h3>在家看完一部一直想看的电影</h3>
+            <div class="weekend-card-details"><p class="weekend-note">准备零食，把手机放远一点。</p></div>
+            <div class="weekend-card-actions"><button>编辑</button><button>补充回顾</button><button>删除</button></div>
+          </div>
+          <div class="weekend-card-tools"><button class="weekend-check-button is-complete" aria-label="取消完成"><span>✓</span></button></div>
+        </div>
+      </article>
+    </section>
   </section>
 </body>
 </html>
