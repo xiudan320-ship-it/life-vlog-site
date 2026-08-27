@@ -32,9 +32,13 @@ function renderWeekendCards(plans, { getAuthorName, canManageItem }) {
       const canManage = canManageItem(plan);
       const date = formatWeekendDate(plan.date);
       const stateText = plan.done ? "已完成" : "待完成";
-      const stateMarkup = plan.done
-        ? `<span class="weekend-state-stamp" role="img" aria-label="已完成" title="已完成"><img src="./assets/weekend-complete-stamp.png" alt="" /></span>`
-        : `<span class="weekend-state-pill open">${stateText}</span>`;
+      const stateMarkup = canManage
+        ? plan.done
+          ? `<button class="weekend-state-control is-complete" type="button" data-toggle-weekend="${escapeHtml(plan.id)}" aria-label="取消完成" aria-pressed="true" title="取消完成"><img src="./assets/weekend-complete-stamp.png" alt="" aria-hidden="true" /></button>`
+          : `<button class="weekend-state-control is-open" type="button" data-toggle-weekend="${escapeHtml(plan.id)}" aria-label="标记完成" aria-pressed="false" title="标记完成"><span aria-hidden="true">✓</span></button>`
+        : plan.done
+          ? `<span class="weekend-state-stamp" role="img" aria-label="已完成" title="已完成"><img src="./assets/weekend-complete-stamp.png" alt="" /></span>`
+          : `<span class="weekend-state-pill open">${stateText}</span>`;
       return `
         <article class="weekend-card${plan.done ? " done" : ""}" data-weekend-id="${escapeHtml(plan.id)}" aria-label="${escapeHtml(plan.title || "未命名周末计划")}，${stateText}">
           <div class="weekend-card-main">
@@ -67,9 +71,6 @@ function renderWeekendCards(plans, { getAuthorName, canManageItem }) {
                 <button type="button" data-delete-weekend="${escapeHtml(plan.id)}">删除</button>
               </div>` : ""}
             </div>
-            ${canManage ? `<div class="weekend-card-tools">
-              <button class="weekend-check-button${plan.done ? " is-complete" : ""}" type="button" data-toggle-weekend="${escapeHtml(plan.id)}" aria-label="${plan.done ? "取消完成" : "标记完成"}" aria-pressed="${String(Boolean(plan.done))}"><span aria-hidden="true">✓</span></button>
-            </div>` : ""}
           </div>
           ${plan.done ? `<span class="weekend-complete-mark" aria-hidden="true">已完成</span>` : ""}
         </article>

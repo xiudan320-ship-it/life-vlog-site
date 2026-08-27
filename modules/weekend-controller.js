@@ -1,4 +1,4 @@
-import { renderWeekendPlansView } from "./weekend-plans-view.js?v=20260824-030";
+import { renderWeekendPlansView } from "./weekend-plans-view.js?v=20260827-001";
 import { weekendFromCloudRow, weekendToCloudRow } from "./cloud-models.js";
 
 export function getNextWeekendDate(reference = new Date()) {

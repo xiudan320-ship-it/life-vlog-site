@@ -118,13 +118,13 @@ async function testWeekendLayout(viewport, label) {
       const main = card.querySelector(".weekend-card-main");
       const date = card.querySelector(".weekend-date");
       const body = card.querySelector(".weekend-card-body");
-      const check = card.querySelector(".weekend-check-button");
-      const stamp = card.querySelector(".weekend-state-stamp");
+      const stateControl = card.querySelector(".weekend-state-control");
+      const stamp = card.querySelector(".weekend-state-control.is-complete, .weekend-state-stamp");
       const cardRect = card.getBoundingClientRect();
       const mainRect = main.getBoundingClientRect();
       const dateRect = date.getBoundingClientRect();
       const bodyRect = body.getBoundingClientRect();
-      const checkRect = check.getBoundingClientRect();
+      const stateControlRect = stateControl?.getBoundingClientRect();
       const stampRect = stamp?.getBoundingClientRect();
       return {
         cardDisplay: getComputedStyle(card).display,
@@ -134,8 +134,8 @@ async function testWeekendLayout(viewport, label) {
         datePosition: getComputedStyle(date).position,
         dateWidth: Math.round(dateRect.width),
         bodyWidth: Math.round(bodyRect.width),
-        checkWidth: Math.round(checkRect.width),
-        checkHeight: Math.round(checkRect.height),
+        stateControlWidth: stateControlRect ? Math.round(stateControlRect.width) : 0,
+        stateControlHeight: stateControlRect ? Math.round(stateControlRect.height) : 0,
         stampWidth: stampRect ? Math.round(stampRect.width) : 0,
         stampHeight: stampRect ? Math.round(stampRect.height) : 0,
         stampTop: stampRect ? Math.round(stampRect.top) : 0,
@@ -151,7 +151,7 @@ async function testWeekendLayout(viewport, label) {
     assert.equal(card.datePosition, "static", `${label} weekend date inherited legacy absolute positioning: ${JSON.stringify(card)}`);
     assert.ok(Math.abs(card.cardWidth - card.mainWidth) <= 1, `${label} weekend card main does not fill its card: ${JSON.stringify(card)}`);
     assert.ok(card.bodyWidth >= 130, `${label} weekend card body is squeezed: ${JSON.stringify(card)}`);
-    assert.ok(card.checkWidth >= 44 && card.checkHeight >= 44, `${label} weekend completion target is too small: ${JSON.stringify(card)}`);
+    assert.ok(card.stateControlWidth >= 44 && card.stateControlHeight >= 44, `${label} weekend completion target is too small: ${JSON.stringify(card)}`);
   }
   assert.ok(cards[0].cardHeight <= (viewport.width <= 700 ? 300 : 240), `${label} simple weekend card is too tall: ${JSON.stringify(cards[0])}`);
   assert.ok(cards[0].dateWidth <= (viewport.width <= 700 ? 64 : 88), `${label} weekend date tile is oversized: ${JSON.stringify(cards[0])}`);

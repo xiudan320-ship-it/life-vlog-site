@@ -385,10 +385,6 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
   background: inherit;
 }
 
-.weekend-card-main:has(.weekend-card-tools) {
-  grid-template-columns: 88px minmax(0, 1fr) 44px;
-}
-
 .weekend-date {
   position: static;
   display: grid;
@@ -446,6 +442,7 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  padding-right: 56px;
 }
 
 .weekend-card-kicker-row .kicker {
@@ -474,11 +471,6 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
   white-space: nowrap;
 }
 
-.weekend-state-pill.done {
-  border-color: color-mix(in srgb, var(--lv-accent), transparent 48%);
-  color: var(--lv-accent);
-}
-
 .weekend-state-stamp {
   position: absolute;
   top: -14px;
@@ -494,11 +486,62 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
   pointer-events: none;
 }
 
-.weekend-state-stamp img {
+.weekend-state-stamp img,
+.weekend-state-control.is-complete img {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: contain;
+}
+
+.weekend-state-control {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.weekend-state-control.is-complete {
+  top: -14px;
+  right: -14px;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: transparent;
+  animation: weekend-state-pop var(--lv-motion-base) ease-out;
+  transform: rotate(-8deg);
+  transition: filter var(--lv-motion-base) ease, transform var(--lv-motion-base) ease;
+}
+
+.weekend-state-control.is-complete:hover {
+  filter: brightness(1.08);
+  transform: rotate(-8deg) scale(1.03);
+}
+
+.weekend-state-control.is-open {
+  top: 12px;
+  right: 14px;
+  width: 48px;
+  height: 48px;
+  border: 1px solid color-mix(in srgb, var(--lv-text), transparent 52%);
+  border-radius: 50%;
+  color: var(--lv-text-muted);
+  background: transparent;
+  font-size: 1.2rem;
+  line-height: 1;
+  transition: color var(--lv-motion-base) ease, background-color var(--lv-motion-base) ease, border-color var(--lv-motion-base) ease, transform var(--lv-motion-base) ease;
+}
+
+.weekend-state-control.is-open:hover {
+  border-color: color-mix(in srgb, var(--lv-accent), transparent 28%);
+  color: var(--lv-accent);
+  background: color-mix(in srgb, var(--lv-accent), transparent 90%);
+  transform: scale(1.04);
 }
 
 .weekend-card-body h3 {
@@ -575,37 +618,7 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
   white-space: pre-wrap;
 }
 
-.weekend-card-tools {
-  display: grid;
-  min-height: 88px;
-  align-content: end;
-  justify-items: end;
-}
-
-.weekend-check-button {
-  display: grid;
-  width: 44px;
-  height: 44px;
-  place-items: center;
-  padding: 0;
-  border: 1.5px solid color-mix(in srgb, var(--lv-text), transparent 55%);
-  border-radius: 50%;
-  color: transparent;
-  background: transparent;
-  font: inherit;
-  cursor: pointer;
-  touch-action: manipulation;
-  transition: color var(--lv-motion-base) ease, background-color var(--lv-motion-base) ease, border-color var(--lv-motion-base) ease, transform var(--lv-motion-base) ease;
-}
-
-.weekend-check-button.is-complete {
-  border-color: var(--lv-accent);
-  color: var(--lv-on-accent);
-  background: var(--lv-accent);
-  animation: weekend-check-pop var(--lv-motion-base) ease-out;
-}
-
-.weekend-check-button:focus-visible,
+.weekend-state-control:focus-visible,
 .weekend-card-actions button:focus-visible,
 .weekend-image-drop:focus-visible,
 .weekend-completion-drop:focus-visible {
@@ -613,7 +626,7 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
   outline-offset: 2px;
 }
 
-@keyframes weekend-check-pop {
+@keyframes weekend-state-pop {
   0% { transform: scale(.84); }
   70% { transform: scale(1.06); }
   100% { transform: scale(1); }
@@ -783,10 +796,6 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
     padding: 12px;
   }
 
-  .weekend-card-main:has(.weekend-card-tools) {
-    grid-template-columns: 64px minmax(0, 1fr);
-  }
-
   .weekend-date {
     width: 64px;
     height: 64px;
@@ -811,17 +820,22 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
   }
 
   .weekend-card-kicker-row .kicker,
-  .weekend-state-pill,
-  .weekend-state-stamp {
+  .weekend-state-pill {
     font-size: .69rem;
   }
 
-  .weekend-state-stamp {
+  .weekend-state-stamp,
+  .weekend-state-control.is-complete {
     top: -11px;
     right: -11px;
     width: 64px;
     height: 64px;
     flex-basis: 64px;
+  }
+
+  .weekend-state-control.is-open {
+    top: 10px;
+    right: 10px;
   }
 
   .weekend-card-body h3 {
@@ -836,20 +850,9 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
     font-size: .74rem;
   }
 
-  .weekend-card-tools {
-    position: absolute;
-    right: 12px;
-    bottom: 12px;
-    min-height: 0;
-  }
-
   .weekend-card-actions {
     gap: 8px;
     margin-top: 6px;
-  }
-
-  .weekend-card:has(.weekend-card-tools) .weekend-card-actions {
-    padding-right: 54px;
   }
 
   .weekend-card-actions button {
@@ -1158,8 +1161,8 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
 @media (prefers-reduced-motion: reduce) {
   .weekend-composer .section-heading-button,
   .weekend-card,
-  .weekend-check-button,
-  .weekend-check-button.is-complete,
+  .weekend-state-control,
+  .weekend-state-control.is-complete,
   .weekend-scenes img,
   .weekend-album-grid img {
     transition: none;

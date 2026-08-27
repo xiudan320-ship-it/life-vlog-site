@@ -6,7 +6,7 @@
   <title>周末卡片视觉验收</title>
   <link rel="stylesheet" href="../styles.css" />
   <link rel="stylesheet" href="./test-redesign.css" />
-  <link rel="stylesheet" href="../weekend-board.css?v=20260826-045" />
+  <link rel="stylesheet" href="../weekend-board.css?v=20260826-046" />
   <style>
     body { min-height: 100vh; margin: 0; padding: 32px 18px; background: #0d0f0e; }
     @media (max-width: 700px) { body { padding: 20px 12px; } }
@@ -34,7 +34,7 @@
         <div class="weekend-card-main">
           <div class="weekend-date"><span>8月</span><strong>30</strong><small>周日</small></div>
           <div class="weekend-card-body">
-            <div class="weekend-card-kicker-row"><p class="kicker">吃好吃的 · PLAN 01 · 嘴</p><span class="weekend-state-pill open">待完成</span></div>
+            <div class="weekend-card-kicker-row"><p class="kicker">吃好吃的 · PLAN 01 · 嘴</p><button class="weekend-state-control is-open" type="button" aria-label="标记完成" aria-pressed="false" title="标记完成"><span aria-hidden="true">✓</span></button></div>
             <h3>去所泽吃一顿期待很久的寿司</h3>
             <div class="weekend-card-details">
               <p class="weekend-location">所泽站</p>
@@ -42,14 +42,13 @@
             </div>
             <div class="weekend-card-actions"><button>编辑</button><button>删除</button></div>
           </div>
-          <div class="weekend-card-tools"><button class="weekend-check-button" aria-label="标记完成"><span>✓</span></button></div>
         </div>
       </article>
       <article class="weekend-card done">
         <div class="weekend-card-main">
           <div class="weekend-date"><span>8月</span><strong>23</strong><small>周日</small></div>
           <div class="weekend-card-body">
-            <div class="weekend-card-kicker-row"><p class="kicker">出门玩 · PLAN 02 · 蛋</p><span class="weekend-state-stamp" role="img" aria-label="已完成"><img src="../assets/weekend-complete-stamp.png" alt="" /></span></div>
+            <div class="weekend-card-kicker-row"><p class="kicker">出门玩 · PLAN 02 · 蛋</p><button class="weekend-state-control is-complete" type="button" aria-label="取消完成" aria-pressed="true" title="取消完成"><img src="../assets/weekend-complete-stamp.png" alt="" aria-hidden="true" /></button></div>
             <h3>国立科学博物馆</h3>
             <div class="weekend-card-details">
               <p class="weekend-location">上野</p>
@@ -63,19 +62,17 @@
             </div>
             <div class="weekend-card-actions"><button>编辑</button><button>编辑回顾</button><button>删除</button></div>
           </div>
-          <div class="weekend-card-tools"><button class="weekend-check-button is-complete" aria-label="取消完成"><span>✓</span></button></div>
         </div>
       </article>
       <article class="weekend-card done">
         <div class="weekend-card-main">
           <div class="weekend-date"><span>8月</span><strong>16</strong><small>周日</small></div>
           <div class="weekend-card-body">
-            <div class="weekend-card-kicker-row"><p class="kicker">宅家 · PLAN 03 · 嘴</p><span class="weekend-state-stamp" role="img" aria-label="已完成"><img src="../assets/weekend-complete-stamp.png" alt="" /></span></div>
+            <div class="weekend-card-kicker-row"><p class="kicker">宅家 · PLAN 03 · 嘴</p><button class="weekend-state-control is-complete" type="button" aria-label="取消完成" aria-pressed="true" title="取消完成"><img src="../assets/weekend-complete-stamp.png" alt="" aria-hidden="true" /></button></div>
             <h3>在家看完一部一直想看的电影</h3>
             <div class="weekend-card-details"><p class="weekend-note">准备零食，把手机放远一点。</p></div>
             <div class="weekend-card-actions"><button>编辑</button><button>补充回顾</button><button>删除</button></div>
           </div>
-          <div class="weekend-card-tools"><button class="weekend-check-button is-complete" aria-label="取消完成"><span>✓</span></button></div>
         </div>
       </article>
     </section>
