@@ -284,7 +284,9 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
 
 .weekend-image-drop > .upload-native-trigger,
 .weekend-completion-drop > .upload-native-trigger {
-  color: var(--lv-accent);
+  /* The trigger already sits on the lime surface from the shared upload styles.
+     Keep its label dark enough to read against that surface. */
+  color: var(--lv-on-accent);
   font-weight: 720;
 }
 
@@ -1081,8 +1083,74 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
 
 .weekend-completion-dialog footer {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 10px;
+  grid-template-columns: minmax(124px, .72fr) minmax(0, 1.28fr);
+  gap: 12px;
+  align-items: stretch;
+  margin-top: 2px;
+}
+
+.weekend-completion-dialog footer button {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 50px;
+  padding: 0 18px;
+  border: 1px solid var(--lv-border);
+  border-radius: var(--lv-radius-control);
+  color: var(--lv-text);
+  background: var(--lv-surface-raised);
+  font: inherit;
+  font-size: .96rem;
+  font-weight: 720;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background-color var(--lv-motion-fast) ease, border-color var(--lv-motion-fast) ease, color var(--lv-motion-fast) ease, transform var(--lv-motion-fast) ease;
+}
+
+.weekend-completion-dialog footer button:hover {
+  border-color: color-mix(in srgb, var(--lv-accent), var(--lv-border) 42%);
+  background: color-mix(in srgb, var(--lv-accent), var(--lv-surface-raised) 88%);
+}
+
+.weekend-completion-dialog footer button:focus-visible {
+  outline: 2px solid var(--lv-focus);
+  outline-offset: 2px;
+}
+
+.weekend-completion-dialog footer button:disabled {
+  border-color: var(--lv-border);
+  color: var(--lv-text-muted);
+  background: var(--lv-surface-raised);
+  opacity: .72;
+}
+
+.weekend-completion-dialog footer #weekendCompletionCancel {
+  border-color: color-mix(in srgb, var(--lv-text), var(--lv-border) 62%);
+  background: transparent;
+}
+
+.weekend-completion-dialog footer #weekendCompletionCancel:hover {
+  color: var(--lv-text);
+  background: color-mix(in srgb, var(--lv-text), transparent 92%);
+}
+
+.weekend-completion-dialog footer #weekendCompletionSubmit {
+  border-color: color-mix(in srgb, var(--lv-accent), var(--lv-border) 26%);
+  color: var(--lv-on-accent);
+  background: var(--lv-accent);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--lv-accent), transparent 78%);
+}
+
+.weekend-completion-dialog footer #weekendCompletionSubmit:hover {
+  border-color: var(--lv-accent);
+  background: color-mix(in srgb, var(--lv-accent), #fff 12%);
+}
+
+.weekend-completion-dialog footer #weekendCompletionSubmit:disabled {
+  border-color: color-mix(in srgb, var(--lv-border), var(--lv-accent) 30%);
+  color: color-mix(in srgb, var(--lv-on-accent), var(--lv-text-muted) 24%);
+  background: color-mix(in srgb, var(--lv-accent), var(--lv-surface-raised) 42%);
+  box-shadow: none;
+  opacity: .78;
 }
 
 @media (max-width: 700px) {
@@ -1138,11 +1206,15 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
   }
 
   .weekend-completion-dialog footer {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, .82fr) minmax(0, 1.18fr);
+    gap: 10px;
+    margin-top: 0;
   }
+}
 
-  .weekend-completion-dialog footer .primary {
-    order: -1;
+@media (max-width: 380px) {
+  .weekend-completion-dialog footer {
+    grid-template-columns: 1fr;
   }
 }
 
