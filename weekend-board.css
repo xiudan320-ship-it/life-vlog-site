@@ -444,7 +444,7 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding-right: 56px;
+  padding-right: 0;
 }
 
 .weekend-card-kicker-row .kicker {
@@ -526,16 +526,22 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
 }
 
 .weekend-state-control.is-open {
-  top: 12px;
-  right: 14px;
-  width: 48px;
-  height: 48px;
-  border: 1px solid color-mix(in srgb, var(--lv-text), transparent 52%);
-  border-radius: 50%;
-  color: var(--lv-text-muted);
-  background: transparent;
-  font-size: 1.2rem;
+  position: static;
+  flex: 0 0 auto;
+  min-width: 64px;
+  min-height: 44px;
+  height: 44px;
+  box-sizing: border-box;
+  padding: 0 13px;
+  border: 1px solid color-mix(in srgb, var(--lv-accent), transparent 52%);
+  border-radius: 999px;
+  color: var(--lv-accent);
+  background: color-mix(in srgb, var(--lv-accent), transparent 92%);
+  font-size: .78rem;
+  font-weight: 720;
+  letter-spacing: .04em;
   line-height: 1;
+  white-space: nowrap;
   transition: color var(--lv-motion-base) ease, background-color var(--lv-motion-base) ease, border-color var(--lv-motion-base) ease, transform var(--lv-motion-base) ease;
 }
 
@@ -819,6 +825,7 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
 
   .weekend-card-kicker-row {
     align-items: flex-start;
+    padding-right: 0;
   }
 
   .weekend-card-kicker-row .kicker,
@@ -836,8 +843,10 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
   }
 
   .weekend-state-control.is-open {
-    top: 10px;
-    right: 10px;
+    min-width: 60px;
+    height: 44px;
+    padding-inline: 11px;
+    font-size: .74rem;
   }
 
   .weekend-card-body h3 {

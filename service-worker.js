@@ -1,4 +1,4 @@
-const CACHE_NAME = "life-vlog-site-20260826-022-pwa";
+const CACHE_NAME = "life-vlog-site-20260827-001-pwa";
 const APP_MEDIA_CACHES = new Set([
   "life-vlog-diary-image-cache",
   "life-vlog-secret-media-cache",
@@ -20,7 +20,7 @@ const CORE_ASSETS = [
   "./styles/wishlist.css?v=20260826-002",
   "./styles/shopping.css?v=20260826-004",
   "./styles/media-upload.css?v=20260825-035",
-  "./weekend-board.css?v=20260826-047",
+  "./weekend-board.css?v=20260827-001",
   "./assets/weekend-complete-stamp.png",
   "./diary-detail.css?v=20260823-019",
   "./secret-viewer.css?v=20260814-231",
@@ -110,7 +110,7 @@ const CORE_ASSETS = [
   "./modules/ui-formatters.js",
   "./modules/upload-queue.js",
   "./modules/wardrobe.js?v=20260811-005",
-  "./modules/weekend-controller.js?v=20260827-001",
+  "./modules/weekend-controller.js?v=20260827-002",
   "./modules/diary-composer-controller.js",
   "./modules/list-icons.js",
   "./modules/wishlist-view.js",
@@ -122,7 +122,7 @@ const CORE_ASSETS = [
   "./modules/shopping-controller.js?v=20260826-003",
   "./modules/shopping-domain.js",
   "./modules/shopping-interactions.js",
-  "./modules/weekend-plans-view.js?v=20260827-001",
+  "./modules/weekend-plans-view.js?v=20260827-002",
   "./modules/vip-center.js",
   "./manifest.webmanifest",
   "./assets/food-wheel-icon.png",

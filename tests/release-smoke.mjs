@@ -423,6 +423,34 @@ async function assertWeekendAlbumFlow(page, label) {
   await page.click("#weekendNav");
   await page.waitForSelector("#weekendPage:not([hidden])");
   await page.waitForSelector(".weekend-scenes [data-weekend-gallery]", { state: "visible", timeout: 20000 });
+  const completionControls = await page.evaluate(() => ({
+    open: [...document.querySelectorAll("#weekendList .weekend-state-control.is-open")].map((button) => ({
+      text: button.textContent.trim(),
+      pressed: button.getAttribute("aria-pressed"),
+      width: Math.round(button.getBoundingClientRect().width),
+      height: Math.round(button.getBoundingClientRect().height),
+    })),
+    complete: [...document.querySelectorAll("#weekendList .weekend-state-control.is-complete")].map((button) => ({
+      pressed: button.getAttribute("aria-pressed"),
+      hasStamp: Boolean(button.querySelector("img")),
+      width: Math.round(button.getBoundingClientRect().width),
+      height: Math.round(button.getBoundingClientRect().height),
+    })),
+  }));
+  assert.ok(
+    completionControls.open.length || completionControls.complete.length,
+    `${label} weekend completion controls are missing`
+  );
+  completionControls.open.forEach((control) => {
+    assert.equal(control.text, "完成", `${label} unfinished weekend action should say 完成`);
+    assert.equal(control.pressed, "false", `${label} unfinished weekend action aria state is incorrect`);
+    assert.ok(control.width >= 60 && control.height >= 44, `${label} unfinished weekend action is too small`);
+  });
+  completionControls.complete.forEach((control) => {
+    assert.equal(control.pressed, "true", `${label} completed weekend action aria state is incorrect`);
+    assert.equal(control.hasStamp, true, `${label} completed weekend action is missing its stamp`);
+    assert.ok(control.width >= 60 && control.height >= 60, `${label} completed weekend stamp target is too small`);
+  });
   const target = await page.evaluate(() => {
     const scenes = [...document.querySelectorAll(".weekend-scenes")];
     return scenes

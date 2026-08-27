@@ -119,6 +119,7 @@ async function testWeekendLayout(viewport, label) {
       const date = card.querySelector(".weekend-date");
       const body = card.querySelector(".weekend-card-body");
       const stateControl = card.querySelector(".weekend-state-control");
+      const openControl = card.querySelector(".weekend-state-control.is-open");
       const stamp = card.querySelector(".weekend-state-control.is-complete, .weekend-state-stamp");
       const cardRect = card.getBoundingClientRect();
       const mainRect = main.getBoundingClientRect();
@@ -136,6 +137,7 @@ async function testWeekendLayout(viewport, label) {
         bodyWidth: Math.round(bodyRect.width),
         stateControlWidth: stateControlRect ? Math.round(stateControlRect.width) : 0,
         stateControlHeight: stateControlRect ? Math.round(stateControlRect.height) : 0,
+        stateControlText: openControl?.textContent.trim() || "",
         stampWidth: stampRect ? Math.round(stampRect.width) : 0,
         stampHeight: stampRect ? Math.round(stampRect.height) : 0,
         stampTop: stampRect ? Math.round(stampRect.top) : 0,
@@ -153,6 +155,10 @@ async function testWeekendLayout(viewport, label) {
     assert.ok(card.bodyWidth >= 130, `${label} weekend card body is squeezed: ${JSON.stringify(card)}`);
     assert.ok(card.stateControlWidth >= 44 && card.stateControlHeight >= 44, `${label} weekend completion target is too small: ${JSON.stringify(card)}`);
   }
+  const openCards = cards.filter((card) => card.stateControlText);
+  assert.equal(openCards.length, 1, `${label} open weekend card is missing its action button`);
+  assert.equal(openCards[0].stateControlText, "完成", `${label} open weekend action should say 完成: ${JSON.stringify(openCards[0])}`);
+  assert.ok(openCards[0].stateControlWidth >= 60, `${label} open weekend action is too narrow: ${JSON.stringify(openCards[0])}`);
   assert.ok(cards[0].cardHeight <= (viewport.width <= 700 ? 300 : 240), `${label} simple weekend card is too tall: ${JSON.stringify(cards[0])}`);
   assert.ok(cards[0].dateWidth <= (viewport.width <= 700 ? 64 : 88), `${label} weekend date tile is oversized: ${JSON.stringify(cards[0])}`);
   const completedCards = cards.filter((card) => card.stampWidth > 0);

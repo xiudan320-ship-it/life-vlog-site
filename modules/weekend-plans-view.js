@@ -35,7 +35,7 @@ function renderWeekendCards(plans, { getAuthorName, canManageItem }) {
       const stateMarkup = canManage
         ? plan.done
           ? `<button class="weekend-state-control is-complete" type="button" data-toggle-weekend="${escapeHtml(plan.id)}" aria-label="取消完成" aria-pressed="true" title="取消完成"><img src="./assets/weekend-complete-stamp.png" alt="" aria-hidden="true" /></button>`
-          : `<button class="weekend-state-control is-open" type="button" data-toggle-weekend="${escapeHtml(plan.id)}" aria-label="标记完成" aria-pressed="false" title="标记完成"><span aria-hidden="true">✓</span></button>`
+          : `<button class="weekend-state-control is-open" type="button" data-toggle-weekend="${escapeHtml(plan.id)}" aria-label="标记完成" aria-pressed="false" title="完成"><span>完成</span></button>`
         : plan.done
           ? `<span class="weekend-state-stamp" role="img" aria-label="已完成" title="已完成"><img src="./assets/weekend-complete-stamp.png" alt="" /></span>`
           : `<span class="weekend-state-pill open">${stateText}</span>`;

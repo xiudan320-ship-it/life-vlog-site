@@ -122,6 +122,7 @@ import {
   recipeView,
   anniversaryView,
   weekendPlansView,
+  weekendPlansViewModule,
   gratitudeView,
   notificationView,
   vipCenter,
@@ -225,7 +226,7 @@ const initialPhotoLoadIndex = appSessionControllerModule.indexOf("await actions.
 assert.ok(initializeCloudflareIndex >= 0, "Session initialization is missing");
 assert.ok(authListenerIndex > initializeCloudflareIndex, "Auth listener is missing from session initialization");
 assert.ok(authListenerIndex < initialPhotoLoadIndex, "Auth listener must be registered before initial photo loading");
-assert.match(serviceWorker, /life-vlog-site-20260826-022-pwa/);
+assert.match(serviceWorker, /life-vlog-site-20260827-001-pwa/);
 assert.match(serviceWorker, /modules\/admin-storage\.js/);
 assert.match(diaryDetailCss, /#photoDialog #dialogImage\[hidden\][\s\S]*?display: none !important/);
 assert.match(applicationSource, /const p=!state\.galleryRenderSignature[\s\S]*?initialRender: p/);
@@ -309,7 +310,7 @@ assert.match(css, /Compact, explicit creation actions in the mobile secret libra
 assert.match(secretViewerCss, /touch-action: none/);
 assert.match(secretViewerCss, /width: 100dvw !important/);
 assert.match(serviceWorker, /secret-viewer\.css\?v=20260814-231/);
-assert.match(serviceWorker, /weekend-board\.css\?v=20260826-047/);
+assert.match(serviceWorker, /weekend-board\.css\?v=20260827-001/);
 assert.match(serviceWorker, /assets\/weekend-complete-stamp\.png/);
 assert.match(serviceWorker, /diary-detail\.css\?v=20260823-019/);
 assert.match(deployScript, /weekend-board\.css/);
@@ -379,6 +380,9 @@ assert.match(weekendBoardCss, /grid-template-columns: repeat\(3, minmax\(0, 1fr\
 assert.match(weekendBoardCss, /content: "查看全部"/);
 assert.match(weekendBoardCss, /\.weekend-state-stamp/);
 assert.match(weekendBoardCss, /\.weekend-state-control/);
+assert.match(weekendPlansViewModule, /weekend-state-control is-open[\s\S]*?<span>完成<\/span>/);
+assert.doesNotMatch(weekendPlansViewModule, /weekend-state-control is-open[\s\S]*?✓/);
+assert.match(weekendBoardCss, /\.weekend-state-control\.is-open[\s\S]*?min-width: 64px[\s\S]*?min-height: 44px[\s\S]*?border-radius: 999px/);
 assert.doesNotMatch(weekendBoardCss, /\.weekend-check-button/);
 assert.doesNotMatch(css, /\.weekend-/, "weekend styles must stay isolated in weekend-board.css");
 assert.match(weekendGalleryModule, /dialog\.showModal\(\)/);
@@ -616,7 +620,7 @@ assert.equal(typeof wishlistController.createWishlistController, "function");
 assert.equal(typeof weekendController.createWeekendController, "function");
 assert.equal(typeof authController.createAuthController, "function");
 assert.equal(typeof offlineCacheController.createOfflineCacheController, "function");
-assert.match(serviceWorker, /life-vlog-site-20260826-022-pwa/);
+assert.match(serviceWorker, /life-vlog-site-20260827-001-pwa/);
 assert.match(serviceWorker, /styles\.css\?v=20260826-027/);
 assert.match(serviceWorker, /styles\/redesign-foundation\.css\?v=20260826-036/);
 assert.match(serviceWorker, /styles\/redesign-components\.css\?v=20260826-002/);
@@ -624,8 +628,8 @@ assert.match(serviceWorker, /styles\/media-upload\.css\?v=20260825-035/);
 assert.match(css, /mobile-diary-media > \.mobile-diary-media-badge[\s\S]*?bottom: auto[\s\S]*?width: max-content/);
 assert.match(index, /id="photoInput"[^>]*accept="image\/\*,video\/\*/);
 assert.match(index, /app\.js\?v=20260827-001/);
-assert.match(app, /weekend-controller\.js\?v=20260827-001/);
-assert.match(weekendControllerModule, /weekend-plans-view\.js\?v=20260827-001/);
+assert.match(app, /weekend-controller\.js\?v=20260827-002/);
+assert.match(weekendControllerModule, /weekend-plans-view\.js\?v=20260827-002/);
 assert.match(index, /mobile-page-shell\.css\?v=20260826-002/);
 assert.match(serviceWorker, /styles\/mobile-page-shell\.css\?v=20260826-002/);
 assert.match(index, /styles\/wishlist\.css\?v=20260826-002/);

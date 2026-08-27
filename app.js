@@ -34,7 +34,7 @@ import { createAnniversaryController } from "./modules/anniversary-controller.js
 import {
   createWeekendController,
   getNextWeekendDate,
-} from "./modules/weekend-controller.js?v=20260827-001";
+} from "./modules/weekend-controller.js?v=20260827-002";
 import { createGratitudeController } from "./modules/gratitude-controller.js";
 import { configureCacheManagementUi } from "./modules/cache-management-view.js";
 import { collectAppElements } from "./modules/app-elements.js";

@@ -33,6 +33,10 @@ export const weekendGalleryModule = await readFile(
   new URL("../modules/weekend-gallery.js", import.meta.url),
   "utf8"
 );
+export const weekendPlansViewModule = await readFile(
+  new URL("../modules/weekend-plans-view.js", import.meta.url),
+  "utf8"
+);
 export const wishlistViewModule = await readFile(
   new URL("../modules/wishlist-view.js", import.meta.url),
   "utf8"
