@@ -119,11 +119,13 @@ async function testWeekendLayout(viewport, label) {
       const date = card.querySelector(".weekend-date");
       const body = card.querySelector(".weekend-card-body");
       const check = card.querySelector(".weekend-check-button");
+      const stamp = card.querySelector(".weekend-state-stamp");
       const cardRect = card.getBoundingClientRect();
       const mainRect = main.getBoundingClientRect();
       const dateRect = date.getBoundingClientRect();
       const bodyRect = body.getBoundingClientRect();
       const checkRect = check.getBoundingClientRect();
+      const stampRect = stamp?.getBoundingClientRect();
       return {
         cardDisplay: getComputedStyle(card).display,
         cardWidth: Math.round(cardRect.width),
@@ -134,6 +136,12 @@ async function testWeekendLayout(viewport, label) {
         bodyWidth: Math.round(bodyRect.width),
         checkWidth: Math.round(checkRect.width),
         checkHeight: Math.round(checkRect.height),
+        stampWidth: stampRect ? Math.round(stampRect.width) : 0,
+        stampHeight: stampRect ? Math.round(stampRect.height) : 0,
+        stampTop: stampRect ? Math.round(stampRect.top) : 0,
+        stampRight: stampRect ? Math.round(stampRect.right) : 0,
+        cardTop: Math.round(cardRect.top),
+        cardRight: Math.round(cardRect.right),
       };
     })
   );
@@ -147,6 +155,14 @@ async function testWeekendLayout(viewport, label) {
   }
   assert.ok(cards[0].cardHeight <= (viewport.width <= 700 ? 300 : 240), `${label} simple weekend card is too tall: ${JSON.stringify(cards[0])}`);
   assert.ok(cards[0].dateWidth <= (viewport.width <= 700 ? 64 : 88), `${label} weekend date tile is oversized: ${JSON.stringify(cards[0])}`);
+  const completedCards = cards.filter((card) => card.stampWidth > 0);
+  assert.equal(completedCards.length, 2, `${label} completed weekend cards are missing their stamp`);
+  for (const card of completedCards) {
+    const minStampSize = viewport.width <= 700 ? 60 : 72;
+    assert.ok(card.stampWidth >= minStampSize && card.stampHeight >= minStampSize, `${label} completion stamp is too small: ${JSON.stringify(card)}`);
+    assert.ok(card.stampTop < card.cardTop, `${label} completion stamp does not rise above the card corner: ${JSON.stringify(card)}`);
+    assert.ok(card.stampRight > card.cardRight, `${label} completion stamp does not reach beyond the card corner: ${JSON.stringify(card)}`);
+  }
   await page.addStyleTag({ content: "html { font-size: 125%; }" });
   await assertNoHorizontalOverflow(page, `${label} weekend layout with larger text`);
   await context.close();

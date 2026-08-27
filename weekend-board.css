@@ -480,13 +480,18 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
 }
 
 .weekend-state-stamp {
+  position: absolute;
+  top: -14px;
+  right: -14px;
+  z-index: 2;
   display: grid;
-  width: 42px;
-  height: 42px;
-  flex: 0 0 42px;
+  width: 76px;
+  height: 76px;
+  flex: 0 0 76px;
   place-items: center;
   transform: rotate(-8deg);
   opacity: .84;
+  pointer-events: none;
 }
 
 .weekend-state-stamp img {
@@ -812,9 +817,11 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
   }
 
   .weekend-state-stamp {
-    width: 36px;
-    height: 36px;
-    flex-basis: 36px;
+    top: -11px;
+    right: -11px;
+    width: 64px;
+    height: 64px;
+    flex-basis: 64px;
   }
 
   .weekend-card-body h3 {
