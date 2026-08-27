@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (file) => readFile(path.join(root, file), "utf8");
 const redesignStyleFiles = [
+  "app-splash.css",
   "redesign-foundation.css",
   "redesign-components.css",
   "content-forms.css",

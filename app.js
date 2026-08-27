@@ -59,6 +59,7 @@ import {
 import { createPreferenceStore } from "./modules/preferences-store.js";
 import { createHouseholdRepository } from "./modules/household-repository.js";
 import { createAppLifecycleController } from "./modules/app-lifecycle.js";
+import { createAppSplashController } from "./modules/app-splash-controller.js";
 import { createAppFeedbackView } from "./modules/app-feedback-view.js";
 import { createAppNavigationController } from "./modules/app-navigation-controller.js";
 import { createAppIdentityController } from "./modules/app-identity-controller.js";
@@ -115,6 +116,10 @@ const SECRET_MEDIA_CACHE_NAME = "life-vlog-secret-media-cache";
 const DIARY_CACHE_MB_KEY = "life-vlog-diary-cache-mb";
 const SECRET_CACHE_MB_KEY = "life-vlog-secret-cache-mb";
 const preferenceStore = createPreferenceStore();
+const appSplashController = createAppSplashController({
+  documentTarget: document,
+  windowTarget: window,
+});
 const MEDIA_CACHE_POLICY_KEY = "life-vlog-media-cache-policy";
 const DIARY_DRAFT_KEY = "life-vlog-diary-draft";
 const UPLOAD_QUEUE_DB = "life-vlog-upload-queue";
@@ -2213,5 +2218,7 @@ initializePullToRefresh();
 applyMobileFeedLayout();
 applyMobileSecretLayout();
 syncMobileComposerPlacement();
-restoreCloudflareSessionBackup().finally(() => appSessionController.initialize());
+void restoreCloudflareSessionBackup()
+  .finally(() => appSessionController.initialize())
+  .finally(() => appSplashController.complete());
 

@@ -6,6 +6,7 @@
 
 | 现象或功能 | 首要模组 | 相关视图 / 领域模组 |
 | --- | --- | --- |
+| 应用启动、首屏加载态 | `modules/app-splash-controller.js` | `styles/app-splash.css`, `index.html` |
 | 页面切换、顶部导航、返回行为 | `modules/app-navigation-controller.js` | `modules/app-event-bindings.js` |
 | 登录、注册、邮箱与密码 | `modules/auth-controller.js` | `modules/app-session-controller.js`, `modules/settings-event-bindings.js` |
 | 顶部等级 / 经验面板点击无响应 | `modules/gamification-controller.js` | `modules/app-event-bindings.js`, `modules/settings-event-bindings.js` |
@@ -36,6 +37,7 @@
 
 | 范围 | 样式文件 |
 | --- | --- |
+| 应用启动开屏、首屏加载态 | `styles/app-splash.css` |
 | 设计变量、页面骨架、通用布局 | `styles/redesign-foundation.css` |
 | 通用卡片、按钮、弹窗组件 | `styles/redesign-components.css` |
 | 发布与编辑表单 | `styles/content-forms.css`, `styles/media-upload.css` |

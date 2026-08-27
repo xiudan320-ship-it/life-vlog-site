@@ -48,15 +48,58 @@ async function assertNoHorizontalOverflow(page, label) {
   );
 }
 
-async function testHomeShell(viewport, label) {
-  const context = await browser.newContext({ viewport, serviceWorkers: "block" });
+async function testHomeShell(viewport, label, reducedMotion = "no-preference") {
+  const context = await browser.newContext({ viewport, serviceWorkers: "block", reducedMotion });
   const page = await context.newPage();
   const pageErrors = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
+  await page.addInitScript(() => {
+    window.__appSplashTrace = { seen: false, firstSeenVisible: false };
+    const recordSplash = () => {
+      const splash = document.querySelector("#appSplash");
+      if (!splash) return;
+      window.__appSplashTrace.seen = true;
+      if (!splash.hidden && getComputedStyle(splash).display !== "none") {
+        window.__appSplashTrace.firstSeenVisible = true;
+      }
+    };
+    new MutationObserver(recordSplash).observe(document, {
+      attributes: true,
+      attributeFilter: ["class", "hidden"],
+      childList: true,
+      subtree: true,
+    });
+    recordSplash();
+  });
   await page.goto(`${baseUrl}/`, { waitUntil: "domcontentloaded" });
+  const splashTrace = await page.evaluate(() => ({
+    ...window.__appSplashTrace,
+    role: document.querySelector("#appSplash")?.getAttribute("role") || "",
+  }));
+  assert.equal(splashTrace.seen, true, `${label} splash was not mounted in the initial shell`);
+  assert.equal(splashTrace.firstSeenVisible, true, `${label} splash was not visible before app initialization`);
+  assert.equal(splashTrace.role, "status", `${label} splash status semantics are missing`);
+  await page.waitForSelector("#appSplash[hidden]", { state: "attached", timeout: 30000 });
+  if (reducedMotion === "reduce") {
+    const splashMotion = await page.evaluate(() => ({
+      mark: getComputedStyle(document.querySelector(".app-splash-mark")).animationName,
+      copy: getComputedStyle(document.querySelector(".app-splash-copy")).animationName,
+      progress: getComputedStyle(document.querySelector(".app-splash-progress i")).animationName,
+    }));
+    assert.equal(splashMotion.mark, "none", `${label} splash mark still animates with reduced motion`);
+    assert.equal(splashMotion.copy, "none", `${label} splash copy still animates with reduced motion`);
+    assert.equal(splashMotion.progress, "none", `${label} splash progress still animates with reduced motion`);
+  }
   await page.waitForSelector(".topbar");
   assert.deepEqual(pageErrors, [], `${label} home shell runtime errors:\n${pageErrors.join("\n")}`);
   assert.equal(await page.locator("#brandName").textContent(), "咻蛋之家");
+  assert.equal(await page.locator("body").getAttribute("aria-busy"), null, `${label} app stayed busy after boot`);
+  const shellIsInteractive = await page.evaluate(() => ({
+    header: document.querySelector("header")?.inert ?? true,
+    main: document.querySelector("main")?.inert ?? true,
+  }));
+  assert.equal(shellIsInteractive.header, false, `${label} header stayed inert after boot`);
+  assert.equal(shellIsInteractive.main, false, `${label} main stayed inert after boot`);
   await assertNoHorizontalOverflow(page, `${label} home shell`);
 
   const topbar = await page.locator(".topbar").boundingBox();
@@ -316,6 +359,8 @@ async function testSecretAppendLinkPaste(viewport, label) {
 try {
   await testHomeShell({ width: 1440, height: 900 }, "desktop");
   await testHomeShell({ width: 390, height: 844 }, "mobile");
+  await testHomeShell({ width: 375, height: 812 }, "small-mobile-reduced-motion", "reduce");
+  await testHomeShell({ width: 844, height: 390 }, "mobile-landscape");
   await testDiaryDetail({ width: 1440, height: 900 }, "desktop");
   await testDiaryDetail({ width: 390, height: 844 }, "mobile");
   await testWeekendLayout({ width: 1440, height: 900 }, "desktop");

@@ -16,6 +16,7 @@
     <link rel="apple-touch-icon" href="./assets/app-icon-180.png" />
     <link rel="icon" type="image/png" sizes="32x32" href="./assets/app-icon-32.png" />
     <link rel="stylesheet" href="./styles.css?v=20260826-027" />
+    <link rel="stylesheet" href="./styles/app-splash.css?v=20260827-001" />
     <link rel="stylesheet" href="./styles/redesign-foundation.css?v=20260826-036" />
     <link rel="stylesheet" href="./styles/redesign-components.css?v=20260826-002" />
     <link rel="stylesheet" href="./styles/content-forms.css?v=20260825-035" />
@@ -35,8 +36,21 @@
     <link rel="stylesheet" href="./secret-viewer.css?v=20260814-231" />
     <link rel="stylesheet" href="./wardrobe.css?v=20260811-007" />
   </head>
-  <body class="mobile-diary-shell">
-    <header class="topbar">
+  <body class="mobile-diary-shell" aria-busy="true">
+    <div class="app-splash" id="appSplash" role="status" aria-live="polite">
+      <div class="app-splash-inner">
+        <div class="app-splash-mark" aria-hidden="true">
+          <img src="./assets/black-cat-logo.png" alt="" width="112" height="112" />
+        </div>
+        <div class="app-splash-copy">
+          <span class="app-splash-overline">LIFE ARCHIVE</span>
+          <strong class="app-splash-name">咻蛋之家</strong>
+          <span class="app-splash-note">正在打开你的生活档案…</span>
+        </div>
+        <span class="app-splash-progress" aria-hidden="true"><i></i></span>
+      </div>
+    </div>
+    <header class="topbar" data-app-splash-blocked inert>
       <a class="brand" href="#gallery" aria-label="回到日记">
         <span class="brand-logo-wrap">
           <img class="brand-logo" src="./assets/home-logo.jpg" alt="" />
@@ -99,7 +113,7 @@
       </div>
     </header>
 
-    <main>
+    <main data-app-splash-blocked inert>
       <section class="hero">
         <img
           class="hero-cover"
@@ -1591,6 +1605,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260827-001"></script>
+    <script type="module" src="./app.js?v=20260827-002"></script>
   </body>
 </html>

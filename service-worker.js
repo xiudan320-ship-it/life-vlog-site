@@ -1,4 +1,4 @@
-const CACHE_NAME = "life-vlog-site-20260827-001-pwa";
+const CACHE_NAME = "life-vlog-site-20260827-002-pwa";
 const APP_MEDIA_CACHES = new Set([
   "life-vlog-diary-image-cache",
   "life-vlog-secret-media-cache",
@@ -6,6 +6,7 @@ const APP_MEDIA_CACHES = new Set([
 const CORE_ASSETS = [
   "./",
   "./styles.css?v=20260826-027",
+  "./styles/app-splash.css?v=20260827-001",
   "./styles/redesign-foundation.css?v=20260826-036",
   "./styles/redesign-components.css?v=20260826-002",
   "./styles/content-forms.css?v=20260825-035",
@@ -25,7 +26,7 @@ const CORE_ASSETS = [
   "./diary-detail.css?v=20260823-019",
   "./secret-viewer.css?v=20260814-231",
   "./wardrobe.css?v=20260811-007",
-  "./app.js?v=20260827-001",
+  "./app.js?v=20260827-002",
   "./modules/admin-storage.js",
   "./modules/app-elements.js",
   "./modules/app-domain.js",
@@ -42,6 +43,7 @@ const CORE_ASSETS = [
   "./modules/vlog-mode.js",
   "./modules/weekend-gallery.js?v=20260824-030",
   "./modules/app-lifecycle.js",
+  "./modules/app-splash-controller.js",
   "./modules/confirm-dialog.js",
   "./modules/cache-policy.js",
   "./modules/cache-management-view.js",
@@ -129,6 +131,7 @@ const CORE_ASSETS = [
   "./assets/app-icon-192.png",
   "./assets/app-icon-512.png",
   "./assets/home-logo.jpg",
+  "./assets/black-cat-logo.png",
   "./assets/black-cat-cover.jpg"
 ];
 
