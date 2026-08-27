@@ -479,6 +479,23 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
   color: var(--lv-accent);
 }
 
+.weekend-state-stamp {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  place-items: center;
+  transform: rotate(-8deg);
+  opacity: .84;
+}
+
+.weekend-state-stamp img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 .weekend-card-body h3 {
   display: -webkit-box;
   min-width: 0;
@@ -789,8 +806,15 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
   }
 
   .weekend-card-kicker-row .kicker,
-  .weekend-state-pill {
+  .weekend-state-pill,
+  .weekend-state-stamp {
     font-size: .69rem;
+  }
+
+  .weekend-state-stamp {
+    width: 36px;
+    height: 36px;
+    flex-basis: 36px;
   }
 
   .weekend-card-body h3 {

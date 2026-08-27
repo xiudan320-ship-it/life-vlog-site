@@ -32,6 +32,9 @@ function renderWeekendCards(plans, { getAuthorName, canManageItem }) {
       const canManage = canManageItem(plan);
       const date = formatWeekendDate(plan.date);
       const stateText = plan.done ? "已完成" : "待完成";
+      const stateMarkup = plan.done
+        ? `<span class="weekend-state-stamp" role="img" aria-label="已完成" title="已完成"><img src="./assets/weekend-complete-stamp.png" alt="" /></span>`
+        : `<span class="weekend-state-pill open">${stateText}</span>`;
       return `
         <article class="weekend-card${plan.done ? " done" : ""}" data-weekend-id="${escapeHtml(plan.id)}" aria-label="${escapeHtml(plan.title || "未命名周末计划")}，${stateText}">
           <div class="weekend-card-main">
@@ -43,7 +46,7 @@ function renderWeekendCards(plans, { getAuthorName, canManageItem }) {
             <div class="weekend-card-body">
               <div class="weekend-card-kicker-row">
                 <p class="kicker">${escapeHtml(plan.type || "周末计划")} · PLAN ${String(index + 1).padStart(2, "0")} · ${escapeHtml(getAuthorName(plan.userId))}</p>
-                <span class="weekend-state-pill ${plan.done ? "done" : "open"}">${stateText}</span>
+                ${stateMarkup}
               </div>
               <h3>${escapeHtml(plan.title || "未命名周末计划")}</h3>
               <div class="weekend-card-details">
