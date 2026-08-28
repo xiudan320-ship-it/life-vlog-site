@@ -187,12 +187,13 @@ async function testOrdinaryVideoLifecycle(browser) {
     await page.waitForSelector("#photoDialog[open]", { state: "attached" });
     const desktopVideo = page.locator("#dialogVideo");
     assert.deepEqual(await desktopVideo.evaluate((video) => ({
+      hidden: video.hidden,
       autoplay: video.autoplay,
       muted: video.muted,
       loop: video.loop,
       controls: video.controls,
       paused: video.paused,
-    })), { autoplay: false, muted: false, loop: false, controls: true, paused: true });
+    })), { hidden: false, autoplay: false, muted: false, loop: false, controls: true, paused: true });
     await page.evaluate(() => document.querySelector("#dialogVideo")?.dispatchEvent(new Event("canplay")));
     await page.waitForFunction(() => document.querySelector("#dialogVideoStatus")?.hidden === true);
     assert.equal(desktop.errors.length, 0, `desktop video page errors: ${desktop.errors.join(" | ")}`);

@@ -39,6 +39,7 @@ export function createPhotoDetailController({
   let photoEditorPromise = null;
   let mobileDiaryController = null;
   let mobileDiaryPromise = null;
+  let dialogOpenToken = 0;
 
   const photoEditorOptions = {
     elements,
@@ -239,6 +240,7 @@ export function createPhotoDetailController({
   }
   
   function closePhotoDialog() {
+    dialogOpenToken += 1;
     if (state.mobileDiaryImageViewerOpen) {
       closeMobileDiaryImageViewer();
       return;
@@ -368,11 +370,12 @@ export function createPhotoDetailController({
     });
   }
   
-  function openPhoto(photo, initialImageIndex = 0, options = {}) {
+  async function openPhoto(photo, initialImageIndex = 0, options = {}) {
     if (isMobileViewport() && !options.forceDialog) {
       openMobileDiaryPage(photo, initialImageIndex, options);
       return;
     }
+    const openToken = ++dialogOpenToken;
     captureDialogReturnTarget(photo);
     lockDialogBackgroundScroll(state.dialogRestoreScrollY);
     state.activeDialogPhoto = photo;
@@ -407,7 +410,13 @@ export function createPhotoDetailController({
     if (els.dialogSecretReturnButton) {
       els.dialogSecretReturnButton.hidden = !state.dialogSecretSourceItem;
     }
-    renderDialogMedia();
+    try {
+      await renderDialogMedia();
+    } catch {
+      if (openToken === dialogOpenToken) setGlobalStatus("图片查看器加载失败，请重试。");
+      return;
+    }
+    if (openToken !== dialogOpenToken || state.activeDialogPhoto !== photo) return;
     void loadPhotoComments(photo.id);
     if (isMobileViewport()) {
       els.dialog.classList.add("mobile-page-dialog");
@@ -418,8 +427,9 @@ export function createPhotoDetailController({
     showPhotoDialogPreservingScroll();
   }
   
-  function openWishImage(wish) {
+  async function openWishImage(wish) {
     if (!wish) return;
+    const openToken = ++dialogOpenToken;
     state.dialogRestoreScrollY = window.scrollY || window.pageYOffset || 0;
     state.dialogRestorePhotoId = "";
     state.dialogRestorePhotoTop = 0;
@@ -450,14 +460,21 @@ export function createPhotoDetailController({
       els.dialogRandomButton.hidden = true;
     }
     els.photoCommentsSection.hidden = true;
-    renderDialogMedia();
+    try {
+      await renderDialogMedia();
+    } catch {
+      if (openToken === dialogOpenToken) setGlobalStatus("图片查看器加载失败，请重试。");
+      return;
+    }
+    if (openToken !== dialogOpenToken || state.activeDialogPhoto !== null) return;
     els.dialog.scrollTop = 0;
     showPhotoDialogPreservingScroll();
   }
   
-  function openWeekendImageGallery(plan, initialIndex = 0, kind = "plan") {
+  async function openWeekendImageGallery(plan, initialIndex = 0, kind = "plan") {
     const galleryImages = kind === "completion" ? plan?.completionImages : plan?.images;
     if (!galleryImages?.length) return;
+    const openToken = ++dialogOpenToken;
     state.dialogRestoreScrollY = window.scrollY || window.pageYOffset || 0;
     lockDialogBackgroundScroll(state.dialogRestoreScrollY);
     state.activeDialogPhoto = null;
@@ -472,7 +489,13 @@ export function createPhotoDetailController({
     els.dialogNote.textContent = kind === "completion" ? plan.completionNote || "" : plan.note || "";
     els.photoCommentsSection.hidden = true;
     if (els.dialogRandomButton) els.dialogRandomButton.hidden = true;
-    renderDialogMedia();
+    try {
+      await renderDialogMedia();
+    } catch {
+      if (openToken === dialogOpenToken) setGlobalStatus("图片查看器加载失败，请重试。");
+      return;
+    }
+    if (openToken !== dialogOpenToken || state.activeDialogPhoto !== null) return;
     showPhotoDialogPreservingScroll();
   }
   

@@ -178,11 +178,12 @@ async function testVideoDiaryPolicy(browser) {
     await page.locator('[data-photo-id="fixture-camera-talent-video"] .photo-media button').click();
     await page.waitForSelector("#photoDialog[open]");
     assert.deepEqual(await page.locator("#dialogVideo").evaluate((video) => ({
+      hidden: video.hidden,
       autoplay: video.autoplay,
       muted: video.muted,
       controls: video.controls,
       paused: video.paused,
-    })), { autoplay: false, muted: false, controls: true, paused: true });
+    })), { hidden: false, autoplay: false, muted: false, controls: true, paused: true });
   } finally { await desktop.context.close(); }
 
   const mobile = await openFixturePage(browser, { viewport: { width: 390, height: 844 } });
