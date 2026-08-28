@@ -1,4 +1,4 @@
-import { getVipExpMultiplier } from "./gamification-domain.js?v=20260810-003";
+import { getVipExpMultiplier } from "./gamification-domain.js";
 import { escapeHtml } from "./ui-formatters.js";
 
 export const VIP_LEVELS = [

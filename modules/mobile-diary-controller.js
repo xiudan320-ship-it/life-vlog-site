@@ -2,9 +2,10 @@ import {
   buildMobileDiaryPageMarkup,
   createMobileDiaryPage,
   refreshMobileDiaryComments,
-} from "./mobile-diary-view.js?v=20260824-032";
+  resizeMobileDiaryCommentInput,
+} from "./mobile-diary-view.js";
 import { clampNumber, getMobileBackEdge, isEdgeBackSwipe } from "./media-gesture-domain.js";
-import { startDiaryMotionVideo } from "./diary-video-layout.js?v=20260824-030";
+import { startDiaryMotionVideo, stopDiaryMotionVideo } from "./diary-video-layout.js";
 
 export function createMobileDiaryController({
   elements,
@@ -34,6 +35,8 @@ export function createMobileDiaryController({
 }) {
   const els = elements;
   const diaryRepository = repository;
+  let commentDraft = "";
+  let commentSubmitting = false;
 
   function ensureMobileDiaryPage() {
     if (state.mobileDiaryPage) return state.mobileDiaryPage;
@@ -51,6 +54,9 @@ export function createMobileDiaryController({
         reply: startMobileDiaryReply,
         deleteComment: (id) => void deletePhotoComment(id),
         cancelReply: cancelMobileDiaryReply,
+        changeCommentDraft: (value) => {
+          commentDraft = value;
+        },
         favorite: (button) => {
           if (!state.mobileDiaryPhoto) return;
           void togglePhotoFavorite(state.mobileDiaryPhoto, button).then(() => {
@@ -106,6 +112,10 @@ export function createMobileDiaryController({
     const page = ensureMobileDiaryPage();
     const photo = state.mobileDiaryPhoto;
     if (!photo) return;
+    const previousVideo = page.querySelector(".mobile-diary-video, .mobile-diary-motion");
+    if (previousVideo) stopDiaryMotionVideo(previousVideo);
+    const previousInput = page.querySelector("[data-mobile-diary-comment-input]");
+    if (previousInput) commentDraft = previousInput.value;
     const images = getPhotoImages(photo);
     state.mobileDiaryImageIndex = Math.min(Math.max(0, state.mobileDiaryImageIndex), Math.max(0, images.length - 1));
     const canComment = Boolean(
@@ -128,8 +138,18 @@ export function createMobileDiaryController({
       getAuthorName,
       renderAvatar: renderAvatarMarkup,
     });
+    const commentInput = page.querySelector("[data-mobile-diary-comment-input]");
+    if (commentInput) {
+      commentInput.value = commentDraft;
+      resizeMobileDiaryCommentInput(commentInput);
+    }
     const vlogVideo = page.querySelector(".mobile-diary-video");
-    if (vlogVideo) startDiaryMotionVideo(vlogVideo, null, { audible: true, controlsOnTap: true });
+    if (vlogVideo) {
+      startDiaryMotionVideo(vlogVideo, null, {
+        audible: true,
+        statusElement: page.querySelector("[data-mobile-diary-video-status]"),
+      });
+    }
     else startDiaryMotionVideo(page.querySelector(".mobile-diary-motion"));
     renderMobileDiaryComments();
   }
@@ -151,6 +171,7 @@ export function createMobileDiaryController({
     state.dialogRandomMode = Boolean(options.randomMode);
     state.dialogSecretSourceItem = options.secretSourceItem || null;
     state.photoComments = [];
+    commentDraft = "";
     if (photo.id) void acknowledgeViewedDiary(photo.id);
     ensureMobileDiaryPage().hidden = false;
     document.body.classList.add("mobile-diary-page-open");
@@ -164,6 +185,8 @@ export function createMobileDiaryController({
 
   function closeMobileDiaryPage() {
     if (!state.mobileDiaryPage || state.mobileDiaryPage.hidden) return;
+    const video = state.mobileDiaryPage.querySelector(".mobile-diary-video, .mobile-diary-motion");
+    if (video) stopDiaryMotionVideo(video);
     state.mobileDiaryPage.hidden = true;
     state.mobileDiaryPhoto = null;
     state.mobileDiaryReplyToId = null;
@@ -172,6 +195,7 @@ export function createMobileDiaryController({
     state.activeDialogPhoto = null;
     state.dialogRandomMode = false;
     state.dialogSecretSourceItem = null;
+    commentDraft = "";
     document.body.classList.remove("mobile-diary-page-open");
     state.mobileDiaryPage.classList.remove("is-back-swiping", "is-back-committing");
     state.mobileDiaryPage.style.removeProperty("--back-swipe-x");
@@ -193,28 +217,61 @@ export function createMobileDiaryController({
 
   async function saveMobileDiaryComment(event) {
     event.preventDefault();
-    if (!state.cloudDb || !state.session || !state.mobileDiaryPhoto) return;
+    if (commentSubmitting || !state.cloudDb || !state.session || !state.mobileDiaryPhoto) return;
     const input = state.mobileDiaryPage?.querySelector("[data-mobile-diary-comment-input]");
-    const status = state.mobileDiaryPage?.querySelector("[data-mobile-diary-comment-status]");
+    const form = state.mobileDiaryPage?.querySelector("[data-mobile-diary-comment-form]");
+    const submitButton = form?.querySelector("[data-mobile-diary-comment-submit]");
+    const status = form?.querySelector("[data-mobile-diary-comment-status]");
     const body = input?.value.trim() || "";
-    if (!body) return;
-    if (status) status.textContent = "正在发送...";
-    const { error } = await diaryRepository.addComment({
-      photo_id: state.mobileDiaryPhoto.id,
-      user_id: state.session.user.id,
-      body,
-      parent_id: state.mobileDiaryReplyToId,
-    });
-    if (error) {
-      if (status) status.textContent = isMissingCloudSchema(error) ? "请先部署最新版 Cloudflare D1 结构。" : `发送失败：${error.message}`;
+    if (!body) {
+      status?.setAttribute("role", "alert");
+      if (status) status.textContent = "请输入留言内容。";
+      input?.focus({ preventScroll: true });
       return;
     }
-    if (input) input.value = "";
-    state.mobileDiaryReplyToId = null;
-    await loadPhotoComments(state.mobileDiaryPhoto.id);
-    await loadPhotoCommentPreviews();
-    const gainedExp = await awardExperience("comment");
-    if (status) status.textContent = gainedExp ? `留言已发送。修为 +${gainedExp}` : "留言已发送。";
+    commentSubmitting = true;
+    if (submitButton) {
+      submitButton.disabled = true;
+      submitButton.setAttribute("aria-busy", "true");
+    }
+    if (status) status.textContent = "正在发送...";
+    try {
+      const { error } = await diaryRepository.addComment({
+        photo_id: state.mobileDiaryPhoto.id,
+        user_id: state.session.user.id,
+        body,
+        parent_id: state.mobileDiaryReplyToId,
+      });
+      if (error) throw error;
+      commentDraft = "";
+      if (input) {
+        input.value = "";
+        resizeMobileDiaryCommentInput(input);
+      }
+      state.mobileDiaryReplyToId = null;
+      await loadPhotoComments(state.mobileDiaryPhoto.id);
+      await loadPhotoCommentPreviews();
+      const gainedExp = await awardExperience("comment");
+      const nextStatus = gainedExp ? `留言已发送。修为 +${gainedExp}` : "留言已发送。";
+      const nextStatusElement = state.mobileDiaryPage?.querySelector("[data-mobile-diary-comment-status]");
+      if (nextStatusElement) {
+        nextStatusElement.setAttribute("role", "status");
+        nextStatusElement.textContent = nextStatus;
+      }
+    } catch (error) {
+      const nextStatusElement = state.mobileDiaryPage?.querySelector("[data-mobile-diary-comment-status]") || status;
+      if (nextStatusElement) {
+        nextStatusElement.setAttribute("role", "alert");
+        nextStatusElement.textContent = isMissingCloudSchema(error) ? "请先部署最新版 Cloudflare D1 结构。" : `发送失败：${error?.message || "请重试。"}`;
+      }
+    } finally {
+      commentSubmitting = false;
+      const nextSubmitButton = state.mobileDiaryPage?.querySelector("[data-mobile-diary-comment-submit]") || submitButton;
+      if (nextSubmitButton) {
+        nextSubmitButton.disabled = false;
+        nextSubmitButton.removeAttribute("aria-busy");
+      }
+    }
   }
 
   function beginMobileDiaryBackSwipe(event) {
@@ -335,7 +392,7 @@ export function createMobileDiaryController({
       return true;
     }
     if (state.activePage !== "gallery") {
-      switchPage("gallery");
+      switchPage("gallery", { restoreScroll: false, focusHeading: false });
       window.scrollTo({ top: 0, behavior: "auto" });
       return true;
     }

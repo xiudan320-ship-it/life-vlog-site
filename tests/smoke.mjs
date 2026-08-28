@@ -836,7 +836,8 @@ const mobileVlogMarkup = mobileDiaryView.buildMobileDiaryPageMarkup({
   renderAvatar: () => "<i></i>",
 });
 assert.match(mobileVlogMarkup, /class="mobile-diary-video"[\s\S]*playsinline/);
-assert.doesNotMatch(mobileVlogMarkup, /class="mobile-diary-video"[^>]*(?:autoplay|muted|loop|controls)/);
+assert.match(mobileVlogMarkup, /class="mobile-diary-video"[^>]*controls/);
+assert.doesNotMatch(mobileVlogMarkup, /class="mobile-diary-video"[^>]*(?:autoplay|muted|loop)/);
 assert.match(mobileVlogMarkup, /mobile-diary-media-badge[\s\S]*VIDEO/);
 const mobileLivePhotoMarkup = mobileDiaryView.buildMobileDiaryPageMarkup({
   photo: { id: "l1", user_id: "owner", title: "Live Photo", created_at: "2026-08-24T00:00:00Z" },

@@ -1,0 +1,103 @@
+      <section class="weekend-page" id="weekendPage" hidden>
+        <div class="feed-head weekend-page-header">
+          <div class="weekend-page-heading">
+            <p class="kicker">WEEKEND</p>
+            <h2 data-page-heading="weekend" tabindex="-1">周末计划</h2>
+            <p class="weekend-summary" id="weekendSummary">0 个计划 · 0 个已完成</p>
+          </div>
+          <div class="weekend-page-statuses" aria-live="polite">
+            <p class="status-line" id="weekendStatus" role="status"></p>
+          </div>
+        </div>
+
+        <section class="weekend-composer" id="weekendComposer" hidden>
+          <div class="section-title">
+            <button class="section-heading-button weekend-add-button" id="weekendToggle" type="button" aria-expanded="false" aria-controls="weekendForm">
+              <span class="weekend-add-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false"><path d="M12 5v14M5 12h14" /></svg>
+              </span>
+              <span class="weekend-add-copy">
+                <small>NEW PLAN</small>
+                <strong id="weekendFormTitle">安排周末</strong>
+              </span>
+            </button>
+          </div>
+          <form class="weekend-form" id="weekendForm" hidden>
+            <div class="weekend-image-drop" id="weekendImageDrop" tabindex="0">
+              <input class="native-file-input" id="weekendImageInput" type="file" accept="image/*" multiple />
+              <label class="upload-native-trigger" for="weekendImageInput">添加当天场景</label>
+              <small>选择多张图片，或直接粘贴图片</small>
+              <div class="weekend-image-previews" id="weekendImagePreviews" hidden></div>
+            </div>
+            <div class="image-link-adder">
+              <input id="weekendImageLinkInput" type="url" inputmode="url" placeholder="粘贴图片链接" aria-label="周末图片链接" />
+              <button id="weekendImageLinkAdd" type="button">添加</button>
+            </div>
+            <div class="form-grid">
+              <label>
+                想做什么
+                <input id="weekendTitleInput" maxlength="80" required placeholder="比如：去镰仓看海" />
+              </label>
+              <label>
+                日期
+                <input id="weekendDateInput" type="date" required />
+              </label>
+              <label>
+                地点
+                <input id="weekendLocationInput" maxlength="80" placeholder="城市、店名或集合地点" />
+              </label>
+              <label>
+                类型
+                <select id="weekendTypeInput">
+                  <option>出门玩</option>
+                  <option>吃好吃的</option>
+                  <option>宅家</option>
+                  <option>运动</option>
+                  <option>约朋友</option>
+                  <option>学习充电</option>
+                </select>
+              </label>
+            </div>
+            <label>
+              计划备注
+              <textarea id="weekendNoteInput" rows="4" maxlength="600" placeholder="交通、预约、想带的东西……"></textarea>
+            </label>
+            <div class="weekend-form-actions">
+              <button class="primary" id="weekendSubmitButton" type="submit">保存计划</button>
+              <button class="ghost-button" id="weekendCancelEdit" type="button" hidden>取消编辑</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="weekend-list" id="weekendList" aria-live="polite"></section>
+      </section>
+
+      <dialog class="weekend-completion-dialog" id="weekendCompletionDialog">
+        <button class="dialog-close" id="weekendCompletionClose" type="button" aria-label="关闭">×</button>
+        <form id="weekendCompletionForm">
+          <header>
+            <p class="kicker">Weekend Recap</p>
+            <h2>留下这一天</h2>
+            <p id="weekendCompletionPlanTitle"></p>
+          </header>
+          <label>
+            完成回顾
+            <textarea id="weekendCompletionNote" rows="5" placeholder="今天去了哪里、吃了什么，或者只写一句当时的心情。"></textarea>
+          </label>
+          <div class="weekend-completion-drop" id="weekendCompletionDrop" tabindex="0">
+            <input class="native-file-input" id="weekendCompletionInput" type="file" accept="image/*" multiple />
+            <label class="upload-native-trigger" for="weekendCompletionInput">添加当天照片</label>
+            <small>可以批量选择、粘贴图片或图片链接</small>
+            <div class="weekend-completion-previews" id="weekendCompletionPreviews" hidden></div>
+          </div>
+          <div class="image-link-adder">
+            <input id="weekendCompletionLinkInput" type="url" inputmode="url" placeholder="粘贴图片链接" aria-label="完成回顾图片链接" />
+            <button id="weekendCompletionLinkAdd" type="button">添加</button>
+          </div>
+          <p class="status-line" id="weekendCompletionStatus"></p>
+          <footer>
+            <button class="ghost-button" id="weekendCompletionCancel" type="button">取消</button>
+            <button class="primary" id="weekendCompletionSubmit" type="submit">完成并保存</button>
+          </footer>
+        </form>
+      </dialog>

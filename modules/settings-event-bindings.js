@@ -5,6 +5,9 @@ export function bindSettingsEvents({ elements, state, controllers, core }) {
     showMiniToast,
     loadHomeName,
     getSessionDisplayName,
+    routeLoader,
+    pageControllers,
+    getControllerOptions,
   } = core;
   const {
     saveHomeName,
@@ -51,6 +54,8 @@ export function bindSettingsEvents({ elements, state, controllers, core }) {
     applyCacheLimitPreset,
   } = controllers.offlineSettings;
   const { loadMobileFeedLayout, setMobileFeedLayout } = controllers.layoutSettings;
+  const textScale = controllers.textScale;
+  const performanceDiagnostics = controllers.performanceDiagnostics;
   const {
     openLevelDialog,
     openLevelGuidePage,
@@ -64,9 +69,20 @@ export function bindSettingsEvents({ elements, state, controllers, core }) {
   });
   els.accountSettingsButton.addEventListener("click", () => {
     els.userPopover.hidden = true;
-    openSettingsDialog("settingsGeneral");
+    void routeLoader?.load("settings", {
+      elements,
+      state,
+      controllers: pageControllers || controllers,
+      actions: core,
+      getControllerOptions,
+    })
+      .then(() => openSettingsDialog("settingsGeneral"));
   });
   els.closeSettingsDialog.addEventListener("click", closeSettingsDialog);
+  els.settingsDialog.addEventListener("close", () => {
+    els.userPopover.hidden = true;
+    window.setTimeout(() => els.avatarButton?.focus?.(), 0);
+  });
   els.settingsDialog.addEventListener("click", (event) => {
     if (event.target === els.settingsDialog) closeSettingsDialog();
   });
@@ -131,6 +147,17 @@ export function bindSettingsEvents({ elements, state, controllers, core }) {
   els.settingsFeedLayoutButton?.addEventListener("click", () => {
     setMobileFeedLayout(loadMobileFeedLayout() === "single" ? "double" : "single");
   });
+  els.settingsGeneral?.querySelectorAll("[data-text-scale]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const value = textScale.set(button.dataset.textScale);
+      els.settingsGeneral.querySelectorAll("[data-text-scale]").forEach((item) => item.setAttribute("aria-pressed", String(item.dataset.textScale === value)));
+    });
+  });
+  const activeTextScale = textScale.load();
+  els.settingsGeneral?.querySelectorAll("[data-text-scale]").forEach((button) => {
+    button.setAttribute("aria-pressed", String(button.dataset.textScale === activeTextScale));
+  });
+  els.settingsTogglePerformance?.addEventListener("click", () => performanceDiagnostics.render());
   els.refreshCacheInfoButton?.addEventListener("click", () => {
     void refreshCacheInfo();
   });

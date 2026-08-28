@@ -24,10 +24,10 @@ export const [app, redesignStyles, styles, worker, schema, index, manifestText] 
   readFile(new URL("../cloudflare-worker/src/worker.js", import.meta.url), "utf8"),
   readFile(new URL("../cloudflare-worker/schema.d1.sql", import.meta.url), "utf8"),
   readFile(new URL("../index.html", import.meta.url), "utf8"),
-  readFile(new URL("../manifest.webmanifest", import.meta.url), "utf8"),
+  readFile(new URL("../package.json", import.meta.url), "utf8"),
 ]);
 export const css = redesignStyles.join("\n");
-export const serviceWorker = await readFile(new URL("../service-worker.js", import.meta.url), "utf8");
+export const serviceWorker = await readFile(new URL("../src/sw.js", import.meta.url), "utf8");
 export const diaryDetailCss = await readFile(new URL("../diary-detail.css", import.meta.url), "utf8");
 export const weekendBoardCss = await readFile(new URL("../weekend-board.css", import.meta.url), "utf8");
 export const weekendGalleryModule = await readFile(
@@ -114,6 +114,7 @@ export const wishlistControllerModule = await readFile(new URL("../modules/wishl
 export const weekendController = await import(new URL("../modules/weekend-controller.js", import.meta.url));
 export const weekendControllerModule = await readFile(new URL("../modules/weekend-controller.js", import.meta.url), "utf8");
 export const authController = await import(new URL("../modules/auth-controller.js", import.meta.url));
+export const authViewModule = await readFile(new URL("../modules/auth-view.js", import.meta.url), "utf8");
 export const offlineCacheController = await import(new URL("../modules/offline-cache-controller.js", import.meta.url));
 export const offlineCacheControllerModule = await readFile(new URL("../modules/offline-cache-controller.js", import.meta.url), "utf8");
 export const offlineSettingsController = await import(new URL("../modules/offline-settings-controller.js", import.meta.url));
@@ -256,7 +257,7 @@ export const secretViewerCss = await readFile(
 export const appLifecycle = await import(
   new URL("../modules/app-lifecycle.js", import.meta.url)
 );
-export const pageHeaders = await readFile(new URL("../_headers", import.meta.url), "utf8");
+export const pageHeaders = await readFile(new URL("../public/_headers", import.meta.url), "utf8");
 export const confirmDialogModule = await readFile(
   new URL("../modules/confirm-dialog.js", import.meta.url),
   "utf8"

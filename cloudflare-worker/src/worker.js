@@ -246,7 +246,6 @@ const TABLE_CONFIG = {
 
 function getCorsHeaders(request, env) {
   const origin = request.headers.get("Origin") || "";
-  const requestedHeaders = request.headers.get("Access-Control-Request-Headers") || "";
   const configuredOrigins = String(env.ALLOWED_ORIGINS || "")
     .split(",")
     .map((value) => value.trim().replace(/\/$/, ""))
@@ -259,7 +258,7 @@ function getCorsHeaders(request, env) {
   return {
     "Access-Control-Allow-Origin": allowedOrigin,
     "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": requestedHeaders || "Authorization, Content-Type",
+    "Access-Control-Allow-Headers": "Authorization, Content-Type",
     "Access-Control-Max-Age": "86400",
     Vary: "Origin",
   };
@@ -1796,8 +1795,8 @@ async function sendPushToUser(env, userId, notification) {
   const data = {
     title,
     body: String(body || "").slice(0, 180),
-    icon: "/assets/app-icon-192.png",
-    badge: "/assets/app-icon-192.png",
+    icon: "/assets/generated/app-icon-192.png",
+    badge: "/assets/generated/app-icon-192.png",
     tag: `life-vlog-${notification.type}-${notification.photoId || notification.id}`,
     notificationId: notification.id,
     photoId: notification.photoId || "",
@@ -2617,7 +2616,7 @@ export default {
   async fetch(request, env) {
     try {
       if (request.method === "OPTIONS") {
-        return new Response(null, { headers: getCorsHeaders(request, env) });
+        return new Response(null, { status: 204, headers: getCorsHeaders(request, env) });
       }
 
       const url = new URL(request.url);

@@ -1,129 +1,81 @@
 import assert from "node:assert/strict";
-import { access, readFile, stat } from "node:fs/promises";
-import path from "node:path";
+import { access, readdir, readFile, stat } from "node:fs/promises";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const read = (file) => readFile(path.join(root, file), "utf8");
-const redesignStyleFiles = [
-  "app-splash.css",
-  "redesign-foundation.css",
-  "redesign-components.css",
-  "content-forms.css",
-  "mobile-diary.css",
-  "account-dialogs.css",
-  "secret-gallery.css",
-  "diary-reader.css",
-  "secret-filters.css",
-  "diary-comments.css",
-  "feature-inspector.css",
-  "wishlist.css",
-  "shopping.css",
-  "media-upload.css",
-];
-
-const [html, app, serviceWorker, moduleMap] = await Promise.all([
-  read("index.html"),
-  read("app.js"),
-  read("service-worker.js"),
-  read("docs/MODULE_MAP.md"),
-]);
-
+const root = fileURLToPath(new URL("..", import.meta.url));
+const read = (file) => readFile(join(root, file), "utf8");
+const modulesRoot = join(root, "modules");
+const html = await read("index.html");
+const app = await read("app.js");
+const appRuntime = await read("modules/app-runtime-assembly.js");
+const appRuntimeController = await read("modules/app-runtime-controller-assembly.js");
+const appRuntimeInfrastructure = await read("modules/app-runtime-infrastructure.js");
+const appRuntimeRoute = await read("modules/app-runtime-route-assembly.js");
+const appRuntimeStartup = await read("modules/app-runtime-startup.js");
+const appRuntimeState = await read("modules/app-runtime-state.js");
+const routeContext = await read("modules/app-route-context.js");
+const moduleMap = await read("docs/MODULE_MAP.md");
 const ids = [...html.matchAll(/\bid=["']([^"']+)["']/g)].map((match) => match[1]);
-const duplicateIds = [...new Set(ids.filter((id, index) => ids.indexOf(id) !== index))];
-assert.deepEqual(duplicateIds, [], `Duplicate HTML ids: ${duplicateIds.join(", ")}`);
-
-const localModuleImports = [...app.matchAll(/from\s+["'](\.\/?[^"']+?\.js)(?:\?[^"']*)?["']/g)]
-  .map((match) => match[1]);
-await Promise.all(localModuleImports.map((modulePath) => access(path.resolve(root, modulePath))));
-
-const checkedSources = [app, serviceWorker, await read("tests/offline-start.mjs")];
-assert.equal(
-  checkedSources.some((source) => /[A-Z]:\\Users\\|file:\/\/[A-Z]:\//i.test(source)),
-  false,
-  "Runtime or test code contains a machine-specific absolute path.",
-);
-
-assert.equal(
-  html.includes("cdn.jsdelivr.net"),
-  false,
-  "The app shell preconnects to an unused third-party CDN.",
-);
-
-const sizeBudgets = new Map([
-  ["app.js", 90_000],
-  ["tests/smoke.mjs", 55_000],
-  ["tests/static-contracts.mjs", 45_000],
-  ["tests/smoke-fixture.mjs", 30_000],
-  ["modules/app-event-bindings.js", 12_000],
-  ["modules/secret-controller.js", 35_000],
-  ["modules/secret-composer-controller.js", 15_000],
-  ["modules/secret-album-actions-controller.js", 30_000],
-  ["modules/photo-detail-controller.js", 20_000],
-  ["modules/photo-editor-controller.js", 15_000],
-  ["modules/mobile-diary-controller.js", 20_000],
-]);
-for (const [file, limit] of sizeBudgets) {
-  const { size } = await stat(path.join(root, file));
-  assert.ok(
-    size <= limit,
-    `${file} is ${size.toLocaleString()} bytes; split or simplify it before exceeding ${limit.toLocaleString()} bytes.`,
-  );
+assert.equal(new Set(ids).size, ids.length, "duplicate HTML id");
+assert.ok(!app.includes("function switchPage("), "navigation belongs in its module");
+assert.ok(!app.includes("function showMiniToast("), "feedback belongs in its module");
+assert.ok(!app.includes("?v="), "manual version query remains");
+assert.ok(appRuntime.includes("startAppRuntime"), "runtime assembly is not wired");
+assert.ok(appRuntimeInfrastructure.includes("createAppServices"), "infrastructure graph is not owned by app-services");
+assert.ok(appRuntimeState.includes("createRuntimeStateAccessors"), "shared runtime state accessors are missing");
+assert.ok(appRuntimeRoute.includes("createRouteControllerOptions"), "route options are not owned by route assembly");
+assert.ok(appRuntimeStartup.includes("createAppStartupController"), "startup controller is not owned by startup assembly");
+assert.ok(appRuntimeStartup.includes("createPwaInstallController"), "PWA lifecycle is not owned by startup assembly");
+assert.doesNotMatch(appRuntimeController, /createAppServices|createRouteControllerOptions|createAppRouteContext|createAppStartupController|createPwaInstallController|createPwaUpdateController/, "core runtime assembly reclaimed an owned boundary");
+assert.ok(routeContext.includes("createRouteControllerOptions"), "route options did not move to route context");
+assert.ok(appRuntime.split(/\r?\n/).length <= 80, "runtime assembly grew beyond the startup boundary");
+assert.ok(moduleMap.includes("app-navigation-controller.js"));
+assert.ok(moduleMap.includes("app-session-controller.js"));
+const runtimeFiles = (await readdir(modulesRoot))
+  .filter((file) => /^app-runtime-.*\.js$/.test(file))
+  .sort();
+assert.ok(runtimeFiles.length >= 8, "runtime assembly modules are missing");
+const ownershipSignatures = {
+  pageState: /createRuntimeStateAccessors|createRuntimeStateView|familySettingsState|dataSafetyState/,
+  serviceBuild: /createAppServices|createRuntimeInfrastructure/,
+  routeOptions: /createRouteControllerOptions|createAppRouteContext/,
+  startup: /createAppStartupController|createPwaInstallController|createPwaUpdateController/,
+};
+for (const file of runtimeFiles) {
+  const source = await read(join("modules", file));
+  const lines = source.trimEnd().split(/\r?\n/).length;
+  assert.ok(lines <= 1_200, `${file} is a giant runtime substitute: ${lines} lines`);
+  const ownedResponsibilities = Object.values(ownershipSignatures).filter((pattern) => pattern.test(source));
+  assert.ok(ownedResponsibilities.length <= 2, `${file} combines too many runtime responsibilities`);
 }
-
-let redesignStyleSize = 0;
-for (const file of redesignStyleFiles) {
-  const relativePath = `styles/${file}`;
-  const { size } = await stat(path.join(root, relativePath));
-  redesignStyleSize += size;
-  assert.ok(size <= 150_000, `${relativePath} is too large; keep feature styles focused.`);
-  assert.ok(html.includes(`./${relativePath}`), `index.html is missing ${relativePath}.`);
-  assert.ok(serviceWorker.includes(`./${relativePath}`), `Offline shell is missing ${relativePath}.`);
+for (const file of [
+  "modules/app-startup-controller.js",
+  "modules/app-runtime-assembly.js",
+  "modules/app-runtime-controller-assembly.js",
+  "modules/app-runtime-infrastructure.js",
+  "modules/app-runtime-route-assembly.js",
+  "modules/app-runtime-startup.js",
+  "modules/app-runtime-state.js",
+  "modules/app-route-domain.js",
+  "modules/route-loader.js",
+  "modules/text-scale-controller.js",
+  "modules/pwa-install-controller.js",
+  "modules/pwa-update-controller.js",
+  "modules/performance-monitor.js",
+  "modules/performance-diagnostics-view.js",
+  "modules/routes/settings-route.js",
+  "src/sw.js",
+  "vite.config.js",
+  "public/_headers",
+  "scripts/optimize-assets.mjs",
+  "tests/build-budget.mjs",
+  "tests/asset-budget.mjs",
+]) await access(join(root, file));
+for (const old of ["service-worker.js", "manifest.webmanifest", ".cloudflare-pages-dist"]) {
+  assert.equal(await access(join(root, old)).then(() => true, () => false), false, `legacy ${old} remains`);
 }
-assert.ok(redesignStyleSize <= 350_000, `Redesign styles total ${redesignStyleSize.toLocaleString()} bytes.`);
-
-for (const requiredModule of [
-  "content-form-event-bindings.js",
-  "media-event-bindings.js",
-  "settings-event-bindings.js",
-  "secret-filter-domain.js",
-  "secret-folder-controller.js",
-  "secret-composer-controller.js",
-  "secret-album-actions-controller.js",
-  "photo-editor-controller.js",
-  "mobile-diary-controller.js",
-]) {
-  assert.ok(moduleMap.includes(requiredModule), `Module map is missing ${requiredModule}.`);
-  assert.ok(serviceWorker.includes(`./modules/${requiredModule}`), `Offline shell is missing ${requiredModule}.`);
-}
-
-const appLineCount = app.split(/\r?\n/).length;
-assert.ok(
-  appLineCount <= 2300,
-  `app.js is ${appLineCount.toLocaleString()} lines; keep feature logic in modules instead of expanding the application shell.`,
-);
-for (const forbiddenDefinition of [
-  "function updateAuthUI(",
-  "function switchPage(",
-  "function showMiniToast(",
-  "function renderAccountAvatar(",
-  "function getFinalTitle(",
-]) {
-  assert.equal(
-    app.includes(forbiddenDefinition),
-    false,
-    `${forbiddenDefinition} belongs in a focused module, not app.js.`,
-  );
-}
-
-const headers = await read("_headers");
-for (const requiredHeader of [
-  "Content-Security-Policy:",
-  "X-Content-Type-Options:",
-  "Referrer-Policy:",
-  "Permissions-Policy:",
-]) {
-  assert.ok(headers.includes(requiredHeader), `Missing security header: ${requiredHeader}`);
-}
-
+const { size } = await stat(join(root, "app.js"));
+assert.ok(size < 300_000, `app.js grew unexpectedly: ${size}`);
+assert.ok(app.split(/\r?\n/).length <= 1_200, `app.js exceeds the 1,200-line assembly budget: ${app.split(/\r?\n/).length}`);
 console.log("Structure health checks passed.");

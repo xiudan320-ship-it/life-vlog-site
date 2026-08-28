@@ -26,6 +26,7 @@ export function configureCacheManagementUi({
     cacheNav = documentRef.createElement("button");
     cacheNav.type = "button";
     cacheNav.dataset.settingsSection = "settingsCache";
+    cacheNav.setAttribute("role", "tab");
     cacheNav.setAttribute("aria-selected", "false");
     cacheNav.textContent = "缓存";
     cacheNav.addEventListener("click", () => setActiveSection("settingsCache"));

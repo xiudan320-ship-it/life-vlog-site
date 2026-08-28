@@ -42,6 +42,9 @@ export function createWishlistInteractions({
     if (!card) return;
     card.classList.remove("is-swipe-open", "is-swiping");
     card.style.removeProperty("--wish-swipe-x");
+    const actions = card.querySelector(".wish-card-swipe-actions");
+    actions?.setAttribute("aria-hidden", "true");
+    if (actions) actions.inert = true;
     if (activeSwipeCard === card) activeSwipeCard = null;
   }
 
@@ -50,6 +53,9 @@ export function createWishlistInteractions({
     activeSwipeCard = card;
     card.classList.add("is-swipe-open");
     card.style.setProperty("--wish-swipe-x", `-${SWIPE_OPEN_DISTANCE}px`);
+    const actions = card.querySelector(".wish-card-swipe-actions");
+    actions?.setAttribute("aria-hidden", "false");
+    if (actions) actions.inert = false;
   }
 
   function cancelLongPress() {

@@ -6,6 +6,7 @@ import {
   sortWishlistItems,
 } from "./wishlist-domain.js";
 import { renderListIcon } from "./list-icons.js";
+import { captureListFocus, restoreListFocus } from "./list-render-feedback.js";
 
 export function getWishPriorityRank(priority) {
   if (priority === "一定要做") return 3;
@@ -91,7 +92,7 @@ function renderWishCards(wishes, { getAuthorName, canManageItem }) {
     ].filter(Boolean);
     return `
       <article class="wish-card${wish.done ? " completed" : ""}" data-wish-id="${escapeHtml(wish.id)}" data-wish-detail="true" aria-label="${title}，${stateText}">
-        <div class="wish-card-swipe-actions" aria-hidden="true">
+        <div class="wish-card-swipe-actions" aria-hidden="true" inert>
           ${canManage ? `<button type="button" data-wish-swipe-action="toggle">${wish.done ? "改回未完成" : "完成"}</button><button type="button" data-wish-swipe-action="delete">删除</button>` : ""}
         </div>
         <div class="wish-card-main">
@@ -132,31 +133,36 @@ export function renderWishlist({
   canManageItem,
 }) {
   if (!listElement) return null;
+  const focusSnapshot = captureListFocus(listElement);
+  const finishRender = (view) => {
+    restoreListFocus(listElement, focusSnapshot);
+    return view;
+  };
   const view = buildWishlistView(wishes, activeView);
   updateTabs({ tabsElement, openCountElement, doneCountElement, activeView: view.activeView, view });
   if (summaryElement) summaryElement.textContent = `${view.all} 个心愿 · ${view.done} 个已完成`;
 
   if (!signedIn) {
     listElement.innerHTML = `<div class="wishlist-empty"><span class="wishlist-empty-icon" aria-hidden="true">${renderListIcon("heart")}</span><strong>登录后可以记录想做、想吃、想去的事。</strong></div>`;
-    return view;
+    return finishRender(view);
   }
   if (dataState === "loading") {
     listElement.innerHTML = `<div class="wishlist-empty" data-account-sync-loading role="status"><span class="wishlist-empty-icon is-loading" aria-hidden="true">${renderListIcon("loader")}</span><strong>正在同步心愿…</strong></div>`;
-    return view;
+    return finishRender(view);
   }
   if (dataState === "error") {
     listElement.innerHTML = '<div class="wishlist-empty"><strong>心愿同步失败，请稍后刷新重试。</strong></div>';
-    return view;
+    return finishRender(view);
   }
   if (!wishes.length) {
     listElement.innerHTML = `<div class="wishlist-empty"><span class="wishlist-empty-icon" aria-hidden="true">${renderListIcon("heart")}</span><strong>还没有心愿，先写一个以后想完成的小目标。</strong><button class="wishlist-empty-add" type="button" data-add-wish>添加心愿</button></div>`;
-    return view;
+    return finishRender(view);
   }
   if (!view.visibleWishes.length) {
     const icon = view.activeView === "done" ? renderListIcon("check") : renderListIcon("heart");
     listElement.innerHTML = `<div class="wishlist-empty"><span class="wishlist-empty-icon" aria-hidden="true">${icon}</span><strong>${view.emptyMessage}</strong><button class="wishlist-empty-add" type="button" data-add-wish>添加心愿</button></div>`;
-    return view;
+    return finishRender(view);
   }
   listElement.innerHTML = renderWishCards(view.visibleWishes, { getAuthorName, canManageItem });
-  return view;
+  return finishRender(view);
 }

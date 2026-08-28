@@ -1,8 +1,6 @@
-import { stopDiaryMotionVideo } from "./diary-video-layout.js?v=20260824-030";
+import { stopDiaryMotionVideo } from "./diary-video-layout.js";
 import { formatDate, formatDateTime } from "./ui-formatters.js";
 import { formatWishDate } from "./wishlist-view.js";
-import { createPhotoEditorController } from "./photo-editor-controller.js";
-import { createMobileDiaryController } from "./mobile-diary-controller.js";
 
 export function createPhotoDetailController({
   elements,
@@ -37,7 +35,12 @@ export function createPhotoDetailController({
 }) {
   const els = elements;
   const cssEscapeValue = (value) => CSS.escape(String(value || ""));
-  const photoEditor = createPhotoEditorController({
+  let photoEditorController = null;
+  let photoEditorPromise = null;
+  let mobileDiaryController = null;
+  let mobileDiaryPromise = null;
+
+  const photoEditorOptions = {
     elements,
     state,
     repository,
@@ -51,21 +54,8 @@ export function createPhotoDetailController({
     loadPhotos,
     setGlobalStatus,
     toDateInputValue,
-  });
-  const {
-    openEditPhoto,
-    savePhotoEdit,
-    renderEditImages,
-    getEditPreviewUrl,
-    replaceEditingImage,
-    appendEditingImageFiles,
-    startAppendEditingImages,
-    handleEditImagePaste,
-    removeEditingImage,
-    resetEditImageState,
-    deletePhotoFromEditor,
-  } = photoEditor;
-  const mobileDiaryController = createMobileDiaryController({
+  };
+  const mobileDiaryOptions = {
     elements,
     state,
     repository,
@@ -84,38 +74,122 @@ export function createPhotoDetailController({
     isMobileViewport,
     loadPhotoCommentPreviews,
     loadPhotoComments,
-    openEditPhoto,
+    openEditPhoto: (...args) => openEditPhoto(...args),
     openMobileDiaryImageViewer,
     renderAvatarMarkup,
     switchPage,
     togglePhotoFavorite,
     togglePhotoFlag,
-  });
-  const {
-    ensureMobileDiaryPage,
-    renderMobileDiaryComments,
-    renderMobileDiaryPage,
-    moveMobileDiaryImage,
-    openMobileDiaryPage,
-    closeMobileDiaryPage,
-    startMobileDiaryReply,
-    cancelMobileDiaryReply,
-    saveMobileDiaryComment,
-    beginMobileDiaryBackSwipe,
-    moveMobileDiaryBackSwipe,
-    endMobileDiaryBackSwipe,
-    cancelMobileDiaryBackSwipe,
-    beginMobileDiaryImageSwipe,
-    moveMobileDiaryImageSwipe,
-    cancelMobileDiaryImageSwipe,
-    endMobileDiaryImageSwipe,
-    canStartGlobalMobileBackSwipe,
-    performGlobalMobileBack,
-    beginGlobalMobileBackSwipe,
-    moveGlobalMobileBackSwipe,
-    finishGlobalMobileBackSwipe,
-    cancelGlobalMobileBackSwipe,
-  } = mobileDiaryController;
+  };
+
+  function loadPhotoEditor() {
+    if (photoEditorPromise) return photoEditorPromise;
+    photoEditorPromise = import("./photo-editor-controller.js")
+      .then(({ createPhotoEditorController }) => {
+        photoEditorController = createPhotoEditorController(photoEditorOptions);
+        return photoEditorController;
+      })
+      .catch((error) => {
+        photoEditorPromise = null;
+        throw error;
+      });
+    return photoEditorPromise;
+  }
+
+  function loadMobileDiaryController() {
+    if (mobileDiaryPromise) return mobileDiaryPromise;
+    mobileDiaryPromise = import("./mobile-diary-controller.js")
+      .then(({ createMobileDiaryController }) => {
+        mobileDiaryController = createMobileDiaryController(mobileDiaryOptions);
+        return mobileDiaryController;
+      })
+      .catch((error) => {
+        mobileDiaryPromise = null;
+        throw error;
+      });
+    return mobileDiaryPromise;
+  }
+
+  function callPhotoEditor(method, ...args) {
+    return loadPhotoEditor().then((controller) => {
+      const action = controller?.[method];
+      if (typeof action !== "function") throw new Error(`Unknown photo editor action: ${method}`);
+      return action(...args);
+    });
+  }
+
+  function callMobileDiary(method, ...args) {
+    return loadMobileDiaryController().then((controller) => {
+      const action = controller?.[method];
+      if (typeof action !== "function") throw new Error(`Unknown mobile diary action: ${method}`);
+      return action(...args);
+    });
+  }
+
+  function openEditPhoto(...args) { return callPhotoEditor("openEditPhoto", ...args); }
+  function savePhotoEdit(...args) { return callPhotoEditor("savePhotoEdit", ...args); }
+  function renderEditImages(...args) { return callPhotoEditor("renderEditImages", ...args); }
+  function getEditPreviewUrl(...args) { return callPhotoEditor("getEditPreviewUrl", ...args); }
+  function replaceEditingImage(...args) { return callPhotoEditor("replaceEditingImage", ...args); }
+  function appendEditingImageFiles(...args) { return callPhotoEditor("appendEditingImageFiles", ...args); }
+  function startAppendEditingImages(...args) { return callPhotoEditor("startAppendEditingImages", ...args); }
+  function handleEditImagePaste(...args) { return callPhotoEditor("handleEditImagePaste", ...args); }
+  function removeEditingImage(...args) { return callPhotoEditor("removeEditingImage", ...args); }
+  function resetEditImageState(...args) {
+    if (!photoEditorController) return false;
+    return photoEditorController.resetEditImageState(...args);
+  }
+  function deletePhotoFromEditor(...args) { return callPhotoEditor("deletePhotoFromEditor", ...args); }
+
+  function ensureMobileDiaryPage(...args) { return callMobileDiary("ensureMobileDiaryPage", ...args); }
+  function renderMobileDiaryComments(...args) {
+    if (!mobileDiaryController && (!state.mobileDiaryPhoto || !isMobileViewport())) return false;
+    return callMobileDiary("renderMobileDiaryComments", ...args);
+  }
+  function renderMobileDiaryPage(...args) {
+    if (!mobileDiaryController && (!state.mobileDiaryPhoto || !isMobileViewport())) return false;
+    return callMobileDiary("renderMobileDiaryPage", ...args);
+  }
+  function moveMobileDiaryImage(...args) { return callMobileDiary("moveMobileDiaryImage", ...args); }
+  function openMobileDiaryPage(...args) { return callMobileDiary("openMobileDiaryPage", ...args); }
+  function closeMobileDiaryPage(...args) {
+    if (!mobileDiaryController) return false;
+    return callMobileDiary("closeMobileDiaryPage", ...args);
+  }
+  function startMobileDiaryReply(...args) { return callMobileDiary("startMobileDiaryReply", ...args); }
+  function cancelMobileDiaryReply(...args) { return callMobileDiary("cancelMobileDiaryReply", ...args); }
+  function saveMobileDiaryComment(...args) { return callMobileDiary("saveMobileDiaryComment", ...args); }
+  function beginMobileDiaryBackSwipe(...args) { return callMobileDiary("beginMobileDiaryBackSwipe", ...args); }
+  function moveMobileDiaryBackSwipe(...args) { return callMobileDiary("moveMobileDiaryBackSwipe", ...args); }
+  function endMobileDiaryBackSwipe(...args) { return callMobileDiary("endMobileDiaryBackSwipe", ...args); }
+  function cancelMobileDiaryBackSwipe(...args) { return callMobileDiary("cancelMobileDiaryBackSwipe", ...args); }
+  function beginMobileDiaryImageSwipe(...args) { return callMobileDiary("beginMobileDiaryImageSwipe", ...args); }
+  function moveMobileDiaryImageSwipe(...args) { return callMobileDiary("moveMobileDiaryImageSwipe", ...args); }
+  function cancelMobileDiaryImageSwipe(...args) { return callMobileDiary("cancelMobileDiaryImageSwipe", ...args); }
+  function endMobileDiaryImageSwipe(...args) { return callMobileDiary("endMobileDiaryImageSwipe", ...args); }
+  function canStartGlobalMobileBackSwipe(...args) {
+    return mobileDiaryController?.canStartGlobalMobileBackSwipe?.(...args) || false;
+  }
+  function performGlobalMobileBack(...args) {
+    if (!isMobileViewport()) return false;
+    return callMobileDiary("performGlobalMobileBack", ...args);
+  }
+  function beginGlobalMobileBackSwipe(...args) {
+    if (!isMobileViewport()) return false;
+    return callMobileDiary("beginGlobalMobileBackSwipe", ...args);
+  }
+  function moveGlobalMobileBackSwipe(...args) {
+    if (!isMobileViewport()) return false;
+    return callMobileDiary("moveGlobalMobileBackSwipe", ...args);
+  }
+  function finishGlobalMobileBackSwipe(...args) {
+    if (!isMobileViewport()) return false;
+    return callMobileDiary("finishGlobalMobileBackSwipe", ...args);
+  }
+  function cancelGlobalMobileBackSwipe(...args) {
+    if (!isMobileViewport()) return false;
+    return callMobileDiary("cancelGlobalMobileBackSwipe", ...args);
+  }
 
   function lockDialogBackgroundScroll(scrollY = window.scrollY || window.pageYOffset || 0) {
     state.lockedDialogScrollY = Math.max(0, Number(scrollY) || 0);

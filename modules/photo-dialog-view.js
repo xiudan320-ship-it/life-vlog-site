@@ -1,6 +1,7 @@
-import { normalizeSecretPhotoTags } from "./secret-domain.js?v=20260826-005";
+import { normalizeSecretPhotoTags } from "./secret-domain.js";
 import { escapeHtml } from "./ui-formatters.js";
 import { fitVideoToContainer } from "./diary-video-layout.js";
+import { renderListIcon } from "./list-icons.js";
 
 export function updateDiaryViewerToolbar({
   toolbar,
@@ -82,7 +83,7 @@ export function renderSecretDialogControls(image) {
   const favorite = Boolean(image?.favorite);
   return `
     <div class="secret-dialog-tools secret-dialog-readonly-tools">
-      <button class="secret-dialog-favorite ${favorite ? "active" : ""}" type="button" data-secret-dialog-favorite>${favorite ? "♥ 已收藏" : "♡ 收藏"}</button>
+      <button class="secret-dialog-favorite ${favorite ? "active" : ""}" type="button" data-secret-dialog-favorite>${renderListIcon("heart", "ui-icon-inline")} ${favorite ? "已收藏" : "收藏"}</button>
       <button class="secret-dialog-delete" type="button" data-secret-dialog-delete>删除相片</button>
       <div class="secret-dialog-current-tags">
         <span>展品 Tag</span>

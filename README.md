@@ -47,11 +47,11 @@ http://127.0.0.1:8000/index.html
 
 ## 发布前验收
 
-每次发布前必须先完成本地回归和测试账户验收。完整清单见 [`docs/release-checklist.md`](docs/release-checklist.md)。
+每次发布前必须先完成本地回归，部署脚本通过后会上传 Cloudflare Pages。完整清单见 [`docs/release-checklist.md`](docs/release-checklist.md)。
 
 ```powershell
 pnpm test
-powershell -NoProfile -ExecutionPolicy Bypass -File .\test-release.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\deploy-cloudflare-pages.ps1
 ```
 
-测试账号凭据保存在 `%LOCALAPPDATA%\LifeVlog\release-test-credential.xml`，密码由当前 Windows 用户的 DPAPI 加密；不要把凭据文件写入仓库，测试失败时不要发布。测试脚本会临时创建一条仅供收藏往返验证的测试日记，并在成功或失败后清理日记、收藏、评论和通知。
+发布完成后检查正式地址的页面状态、核心资源版本和本次改动对应的页面行为。

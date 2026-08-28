@@ -1,5 +1,6 @@
 import { composeDiaryStoredNote } from "./media-metadata.js";
 import { escapeHtml, formatDateTime, formatFileSize } from "./ui-formatters.js";
+import { renderListIcon } from "./list-icons.js";
 
 export function createDataSafetyController({
   elements,
@@ -252,6 +253,7 @@ export function createDataSafetyController({
       nav = document.createElement("button");
       nav.type = "button";
       nav.dataset.settingsSection = "settingsSafety";
+      nav.setAttribute("role", "tab");
       nav.setAttribute("aria-selected", "false");
       nav.textContent = "数据安全";
       nav.addEventListener("click", () => setActiveSettingsSection("settingsSafety"));
@@ -264,10 +266,10 @@ export function createDataSafetyController({
     group.hidden = true;
     group.innerHTML = `
       <p class="kicker">Backup & Recycle Bin</p><h3>数据安全</h3>
-      <div class="trash-head"><div><strong>每日云端备份</strong><small>每天凌晨 03:20（日本时间）生成 1 份，自动保留最近 7 天</small><em id="latestBackupStatus">正在读取最近备份…</em></div><div class="backup-head-actions"><button type="button" data-refresh-backups aria-label="刷新备份">↻</button><button type="button" data-create-backup>立即备份</button></div></div>
+      <div class="trash-head"><div><strong>每日云端备份</strong><small>每天凌晨 03:20（日本时间）生成 1 份，自动保留最近 7 天</small><em id="latestBackupStatus">正在读取最近备份…</em></div><div class="backup-head-actions"><button type="button" data-refresh-backups aria-label="刷新备份">${renderListIcon("refresh")}</button><button type="button" data-create-backup>立即备份</button></div></div>
       <div class="cloud-backup-list" id="cloudBackupList"></div>
       <button id="backfillThumbnailsButton" type="button"><span>优化旧图片</span><strong>每次为最多 20 张旧图生成列表缩略图</strong></button>
-      <div class="trash-head"><div><strong>最近删除</strong><small>日记、秘藏、菜谱、心愿、周末计划、纪念日和留言保留 30 天</small></div><button type="button" data-refresh-trash aria-label="刷新回收站">↻</button></div>
+      <div class="trash-head"><div><strong>最近删除</strong><small>日记、秘藏、菜谱、心愿、周末计划、纪念日和留言保留 30 天</small></div><button type="button" data-refresh-trash aria-label="刷新回收站">${renderListIcon("refresh")}</button></div>
       <div class="trash-items" id="trashItemsList"></div>`;
     content.append(group);
     group.querySelector("#backfillThumbnailsButton").addEventListener("click", backfillLegacyThumbnails);
@@ -284,6 +286,7 @@ export function createDataSafetyController({
       const nav = document.createElement("button");
       nav.type = "button";
       nav.dataset.settingsSection = id;
+      nav.setAttribute("role", "tab");
       nav.setAttribute("aria-selected", "false");
       nav.textContent = label;
       nav.addEventListener("click", () => setActiveSettingsSection(id));
@@ -306,7 +309,7 @@ export function createDataSafetyController({
   }
   
   function diagnosticRow(label, value, state = "ok", detail = "") {
-    return `<article class="diagnostic-row ${state}"><i>${state === "ok" ? "✓" : state === "warn" ? "!" : "×"}</i><div><strong>${label}</strong>${detail ? `<small>${detail}</small>` : ""}</div><em>${value}</em></article>`;
+    return `<article class="diagnostic-row ${state}"><i>${renderListIcon(state === "ok" ? "check" : state === "warn" ? "alert" : "close")}</i><div><strong>${label}</strong>${detail ? `<small>${detail}</small>` : ""}</div><em>${value}</em></article>`;
   }
   
   async function runOfflineDiagnostics() {

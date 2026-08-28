@@ -19,7 +19,7 @@ import {
   normalizeSecretPhotoTag,
   normalizeSecretPhotoTags,
   sortSecretItems,
-} from "./secret-domain.js?v=20260826-005";
+} from "./secret-domain.js";
 import {
   getSecretAlbumFilterTags,
   getSecretAlbumTagCounts,
@@ -27,17 +27,17 @@ import {
   imageMatchesSecretFilter,
   sortSecretDisplayEntries,
 } from "./secret-filter-domain.js";
-import { secretFolderFromCloudRow, secretFromCloudRow } from "./cloud-models.js";
 import { prepareFeedImages } from "./diary-gallery-view.js";
 import { escapeHtml } from "./ui-formatters.js";
 import { createSecretFolderController } from "./secret-folder-controller.js";
 import { createSecretComposerController } from "./secret-composer-controller.js";
-import { createSecretAlbumActionsController } from "./secret-album-actions-controller.js?v=20260826-001";
+import { createSecretAlbumActionsController } from "./secret-album-actions-controller.js";
 
 export function createSecretController({
   elements,
   state,
   repository,
+  dataService,
   assets,
   albumImageLimit,
   allFolderId,
@@ -222,6 +222,8 @@ export function createSecretController({
   async function loadSecretItemsInternal() {
     if (!state.cloudDb || !state.session) {
       state.secretItems = [];
+      state.secretFolders = [];
+      state.secretCloudAvailable = false;
       renderSecretGallery();
       return;
     }
@@ -229,15 +231,7 @@ export function createSecretController({
       renderCachedSecretItems(state.session.user.id);
     }
     try {
-      const [itemsResponse, foldersResponse] = await Promise.all([
-        secretRepository.listItems(),
-        secretRepository.listFolders(),
-      ]);
-      if (itemsResponse.error) throw itemsResponse.error;
-      if (foldersResponse.error) throw foldersResponse.error;
-      state.secretCloudAvailable = true;
-      state.secretItems = sortSecretItems((itemsResponse.data || []).map(secretFromCloudRow));
-      state.secretFolders = (foldersResponse.data || []).map(secretFolderFromCloudRow);
+      await dataService.load();
       const validFolderIds = new Set([
         SECRET_ALL_FOLDER_ID,
         SECRET_FAVORITES_FOLDER_ID,
@@ -254,7 +248,6 @@ export function createSecretController({
         const defaultFolderId = getSecretDefaultFolderId();
         state.activeSecretFolderId = validFolderIds.has(defaultFolderId) ? defaultFolderId : SECRET_ALL_FOLDER_ID;
       }
-      state.lastSecretSyncAt = Date.now();
       saveSecretItemsCache(state.session.user.id);
       renderSecretGallery();
     } catch (error) {

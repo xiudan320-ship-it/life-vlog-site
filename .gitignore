@@ -5,6 +5,7 @@ code.txt
 
 # Generated deployment and dependency directories
 .cloudflare-pages-dist/
+dist/
 .wrangler/
 cloudflare-worker/.wrangler/
 node_modules/

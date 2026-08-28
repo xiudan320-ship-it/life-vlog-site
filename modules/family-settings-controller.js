@@ -35,6 +35,18 @@ export function createFamilySettingsController({
   loadFamilyContext,
 }) {
   const els = elements;
+  let settingsReturnFocus = null;
+
+  function restoreSettingsFocus() {
+    if (state.returnToSettingsAfterDialog) return;
+    const returnFocus = settingsReturnFocus;
+    settingsReturnFocus = null;
+    const focusTarget = returnFocus === els.accountSettingsButton ? els.avatarButton : returnFocus;
+    if (els.userPopover) els.userPopover.hidden = true;
+    window.setTimeout(() => focusTarget?.focus?.(), 0);
+  }
+
+  els.settingsDialog?.addEventListener("close", restoreSettingsFocus);
 
   function renderFamilyDialog() {
     if (!els.familyDialog) return;
@@ -139,11 +151,24 @@ export function createFamilySettingsController({
     const allowedSections = ["settingsGeneral", "settingsNotifications", "settingsCache", "settingsTools", "settingsAccount", "settingsFamily", "settingsSafety", "settingsDiagnostics", "settingsUploads"];
     const nextSection = allowedSections.includes(sectionId) ? sectionId : "settingsGeneral";
     state.activeSettingsSection = nextSection;
-  
+
+    const settingsNav = els.settingsDialog.querySelector(".settings-sidebar nav");
+    const tabs = [...els.settingsDialog.querySelectorAll("[data-settings-section]")];
+    tabs.forEach((button) => {
+      const sectionIdForTab = button.dataset.settingsSection;
+      if (!button.id) button.id = `settings-tab-${sectionIdForTab}`;
+      button.setAttribute("role", "tab");
+      button.setAttribute("aria-controls", sectionIdForTab);
+      button.tabIndex = sectionIdForTab === nextSection ? 0 : -1;
+    });
+    if (settingsNav) settingsNav.setAttribute("role", "tablist");
     els.settingsDialog.querySelectorAll(".settings-group").forEach((group) => {
+      const tab = tabs.find((button) => button.dataset.settingsSection === group.id);
+      group.setAttribute("role", "tabpanel");
+      if (tab) group.setAttribute("aria-labelledby", tab.id);
       group.hidden = group.id !== nextSection;
     });
-    els.settingsDialog.querySelectorAll("[data-settings-section]").forEach((button) => {
+    tabs.forEach((button) => {
       const active = button.dataset.settingsSection === nextSection;
       button.classList.toggle("active", active);
       button.setAttribute("aria-selected", String(active));
@@ -161,6 +186,9 @@ export function createFamilySettingsController({
   }
   
   function openSettingsDialog(sectionId = state.activeSettingsSection || "settingsGeneral") {
+    if (!els.settingsDialog.open && !settingsReturnFocus) {
+      settingsReturnFocus = els.accountSettingsButton || document.activeElement;
+    }
     renderSettingsSummary();
     void refreshCacheInfo();
     setActiveSettingsSection(sectionId);

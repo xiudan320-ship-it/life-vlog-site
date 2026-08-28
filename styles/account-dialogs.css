@@ -485,6 +485,11 @@
     line-height: 1;
   }
 
+  .mobile-diary-action-mark .list-icon {
+    width: 14px;
+    height: 14px;
+  }
+
   .mobile-diary-actions .mobile-diary-action.is-active {
     border-color: color-mix(in srgb, var(--accent) 70%, var(--line));
     background: color-mix(in srgb, var(--accent) 18%, var(--surface));

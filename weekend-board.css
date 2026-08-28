@@ -34,9 +34,17 @@ body:has(#weekendPage:not([hidden])) .topbar {
   background: color-mix(in srgb, var(--lv-bg), transparent 6%);
 }
 
+body:has(#weekendPage:not([hidden])) .brand small {
+  color: var(--lv-text-muted);
+}
+
 body:has(#weekendPage:not([hidden])) .main-nav {
   border-color: var(--lv-border);
   background: var(--lv-surface);
+}
+
+body:has(#weekendPage:not([hidden])) .main-nav button {
+  color: var(--lv-text-muted);
 }
 
 body:has(#weekendPage:not([hidden])) .main-nav button.active {
@@ -57,6 +65,14 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
   box-sizing: border-box;
   width: min(100%, 960px);
   margin-inline: auto;
+}
+
+@media (min-width: 1180px) {
+  .weekend-page > .weekend-page-header,
+  .weekend-page > .weekend-composer,
+  .weekend-page > .weekend-list {
+    width: 100%;
+  }
 }
 
 .weekend-page > .weekend-page-header {
@@ -387,6 +403,10 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
   background: inherit;
 }
 
+.weekend-card-main:has(.weekend-card-tools) {
+  grid-template-columns: 88px minmax(0, 1fr) 48px;
+}
+
 .weekend-date {
   position: static;
   display: grid;
@@ -459,20 +479,6 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
   white-space: nowrap;
 }
 
-.weekend-state-pill {
-  display: inline-flex;
-  min-height: 24px;
-  flex: 0 0 auto;
-  align-items: center;
-  padding: 0 8px;
-  border: 1px solid var(--lv-border);
-  border-radius: 999px;
-  color: var(--lv-text-muted);
-  font-size: .72rem;
-  line-height: 1;
-  white-space: nowrap;
-}
-
 .weekend-state-stamp {
   position: absolute;
   top: -14px;
@@ -494,6 +500,13 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
   width: 100%;
   height: 100%;
   object-fit: contain;
+}
+
+.weekend-card-tools {
+  display: grid;
+  min-height: 88px;
+  align-content: end;
+  justify-items: end;
 }
 
 .weekend-state-control {
@@ -527,29 +540,27 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
 
 .weekend-state-control.is-open {
   position: static;
-  flex: 0 0 auto;
-  min-width: 64px;
-  min-height: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
   box-sizing: border-box;
-  padding: 0 13px;
-  border: 1px solid color-mix(in srgb, var(--lv-accent), transparent 52%);
-  border-radius: 999px;
-  color: var(--lv-accent);
-  background: color-mix(in srgb, var(--lv-accent), transparent 92%);
-  font-size: .78rem;
-  font-weight: 720;
-  letter-spacing: .04em;
+  border: 1.5px solid color-mix(in srgb, var(--lv-text), transparent 55%);
+  border-radius: 50%;
+  color: transparent;
+  background: transparent;
+  font-size: 0;
   line-height: 1;
-  white-space: nowrap;
   transition: color var(--lv-motion-base) ease, background-color var(--lv-motion-base) ease, border-color var(--lv-motion-base) ease, transform var(--lv-motion-base) ease;
 }
 
 .weekend-state-control.is-open:hover {
   border-color: color-mix(in srgb, var(--lv-accent), transparent 28%);
-  color: var(--lv-accent);
   background: color-mix(in srgb, var(--lv-accent), transparent 90%);
   transform: scale(1.04);
+}
+
+.weekend-state-control.is-open:active {
+  transform: scale(.96);
 }
 
 .weekend-card-body h3 {
@@ -658,7 +669,11 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
 }
 
 .weekend-card-actions button {
-  min-height: 40px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   padding: 0 13px;
   border: 1px solid var(--lv-border);
   border-radius: 999px;
@@ -676,9 +691,22 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
   background: color-mix(in srgb, var(--lv-text), transparent 92%);
 }
 
-.weekend-card-actions button[data-delete-weekend] {
+.weekend-card-actions button[data-delete-weekend],
+.weekend-card-actions .weekend-delete-action {
   border-color: color-mix(in srgb, var(--lv-danger), transparent 62%);
   color: var(--lv-danger);
+}
+
+.weekend-card-actions .weekend-delete-action:hover {
+  border-color: color-mix(in srgb, var(--lv-danger), transparent 38%);
+  color: var(--lv-danger);
+  background: color-mix(in srgb, var(--lv-danger), transparent 92%);
+}
+
+.weekend-card-actions .weekend-delete-action .ui-icon-inline {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
 }
 
 .weekend-scenes {
@@ -804,6 +832,10 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
     padding: 12px;
   }
 
+  .weekend-card-main:has(.weekend-card-tools) {
+    grid-template-columns: 64px minmax(0, 1fr) 48px;
+  }
+
   .weekend-date {
     width: 64px;
     height: 64px;
@@ -828,8 +860,7 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
     padding-right: 0;
   }
 
-  .weekend-card-kicker-row .kicker,
-  .weekend-state-pill {
+  .weekend-card-kicker-row .kicker {
     font-size: .69rem;
   }
 
@@ -842,11 +873,14 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
     flex-basis: 64px;
   }
 
+  .weekend-card-tools {
+    min-height: 64px;
+  }
+
   .weekend-state-control.is-open {
-    min-width: 60px;
-    height: 44px;
-    padding-inline: 11px;
-    font-size: .74rem;
+    width: 48px;
+    height: 48px;
+    flex-basis: 48px;
   }
 
   .weekend-card-body h3 {
@@ -867,7 +901,7 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
   }
 
   .weekend-card-actions button {
-    min-height: 42px;
+    min-height: 44px;
     padding-inline: 12px;
   }
 

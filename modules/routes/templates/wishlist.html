@@ -1,0 +1,184 @@
+      <section class="wishlist-page" id="wishlistPage" hidden>
+        <div class="feed-head wishlist-page-header">
+          <div class="wishlist-page-heading">
+            <p class="kicker" id="wishlistPageKicker">WISHLIST</p>
+            <h2 id="wishlistPageTitle" data-page-heading="wishlist">心愿单</h2>
+            <p class="wishlist-summary" id="wishlistSummary">0 个心愿 · 0 个已完成</p>
+            <p class="wishlist-summary" id="shoppingSummary" hidden>0 件商品 · 0 件已完成</p>
+          </div>
+          <div class="wishlist-page-statuses" aria-live="polite">
+            <p class="status-line" id="wishlistStatus"></p>
+            <p class="status-line" id="shoppingStatus" hidden></p>
+          </div>
+        </div>
+
+        <div class="wishlist-module-tabs" id="wishlistModuleTabs" role="tablist" aria-label="清单类型">
+          <button class="active" type="button" data-wishlist-module="wishlist" role="tab" aria-selected="true">心愿单</button>
+          <button type="button" data-wishlist-module="shopping" role="tab" aria-selected="false">购物车</button>
+        </div>
+
+        <div id="wishlistContent">
+
+        <section class="wishlist-composer" id="wishlistComposer" hidden>
+          <div class="section-title">
+            <button class="section-heading-button" id="wishlistToggle" type="button" aria-expanded="false">
+              <span class="wishlist-add-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false"><path d="M12 5v14M5 12h14" /></svg>
+              </span>
+              <span id="wishlistFormTitle">添加心愿</span>
+            </button>
+          </div>
+
+          <form class="wishlist-form" id="wishlistForm" hidden>
+            <label class="wish-image-drop" id="wishImageDrop" tabindex="0">
+              <input class="native-file-input" id="wishImageInput" type="file" accept="image/*" />
+              <img id="wishImagePreview" alt="心愿图片预览" hidden />
+              <span class="upload-native-trigger">添加心愿图片</span>
+              <strong id="wishImageName">还没有选择图片</strong>
+            </label>
+            <div class="image-link-adder">
+              <input id="wishImageLinkInput" type="url" inputmode="url" placeholder="粘贴图片链接" aria-label="心愿图片链接" />
+              <button id="wishImageLinkAdd" type="button">添加</button>
+            </div>
+            <button class="wish-remove-image" id="wishRemoveImage" type="button" hidden>
+              移除图片
+            </button>
+            <div class="form-grid">
+              <label>
+                想做什么
+                <input id="wishTitleInput" maxlength="80" required />
+              </label>
+              <label>
+                类型
+                <select id="wishTypeInput">
+                  <option>想做</option>
+                  <option>想吃</option>
+                  <option>想去</option>
+                  <option>想买</option>
+                  <option>想学</option>
+                </select>
+              </label>
+              <label>
+                计划时间
+                <input id="wishDateInput" type="date" />
+              </label>
+              <label>
+                优先级
+                <select id="wishPriorityInput">
+                  <option>普通</option>
+                  <option>想尽快</option>
+                  <option>一定要做</option>
+                </select>
+              </label>
+            </div>
+            <label>
+              备注
+              <textarea id="wishNoteInput" rows="3" maxlength="500"></textarea>
+            </label>
+            <label>
+              完成后的留言感想
+              <textarea id="wishCompletionNoteInput" rows="3" maxlength="500"></textarea>
+            </label>
+            <div class="wish-form-actions">
+              <button class="primary" id="wishSubmitButton" type="submit">保存心愿</button>
+              <button class="ghost-button" id="wishCancelEdit" type="button" hidden>取消编辑</button>
+            </div>
+          </form>
+        </section>
+
+        <div class="wish-tabs" id="wishTabs" role="tablist" aria-label="心愿状态">
+          <button class="active" type="button" data-wish-view="open" role="tab" aria-selected="true">
+            未完成 <span id="wishOpenCount">0</span>
+          </button>
+          <button type="button" data-wish-view="done" role="tab" aria-selected="false">
+            已完成 <span id="wishDoneCount">0</span>
+          </button>
+        </div>
+
+        <section class="wishlist-list" id="wishlistList" aria-live="polite"></section>
+        </div>
+
+        <div id="shoppingContent" class="shopping-content" hidden>
+          <div class="shopping-primary-actions">
+            <button class="shopping-add-button" id="shoppingToggle" type="button" aria-expanded="false">
+              <span class="shopping-add-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false"><path d="M12 5v14M5 12h14" /></svg>
+              </span>
+              <span>添加商品</span>
+            </button>
+          </div>
+
+          <section class="shopping-composer" id="shoppingComposer">
+            <form class="shopping-form" id="shoppingForm" hidden>
+              <div class="shopping-form-heading">
+                <div>
+                  <p class="kicker">NEW ITEM</p>
+                  <h3 id="shoppingFormTitle">添加商品</h3>
+                </div>
+                <button class="shopping-form-close" id="shoppingCancelEdit" type="button" hidden>取消</button>
+              </div>
+              <label class="shopping-image-drop">
+                <input class="native-file-input" id="shoppingImageInput" type="file" accept="image/*" />
+                <img id="shoppingImagePreview" alt="商品图片预览" hidden />
+                <span class="upload-native-trigger">上传商品图片</span>
+                <strong id="shoppingImageName">还没有选择图片</strong>
+              </label>
+              <button class="wish-remove-image" id="shoppingRemoveImage" type="button" hidden>删除图片</button>
+              <div class="form-grid">
+                <label>
+                  商品名称
+                  <input id="shoppingNameInput" maxlength="100" required placeholder="想买什么？" />
+                </label>
+                <label>
+                  商品价格（可选）
+                  <input id="shoppingPriceInput" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
+                </label>
+              </div>
+              <label>
+                商品链接（可选）
+                <input id="shoppingLinkInput" type="url" inputmode="url" maxlength="1000" placeholder="https://" />
+              </label>
+              <label>
+                备注（可选）
+                <textarea id="shoppingNoteInput" rows="3" maxlength="500" placeholder="颜色、型号、购买计划……"></textarea>
+              </label>
+              <div class="wish-form-actions">
+                <button class="primary" id="shoppingSubmitButton" type="submit">保存商品</button>
+              </div>
+            </form>
+          </section>
+
+          <nav class="shopping-filters" id="shoppingFilters" role="tablist" aria-label="购物车状态">
+            <button class="active" type="button" data-shopping-filter="open" role="tab" aria-selected="true">未完成 <span id="shoppingOpenCount">0</span></button>
+            <button type="button" data-shopping-filter="done" role="tab" aria-selected="false">已完成 <span id="shoppingDoneCount">0</span></button>
+          </nav>
+          <section class="shopping-list" id="shoppingList" aria-live="polite"></section>
+        </div>
+      </section>
+
+      <dialog class="wish-complete-dialog" id="wishCompleteDialog">
+        <button class="dialog-close" id="wishCompleteClose" type="button" aria-label="关闭">×</button>
+        <form id="wishCompleteForm">
+          <div class="wish-complete-hero">
+            <p class="kicker">Wish Complete</p>
+            <h2 id="wishCompleteTitle">完成心愿</h2>
+            <p id="wishCompleteMeta"></p>
+          </div>
+          <div class="wish-complete-body">
+            <div class="wish-complete-preview" id="wishCompletePreview"></div>
+            <label>
+              完成后的留言感想
+              <textarea
+                id="wishCompleteNoteInput"
+                rows="5"
+                maxlength="500"
+                placeholder="比如：终于一起去了，天气很好，值得再来一次。"
+              ></textarea>
+            </label>
+          </div>
+          <p class="status-line" id="wishCompleteStatus"></p>
+          <div class="wish-complete-actions">
+            <button class="primary" id="wishCompleteSubmit" type="submit">保存完成感想</button>
+          </div>
+        </form>
+      </dialog>

@@ -98,6 +98,20 @@ button:disabled {
   opacity: 0.42;
 }
 
+.list-item-updated {
+  animation: list-item-updated 220ms ease-out;
+}
+
+@keyframes list-item-updated {
+  0% { outline: 0 solid transparent; outline-offset: 0; }
+  38% { outline: 3px solid color-mix(in srgb, var(--accent) 62%, transparent); outline-offset: 3px; }
+  100% { outline: 0 solid transparent; outline-offset: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .list-item-updated { animation: none; outline: 2px solid color-mix(in srgb, var(--accent) 58%, transparent); outline-offset: 2px; }
+}
+
 h1,
 h2,
 h3,
@@ -285,6 +299,31 @@ body.theme-dark .brand-mark {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.82);
   color: var(--ink);
+}
+
+.list-icon,
+.ui-icon {
+  display: block;
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.ui-icon-inline {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  margin-inline-end: 0.2em;
+  vertical-align: -0.16em;
+}
+
+.icon-button .ui-icon {
+  width: 19px;
+  height: 19px;
 }
 
 body.theme-dark .icon-button {
@@ -1412,7 +1451,7 @@ body.theme-dark .recipe-card {
 }
 
 .recipe-card-head span {
-  color: var(--accent);
+  color: var(--accent-strong);
   font-size: 12px;
   font-weight: 950;
 }
@@ -1493,7 +1532,7 @@ body.theme-dark .recipe-cover {
 .seasoning-tags span {
   border: 1px solid rgba(255, 56, 92, 0.28);
   background: rgba(255, 56, 92, 0.08);
-  color: var(--accent);
+  color: var(--accent-strong);
   font-size: 12px;
   font-weight: 900;
   padding: 6px 9px;
@@ -2204,8 +2243,86 @@ body.theme-dark .dialog-close {
 
   /* Some mobile entry points still use the legacy dialog classes. They must
      share the same media-only reader instead of rendering the title panel. */
-  #photoDialog.mobile-page-dialog,
-  body.mobile-dialog-open #photoDialog.diary-detail-dialog {
+  #photoDialog.diary-detail-dialog {
+    position: fixed !important;
+    inset: 0 !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: minmax(220px, 42dvh) auto auto !important;
+    box-sizing: border-box !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    max-width: none !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: var(--surface) !important;
+    box-shadow: none !important;
+    transform: none !important;
+  }
+
+  #photoDialog.diary-detail-dialog .dialog-media {
+    position: relative !important;
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    background: #070907 !important;
+  }
+
+  #photoDialog.diary-detail-dialog .dialog-media :is(#dialogImage, #dialogVideo):not([hidden]) {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    object-fit: contain !important;
+  }
+
+  #photoDialog.diary-detail-dialog > article {
+    display: block !important;
+    grid-column: 1 !important;
+    grid-row: 2 !important;
+    width: 100% !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
+    padding: 22px 20px 26px !important;
+  }
+
+  #photoDialog.diary-detail-dialog > .photo-comments {
+    display: flex !important;
+    grid-column: 1 !important;
+    grid-row: 3 !important;
+    width: 100% !important;
+    min-height: 360px !important;
+    box-sizing: border-box !important;
+    flex-direction: column !important;
+    overflow: visible !important;
+    padding: 20px !important;
+  }
+
+  #photoDialog.diary-detail-dialog > .dialog-close {
+    position: sticky !important;
+    top: 12px !important;
+    right: 12px !important;
+    z-index: 22 !important;
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    justify-self: end !important;
+    margin: 12px 12px -56px 0 !important;
+  }
+
+  #photoDialog.mobile-page-dialog {
     position: fixed !important;
     inset: 0 !important;
     display: block !important;
@@ -2223,8 +2340,7 @@ body.theme-dark .dialog-close {
     transform: none !important;
   }
 
-  #photoDialog.mobile-page-dialog .dialog-media,
-  body.mobile-dialog-open #photoDialog.diary-detail-dialog .dialog-media {
+  #photoDialog.mobile-page-dialog .dialog-media {
     position: fixed !important;
     inset: 0 !important;
     display: grid !important;
@@ -2242,24 +2358,17 @@ body.theme-dark .dialog-close {
 
   #photoDialog.mobile-page-dialog > article,
   #photoDialog.mobile-page-dialog > .photo-comments,
-  #photoDialog.mobile-page-dialog > .dialog-thumbs,
-  body.mobile-dialog-open #photoDialog.diary-detail-dialog > article,
-  body.mobile-dialog-open #photoDialog.diary-detail-dialog > .photo-comments,
-  body.mobile-dialog-open #photoDialog.diary-detail-dialog > .dialog-thumbs {
+  #photoDialog.mobile-page-dialog > .dialog-thumbs {
     display: none !important;
   }
 
   #photoDialog.mobile-page-dialog .dialog-dots,
   #photoDialog.mobile-page-dialog .dialog-expand-image,
-  body.mobile-dialog-open #photoDialog.diary-detail-dialog .dialog-dots,
-  body.mobile-dialog-open #photoDialog.diary-detail-dialog .dialog-expand-image,
-  #photoDialog.mobile-page-dialog .diary-viewer-toolbar,
-  body.mobile-dialog-open #photoDialog.diary-detail-dialog .diary-viewer-toolbar {
+  #photoDialog.mobile-page-dialog .diary-viewer-toolbar {
     display: none !important;
   }
 
-  #photoDialog.mobile-page-dialog .media-counter,
-  body.mobile-dialog-open #photoDialog.diary-detail-dialog .media-counter {
+  #photoDialog.mobile-page-dialog .media-counter {
     position: fixed !important;
     top: calc(env(safe-area-inset-top) + 12px) !important;
     right: auto !important;
@@ -2269,8 +2378,7 @@ body.theme-dark .dialog-close {
     transform: translateX(-50%) !important;
   }
 
-  #photoDialog.mobile-page-dialog > .dialog-close,
-  body.mobile-dialog-open #photoDialog.diary-detail-dialog > .dialog-close {
+  #photoDialog.mobile-page-dialog > .dialog-close {
     position: fixed !important;
     top: calc(env(safe-area-inset-top) + 10px) !important;
     right: 12px !important;
@@ -2279,3 +2387,32 @@ body.theme-dark .dialog-close {
     z-index: 22 !important;
   }
 }
+html { font-size: 100%; }
+html[data-text-scale="large"] { font-size: 115%; }
+html[data-text-scale="xlarge"] { font-size: 130%; }
+
+.settings-inline-control,
+.settings-install-card,
+.settings-performance-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 64px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+.settings-inline-control > span,
+.settings-install-card span,
+.settings-performance-card span { font-weight: 850; }
+.settings-install-card small,
+.settings-performance-card small { display: block; max-width: 360px; margin-top: 4px; color: var(--muted); line-height: 1.45; }
+.text-scale-options { display: flex; flex-wrap: wrap; gap: 8px; }
+.text-scale-options button,
+.settings-performance-card button { min-width: 44px; min-height: 44px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font: inherit; font-weight: 750; padding: 0 12px; }
+.text-scale-options button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
+.settings-performance-card > div:last-child { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.pwa-update-banner { position: fixed; right: max(16px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom)); z-index: 100; display: flex; align-items: center; gap: 8px; max-width: min(520px, calc(100vw - 32px)); padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-raised, var(--surface)); color: var(--ink); box-shadow: 0 14px 40px rgb(0 0 0 / 18%); }
+.pwa-update-banner button { min-height: 44px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: inherit; font: inherit; padding: 0 12px; }
+.pwa-update-banner button[data-pwa-update] { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; } }

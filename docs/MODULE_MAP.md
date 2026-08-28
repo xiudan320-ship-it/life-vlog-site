@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | 应用启动、首屏加载态 | `modules/app-splash-controller.js` | `styles/app-splash.css`, `index.html` |
 | 页面切换、顶部导航、返回行为 | `modules/app-navigation-controller.js` | `modules/app-event-bindings.js` |
-| 登录、注册、邮箱与密码 | `modules/auth-controller.js` | `modules/app-session-controller.js`, `modules/settings-event-bindings.js` |
+| 登录、注册、邮箱与密码 | `modules/auth-controller.js`, `modules/auth-view.js` | `modules/app-session-controller.js`, `modules/settings-event-bindings.js` |
 | 顶部等级 / 经验面板点击无响应 | `modules/gamification-controller.js` | `modules/app-event-bindings.js`, `modules/settings-event-bindings.js` |
 | 账户资料、头像、家庭设置、缓存设置 | `modules/profile-preferences-controller.js`, `modules/family-settings-controller.js` | `modules/settings-event-bindings.js`, `modules/account-view.js` |
 | 日记列表、搜索、筛选、瀑布流 | `modules/diary-feed-controller.js` | `modules/diary-gallery-view.js`, `modules/diary-domain.js` |
@@ -33,6 +33,14 @@
 | 离线缓存与容量 | `modules/offline-cache-controller.js`, `modules/offline-settings-controller.js` | `modules/cache-policy.js`, `modules/cache-management-view.js` |
 | 云端数据访问 | `modules/data-repositories.js`, `modules/household-repository.js` | `modules/cloudflare-client.js`, `modules/cloud-models.js` |
 
+## 跨路由数据边界
+
+- `modules/secret-data-service.js` 是秘藏账户同步的数据边界：它只读取/映射 `secret_items`、`secret_folders`，合并并发读取，并更新共享 canonical state；它不依赖秘藏页面 controller，也不负责 DOM 渲染。
+- `modules/secret-controller.js` 只在 `secret` route 激活后消费共享秘藏 state、读取本地缓存并渲染页面。未访问秘藏时，账户同步不会预加载秘藏 UI chunk。
+- `modules/lazy-controller.js` 保持未加载 controller 调用即抛错的契约。跨路由后台流程只能使用显式 `isLoaded`/`callLoaded` 守卫；页面渲染由当前 route 的 `activate` 负责。
+- `modules/route-loader.js` 与 `modules/app-navigation-controller.js` 共同维护 latest-wins 路由事务。过期的 chunk/activate 结果不得提交页面显隐、URL、焦点、滚动或 busy 状态。
+- `modules/diary-video-layout.js` 管理媒体生命周期：普通视频默认 poster + 用户触发的原生控件，Live Photo 才使用静音循环预览；加载、失败、重试、切图和关闭都会清理状态与监听。
+
 ## 样式快速定位
 
 | 范围 | 样式文件 |
@@ -51,6 +59,18 @@
 ## 事件入口边界
 
 - `app-event-bindings.js`：应用外壳、一级导航、工具坞、快捷入口和控制器装配。
+- `app-runtime-assembly.js`：启动入口；只调用共享 runtime 的明确启动边界。
+- `app-runtime-controller-assembly.js`：组合共享状态、基础设施、shell、账户、媒体和功能控制器；不持有服务实现、路由选项或启动/PWA 策略。
+- `app-runtime-infrastructure.js`：创建后端、仓储、缓存、上传队列、资产服务以及健康/性能监控的基础设施图。
+- `app-runtime-state.js`：共享 runtime 状态访问器和受限状态视图。
+- `app-runtime-route-assembly.js`：页面控制器注册、路由 controller options、导航/session 和事件绑定。
+- `app-runtime-startup.js`：开屏、启动顺序和 PWA install/update 生命周期。
+- `app-runtime-feature-assembly.js`：功能控制器及其领域动作分组。
+- `app-runtime-feature-bindings.js`：整理功能控制器提供给 shell、媒体和启动边界的跨模块动作桥接。
+- `app-runtime-media-assembly.js`：日记、心愿、周末和秘藏媒体查看/详情控制器装配。
+- `app-runtime-shell-assembly.js`：外壳、日记流、社交、家庭时间线、工具坞和布局控制器装配。
+- `app-runtime-account-assembly.js`：session/lifecycle、账户同步、资料偏好、等级和秘藏 PIN 控制器装配。
+- `app-runtime-vlog-mode.js`：VLOG 筛选模式的开关和视图联动。
 - `content-form-event-bindings.js`：菜谱、心愿、周末、留言、秘藏等内容表单事件。
 - `settings-event-bindings.js`：账户、家庭、缓存、安全、等级和网络状态事件。
 - `media-event-bindings.js`：日记 / VLOG / 秘藏查看器、编辑器、搜索筛选和媒体手势事件。

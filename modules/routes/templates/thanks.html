@@ -1,0 +1,51 @@
+      <section class="thanks-page" id="thanksPage" hidden>
+        <div class="thanks-head">
+          <div>
+            <p class="kicker">Little Notes</p>
+            <h2 data-page-heading="thanks">感谢留言板</h2>
+          </div>
+          <p>随时留一句想记住的话。</p>
+        </div>
+
+        <form class="thanks-composer" id="thanksForm" hidden>
+          <label>
+            留一句话
+            <textarea
+              id="thanksBodyInput"
+              rows="3"
+              maxlength="180"
+              required
+            ></textarea>
+          </label>
+          <fieldset class="thanks-colors">
+            <legend>字的颜色</legend>
+            <label class="active" style="--note-color:#2f6b3b">
+              <input type="radio" name="thanksColor" value="#2f6b3b" checked />
+              <span>森林绿</span>
+            </label>
+            <label style="--note-color:#d6544d">
+              <input type="radio" name="thanksColor" value="#d6544d" />
+              <span>珊瑚红</span>
+            </label>
+            <label style="--note-color:#2e6da4">
+              <input type="radio" name="thanksColor" value="#2e6da4" />
+              <span>晴空蓝</span>
+            </label>
+            <label style="--note-color:#81559b">
+              <input type="radio" name="thanksColor" value="#81559b" />
+              <span>葡萄紫</span>
+            </label>
+            <label style="--note-color:#a66b12">
+              <input type="radio" name="thanksColor" value="#a66b12" />
+              <span>麦穗金</span>
+            </label>
+          </fieldset>
+          <div class="thanks-form-actions">
+            <p class="status-line" id="thanksStatus"></p>
+            <button class="primary" id="thanksSubmitButton" type="submit">贴到留言板</button>
+            <button class="ghost-button" id="thanksCancelEdit" type="button" hidden>取消编辑</button>
+          </div>
+        </form>
+
+        <section class="thanks-board" id="thanksBoard" aria-live="polite"></section>
+      </section>

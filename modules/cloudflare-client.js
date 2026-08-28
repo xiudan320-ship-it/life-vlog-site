@@ -1,6 +1,23 @@
 const SESSION_ROLLING_DAYS = 3650;
 const SESSION_REFRESH_WINDOW_MS = 30 * 86400 * 1000;
 
+export function classifyCloudflareError(error) {
+  const status = Number(error?.status);
+  if (status === 401) return "401";
+  if (status === 403) return "403";
+  if (status === 429) return "429";
+  if (status >= 500 && status <= 599) return "5xx";
+  if (error?.name === "AbortError" || /timeout/i.test(String(error?.message || ""))) return "timeout";
+  if (error instanceof TypeError || /network|fetch|offline/i.test(String(error?.message || ""))) return "network";
+  return "unknown";
+}
+
+function asError(error) {
+  return error instanceof Error
+    ? error
+    : new Error(String(error?.message || error || "Request failed"));
+}
+
 class CloudflareQueryBuilder {
   constructor(table, request) {
     this.table = table;
@@ -126,6 +143,7 @@ export function createCloudflareBackend({
   indexedDb = globalThis.indexedDB,
   navigatorApi = globalThis.navigator,
   fetchApi = globalThis.fetch,
+  onRequestError = () => {},
 }) {
   const getEndpoint = () => String(endpoint || "").replace(/\/+$/, "");
 
@@ -251,14 +269,25 @@ export function createCloudflareBackend({
     if (activeSession?.access_token && !headers.has("Authorization")) {
       headers.set("Authorization", `Bearer ${activeSession.access_token}`);
     }
-    const response = await fetchApi(`${getEndpoint()}${path}`, {
-      ...options,
-      headers,
-    });
+    let response;
+    try {
+      response = await fetchApi(`${getEndpoint()}${path}`, {
+        ...options,
+        headers,
+      });
+    } catch (error) {
+      const typedError = asError(error);
+      typedError.status = error?.status;
+      typedError.kind = classifyCloudflareError(error);
+      try { onRequestError(typedError); } catch {}
+      throw typedError;
+    }
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
       const error = new Error(data.error || `Cloudflare 返回 ${response.status}`);
       error.status = response.status;
+      error.kind = classifyCloudflareError(error);
+      try { onRequestError(error); } catch {}
       throw error;
     }
     const expiresAt = new Date(activeSession?.expires_at || "").getTime();

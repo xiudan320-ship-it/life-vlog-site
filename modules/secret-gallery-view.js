@@ -3,9 +3,10 @@ import {
   FAVORITE_SECRET_PHOTO_TAG,
   normalizeSecretImages,
   normalizeSecretPhotoTags,
-} from "./secret-domain.js?v=20260826-005";
+} from "./secret-domain.js";
 import { getClipboardImageUrl } from "./media-metadata.js";
 import { escapeHtml } from "./ui-formatters.js";
+import { renderListIcon } from "./list-icons.js";
 
 export function buildSecretFolderListMarkup({ folders = [], activeFolderId = "", defaultFolderId = "" }) {
   return folders.map((folder) => `
@@ -54,7 +55,7 @@ export function buildSecretFavoritesMarkup(entries = []) {
               <button class="secret-album-photo" type="button" data-secret-favorite-photo="${index}">
                 <img class="secret-progressive-image" src="${escapeHtml(image.thumbnail_url || image.image_url)}" data-full-src="${escapeHtml(image.image_url)}" alt="${escapeHtml(item.title || "收藏照片")}" loading="lazy" decoding="async" />
                 <small class="secret-photo-tag">${escapeHtml(item.title || "未命名相册")} · ${escapeHtml(normalizeSecretPhotoTags(image).slice(0, 2).join(" · "))}</small>
-                <strong class="secret-photo-favorite">♥</strong>
+                <strong class="secret-photo-favorite">${renderListIcon("heart")}</strong>
               </button>
             `).join("")}
           </div>`
@@ -91,7 +92,7 @@ export function buildSecretCollectionMarkup({
     const linkedTitle = getLinkedTitle(item.linkedPhotoId);
     return `
       <article class="secret-card" data-secret-album-card="${escapeHtml(item.id)}">
-        <button class="secret-card-pin ${isPinned ? "is-pinned" : ""}" type="button" data-secret-album-pin="${escapeHtml(item.id)}" aria-label="${isPinned ? "取消置顶相册" : "置顶相册"}" aria-pressed="${isPinned ? "true" : "false"}" title="${isPinned ? "取消置顶" : "置顶相册"}"><span aria-hidden="true">📌</span></button>
+        <button class="secret-card-pin ${isPinned ? "is-pinned" : ""}" type="button" data-secret-album-pin="${escapeHtml(item.id)}" aria-label="${isPinned ? "取消置顶相册" : "置顶相册"}" aria-pressed="${isPinned ? "true" : "false"}" title="${isPinned ? "取消置顶" : "置顶相册"}"><span aria-hidden="true">${renderListIcon("pin")}</span></button>
         <button class="secret-cover" type="button" data-secret-index="${index}">
           <span class="secret-cover-mosaic secret-cover-mosaic-1">
             ${cover
@@ -127,7 +128,7 @@ export function buildSecretCollectionMarkup({
     </header>
     ${visible.length
       ? `<div class="secret-album-wall">${albumCards}</div>`
-      : `<button class="secret-empty-collection" type="button" data-secret-create-album><span>＋</span><strong>建立第一本相册</strong><small>照片会保存在私人秘藏中</small></button>`}
+      : `<button class="secret-empty-collection" type="button" data-secret-create-album><span>${renderListIcon("plus")}</span><strong>建立第一本相册</strong><small>照片会保存在私人秘藏中</small></button>`}
   `;
 }
 
@@ -314,7 +315,7 @@ export function buildSecretAlbumMarkup({
             <button class="secret-album-photo ${selectionMode ? "selectable" : ""} ${selectedIndexes.has(index) ? "selected" : ""} ${Number(image.width) && Number(image.height) && Number(image.height) / Number(image.width) > 1.65 ? "is-long" : ""}" type="button" data-secret-photo="${index}">
               <img class="secret-progressive-image" src="${escapeHtml(mobile ? (image.thumbnail_url || image.image_url) : image.image_url)}" data-full-src="${escapeHtml(image.image_url)}" alt="${escapeHtml(item.title || item.category || "秘藏图片")} ${index + 1}" loading="lazy" decoding="async" />
               <small class="secret-photo-tag">${escapeHtml(normalizeSecretPhotoTags(image).slice(0, 2).join(" · "))}</small>
-              ${image.favorite ? `<strong class="secret-photo-favorite">♥</strong>` : ""}
+              ${image.favorite ? `<strong class="secret-photo-favorite">${renderListIcon("heart")}</strong>` : ""}
               ${selectionMode ? `<span>${selectedIndexes.has(index) ? "已选" : String(index + 1).padStart(2, "0")}</span>` : ""}
             </button>
           `).join("") || `<div class="empty">这个 tag 下还没有照片。</div>`}

@@ -8,13 +8,14 @@ import { filterVlogPhotos } from "./vlog-mode.js";
 import {
   getDiaryGalleryEmptyState,
   renderDiaryGalleryCards,
-} from "./diary-gallery-view.js?v=20260824-032";
+} from "./diary-gallery-view.js";
 import {
   getDiaryMediaType,
   parseDiaryStoredImages,
   stripDiaryMediaMetadata,
 } from "./media-metadata.js";
 import { escapeHtml, formatDate, formatDateTime } from "./ui-formatters.js";
+import { renderListIcon } from "./list-icons.js";
 
 export function createDiaryFeedController({
   elements,
@@ -106,8 +107,10 @@ export function createDiaryFeedController({
   
   async function loadPhotos() {
     if (state.photosLoadPromise) return state.photosLoadPromise;
+    els.gallery?.setAttribute("aria-busy", "true");
     state.photosLoadPromise = loadPhotosInternal().finally(() => {
       state.photosLoadPromise = null;
+      els.gallery?.removeAttribute("aria-busy");
     });
     return state.photosLoadPromise;
   }
@@ -435,7 +438,7 @@ export function createDiaryFeedController({
     state.photoFlagsCloudAvailable = !error;
   }
   
-  function renderGallery() {
+  function renderGallery(updatedPhotoId = "") {
     renderOverview();
     updateTodayPostsNotice();
     const sortedPhotos = getSortedPhotos(state.photos);
@@ -479,7 +482,6 @@ export function createDiaryFeedController({
       return;
     }
   
-    state.galleryRenderSignature = nextSignature;
     renderDiaryGalleryCards({
       container: els.gallery,
       photos: visible,
@@ -504,7 +506,9 @@ export function createDiaryFeedController({
         edit: openEditPhoto,
         adminCategory: adminUpdatePhotoCategory,
       },
+      updatedPhotoId,
     });
+    state.galleryRenderSignature = nextSignature;
     observeGalleryMasonry();
     layoutGalleryMasonry();
     warmUpcomingFeedImages(filtered, visible.length);
@@ -705,7 +709,7 @@ export function createDiaryFeedController({
   
     Object.assign(photo, data || { is_pinned: false });
     setGlobalStatus(nextValue ? `已设为${label}。` : `已取消${label}。`);
-    renderGallery();
+    renderGallery(photo.id);
     if (state.mobileDiaryPhoto?.id === photo.id && !state.mobileDiaryPage?.hidden) {
       renderMobileDiaryPage();
     }
@@ -737,11 +741,11 @@ export function createDiaryFeedController({
       button.classList.toggle("is-active", nextFavorite);
       button.setAttribute("aria-pressed", String(nextFavorite));
       button.innerHTML = button.hasAttribute("data-mobile-diary-favorite")
-        ? `<span class="mobile-diary-action-mark" aria-hidden="true">${nextFavorite ? "♥" : "♡"}</span><span>${nextFavorite ? "已收藏" : "收藏"}</span>`
-        : `${nextFavorite ? "♥ 已收藏" : "♡ 收藏"}`;
+        ? `<span class="mobile-diary-action-mark" aria-hidden="true">${renderListIcon("heart")}</span><span>${nextFavorite ? "已收藏" : "收藏"}</span>`
+        : `${renderListIcon("heart", "ui-icon-inline")} ${nextFavorite ? "已收藏" : "收藏"}`;
     }
     setGlobalStatus(nextFavorite ? "已收藏。" : "已取消收藏。");
-    renderGallery();
+    renderGallery(photo.id);
   }
   
   function warmUpcomingFeedImages(filteredPhotos, startIndex) {

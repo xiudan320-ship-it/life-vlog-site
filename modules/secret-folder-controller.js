@@ -3,7 +3,7 @@ import {
   buildSecretFolderListMarkup,
   buildSecretFolderOptions,
 } from "./secret-gallery-view.js";
-import { normalizeSecretImages } from "./secret-domain.js?v=20260826-005";
+import { normalizeSecretImages } from "./secret-domain.js";
 import { secretFolderFromCloudRow } from "./cloud-models.js";
 import { escapeHtml } from "./ui-formatters.js";
 

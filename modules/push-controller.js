@@ -36,7 +36,7 @@ export function createPushController({
   function registerWorker() {
     if (!("serviceWorker" in navigator)) return;
     if (!["https:", "http:"].includes(window.location.protocol)) return;
-    navigator.serviceWorker.register("./service-worker.js", { scope: "./" }).catch(() => {});
+    navigator.serviceWorker.register("./sw.js", { scope: "./" }).catch(() => {});
   }
 
   async function getSubscription() {
@@ -163,6 +163,7 @@ export function createPushController({
       const button = document.createElement("button");
       button.type = "button";
       button.dataset.settingsSection = "settingsNotifications";
+      button.setAttribute("role", "tab");
       button.setAttribute("aria-selected", "false");
       button.textContent = "通知";
       button.addEventListener("click", () => setActiveSettingsSection("settingsNotifications"));
@@ -208,7 +209,13 @@ export function createPushController({
     } else {
       await openNotificationsPanel();
     }
-    if (location.search.includes("push")) history.replaceState({}, "", location.pathname);
+    if (location.search.includes("push")) {
+      const cleaned = new URL(location.href);
+      cleaned.searchParams.delete("pushPhoto");
+      cleaned.searchParams.delete("pushType");
+      cleaned.searchParams.delete("notificationId");
+      history.replaceState({}, "", `${cleaned.pathname}${cleaned.search}${cleaned.hash}`);
+    }
   }
 
   return {

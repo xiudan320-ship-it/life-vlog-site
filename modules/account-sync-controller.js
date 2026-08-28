@@ -22,6 +22,7 @@ export function createAccountSyncController({
   defaultFoodOptions,
   isMissingCloudSchema,
   getProfileAvatarUrl,
+  loadCachedAvatarUrl,
   saveCachedAvatarUrl,
   renderAccountAvatar,
   getSessionDisplayName,
@@ -76,6 +77,7 @@ export function createAccountSyncController({
   isAdminAccount,
   setGlobalStatus,
   awardDailyExperience,
+  health,
 }) {
   const els = elements;
 
@@ -136,7 +138,7 @@ export function createAccountSyncController({
   async function loadGratitudeNotes() {
     if (!state.cloudDb || !state.session) {
       state.gratitudeNotes = [];
-      renderGratitudeNotes();
+      if (els.thanksBoard) renderGratitudeNotes();
       return;
     }
   
@@ -145,14 +147,16 @@ export function createAccountSyncController({
     });
     if (error) {
       state.gratitudeNotes = [];
-      els.thanksStatus.textContent = isMissingCloudSchema(error)
-        ? "请先部署最新版 Cloudflare D1 结构，启用感谢留言板。"
-        : `留言读取失败：${error.message}`;
+      if (els.thanksStatus) {
+        els.thanksStatus.textContent = isMissingCloudSchema(error)
+          ? "请先部署最新版 Cloudflare D1 结构，启用感谢留言板。"
+          : `留言读取失败：${error.message}`;
+      }
     } else {
       state.gratitudeNotes = data || [];
-      els.thanksStatus.textContent = "";
+      if (els.thanksStatus) els.thanksStatus.textContent = "";
     }
-    renderGratitudeNotes();
+    if (els.thanksBoard) renderGratitudeNotes();
   }
   
   async function synchronizeWeekendPlans(userId = state.session?.user?.id) {
@@ -412,7 +416,7 @@ export function createAccountSyncController({
         applyHomeName(preferredHomeName, { persist: true, userId });
         renderAccountAvatar(state.accountProfile.avatarUrl, preferredDisplayName);
         saveThanksColorPreference(state.accountProfile.thanksColor, { userId, syncCloud: false });
-        setSelectedThanksColor(state.accountProfile.thanksColor);
+        if (els.thanksForm) setSelectedThanksColor(state.accountProfile.thanksColor);
         state.recipes = cloudRecipes.map(recipeFromCloudRow);
         state.wishes = cloudWishes.map(wishFromCloudRow);
         state.shoppingItems = cloudShoppingItems.map(shoppingFromCloudRow);
@@ -457,15 +461,23 @@ export function createAccountSyncController({
         await loadSecretItems();
         await loadNotifications();
         updateCloudSyncStatus();
+        health?.setSync("ok", 200);
         void refreshStorage(cloudflareRequest, () => Boolean(state.session && isAdminAccount()));
       } catch (error) {
         state.cloudSyncAvailable = false;
         state.accountDataState = "error";
+        health?.setSync(error?.kind || "unknown", error?.status);
         renderWishes();
         renderShopping();
         awardDailyExperience(displayName);
         renderExperience(displayName);
-        if (isMissingCloudSchema(error)) {
+        if (error?.status === 401) {
+          setGlobalStatus("登录已失效，请重新登录。当前本地内容仍保留。");
+        } else if (["network", "timeout"].includes(error?.kind)) {
+          setGlobalStatus("网络暂不可用，当前内容已保留；恢复网络后可重试。");
+        } else if (error?.status >= 500) {
+          setGlobalStatus("云端暂时不可用，当前内容已保留；请稍后重试。");
+        } else if (isMissingCloudSchema(error)) {
           setGlobalStatus("Cloudflare D1 尚未初始化，请先部署最新版数据库结构。");
         } else {
           setGlobalStatus(`云同步失败：${error.message || "请稍后重试"}`);

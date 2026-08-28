@@ -1,6 +1,5 @@
-import { bindContentFormEvents } from "./content-form-event-bindings.js";
 import { bindMediaEvents } from "./media-event-bindings.js";
-import { bindSettingsEvents } from "./settings-event-bindings.js?v=20260826-001";
+import { bindSettingsEvents } from "./settings-event-bindings.js";
 
 export function bindAppEvents({
   elements,
@@ -63,7 +62,9 @@ export function bindAppEvents({
   const {
     login: loginWithPassword,
     resetEmailRecoveryUi,
+    setMode: setAuthMode,
     signup: signupWithPassword,
+    togglePasswordVisibility,
   } = controllers.auth;
   const { openLevelDialog } = controllers.gamification;
 
@@ -81,11 +82,10 @@ export function bindAppEvents({
     els.recipesPage?.scrollIntoView({ behavior: "smooth", block: "start" });
   });
   els.recipesToolOpen?.addEventListener("click", () => {
-    switchPage("recipes");
+    switchPage("recipes", { restoreScroll: false, focusHeading: false });
     els.recipesPage?.scrollIntoView({ behavior: "smooth", block: "start" });
   });
   els.wishlistNav.addEventListener("click", () => {
-    wishlistHubController.showWishlist();
     switchPage("wishlist");
   });
   els.weekendNav.addEventListener("click", () => switchPage("weekend"));
@@ -94,7 +94,7 @@ export function bindAppEvents({
   els.secretNav?.addEventListener("click", () => switchPage("secret"));
   els.brand?.addEventListener("click", (event) => {
     event.preventDefault();
-    switchPage("gallery");
+    switchPage("gallery", { restoreScroll: false, focusHeading: false });
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
   els.toolDock?.addEventListener("click", handleToolDockClick, true);
@@ -146,11 +146,11 @@ export function bindAppEvents({
   els.weeklyReviewDialog?.addEventListener("click", (event) => {
     if (event.target === els.weeklyReviewDialog) els.weeklyReviewDialog.close();
   });
-  els.secretOpen?.addEventListener("click", () => {
-    if (switchPage("secret")) {
-      els.secretPage?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  });
+    els.secretOpen?.addEventListener("click", () => {
+      void switchPage("secret", { restoreScroll: false, focusHeading: false }).then((opened) => {
+        if (opened) els.secretPage?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
   els.thanksOpen?.addEventListener("click", () => switchPage("thanks"));
   els.secretPinClose?.addEventListener("click", () => els.secretPinDialog?.close());
   els.secretPinDialog?.addEventListener("close", () => {
@@ -177,31 +177,39 @@ export function bindAppEvents({
   });
   els.quickPhoto.addEventListener("click", () => {
     vlogMode.close();
-    switchPage("gallery");
+    switchPage("gallery", { restoreScroll: false, focusHeading: false });
     setUploadExpanded(true);
     els.composer.scrollIntoView({ behavior: "smooth", block: "start" });
   });
   els.quickRecipe.addEventListener("click", () => {
-    switchPage("recipes");
-    setRecipeExpanded(true);
-    els.recipeComposer.scrollIntoView({ behavior: "smooth", block: "start" });
+    void switchPage("recipes", { restoreScroll: false, focusHeading: false }).then((opened) => {
+      if (!opened) return;
+      setRecipeExpanded(true);
+      els.recipeComposer.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   });
   els.quickWish.addEventListener("click", () => {
-    wishlistHubController.showWishlist();
-    switchPage("wishlist");
-    setWishlistExpanded(true);
-    els.wishlistComposer.scrollIntoView({ behavior: "smooth", block: "start" });
+    void switchPage("wishlist", { restoreScroll: false, focusHeading: false }).then((opened) => {
+      if (!opened) return;
+      wishlistHubController.showWishlist();
+      setWishlistExpanded(true);
+      els.wishlistComposer.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   });
     els.quickWeekend.addEventListener("click", () => {
-    switchPage("weekend");
-    setWeekendExpanded(true);
-    els.weekendComposer.scrollIntoView({ behavior: "smooth", block: "start" });
+    void switchPage("weekend", { restoreScroll: false, focusHeading: false }).then((opened) => {
+      if (!opened) return;
+      setWeekendExpanded(true);
+      els.weekendComposer.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   });
   els.overviewLevelButton?.addEventListener("click", openLevelDialog);
   els.xpPanel?.addEventListener("click", openLevelDialog);
   els.saveConfig.addEventListener("click", saveConfig);
   els.loginButton.addEventListener("click", loginWithPassword);
   els.signupButton.addEventListener("click", signupWithPassword);
+  els.authModeToggle?.addEventListener("click", () => setAuthMode());
+  els.passwordToggle?.addEventListener("click", togglePasswordVisibility);
   els.forgotPasswordButton.addEventListener("click", () => {
     els.forgotPasswordForm.reset();
     resetEmailRecoveryUi();
@@ -210,9 +218,15 @@ export function bindAppEvents({
     els.forgotPasswordDialog.showModal();
     els.resetEmailInput?.focus();
   });
-  bindContentFormEvents({ elements, state, controllers });
   bindSettingsEvents({ elements, state, controllers, core });
   bindMediaEvents({ elements, state, pageSize, controllers, vlogMode, core });
-  
-  
+  let contentFormModulePromise = null;
+  return {
+    bindRouteEvents: () => {
+      contentFormModulePromise ||= import("./content-form-event-bindings.js");
+      return contentFormModulePromise.then(({ bindContentFormEvents }) => (
+        bindContentFormEvents({ elements, state, controllers })
+      ));
+    },
+  };
 }

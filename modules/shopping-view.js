@@ -4,6 +4,7 @@ import {
   sortShoppingItems,
 } from "./shopping-domain.js";
 import { renderListIcon } from "./list-icons.js";
+import { captureListFocus, restoreListFocus } from "./list-render-feedback.js";
 
 function formatPrice(value) {
   if (value === null || value === undefined || value === "") return "";
@@ -96,6 +97,8 @@ export function renderShoppingItems({
   canManageItem,
   escapeHtml,
 }) {
+  const focusSnapshot = captureListFocus(listElement);
+  const finishRender = () => restoreListFocus(listElement, focusSnapshot);
   const stats = getShoppingStats(items);
   openCountElement.textContent = String(stats.open);
   doneCountElement.textContent = String(stats.done);
@@ -111,10 +114,12 @@ export function renderShoppingItems({
 
   if (!signedIn) {
     listElement.innerHTML = `<div class="shopping-empty"><span class="shopping-empty-icon" aria-hidden="true">${renderListIcon("bag")}</span><strong>登录后开始记录想买的东西</strong></div>`;
+    finishRender();
     return;
   }
   if (dataState === "loading") {
     listElement.innerHTML = `<div class="shopping-empty"><span class="shopping-empty-icon is-loading" aria-hidden="true">${renderListIcon("loader")}</span><strong>正在读取购物车</strong></div>`;
+    finishRender();
     return;
   }
 
@@ -126,8 +131,10 @@ export function renderShoppingItems({
         : "待购买清单已经完成啦。"
       : "购物车还是空的，把想买的东西放进来吧。";
     listElement.innerHTML = `<div class="shopping-empty"><span class="shopping-empty-icon" aria-hidden="true">${renderListIcon("bag")}</span><strong>${message}</strong><button class="shopping-empty-add" type="button" data-add-shopping>添加商品</button></div>`;
+    finishRender();
     return;
   }
 
   listElement.innerHTML = visibleItems.map((item) => renderCard(item, { canManageItem, escapeHtml })).join("");
+  finishRender();
 }

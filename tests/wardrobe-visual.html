@@ -6,7 +6,7 @@
   <title>衣柜视觉验收</title>
   <link rel="stylesheet" href="../styles.css" />
   <link rel="stylesheet" href="./test-redesign.css" />
-  <link rel="stylesheet" href="../wardrobe.css?v=20260811-007" />
+  <link rel="stylesheet" href="../wardrobe.css" />
   <style>
     body { min-height: 100vh; margin: 0; padding-top: 0 !important; background: var(--bg); }
     .wardrobe-page { display: block; }
@@ -17,15 +17,15 @@
     <section class="wardrobe-page"><div id="wardrobeRoot"></div></section>
   </main>
   <script type="module">
-    import { createWardrobeController } from "../modules/wardrobe.js?v=20260811-004";
+    import { createWardrobeController } from "../modules/wardrobe.js";
 
     const now = new Date().toISOString();
     const images = {
-      wide: { id: "wide", url: "../assets/black-cat-cover.jpg", thumbnailUrl: "../assets/black-cat-cover.jpg", role: "cover", name: "正面" },
-      portrait: { id: "portrait", url: "../assets/anniversary-icon.jpg", thumbnailUrl: "../assets/anniversary-icon.jpg", role: "try-on", name: "试穿" },
-      square: { id: "square", url: "../assets/home-logo.jpg", thumbnailUrl: "../assets/home-logo.jpg", role: "detail", name: "细节" },
-      logo: { id: "logo", url: "../assets/black-cat-logo-source.png", thumbnailUrl: "../assets/black-cat-logo-source.png", role: "back", name: "背面" },
-      food: { id: "food", url: "../assets/food-wheel-icon.png", thumbnailUrl: "../assets/food-wheel-icon.png", role: "side", name: "侧面" },
+      wide: { id: "wide", url: "./assets/generated/black-cat-cover-640.webp", thumbnailUrl: "./assets/generated/black-cat-cover-640.webp", role: "cover", name: "正面" },
+      portrait: { id: "portrait", url: "./assets/generated/anniversary-icon-1x.webp", thumbnailUrl: "./assets/generated/anniversary-icon-1x.webp", role: "try-on", name: "试穿" },
+      square: { id: "square", url: "./assets/generated/home-logo-96.webp", thumbnailUrl: "./assets/generated/home-logo-96.webp", role: "detail", name: "细节" },
+      logo: { id: "logo", url: "../assets-source/black-cat-logo-source.png", thumbnailUrl: "../assets-source/black-cat-logo-source.png", role: "back", name: "背面" },
+      food: { id: "food", url: "./assets/generated/food-wheel-icon-1x.webp", thumbnailUrl: "./assets/generated/food-wheel-icon-1x.webp", role: "side", name: "侧面" },
     };
     let locations = [
       { id: "loc-bedroom", user_id: "owner", name: "卧室衣柜 · 上层", note: "左边第二个收纳盒", sort_order: 0, created_at: now, updated_at: now },
@@ -58,8 +58,8 @@
       repository,
       getSession: () => ({ user: { id: "owner" } }),
       getFamilyMembers: () => [
-        { user_id: "owner", username: "咻蛋", avatar_url: "../assets/black-cat-logo.png" },
-        { user_id: "member", username: "蛋", avatar_url: "../assets/home-logo.jpg" },
+        { user_id: "owner", username: "咻蛋", avatar_url: "./assets/generated/black-cat-logo-112.webp" },
+        { user_id: "member", username: "蛋", avatar_url: "./assets/generated/home-logo-96.webp" },
       ],
       uploadFile: async () => ({ url: images.square.url, thumbnailUrl: images.square.thumbnailUrl, path: "fixture", thumbnailPath: "fixture-thumb" }),
       importUrl: async (url) => ({ url, thumbnailUrl: url, path: "fixture-url" }),

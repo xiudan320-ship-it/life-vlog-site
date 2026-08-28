@@ -1,4 +1,5 @@
 import { escapeHtml } from "./ui-formatters.js";
+import { captureListFocus, pulseListItem, restoreListFocus } from "./list-render-feedback.js";
 
 export function formatRecipeDate(value) {
   return new Intl.DateTimeFormat("zh-CN", {
@@ -38,7 +39,7 @@ function renderRecipeCards(recipes, { getAuthorName, canManageItem }) {
     .map((recipe, index) => {
       const canManage = canManageItem(recipe);
       return `
-        <article class="recipe-card">
+        <article class="recipe-card" data-recipe-id="${escapeHtml(recipe.id)}">
           <div class="recipe-card-head">
             <span>${String(index + 1).padStart(2, "0")}</span>
             ${canManage ? `<div>
@@ -81,14 +82,19 @@ export function renderRecipesView({
   canManageItem,
   onEdit,
   onDelete,
+  updatedId = "",
 }) {
   if (!listElement) return;
+  const focusSnapshot = captureListFocus(listElement);
+  const finishRender = () => restoreListFocus(listElement, focusSnapshot);
   if (!signedIn) {
     listElement.innerHTML = `<div class="empty">登录后可以记录自己的菜谱。</div>`;
+    finishRender();
     return;
   }
   if (!recipes.length) {
     listElement.innerHTML = `<div class="empty">还没有菜谱。先记录一道最近想复刻的菜。</div>`;
+    finishRender();
     return;
   }
   listElement.innerHTML = renderRecipeCards(recipes, { getAuthorName, canManageItem });
@@ -98,4 +104,6 @@ export function renderRecipesView({
   listElement.querySelectorAll("button[data-delete-recipe]").forEach((button) => {
     button.addEventListener("click", () => onDelete(button.dataset.deleteRecipe));
   });
+  finishRender();
+  if (updatedId) pulseListItem(listElement, "data-recipe-id", updatedId);
 }

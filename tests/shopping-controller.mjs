@@ -14,7 +14,7 @@ function createElements() {
   };
 }
 
-function createController({ elements, items, repository, cleanupStoredImagePaths }) {
+function createController({ elements, items, repository, cleanupStoredImagePaths, activeFilter = "open", onSetActiveFilter = () => {} }) {
   let currentItems = items;
   return createShoppingController({
     elements,
@@ -23,8 +23,8 @@ function createController({ elements, items, repository, cleanupStoredImagePaths
     getDatabase: () => ({}),
     getItems: () => currentItems,
     setItems: (next) => { currentItems = next; },
-    getActiveFilter: () => "open",
-    setActiveFilter: () => {},
+    getActiveFilter: () => activeFilter,
+    setActiveFilter: onSetActiveFilter,
     getDataState: () => "ready",
     canSync: () => true,
     canManageItem: () => true,
@@ -39,6 +39,55 @@ function createController({ elements, items, repository, cleanupStoredImagePaths
     showToast: () => {},
   });
 }
+
+test("shopping completion keeps the current filter for consecutive checks", async () => {
+  const elements = createElements();
+  const items = [
+    {
+      id: "item-1",
+      userId: "user-1",
+      name: "先买咖啡",
+      completed: false,
+      createdAt: "2026-08-26T00:00:00.000Z",
+    },
+    {
+      id: "item-2",
+      userId: "user-1",
+      name: "再买面包",
+      completed: false,
+      createdAt: "2026-08-25T00:00:00.000Z",
+    },
+  ];
+  const filterChanges = [];
+  const controller = createController({
+    elements,
+    items,
+    repository: {
+      update: async () => ({
+        data: {
+          id: "item-1",
+          user_id: "user-1",
+          name: "先买咖啡",
+          is_completed: true,
+          completed_at: "2026-08-27T00:00:00.000Z",
+          sort_order: 0,
+          created_at: "2026-08-26T00:00:00.000Z",
+          updated_at: "2026-08-27T00:00:00.000Z",
+        },
+        error: null,
+      }),
+    },
+    cleanupStoredImagePaths: async () => {},
+    onSetActiveFilter: (filter) => filterChanges.push(filter),
+  });
+
+  await controller.toggle("item-1");
+
+  assert.deepEqual(filterChanges, []);
+  assert.match(elements.shoppingList.innerHTML, /再买面包/);
+  assert.doesNotMatch(elements.shoppingList.innerHTML, /先买咖啡/);
+  assert.equal(elements.shoppingStatus.textContent, "已标记为已购买。");
+});
 
 test("shopping deletion renders before a failed R2 cleanup finishes", async () => {
   const elements = createElements();

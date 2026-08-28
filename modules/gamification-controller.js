@@ -14,20 +14,7 @@ import {
   getUpgradeEta as calculateUpgradeEta,
   getVipAdjustedExperience as calculateVipAdjustedExperience,
   getVipExpMultiplier as calculateVipExpMultiplier,
-} from "./gamification-domain.js?v=20260810-003";
-import { buildCultivationArchive } from "./gamification-archive.js";
-import {
-  buildAchievementDetailMarkup,
-  buildAchievementFilterMarkup,
-  buildAchievementGridMarkup,
-  buildCultivationArchiveMarkup,
-  buildExperienceRulesMarkup,
-  buildLevelAchievementMarkup,
-  buildLevelAtlasMarkup,
-  buildLevelLeaderboardMarkup,
-  buildLevelWorkspaceMarkup,
-  getAchievementConditionText as formatAchievementCondition,
-} from "./gamification-view.js";
+} from "./gamification-domain.js";
 import { escapeHtml, getInitial } from "./ui-formatters.js";
 
 export function createGamificationController({
@@ -54,6 +41,22 @@ export function createGamificationController({
   const EXPERIENCE_KEY = keys.experience;
   const TODAY_EXPERIENCE_KEY = keys.todayExperience;
   const VIP_USERS = vipUsers;
+  let dialogView = null;
+  let buildArchive = null;
+  let dialogModulesPromise = null;
+
+  function loadDialogModules() {
+    if (dialogModulesPromise) return dialogModulesPromise;
+    dialogModulesPromise = Promise.all([
+      import("./gamification-archive.js"),
+      import("./gamification-view.js"),
+    ]).then(([archiveModule, viewModule]) => {
+      buildArchive = archiveModule.buildCultivationArchive;
+      dialogView = viewModule;
+      return dialogView;
+    });
+    return dialogModulesPromise;
+  }
   let activeLevelSection = "ranking";
   let achievementFilter = "全部";
 
@@ -407,7 +410,7 @@ export function createGamificationController({
   }
   
   function renderLevelLeaderboard() {
-    return buildLevelLeaderboardMarkup({
+    return dialogView.buildLevelLeaderboardMarkup({
       ranks: getLevelRankProfiles(),
       currentUserId: state.session?.user?.id || "",
       getAvatarUrl: getProfileAvatarUrl,
@@ -417,7 +420,7 @@ export function createGamificationController({
   }
   function getCultivationArchive() {
     const archiveData = getArchiveData();
-    return buildCultivationArchive({
+    return buildArchive({
       ...archiveData,
       currentUserId: state.session?.user?.id || "",
       streak: Math.max(
@@ -429,11 +432,10 @@ export function createGamificationController({
   function renderCultivationArchive() {
     const archive = getCultivationArchive();
     const monthLabel = new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "long" }).format(new Date());
-    return buildCultivationArchiveMarkup(archive, monthLabel);
+    return dialogView.buildCultivationArchiveMarkup(archive, monthLabel);
   }
   function openLevelGuidePage() {
-    activeLevelSection = "atlas";
-    renderLevelDialog();
+    void openLevelDialog({ section: "atlas" });
   }
   
   function closeLevelGuidePage() {
@@ -489,7 +491,7 @@ export function createGamificationController({
   }
   
   function renderLevelAtlasPanel(experience, progress) {
-    return buildLevelAtlasMarkup({
+    return dialogView.buildLevelAtlasMarkup({
       experienceTotal: experience.total,
       progress,
       realms: CULTIVATION_REALMS,
@@ -504,7 +506,7 @@ export function createGamificationController({
   
   function renderExperienceRulesPanel(experience) {
     const nextStreak = getNextLoginStreak(experience);
-    return buildExperienceRulesMarkup({
+    return dialogView.buildExperienceRulesMarkup({
       experience,
       nextStreak,
       streakBonus: getLoginStreakBonusBase(nextStreak),
@@ -513,11 +515,11 @@ export function createGamificationController({
   }
   
   function renderLevelAchievementPanel() {
-    return buildLevelAchievementMarkup(getCultivationArchive().badges);
+    return dialogView.buildLevelAchievementMarkup(getCultivationArchive().badges);
   }
   
   function getAchievementConditionText(badge) {
-    return formatAchievementCondition(badge);
+    return dialogView.getAchievementConditionText(badge);
   }
   function openAchievementDetail(badge) {
     if (!badge) return;
@@ -531,12 +533,12 @@ export function createGamificationController({
       });
       document.body.append(dialog);
     }
-    dialog.innerHTML = buildAchievementDetailMarkup(badge);
+    dialog.innerHTML = dialogView.buildAchievementDetailMarkup(badge);
     dialog.showModal();
   }
   
   function renderLevelDialog() {
-    if (!els.levelDialog) return;
+    if (!els.levelDialog || !dialogView || !buildArchive) return;
     const experience = loadExperience();
     const progress = getExperienceLevel(experience.total);
     const nextStreak = getNextLoginStreak(experience);
@@ -564,7 +566,7 @@ export function createGamificationController({
     } else {
       content = `<section class="level-rank-panel"><div class="level-rank-head"><div><span>Family Ranking</span><strong>家庭修为榜</strong></div><small>共同记录，各自成长</small></div>${renderLevelLeaderboard()}</section>`;
     }
-    els.levelList.innerHTML = buildLevelWorkspaceMarkup({
+    els.levelList.innerHTML = dialogView.buildLevelWorkspaceMarkup({
       sections,
       activeSection: activeLevelSection,
       content,
@@ -587,13 +589,13 @@ export function createGamificationController({
   }
   
   function renderAchievementDialog() {
-    if (!els.achievementGrid) return;
+    if (!els.achievementGrid || !dialogView || !buildArchive) return;
     const badges = getCultivationArchive().badges;
     const unlocked = badges.filter((badge) => badge.unlocked).length;
     const categories = ["全部", "记录", "陪伴", "探索", "料理", "收藏"];
     els.achievementSummary.textContent = `已解锁 ${unlocked} / ${badges.length} · 成就只记录生活，不影响境界强弱。`;
-    els.achievementFilters.innerHTML = buildAchievementFilterMarkup(categories, achievementFilter);
-    els.achievementGrid.innerHTML = buildAchievementGridMarkup(badges, achievementFilter);
+    els.achievementFilters.innerHTML = dialogView.buildAchievementFilterMarkup(categories, achievementFilter);
+    els.achievementGrid.innerHTML = dialogView.buildAchievementGridMarkup(badges, achievementFilter);
     els.achievementFilters.querySelectorAll("[data-achievement-filter]").forEach((button) => {
       button.addEventListener("click", () => {
         achievementFilter = button.dataset.achievementFilter || "全部";
@@ -605,18 +607,22 @@ export function createGamificationController({
     });
   }
   
-  function openAchievementDialog() {
+  async function openAchievementDialog() {
     if (!els.achievementDialog) return;
+    await loadDialogModules();
     achievementFilter = "全部";
     renderAchievementDialog();
     els.achievementDialog.showModal();
   }
   
-  async function openLevelDialog() {
+  async function openLevelDialog({ section = "ranking" } = {}) {
     if (!state.session || !els.levelDialog) return;
-    activeLevelSection = "ranking";
+    activeLevelSection = section;
+    if (!els.levelDialog.open) els.levelDialog.showModal();
+    els.levelList.textContent = "正在打开修为面板…";
+    await loadDialogModules();
+    if (!els.levelDialog.open) return;
     renderLevelDialog();
-    els.levelDialog.showModal();
     // Show the panel immediately. Family ranking is a secondary cloud read and
     // must not make the top-level badge look unresponsive on a slow connection.
     try {

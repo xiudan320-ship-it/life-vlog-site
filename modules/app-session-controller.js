@@ -12,8 +12,19 @@ export function createAppSessionController({
   actions,
   locationTarget = location,
   documentTarget = document,
+  health = null,
 }) {
   const els = elements;
+  let localSessionReady = false;
+
+  function ensureArray(value) {
+    return Array.isArray(value) ? value : [];
+  }
+
+  function renderLoaded(controller, method) {
+    if (!controller?.isLoaded) return;
+    controller.get()?.[method]?.();
+  }
 
   function updateAuthUI() {
     const signedIn = Boolean(state.session);
@@ -33,6 +44,7 @@ export function createAppSessionController({
       persist: false,
       userId: signedIn ? state.session.user.id : null,
     });
+    actions.applyTextScale(actions.loadTextScale(signedIn ? state.session.user.id : "guest"));
     actions.applyMobileFeedLayout(actions.loadMobileFeedLayout(signedIn ? state.session.user.id : "guest"));
     actions.applyMobileSecretLayout(actions.loadMobileSecretLayout(signedIn ? state.session.user.id : "guest"));
     const rechargeTotal = signedIn ? actions.loadRechargeTotal(displayName) : 0;
@@ -60,13 +72,16 @@ export function createAppSessionController({
     els.usernameInput.hidden = signedIn;
     els.passwordInput.hidden = signedIn;
     if (els.inviteCodeInput) els.inviteCodeInput.hidden = signedIn;
+    if (!signedIn) controllers.auth?.resetUi?.();
     els.userPopover.hidden = true;
     els.profileName.textContent = displayName;
     els.avatarInitial.textContent = getInitial(displayName);
     actions.renderAccountAvatar(state.accountProfile.avatarUrl, displayName);
     actions.renderSettingsSummary();
     if (signedIn) {
-      actions.setSelectedThanksColor(state.accountProfile.thanksColor || actions.loadThanksColor(state.session.user.id));
+      if (els.thanksForm) {
+        actions.setSelectedThanksColor(state.accountProfile.thanksColor || actions.loadThanksColor(state.session.user.id));
+      }
       actions.renderExperience(displayName);
     }
     els.vipBadge.hidden = !signedIn;
@@ -76,21 +91,21 @@ export function createAppSessionController({
       : `开通 ${localHomeName} VIP`;
     if (signedIn) actions.renderTopLevelBadge();
     actions.renderVipCenter();
-    state.recipes = signedIn ? actions.loadRecipes() : [];
-    state.wishes = signedIn && !needsAccountSync ? state.wishes : [];
-    state.shoppingItems = signedIn && !needsAccountSync ? state.shoppingItems : [];
-    state.weekendPlans = signedIn ? actions.loadWeekendPlans() : [];
-    state.anniversaries = signedIn ? actions.loadAnniversaries() : [];
+    state.recipes = signedIn && !needsAccountSync ? ensureArray(state.recipes) : [];
+    state.wishes = signedIn && !needsAccountSync ? ensureArray(state.wishes) : [];
+    state.shoppingItems = signedIn && !needsAccountSync ? ensureArray(state.shoppingItems) : [];
+    state.weekendPlans = signedIn ? ensureArray(state.weekendPlans) : [];
+    state.anniversaries = signedIn ? ensureArray(state.anniversaries) : [];
     if (needsAccountSync) photoFavorites.reset("loading");
     else if (!signedIn) photoFavorites.reset();
     state.accountDataState = needsAccountSync ? "loading" : signedIn ? state.accountDataState : "idle";
     actions.renderOverview();
-    actions.renderRecipes();
-    actions.renderWishes();
-    actions.renderShopping();
-    actions.renderWeekendPlans();
+    renderLoaded(controllers.recipe, "render");
+    renderLoaded(controllers.wishlist, "render");
+    renderLoaded(controllers.shopping, "render");
+    renderLoaded(controllers.weekend, "render");
     actions.renderAnniversaries();
-    actions.renderGratitudeNotes();
+    if (els.thanksBoard) actions.renderGratitudeNotes();
     actions.renderFoodWheel();
     actions.switchPage(state.activePage);
     actions.setHint(signedIn ? "" : "输入用户名和密码登录。注册新账号需要 xiudan320 给的邀请码。");
@@ -105,10 +120,6 @@ export function createAppSessionController({
       return;
     }
 
-    if (needsAccountSync) {
-      state.syncedUserId = state.session.user.id;
-      void actions.synchronizeAccountData();
-    }
   }
 
   function resetSignedOutState() {
@@ -122,6 +133,7 @@ export function createAppSessionController({
     state.thanksColorCloudAvailable = false;
     state.gratitudeNotes = [];
     state.secretItems = [];
+    state.secretFolders = [];
     state.secretDefaultFolderId = "";
     actions.closeSecretFolderContextMenu();
     actions.closeSecretAlbumContextMenu();
@@ -132,7 +144,7 @@ export function createAppSessionController({
     state.familyMembers = [];
     state.familyInvitations = [];
     state.familyMemberMap = new Map();
-    controllers.wardrobe.clear();
+    controllers.wardrobe?.get?.()?.clear?.();
     state.photoComments = [];
     state.activeDialogPhoto = null;
     state.cloudSyncInFlight = null;
@@ -144,7 +156,8 @@ export function createAppSessionController({
     };
   }
 
-  async function initialize() {
+  async function initializeLocalSession() {
+    health?.setStartupStage("local-session");
     els.setupToggle.hidden = true;
     els.setupPanel.hidden = true;
     state.cloudDb = backend.createClient();
@@ -157,26 +170,39 @@ export function createAppSessionController({
       state.session = nextSession;
       updateAuthUI();
       actions.renderCachedPhotoFeed(state.session?.user?.id || "public");
-      actions.loadPhotos();
-      if (state.session) {
-        void actions.loadNotifications();
-        void actions.processDiaryUploadQueue();
-        void actions.syncExistingPushSubscription();
-      }
+      if (localSessionReady) void synchronizeRemoteSession();
     });
 
     const { data } = await state.cloudDb.auth.getSession();
     state.session = data.session;
     updateAuthUI();
-    if (state.session) void actions.syncExistingPushSubscription();
     actions.renderCachedPhotoFeed(state.session?.user?.id || "public");
-    await actions.loadPhotos();
-    const params = new URLSearchParams(locationTarget.search);
-    if (params.has("pushPhoto") || params.has("pushType")) void actions.openPushDestination();
     actions.syncMobileComposerPlacement();
-    void actions.processDiaryUploadQueue();
     controllers.lifecycle.start();
+    localSessionReady = true;
+    health?.setStartupStage("local-ready");
+    return state.session;
   }
 
-  return { initialize, updateAuthUI };
+  async function synchronizeRemoteSession() {
+    health?.setStartupStage("remote-sync");
+    const syncTasks = [actions.loadPhotos()];
+    if (state.session) {
+      syncTasks.push(actions.loadNotifications());
+      syncTasks.push(actions.processDiaryUploadQueue());
+      syncTasks.push(actions.syncExistingPushSubscription());
+      if (state.session.user.id !== state.syncedUserId) {
+        state.syncedUserId = state.session.user.id;
+        syncTasks.push(actions.synchronizeAccountData());
+      }
+    }
+    const results = await Promise.allSettled(syncTasks);
+    const rejected = results.find((result) => result.status === "rejected");
+    if (rejected) health?.setSync(rejected.reason?.kind || "unknown", rejected.reason?.status);
+    else if (state.session) health?.setSync("ok", 200);
+    const params = new URLSearchParams(locationTarget.search);
+    if (params.has("pushPhoto") || params.has("pushType")) void actions.openPushDestination();
+  }
+
+  return { initializeLocalSession, synchronizeRemoteSession, updateAuthUI };
 }

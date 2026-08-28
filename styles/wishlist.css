@@ -30,9 +30,15 @@ body:has(#wishlistPage:not([hidden])) .topbar {
 border-bottom-color: var(--lv-border);
 background: color-mix(in srgb, var(--lv-bg), transparent 6%);
 }
+body:has(#wishlistPage:not([hidden])) .brand small {
+color: var(--lv-text-muted);
+}
 body:has(#wishlistPage:not([hidden])) .main-nav {
 border-color: var(--lv-border);
 background: var(--lv-surface);
+}
+body:has(#wishlistPage:not([hidden])) .main-nav button {
+color: var(--lv-text-muted);
 }
 body:has(#wishlistPage:not([hidden])) .main-nav button.active {
 color: var(--lv-on-accent);
@@ -140,6 +146,19 @@ box-shadow: 0 0 0 2px var(--lv-focus);
 color: var(--lv-on-accent);
 background: var(--lv-accent);
 }
+
+@media (min-width: 1180px) {
+  .wishlist-page > .wishlist-page-header,
+  #wishlistContent,
+  #shoppingContent {
+    width: 100%;
+  }
+
+  .wishlist-module-tabs {
+    margin-left: 0;
+  }
+}
+
 #wishlistContent,
 #shoppingContent {
 min-width: 0;
@@ -614,23 +633,6 @@ animation: wishlist-check-pop var(--lv-motion-base) ease-out;
 .wish-card-swipe-actions button:focus-visible {
 outline: 2px solid var(--lv-focus);
 outline-offset: 2px;
-}
-.list-icon {
-display: block;
-width: 24px;
-height: 24px;
-fill: none;
-stroke: currentColor;
-stroke-linecap: round;
-stroke-linejoin: round;
-stroke-width: 1.8;
-}
-.list-icon-inline {
-display: inline-block;
-width: 15px;
-height: 15px;
-margin-left: 2px;
-vertical-align: -2px;
 }
 @keyframes wishlist-check-pop {
 0% { transform: scale(0.84); }

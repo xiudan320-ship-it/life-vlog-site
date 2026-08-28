@@ -6,12 +6,12 @@
 - D1 保存账号、家庭共享、日记、评论、收藏、菜谱、心愿、周末计划、纪念日、留言、通知和秘藏。
 - R2 保存所有图片，以及 Live Photo 的配对视频。
 
-常用命令：
+发布命令：
 
 ```powershell
-$env:CLOUDFLARE_API_TOKEN=(Get-Content -Raw ..\cloudfileToken.txt).Trim()
-pnpm dlx wrangler@latest d1 execute life-vlog-db --file ./schema.d1.sql --remote
-pnpm dlx wrangler@latest deploy
+..\deploy-cloudflare-pages.ps1 -Environment production
 ```
 
-如果新增表或字段，只需要更新 `schema.d1.sql` 并重新执行上面的 D1 命令。
+发布脚本只在当前部署进程内读取 `C:\Users\xiuda\Documents\照片\cloudfileToken.txt`，不会把 token 写入工作区或输出到日志。不要在其他 shell、脚本或文档中复制 token。
+
+数据库结构变更不属于这个前端发布命令的范围；本批不修改数据库、迁移或后端业务逻辑。

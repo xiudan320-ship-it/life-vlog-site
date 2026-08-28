@@ -5,8 +5,12 @@ import {
   isDiaryMotionMedia,
 } from "./media-metadata.js";
 import { escapeHtml, formatDate } from "./ui-formatters.js";
+import { captureListFocus, pulseListItem, restoreListFocus } from "./list-render-feedback.js";
+import { renderListIcon } from "./list-icons.js";
 
 const EAGER_DESKTOP_CARD_COUNT = 4;
+const LAZY_IMAGE_PLACEHOLDER = "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=";
+const motionObservers = new WeakMap();
 
 export function getDiaryGalleryEmptyState({
   search = "",
@@ -30,14 +34,19 @@ export function shouldAutoplayDiaryFeedMedia(
   photoIndex = 0,
   {
     mobile = typeof window !== "undefined" && window.matchMedia("(max-width: 920px)").matches,
+    reducedMotion = typeof window !== "undefined"
+      && typeof window.matchMedia === "function"
+      && window.matchMedia("(prefers-reduced-motion: reduce)").matches,
     connection = typeof navigator !== "undefined"
       ? navigator.connection || navigator.mozConnection || navigator.webkitConnection
       : null,
   } = {}
 ) {
+  if (connection?.saveData) return false;
+  if (reducedMotion) return false;
   if (mobile) return photoIndex < 5;
   if (!connection) return true;
-  if (connection.saveData || connection.type === "cellular") return false;
+  if (connection.type === "cellular") return false;
   if (connection.type === "wifi" || connection.type === "ethernet") return true;
   return !/(^|-)2g$/.test(connection.effectiveType || "");
 }
@@ -63,15 +72,19 @@ export function renderFeedImage(image, altText, photoIndex, imageIndex, { mobile
   const heightAttr = Number.isFinite(height) && height > 0 ? ` height="${Math.round(height)}"` : "";
   const posterUrl = getDiaryMediaPosterUrl(image);
   const motionUrl = getDiaryMediaVideoUrl(image);
-  const videoUrl = shouldAutoplayDiaryFeedMedia(photoIndex, { mobile }) ? motionUrl : "";
+  const shouldActivateMotion = Boolean(motionUrl && shouldAutoplayDiaryFeedMedia(photoIndex, { mobile }));
   const videoPreviewStyle = motionUrl
     ? ' style="width:100%;height:100%;object-fit:contain;background:#080b09;"'
     : "";
 
-  if (videoUrl) {
-    return `<video class="feed-image" src="${escapeHtml(videoUrl)}" poster="${escapeHtml(posterUrl)}" data-full-src="${escapeHtml(posterUrl)}" aria-label="${escapeHtml(altText)}" autoplay muted loop playsinline preload="metadata"${videoPreviewStyle}${widthAttr}${heightAttr}></video>`;
+  if (shouldActivateMotion) {
+    return `<video class="feed-image" poster="${escapeHtml(posterUrl)}" data-motion-src="${escapeHtml(motionUrl)}" data-full-src="${escapeHtml(posterUrl)}" aria-label="${escapeHtml(altText)}" autoplay muted loop playsinline preload="none"${videoPreviewStyle}${widthAttr}${heightAttr}></video>`;
   }
-  return `<img class="feed-image" src="${escapeHtml(image?.thumbnail_url || posterUrl)}" data-full-src="${escapeHtml(posterUrl)}" alt="${escapeHtml(altText)}" loading="${loading}" decoding="async" fetchpriority="${fetchPriority}"${videoPreviewStyle}${widthAttr}${heightAttr} />`;
+  const source = image?.thumbnail_url || posterUrl;
+  const sourceAttributes = loading === "lazy"
+    ? `src="${LAZY_IMAGE_PLACEHOLDER}" data-lazy-src="${escapeHtml(source)}"`
+    : `src="${escapeHtml(source)}"`;
+  return `<img class="feed-image" ${sourceAttributes} data-full-src="${escapeHtml(posterUrl)}" alt="${escapeHtml(altText)}" loading="${loading}" decoding="async" fetchpriority="${fetchPriority}"${videoPreviewStyle}${widthAttr}${heightAttr} />`;
 }
 
 export function renderPhotoMedia(images, title, photoIndex, { mobile = false } = {}) {
@@ -106,6 +119,7 @@ export function renderPhotoMedia(images, title, photoIndex, { mobile = false } =
 
 export function prepareFeedImages(root = document) {
   root.querySelectorAll("img.feed-image, video.feed-image, img.secret-progressive-image").forEach((image) => {
+    if (image.dataset.lazySrc) return;
     const markLoaded = () => {
       image.classList.add("is-loaded");
       image.closest("button")?.classList.add("media-loaded");
@@ -117,6 +131,101 @@ export function prepareFeedImages(root = document) {
     image.addEventListener(image.tagName === "VIDEO" ? "loadeddata" : "load", markLoaded, { once: true });
     image.addEventListener("error", markLoaded, { once: true });
   });
+}
+
+export function hydrateLazyFeedImages(root = document) {
+  const images = [...root.querySelectorAll("img.feed-image[data-lazy-src]")];
+  if (!images.length || !("IntersectionObserver" in window)) return;
+  const observer = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      const image = entry.target;
+      image.src = image.dataset.lazySrc;
+      image.removeAttribute("data-lazy-src");
+      observer.unobserve(image);
+    }
+    prepareFeedImages(root);
+  }, { rootMargin: "240px 0px 360px", threshold: 0.01 });
+  images.forEach((image) => observer.observe(image));
+}
+
+function releaseMotionVideo(video) {
+  if (!video) return;
+  video.pause();
+  video.removeAttribute("src");
+  video.load();
+  video.dataset.motionConsumed = "true";
+  video.dataset.motionState = "released";
+}
+
+function activateMotionVideo(video, state) {
+  const source = video?.dataset.motionSrc;
+  if (!source || video.dataset.motionConsumed === "true" || state.requestedSources.has(source)) return false;
+  if (state.active && state.active !== video) releaseMotionVideo(state.active);
+  state.active = video;
+  state.requestedSources.add(source);
+  video.dataset.motionState = "active";
+  video.src = source;
+  video.load();
+  void video.play().catch(() => {});
+  return true;
+}
+
+export function hydrateMotionFeedVideos(root = document) {
+  const previous = motionObservers.get(root);
+  previous?.observer.disconnect();
+  previous?.cancel?.();
+  if (previous?.state.active) releaseMotionVideo(previous.state.active);
+  motionObservers.delete(root);
+  const videos = [...root.querySelectorAll("video.feed-image[data-motion-src]")];
+  if (!videos.length) {
+    return;
+  }
+  const state = {
+    active: null,
+    requestedSources: previous?.state?.requestedSources || new Set(),
+    visibleVideos: new Set(),
+    intersectionRatios: new Map(),
+    activationToken: 0,
+  };
+  const connection = typeof navigator !== "undefined"
+    ? navigator.connection || navigator.mozConnection || navigator.webkitConnection
+    : null;
+  const reducedMotion = typeof window !== "undefined"
+    && typeof window.matchMedia === "function"
+    && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (connection?.saveData || reducedMotion || !("IntersectionObserver" in window)) return;
+  const scheduleActivation = (video) => {
+    const token = ++state.activationToken;
+    const activate = () => {
+      if (token !== state.activationToken || state.active || video?.isConnected === false) return;
+      activateMotionVideo(video, state);
+    };
+    if (typeof window.requestAnimationFrame === "function") window.requestAnimationFrame(activate);
+    else queueMicrotask(activate);
+  };
+  const observer = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      state.intersectionRatios.set(entry.target, entry.intersectionRatio);
+      if (entry.isIntersecting) state.visibleVideos.add(entry.target);
+      else state.visibleVideos.delete(entry.target);
+    }
+    const activeLeft = state.active && !state.visibleVideos.has(state.active);
+    if (activeLeft) {
+      releaseMotionVideo(state.active);
+      state.active = null;
+    }
+    if (state.active) return;
+    const visible = [...state.visibleVideos]
+      .sort((left, right) => (state.intersectionRatios.get(right) || 0) - (state.intersectionRatios.get(left) || 0))
+      .find((video) => {
+        const source = video?.dataset.motionSrc;
+        return source && video.dataset.motionConsumed !== "true" && !state.requestedSources.has(source);
+      });
+    if (visible) scheduleActivation(visible);
+  }, { rootMargin: "120px 0px 180px", threshold: 0.2 });
+  videos.forEach((video) => observer.observe(video));
+  motionObservers.set(root, { observer, state, cancel: () => { state.activationToken += 1; } });
 }
 
 export function updateReadMoreHints(root = document) {
@@ -158,7 +267,7 @@ function buildPhotoCard(photo, index, options) {
         </button>
       </div>
       <div class="card-actions">
-        ${options.signedIn ? `<button class="favorite-photo ${favorite ? "active" : ""}" type="button" data-favorite-index="${index}" aria-pressed="${String(favorite)}">${favorite ? "♥ 已收藏" : "♡ 收藏"}</button>` : ""}
+        ${options.signedIn ? `<button class="favorite-photo ${favorite ? "active" : ""}" type="button" data-favorite-index="${index}" aria-pressed="${String(favorite)}">${renderListIcon("heart", "ui-icon-inline")} ${favorite ? "已收藏" : "收藏"}</button>` : ""}
         ${canManage ? `<button class="feature-photo ${photo.is_featured ? "active" : ""}" type="button" data-feature-index="${index}">${photo.is_featured ? "取消精选" : "设为精选"}</button>
           <button class="pin-photo ${photo.is_pinned ? "active" : ""}" type="button" data-pin-index="${index}">${photo.is_pinned ? "取消置顶" : "置顶"}</button>
           <button class="edit-photo" type="button" data-edit-index="${index}" title="编辑日记">编辑</button>
@@ -198,11 +307,16 @@ function bindGalleryActions(container, photos, handlers) {
   };
 }
 
-export function renderDiaryGalleryCards({ container, photos = [], initialRender = false, ...options }) {
+export function renderDiaryGalleryCards({ container, photos = [], initialRender = false, updatedPhotoId = "", ...options }) {
   if (!container) return;
+  const focusSnapshot = captureListFocus(container);
   container.innerHTML = photos.map((photo, index) => buildPhotoCard(photo, index, options)).join("");
   bindGalleryActions(container, photos, options.handlers);
   if (initialRender) requestAnimationFrame(() => container.querySelector(".photo-media")?.scrollIntoView());
+  hydrateLazyFeedImages(container);
+  hydrateMotionFeedVideos(container);
   prepareFeedImages(container);
   updateReadMoreHints(container);
+  restoreListFocus(container, focusSnapshot);
+  if (updatedPhotoId) pulseListItem(container, "data-photo-id", updatedPhotoId);
 }

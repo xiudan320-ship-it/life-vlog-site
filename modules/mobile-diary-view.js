@@ -4,6 +4,7 @@ import {
   getDiaryMediaVideoUrl,
 } from "./media-metadata.js";
 import { escapeHtml, formatCommentTime, formatDateTime } from "./ui-formatters.js";
+import { renderListIcon } from "./list-icons.js";
 
 export function createMobileDiaryPage({ documentRef = document, handlers }) {
   const page = documentRef.createElement("section");
@@ -29,6 +30,18 @@ export function createMobileDiaryPage({ documentRef = document, handlers }) {
   page.addEventListener("submit", (event) => {
     if (event.target.matches("[data-mobile-diary-comment-form]")) handlers.submitComment(event);
   });
+  page.addEventListener("input", (event) => {
+    const input = event.target.closest?.("[data-mobile-diary-comment-input]");
+    if (!input) return;
+    handlers.changeCommentDraft?.(input.value);
+    resizeMobileDiaryCommentInput(input);
+  });
+  page.addEventListener("keydown", (event) => {
+    const input = event.target.closest?.("[data-mobile-diary-comment-input]");
+    if (!input || event.key !== "Enter" || (!event.ctrlKey && !event.metaKey)) return;
+    event.preventDefault();
+    handlers.submitComment(event);
+  });
   page.addEventListener("pointerdown", handlers.beginBackSwipe, { passive: true });
   page.addEventListener("pointermove", handlers.moveBackSwipe, { passive: false });
   page.addEventListener("pointerup", handlers.endBackSwipe, { passive: true });
@@ -41,6 +54,15 @@ export function createMobileDiaryPage({ documentRef = document, handlers }) {
   });
   documentRef.body.append(page);
   return page;
+}
+
+export function resizeMobileDiaryCommentInput(input) {
+  if (!input) return;
+  const maxHeight = 220;
+  input.style.height = "auto";
+  const nextHeight = Math.min(Math.max(input.scrollHeight || 0, 92), maxHeight);
+  input.style.height = `${nextHeight}px`;
+  input.style.overflowY = (input.scrollHeight || 0) > maxHeight ? "auto" : "hidden";
 }
 
 export function renderMobileDiaryCommentTree({
@@ -121,7 +143,11 @@ export function buildMobileDiaryPageMarkup({
     <button class="mobile-diary-close" type="button" data-mobile-diary-close aria-label="返回">返回</button>
     <div class="mobile-diary-media">
       ${mediaType === "video"
-        ? `<video class="mobile-diary-video" src="${escapeHtml(getDiaryMediaVideoUrl(image))}" poster="${escapeHtml(getDiaryMediaPosterUrl(image))}" playsinline preload="metadata" aria-label="${escapeHtml(displayTitle || "VLOG 视频")}"></video>`
+        ? `<video class="mobile-diary-video" src="${escapeHtml(getDiaryMediaVideoUrl(image))}" poster="${escapeHtml(getDiaryMediaPosterUrl(image))}" controls playsinline preload="metadata" aria-label="${escapeHtml(displayTitle || "VLOG 视频")}"></video>
+          <div class="media-load-status mobile-diary-video-status" data-mobile-diary-video-status role="status" aria-live="polite" hidden>
+            <span data-media-status-text></span>
+            <button type="button" data-media-retry hidden>重试</button>
+          </div>`
         : `<button class="mobile-diary-image-button" type="button" data-mobile-diary-open-image aria-label="放大查看日记图片">
             ${mediaType === "live"
               ? `<video class="mobile-diary-motion" src="${escapeHtml(getDiaryMediaVideoUrl(image))}" poster="${escapeHtml(getDiaryMediaPosterUrl(image))}" autoplay muted loop playsinline preload="metadata" aria-label="${escapeHtml(displayTitle || "Live Photo")}"></video>`
@@ -152,13 +178,13 @@ export function buildMobileDiaryPageMarkup({
       ${getPlainNote(photo) ? `<p class="mobile-diary-note">${escapeHtml(getPlainNote(photo))}</p>` : ""}
       ${signedIn ? `<div class="mobile-diary-actions" aria-label="日记操作">
         <button class="mobile-diary-action ${favorite ? "is-active" : ""}" type="button" data-mobile-diary-favorite aria-pressed="${favorite}">
-          <span class="mobile-diary-action-mark" aria-hidden="true">${favorite ? "♥" : "♡"}</span>
+          <span class="mobile-diary-action-mark" aria-hidden="true">${renderListIcon("heart")}</span>
           <span>${favorite ? "已收藏" : "收藏"}</span>
         </button>
-        ${canManage ? `<button class="mobile-diary-action" type="button" data-mobile-diary-edit><span class="mobile-diary-action-mark" aria-hidden="true">编</span><span>编辑</span></button>` : ""}
-        ${canAdminCategorize ? `<button class="mobile-diary-action" type="button" data-mobile-diary-admin-category><span class="mobile-diary-action-mark" aria-hidden="true">类</span><span>分类</span></button>` : ""}
-        ${canAdminUnpin ? `<button class="mobile-diary-action" type="button" data-mobile-diary-admin-unpin><span class="mobile-diary-action-mark" aria-hidden="true">顶</span><span>取消置顶</span></button>` : ""}
-        ${canManage ? `<button class="mobile-diary-action danger" type="button" data-mobile-diary-delete><span class="mobile-diary-action-mark" aria-hidden="true">删</span><span>删除</span></button>` : ""}
+        ${canManage ? `<button class="mobile-diary-action" type="button" data-mobile-diary-edit><span class="mobile-diary-action-mark" aria-hidden="true">${renderListIcon("edit")}</span><span>编辑</span></button>` : ""}
+        ${canAdminCategorize ? `<button class="mobile-diary-action" type="button" data-mobile-diary-admin-category><span class="mobile-diary-action-mark" aria-hidden="true">${renderListIcon("settings")}</span><span>分类</span></button>` : ""}
+        ${canAdminUnpin ? `<button class="mobile-diary-action" type="button" data-mobile-diary-admin-unpin><span class="mobile-diary-action-mark" aria-hidden="true">${renderListIcon("pin")}</span><span>取消置顶</span></button>` : ""}
+        ${canManage ? `<button class="mobile-diary-action danger" type="button" data-mobile-diary-delete><span class="mobile-diary-action-mark" aria-hidden="true">${renderListIcon("trash")}</span><span>删除</span></button>` : ""}
       </div>` : ""}
     </article>
     <section class="mobile-diary-comments">
@@ -170,11 +196,12 @@ export function buildMobileDiaryPageMarkup({
       ${canComment ? `<form data-mobile-diary-comment-form>
         <div class="comment-replying" data-mobile-diary-replying hidden>
           <span data-mobile-diary-replying-text></span>
-          <button type="button" data-mobile-diary-cancel-reply aria-label="取消回复">×</button>
+          <button type="button" data-mobile-diary-cancel-reply aria-label="取消回复">${renderListIcon("close", "ui-icon-inline")}</button>
         </div>
-        <input data-mobile-diary-comment-input maxlength="300" required placeholder="给这篇日记留句话" />
-        <button type="submit">发送</button>
-        <p class="status-line" data-mobile-diary-comment-status></p>
+        <label class="sr-only" for="mobileDiaryCommentInput">留言或回复</label>
+        <textarea id="mobileDiaryCommentInput" data-mobile-diary-comment-input rows="3" maxlength="300" required aria-describedby="mobileDiaryCommentStatus" placeholder="给这篇日记留句话"></textarea>
+        <button type="submit" data-mobile-diary-comment-submit>发送</button>
+        <p class="status-line" id="mobileDiaryCommentStatus" data-mobile-diary-comment-status role="status" aria-live="polite"></p>
       </form>` : ""}
     </section>
   `;
@@ -209,4 +236,5 @@ export function refreshMobileDiaryComments({
   if (replyBar) replyBar.hidden = !replyComment;
   if (replyText) replyText.textContent = replyComment ? `正在回复 ${getAuthorName(replyComment.user_id)}` : "";
   if (input) input.placeholder = replyComment ? `回复 ${getAuthorName(replyComment.user_id)}` : "给这篇日记留句话";
+  resizeMobileDiaryCommentInput(input);
 }
