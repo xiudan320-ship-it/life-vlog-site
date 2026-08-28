@@ -251,6 +251,9 @@ async function testRapidNavigationLatestWins(browser) {
     await new Promise((resolveDelay) => setTimeout(resolveDelay, 120));
     await route.continue();
   });
+  await browserContext.addInitScript((session) => {
+    localStorage.setItem("life-vlog-cloudflare-auth", JSON.stringify(session));
+  }, pseudoSession);
   const page = await browserContext.newPage();
   const errors = [];
   page.on("pageerror", (error) => errors.push(`pageerror:${error.message}`));
