@@ -7,6 +7,7 @@ import {
 } from "./account-view.js";
 import { recipeFromCloudRow, wishFromCloudRow } from "./cloud-models.js";
 import { getSettingsSectionIds } from "./settings-section-registry.js";
+import { applySettingsNavigationSemantics } from "./settings-view.js";
 
 export function createFamilySettingsController({
   elements,
@@ -153,40 +154,14 @@ export function createFamilySettingsController({
     const nextSection = allowedSections.includes(sectionId) ? sectionId : "settingsAppearance";
     state.activeSettingsSection = nextSection;
 
-    const settingsNav = els.settingsDialog.querySelector(".settings-sidebar nav");
+    const { mobile: mobileNavigation } = applySettingsNavigationSemantics(els.settingsDialog, nextSection);
     const tabs = [...els.settingsDialog.querySelectorAll("[data-settings-section]")];
-    const mobileNavigation = window.matchMedia?.("(max-width: 700px)").matches || false;
-    tabs.forEach((button) => {
-      const sectionIdForTab = button.dataset.settingsSection;
-      if (!button.id) button.id = `settings-tab-${sectionIdForTab}`;
-      if (mobileNavigation) {
-        button.removeAttribute("role");
-        button.removeAttribute("aria-controls");
-        button.removeAttribute("aria-selected");
-        button.removeAttribute("tabindex");
-      } else {
-        button.setAttribute("role", "tab");
-        button.setAttribute("aria-controls", sectionIdForTab);
-        button.tabIndex = sectionIdForTab === nextSection ? 0 : -1;
-      }
-    });
-    if (settingsNav) {
-      if (mobileNavigation) settingsNav.removeAttribute("role");
-      else settingsNav.setAttribute("role", "tablist");
-    }
     els.settingsDialog.querySelectorAll(".settings-group").forEach((group) => {
       const tab = tabs.find((button) => button.dataset.settingsSection === group.id);
       group.setAttribute("role", "tabpanel");
       if (tab) group.setAttribute("aria-labelledby", tab.id);
       group.hidden = group.id !== nextSection;
     });
-    tabs.forEach((button) => {
-      const active = button.dataset.settingsSection === nextSection;
-      button.classList.toggle("active", active);
-      if (mobileNavigation) button.removeAttribute("aria-selected");
-      else button.setAttribute("aria-selected", String(active));
-    });
-  
     if (nextSection === "settingsTools") renderSettingsToolOrderPanel();
     if (nextSection === "settingsFamily") renderSettingsFamilyPanel();
     if (nextSection === "settingsTools") {

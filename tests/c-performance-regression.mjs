@@ -212,6 +212,37 @@ async function testDynamicDiaryFilters(browser) {
   }
 }
 
+async function testFeedMediaRetryLifecycle(browser) {
+  const result = await openFixturePage({ viewport: { width: 390, height: 844 } });
+  try {
+    const page = result.page;
+    const image = page.locator('[data-photo-id="fixture-photo"] img.feed-image').first();
+    const shell = page.locator('[data-photo-id="fixture-photo"] .feed-media-shell').first();
+    await image.evaluate((element) => {
+      element.dataset.canonicalSrc = "/__fixture-media/retry-fail.jpg";
+      element.src = element.dataset.canonicalSrc;
+    });
+    await page.waitForFunction(
+      () => document.querySelector('[data-photo-id="fixture-photo"] .feed-media-shell')?.dataset.mediaState === "error",
+      null,
+      { timeout: 10000 },
+    );
+    const retry = shell.locator("[data-media-retry]");
+    assert.equal(await retry.isHidden(), false, "first failed image did not expose retry");
+    await retry.click();
+    await page.waitForFunction(
+      () => document.querySelector('[data-photo-id="fixture-photo"] .feed-media-shell')?.dataset.mediaState === "error",
+      null,
+      { timeout: 10000 },
+    );
+    assert.equal(await retry.isHidden(), false, "repeated image failure lost the retry action");
+    assert.equal(await image.evaluate((element) => element.classList.contains("is-loaded")), false);
+    assert.equal(result.errors.length, 0, `repeated image retry page errors: ${result.errors.join(" | ")}`);
+  } finally {
+    await closeFixturePage(result);
+  }
+}
+
 async function openSettingsFromAccount(page) {
   await page.click("#avatarButton");
   await page.click("#accountSettingsButton");
@@ -234,6 +265,21 @@ async function testSettingsRegistryInteractions(browser) {
     await page.click("[data-settings-back]");
     await page.waitForFunction(() => !document.querySelector("#settingsDialog")?.dataset.mobileSettingsSection);
     assert.equal(await page.evaluate(() => document.activeElement?.id), "settings-tab-settingsStorage", "mobile settings back did not restore category focus");
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.waitForFunction(() => (
+      document.querySelector("[data-settings-nav]")?.getAttribute("role") === "tablist"
+      && document.querySelector("#settings-tab-settingsStorage")?.getAttribute("role") === "tab"
+      && document.querySelector("#settings-tab-settingsStorage")?.getAttribute("aria-selected") === "true"
+      && document.querySelector("#settings-tab-settingsStorage")?.getAttribute("tabindex") === "0"
+    ));
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForFunction(() => (
+      document.querySelector("[data-settings-nav]")?.getAttribute("role") === null
+      && document.querySelector("#settings-tab-settingsStorage")?.getAttribute("role") === null
+      && document.querySelector("#settings-tab-settingsStorage")?.getAttribute("tabindex") === null
+      && document.querySelector("#settings-tab-settingsStorage")?.getAttribute("aria-selected") === null
+    ));
   } finally {
     await closeFixturePage(mobile);
   }
@@ -254,6 +300,49 @@ async function testSettingsRegistryInteractions(browser) {
     assert.equal(desktop.errors.length, 0, `settings page errors: ${desktop.errors.join(" | ")}`);
   } finally {
     await closeFixturePage(desktop);
+  }
+}
+
+async function testShoppingDeleteDialogAppearance(browser) {
+  for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 900 }]) {
+    const result = await openFixturePage({ viewport, path: "/?page=wishlist" });
+    try {
+      const page = result.page;
+      await page.click('[data-wishlist-module="shopping"]');
+      await page.waitForSelector("#shoppingContent:not([hidden])");
+      await page.waitForSelector('[data-shopping-id="fixture-shopping"]');
+      await page.click('[data-shopping-menu="fixture-shopping"]');
+      await page.waitForSelector('.shopping-action-dialog[open]');
+      await page.click('[data-shopping-action="delete"]');
+      const dialog = page.locator("dialog.action-confirm-dialog");
+      await dialog.waitFor({ state: "visible" });
+      const layout = await dialog.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        const symbol = element.querySelector(".wish-delete-symbol");
+        const buttons = [...element.querySelectorAll(".wish-delete-actions button")].map((button) => {
+          const buttonRect = button.getBoundingClientRect();
+          return { width: buttonRect.width, height: buttonRect.height };
+        });
+        return {
+          width: rect.width,
+          viewportWidth: window.innerWidth,
+          overflowX: element.scrollWidth > element.clientWidth,
+          hasSvgIcon: Boolean(symbol?.querySelector("svg.list-icon")),
+          symbolText: symbol?.textContent?.trim() || "",
+          buttons,
+        };
+      });
+      assert.ok(layout.width <= Math.min(500, layout.viewportWidth - 20), `shopping delete dialog is too wide: ${JSON.stringify(layout)}`);
+      assert.equal(layout.overflowX, false, `shopping delete dialog overflowed: ${JSON.stringify(layout)}`);
+      assert.equal(layout.hasSvgIcon, true, "shopping delete dialog did not use the shared SVG icon");
+      assert.equal(layout.symbolText, "", "shopping delete dialog retained a structural text glyph");
+      assert.ok(layout.buttons.every(({ width, height }) => width >= 120 && height >= 44), `shopping delete dialog actions are too small: ${JSON.stringify(layout)}`);
+      await dialog.locator('button[value="cancel"]').click();
+      await page.waitForFunction(() => !document.querySelector("dialog.action-confirm-dialog"));
+      assert.equal(result.errors.length, 0, `shopping delete dialog errors: ${result.errors.join(" | ")}`);
+    } finally {
+      await closeFixturePage(result);
+    }
   }
 }
 
@@ -570,7 +659,9 @@ try {
   await testMobileDiaryLazyBoundary(browser);
   await testSecretSyncDoesNotDependOnRouteController(browser);
   await testDynamicDiaryFilters(browser);
+  await testFeedMediaRetryLifecycle(browser);
   await testSettingsRegistryInteractions(browser);
+  await testShoppingDeleteDialogAppearance(browser);
   await testMobileDiaryActionsAndCategoryPicker(browser);
   await testOrdinaryVideoLifecycle(browser);
   await testRapidNavigationLatestWins(browser);

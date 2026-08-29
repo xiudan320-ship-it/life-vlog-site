@@ -11,6 +11,7 @@ import { renderListIcon } from "./list-icons.js";
 const LAZY_IMAGE_PLACEHOLDER = "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=";
 const lazyObservers = new WeakMap();
 const motionObservers = new WeakMap();
+const mediaStateHandlers = new WeakMap();
 
 export function getDiaryGalleryEmptyState({
   search = "",
@@ -126,31 +127,36 @@ export function prepareFeedImages(root = document) {
   root.querySelectorAll("img.feed-image, img.secret-progressive-image").forEach((image) => {
     if (image.dataset.lazySrc) return;
     const shell = image.closest(".feed-media-shell");
-    const markLoaded = () => {
-      image.classList.add("is-loaded");
-      image.closest("button")?.classList.add("media-loaded");
-      image.classList.remove("is-error");
-      if (shell) {
-        shell.dataset.mediaState = "loaded";
-        shell.querySelector("[data-media-error]")?.setAttribute("hidden", "");
-      }
-    };
-    const markError = () => {
-      image.classList.remove("is-loaded");
-      image.classList.add("is-error");
-      image.closest("button")?.classList.remove("media-loaded");
-      if (shell) {
-        shell.dataset.mediaState = "error";
-        shell.querySelector("[data-media-error]")?.removeAttribute("hidden");
-      }
-    };
+    let handlers = mediaStateHandlers.get(image);
+    if (!handlers) {
+      const markLoaded = () => {
+        image.classList.add("is-loaded");
+        image.closest("button")?.classList.add("media-loaded");
+        image.classList.remove("is-error");
+        if (shell) {
+          shell.dataset.mediaState = "loaded";
+          shell.querySelector("[data-media-error]")?.setAttribute("hidden", "");
+        }
+      };
+      const markError = () => {
+        image.classList.remove("is-loaded");
+        image.classList.add("is-error");
+        image.closest("button")?.classList.remove("media-loaded");
+        if (shell) {
+          shell.dataset.mediaState = "error";
+          shell.querySelector("[data-media-error]")?.removeAttribute("hidden");
+        }
+      };
+      handlers = { markLoaded, markError };
+      mediaStateHandlers.set(image, handlers);
+      image.addEventListener("load", markLoaded);
+      image.addEventListener("error", markError);
+    }
     if (image.complete) {
-      if (image.naturalWidth > 0) markLoaded();
-      else markError();
+      if (image.naturalWidth > 0) handlers.markLoaded();
+      else handlers.markError();
       return;
     }
-    image.addEventListener("load", markLoaded, { once: true });
-    image.addEventListener("error", markError, { once: true });
   });
 }
 
@@ -293,9 +299,7 @@ export function retryFeedImage(root = document, photoIndex, imageIndex) {
     shell.dataset.mediaState = "loading";
     shell.querySelector("[data-media-error]")?.setAttribute("hidden", "");
   }
-  const retryUrl = retryCount === 0
-    ? `${canonical}${canonical.includes("?") ? "&" : "?"}media_retry=1`
-    : canonical;
+  const retryUrl = `${canonical}${canonical.includes("?") ? "&" : "?"}media_retry=${retryCount + 1}`;
   image.src = retryUrl;
   return true;
 }

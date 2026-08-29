@@ -1,4 +1,4 @@
-import { hideMobileSettingsSection, showMobileSettingsSection } from "./settings-view.js";
+import { applySettingsNavigationSemantics, hideMobileSettingsSection, showMobileSettingsSection } from "./settings-view.js";
 
 export function bindSettingsEvents({ elements, state, controllers, core }) {
   const els = elements;
@@ -75,6 +75,12 @@ export function bindSettingsEvents({ elements, state, controllers, core }) {
       hideMobileSettingsSection(els.settingsDialog);
     }
   });
+  const syncSettingsNavigationSemantics = () => {
+    applySettingsNavigationSemantics(els.settingsDialog);
+  };
+  const settingsViewport = window.matchMedia?.("(max-width: 700px)");
+  settingsViewport?.addEventListener?.("change", syncSettingsNavigationSemantics);
+  window.addEventListener("resize", syncSettingsNavigationSemantics);
   els.settingsDialog.addEventListener("keydown", (event) => {
     const currentTab = event.target.closest?.("[data-settings-section][role='tab']");
     if (!currentTab || window.matchMedia?.("(max-width: 700px)").matches) return;

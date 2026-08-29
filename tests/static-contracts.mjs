@@ -7,10 +7,10 @@ import { createTextScaleController } from "../modules/text-scale-controller.js";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const read = (file) => readFile(join(root, file), "utf8");
-const [html, app, appRuntime, appRuntimeController, appRuntimeInfrastructure, appRuntimeRoute, appRuntimeStartup, routeContext, sw, index, startup, navigation, vite, headers, settingsTemplate, settingsView] = await Promise.all([
+const [html, app, appRuntime, appRuntimeController, appRuntimeInfrastructure, appRuntimeRoute, appRuntimeStartup, routeContext, sw, index, startup, navigation, vite, headers, settingsTemplate, settingsView, accountDialogs, confirmDialog, confirmStyles] = await Promise.all([
   read("index.html"), read("app.js"), read("modules/app-runtime-assembly.js"), read("modules/app-runtime-controller-assembly.js"), read("modules/app-runtime-infrastructure.js"), read("modules/app-runtime-route-assembly.js"), read("modules/app-runtime-startup.js"), read("modules/app-route-context.js"), read("src/sw.js"), read("index.html"),
   read("modules/app-startup-controller.js"), read("modules/app-navigation-controller.js"),
-  read("vite.config.js"), read("public/_headers"), read("modules/routes/templates/settings.html"), read("modules/settings-view.js"),
+  read("vite.config.js"), read("public/_headers"), read("modules/routes/templates/settings.html"), read("modules/settings-view.js"), read("styles/account-dialogs.css"), read("modules/confirm-dialog.js"), read("styles/confirm-dialog.css"),
 ]);
 const releaseSmoke = await read("tests/release-smoke.mjs");
 const [mediaRuntime, photoDetailRuntime, accountAssembly, secretService, routeLoader, videoLayout] = await Promise.all([
@@ -21,6 +21,8 @@ const [mediaRuntime, photoDetailRuntime, accountAssembly, secretService, routeLo
   read("modules/route-loader.js"),
   read("modules/diary-video-layout.js"),
 ]);
+const diaryFeedController = await read("modules/diary-feed-controller.js");
+const vlogMode = await read("modules/vlog-mode.js");
 const forbiddenUsernameEnv = ["RELEASE", "TEST", "USERNAME"].join("_");
 const forbiddenPasswordEnv = ["RELEASE", "TEST", "PASSWORD"].join("_");
 
@@ -42,6 +44,10 @@ assert.match(sw, /addEventListener\("push"/);
 assert.match(sw, /notificationclick/);
 assert.match(vite, /strategies: "injectManifest"/);
 assert.match(vite, /registerType: "prompt"/);
+assert.match(app, /styles\/confirm-dialog\.css/);
+assert.match(confirmDialog, /renderListIcon\(danger \? "trash" : "alert"\)/);
+assert.match(confirmStyles, /\.action-confirm-dialog/);
+assert.doesNotMatch(accountDialogs, /\.wish-delete-dialog/);
 assert.doesNotMatch(mediaRuntime, /import \{ createPhotoViewerController \} from/);
 assert.match(mediaRuntime, /import\("\.\/photo-viewer-controller\.js"\)/);
 assert.match(photoDetailRuntime, /photo-editor-controller/);
@@ -53,6 +59,9 @@ assert.match(secretService, /repository\.listFolders/);
 assert.match(routeLoader, /isCurrent/);
 assert.match(videoLayout, /autoplay/);
 assert.match(videoLayout, /dataset\.state/);
+assert.match(diaryFeedController, /filterDiaryPhotos\(/);
+assert.doesNotMatch(diaryFeedController, /filterVlogPhotos/);
+assert.doesNotMatch(vlogMode, /filterVlogPhotos/);
 assert.match(appRuntime, /startAppRuntime/);
 assert.match(appRuntimeInfrastructure, /createAppServices/);
 assert.match(appRuntimeRoute, /createRouteLoader/);

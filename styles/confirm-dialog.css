@@ -1,0 +1,191 @@
+.action-confirm-dialog {
+  --confirm-surface: var(--lv-surface, var(--surface));
+  --confirm-surface-raised: var(--lv-surface-raised, var(--surface-soft));
+  --confirm-ink: var(--lv-text, var(--ink));
+  --confirm-muted: var(--lv-text-muted, var(--muted));
+  --confirm-line: var(--lv-border, var(--line));
+  --confirm-danger: var(--lv-danger, var(--coral));
+  --confirm-focus: var(--lv-focus, var(--accent));
+  box-sizing: border-box;
+  width: min(440px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  max-height: min(82dvh, 560px);
+  margin: auto;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--confirm-danger) 36%, var(--confirm-line));
+  border-radius: 22px;
+  background: var(--confirm-surface);
+  color: var(--confirm-ink);
+  box-shadow: 0 24px 72px rgb(0 0 0 / 32%);
+}
+
+.action-confirm-dialog::backdrop {
+  background: rgb(4 7 5 / 68%);
+  backdrop-filter: blur(8px);
+}
+
+.action-confirm-dialog form {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 16px 14px;
+  margin: 0;
+  padding: 24px;
+}
+
+.wish-delete-symbol {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--confirm-danger) 58%, var(--confirm-line));
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--confirm-danger) 12%, var(--confirm-surface));
+  color: var(--confirm-danger);
+}
+
+.wish-delete-symbol .list-icon {
+  width: 23px;
+  height: 23px;
+}
+
+.wish-delete-copy {
+  min-width: 0;
+  align-self: center;
+}
+
+.wish-delete-copy small {
+  display: block;
+  color: var(--confirm-danger);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+}
+
+.wish-delete-copy h2 {
+  margin: 5px 0 7px;
+  color: var(--confirm-ink);
+  font-size: clamp(1.3rem, 4vw, 1.7rem);
+  font-weight: 800;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.wish-delete-copy p {
+  margin: 0;
+  color: var(--confirm-muted);
+  font-size: 0.9rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.wish-delete-actions {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding-top: 2px;
+}
+
+.wish-delete-actions button {
+  min-width: 0;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--confirm-line);
+  border-radius: 12px;
+  background: var(--confirm-surface-raised);
+  color: var(--confirm-ink);
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 750;
+  cursor: pointer;
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, transform 140ms ease;
+}
+
+.wish-delete-actions button:hover {
+  border-color: color-mix(in srgb, var(--confirm-ink) 32%, var(--confirm-line));
+  background: color-mix(in srgb, var(--confirm-ink) 8%, var(--confirm-surface-raised));
+}
+
+.wish-delete-actions button:active {
+  transform: translateY(1px);
+}
+
+.wish-delete-actions button:focus-visible {
+  border-color: var(--confirm-focus);
+  outline: 2px solid var(--confirm-focus);
+  outline-offset: 2px;
+}
+
+.wish-delete-actions .danger {
+  border-color: color-mix(in srgb, var(--confirm-danger) 58%, var(--confirm-line));
+  background: color-mix(in srgb, var(--confirm-danger) 14%, var(--confirm-surface));
+  color: var(--confirm-danger);
+}
+
+.wish-delete-actions .danger:hover {
+  border-color: var(--confirm-danger);
+  background: color-mix(in srgb, var(--confirm-danger) 24%, var(--confirm-surface));
+  color: var(--confirm-danger);
+}
+
+.action-confirm-dialog[data-kind="default"] {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--confirm-line));
+}
+
+.action-confirm-dialog[data-kind="default"] .wish-delete-symbol {
+  border-color: color-mix(in srgb, var(--accent) 58%, var(--confirm-line));
+  background: color-mix(in srgb, var(--accent) 12%, var(--confirm-surface));
+  color: var(--accent);
+}
+
+.action-confirm-dialog[data-kind="default"] .wish-delete-copy small {
+  color: var(--accent);
+}
+
+.action-confirm-dialog .wish-delete-actions .primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink, #10140f);
+}
+
+.action-confirm-dialog .wish-delete-actions .primary:hover {
+  border-color: var(--accent-strong, var(--accent));
+  background: var(--accent-strong, var(--accent));
+}
+
+@media (max-width: 700px) {
+  .action-confirm-dialog {
+    width: calc(100vw - 24px);
+    max-width: calc(100vw - 24px);
+    border-radius: 20px;
+  }
+
+  .action-confirm-dialog form {
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: 14px 12px;
+    padding: 20px;
+  }
+
+  .wish-delete-symbol {
+    width: 44px;
+    height: 44px;
+    border-radius: 13px;
+  }
+
+  .wish-delete-symbol .list-icon {
+    width: 21px;
+    height: 21px;
+  }
+
+  .wish-delete-actions button {
+    min-height: 48px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wish-delete-actions button {
+    transition: none;
+  }
+}

@@ -637,7 +637,6 @@ const {
   observeGalleryMasonry,
   getPhotoSearchText,
   updateDiarySearchSuggestions,
-  filterPhotosBySearch,
   updateDiarySearchUi,
   isPhotoWithinSevenDays,
   togglePhotoFlag,

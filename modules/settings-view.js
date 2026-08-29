@@ -84,12 +84,25 @@ export function renderSettingsShell(root) {
   nav.innerHTML = renderSettingsNavigation();
   content.innerHTML = `<div class="settings-mobile-header" data-settings-mobile-header hidden><button type="button" data-settings-back aria-label="返回设置分类">${renderListIcon("back")}<span>设置分类</span></button><h3 data-settings-mobile-title>外观与使用</h3></div>${renderSettingsGroups()}`;
   root.dataset.settingsViewReady = "true";
-  applySettingsNavigationSemantics(root);
+  applySettingsNavigationSemantics(root, SETTINGS_SECTION_REGISTRY[0].id);
 }
 
-export function applySettingsNavigationSemantics(root) {
+export function applySettingsNavigationSemantics(root, activeSection = "") {
   const mobile = root?.ownerDocument?.defaultView?.matchMedia?.("(max-width: 700px)").matches || false;
-  root?.querySelectorAll("[data-settings-section]").forEach((button) => {
+  const tabs = [...(root?.querySelectorAll("[data-settings-section]") || [])];
+  const selectedSection = activeSection
+    || tabs.find((button) => button.classList.contains("active"))?.dataset.settingsSection
+    || tabs.find((button) => button.getAttribute("aria-selected") === "true")?.dataset.settingsSection
+    || tabs[0]?.dataset.settingsSection
+    || "";
+  const settingsNav = root?.querySelector("[data-settings-nav]");
+  if (settingsNav) {
+    if (mobile) settingsNav.removeAttribute("role");
+    else settingsNav.setAttribute("role", "tablist");
+  }
+  tabs.forEach((button) => {
+    const sectionId = button.dataset.settingsSection;
+    if (!button.id) button.id = `settings-tab-${sectionId}`;
     if (mobile) {
       button.removeAttribute("role");
       button.removeAttribute("aria-controls");
@@ -97,9 +110,13 @@ export function applySettingsNavigationSemantics(root) {
       button.removeAttribute("tabindex");
     } else {
       button.setAttribute("role", "tab");
-      button.setAttribute("aria-controls", button.dataset.settingsSection);
+      button.setAttribute("aria-controls", sectionId);
+      button.tabIndex = sectionId === selectedSection ? 0 : -1;
+      button.setAttribute("aria-selected", String(sectionId === selectedSection));
     }
+    button.classList.toggle("active", sectionId === selectedSection);
   });
+  return { mobile, selectedSection };
 }
 
 export function showMobileSettingsSection(root, sectionId) {

@@ -1,11 +1,10 @@
 import {
   getDiaryFilterOptions,
-  filterDiaryEntries,
+  filterDiaryPhotos,
   isDiaryWithinDays,
   normalizeDiarySearchText,
   sortDiaryEntries,
 } from "./diary-domain.js";
-import { filterVlogPhotos } from "./vlog-mode.js";
 import { normalizeDiaryMediaImages } from "./diary-media-domain.js";
 import {
   getDiaryGalleryEmptyState,
@@ -490,13 +489,13 @@ export function createDiaryFeedController({
     renderOverview();
     updateTodayPostsNotice();
     const sortedPhotos = getSortedPhotos(state.photos);
-    const categoryFiltered = filterVlogPhotos(
-      sortedPhotos,
-      state.activeFilter,
-      isFavoritePhoto,
-      isPhotoWithinSevenDays
-    );
-    const filtered = filterPhotosBySearch(categoryFiltered);
+    const filtered = filterDiaryPhotos(sortedPhotos, {
+      filter: state.activeFilter,
+      query: state.diarySearchQuery,
+      isFavorite: isFavoritePhoto,
+      isWithinSevenDays: isPhotoWithinSevenDays,
+      getSearchText: getPhotoSearchText,
+    });
   
     state.filteredPhotoCount = filtered.length;
     state.visiblePhotoCount = Math.min(
@@ -692,10 +691,6 @@ export function createDiaryFeedController({
       if (date) values.add(date);
     });
     list.innerHTML = [...values].slice(0, 100).map((value) => `<option value="${escapeHtml(value)}"></option>`).join("");
-  }
-  
-  function filterPhotosBySearch(photoList) {
-    return filterDiaryEntries(photoList, state.diarySearchQuery, getPhotoSearchText);
   }
   
   function updateDiarySearchUi() {
@@ -927,7 +922,6 @@ export function createDiaryFeedController({
     observeGalleryMasonry,
     getPhotoSearchText,
     updateDiarySearchSuggestions,
-    filterPhotosBySearch,
     updateDiarySearchUi,
     isPhotoWithinSevenDays,
     togglePhotoFlag,
