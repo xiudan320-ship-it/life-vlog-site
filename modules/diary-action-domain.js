@@ -32,7 +32,7 @@ export function getDiaryActionModel({
       : null;
   const more = [];
   if (isPinned && isAdmin) more.push(action("unpin"));
-  if (isOwner) more.push(action("delete", { danger: true }));
+  if (isOwner || isAdmin) more.push(action("delete", { danger: true }));
 
   return Object.freeze({
     favorite,

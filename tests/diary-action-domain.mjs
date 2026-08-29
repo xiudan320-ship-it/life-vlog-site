@@ -9,10 +9,10 @@ test("owner actions keep favorite and edit primary while moving destructive work
   assert.equal(model.more.at(-1).danger, true);
 });
 
-test("admin viewing another member gets category as the only primary action", () => {
+test("admin viewing another member gets category primary and delete in more", () => {
   const model = getDiaryActionModel({ signedIn: true, isAdmin: true, isPinned: true });
-  assert.deepEqual(getDiaryActionIds(model), ["favorite", "category", "unpin"]);
-  assert.equal(model.more.some((item) => item.id === "delete"), false);
+  assert.deepEqual(getDiaryActionIds(model), ["favorite", "category", "unpin", "delete"]);
+  assert.equal(model.more.find((item) => item.id === "delete")?.danger, true);
 });
 
 test("ordinary signed-in member cannot see management actions", () => {

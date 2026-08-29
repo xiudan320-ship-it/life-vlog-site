@@ -460,9 +460,30 @@ async function testMobileDiaryActionsAndCategoryPicker(browser) {
     await page.waitForFunction(() => !document.querySelector("#adminCategoryDialog")?.open);
     await page.waitForFunction(() => document.querySelector(".mobile-diary-meta")?.textContent.includes("食物"));
     assert.equal(await page.evaluate(() => document.activeElement?.matches("[data-mobile-diary-admin-category]")), true, "category picker did not restore focus after rerender");
+    await page.click("[data-mobile-diary-more]");
+    await page.waitForSelector('[data-mobile-diary-more-sheet][open] [data-mobile-diary-more-action="delete"]');
+    await page.click('[data-mobile-diary-more-action="delete"]');
+    await page.locator('dialog.action-confirm-dialog button[value="confirm"]').click();
+    await page.waitForFunction(() => !document.querySelector('[data-photo-id="fixture-admin-photo"]'));
+    await page.waitForFunction(() => !document.body.classList.contains("mobile-diary-page-open"));
+    assert.equal(admin.fixture.writes.some(({ path, action }) => path === "/api/rpc/admin_delete_photo" && action === "admin_delete_photo"), true, "admin diary deletion did not use the administrator RPC");
     assert.equal(admin.errors.length, 0, `category picker page errors: ${admin.errors.join(" | ")}`);
   } finally {
     await closeFixturePage(admin);
+  }
+
+  const adminDesktop = await openFixturePage({ viewport: { width: 1440, height: 900 }, session: adminPseudoSession });
+  try {
+    const page = adminDesktop.page;
+    const deleteButton = page.locator('[data-photo-id="fixture-admin-photo"] [data-delete-index]');
+    assert.equal(await deleteButton.count(), 1, "desktop administrator cannot see the diary delete action");
+    await deleteButton.click();
+    await page.locator('dialog.action-confirm-dialog button[value="confirm"]').click();
+    await page.waitForFunction(() => !document.querySelector('[data-photo-id="fixture-admin-photo"]'));
+    assert.equal(adminDesktop.fixture.writes.some(({ path, action }) => path === "/api/rpc/admin_delete_photo" && action === "admin_delete_photo"), true, "desktop administrator deletion did not use the administrator RPC");
+    assert.deepEqual(adminDesktop.errors, [], `desktop administrator deletion errors: ${adminDesktop.errors.join(" | ")}`);
+  } finally {
+    await closeFixturePage(adminDesktop);
   }
 }
 

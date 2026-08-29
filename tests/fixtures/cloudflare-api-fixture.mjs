@@ -318,6 +318,20 @@ export function createCloudflareApiFixture({ scenario = "ok", delayMs = 0 } = {}
     }
     if (url.pathname.startsWith("/api/rpc/")) {
       const name = decodeURIComponent(url.pathname.replace("/api/rpc/", ""));
+      if (name === "admin_delete_photo") {
+        const payload = request.postDataJSON() || {};
+        const photoId = String(payload.p_photo_id || payload.photo_id || "");
+        const photos = rowsFor("photos", tables);
+        const index = photos.findIndex((row) => row.id === photoId);
+        const removed = index >= 0 ? photos.splice(index, 1)[0] : null;
+        if (removed) {
+          const comments = rowsFor("photo_comments", tables).filter((row) => row.photo_id !== photoId);
+          tables.set("photo_comments", comments);
+        }
+        writes.push({ path: url.pathname, action: name });
+        await route.fulfill(jsonResponse(request, { data: removed ? [removed] : [] }));
+        return;
+      }
       if (name === "get_my_notifications") await route.fulfill(jsonResponse(request, { data: [] }));
       else await route.fulfill(jsonResponse(request, { data: [] }));
       return;

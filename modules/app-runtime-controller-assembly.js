@@ -961,6 +961,7 @@ const featureRuntime = createFeatureControllerAssembly({
     getSessionDisplayName,
     getUploadFileNameBase,
     getSortedPhotos,
+    isAdmin: isAdminAccount,
     isMissingCloudSchema,
     loadCachedAvatarUrl,
     loadFamilyLevelProfiles,

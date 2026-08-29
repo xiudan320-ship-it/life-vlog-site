@@ -346,8 +346,8 @@ function buildPhotoCard(photo, index, options) {
         ${options.signedIn ? `<button class="favorite-photo ${favorite ? "active" : ""}" type="button" data-favorite-index="${index}" aria-pressed="${String(favorite)}">${renderListIcon("heart", "ui-icon-inline")} ${favorite ? "已收藏" : "收藏"}</button>` : ""}
         ${canManage ? `<button class="feature-photo ${photo.is_featured ? "active" : ""}" type="button" data-feature-index="${index}">${photo.is_featured ? "取消精选" : "设为精选"}</button>
           <button class="pin-photo ${photo.is_pinned ? "active" : ""}" type="button" data-pin-index="${index}">${photo.is_pinned ? "取消置顶" : "置顶"}</button>
-          <button class="edit-photo" type="button" data-edit-index="${index}" title="编辑日记">编辑</button>
-          <button class="delete-photo" type="button" data-delete-index="${index}" title="删除日记">删除</button>` : ""}
+          <button class="edit-photo" type="button" data-edit-index="${index}" title="编辑日记">编辑</button>` : ""}
+        ${options.signedIn && (canManage || options.admin) ? `<button class="delete-photo" type="button" data-delete-index="${index}" title="删除日记">删除</button>` : ""}
         ${canAdminCategorize ? `<button class="edit-photo" type="button" data-admin-category-index="${index}" title="管理员修改分类">修改分类</button>` : ""}
         ${canAdminUnpin ? `<button class="pin-photo active admin-unpin-photo" type="button" data-admin-unpin-index="${index}" title="管理员取消置顶">取消置顶</button>` : ""}
       </div>

@@ -1379,6 +1379,32 @@ async function permanentlyDeleteTrashItem(request, env, user, payload) {
   return jsonResponse(request, env, { data: true });
 }
 
+async function adminDeletePhoto(request, env, user, payload) {
+  if (!(await isFamilyAdministrator(env, user))) {
+    return jsonResponse(request, env, { error: "Only the family administrator can delete diaries." }, 403);
+  }
+  const photoId = String(payload.p_photo_id || payload.photo_id || "").trim();
+  if (!photoId) return jsonResponse(request, env, { error: "Photo ID is required." }, 400);
+
+  const familyUserIds = await getFamilyUserIds(env, user.id);
+  const placeholders = familyUserIds.map(() => "?").join(",");
+  const target = await env.DB.prepare(
+    `select * from photos where id=? and user_id in (${placeholders}) limit 1`
+  )
+    .bind(photoId, ...familyUserIds)
+    .first();
+  if (!target) return jsonResponse(request, env, { data: [] });
+
+  await env.DB.prepare(
+    `delete from photos where id=? and user_id in (${placeholders})`
+  )
+    .bind(photoId, ...familyUserIds)
+    .run();
+  return jsonResponse(request, env, {
+    data: [denormalizeRow("photos", target)],
+  });
+}
+
 async function handleRpc(request, env, user, name) {
   const dbError = requireDb(request, env);
   if (dbError) return dbError;
@@ -1398,6 +1424,10 @@ async function handleRpc(request, env, user, name) {
 
   if (name === "permanently_delete_trash_item") {
     return permanentlyDeleteTrashItem(request, env, user, payload);
+  }
+
+  if (name === "admin_delete_photo") {
+    return adminDeletePhoto(request, env, user, payload);
   }
 
   if (name === "get_my_family_members") {
@@ -1705,6 +1735,11 @@ async function getFamilyContext(env, userId) {
 async function isFamilyOwner(env, userId) {
   const family = await getFamilyContext(env, userId);
   return Boolean(family?.owner_id && String(family.owner_id) === String(userId));
+}
+
+async function isFamilyAdministrator(env, user) {
+  const namedAdmin = String(user?.username || "").trim().toLowerCase() === "xiudan320";
+  return namedAdmin || (Boolean(user?.id) && await isFamilyOwner(env, user.id));
 }
 
 async function getR2StorageUsage(env) {
