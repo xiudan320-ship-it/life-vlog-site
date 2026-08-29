@@ -97,12 +97,39 @@
 }
 
 @media (max-width: 700px) {
+  .settings-dialog.settings-dialog[open] {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    box-sizing: border-box;
+    width: calc(100vw - 24px);
+    max-width: calc(100vw - 24px);
+    height: min(720px, calc(100dvh - 24px));
+    max-height: calc(100dvh - 24px);
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    border-radius: 14px;
+  }
+
+  .settings-dialog > .dialog-close {
+    top: 12px;
+    right: 12px;
+    left: auto;
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+  }
+
   .settings-dialog .settings-sidebar {
+    grid-column: 1;
+    width: 100%;
+    box-sizing: border-box;
     min-height: 0;
     overflow: auto;
     border-right: 0;
     border-bottom: 0;
-    padding: calc(76px + env(safe-area-inset-top)) 16px 20px;
+    padding: calc(80px + env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom));
   }
 
   .settings-dialog .settings-sidebar > .kicker,
@@ -111,6 +138,8 @@
   }
 
   .settings-dialog .settings-sidebar nav {
+    width: 100%;
+    min-width: 0;
     display: grid;
     gap: 8px;
     margin-top: 0;
@@ -121,13 +150,24 @@
   .settings-dialog .settings-sidebar button {
     width: 100%;
     min-height: 56px;
+    min-width: 0;
     padding: 0 12px;
   }
 
+  .settings-dialog .settings-sidebar button:hover:not(.active) {
+    background: transparent;
+  }
+
   .settings-dialog .settings-content {
+    grid-column: 1;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
     display: none;
     min-height: 0;
-    padding: 14px 16px calc(28px + env(safe-area-inset-bottom));
+    min-width: 0;
+    overflow-x: hidden;
+    padding: 0 16px calc(28px + env(safe-area-inset-bottom));
   }
 
   .settings-dialog[data-mobile-settings-section] .settings-sidebar {
@@ -135,16 +175,70 @@
   }
 
   .settings-dialog[data-mobile-settings-section] .settings-content {
-    display: grid;
-    grid-template-rows: auto minmax(0, 1fr);
+    display: block;
+    overflow-y: auto;
   }
 
   .settings-dialog[data-mobile-settings-section] .settings-mobile-header {
     display: flex;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    box-sizing: border-box;
+    min-width: 0;
+    min-height: 56px;
+    margin: 0 0 20px;
+    padding: calc(72px + env(safe-area-inset-top)) 0 12px;
+    background: var(--surface);
   }
 
   .settings-dialog .settings-group h3 {
     font-size: 24px;
+  }
+
+  .settings-dialog[data-mobile-settings-section] .settings-group > h3 {
+    display: none;
+  }
+
+  .settings-dialog .settings-group,
+  .settings-dialog .settings-group > *,
+  .settings-dialog .settings-secondary-card {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .settings-dialog .settings-group button {
+    min-width: 0;
+  }
+
+  .settings-dialog .settings-group button strong {
+    min-width: 0;
+    max-width: 58%;
+  }
+
+  .settings-dialog .settings-group button strong em {
+    max-width: 100%;
+  }
+
+  .settings-dialog .settings-inline-control,
+  .settings-dialog .settings-install-card,
+  .settings-dialog .settings-performance-card {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .settings-dialog .settings-inline-control > span,
+  .settings-dialog .settings-install-card > div,
+  .settings-dialog .settings-performance-card > div:first-child {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .settings-dialog .text-scale-options,
+  .settings-dialog .settings-install-card button,
+  .settings-dialog .settings-performance-card > div:last-child {
+    max-width: 100%;
   }
 
   .settings-secondary-card {

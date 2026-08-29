@@ -256,12 +256,76 @@ async function testSettingsRegistryInteractions(browser) {
     await openSettingsFromAccount(page);
     assert.equal(await page.locator("#settingsDialog [data-settings-section]").count(), 5);
     assert.equal(await page.locator("[data-settings-nav]").getAttribute("role"), null, "mobile settings retained tablist semantics");
+
+    const initialLayout = await page.evaluate(() => {
+      const dialog = document.querySelector("#settingsDialog");
+      const sidebar = dialog?.querySelector(".settings-sidebar");
+      const content = dialog?.querySelector(".settings-content");
+      const close = dialog?.querySelector(":scope > .dialog-close");
+      const rect = (element) => {
+        if (!element) return null;
+        const box = element.getBoundingClientRect();
+        return { width: box.width, right: box.right, bottom: box.bottom };
+      };
+      return {
+        viewportWidth: window.innerWidth,
+        documentWidth: document.documentElement.scrollWidth,
+        dialog: rect(dialog),
+        sidebar: rect(sidebar),
+        content: rect(content),
+        close: rect(close),
+        sidebarDisplay: sidebar ? getComputedStyle(sidebar).display : "none",
+        contentDisplay: content ? getComputedStyle(content).display : "none",
+      };
+    });
+    assert.ok(initialLayout.dialog?.width <= initialLayout.viewportWidth, "mobile settings dialog exceeded the viewport");
+    assert.ok(initialLayout.documentWidth <= initialLayout.viewportWidth, "mobile settings created horizontal overflow");
+    assert.equal(initialLayout.sidebarDisplay, "grid", "mobile settings category list is not visible");
+    assert.equal(initialLayout.contentDisplay, "none", "mobile settings opened a hidden child panel");
+    assert.ok(initialLayout.sidebar?.right <= initialLayout.dialog?.right + 1, "mobile settings category list overflowed its dialog");
+    assert.ok(initialLayout.close?.bottom < initialLayout.sidebar?.bottom, "mobile settings close control is not in the dialog");
+
     await page.click("#settings-tab-settingsStorage");
     await page.waitForSelector('#settingsDialog[data-mobile-settings-section="settingsStorage"]');
     assert.equal(await page.locator(".settings-sidebar").isVisible(), false);
     assert.equal(await page.locator("#settingsStorage").isVisible(), true);
     assert.equal(await page.locator("#settingsStorage [data-performance-copy]").count(), 1);
     assert.equal(await page.locator("#settingsStorage [data-run-diagnostics]").count(), 1);
+    const childLayout = await page.evaluate(() => {
+      const dialog = document.querySelector("#settingsDialog");
+      const content = dialog?.querySelector(".settings-content");
+      const header = dialog?.querySelector(".settings-mobile-header");
+      const close = dialog?.querySelector(":scope > .dialog-close");
+      const heading = header?.querySelector("h3");
+      const back = header?.querySelector("[data-settings-back]");
+      const rect = (element) => {
+        if (!element) return null;
+        const box = element.getBoundingClientRect();
+        return { top: box.top, right: box.right, bottom: box.bottom, width: box.width };
+      };
+      return {
+        viewportWidth: window.innerWidth,
+        documentWidth: document.documentElement.scrollWidth,
+        dialog: rect(dialog),
+        content: rect(content),
+        header: rect(header),
+        heading: rect(heading),
+        back: rect(back),
+        close: rect(close),
+        contentDisplay: content ? getComputedStyle(content).display : "none",
+        headerDisplay: header ? getComputedStyle(header).display : "none",
+        contentClientWidth: content?.clientWidth || 0,
+        contentScrollWidth: content?.scrollWidth || 0,
+      };
+    });
+    assert.ok(childLayout.dialog?.width <= childLayout.viewportWidth, "mobile settings child dialog exceeded the viewport");
+    assert.ok(childLayout.documentWidth <= childLayout.viewportWidth, "mobile settings child panel created horizontal overflow");
+    assert.equal(childLayout.contentDisplay, "block", "mobile settings child content did not fill the dialog");
+    assert.equal(childLayout.headerDisplay, "flex", "mobile settings child header is not visible");
+    assert.ok(childLayout.content?.width > 300, "mobile settings child content was squeezed into a desktop grid column");
+    assert.ok(childLayout.contentScrollWidth <= childLayout.contentClientWidth + 1, "mobile settings child content overflowed horizontally");
+    assert.ok(childLayout.heading?.top >= childLayout.close?.bottom - 1, "mobile settings child title is covered by the close control");
+    assert.ok(childLayout.back?.top >= childLayout.close?.bottom - 1, "mobile settings back control is covered by the close control");
     await page.click("[data-settings-back]");
     await page.waitForFunction(() => !document.querySelector("#settingsDialog")?.dataset.mobileSettingsSection);
     assert.equal(await page.evaluate(() => document.activeElement?.id), "settings-tab-settingsStorage", "mobile settings back did not restore category focus");

@@ -661,31 +661,6 @@
 }
 
 @media (max-width: 700px) {
-  .settings-dialog .settings-sidebar {
-    min-height: 112px;
-    padding: 12px 14px 10px;
-  }
-
-  .settings-dialog .settings-sidebar > .kicker,
-  .settings-dialog .settings-sidebar > h2 {
-    display: none;
-  }
-
-  .settings-dialog .settings-sidebar nav {
-    margin-top: 54px;
-  }
-
-  .settings-dialog > .dialog-close {
-    top: 10px;
-    left: 14px;
-    width: 42px;
-    height: 42px;
-  }
-
-  .settings-dialog .settings-content {
-    padding-top: 14px;
-  }
-
   #settingsTools .settings-tool-order {
     gap: 4px;
   }
