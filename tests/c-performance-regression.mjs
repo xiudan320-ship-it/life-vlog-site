@@ -432,11 +432,28 @@ async function testMobileDiaryActionsAndCategoryPicker(browser) {
       return [rect.width, rect.height];
     }));
     assert.ok(sizes.every(([width, height]) => width >= 44 && height >= 44), `mobile diary action target is too small: ${JSON.stringify(sizes)}`);
+    const actionLayout = await page.locator(".mobile-diary-actions").evaluate((container) => ({
+      display: getComputedStyle(container).display,
+      buttons: [...container.querySelectorAll("button")].map((button) => {
+        const rect = button.getBoundingClientRect();
+        return { display: getComputedStyle(button).display, width: rect.width, height: rect.height };
+      }),
+    }));
+    assert.equal(actionLayout.display, "grid", "mobile diary action layout CSS was not loaded with the gallery route");
+    assert.ok(actionLayout.buttons.every(({ display, width, height }) => display === "flex" && width >= 100 && height >= 44), `mobile diary action layout is misaligned: ${JSON.stringify(actionLayout)}`);
     const more = page.locator("[data-mobile-diary-more]");
     await more.click();
     await page.waitForSelector("[data-mobile-diary-more-sheet][open]");
     assert.equal(await page.locator("[data-mobile-diary-more-sheet] .mobile-diary-more-divider").count(), 1);
     assert.equal(await page.locator("[data-mobile-diary-more-sheet] button.danger").count(), 1);
+    const sheetLayout = await page.locator("[data-mobile-diary-more-sheet]").evaluate((sheet) => ({
+      contentDisplay: getComputedStyle(sheet.querySelector(".mobile-diary-more-content")).display,
+      actionDisplay: getComputedStyle(sheet.querySelector("button")).display,
+      actionWidth: sheet.querySelector("button").getBoundingClientRect().width,
+      actionHeight: sheet.querySelector("button").getBoundingClientRect().height,
+    }));
+    assert.equal(sheetLayout.contentDisplay, "grid", "mobile diary more sheet content CSS was not loaded with the gallery route");
+    assert.ok(sheetLayout.actionDisplay === "flex" && sheetLayout.actionWidth >= 300 && sheetLayout.actionHeight >= 48, `mobile diary more sheet is misaligned: ${JSON.stringify(sheetLayout)}`);
     await page.keyboard.press("Escape");
     await page.waitForFunction(() => !document.querySelector("[data-mobile-diary-more-sheet]")?.open);
     assert.equal(await page.evaluate(() => document.activeElement?.matches("[data-mobile-diary-more]")), true, "more sheet did not restore trigger focus");

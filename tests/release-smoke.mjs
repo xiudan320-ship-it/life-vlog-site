@@ -272,8 +272,25 @@ async function testFilterSettingsAndActions(browser) {
     await page.locator('[data-photo-id="fixture-photo"] .photo-media button:not([data-media-retry])').click();
     await page.waitForSelector("body.mobile-diary-page-open");
     assert.equal(await page.locator(".mobile-diary-actions > button").count(), 3);
+    const actionLayout = await page.locator(".mobile-diary-actions").evaluate((container) => ({
+      display: getComputedStyle(container).display,
+      buttons: [...container.querySelectorAll("button")].map((button) => {
+        const rect = button.getBoundingClientRect();
+        return { display: getComputedStyle(button).display, width: rect.width, height: rect.height };
+      }),
+    }));
+    assert.equal(actionLayout.display, "grid", "release mobile diary action layout CSS is missing");
+    assert.ok(actionLayout.buttons.every(({ display, width, height }) => display === "flex" && width >= 100 && height >= 44), `release mobile diary action layout is misaligned: ${JSON.stringify(actionLayout)}`);
     await page.click("[data-mobile-diary-more]");
     await page.waitForSelector("[data-mobile-diary-more-sheet][open]");
+    const sheetLayout = await page.locator("[data-mobile-diary-more-sheet]").evaluate((sheet) => ({
+      contentDisplay: getComputedStyle(sheet.querySelector(".mobile-diary-more-content")).display,
+      actionDisplay: getComputedStyle(sheet.querySelector("button")).display,
+      actionWidth: sheet.querySelector("button").getBoundingClientRect().width,
+      actionHeight: sheet.querySelector("button").getBoundingClientRect().height,
+    }));
+    assert.equal(sheetLayout.contentDisplay, "grid", "release mobile diary more sheet CSS is missing");
+    assert.ok(sheetLayout.actionDisplay === "flex" && sheetLayout.actionWidth >= 300 && sheetLayout.actionHeight >= 48, `release mobile diary more sheet is misaligned: ${JSON.stringify(sheetLayout)}`);
     await page.keyboard.press("Escape");
     await page.waitForFunction(() => !document.querySelector("[data-mobile-diary-more-sheet]")?.open);
     assert.equal(await page.evaluate(() => document.activeElement?.matches("[data-mobile-diary-more]")), true);
