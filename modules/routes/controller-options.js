@@ -128,9 +128,7 @@ export function createRouteControllerOptions({
     removeQueuedDiaryUpload,
     processDiaryUploadQueue,
   } = diaryComposerActions;
-  const {
-    refreshSettings: refreshPushSettings,
-  } = feature.pushActions;
+  const { refreshPushSettings } = feature.pushActions;
   const {
     getImageFilesFromClipboard,
   } = secretActions;

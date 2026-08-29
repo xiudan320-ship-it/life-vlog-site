@@ -162,7 +162,6 @@ export function createFamilySettingsController({
       if (tab) group.setAttribute("aria-labelledby", tab.id);
       group.hidden = group.id !== nextSection;
     });
-    if (nextSection === "settingsTools") renderSettingsToolOrderPanel();
     if (nextSection === "settingsFamily") renderSettingsFamilyPanel();
     if (nextSection === "settingsTools") {
       void refreshPushSettings();

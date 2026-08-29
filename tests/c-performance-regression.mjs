@@ -285,6 +285,16 @@ async function testSettingsRegistryInteractions(browser) {
     assert.ok(initialLayout.sidebar?.right <= initialLayout.dialog?.right + 1, "mobile settings category list overflowed its dialog");
     assert.ok(initialLayout.close?.bottom < initialLayout.sidebar?.bottom, "mobile settings close control is not in the dialog");
 
+    await page.click("#settings-tab-settingsTools");
+    await page.waitForSelector('#settingsDialog[data-mobile-settings-section="settingsTools"]');
+    assert.equal(await page.locator(".settings-sidebar").isVisible(), false);
+    assert.equal(await page.locator("#settingsTools").isVisible(), true);
+    assert.ok(await page.locator("#settingsToolOrderList [data-tool-order-move]").count() > 0, "mobile tools settings did not render tool order controls");
+    assert.equal(mobile.errors.length, 0, `mobile tools settings emitted page errors: ${mobile.errors.join(" | ")}`);
+    await page.click("[data-settings-back]");
+    await page.waitForFunction(() => !document.querySelector("#settingsDialog")?.dataset.mobileSettingsSection);
+    assert.equal(await page.evaluate(() => document.activeElement?.id), "settings-tab-settingsTools", "mobile tools back did not restore category focus");
+
     await page.click("#settings-tab-settingsStorage");
     await page.waitForSelector('#settingsDialog[data-mobile-settings-section="settingsStorage"]');
     assert.equal(await page.locator(".settings-sidebar").isVisible(), false);
