@@ -352,14 +352,14 @@ export function bindMediaEvents({ elements, state, pageSize, controllers, vlogMo
     els.editDialog.close();
   });
   els.closeVipDialog.addEventListener("click", () => els.vipDialog.close());
-  els.chips.forEach((chip) => {
-    chip.addEventListener("click", () => {
-      vlogMode.close();
-      state.activeFilter = chip.dataset.filter;
-      state.visiblePhotoCount = pageSize;
-      updateFilterChips();
-      renderGallery();
-    });
+  els.diaryFilterChips?.addEventListener("click", (event) => {
+    const chip = event.target.closest(".chip");
+    if (!chip) return;
+    vlogMode.close();
+    state.activeFilter = chip.dataset.filter;
+    state.visiblePhotoCount = pageSize;
+    updateFilterChips();
+    renderGallery();
   });
   els.diarySearchInput?.addEventListener("input", () => {
     state.diarySearchQuery = els.diarySearchInput.value;

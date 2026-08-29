@@ -12,7 +12,7 @@ export function createAppRouteContext({
   bindRouteEvents, performanceMonitor, health, getControllerOptions,
 }) {
   const collect = (page) => {
-    if (!page || page === "gallery" || page === "settings") return elements;
+    if (!page || page === "gallery") return elements;
     Object.assign(elements, collectRouteElements(page, documentTarget));
     return elements;
   };

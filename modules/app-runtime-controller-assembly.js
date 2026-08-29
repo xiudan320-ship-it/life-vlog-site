@@ -230,7 +230,7 @@ let pendingNewPhotos = [];
 let dismissedFeedRefreshIds = new Set();
 let feedRefreshCheckInFlight = false;
 let returnToSettingsAfterDialog = false;
-let activeSettingsSection = "settingsGeneral";
+let activeSettingsSection = "settingsAppearance";
 let dialogRestoreScrollY = 0;
 let dialogRestorePhotoId = "";
 let dialogRestorePhotoTop = 0;
@@ -521,6 +521,8 @@ const shellRuntime = createShellControllerAssembly({
     mobileFeedLayoutKey: MOBILE_FEED_LAYOUT_KEY,
     mobileSecretLayoutKey: MOBILE_SECRET_LAYOUT_KEY,
     mobileDialogBreakpoint: MOBILE_DIALOG_BREAKPOINT,
+    r2PublicUrl: R2_PUBLIC_URL,
+    r2UploadEndpoint: R2_UPLOAD_ENDPOINT,
     secretAllFolderId: SECRET_ALL_FOLDER_ID,
     secretFavoritesFolderId: SECRET_FAVORITES_FOLDER_ID,
     generatedTitlePrefixes: GENERATED_TITLE_PREFIXES,
@@ -1074,6 +1076,7 @@ const appRouteRuntime = createRuntimeRouteEntry({
     secretAllFolderId: SECRET_ALL_FOLDER_ID,
     secretFavoritesFolderId: SECRET_FAVORITES_FOLDER_ID,
     mobileDialogBreakpoint: MOBILE_DIALOG_BREAKPOINT,
+    pageSize: PAGE_SIZE,
     recipesKey: RECIPES_KEY,
     weekendKey: WEEKEND_KEY,
     r2UploadEndpoint: R2_UPLOAD_ENDPOINT,

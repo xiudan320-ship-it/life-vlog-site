@@ -35,5 +35,5 @@ export function collectRouteElements(page, documentTarget = document) {
   if (!routeRoot) return {};
   const elements = collectElements(routeRoot);
   if (routeRoot.id) elements[routeRoot.id] = routeRoot;
-  return elements;
+  return applySharedElementQueries(elements, documentTarget);
 }

@@ -87,6 +87,7 @@ export function createRuntimeRouteEntry({
     compressImage: services.assetController.compressImage,
     uploadToR2: services.assetController.uploadToR2,
     cleanupStoredImagePaths: services.assetController.cleanupStoredImagePaths,
+    performanceDiagnostics: shell.performanceDiagnosticsView,
   });
   const controllers = {
     toolDock: shell.toolDockController,
@@ -517,6 +518,15 @@ export function createAppRouteRuntime({
     getWeekendCloudAvailable: () => state.weekendCloudAvailable,
   });
   const routeLoader = createRouteLoader();
+  const routeContext = createAppRouteContext({
+    elements,
+    documentTarget,
+    collectRouteElements,
+    bindRouteEvents: (page) => appEventBindings?.bindRouteEvents?.(page),
+    performanceMonitor,
+    health: healthMonitor,
+    getControllerOptions,
+  });
   const appNavigationController = createAppNavigationController({
     elements,
     state: appNavigationState,
@@ -543,20 +553,13 @@ export function createAppRouteRuntime({
       renderSecretGallery: (...args) => callLoaded(secretController, "renderSecretGallery", ...args),
       renderWeekendPlans,
       renderWeekendReminderNotice,
+      performanceDiagnostics: core.performanceDiagnostics,
       setGlobalStatus,
       setUploadExpanded: setDiaryUploadExpanded,
       updateFeedLoader,
     },
     routeLoader,
-    routeContext: createAppRouteContext({
-      elements,
-      documentTarget,
-      collectRouteElements,
-      bindRouteEvents: () => appEventBindings?.bindRouteEvents?.(),
-      performanceMonitor,
-      health: healthMonitor,
-      getControllerOptions,
-    }),
+    routeContext,
   });
 
   const appSessionState = createSessionState({
@@ -693,6 +696,10 @@ export function createAppRouteRuntime({
       routeLoader,
       pageControllers: pageControllerMap,
       getControllerOptions,
+      performanceDiagnostics: core.performanceDiagnostics,
+      outlet: routeContext.outlet,
+      collect: routeContext.collect,
+      bindRouteEvents: routeContext.bindRouteEvents,
     },
   });
 

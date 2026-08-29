@@ -5,12 +5,15 @@ import {
 } from "./media-metadata.js";
 import { escapeHtml, formatCommentTime, formatDateTime } from "./ui-formatters.js";
 import { renderListIcon } from "./list-icons.js";
+import { getDiaryActionModel } from "./diary-action-domain.js";
 
 export function createMobileDiaryPage({ documentRef = document, handlers }) {
   const page = documentRef.createElement("section");
   page.className = "mobile-diary-page";
   page.hidden = true;
   page.addEventListener("click", (event) => {
+    const moreSheet = event.target.closest("[data-mobile-diary-more-sheet]");
+    if (moreSheet && event.target === moreSheet) return handlers.closeMore();
     if (event.target.closest("[data-mobile-diary-close]")) return handlers.close();
     const imageButton = event.target.closest("[data-mobile-diary-image]");
     if (imageButton) return handlers.selectImage(Number(imageButton.dataset.mobileDiaryImage) || 0);
@@ -22,8 +25,13 @@ export function createMobileDiaryPage({ documentRef = document, handlers }) {
     if (event.target.closest("[data-mobile-diary-cancel-reply]")) return handlers.cancelReply();
     const favoriteButton = event.target.closest("[data-mobile-diary-favorite]");
     if (favoriteButton) return handlers.favorite(favoriteButton);
+    const moreButton = event.target.closest("[data-mobile-diary-more]");
+    if (moreButton) return handlers.openMore(moreButton);
+    const moreAction = event.target.closest("[data-mobile-diary-more-action]");
+    if (moreAction) return handlers.moreAction(moreAction.dataset.mobileDiaryMoreAction);
     if (event.target.closest("[data-mobile-diary-edit]")) return handlers.edit();
-    if (event.target.closest("[data-mobile-diary-admin-category]")) return handlers.adminCategory();
+    const categoryButton = event.target.closest("[data-mobile-diary-admin-category]");
+    if (categoryButton) return handlers.adminCategory(categoryButton);
     if (event.target.closest("[data-mobile-diary-admin-unpin]")) return handlers.adminUnpin();
     if (event.target.closest("[data-mobile-diary-delete]")) handlers.deleteDiary();
   });
@@ -37,11 +45,23 @@ export function createMobileDiaryPage({ documentRef = document, handlers }) {
     resizeMobileDiaryCommentInput(input);
   });
   page.addEventListener("keydown", (event) => {
+    const moreSheet = event.target.closest?.("[data-mobile-diary-more-sheet]");
+    if (moreSheet && event.key === "Escape") {
+      event.preventDefault();
+      handlers.closeMore();
+      return;
+    }
     const input = event.target.closest?.("[data-mobile-diary-comment-input]");
     if (!input || event.key !== "Enter" || (!event.ctrlKey && !event.metaKey)) return;
     event.preventDefault();
     handlers.submitComment(event);
   });
+  page.addEventListener("cancel", (event) => {
+    const moreSheet = event.target.closest?.("[data-mobile-diary-more-sheet]");
+    if (!moreSheet) return;
+    event.preventDefault();
+    handlers.closeMore();
+  }, true);
   page.addEventListener("pointerdown", handlers.beginBackSwipe, { passive: true });
   page.addEventListener("pointermove", handlers.moveBackSwipe, { passive: false });
   page.addEventListener("pointerup", handlers.endBackSwipe, { passive: true });
@@ -130,8 +150,14 @@ export function buildMobileDiaryPageMarkup({
   const mediaType = getDiaryMediaType(image);
   const displayTitle = getDisplayTitle(photo);
   const canManage = Boolean(signedIn && photo.user_id === currentUserId);
-  const canAdminCategorize = Boolean(signedIn && admin && photo.user_id && photo.user_id !== currentUserId);
   const canAdminUnpin = Boolean(signedIn && admin && photo.is_pinned);
+  const actionModel = getDiaryActionModel({
+    signedIn,
+    isOwner: canManage,
+    isAdmin: admin,
+    isPinned: canAdminUnpin,
+    isFavorite: favorite,
+  });
   const commentTree = renderMobileDiaryCommentTree({
     comments,
     photoOwnerId: photo.user_id,
@@ -181,12 +207,21 @@ export function buildMobileDiaryPageMarkup({
           <span class="mobile-diary-action-mark" aria-hidden="true">${renderListIcon("heart")}</span>
           <span>${favorite ? "已收藏" : "收藏"}</span>
         </button>
-        ${canManage ? `<button class="mobile-diary-action" type="button" data-mobile-diary-edit><span class="mobile-diary-action-mark" aria-hidden="true">${renderListIcon("edit")}</span><span>编辑</span></button>` : ""}
-        ${canAdminCategorize ? `<button class="mobile-diary-action" type="button" data-mobile-diary-admin-category><span class="mobile-diary-action-mark" aria-hidden="true">${renderListIcon("settings")}</span><span>分类</span></button>` : ""}
-        ${canAdminUnpin ? `<button class="mobile-diary-action" type="button" data-mobile-diary-admin-unpin><span class="mobile-diary-action-mark" aria-hidden="true">${renderListIcon("pin")}</span><span>取消置顶</span></button>` : ""}
-        ${canManage ? `<button class="mobile-diary-action danger" type="button" data-mobile-diary-delete><span class="mobile-diary-action-mark" aria-hidden="true">${renderListIcon("trash")}</span><span>删除</span></button>` : ""}
+        ${actionModel.primary?.id === "edit" ? `<button class="mobile-diary-action" type="button" data-mobile-diary-edit><span class="mobile-diary-action-mark" aria-hidden="true">${renderListIcon("edit")}</span><span>编辑</span></button>` : ""}
+        ${actionModel.primary?.id === "category" ? `<button class="mobile-diary-action" type="button" data-mobile-diary-admin-category><span class="mobile-diary-action-mark" aria-hidden="true">${renderListIcon("settings")}</span><span>分类</span></button>` : ""}
+        ${actionModel.more.length ? `<button class="mobile-diary-action" type="button" data-mobile-diary-more aria-expanded="false" aria-controls="mobileDiaryMoreSheet"><span class="mobile-diary-action-mark" aria-hidden="true">${renderListIcon("more")}</span><span>更多</span></button>` : ""}
       </div>` : ""}
     </article>
+    ${actionModel.more.length ? `<dialog class="mobile-diary-more-sheet" id="mobileDiaryMoreSheet" data-mobile-diary-more-sheet aria-labelledby="mobileDiaryMoreTitle">
+      <div class="mobile-diary-more-content">
+        <header><p class="kicker">Diary Actions</p><h2 id="mobileDiaryMoreTitle">更多操作</h2></header>
+        <div class="mobile-diary-more-list">
+          ${actionModel.more.filter((item) => !item.danger).map((item) => `<button type="button" data-mobile-diary-more-action="${item.id}"><span class="mobile-diary-action-mark" aria-hidden="true">${renderListIcon(item.id === "unpin" ? "pin" : "more")}</span><span>${escapeHtml(item.label)}</span></button>`).join("")}
+          ${actionModel.more.some((item) => item.danger) ? `<div class="mobile-diary-more-divider" role="separator"></div>` : ""}
+          ${actionModel.more.filter((item) => item.danger).map((item) => `<button class="danger" type="button" data-mobile-diary-more-action="${item.id}"><span class="mobile-diary-action-mark" aria-hidden="true">${renderListIcon("trash")}</span><span>${escapeHtml(item.label)}</span></button>`).join("")}
+        </div>
+      </div>
+    </dialog>` : ""}
     <section class="mobile-diary-comments">
       <div class="photo-comments-head">
         <p class="kicker">Family Comments</p>

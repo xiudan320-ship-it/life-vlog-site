@@ -104,5 +104,12 @@ try {
     await dialog.page.locator("#settingsDialog").evaluate((element) => element.close());
     await assertKeyboardAndTouchContracts(dialog, "keyboard-touch");
   } finally { await dialog.context.close(); }
+  const desktopSettings = await openPage(browser, { authenticated: true, viewport: { width: 1440, height: 900 } });
+  try {
+    await desktopSettings.page.click("#avatarButton");
+    await desktopSettings.page.click("#accountSettingsButton");
+    await desktopSettings.page.waitForSelector("#settingsDialog[open]");
+    await scan(desktopSettings, "settings-desktop");
+  } finally { await desktopSettings.context.close(); }
   console.log(`Axe critical/serious scan passed: ${baseUrl}`);
 } finally { await browser.close(); }

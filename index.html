@@ -405,16 +405,7 @@
           <datalist id="diarySearchSuggestions"></datalist>
           <button id="clearDiarySearch" type="button" aria-label="清空搜索" hidden>清空</button>
         </label>
-        <div class="filter-chip-row" aria-label="日记分类">
-          <button class="chip active" data-filter="全部" type="button">全部</button>
-          <button class="chip feature-chip" data-filter="featured7" type="button">七日精选</button>
-          <button class="chip favorite-chip" data-filter="favorites" type="button">我的收藏</button>
-          <button class="chip" data-filter="日常" type="button">日常</button>
-          <button class="chip" data-filter="旅行" type="button">旅行</button>
-          <button class="chip" data-filter="食物" type="button">食物</button>
-          <button class="chip" data-filter="卢浮宫" type="button">卢浮宫</button>
-          <button class="chip" data-filter="城市" type="button">城市</button>
-        </div>
+        <div class="filter-chip-row" id="diaryFilterChips" aria-label="日记分类筛选"></div>
       </section>
 
       <section class="gallery" id="gallery" aria-live="polite"></section>
@@ -507,104 +498,6 @@
       </form>
     </dialog>
 
-    <dialog class="settings-dialog" id="settingsDialog">
-      <button class="dialog-close" id="closeSettingsDialog" type="button" aria-label="关闭">×</button>
-      <aside class="settings-sidebar">
-        <p class="kicker">Settings</p>
-        <h2>设置</h2>
-        <nav role="tablist" aria-label="设置分类">
-          <button class="active" id="settings-tab-settingsGeneral" type="button" data-settings-section="settingsGeneral" role="tab" aria-controls="settingsGeneral" aria-selected="true">常规</button>
-          <button id="settings-tab-settingsTools" type="button" data-settings-section="settingsTools" role="tab" aria-controls="settingsTools" aria-selected="false">工具栏</button>
-          <button id="settings-tab-settingsAccount" type="button" data-settings-section="settingsAccount" role="tab" aria-controls="settingsAccount" aria-selected="false">账户</button>
-          <button id="settings-tab-settingsFamily" type="button" data-settings-section="settingsFamily" role="tab" aria-controls="settingsFamily" aria-selected="false">家庭</button>
-        </nav>
-      </aside>
-      <section class="settings-content">
-        <section class="settings-group" id="settingsGeneral" role="tabpanel" aria-labelledby="settings-tab-settingsGeneral">
-          <p class="kicker">General</p>
-          <h3>常规</h3>
-          <button id="renameHomeButton" type="button">
-            <span>主页名称</span>
-            <strong><em id="settingsHomeNameValue">咻蛋之家</em><small>点击修改</small></strong>
-          </button>
-          <button id="renameProfileButton" type="button">
-            <span>昵称</span>
-            <strong><em id="settingsNicknameValue">User</em><small>点击修改</small></strong>
-          </button>
-          <button id="changeAvatarButton" type="button">
-            <span>头像</span>
-            <strong><em id="settingsAvatarValue">文字头像</em><small>点击更换</small></strong>
-          </button>
-          <button id="settingsFeedLayoutButton" type="button">
-            <span>手机列表布局</span>
-            <strong><em id="settingsFeedLayoutValue">双列</em><small>点击切换单列/双列</small></strong>
-          </button>
-          <div class="settings-inline-control">
-            <span>文字大小</span>
-            <div class="text-scale-options" role="group" aria-label="文字大小">
-              <button type="button" data-text-scale="standard">标准</button>
-              <button type="button" data-text-scale="large">较大</button>
-              <button type="button" data-text-scale="xlarge">特大</button>
-            </div>
-          </div>
-          <div class="settings-install-card">
-            <div><span>安装应用</span><small id="installAppHint" hidden></small></div>
-            <button class="primary" id="installAppButton" type="button" hidden>安装到主屏幕</button>
-          </div>
-          <div class="settings-performance-card">
-            <div><span>性能诊断</span><small data-performance-summary>正在准备本机摘要…</small></div>
-            <div><button type="button" data-performance-copy>复制诊断信息</button><button type="button" data-performance-clear>清除记录</button></div>
-          </div>
-          <button id="refreshCacheInfoButton" type="button">
-            <span>缓存占用</span>
-            <strong><em id="settingsCacheValue">计算中</em><small>点击刷新缓存大小</small></strong>
-          </button>
-          <button id="cacheLimitButton" type="button">
-            <span>缓存上限</span>
-            <strong><em id="settingsCacheLimitValue">80 条</em><small>日记和秘藏超过上限会自动替换旧缓存</small></strong>
-          </button>
-          <button id="clearAppCacheButton" type="button">
-            <span>清除缓存</span>
-            <strong><em id="settingsCacheStatus">保留账号和设置</em><small>清除日记缓存和离线资源</small></strong>
-          </button>
-        </section>
-        <section class="settings-group" id="settingsTools" role="tabpanel" aria-labelledby="settings-tab-settingsTools" hidden>
-          <p class="kicker">Toolbar</p>
-          <h3>组件排序</h3>
-          <div class="settings-tool-order" id="settingsToolOrderList"></div>
-        </section>
-        <section class="settings-group" id="settingsAccount" role="tabpanel" aria-labelledby="settings-tab-settingsAccount">
-          <p class="kicker">Security</p>
-          <h3>账户安全</h3>
-          <button id="changePasswordButton" type="button">
-            <span>修改密码</span>
-            <strong>更新当前登录密码</strong>
-          </button>
-          <button id="recoveryKeyButton" type="button">
-            <span>恢复密钥</span>
-            <strong>忘记密码时用来重设</strong>
-          </button>
-         <button id="changeSecretPinButton" type="button">
-           <span>秘藏密码</span>
-           <strong>修改进入秘藏的四位数字密码</strong>
-         </button>
-          <button id="bindEmailButton" type="button">
-            <span>绑定邮箱</span>
-            <strong><em id="settingsEmailValue">未绑定</em><small>用于找回用户名和密码</small></strong>
-          </button>
-       </section>
-        <section class="settings-group" id="settingsFamily" role="tabpanel" aria-labelledby="settings-tab-settingsFamily">
-          <p class="kicker">Family</p>
-          <h3>家庭与会员</h3>
-          <div class="settings-family-panel" id="settingsFamilyPanel"></div>
-          <button id="familyAccountButton" type="button">
-            <span>管理家庭</span>
-            <strong>创建家庭、邀请成员或处理邀请</strong>
-          </button>
-        </section>
-      </section>
-    </dialog>
-
     <dialog class="account-dialog cache-limit-dialog" id="cacheLimitDialog">
       <button class="dialog-close" id="closeCacheLimitDialog" type="button" aria-label="关闭">×</button>
       <form id="cacheLimitForm">
@@ -614,8 +507,12 @@
           <p>用于控制日记和秘藏在本机保留多少条缓存。超过上限会自动替换更旧的内容，云端数据不会被删除。</p>
         </div>
         <label class="cache-limit-field">
-          <span>缓存条数</span>
-          <input id="cacheLimitInput" type="number" min="20" max="300" step="10" inputmode="numeric" required />
+          <span>日记图片（MB）</span>
+          <input id="cacheLimitInput" type="number" min="20" max="2000" step="10" inputmode="numeric" required />
+        </label>
+        <label class="cache-limit-field">
+          <span>秘藏图片（MB）</span>
+          <input id="secretCacheLimitInput" type="number" min="20" max="2000" step="10" inputmode="numeric" required />
         </label>
         <div class="cache-limit-presets" aria-label="缓存上限快捷选择">
           <button type="button" data-cache-limit-preset="40">轻量 40</button>

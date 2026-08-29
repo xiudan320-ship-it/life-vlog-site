@@ -8,8 +8,8 @@ import { escapeHtml, formatDate } from "./ui-formatters.js";
 import { captureListFocus, pulseListItem, restoreListFocus } from "./list-render-feedback.js";
 import { renderListIcon } from "./list-icons.js";
 
-const EAGER_DESKTOP_CARD_COUNT = 4;
 const LAZY_IMAGE_PLACEHOLDER = "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=";
+const lazyObservers = new WeakMap();
 const motionObservers = new WeakMap();
 
 export function getDiaryGalleryEmptyState({
@@ -63,28 +63,36 @@ function getPhotoAspectStyle(image) {
 }
 
 export function renderFeedImage(image, altText, photoIndex, imageIndex, { mobile = false } = {}) {
-  const eagerCount = mobile ? 2 : EAGER_DESKTOP_CARD_COUNT;
-  const loading = photoIndex < eagerCount ? "eager" : "lazy";
-  const fetchPriority = photoIndex < (mobile ? 1 : 2) && imageIndex === 0 ? "high" : "low";
+  const isFirstImage = photoIndex === 0 && imageIndex === 0;
+  const loading = isFirstImage ? "eager" : "lazy";
+  const fetchPriority = isFirstImage ? "high" : "low";
   const width = Number(image?.width);
   const height = Number(image?.height);
   const widthAttr = Number.isFinite(width) && width > 0 ? ` width="${Math.round(width)}"` : "";
   const heightAttr = Number.isFinite(height) && height > 0 ? ` height="${Math.round(height)}"` : "";
   const posterUrl = getDiaryMediaPosterUrl(image);
-  const motionUrl = getDiaryMediaVideoUrl(image);
-  const shouldActivateMotion = Boolean(motionUrl && shouldAutoplayDiaryFeedMedia(photoIndex, { mobile }));
-  const videoPreviewStyle = motionUrl
-    ? ' style="width:100%;height:100%;object-fit:contain;background:#080b09;"'
-    : "";
-
-  if (shouldActivateMotion) {
-    return `<video class="feed-image" poster="${escapeHtml(posterUrl)}" data-motion-src="${escapeHtml(motionUrl)}" data-full-src="${escapeHtml(posterUrl)}" aria-label="${escapeHtml(altText)}" autoplay muted loop playsinline preload="none"${videoPreviewStyle}${widthAttr}${heightAttr}></video>`;
-  }
+  const motionUrl = getDiaryMediaType(image) === "live" ? getDiaryMediaVideoUrl(image) : "";
   const source = image?.thumbnail_url || posterUrl;
   const sourceAttributes = loading === "lazy"
     ? `src="${LAZY_IMAGE_PLACEHOLDER}" data-lazy-src="${escapeHtml(source)}"`
     : `src="${escapeHtml(source)}"`;
-  return `<img class="feed-image" ${sourceAttributes} data-full-src="${escapeHtml(posterUrl)}" alt="${escapeHtml(altText)}" loading="${loading}" decoding="async" fetchpriority="${fetchPriority}"${videoPreviewStyle}${widthAttr}${heightAttr} />`;
+  const motionAttribute = motionUrl ? ` data-motion-src="${escapeHtml(motionUrl)}"` : "";
+  return `<img class="feed-image" ${sourceAttributes} data-canonical-src="${escapeHtml(source)}" data-full-src="${escapeHtml(posterUrl)}" data-media-type="${escapeHtml(getDiaryMediaType(image))}"${motionAttribute} alt="${escapeHtml(altText)}" loading="${loading}" decoding="async" fetchpriority="${fetchPriority}"${widthAttr}${heightAttr} />`;
+}
+
+function renderMediaShell(image, altText, photoIndex, imageIndex, options) {
+  return `<div class="feed-media-shell" data-media-state="loading">
+    <button type="button" data-photo-index="${photoIndex}" data-image-index="${imageIndex}">
+      ${renderFeedImage(image, altText, photoIndex, imageIndex, options)}
+      ${getDiaryMediaType(image) === "live" && imageIndex === 0 ? '<span class="live-photo-badge" aria-label="Live Photo">LIVE</span>' : ""}
+      ${getDiaryMediaType(image) === "video" && imageIndex === 0 ? '<span class="live-photo-badge" aria-label="Video">VIDEO</span>' : ""}
+    </button>
+    <div class="feed-media-error" data-media-error role="status" aria-live="polite" hidden>
+      <span class="feed-media-error-icon" aria-hidden="true">${renderListIcon("image")}</span>
+      <span>缩略图加载失败</span>
+      <button type="button" data-media-retry data-photo-index="${photoIndex}" data-image-index="${imageIndex}">重试</button>
+    </div>
+  </div>`;
 }
 
 export function renderPhotoMedia(images, title, photoIndex, { mobile = false } = {}) {
@@ -95,22 +103,19 @@ export function renderPhotoMedia(images, title, photoIndex, { mobile = false } =
     const badgeLabel = mediaType === "live" ? "LIVE" : mediaType === "video" ? "VIDEO" : "";
     return `
       <div class="photo-media single"${getPhotoAspectStyle(image)}>
-        <button type="button" data-photo-index="${photoIndex}" data-image-index="0">
-          ${renderFeedImage(image, altText, photoIndex, 0, { mobile })}
-          ${badgeLabel ? `<span class="live-photo-badge" aria-label="${badgeLabel === "LIVE" ? "Live Photo" : "Video"}">${badgeLabel}</span>` : ""}
-        </button>
+        ${renderMediaShell(image, altText, photoIndex, 0, { mobile })}
       </div>
     `;
   }
 
   const previewImages = images.slice(0, 9);
   return `
-    <div class="photo-media collage count-${previewImages.length}">
+      <div class="photo-media collage count-${previewImages.length}">
       ${previewImages.map((image, index) => `
-        <button type="button" data-photo-index="${photoIndex}" data-image-index="${index}">
-          ${renderFeedImage(image, `${altText} ${index + 1}`, photoIndex, index, { mobile })}
+        <div class="feed-media-collage-item">
+          ${renderMediaShell(image, `${altText} ${index + 1}`, photoIndex, index, { mobile })}
           ${isDiaryMotionMedia(image) ? '<i class="multi-motion-dot" aria-label="动态媒体"></i>' : ""}
-        </button>
+        </div>
       `).join("")}
       <span class="media-count">${images.length} 张</span>
     </div>
@@ -118,56 +123,99 @@ export function renderPhotoMedia(images, title, photoIndex, { mobile = false } =
 }
 
 export function prepareFeedImages(root = document) {
-  root.querySelectorAll("img.feed-image, video.feed-image, img.secret-progressive-image").forEach((image) => {
+  root.querySelectorAll("img.feed-image, img.secret-progressive-image").forEach((image) => {
     if (image.dataset.lazySrc) return;
+    const shell = image.closest(".feed-media-shell");
     const markLoaded = () => {
       image.classList.add("is-loaded");
       image.closest("button")?.classList.add("media-loaded");
+      image.classList.remove("is-error");
+      if (shell) {
+        shell.dataset.mediaState = "loaded";
+        shell.querySelector("[data-media-error]")?.setAttribute("hidden", "");
+      }
     };
-    if (image.tagName === "VIDEO" ? image.readyState >= 2 : image.complete) {
-      markLoaded();
+    const markError = () => {
+      image.classList.remove("is-loaded");
+      image.classList.add("is-error");
+      image.closest("button")?.classList.remove("media-loaded");
+      if (shell) {
+        shell.dataset.mediaState = "error";
+        shell.querySelector("[data-media-error]")?.removeAttribute("hidden");
+      }
+    };
+    if (image.complete) {
+      if (image.naturalWidth > 0) markLoaded();
+      else markError();
       return;
     }
-    image.addEventListener(image.tagName === "VIDEO" ? "loadeddata" : "load", markLoaded, { once: true });
-    image.addEventListener("error", markLoaded, { once: true });
+    image.addEventListener("load", markLoaded, { once: true });
+    image.addEventListener("error", markError, { once: true });
   });
 }
 
 export function hydrateLazyFeedImages(root = document) {
+  lazyObservers.get(root)?.disconnect();
+  lazyObservers.delete(root);
   const images = [...root.querySelectorAll("img.feed-image[data-lazy-src]")];
-  if (!images.length || !("IntersectionObserver" in window)) return;
+  if (!images.length) return;
+  if (!("IntersectionObserver" in window)) {
+    images.forEach((image) => {
+      image.src = image.dataset.lazySrc;
+      image.removeAttribute("data-lazy-src");
+      image.dataset.canonicalSrc ||= image.src;
+    });
+    prepareFeedImages(root);
+    return;
+  }
   const observer = new IntersectionObserver((entries) => {
     for (const entry of entries) {
       if (!entry.isIntersecting) continue;
       const image = entry.target;
       image.src = image.dataset.lazySrc;
       image.removeAttribute("data-lazy-src");
+      image.dataset.canonicalSrc ||= image.src;
       observer.unobserve(image);
     }
     prepareFeedImages(root);
   }, { rootMargin: "240px 0px 360px", threshold: 0.01 });
   images.forEach((image) => observer.observe(image));
+  lazyObservers.set(root, observer);
 }
 
-function releaseMotionVideo(video) {
+function releaseMotionVideo(active) {
+  const video = active?.video || active;
   if (!video) return;
   video.pause();
   video.removeAttribute("src");
   video.load();
-  video.dataset.motionConsumed = "true";
-  video.dataset.motionState = "released";
+  video.remove();
+  active?.image?.removeAttribute("data-motion-active");
 }
 
-function activateMotionVideo(video, state) {
-  const source = video?.dataset.motionSrc;
-  if (!source || video.dataset.motionConsumed === "true" || state.requestedSources.has(source)) return false;
-  if (state.active && state.active !== video) releaseMotionVideo(state.active);
-  state.active = video;
-  state.requestedSources.add(source);
-  video.dataset.motionState = "active";
+function activateMotionImage(image, state) {
+  const source = image?.dataset.motionSrc;
+  if (!source || state.requestedSources.has(source) || !image.isConnected) return false;
+  if (state.active && state.active.image !== image) releaseMotionVideo(state.active);
+  const shell = image.closest(".feed-media-shell") || image.parentElement;
+  if (!shell) return false;
+  const video = image.ownerDocument.createElement("video");
+  video.className = "feed-motion-preview";
+  video.poster = image.dataset.fullSrc || image.currentSrc || image.src;
+  video.muted = true;
+  video.loop = true;
+  video.playsInline = true;
+  video.preload = "none";
+  video.setAttribute("aria-hidden", "true");
   video.src = source;
-  video.load();
-  void video.play().catch(() => {});
+  shell.append(video);
+  image.dataset.motionActive = "true";
+  state.active = { image, video, source };
+  state.requestedSources.add(source);
+  void video.play().catch(() => {
+    releaseMotionVideo(state.active);
+    state.active = null;
+  });
   return true;
 }
 
@@ -177,14 +225,14 @@ export function hydrateMotionFeedVideos(root = document) {
   previous?.cancel?.();
   if (previous?.state.active) releaseMotionVideo(previous.state.active);
   motionObservers.delete(root);
-  const videos = [...root.querySelectorAll("video.feed-image[data-motion-src]")];
-  if (!videos.length) {
+  const images = [...root.querySelectorAll("img.feed-image[data-motion-src]")];
+  if (!images.length) {
     return;
   }
   const state = {
     active: null,
-    requestedSources: previous?.state?.requestedSources || new Set(),
-    visibleVideos: new Set(),
+    requestedSources: new Set(),
+    visibleImages: new Set(),
     intersectionRatios: new Map(),
     activationToken: 0,
   };
@@ -195,37 +243,61 @@ export function hydrateMotionFeedVideos(root = document) {
     && typeof window.matchMedia === "function"
     && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   if (connection?.saveData || reducedMotion || !("IntersectionObserver" in window)) return;
-  const scheduleActivation = (video) => {
-    const token = ++state.activationToken;
-    const activate = () => {
-      if (token !== state.activationToken || state.active || video?.isConnected === false) return;
-      activateMotionVideo(video, state);
-    };
+   const scheduleActivation = (image) => {
+     const token = ++state.activationToken;
+     const activate = () => {
+       if (token !== state.activationToken || state.active || image?.isConnected === false) return;
+       activateMotionImage(image, state);
+     };
     if (typeof window.requestAnimationFrame === "function") window.requestAnimationFrame(activate);
     else queueMicrotask(activate);
   };
-  const observer = new IntersectionObserver((entries) => {
-    for (const entry of entries) {
-      state.intersectionRatios.set(entry.target, entry.intersectionRatio);
-      if (entry.isIntersecting) state.visibleVideos.add(entry.target);
-      else state.visibleVideos.delete(entry.target);
-    }
-    const activeLeft = state.active && !state.visibleVideos.has(state.active);
-    if (activeLeft) {
-      releaseMotionVideo(state.active);
-      state.active = null;
+     const observer = new IntersectionObserver((entries) => {
+     for (const entry of entries) {
+       state.intersectionRatios.set(entry.target, entry.intersectionRatio);
+       if (entry.isIntersecting) state.visibleImages.add(entry.target);
+       else state.visibleImages.delete(entry.target);
+     }
+     const activeLeft = state.active && !state.visibleImages.has(state.active.image);
+     if (activeLeft) {
+       releaseMotionVideo(state.active);
+       state.active = null;
     }
     if (state.active) return;
-    const visible = [...state.visibleVideos]
-      .sort((left, right) => (state.intersectionRatios.get(right) || 0) - (state.intersectionRatios.get(left) || 0))
-      .find((video) => {
-        const source = video?.dataset.motionSrc;
-        return source && video.dataset.motionConsumed !== "true" && !state.requestedSources.has(source);
-      });
-    if (visible) scheduleActivation(visible);
-  }, { rootMargin: "120px 0px 180px", threshold: 0.2 });
-  videos.forEach((video) => observer.observe(video));
+     const visible = [...state.visibleImages]
+       .sort((left, right) => (state.intersectionRatios.get(right) || 0) - (state.intersectionRatios.get(left) || 0))
+       .find((image) => {
+         const source = image?.dataset.motionSrc;
+         return source && !state.requestedSources.has(source);
+       });
+     if (visible) scheduleActivation(visible);
+   }, { rootMargin: "120px 0px 180px", threshold: 0.2 });
+  images.forEach((image) => observer.observe(image));
   motionObservers.set(root, { observer, state, cancel: () => { state.activationToken += 1; } });
+}
+
+export function retryFeedImage(root = document, photoIndex, imageIndex) {
+  const image = [...root.querySelectorAll("img.feed-image")].find((candidate) => {
+    const button = candidate.closest("[data-photo-index][data-image-index]");
+    return Number(button?.dataset.photoIndex) === Number(photoIndex)
+      && Number(button?.dataset.imageIndex) === Number(imageIndex);
+  });
+  if (!image) return false;
+  const canonical = image.dataset.canonicalSrc || image.dataset.lazySrc || image.currentSrc || image.src;
+  if (!canonical || canonical === LAZY_IMAGE_PLACEHOLDER) return false;
+  const retryCount = Number(image.dataset.retryCount || 0);
+  image.dataset.retryCount = String(retryCount + 1);
+  image.classList.remove("is-error", "is-loaded");
+  const shell = image.closest(".feed-media-shell");
+  if (shell) {
+    shell.dataset.mediaState = "loading";
+    shell.querySelector("[data-media-error]")?.setAttribute("hidden", "");
+  }
+  const retryUrl = retryCount === 0
+    ? `${canonical}${canonical.includes("?") ? "&" : "?"}media_retry=1`
+    : canonical;
+  image.src = retryUrl;
+  return true;
 }
 
 export function updateReadMoreHints(root = document) {
@@ -285,7 +357,9 @@ function bindGalleryActions(container, photos, handlers) {
     const button = event.target.closest("button");
     if (!button || !container.contains(button)) return;
     const getPhoto = (key) => photos[Number(button.dataset[key])];
-    if (button.matches("[data-photo-index][data-image-index]")) {
+    if (button.matches("[data-media-retry]")) {
+      handlers.retry?.(Number(button.dataset.photoIndex), Number(button.dataset.imageIndex));
+    } else if (button.matches("[data-photo-index][data-image-index]")) {
       handlers.open(getPhoto("photoIndex"), Number(button.dataset.imageIndex));
     } else if (button.dataset.deleteIndex != null) {
       void handlers.delete(getPhoto("deleteIndex"), button);

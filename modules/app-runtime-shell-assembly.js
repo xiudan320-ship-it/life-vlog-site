@@ -35,6 +35,7 @@ export function createShellControllerAssembly({
     notificationRepository,
     householdRepository,
     photoFavorites,
+    assetController,
   } = services;
   const {
     familySettingsController,
@@ -62,7 +63,7 @@ export function createShellControllerAssembly({
   } = appFeedbackView;
   const performanceDiagnosticsView = createPerformanceDiagnosticsView({
     monitor: performanceMonitor,
-    root: elements.settingsGeneral,
+      getRoot: () => elements.settingsStorage,
     showToast: showMiniToast,
     health: healthMonitor,
   });
@@ -100,9 +101,11 @@ export function createShellControllerAssembly({
       "familyLevelProfiles",
       "accountProfile",
       "mobileDiaryPhoto",
+      "mobileDiaryPage",
     ]),
     avatarCacheKey: config.avatarCacheKey,
     photoCategories: config.photoCategories,
+    getDisplayTitle,
     getProfileAvatarUrl: defer("getProfileAvatarUrl"),
     renderSettingsSummary: (...args) => renderSettingsSummary(...args),
     renderExperience: defer("renderExperience"),
@@ -218,6 +221,10 @@ export function createShellControllerAssembly({
     adminUpdatePhotoCategory,
     renderMobileDiaryPage: defer("renderMobileDiaryPage"),
     isMissingCloudSchema: core.isMissingCloudSchema,
+    resolveStoredAssetUrl: assetController.resolveStoredAssetUrl,
+    getR2PublicAssetUrl: assetController.getR2PublicAssetUrl,
+    r2PublicUrl: config.r2PublicUrl,
+    r2UploadEndpoint: config.r2UploadEndpoint,
   });
   const diaryFeedActions = diaryFeedController;
   renderGallery = diaryFeedActions.renderGallery;

@@ -1,5 +1,4 @@
 import { bindMediaEvents } from "./media-event-bindings.js";
-import { bindSettingsEvents } from "./settings-event-bindings.js";
 
 export function bindAppEvents({
   elements,
@@ -14,6 +13,14 @@ export function bindAppEvents({
     saveConfig,
     switchPage,
     openRandomMemory,
+    showMiniToast,
+    routeLoader,
+    pageControllers,
+    getControllerOptions,
+    performanceDiagnostics,
+    outlet,
+    collect,
+    bindRouteEvents,
   } = core;
   const {
     handleToolDockClick,
@@ -70,6 +77,27 @@ export function bindAppEvents({
 
   els.setupToggle.addEventListener("click", () => {
     els.setupPanel.hidden = !els.setupPanel.hidden;
+  });
+  els.avatarButton?.addEventListener("click", () => {
+    els.userPopover.hidden = !els.userPopover.hidden;
+  });
+  els.accountSettingsButton?.addEventListener("click", () => {
+    els.userPopover.hidden = true;
+    void routeLoader?.load("settings", {
+      elements,
+      outlet,
+      collect,
+      bindRouteEvents,
+      state,
+      controllers: pageControllers || controllers,
+      actions: core,
+      getControllerOptions,
+    }).then(() => {
+      performanceDiagnostics?.render?.();
+      pageControllers?.familySettings?.openSettingsDialog?.("settingsAppearance");
+    }).catch((error) => {
+      showMiniToast?.(`设置加载失败：${error?.message || "请重试"}`, { kind: "error" });
+    });
   });
   els.themeToggle.addEventListener("click", toggleTheme);
   els.galleryNav.addEventListener("click", () => {
@@ -218,11 +246,20 @@ export function bindAppEvents({
     els.forgotPasswordDialog.showModal();
     els.resetEmailInput?.focus();
   });
-  bindSettingsEvents({ elements, state, controllers, core });
   bindMediaEvents({ elements, state, pageSize, controllers, vlogMode, core });
   let contentFormModulePromise = null;
+  let settingsModulePromise = null;
+  let settingsBound = false;
   return {
-    bindRouteEvents: () => {
+    bindRouteEvents: (page) => {
+      if (page === "settings") {
+        settingsModulePromise ||= import("./settings-event-bindings.js");
+        return settingsModulePromise.then(({ bindSettingsEvents }) => {
+          if (settingsBound) return;
+          settingsBound = true;
+          return bindSettingsEvents({ elements, state, controllers, core });
+        });
+      }
       contentFormModulePromise ||= import("./content-form-event-bindings.js");
       return contentFormModulePromise.then(({ bindContentFormEvents }) => (
         bindContentFormEvents({ elements, state, controllers })

@@ -1,11 +1,13 @@
 import { escapeHtml, getInitial } from "./ui-formatters.js";
 import { normalizeNickname } from "./app-domain.js";
+import { createDiaryCategoryDialog } from "./diary-category-dialog.js";
 
 export function createAppIdentityController({
   elements,
   state,
   avatarCacheKey,
   photoCategories,
+  getDisplayTitle,
   getProfileAvatarUrl,
   renderSettingsSummary,
   renderExperience,
@@ -16,6 +18,7 @@ export function createAppIdentityController({
   storage = localStorage,
 }) {
   const els = elements;
+  const categoryDialog = createDiaryCategoryDialog({ documentRef: documentTarget });
 
   function getSessionDisplayName() {
     const metadataName = state.session?.user?.user_metadata?.username;
@@ -73,50 +76,55 @@ export function createAppIdentityController({
       .includes("xiudan320");
   }
 
-  function choosePhotoCategory(current = "日常") {
-    return new Promise((resolve) => {
-      let dialog = documentTarget.querySelector("#adminCategoryDialog");
-      if (!dialog) {
-        dialog = documentTarget.createElement("dialog");
-        dialog.id = "adminCategoryDialog";
-        dialog.className = "admin-category-dialog";
-        documentTarget.body.append(dialog);
-      }
-      dialog.innerHTML = `
-        <form method="dialog">
-          <div><p class="kicker">Admin</p><h2>修改日记分类</h2><p>选择正确的现有分类。</p></div>
-          <label>分类<select name="category">${photoCategories.map((item) => `<option value="${item}" ${item === current ? "selected" : ""}>${item}</option>`).join("")}</select></label>
-          <div class="admin-category-actions"><button value="cancel" type="submit">取消</button><button class="primary" value="confirm" type="submit">保存分类</button></div>
-        </form>`;
-      const finish = () => {
-        const value = dialog.returnValue === "confirm" ? dialog.querySelector("select")?.value || "" : "";
-        dialog.removeEventListener("close", finish);
-        resolve(value);
-      };
-      dialog.addEventListener("close", finish);
-      dialog.showModal();
-    });
+  function restoreCategoryActionFocus(photo) {
+    const mobileAction = state.mobileDiaryPhoto?.id === photo?.id
+      ? state.mobileDiaryPage?.querySelector("[data-mobile-diary-admin-category]")
+      : null;
+    const card = [...(els.gallery?.querySelectorAll?.("[data-photo-id]") || [])]
+      .find((item) => item.dataset.photoId === String(photo?.id || ""));
+    const galleryAction = card?.querySelector("[data-admin-category-index]");
+    const target = mobileAction || galleryAction || documentTarget.querySelector('[data-page-heading="gallery"]');
+    if (!target?.isConnected || typeof target.focus !== "function") return;
+    try {
+      target.focus({ preventScroll: true });
+    } catch {
+      target.focus();
+    }
   }
 
-  async function adminUpdatePhotoCategory(photo) {
+  async function adminUpdatePhotoCategory(photo, trigger = null) {
     if (!photo || !state.cloudDb || !state.session || !isAdminAccount()) return;
-    const category = await choosePhotoCategory(photo.category || "日常");
-    if (!category || category === photo.category) return;
-    const { data, error } = await state.cloudDb.rpc("admin_update_photo_category", {
-      p_photo_id: photo.id,
-      p_category: category,
+    const current = photo.category || "日常";
+    const category = await categoryDialog.open({
+      photo,
+      current,
+      categories: photoCategories,
+      getDisplayTitle,
+      getAuthorName,
+      trigger,
+      onSave: async (nextCategory) => {
+        const { data, error } = await state.cloudDb.rpc("admin_update_photo_category", {
+          p_photo_id: photo.id,
+          p_category: nextCategory,
+        });
+        if (error) throw new Error(error.message || "分类保存失败，请重试。");
+        return data?.category || nextCategory;
+      },
     });
-    if (error) {
-      showToast(`分类修改失败：${error.message}`, { kind: "error", duration: 3200 });
-      return;
-    }
-    photo.category = data?.category || category;
+    if (!category || category === photo.category) return;
+    photo.category = category;
     if (state.mobileDiaryPhoto?.id === photo.id) {
       state.mobileDiaryPhoto.category = photo.category;
       renderMobileDiaryPage();
     }
     renderGallery();
     showToast(`已改为“${photo.category}”`, { kind: "success" });
+    const restore = () => restoreCategoryActionFocus(photo);
+    if (typeof documentTarget.defaultView?.requestAnimationFrame === "function") {
+      documentTarget.defaultView.requestAnimationFrame(() => documentTarget.defaultView.setTimeout(restore, 0));
+    } else {
+      documentTarget.defaultView?.setTimeout?.(restore, 0);
+    }
   }
 
   function renderAccountAvatar(avatarUrl = "", displayName = getSessionDisplayName()) {

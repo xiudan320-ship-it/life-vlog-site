@@ -7,10 +7,10 @@ import { createTextScaleController } from "../modules/text-scale-controller.js";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const read = (file) => readFile(join(root, file), "utf8");
-const [html, app, appRuntime, appRuntimeController, appRuntimeInfrastructure, appRuntimeRoute, appRuntimeStartup, routeContext, sw, index, startup, navigation, vite, headers] = await Promise.all([
+const [html, app, appRuntime, appRuntimeController, appRuntimeInfrastructure, appRuntimeRoute, appRuntimeStartup, routeContext, sw, index, startup, navigation, vite, headers, settingsTemplate, settingsView] = await Promise.all([
   read("index.html"), read("app.js"), read("modules/app-runtime-assembly.js"), read("modules/app-runtime-controller-assembly.js"), read("modules/app-runtime-infrastructure.js"), read("modules/app-runtime-route-assembly.js"), read("modules/app-runtime-startup.js"), read("modules/app-route-context.js"), read("src/sw.js"), read("index.html"),
   read("modules/app-startup-controller.js"), read("modules/app-navigation-controller.js"),
-  read("vite.config.js"), read("public/_headers"),
+  read("vite.config.js"), read("public/_headers"), read("modules/routes/templates/settings.html"), read("modules/settings-view.js"),
 ]);
 const releaseSmoke = await read("tests/release-smoke.mjs");
 const [mediaRuntime, photoDetailRuntime, accountAssembly, secretService, routeLoader, videoLayout] = await Promise.all([
@@ -64,9 +64,9 @@ assert.match(navigation, /pushState/);
 assert.match(navigation, /popstate/);
 assert.match(appRuntimeController, /collectShellElements/);
 assert.match(routeContext, /collectRouteElements/);
-assert.match(html, /data-text-scale="xlarge"/);
-assert.match(html, /id="installAppButton"/);
-assert.match(html, /data-performance-copy/);
+assert.match(settingsView, /data-text-scale="xlarge"/);
+assert.match(settingsView, /id="installAppButton"/);
+assert.match(settingsView, /data-performance-copy/);
 assert.match(headers, /Cache-Control: no-cache, no-store, must-revalidate/);
 assert.match(headers, /max-age=31536000, immutable/);
 assert.doesNotMatch(await read("modules/weekend-plans-view.js"), /待完成/);

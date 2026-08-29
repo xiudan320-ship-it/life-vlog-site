@@ -37,6 +37,7 @@ export function createMobileDiaryController({
   const diaryRepository = repository;
   let commentDraft = "";
   let commentSubmitting = false;
+  let moreActionsTrigger = null;
 
   function ensureMobileDiaryPage() {
     if (state.mobileDiaryPage) return state.mobileDiaryPage;
@@ -69,8 +70,8 @@ export function createMobileDiaryController({
           closeMobileDiaryPage();
           openEditPhoto(photo);
         },
-        adminCategory: () => {
-          if (state.mobileDiaryPhoto) void adminUpdatePhotoCategory(state.mobileDiaryPhoto);
+        adminCategory: (trigger) => {
+          if (state.mobileDiaryPhoto) void adminUpdatePhotoCategory(state.mobileDiaryPhoto, trigger);
         },
         adminUnpin: () => {
           if (state.mobileDiaryPhoto) void togglePhotoFlag(state.mobileDiaryPhoto, "is_pinned", { adminUnpin: true });
@@ -82,6 +83,9 @@ export function createMobileDiaryController({
             if (deleted) closeMobileDiaryPage();
           });
         },
+        openMore: openMoreActions,
+        closeMore: closeMoreActions,
+        moreAction: (actionId) => void runMoreAction(actionId),
         submitComment: (event) => void saveMobileDiaryComment(event),
         beginBackSwipe: beginMobileDiaryBackSwipe,
         moveBackSwipe: moveMobileDiaryBackSwipe,
@@ -112,6 +116,7 @@ export function createMobileDiaryController({
     const page = ensureMobileDiaryPage();
     const photo = state.mobileDiaryPhoto;
     if (!photo) return;
+    closeMoreActions({ restoreFocus: false });
     const previousVideo = page.querySelector(".mobile-diary-video, .mobile-diary-motion");
     if (previousVideo) stopDiaryMotionVideo(previousVideo);
     const previousInput = page.querySelector("[data-mobile-diary-comment-input]");
@@ -185,6 +190,7 @@ export function createMobileDiaryController({
 
   function closeMobileDiaryPage() {
     if (!state.mobileDiaryPage || state.mobileDiaryPage.hidden) return;
+    closeMoreActions({ restoreFocus: false });
     const video = state.mobileDiaryPage.querySelector(".mobile-diary-video, .mobile-diary-motion");
     if (video) stopDiaryMotionVideo(video);
     state.mobileDiaryPage.hidden = true;
@@ -271,6 +277,63 @@ export function createMobileDiaryController({
         nextSubmitButton.disabled = false;
         nextSubmitButton.removeAttribute("aria-busy");
       }
+    }
+  }
+
+  function restoreMoreActionsFocus() {
+    const trigger = moreActionsTrigger;
+    moreActionsTrigger = null;
+    if (!trigger?.isConnected || typeof trigger.focus !== "function") return;
+    try {
+      trigger.focus({ preventScroll: true });
+    } catch {
+      trigger.focus();
+    }
+  }
+
+  function closeMoreActions({ restoreFocus = true } = {}) {
+    const page = state.mobileDiaryPage;
+    const sheet = page?.querySelector("[data-mobile-diary-more-sheet]");
+    if (sheet) {
+      if (sheet.open && typeof sheet.close === "function") sheet.close();
+      else {
+        sheet.hidden = true;
+        sheet.removeAttribute("open");
+      }
+    }
+    if (moreActionsTrigger) moreActionsTrigger.setAttribute("aria-expanded", "false");
+    if (restoreFocus) restoreMoreActionsFocus();
+    else moreActionsTrigger = null;
+  }
+
+  function openMoreActions(trigger) {
+    const sheet = state.mobileDiaryPage?.querySelector("[data-mobile-diary-more-sheet]");
+    if (!sheet || !trigger) return;
+    closeMoreActions({ restoreFocus: false });
+    moreActionsTrigger = trigger;
+    trigger.setAttribute("aria-expanded", "true");
+    sheet.hidden = false;
+    try {
+      if (typeof sheet.showModal === "function") sheet.showModal();
+      else sheet.setAttribute("open", "");
+    } catch {
+      sheet.setAttribute("open", "");
+    }
+    sheet.querySelector("[data-mobile-diary-more-action]")?.focus({ preventScroll: true });
+  }
+
+  async function runMoreAction(actionId) {
+    const photo = state.mobileDiaryPhoto;
+    const trigger = moreActionsTrigger;
+    closeMoreActions();
+    if (!photo) return;
+    if (actionId === "unpin") {
+      await togglePhotoFlag(photo, "is_pinned", { adminUnpin: true });
+      return;
+    }
+    if (actionId === "delete") {
+      const deleted = await deletePhoto(photo, trigger);
+      if (deleted) closeMobileDiaryPage();
     }
   }
 

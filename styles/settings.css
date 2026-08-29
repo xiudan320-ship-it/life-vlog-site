@@ -1,0 +1,161 @@
+.settings-nav-icon {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  place-items: center;
+  color: var(--accent-strong);
+}
+
+.settings-nav-icon .list-icon {
+  width: 19px;
+  height: 19px;
+}
+
+.settings-sidebar button {
+  gap: 10px;
+}
+
+.settings-sidebar button:focus-visible,
+.settings-group button:focus-visible,
+.settings-secondary-card button:focus-visible,
+.settings-mobile-header button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 70%, #fff 30%);
+  outline-offset: 3px;
+}
+
+.settings-secondary-card {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface) 88%, var(--accent) 12%);
+  padding: 16px;
+}
+
+.settings-secondary-card h4 {
+  margin: 0;
+  font-size: 19px;
+}
+
+.settings-secondary-card > p:not(.kicker) {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.settings-secondary-card .settings-group,
+.settings-secondary-card .settings-nav {
+  margin: 0;
+}
+
+.settings-mobile-header {
+  display: none;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 10px;
+}
+
+.settings-mobile-header button {
+  display: inline-flex;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 850;
+}
+
+.settings-mobile-header h3 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.settings-mobile-header .list-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.settings-dialog .settings-group[hidden] {
+  display: none;
+}
+
+.settings-dialog .settings-group > .settings-secondary-card {
+  margin-top: 8px;
+}
+
+.feed-media-error button::before,
+.settings-secondary-card button::before {
+  display: none;
+}
+
+@media (max-width: 700px) {
+  .settings-dialog .settings-sidebar {
+    min-height: 0;
+    overflow: auto;
+    border-right: 0;
+    border-bottom: 0;
+    padding: calc(76px + env(safe-area-inset-top)) 16px 20px;
+  }
+
+  .settings-dialog .settings-sidebar > .kicker,
+  .settings-dialog .settings-sidebar > h2 {
+    display: none;
+  }
+
+  .settings-dialog .settings-sidebar nav {
+    display: grid;
+    gap: 8px;
+    margin-top: 0;
+    overflow: visible;
+    padding-bottom: 0;
+  }
+
+  .settings-dialog .settings-sidebar button {
+    width: 100%;
+    min-height: 56px;
+    padding: 0 12px;
+  }
+
+  .settings-dialog .settings-content {
+    display: none;
+    min-height: 0;
+    padding: 14px 16px calc(28px + env(safe-area-inset-bottom));
+  }
+
+  .settings-dialog[data-mobile-settings-section] .settings-sidebar {
+    display: none;
+  }
+
+  .settings-dialog[data-mobile-settings-section] .settings-content {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .settings-dialog[data-mobile-settings-section] .settings-mobile-header {
+    display: flex;
+  }
+
+  .settings-dialog .settings-group h3 {
+    font-size: 24px;
+  }
+
+  .settings-secondary-card {
+    padding: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-dialog * {
+    scroll-behavior: auto !important;
+    transition: none !important;
+    animation: none !important;
+  }
+}

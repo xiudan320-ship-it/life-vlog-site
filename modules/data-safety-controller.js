@@ -245,63 +245,20 @@ export function createDataSafetyController({
   }
   
   function ensureDataSafetyUi() {
-    const settingsNav = els.settingsDialog?.querySelector(".settings-sidebar nav");
-    const content = els.settingsDialog?.querySelector(".settings-content");
-    if (!settingsNav || !content) return;
-    let nav = settingsNav.querySelector('[data-settings-section="settingsSafety"]');
-    if (!nav) {
-      nav = document.createElement("button");
-      nav.type = "button";
-      nav.dataset.settingsSection = "settingsSafety";
-      nav.setAttribute("role", "tab");
-      nav.setAttribute("aria-selected", "false");
-      nav.textContent = "数据安全";
-      nav.addEventListener("click", () => setActiveSettingsSection("settingsSafety"));
-      settingsNav.append(nav);
-    }
-    if (document.querySelector("#settingsSafety")) return;
-    const group = document.createElement("section");
-    group.className = "settings-group settings-safety";
-    group.id = "settingsSafety";
-    group.hidden = true;
-    group.innerHTML = `
-      <p class="kicker">Backup & Recycle Bin</p><h3>数据安全</h3>
-      <div class="trash-head"><div><strong>每日云端备份</strong><small>每天凌晨 03:20（日本时间）生成 1 份，自动保留最近 7 天</small><em id="latestBackupStatus">正在读取最近备份…</em></div><div class="backup-head-actions"><button type="button" data-refresh-backups aria-label="刷新备份">${renderListIcon("refresh")}</button><button type="button" data-create-backup>立即备份</button></div></div>
-      <div class="cloud-backup-list" id="cloudBackupList"></div>
-      <button id="backfillThumbnailsButton" type="button"><span>优化旧图片</span><strong>每次为最多 20 张旧图生成列表缩略图</strong></button>
-      <div class="trash-head"><div><strong>最近删除</strong><small>日记、秘藏、菜谱、心愿、周末计划、纪念日和留言保留 30 天</small></div><button type="button" data-refresh-trash aria-label="刷新回收站">${renderListIcon("refresh")}</button></div>
-      <div class="trash-items" id="trashItemsList"></div>`;
-    content.append(group);
-    group.querySelector("#backfillThumbnailsButton").addEventListener("click", backfillLegacyThumbnails);
-    group.querySelector("[data-refresh-backups]").addEventListener("click", renderCloudBackups);
-    group.querySelector("[data-create-backup]").addEventListener("click", createCloudBackupNow);
-    group.querySelector("[data-refresh-trash]").addEventListener("click", renderTrashItems);
+    const group = document.querySelector("#settingsSafety");
+    if (!group || group.dataset.dataSafetyUiBound === "true") return;
+    group.dataset.dataSafetyUiBound = "true";
+    group.querySelector("#backfillThumbnailsButton")?.addEventListener("click", backfillLegacyThumbnails);
+    group.querySelector("[data-refresh-backups]")?.addEventListener("click", renderCloudBackups);
+    group.querySelector("[data-create-backup]")?.addEventListener("click", createCloudBackupNow);
+    group.querySelector("[data-refresh-trash]")?.addEventListener("click", renderTrashItems);
   }
   
   function createSettingsSection(id, label, title, kicker = "System") {
-    const settingsNav = els.settingsDialog?.querySelector(".settings-sidebar nav");
-    const content = els.settingsDialog?.querySelector(".settings-content");
-    if (!settingsNav || !content) return null;
-    if (!settingsNav.querySelector(`[data-settings-section="${id}"]`)) {
-      const nav = document.createElement("button");
-      nav.type = "button";
-      nav.dataset.settingsSection = id;
-      nav.setAttribute("role", "tab");
-      nav.setAttribute("aria-selected", "false");
-      nav.textContent = label;
-      nav.addEventListener("click", () => setActiveSettingsSection(id));
-      settingsNav.append(nav);
-    }
-    let group = document.querySelector(`#${id}`);
-    if (!group) {
-      group = document.createElement("section");
-      group.id = id;
-      group.className = "settings-group stability-settings";
-      group.hidden = true;
-      group.innerHTML = `<p class="kicker">${kicker}</p><h3>${title}</h3>`;
-      content.append(group);
-    }
-    return group;
+    void label;
+    void title;
+    void kicker;
+    return document.querySelector(`#${id}`);
   }
   
   async function getCachedUrlHitCount(urls) {
@@ -383,14 +340,14 @@ export function createDataSafetyController({
   
   function ensureStabilitySettingsUi() {
     const diagnostics = createSettingsSection("settingsDiagnostics", "诊断", "离线与运行诊断", "Diagnostics");
-    if (diagnostics && !diagnostics.querySelector("#diagnosticResults")) {
-      diagnostics.insertAdjacentHTML("beforeend", `<p>检查当前设备是否真的可以离线启动，以及日记和秘藏图片的实际缓存命中情况。</p><button type="button" data-run-diagnostics><span>开始诊断</span><strong>不会上传任何设备信息</strong></button><div class="diagnostic-results" id="diagnosticResults"></div>`);
-      diagnostics.querySelector("[data-run-diagnostics]").addEventListener("click", runOfflineDiagnostics);
+    if (diagnostics && diagnostics.dataset.stabilityUiBound !== "true") {
+      diagnostics.dataset.stabilityUiBound = "true";
+      diagnostics.querySelector("[data-run-diagnostics]")?.addEventListener("click", runOfflineDiagnostics);
     }
     const uploads = createSettingsSection("settingsUploads", "上传", "上传任务中心", "Transfers");
-    if (uploads && !uploads.querySelector("#uploadCenterList")) {
-      uploads.insertAdjacentHTML("beforeend", `<div class="upload-center-head"><strong id="uploadCenterStatus">正在读取…</strong><button type="button" data-retry-uploads>立即重试</button></div><div class="upload-center-list" id="uploadCenterList"></div>`);
-      uploads.querySelector("[data-retry-uploads]").addEventListener("click", () => processDiaryUploadQueue());
+    if (uploads && uploads.dataset.uploadUiBound !== "true") {
+      uploads.dataset.uploadUiBound = "true";
+      uploads.querySelector("[data-retry-uploads]")?.addEventListener("click", () => processDiaryUploadQueue());
     }
   }
   

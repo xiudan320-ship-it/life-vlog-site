@@ -8,8 +8,8 @@ const WEEKEND_MEDIA_META_END = "-->";
 export function getDiaryMediaType(media = {}) {
   const explicitType = String(media.type || "").toLowerCase();
   if (["image", "live", "video"].includes(explicitType)) return explicitType;
-  if (media.motion_url || media.motionUrl) return "live";
-  if (media.video_url || media.videoUrl) return "video";
+  if (media.motion_url || media.motionUrl || media.motion_path || media.motionPath) return "live";
+  if (media.video_url || media.videoUrl || media.video_path || media.videoPath) return "video";
   return "image";
 }
 

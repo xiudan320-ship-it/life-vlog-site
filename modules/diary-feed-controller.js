@@ -1,10 +1,12 @@
 import {
+  getDiaryFilterOptions,
   filterDiaryEntries,
   isDiaryWithinDays,
   normalizeDiarySearchText,
   sortDiaryEntries,
 } from "./diary-domain.js";
 import { filterVlogPhotos } from "./vlog-mode.js";
+import { normalizeDiaryMediaImages } from "./diary-media-domain.js";
 import {
   getDiaryGalleryEmptyState,
   renderDiaryGalleryCards,
@@ -14,6 +16,7 @@ import {
   parseDiaryStoredImages,
   stripDiaryMediaMetadata,
 } from "./media-metadata.js";
+import { retryFeedImage } from "./diary-gallery-view.js";
 import { escapeHtml, formatDate, formatDateTime } from "./ui-formatters.js";
 import { renderListIcon } from "./list-icons.js";
 
@@ -48,6 +51,10 @@ export function createDiaryFeedController({
   adminUpdatePhotoCategory,
   renderMobileDiaryPage,
   isMissingCloudSchema,
+  resolveStoredAssetUrl,
+  getR2PublicAssetUrl,
+  r2PublicUrl = "",
+  r2UploadEndpoint = "",
 }) {
   const els = elements;
   const {
@@ -378,7 +385,47 @@ export function createDiaryFeedController({
   }
   
   function updateFilterChips() {
-    els.chips.forEach((item) => item.classList.toggle("active", item.dataset.filter === state.activeFilter));
+    const container = els.diaryFilterChips;
+    const options = getDiaryFilterOptions(state.photos, {
+      isFavorite: isFavoritePhoto,
+      isWithinSevenDays: isPhotoWithinSevenDays,
+    });
+    const optionValues = new Set(options.map((option) => option.value));
+    if (state.activeFilter !== "VLOG" && !optionValues.has(state.activeFilter)) {
+      const previousFilter = state.activeFilter;
+      state.activeFilter = "全部";
+      if (previousFilter && previousFilter !== "全部") {
+        setGlobalStatus("当前分类暂无可见日记，已显示全部。");
+      }
+    }
+    if (container) {
+      const existing = [...container.querySelectorAll(".chip")];
+      const sameOptions = existing.length === options.length && existing.every((button, index) => button.dataset.filter === options[index].value);
+      let focusValue = document.activeElement?.closest?.(".chip")?.dataset.filter || "";
+      if (!sameOptions) {
+        container.innerHTML = options.map((option) => `
+          <button class="chip${option.value === "featured7" ? " feature-chip" : ""}${option.value === "favorites" ? " favorite-chip" : ""}" data-filter="${escapeHtml(option.value)}" type="button" aria-pressed="${String(option.value === state.activeFilter)}" aria-label="${escapeHtml(`${option.label}，${option.count}篇`)}">${escapeHtml(option.label)} ${option.count}</button>
+        `).join("");
+        if (focusValue) {
+          [...container.querySelectorAll(".chip")]
+            .find((button) => button.dataset.filter === focusValue)
+            ?.focus();
+        }
+      }
+      container.querySelectorAll(".chip").forEach((item, index) => {
+        const option = options[index];
+        item.textContent = `${option.label} ${option.count}`;
+        item.classList.toggle("active", item.dataset.filter === state.activeFilter);
+        item.setAttribute("aria-pressed", String(item.dataset.filter === state.activeFilter));
+        item.setAttribute("aria-label", `${option.label}，${option.count}篇`);
+      });
+      els.chips = container.querySelectorAll(".chip");
+    } else {
+      els.chips.forEach((item) => {
+        item.classList.toggle("active", item.dataset.filter === state.activeFilter);
+        item.setAttribute("aria-pressed", String(item.dataset.filter === state.activeFilter));
+      });
+    }
     els.galleryNav.classList.toggle("active", state.activePage === "gallery" && state.activeFilter !== "VLOG");
     els.vlogNav?.classList.toggle("active", state.activePage === "gallery" && state.activeFilter === "VLOG");
   }
@@ -439,6 +486,7 @@ export function createDiaryFeedController({
   }
   
   function renderGallery(updatedPhotoId = "") {
+    updateFilterChips();
     renderOverview();
     updateTodayPostsNotice();
     const sortedPhotos = getSortedPhotos(state.photos);
@@ -463,7 +511,7 @@ export function createDiaryFeedController({
       layout: document.body.dataset.mobileFeedLayout || "",
       visible: state.visiblePhotoCount,
       favorites: photoFavorites.sortedIds(),
-      photos: visible.map((photo) => [photo.id, photo.updated_at, photo.is_featured, photo.is_pinned, getPhotoImages(photo).length]),
+       photos: visible.map((photo) => [photo.id, photo.updated_at, photo.category, photo.is_featured, photo.is_pinned, getPhotoImages(photo).length]),
       comments: visible.map((photo) => (state.photoCommentPreviewMap.get(photo.id) || []).map((comment) => [comment.id, comment.updated_at, comment.body])),
     });
     if (nextSignature === state.galleryRenderSignature && els.gallery.childElementCount) {
@@ -504,7 +552,8 @@ export function createDiaryFeedController({
         favorite: togglePhotoFavorite,
         flag: togglePhotoFlag,
         edit: openEditPhoto,
-        adminCategory: adminUpdatePhotoCategory,
+         adminCategory: adminUpdatePhotoCategory,
+         retry: (photoIndex, imageIndex) => retryFeedImage(els.gallery, photoIndex, imageIndex),
       },
       updatedPhotoId,
     });
@@ -793,32 +842,12 @@ export function createDiaryFeedController({
       poster_path: photo.poster_path || photo.image_path || "",
     };
     const images = storedImages.length ? storedImages : [primary];
-    const seen = new Set();
-  
-    return images
-      .map((image) => ({
-        type: getDiaryMediaType(image),
-        image_url: image.image_url || image.poster_url || image.posterUrl || image.url,
-        image_path: image.image_path || image.path || "",
-        width: image.width ?? null,
-        height: image.height ?? null,
-        thumbnail_url: image.thumbnail_url || image.thumb_url || "",
-        thumbnail_path: image.thumbnail_path || image.thumb_path || "",
-        motion_url: image.motion_url || image.motionUrl || "",
-        motion_path: image.motion_path || image.motionPath || "",
-        motion_type: image.motion_type || image.motionType || "",
-        video_url: image.video_url || image.videoUrl || "",
-        video_path: image.video_path || image.videoPath || "",
-        video_type: image.video_type || image.videoType || "",
-        poster_url: image.poster_url || image.posterUrl || image.image_url || image.url || "",
-        poster_path: image.poster_path || image.posterPath || image.image_path || image.path || "",
-      }))
-      .filter((image) => image.image_url)
-      .filter((image) => {
-        if (seen.has(image.image_url)) return false;
-        seen.add(image.image_url);
-        return true;
-      });
+    return normalizeDiaryMediaImages(images, {
+      publicUrl: r2PublicUrl,
+      getR2PublicAssetUrl,
+      resolveStoredAssetUrl,
+      workerEndpoint: r2UploadEndpoint,
+    });
   }
   
   function getPlainNote(photo) {

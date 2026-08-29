@@ -9,6 +9,13 @@ const pseudoSession = {
   expires_at: new Date(Date.now() + 3600000).toISOString(),
   user: { id: "fixture-user", email: "fixture-user@life-vlog.local", user_metadata: { username: "fixture-user" } },
 };
+const adminPseudoSession = {
+  ...pseudoSession,
+  user: {
+    ...pseudoSession.user,
+    user_metadata: { ...pseudoSession.user.user_metadata, username: "xiudan320", login_username: "xiudan320" },
+  },
+};
 
 function runtimeErrors(page) {
   const errors = [];
@@ -19,7 +26,7 @@ function runtimeErrors(page) {
   return errors;
 }
 
-async function openFixturePage(browser, { path = "/", authenticated = true, scenario = "ok", delayMs = 0, serviceWorkers = "block", corrupt = false, corruptSession = false, expired = false, reducedMotion = "no-preference", saveData = false, viewport = { width: 390, height: 844 } } = {}) {
+async function openFixturePage(browser, { path = "/", authenticated = true, scenario = "ok", delayMs = 0, serviceWorkers = "block", corrupt = false, corruptSession = false, expired = false, reducedMotion = "no-preference", saveData = false, viewport = { width: 390, height: 844 }, session = pseudoSession } = {}) {
   const context = await browser.newContext({ viewport, serviceWorkers, reducedMotion });
   const fixture = createCloudflareApiFixture({ scenario, delayMs });
   await fixture.install(context);
@@ -40,7 +47,7 @@ async function openFixturePage(browser, { path = "/", authenticated = true, scen
       localStorage.setItem("life-vlog-recipes:fixture-user", broken ? "{" : JSON.stringify([]));
       localStorage.setItem("life-vlog-weekend-plans:fixture-user", broken ? "{" : JSON.stringify([]));
     }, {
-      session: { ...pseudoSession, expires_at: expired ? new Date(Date.now() - 1000).toISOString() : pseudoSession.expires_at },
+      session: { ...session, expires_at: expired ? new Date(Date.now() - 1000).toISOString() : session.expires_at },
       broken: corrupt,
       invalidSession: corruptSession,
     });
@@ -104,27 +111,28 @@ async function testAuthenticatedGallery(browser) {
     assert.ok(initialRequestCount <= 27, `authenticated gallery made ${initialRequestCount} initial requests`);
     const initialMotionRequests = result.fixture.requests.filter(({ path }) => path === "/fixture-live.mov").length;
     assert.ok(initialMotionRequests <= 1, `initial live media requested ${initialMotionRequests} times`);
+    assert.equal(result.fixture.requests.some(({ path }) => path === "/fixture-camera-talent.mp4"), false, "ordinary VLOG video was requested in the feed");
     const initialMediaState = await page.evaluate(() => ({
       viewportBottom: window.innerHeight,
       status: document.querySelector("#globalStatus")?.textContent || "",
       cards: document.querySelectorAll(".photo-card").length,
       galleryText: document.querySelector("#gallery")?.textContent?.trim().slice(0, 200) || "",
       activeChips: [...document.querySelectorAll(".chip.active")].map((chip) => chip.dataset.filter || chip.textContent.trim()),
-      videos: [...document.querySelectorAll("video.feed-image")].map((video) => ({
-        id: video.closest("[data-photo-id]")?.dataset.photoId || "",
-        src: video.currentSrc || "",
-        top: Math.round(video.getBoundingClientRect().top),
+      motions: [...document.querySelectorAll("img.feed-image[data-motion-src]")].map((image) => ({
+        id: image.closest("[data-photo-id]")?.dataset.photoId || "",
+        overlay: Boolean(image.closest("[data-photo-id]")?.querySelector("video.feed-motion-preview")),
+        top: Math.round(image.getBoundingClientRect().top),
       })),
     }));
-    const farVideos = initialMediaState.videos.filter(({ top }) => top > initialMediaState.viewportBottom + 180);
-    assert.ok(farVideos.length > 0, `fixture did not place a video beyond the near viewport: ${JSON.stringify({ ...initialMediaState, requests: result.fixture.requests })}`);
-    assert.ok(farVideos.every(({ src }) => !src), `offscreen video activated: ${JSON.stringify(initialMediaState)}`);
+    const farMotions = initialMediaState.motions.filter(({ top }) => top > initialMediaState.viewportBottom + 180);
+    assert.ok(farMotions.length > 0, `fixture did not place live media beyond the near viewport: ${JSON.stringify({ ...initialMediaState, requests: result.fixture.requests })}`);
+    assert.ok(farMotions.every(({ overlay }) => !overlay), `offscreen live media activated: ${JSON.stringify(initialMediaState)}`);
     assert.ok(result.fixture.requests.some(({ path }) => ["/fixture-far.mov", "/fixture-remote.mov"].includes(path)) === false, "far feed video was requested before entering its viewport");
     await page.evaluate(() => {
       for (let index = 0; index < 20; index += 1) window.scrollTo(0, index % 2 ? 2400 : 0);
     });
     await page.waitForTimeout(300);
-    const mediaState = await page.evaluate(() => [...document.querySelectorAll("video.feed-image")].map((video) => ({
+    const mediaState = await page.evaluate(() => [...document.querySelectorAll("video.feed-motion-preview")].map((video) => ({
       currentSrc: video.currentSrc || "",
       paused: video.paused,
     })));
@@ -134,7 +142,7 @@ async function testAuthenticatedGallery(browser) {
     }
     assert.equal(await page.locator("#galleryNav").isEnabled(), true, "gallery navigation is disabled");
     const forbidden = routeScripts(result).filter((url) => /(?:recipes|weekend|wardrobe|secret|settings)-route-/.test(url));
-    assert.equal(forbidden.length, 0, `gallery cold start loaded route chunks: ${forbidden.map(({ path }) => path).join(", ")}`);
+    assert.equal(forbidden.length, 0, `gallery cold start loaded route chunks: ${forbidden.join(", ")}`);
     await page.click("#wishlistNav");
     await page.waitForSelector("#wishlistPage:not([hidden])");
     await page.waitForSelector('[data-wish-id="fixture-wish"]', { timeout: 5000 });
@@ -175,7 +183,7 @@ async function testVideoDiaryPolicy(browser) {
   try {
     const page = desktop.page;
     await page.locator('[data-photo-id="fixture-camera-talent-video"]').waitFor({ state: "visible" });
-    await page.locator('[data-photo-id="fixture-camera-talent-video"] .photo-media button').click();
+    await page.getByRole("button", { name: "摄影小天才 Video" }).click();
     await page.waitForSelector("#photoDialog[open]");
     assert.deepEqual(await page.locator("#dialogVideo").evaluate((video) => ({
       hidden: video.hidden,
@@ -189,7 +197,7 @@ async function testVideoDiaryPolicy(browser) {
   const mobile = await openFixturePage(browser, { viewport: { width: 390, height: 844 } });
   try {
     const page = mobile.page;
-    await page.locator('[data-photo-id="fixture-camera-talent-video"] .photo-media button').click();
+    await page.getByRole("button", { name: "摄影小天才 Video" }).click();
     await page.waitForSelector("body.mobile-diary-page-open");
     assert.deepEqual(await page.locator(".mobile-diary-video").evaluate((video) => ({
       autoplay: video.autoplay,
@@ -225,6 +233,69 @@ async function testDiaryImageUpload(browser) {
     );
     assert.deepEqual(result.errors, [], `diary upload runtime errors: ${result.errors.join(" | ")}`);
   } finally { await result.context.close(); }
+}
+
+async function openSettingsFromAccount(page) {
+  await page.click("#avatarButton");
+  await page.click("#accountSettingsButton");
+  await page.waitForSelector("#settingsDialog[open]");
+}
+
+async function testFilterSettingsAndActions(browser) {
+  const filters = await openFixturePage(browser, { viewport: { width: 390, height: 844 } });
+  try {
+    const page = filters.page;
+    const chips = page.locator("#diaryFilterChips .chip");
+    assert.equal(await chips.count() >= 5, true, "release fixture did not render dynamic diary filters");
+    const ordinary = await chips.evaluateAll((buttons) => buttons
+      .filter((button) => !["全部", "featured7", "favorites"].includes(button.dataset.filter))
+      .map((button) => button.getAttribute("aria-label") || ""));
+    assert.equal(ordinary.every((label) => !label.endsWith("，0篇")), true, "release fixture rendered an empty ordinary category");
+    await page.click('#diaryFilterChips [data-filter="旅行"]');
+    await page.waitForFunction(() => document.querySelector('#diaryFilterChips [data-filter="旅行"]')?.getAttribute("aria-pressed") === "true");
+    assert.equal(await page.locator("#gallery .photo-card").count(), 2, "release category filter result is incorrect");
+    await page.fill("#diarySearchInput", "offscreen");
+    await page.waitForFunction(() => document.querySelectorAll("#gallery .photo-card").length === 1);
+    assert.equal(await page.locator("#gallery .photo-card").getAttribute("data-photo-id"), "fixture-offscreen-photo");
+    await openSettingsFromAccount(page);
+    assert.equal(await page.locator("#settingsDialog [data-settings-section]").count(), 5);
+    await page.click("#settings-tab-settingsStorage");
+    await page.waitForSelector('#settingsDialog[data-mobile-settings-section="settingsStorage"]');
+    await page.click("[data-settings-back]");
+    await page.waitForFunction(() => !document.querySelector("#settingsDialog")?.dataset.mobileSettingsSection);
+    assert.deepEqual(filters.errors, [], `release filter/settings errors: ${filters.errors.join(" | ")}`);
+  } finally { await filters.context.close(); }
+
+  const owner = await openFixturePage(browser, { viewport: { width: 390, height: 844 } });
+  try {
+    const page = owner.page;
+    await page.locator('[data-photo-id="fixture-photo"] .photo-media button:not([data-media-retry])').click();
+    await page.waitForSelector("body.mobile-diary-page-open");
+    assert.equal(await page.locator(".mobile-diary-actions > button").count(), 3);
+    await page.click("[data-mobile-diary-more]");
+    await page.waitForSelector("[data-mobile-diary-more-sheet][open]");
+    await page.keyboard.press("Escape");
+    await page.waitForFunction(() => !document.querySelector("[data-mobile-diary-more-sheet]")?.open);
+    assert.equal(await page.evaluate(() => document.activeElement?.matches("[data-mobile-diary-more]")), true);
+    assert.deepEqual(owner.errors, [], `release mobile action errors: ${owner.errors.join(" | ")}`);
+  } finally { await owner.context.close(); }
+
+  const admin = await openFixturePage(browser, { viewport: { width: 390, height: 844 }, session: adminPseudoSession });
+  try {
+    const page = admin.page;
+    await page.locator('[data-photo-id="fixture-admin-photo"] .photo-media button:not([data-media-retry])').click();
+    await page.waitForSelector("body.mobile-diary-page-open");
+    await page.click("[data-mobile-diary-admin-category]");
+    await page.waitForSelector("#adminCategoryDialog[open]");
+    assert.match(await page.locator(".admin-category-context").textContent(), /Fixture admin diary/);
+    assert.match(await page.locator(".admin-category-context").textContent(), /当前分类：城市/);
+    await page.locator('[data-category-option][value="食物"]').check();
+    await page.click("[data-category-save]");
+    await page.waitForFunction(() => !document.querySelector("#adminCategoryDialog")?.open);
+    await page.waitForFunction(() => document.querySelector(".mobile-diary-meta")?.textContent.includes("食物"));
+    assert.equal(await page.evaluate(() => document.activeElement?.matches("[data-mobile-diary-admin-category]")), true);
+    assert.deepEqual(admin.errors, [], `release category picker errors: ${admin.errors.join(" | ")}`);
+  } finally { await admin.context.close(); }
 }
 
 async function testWeekendComposerAndDelete(browser) {
@@ -363,6 +434,7 @@ try {
   await testAuthenticatedGallery(browser);
   await testVideoDiaryPolicy(browser);
   await testDiaryImageUpload(browser);
+  await testFilterSettingsAndActions(browser);
   await testWeekendComposerAndDelete(browser);
   await testMobileCommentComposer(browser);
   await testFixtureSecretCrud(browser);

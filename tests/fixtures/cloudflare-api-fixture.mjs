@@ -1,6 +1,7 @@
 const WORKER_URL = "https://life-vlog-r2-upload.xiudan320-life.workers.dev";
 const FIXTURE_IMAGE = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Crect width='8' height='8' fill='%23d9c2a3'/%3E%3C/svg%3E";
-const FIXTURE_VIDEO_URL = `${WORKER_URL}/fixture-camera-talent.mp4`;
+const FIXTURE_MEDIA_URL = "/__fixture-media";
+const FIXTURE_VIDEO_URL = `${FIXTURE_MEDIA_URL}/fixture-camera-talent.mp4`;
 const FIXTURE_VIDEO_NOTE = `<!--life-vlog-media:${encodeURIComponent(JSON.stringify([{
   type: "video",
   image_url: FIXTURE_IMAGE,
@@ -21,7 +22,7 @@ const tableSeeds = {
       image_url: FIXTURE_IMAGE,
       thumbnail_url: FIXTURE_IMAGE,
       type: "live",
-      motion_url: "https://life-vlog-r2-upload.xiudan320-life.workers.dev/fixture-live.mov",
+      motion_url: `${FIXTURE_MEDIA_URL}/fixture-live.mov`,
       created_at: "2030-01-01T00:00:00.000Z",
       taken_at: "2030-01-01T00:00:00.000Z",
       is_public: true,
@@ -35,9 +36,22 @@ const tableSeeds = {
       image_url: FIXTURE_IMAGE,
       thumbnail_url: FIXTURE_IMAGE,
       type: "live",
-      motion_url: "https://life-vlog-r2-upload.xiudan320-life.workers.dev/fixture-offscreen.mov",
+      motion_url: `${FIXTURE_MEDIA_URL}/fixture-offscreen.mov`,
       created_at: "2029-01-01T00:00:00.000Z",
       taken_at: "2029-01-01T00:00:00.000Z",
+      is_public: true,
+    },
+    {
+      id: "fixture-admin-photo",
+      user_id: "fixture-other-user",
+      category: "城市",
+      title: "Fixture admin diary",
+      note: "用于验证分类选择器上下文",
+      image_url: FIXTURE_IMAGE,
+      thumbnail_url: FIXTURE_IMAGE,
+      type: "image",
+      created_at: "2028-06-01T00:00:00.000Z",
+      taken_at: "2028-06-01T00:00:00.000Z",
       is_public: true,
     },
     {
@@ -65,7 +79,7 @@ const tableSeeds = {
       image_url: FIXTURE_IMAGE,
       thumbnail_url: FIXTURE_IMAGE,
       type: "live",
-      motion_url: "https://life-vlog-r2-upload.xiudan320-life.workers.dev/fixture-far.mov",
+      motion_url: `${FIXTURE_MEDIA_URL}/fixture-far.mov`,
       created_at: "2028-01-01T00:00:00.000Z",
       taken_at: "2028-01-01T00:00:00.000Z",
       is_public: true,
@@ -79,7 +93,7 @@ const tableSeeds = {
       image_url: FIXTURE_IMAGE,
       thumbnail_url: FIXTURE_IMAGE,
       type: "live",
-      motion_url: "https://life-vlog-r2-upload.xiudan320-life.workers.dev/fixture-remote.mov",
+      motion_url: `${FIXTURE_MEDIA_URL}/fixture-remote.mov`,
       created_at: "2027-01-01T00:00:00.000Z",
       taken_at: "2027-01-01T00:00:00.000Z",
       is_public: true,
@@ -93,7 +107,7 @@ const tableSeeds = {
       image_url: FIXTURE_IMAGE,
       thumbnail_url: FIXTURE_IMAGE,
       type: "live",
-      motion_url: "https://life-vlog-r2-upload.xiudan320-life.workers.dev/fixture-deep.mov",
+      motion_url: `${FIXTURE_MEDIA_URL}/fixture-deep.mov`,
       created_at: "2026-01-01T00:00:00.000Z",
       taken_at: "2026-01-01T00:00:00.000Z",
       is_public: true,
@@ -107,7 +121,7 @@ const tableSeeds = {
       image_url: FIXTURE_IMAGE,
       thumbnail_url: FIXTURE_IMAGE,
       type: "live",
-      motion_url: "https://life-vlog-r2-upload.xiudan320-life.workers.dev/fixture-last.mov",
+      motion_url: `${FIXTURE_MEDIA_URL}/fixture-last.mov`,
       created_at: "2025-01-01T00:00:00.000Z",
       taken_at: "2025-01-01T00:00:00.000Z",
       is_public: true,
@@ -314,7 +328,8 @@ export function createCloudflareApiFixture({ scenario = "ok", delayMs = 0 } = {}
   return {
     async install(context) {
       await context.route("**/*", (route) => {
-        if (route.request().url().startsWith(`${WORKER_URL}/`)) return handle(route);
+        const requestUrl = new URL(route.request().url());
+        if (requestUrl.origin === new URL(WORKER_URL).origin || requestUrl.pathname.startsWith(`${FIXTURE_MEDIA_URL}/`)) return handle(route);
         return route.continue();
       });
     },

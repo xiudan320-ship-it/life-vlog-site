@@ -53,12 +53,19 @@ const pseudoSession = {
   expires_at: new Date(Date.now() + 3600000).toISOString(),
   user: { id: "fixture-user", user_metadata: { username: "fixture-user" } },
 };
+const adminPseudoSession = {
+  ...pseudoSession,
+  user: {
+    ...pseudoSession.user,
+    user_metadata: { ...pseudoSession.user.user_metadata, username: "xiudan320", login_username: "xiudan320" },
+  },
+};
 
 function scriptUrls(page) {
   return page.__cScriptUrls || [];
 }
 
-async function openFixturePage({ viewport, authenticated = true, path = "/", fixtureOptions = {} } = {}) {
+async function openFixturePage({ viewport, authenticated = true, path = "/", fixtureOptions = {}, session = pseudoSession } = {}) {
   const browserContext = await browser.newContext({ viewport, serviceWorkers: "block" });
   const fixture = createCloudflareApiFixture(fixtureOptions);
   await fixture.install(browserContext);
@@ -73,7 +80,7 @@ async function openFixturePage({ viewport, authenticated = true, path = "/", fix
   if (authenticated) {
     await page.addInitScript((session) => {
       localStorage.setItem("life-vlog-cloudflare-auth", JSON.stringify(session));
-    }, pseudoSession);
+    }, session);
   }
   await page.goto(`${baseUrl}${path}`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("#appSplash[hidden]", { state: "attached", timeout: 10000 });
@@ -177,13 +184,132 @@ async function testSecretSyncDoesNotDependOnRouteController(browser) {
   }
 }
 
+async function testDynamicDiaryFilters(browser) {
+  const result = await openFixturePage({ viewport: { width: 390, height: 844 } });
+  try {
+    const page = result.page;
+    const options = await page.locator("#diaryFilterChips .chip").evaluateAll((buttons) => buttons.map((button) => ({
+      value: button.dataset.filter,
+      label: button.getAttribute("aria-label") || "",
+      pressed: button.getAttribute("aria-pressed"),
+    })));
+    assert.deepEqual(options.slice(0, 3).map(({ value }) => value), ["全部", "featured7", "favorites"]);
+    assert.ok(options.filter(({ value }) => !["全部", "featured7", "favorites"].includes(value)).every(({ label }) => !label.endsWith("，0篇")), "ordinary zero-count category was rendered");
+
+    const travel = page.locator('#diaryFilterChips [data-filter="旅行"]');
+    await travel.focus();
+    await travel.click();
+    await page.waitForFunction(() => document.querySelector('#diaryFilterChips [data-filter="旅行"]')?.getAttribute("aria-pressed") === "true");
+    assert.equal(await page.evaluate(() => document.activeElement?.dataset.filter), "旅行", "filter redraw did not preserve chip focus");
+    assert.deepEqual(await page.locator("#gallery .photo-card").evaluateAll((cards) => cards.map((card) => card.dataset.photoId)), ["fixture-offscreen-photo", "fixture-last-photo"]);
+
+    await page.fill("#diarySearchInput", "offscreen");
+    await page.waitForFunction(() => document.querySelectorAll("#gallery .photo-card").length === 1);
+    assert.equal(await page.locator("#gallery .photo-card").getAttribute("data-photo-id"), "fixture-offscreen-photo", "category and search did not combine with AND semantics");
+    assert.equal(result.errors.length, 0, `dynamic filter page errors: ${result.errors.join(" | ")}`);
+  } finally {
+    await closeFixturePage(result);
+  }
+}
+
+async function openSettingsFromAccount(page) {
+  await page.click("#avatarButton");
+  await page.click("#accountSettingsButton");
+  await page.waitForSelector("#settingsDialog[open]", { state: "attached", timeout: 10000 });
+}
+
+async function testSettingsRegistryInteractions(browser) {
+  const mobile = await openFixturePage({ viewport: { width: 390, height: 844 } });
+  try {
+    const page = mobile.page;
+    await openSettingsFromAccount(page);
+    assert.equal(await page.locator("#settingsDialog [data-settings-section]").count(), 5);
+    assert.equal(await page.locator("[data-settings-nav]").getAttribute("role"), null, "mobile settings retained tablist semantics");
+    await page.click("#settings-tab-settingsStorage");
+    await page.waitForSelector('#settingsDialog[data-mobile-settings-section="settingsStorage"]');
+    assert.equal(await page.locator(".settings-sidebar").isVisible(), false);
+    assert.equal(await page.locator("#settingsStorage").isVisible(), true);
+    assert.equal(await page.locator("#settingsStorage [data-performance-copy]").count(), 1);
+    assert.equal(await page.locator("#settingsStorage [data-run-diagnostics]").count(), 1);
+    await page.click("[data-settings-back]");
+    await page.waitForFunction(() => !document.querySelector("#settingsDialog")?.dataset.mobileSettingsSection);
+    assert.equal(await page.evaluate(() => document.activeElement?.id), "settings-tab-settingsStorage", "mobile settings back did not restore category focus");
+  } finally {
+    await closeFixturePage(mobile);
+  }
+
+  const desktop = await openFixturePage({ viewport: { width: 1440, height: 900 } });
+  try {
+    const page = desktop.page;
+    await openSettingsFromAccount(page);
+    assert.equal(await page.locator("[data-settings-nav]").getAttribute("role"), "tablist");
+    assert.equal(await page.locator('[data-settings-section][role="tab"]').count(), 5);
+    await page.locator("#settings-tab-settingsAppearance").focus();
+    await page.keyboard.press("ArrowRight");
+    await page.waitForFunction(() => document.querySelector("#settings-tab-settingsAccount")?.getAttribute("aria-selected") === "true");
+    await page.keyboard.press("End");
+    await page.waitForFunction(() => document.querySelector("#settings-tab-settingsStorage")?.getAttribute("aria-selected") === "true");
+    await page.keyboard.press("Home");
+    await page.waitForFunction(() => document.querySelector("#settings-tab-settingsAppearance")?.getAttribute("aria-selected") === "true");
+    assert.equal(desktop.errors.length, 0, `settings page errors: ${desktop.errors.join(" | ")}`);
+  } finally {
+    await closeFixturePage(desktop);
+  }
+}
+
+async function testMobileDiaryActionsAndCategoryPicker(browser) {
+  const owner = await openFixturePage({ viewport: { width: 390, height: 844 } });
+  try {
+    const page = owner.page;
+    await page.locator('[data-photo-id="fixture-photo"] .feed-media-shell > button').click();
+    await page.waitForSelector("body.mobile-diary-page-open");
+    assert.equal(await page.locator(".mobile-diary-actions > button").count(), 3, "mobile diary exposed more than three first-level actions");
+    const sizes = await page.locator(".mobile-diary-actions > button").evaluateAll((buttons) => buttons.map((button) => {
+      const rect = button.getBoundingClientRect();
+      return [rect.width, rect.height];
+    }));
+    assert.ok(sizes.every(([width, height]) => width >= 44 && height >= 44), `mobile diary action target is too small: ${JSON.stringify(sizes)}`);
+    const more = page.locator("[data-mobile-diary-more]");
+    await more.click();
+    await page.waitForSelector("[data-mobile-diary-more-sheet][open]");
+    assert.equal(await page.locator("[data-mobile-diary-more-sheet] .mobile-diary-more-divider").count(), 1);
+    assert.equal(await page.locator("[data-mobile-diary-more-sheet] button.danger").count(), 1);
+    await page.keyboard.press("Escape");
+    await page.waitForFunction(() => !document.querySelector("[data-mobile-diary-more-sheet]")?.open);
+    assert.equal(await page.evaluate(() => document.activeElement?.matches("[data-mobile-diary-more]")), true, "more sheet did not restore trigger focus");
+  } finally {
+    await closeFixturePage(owner);
+  }
+
+  const admin = await openFixturePage({ viewport: { width: 390, height: 844 }, session: adminPseudoSession });
+  try {
+    const page = admin.page;
+    await page.locator('[data-photo-id="fixture-admin-photo"] .feed-media-shell > button').click();
+    await page.waitForSelector("body.mobile-diary-page-open");
+    await page.click("[data-mobile-diary-admin-category]");
+    await page.waitForSelector("#adminCategoryDialog[open]");
+    assert.match(await page.locator("#adminCategoryTitle").textContent(), /修改日记分类/);
+    assert.match(await page.locator(".admin-category-context").textContent(), /Fixture admin diary/);
+    assert.match(await page.locator(".admin-category-context").textContent(), /当前分类：城市/);
+    assert.ok(await page.locator("[data-category-option]").count() >= 2);
+    await page.locator('[data-category-option][value="食物"]').check();
+    await page.click("[data-category-save]");
+    await page.waitForFunction(() => !document.querySelector("#adminCategoryDialog")?.open);
+    await page.waitForFunction(() => document.querySelector(".mobile-diary-meta")?.textContent.includes("食物"));
+    assert.equal(await page.evaluate(() => document.activeElement?.matches("[data-mobile-diary-admin-category]")), true, "category picker did not restore focus after rerender");
+    assert.equal(admin.errors.length, 0, `category picker page errors: ${admin.errors.join(" | ")}`);
+  } finally {
+    await closeFixturePage(admin);
+  }
+}
+
 async function testOrdinaryVideoLifecycle(browser) {
   const desktop = await openFixturePage({ viewport: { width: 1440, height: 900 } });
   try {
     const page = desktop.page;
     const card = page.locator('[data-photo-id="fixture-camera-talent-video"]');
     await card.waitFor({ state: "visible" });
-    await card.locator(".photo-media button").click();
+    await card.locator(".feed-media-shell > button").click();
     await page.waitForSelector("#photoDialog[open]", { state: "attached" });
     const desktopVideo = page.locator("#dialogVideo");
     assert.deepEqual(await desktopVideo.evaluate((video) => ({
@@ -205,7 +331,7 @@ async function testOrdinaryVideoLifecycle(browser) {
   try {
     const page = mobile.page;
     const card = page.locator('[data-photo-id="fixture-camera-talent-video"]');
-    await card.locator(".photo-media button").click();
+    await card.locator(".feed-media-shell > button").click();
     await page.waitForSelector("body.mobile-diary-page-open");
     const video = page.locator(".mobile-diary-video");
     assert.deepEqual(await video.evaluate((element) => ({
@@ -233,7 +359,7 @@ async function testOrdinaryVideoLifecycle(browser) {
   });
   try {
     const page = failed.page;
-    await page.locator('[data-photo-id="fixture-camera-talent-video"] .photo-media button').click();
+    await page.locator('[data-photo-id="fixture-camera-talent-video"] .feed-media-shell > button').click();
     await page.waitForSelector("body.mobile-diary-page-open");
     await page.waitForFunction(() => document.querySelector("[data-mobile-diary-video-status]")?.dataset.state === "error", null, { timeout: 10000 });
     assert.equal(await page.locator("[data-mobile-diary-video-status] [data-media-retry]").isHidden(), false);
@@ -443,6 +569,9 @@ try {
   await testDesktopViewerLazyBoundary(browser);
   await testMobileDiaryLazyBoundary(browser);
   await testSecretSyncDoesNotDependOnRouteController(browser);
+  await testDynamicDiaryFilters(browser);
+  await testSettingsRegistryInteractions(browser);
+  await testMobileDiaryActionsAndCategoryPicker(browser);
   await testOrdinaryVideoLifecycle(browser);
   await testRapidNavigationLatestWins(browser);
   await testPhotoEditorLazyBoundary(browser);

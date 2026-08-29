@@ -136,26 +136,14 @@ export function createLayoutSettingsController({
   }
   
   function ensureFamilySignatureUi() {
-    const general = document.querySelector("#settingsGeneral");
-    if (!general || document.querySelector("#familyTaglineButton")) return;
-    const button = document.createElement("button");
-    button.id = "familyTaglineButton";
-    button.type = "button";
-    button.innerHTML = `<span>家庭签名</span><strong><em id="settingsFamilyTaglineValue"></em><small>所有家庭成员共享可见</small></strong>`;
-    document.querySelector("#renameProfileButton")?.before(button);
-  
-    const dialog = document.createElement("dialog");
-    dialog.className = "account-dialog";
-    dialog.id = "familyTaglineDialog";
-    dialog.innerHTML = `
-      <button class="dialog-close" type="button" data-close-family-tagline aria-label="关闭">×</button>
-      <form id="familyTaglineForm">
-        <div><p class="kicker">Family Signature</p><h2>家庭签名</h2><p>会显示在封面上，并同步给当前家庭的所有成员。</p></div>
-        <label>签名<textarea id="familyTaglineInput" rows="3" maxlength="120" required></textarea></label>
-        <p class="status-line" id="familyTaglineStatus"></p>
-        <div class="rename-home-actions"><button class="ghost-button" type="button" data-reset-family-tagline>恢复默认</button><button class="primary" type="submit">保存签名</button></div>
-      </form>`;
-    document.body.append(dialog);
+    const button = document.querySelector("#familyTaglineButton");
+    const dialog = document.querySelector("#familyTaglineDialog");
+    if (!button || !dialog) return;
+    if (button.dataset.familyTaglineBound === "true") {
+      applyFamilyTagline(state.accountProfile.familyTagline || loadFamilyTagline());
+      return;
+    }
+    button.dataset.familyTaglineBound = "true";
     const input = dialog.querySelector("#familyTaglineInput");
     const status = dialog.querySelector("#familyTaglineStatus");
     button.addEventListener("click", () => openSettingsChildDialog(dialog, () => {

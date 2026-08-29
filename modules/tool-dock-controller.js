@@ -100,12 +100,8 @@ export function createToolDockController({
   function renderSettingsAccountOverview() {
     const group = document.querySelector("#settingsAccount");
     if (!group) return;
-    let overview = group.querySelector(".settings-account-overview");
-    if (!overview) {
-      overview = document.createElement("div");
-      overview.className = "settings-account-overview";
-      group.querySelector("h3")?.after(overview);
-    }
+    const overview = group.querySelector(".settings-account-overview");
+    if (!overview) return;
     const displayName = state.session ? getSessionDisplayName() : "未登录";
     const username = state.session?.user?.user_metadata?.username || state.session?.user?.email?.split("@")[0] || "";
     overview.innerHTML = buildSettingsAccountOverviewMarkup({

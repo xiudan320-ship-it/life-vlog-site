@@ -1,14 +1,19 @@
 export function createPerformanceDiagnosticsView({
   monitor,
   root,
+  getRoot = () => root,
   showToast = () => {},
   health = null,
 } = {}) {
   function render() {
-    if (!root) return;
+    const target = getRoot();
+    if (!target) return;
+    bind(target);
     const latest = monitor.latest();
     const history = monitor.history();
-    root.querySelector("[data-performance-summary]").textContent = latest
+    const summary = target.querySelector("[data-performance-summary]");
+    if (!summary) return;
+    summary.textContent = latest
       ? `最近一次：${latest.measures["splash-hidden"] || "—"} ms 到开屏结束 · ${history.length} 次记录`
       : "还没有本机性能记录。打开应用后会自动记录。";
   }
@@ -18,7 +23,11 @@ export function createPerformanceDiagnosticsView({
     showToast("已复制脱敏诊断信息", { kind: "success" });
   }
   function clear() { monitor.clear(); health?.clear?.(); render(); showToast("已清除本机诊断记录"); }
-  root?.querySelector("[data-performance-copy]")?.addEventListener("click", copy);
-  root?.querySelector("[data-performance-clear]")?.addEventListener("click", clear);
-  return { render };
+  function bind(target = getRoot()) {
+    if (!target || target.dataset.performanceUiBound === "true") return;
+    target.dataset.performanceUiBound = "true";
+    target.querySelector("[data-performance-copy]")?.addEventListener("click", copy);
+    target.querySelector("[data-performance-clear]")?.addEventListener("click", clear);
+  }
+  return { render, bind };
 }

@@ -29,6 +29,9 @@ export const [app, redesignStyles, styles, worker, schema, index, manifestText] 
 export const css = redesignStyles.join("\n");
 export const serviceWorker = await readFile(new URL("../src/sw.js", import.meta.url), "utf8");
 export const diaryDetailCss = await readFile(new URL("../diary-detail.css", import.meta.url), "utf8");
+export const settingsTemplate = await readFile(new URL("../modules/routes/templates/settings.html", import.meta.url), "utf8");
+export const settingsViewModule = await readFile(new URL("../modules/settings-view.js", import.meta.url), "utf8");
+export const settingsSectionRegistry = await import(new URL("../modules/settings-section-registry.js", import.meta.url));
 export const weekendBoardCss = await readFile(new URL("../weekend-board.css", import.meta.url), "utf8");
 export const weekendGalleryModule = await readFile(
   new URL("../modules/weekend-gallery.js", import.meta.url),
