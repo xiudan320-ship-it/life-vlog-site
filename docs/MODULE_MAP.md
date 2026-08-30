@@ -39,7 +39,7 @@
 - `modules/secret-controller.js` 只在 `secret` route 激活后消费共享秘藏 state、读取本地缓存并渲染页面。未访问秘藏时，账户同步不会预加载秘藏 UI chunk。
 - `modules/lazy-controller.js` 保持未加载 controller 调用即抛错的契约。跨路由后台流程只能使用显式 `isLoaded`/`callLoaded` 守卫；页面渲染由当前 route 的 `activate` 负责。
 - `modules/route-loader.js` 与 `modules/app-navigation-controller.js` 共同维护 latest-wins 路由事务。过期的 chunk/activate 结果不得提交页面显隐、URL、焦点、滚动或 busy 状态。
-- `modules/diary-video-layout.js` 管理媒体生命周期：普通视频默认 poster + 用户触发的原生控件，Live Photo 才使用静音循环预览；加载、失败、重试、切图和关闭都会清理状态与监听。
+- `modules/diary-video-layout.js` 管理详情媒体生命周期：普通视频进入日记/VLOG 详情后静音自动播放并保留原生控件，Live Photo 使用静音循环预览；加载、失败、重试、切图和关闭都会清理状态与监听。
 
 ## 样式快速定位
 

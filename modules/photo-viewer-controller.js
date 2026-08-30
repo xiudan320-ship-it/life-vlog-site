@@ -387,8 +387,10 @@ export function createPhotoViewerController({
         els.dialogVideo.poster = imageUrl;
         els.dialogVideo.src = motionUrl;
         startDiaryMotionVideo(els.dialogVideo, els.dialogMedia, {
-          audible: mediaType === "video",
-          controlsOnTap: mediaType === "video" && isMobileViewport(),
+          autoplay: true,
+          muted: true,
+          controls: mediaType === "video" || !isMobileViewport(),
+          loop: mediaType === "live",
           statusElement: els.dialogVideoStatus,
           statusTextElement: els.dialogVideoStatusText,
           retryButton: els.dialogVideoRetry,

@@ -72,7 +72,7 @@ This system combines the verified UI/UX Pro Max matches for Minimalism & Swiss S
 - Status filters are text tabs with a short lime indicator, not large enclosing cards.
 - Cards use one quiet surface, no decorative outline, and a subtle raised state on hover/drag.
 - Completed records remain fully readable: no opacity reduction and no strike-through.
-- Media previews use `object-fit: cover` in cards and `object-fit: contain` in full previews.
+- Media previews use `object-fit: cover` in cards and `object-fit: contain` in full previews. Diary/VLOG detail videos may start muted on entry, retain native controls, and never force sound on the user.
 - Menus become bottom sheets on mobile and compact anchored dialogs on desktop.
 
 ## Motion

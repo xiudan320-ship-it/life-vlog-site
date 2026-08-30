@@ -32,29 +32,41 @@ async function installFeedMotionMediaFixture(page) {
     const currentSourceDescriptor = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, "currentSrc");
     const durationDescriptor = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, "duration");
     const isFeedMotion = (element) => element?.classList?.contains("feed-motion-preview");
+    const isDiaryDetailMotion = (element) => element?.id === "dialogVideo" || element?.classList?.contains("mobile-diary-video");
+    const isFixtureMotion = (element) => isFeedMotion(element) || isDiaryDetailMotion(element);
     const setPaused = (element, value) => Object.defineProperty(element, "paused", { configurable: true, get: () => value });
     Object.defineProperty(HTMLMediaElement.prototype, "src", {
       configurable: true,
-      get() { return isFeedMotion(this) ? this.__fixtureMotionSrc || "" : currentSourceDescriptor?.get?.call(this) || ""; },
+      get() { return isFixtureMotion(this) ? this.__fixtureMotionSrc || sourceDescriptor?.get?.call(this) || currentSourceDescriptor?.get?.call(this) || "" : currentSourceDescriptor?.get?.call(this) || ""; },
       set(value) {
-        if (isFeedMotion(this)) this.__fixtureMotionSrc = String(value || "");
+        if (isFixtureMotion(this)) this.__fixtureMotionSrc = String(value || "");
         else sourceDescriptor?.set?.call(this, value);
       },
     });
     Object.defineProperty(HTMLMediaElement.prototype, "currentSrc", {
       configurable: true,
-      get() { return isFeedMotion(this) ? this.__fixtureMotionSrc || "" : currentSourceDescriptor?.get?.call(this) || ""; },
+      get() { return isFixtureMotion(this) ? this.__fixtureMotionSrc || "" : currentSourceDescriptor?.get?.call(this) || ""; },
     });
     Object.defineProperty(HTMLMediaElement.prototype, "duration", {
       configurable: true,
       get() {
-        if (isFeedMotion(this) && this.__fixtureMotionDuration !== undefined) return this.__fixtureMotionDuration;
+        if (isFixtureMotion(this) && this.__fixtureMotionDuration !== undefined) return this.__fixtureMotionDuration;
         return durationDescriptor?.get?.call(this) ?? NaN;
       },
     });
+    const nativeRemoveAttribute = Element.prototype.removeAttribute;
+    Element.prototype.removeAttribute = function removeAttribute(name) {
+      if (name === "src" && isFixtureMotion(this)) this.__fixtureMotionSrc = "";
+      return nativeRemoveAttribute.call(this, name);
+    };
     const nativeLoad = HTMLMediaElement.prototype.load;
     HTMLMediaElement.prototype.load = function load() {
-      if (!isFeedMotion(this)) return nativeLoad.call(this);
+      if (!isFixtureMotion(this)) return nativeLoad.call(this);
+      if (!this.getAttribute("src") && !this.__fixtureMotionSrc) {
+        setPaused(this, true);
+        Object.defineProperty(this, "networkState", { configurable: true, get: () => HTMLMediaElement.NETWORK_EMPTY });
+        return;
+      }
       this.__fixtureMotionDuration = this.__fixtureMotionSrc?.includes("fixture-long-video") ? 8.01 : 4;
       queueMicrotask(() => {
         this.dispatchEvent(new Event("loadedmetadata"));
@@ -63,13 +75,13 @@ async function installFeedMotionMediaFixture(page) {
     };
     const nativePlay = HTMLMediaElement.prototype.play;
     HTMLMediaElement.prototype.play = function play() {
-      if (!isFeedMotion(this)) return nativePlay.call(this);
+      if (!isFixtureMotion(this)) return nativePlay.call(this);
       setPaused(this, false);
       return Promise.resolve();
     };
     const nativePause = HTMLMediaElement.prototype.pause;
     HTMLMediaElement.prototype.pause = function pause() {
-      if (!isFeedMotion(this)) return nativePause.call(this);
+      if (!isFixtureMotion(this)) return nativePause.call(this);
       setPaused(this, true);
     };
   });
@@ -241,13 +253,14 @@ async function testVideoDiaryPolicy(browser) {
     assert.ok(await page.locator("video.feed-motion-preview").count() <= 1, "release feed mounted more than one preview");
     await page.getByRole("button", { name: "摄影小天才 Video" }).click();
     await page.waitForSelector("#photoDialog[open]");
+    await page.waitForFunction(() => document.querySelector("#dialogVideo")?.paused === false);
     assert.deepEqual(await page.locator("#dialogVideo").evaluate((video) => ({
       hidden: video.hidden,
       autoplay: video.autoplay,
       muted: video.muted,
       controls: video.controls,
       paused: video.paused,
-    })), { hidden: false, autoplay: false, muted: false, controls: true, paused: true });
+    })), { hidden: false, autoplay: true, muted: true, controls: true, paused: false });
   } finally { await desktop.context.close(); }
 
   const mobile = await openFixturePage(browser, { viewport: { width: 390, height: 844 }, mockFeedMotion: true });
@@ -255,11 +268,12 @@ async function testVideoDiaryPolicy(browser) {
     const page = mobile.page;
     await page.getByRole("button", { name: "摄影小天才 Video" }).click();
     await page.waitForSelector("body.mobile-diary-page-open");
+    await page.waitForFunction(() => document.querySelector(".mobile-diary-video")?.paused === false);
     assert.deepEqual(await page.locator(".mobile-diary-video").evaluate((video) => ({
       autoplay: video.autoplay,
       muted: video.muted,
       controls: video.controls,
-    })), { autoplay: false, muted: false, controls: true });
+    })), { autoplay: true, muted: true, controls: true });
     assert.deepEqual(mobile.errors, [], `release video policy errors: ${mobile.errors.join(" | ")}`);
   } finally { await mobile.context.close(); }
 }

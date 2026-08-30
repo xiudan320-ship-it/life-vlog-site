@@ -72,18 +72,20 @@ async function installFeedMotionMediaFixture(page) {
     const paused = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, "paused");
     const duration = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, "duration");
     const isFeedMotion = (element) => element?.classList?.contains("feed-motion-preview");
+    const isDiaryDetailMotion = (element) => element?.id === "dialogVideo" || element?.classList?.contains("mobile-diary-video");
+    const isFixtureMotion = (element) => isFeedMotion(element) || isDiaryDetailMotion(element);
     const setPaused = (element, value) => {
       Object.defineProperty(element, "paused", { configurable: true, get: () => value });
     };
     Object.defineProperty(HTMLMediaElement.prototype, "src", {
       configurable: true,
       get() {
-        return isFeedMotion(this) && this.__fixtureMotionSrc !== undefined
+        return isFixtureMotion(this) && this.__fixtureMotionSrc !== undefined
           ? this.__fixtureMotionSrc
-          : currentSrc?.get?.call(this) || "";
+          : mediaSrc?.get?.call(this) || currentSrc?.get?.call(this) || "";
       },
       set(value) {
-        if (isFeedMotion(this)) {
+        if (isFixtureMotion(this)) {
           this.__fixtureMotionSrc = String(value || "");
           return;
         }
@@ -93,19 +95,29 @@ async function installFeedMotionMediaFixture(page) {
     Object.defineProperty(HTMLMediaElement.prototype, "currentSrc", {
       configurable: true,
       get() {
-        return isFeedMotion(this) ? this.__fixtureMotionSrc || "" : currentSrc?.get?.call(this) || "";
+        return isFixtureMotion(this) ? this.__fixtureMotionSrc || "" : currentSrc?.get?.call(this) || "";
       },
     });
     Object.defineProperty(HTMLMediaElement.prototype, "duration", {
       configurable: true,
       get() {
-        if (isFeedMotion(this) && this.__fixtureMotionDuration !== undefined) return this.__fixtureMotionDuration;
+        if (isFixtureMotion(this) && this.__fixtureMotionDuration !== undefined) return this.__fixtureMotionDuration;
         return duration?.get?.call(this) ?? NaN;
       },
     });
+    const nativeRemoveAttribute = Element.prototype.removeAttribute;
+    Element.prototype.removeAttribute = function removeAttribute(name) {
+      if (name === "src" && isFixtureMotion(this)) this.__fixtureMotionSrc = "";
+      return nativeRemoveAttribute.call(this, name);
+    };
     const nativeLoad = HTMLMediaElement.prototype.load;
     HTMLMediaElement.prototype.load = function load() {
-      if (!isFeedMotion(this)) return nativeLoad.call(this);
+      if (!isFixtureMotion(this)) return nativeLoad.call(this);
+      if (!this.getAttribute("src") && !this.__fixtureMotionSrc) {
+        setPaused(this, true);
+        Object.defineProperty(this, "networkState", { configurable: true, get: () => HTMLMediaElement.NETWORK_EMPTY });
+        return;
+      }
       this.__fixtureMotionDuration = this.__fixtureMotionSrc?.includes("fixture-long-video") ? 8.01 : 4;
       queueMicrotask(() => {
         this.dispatchEvent(new Event("loadedmetadata"));
@@ -114,13 +126,13 @@ async function installFeedMotionMediaFixture(page) {
     };
     const nativePlay = HTMLMediaElement.prototype.play;
     HTMLMediaElement.prototype.play = function play() {
-      if (!isFeedMotion(this)) return nativePlay.call(this);
+      if (!isFixtureMotion(this)) return nativePlay.call(this);
       setPaused(this, false);
       return Promise.resolve();
     };
     const nativePause = HTMLMediaElement.prototype.pause;
     HTMLMediaElement.prototype.pause = function pause() {
-      if (!isFeedMotion(this)) return nativePause.call(this);
+      if (!isFixtureMotion(this)) return nativePause.call(this);
       setPaused(this, true);
     };
     void paused;
@@ -688,6 +700,7 @@ async function testOrdinaryVideoLifecycle(browser) {
     await card.locator(".feed-media-shell > button").click();
     await page.waitForSelector("#photoDialog[open]", { state: "attached" });
     const desktopVideo = page.locator("#dialogVideo");
+    await page.waitForFunction(() => document.querySelector("#dialogVideo")?.paused === false);
     assert.deepEqual(await desktopVideo.evaluate((video) => ({
       hidden: video.hidden,
       autoplay: video.autoplay,
@@ -695,7 +708,7 @@ async function testOrdinaryVideoLifecycle(browser) {
       loop: video.loop,
       controls: video.controls,
       paused: video.paused,
-    })), { hidden: false, autoplay: false, muted: false, loop: false, controls: true, paused: true });
+    })), { hidden: false, autoplay: true, muted: true, loop: false, controls: true, paused: false });
     await page.keyboard.press("Escape");
     await page.waitForSelector("#photoDialog:not([open])", { state: "attached" });
     await page.click("#weekendNav");
@@ -715,11 +728,12 @@ async function testOrdinaryVideoLifecycle(browser) {
     await card.locator(".feed-media-shell > button").click();
     await page.waitForSelector("body.mobile-diary-page-open");
     const video = page.locator(".mobile-diary-video");
+    await page.waitForFunction(() => document.querySelector(".mobile-diary-video")?.paused === false);
     assert.deepEqual(await video.evaluate((element) => ({
       autoplay: element.autoplay,
       muted: element.muted,
       controls: element.controls,
-    })), { autoplay: false, muted: false, controls: true });
+    })), { autoplay: true, muted: true, controls: true });
     assert.equal(await page.locator("[data-mobile-diary-video-status]").isHidden(), false);
     await page.evaluate(() => document.querySelector(".mobile-diary-video")?.dispatchEvent(new Event("canplay")));
     await page.waitForFunction(() => document.querySelector("[data-mobile-diary-video-status]")?.hidden === true);

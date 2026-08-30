@@ -151,11 +151,19 @@ export function createMobileDiaryController({
     const vlogVideo = page.querySelector(".mobile-diary-video");
     if (vlogVideo) {
       startDiaryMotionVideo(vlogVideo, null, {
-        audible: true,
+        autoplay: true,
+        muted: true,
+        controls: true,
+        loop: false,
         statusElement: page.querySelector("[data-mobile-diary-video-status]"),
       });
     }
-    else startDiaryMotionVideo(page.querySelector(".mobile-diary-motion"));
+    else startDiaryMotionVideo(page.querySelector(".mobile-diary-motion"), null, {
+      autoplay: true,
+      muted: true,
+      controls: false,
+      loop: true,
+    });
     renderMobileDiaryComments();
   }
 

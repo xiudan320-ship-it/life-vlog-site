@@ -39,8 +39,10 @@ export function startDiaryMotionVideo(
   video,
   container,
   {
-    audible = false,
-    controlsOnTap = false,
+    autoplay = false,
+    muted = false,
+    controls = false,
+    loop = false,
     statusElement = null,
     statusTextElement = null,
     retryButton = null,
@@ -51,16 +53,12 @@ export function startDiaryMotionVideo(
 
   videoCleanups.get(video)?.();
   video.preload = "metadata";
-  const autoplay = !audible;
-  video.autoplay = autoplay;
-  video.defaultMuted = autoplay;
-  video.muted = autoplay;
-  video.loop = autoplay;
+  video.autoplay = Boolean(autoplay);
+  video.defaultMuted = Boolean(muted);
+  video.muted = Boolean(muted);
+  video.loop = Boolean(loop);
   video.playsInline = true;
-  // Ordinary VLOG video is user-started and must expose controls immediately.
-  // `controlsOnTap` is retained in the call shape for existing Live Photo
-  // callers, but never hides controls for an audible video.
-  video.controls = Boolean(audible);
+  video.controls = Boolean(controls);
   video.onclick = null;
   const parts = getStatusParts(statusElement, statusTextElement, retryButton);
   const notify = (state, message) => {

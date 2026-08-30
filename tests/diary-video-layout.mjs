@@ -57,23 +57,28 @@ function createStatus() {
   return { status, text, retry };
 }
 
-test("ordinary video stays user-started and exposes recoverable loading state", () => {
+test("detail video autoplays muted while exposing recoverable loading state", () => {
   const video = createVideo();
   const { status, text, retry } = createStatus();
   startDiaryMotionVideo(video, null, {
-    audible: true,
+    autoplay: true,
+    muted: true,
+    controls: true,
+    loop: false,
     statusElement: status,
     statusTextElement: text,
     retryButton: retry,
   });
 
-  assert.equal(video.autoplay, false);
-  assert.equal(video.muted, false);
+  assert.equal(video.autoplay, true);
+  assert.equal(video.defaultMuted, true);
+  assert.equal(video.muted, true);
   assert.equal(video.loop, false);
   assert.equal(video.controls, true);
   assert.equal(video.playCount, 0);
   assert.equal(text.textContent, "正在加载视频…");
   video.dispatch("canplay");
+  assert.equal(video.playCount, 1);
   assert.equal(status.hidden, true);
   video.dispatch("error");
   assert.equal(status.hidden, false);
@@ -88,9 +93,9 @@ test("ordinary video stays user-started and exposes recoverable loading state", 
   assert.equal(status.hidden, true);
 });
 
-test("Live Photo preview keeps muted autoplay without sharing the audible path", () => {
+test("Live Photo detail keeps muted autoplay and looping", () => {
   const video = createVideo();
-  startDiaryMotionVideo(video, null, { audible: false });
+  startDiaryMotionVideo(video, null, { autoplay: true, muted: true, controls: false, loop: true });
   assert.equal(video.autoplay, true);
   assert.equal(video.defaultMuted, true);
   assert.equal(video.muted, true);

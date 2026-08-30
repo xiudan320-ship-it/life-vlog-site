@@ -23,7 +23,7 @@ git diff --check
 - 主题/显示：light、dark、100%/115%/130% 动态字号和 reduced-motion。
 - 合同：Axe critical/serious=0、一级键盘导航、登录/筛选、dialog Escape 与焦点恢复、路由标题焦点、44 CSS px 触控目标、sticky 不遮挡和无横向溢出。
 
-`test:browser`/`c-performance-regression.mjs` 另外验证视频生命周期、失败可重试、gallery 同步读取秘藏表而不加载秘藏 route、30 轮快速路由 latest-wins、全局等级弹窗，以及既有周末/购物/回复交互。所有 signed-in 场景均使用 `tests/fixtures/cloudflare-api-fixture.mjs` 的内存 fixture，不使用真实账户或真实业务数据。
+`test:browser`/`c-performance-regression.mjs` 另外验证列表普通视频不触发视频网络加载、进入日记/VLOG 详情后静音自动播放且保留控件、失败可重试、gallery 同步读取秘藏表而不加载秘藏 route、30 轮快速路由 latest-wins、全局等级弹窗，以及既有周末/购物/回复交互。所有 signed-in 场景均使用 `tests/fixtures/cloudflare-api-fixture.mjs` 的内存 fixture，不使用真实账户或真实业务数据。
 
 ## 3. 发布后只读检查
 
