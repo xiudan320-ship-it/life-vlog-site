@@ -1,9 +1,16 @@
 import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
 import { access, readdir, readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
+const run = (command, args) => new Promise((resolveRun, rejectRun) => {
+  execFile(command, args, { cwd: root, encoding: "utf8" }, (error, stdout, stderr) => {
+    if (error) rejectRun(Object.assign(error, { stdout, stderr }));
+    else resolveRun(stdout);
+  });
+});
 const read = (file) => readFile(join(root, file), "utf8");
 const modulesRoot = join(root, "modules");
 const html = await read("index.html");
@@ -72,9 +79,11 @@ for (const file of [
   "tests/build-budget.mjs",
   "tests/asset-budget.mjs",
 ]) await access(join(root, file));
-for (const old of ["service-worker.js", "manifest.webmanifest", ".cloudflare-pages-dist"]) {
+for (const old of ["service-worker.js", "manifest.webmanifest"]) {
   assert.equal(await access(join(root, old)).then(() => true, () => false), false, `legacy ${old} remains`);
 }
+const trackedLegacyOutput = await run("git", ["ls-files", "--", ".cloudflare-pages-dist"]);
+assert.equal(trackedLegacyOutput.trim(), "", "legacy .cloudflare-pages-dist is tracked");
 const { size } = await stat(join(root, "app.js"));
 assert.ok(size < 300_000, `app.js grew unexpectedly: ${size}`);
 assert.ok(app.split(/\r?\n/).length <= 1_200, `app.js exceeds the 1,200-line assembly budget: ${app.split(/\r?\n/).length}`);

@@ -11,6 +11,8 @@
 ### Changed
 
 - 将主工作树、5c0d worktree 和稳定分支的有效改动整合到同一套模块化 Vite/Workbox 架构；保留确定性 fixture 发布门和不使用真实测试账户的规则。
+- 结构门只检查版本库中的旧发布目录；保留本机被 `.gitignore` 排除的历史构建产物，不将其当作源码或发布输入。
+- 将已批准的 `esbuild` 与 `sharp` 构建脚本写入 workspace 策略，并把等级面板全局事件加入发布 smoke。
 
 ### Documentation
 

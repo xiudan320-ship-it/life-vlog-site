@@ -340,6 +340,36 @@ async function openSettingsFromAccount(page) {
   await page.waitForSelector("#settingsDialog[open]");
 }
 
+async function testGlobalLevelDialog(browser, viewport, label) {
+  const result = await openFixturePage(browser, { viewport });
+  try {
+    const page = result.page;
+    await page.click("#avatarButton");
+    await page.waitForSelector("#userPopover:not([hidden])", { state: "visible" });
+    await page.click("#xpPanel");
+    await page.waitForSelector("#levelDialog[open]", { state: "visible" });
+    await page.click("#closeLevelDialog");
+    await page.waitForFunction(() => !document.querySelector("#levelDialog")?.open);
+
+    await page.click("#vipBadge");
+    await page.waitForSelector("#levelDialog[open]", { state: "visible" });
+    await page.locator("#levelDialog").evaluate((dialog) => {
+      dialog.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await page.waitForFunction(() => !document.querySelector("#levelDialog")?.open);
+
+    assert.deepEqual(
+      await page.evaluate(() => ({
+        settingsOpen: Boolean(document.querySelector("#settingsDialog")?.open),
+        levelOpen: Boolean(document.querySelector("#levelDialog")?.open),
+      })),
+      { settingsOpen: false, levelOpen: false },
+      `${label} global level dialog flow left an unexpected dialog open`
+    );
+    assert.deepEqual(result.errors, [], `${label} global level dialog errors: ${result.errors.join(" | ")}`);
+  } finally { await result.context.close(); }
+}
+
 async function testFilterSettingsAndActions(browser) {
   const filters = await openFixturePage(browser, { viewport: { width: 390, height: 844 } });
   try {
@@ -571,6 +601,8 @@ try {
   await testVideoDiaryPolicy(browser);
   await testSecretPhotoViewer(browser);
   await testDiaryImageUpload(browser);
+  await testGlobalLevelDialog(browser, { width: 390, height: 844 }, "mobile account");
+  await testGlobalLevelDialog(browser, { width: 1440, height: 900 }, "desktop account");
   await testFilterSettingsAndActions(browser);
   await testWeekendComposerAndDelete(browser);
   await testMobileCommentComposer(browser);
