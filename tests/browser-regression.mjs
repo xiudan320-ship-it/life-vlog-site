@@ -4,6 +4,7 @@ import { createServer } from "node:http";
 import { extname, join, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
+import { createCloudflareApiFixture } from "./fixtures/cloudflare-api-fixture.mjs";
 
 const sourceRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const root = existsSync(join(sourceRoot, "dist", "index.html")) ? join(sourceRoot, "dist") : sourceRoot;
@@ -633,6 +634,87 @@ async function installPseudoSession(page, { corruptCaches = false } = {}) {
   }, { session: pseudoSession, corrupt: corruptCaches });
 }
 
+async function testWeekendCompletionUploadAssembly() {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    serviceWorkers: "block",
+    reducedMotion: "reduce",
+  });
+  const page = await context.newPage();
+  const pageErrors = [];
+  const fixture = createCloudflareApiFixture();
+  await fixture.install(context);
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  await page.addInitScript(() => {
+    const nativeFetch = window.fetch.bind(window);
+    window.__weekendUploadCalls = [];
+    window.fetch = async (input, init) => {
+      const requestUrl = typeof input === "string" ? input : input?.url || "";
+      if (requestUrl.endsWith("/upload") && init?.body instanceof FormData) {
+        const file = init.body.get("file");
+        window.__weekendUploadCalls.push({
+          fileName: file?.name || "",
+          folder: init.body.get("folder") || "",
+          name: init.body.get("name") || "",
+        });
+      }
+      return nativeFetch(input, init);
+    };
+    localStorage.setItem("life-vlog-cloudflare-auth", JSON.stringify({
+      access_token: "fixture-weekend-upload-token",
+      expires_at: "2099-01-01T00:00:00.000Z",
+      user: {
+        id: "fixture-user",
+        email: "fixture-user@life-vlog.local",
+        user_metadata: { username: "fixture-user" },
+      },
+    }));
+  });
+
+  try {
+    await page.goto(`${baseUrl}/?page=weekend`, { waitUntil: "domcontentloaded" });
+    await page.waitForSelector("#appSplash[hidden]", { state: "attached", timeout: 30000 });
+    await page.waitForSelector('#weekendPage:not([hidden]) [data-weekend-id="fixture-weekend"]', { timeout: 30000 });
+    await page.locator('[data-weekend-id="fixture-weekend"] [data-toggle-weekend]').click();
+    await page.waitForSelector("#weekendCompletionDialog[open]");
+    await page.locator("#weekendCompletionInput").setInputFiles({
+      name: "fixture-recap.png",
+      mimeType: "image/png",
+      buffer: Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+        "base64"
+      ),
+    });
+    await page.waitForSelector("#weekendCompletionPreviews:not([hidden])");
+    await page.locator("#weekendCompletionSubmit").click();
+    await page.waitForFunction(
+      () => !document.querySelector("#weekendCompletionDialog")?.open,
+      null,
+      { timeout: 30000 }
+    );
+
+    const result = await page.evaluate(() => ({
+      cards: [...document.querySelectorAll("[data-weekend-id]")].map((card) => ({
+        id: card.dataset.weekendId,
+        label: card.getAttribute("aria-label") || "",
+        done: card.classList.contains("done"),
+      })),
+      status: document.querySelector("#weekendStatus")?.textContent || "",
+      uploads: window.__weekendUploadCalls,
+    }));
+    assert.deepEqual(pageErrors, [], `weekend completion page errors:\n${pageErrors.join("\n")}`);
+    assert.equal(result.uploads.length, 1, `expected one recap upload, got ${JSON.stringify(result.uploads)}`);
+    assert.equal(result.uploads[0].folder, "weekend-recap");
+    assert.match(result.uploads[0].name, /^fixture-weekend-[0-9]+-1$/);
+    assert.match(result.uploads[0].fileName, /^fixture-weekend-[0-9]+-1\.jpg$/);
+    assert.ok(result.cards.some((card) => card.done && /已完成/.test(card.label)), `completed weekend card missing: ${JSON.stringify(result)}`);
+    assert.match(result.status, /完成回顾已保存/);
+  } finally {
+    await fixture.dispose(context);
+    await context.close();
+  }
+}
+
 async function testAuthenticatedHomeStartup() {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
   const page = await context.newPage();
@@ -707,6 +789,7 @@ try {
   await testAuthenticatedHomeStartup();
   await testAuthenticatedDeepLink("recipes");
   await testAuthenticatedDeepLink("weekend");
+  await testWeekendCompletionUploadAssembly();
   await testHomeShell({ width: 1440, height: 900 }, "desktop");
   await testHomeShell({ width: 390, height: 844 }, "mobile");
   await testHomeShell({ width: 375, height: 812 }, "small-mobile-reduced-motion", "reduce");

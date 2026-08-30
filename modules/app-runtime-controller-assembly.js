@@ -1101,6 +1101,7 @@ const appRouteRuntime = createRuntimeRouteEntry({
     normalizeSecretImages,
     normalizeUuid,
     escapeHtml,
+    slugify,
     formatDate,
     formatFileSize,
     getClipboardImageUrl,
