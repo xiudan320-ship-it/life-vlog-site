@@ -76,6 +76,14 @@ const TABLE_CONFIG = {
     ownerColumn: "user_id",
     booleanColumns: ["is_public", "is_featured", "is_pinned"],
   },
+  mood_diaries: {
+    columns: ["id", "user_id", "diary_date", "mood", "content", "tags", "created_at", "updated_at"],
+    scope: "family",
+    writeScope: "own",
+    ownerColumn: "user_id",
+    jsonColumns: ["tags"],
+    conflictColumns: ["user_id", "diary_date"],
+  },
   photo_favorites: {
     columns: ["user_id", "photo_id", "created_at"],
     scope: "own",
@@ -2013,7 +2021,7 @@ async function handleD1Export(request, env, user) {
   const familyIds = await getFamilyIds(env, user.id);
   const userPlaceholders = familyUserIds.map(() => "?").join(",");
   const familyPlaceholders = familyIds.map(() => "?").join(",");
-  const [families, members, invitations, profiles, photos, favorites, comments, recipes, wishes, shoppingItems, weekends, wardrobeLocations, wardrobeItems, wardrobeWearLogs, anniversaries, thanks, notifications, secrets] =
+  const [families, members, invitations, profiles, photos, moodDiaries, favorites, comments, recipes, wishes, shoppingItems, weekends, wardrobeLocations, wardrobeItems, wardrobeWearLogs, anniversaries, thanks, notifications, secrets] =
     await Promise.all([
       familyIds.length
         ? env.DB.prepare(`select * from families where id in (${familyPlaceholders})`)
@@ -2032,6 +2040,7 @@ async function handleD1Export(request, env, user) {
         : { results: [] },
       selectVisibleRows(env, "user_profiles", user.id, "created_at asc"),
       selectVisibleRows(env, "photos", user.id, "taken_at desc, created_at desc"),
+      selectVisibleRows(env, "mood_diaries", user.id, "diary_date desc, user_id asc"),
       env.DB.prepare("select * from photo_favorites where user_id=? order by created_at desc")
         .bind(user.id)
         .all(),
@@ -2065,6 +2074,7 @@ async function handleD1Export(request, env, user) {
     family_invitations: invitations.results || [],
     profiles: profiles.results || [],
     photos: photos.results || [],
+    mood_diaries: (moodDiaries.results || []).map((row) => denormalizeRow("mood_diaries", row)),
     photo_favorites: favorites.results || [],
     photo_comments: comments.results || [],
     recipes: recipes.results || [],
@@ -2207,6 +2217,12 @@ function buildFilterSql(config, filters, values) {
     } else if (op === "neq") {
       clauses.push(`${column} <> ?`);
       values.push(normalizeColumnValue("", column, filter.value));
+    } else if (op === "gte") {
+      clauses.push(`${column} >= ?`);
+      values.push(normalizeColumnValue("", column, filter.value));
+    } else if (op === "lt") {
+      clauses.push(`${column} < ?`);
+      values.push(normalizeColumnValue("", column, filter.value));
     } else if (op === "in" && Array.isArray(filter.value)) {
       const placeholders = filter.value.map(() => "?").join(",");
       clauses.push(`${column} in (${placeholders})`);
@@ -2264,6 +2280,77 @@ async function assertRowsWritable(env, table, config, user, filters) {
   return Boolean(row);
 }
 
+const MOOD_DIARY_TYPES = new Set([
+  "tired",
+  "angry",
+  "excited",
+  "annoyed",
+  "heart",
+  "calm",
+  "sad",
+  "happy",
+]);
+
+function getTokyoDateKey(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function normalizeStrictDiaryDate(value) {
+  const raw = String(value ?? "");
+  const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const days = month === 2
+    ? year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0) ? 29 : 28
+    : [4, 6, 9, 11].includes(month) ? 30 : 31;
+  if (month < 1 || month > 12 || day < 1 || day > days) return null;
+  return raw;
+}
+
+function normalizeMoodDiaryTags(value) {
+  const parsed = Array.isArray(value) ? value : safeJson(value, null);
+  if (!Array.isArray(parsed)) return { error: "tags 必须是数组。" };
+  const tags = [];
+  const seen = new Set();
+  for (const rawValue of parsed) {
+    const tag = String(rawValue ?? "").trim().replace(/^#+/u, "").trim();
+    if (!tag) continue;
+    if ([...tag].length > 20) return { error: "每个标签最多 20 个字符。" };
+    if (seen.has(tag)) continue;
+    seen.add(tag);
+    tags.push(tag);
+  }
+  if (tags.length > 8) return { error: "最多添加 8 个标签。" };
+  return { tags };
+}
+
+function validateMoodDiaryRow(row, { requireDate = true, requireMood = true } = {}) {
+  if (requireDate && !normalizeStrictDiaryDate(row.diary_date)) return "日期必须是有效的 YYYY-MM-DD。";
+  if (row.diary_date && !normalizeStrictDiaryDate(row.diary_date)) return "日期必须是有效的 YYYY-MM-DD。";
+  if (row.diary_date && row.diary_date > getTokyoDateKey()) return "不能记录未来的日记。";
+  if ((requireMood || Object.prototype.hasOwnProperty.call(row, "mood")) && !MOOD_DIARY_TYPES.has(String(row.mood || ""))) {
+    return "心情类型无效。";
+  }
+  if (Object.prototype.hasOwnProperty.call(row, "content") && [...String(row.content ?? "")].length > 5000) {
+    return "心情内容最多 5000 个字符。";
+  }
+  if (Object.prototype.hasOwnProperty.call(row, "tags")) {
+    const result = normalizeMoodDiaryTags(row.tags);
+    if (result.error) return result.error;
+    row.tags = JSON.stringify(result.tags);
+  }
+  return null;
+}
+
 async function handleTableApi(request, env, user, table) {
   const dbError = requireDb(request, env);
   if (dbError) return dbError;
@@ -2281,10 +2368,11 @@ async function handleTableApi(request, env, user, table) {
     const orderDirection = url.searchParams.get("ascending") === "true" ? "asc" : "desc";
     const safeOrder = config.columns.includes(orderColumn) ? orderColumn : "created_at";
     const limit = Math.min(500, Math.max(1, Number(url.searchParams.get("limit")) || 500));
+    const offset = Math.min(500000, Math.max(0, Number(url.searchParams.get("offset")) || 0));
     const rows = await env.DB.prepare(
-      `select * from ${table} where ${clauses.join(" and ")} order by ${safeOrder} ${orderDirection} limit ?`
+      `select * from ${table} where ${clauses.join(" and ")} order by ${safeOrder} ${orderDirection} limit ? offset ?`
     )
-      .bind(...values, limit)
+      .bind(...values, limit, offset)
       .all();
     return jsonResponse(request, env, { data: (rows.results || []).map((row) => denormalizeRow(table, row)) });
   }
@@ -2296,6 +2384,14 @@ async function handleTableApi(request, env, user, table) {
     const sanitizedRows = rows.map((row) =>
       sanitizeRowForTable(table, row, user, { forceOwner: Boolean(config.ownerColumn) })
     );
+    if (table === "mood_diaries") {
+      for (const row of sanitizedRows) {
+        if (!Object.prototype.hasOwnProperty.call(row, "content")) row.content = "";
+        if (!Object.prototype.hasOwnProperty.call(row, "tags")) row.tags = "[]";
+        const moodError = validateMoodDiaryRow(row);
+        if (moodError) return jsonResponse(request, env, { error: moodError }, 400);
+      }
+    }
     if (table === "photos") {
       for (const row of sanitizedRows) {
         const mediaError = validateDiaryPhotoMedia(row.note);
@@ -2313,9 +2409,11 @@ async function handleTableApi(request, env, user, table) {
         existingPhotoIds = new Set((existing.results || []).map((row) => row.id));
       }
     }
-    const conflict = payload.onConflict
-      ? String(payload.onConflict).split(",").map((item) => item.trim()).filter(Boolean)
-      : config.conflictColumns || [config.columns.includes("id") ? "id" : config.columns[0]];
+    const conflict = table === "mood_diaries"
+      ? config.conflictColumns
+      : payload.onConflict
+        ? String(payload.onConflict).split(",").map((item) => item.trim()).filter(Boolean)
+        : config.conflictColumns || [config.columns.includes("id") ? "id" : config.columns[0]];
     const count = await upsertRows(env, table, sanitizedRows, config.columns, conflict);
     if (["photos", "gratitude_notes", "photo_favorites", "photo_comments"].includes(table)) {
       const activityRows = table === "photos" && action === "upsert"
@@ -2327,8 +2425,17 @@ async function handleTableApi(request, env, user, table) {
         await createActivityNotifications(env, table, activityRows, user.id);
       }
     }
+    let responseRows = sanitizedRows;
+    if (table === "mood_diaries" && action === "upsert") {
+      responseRows = await Promise.all(sanitizedRows.map(async (row) => {
+        const canonical = await env.DB.prepare(
+          "select * from mood_diaries where user_id=? and diary_date=? limit 1"
+        ).bind(row.user_id, row.diary_date).first();
+        return canonical || row;
+      }));
+    }
     return jsonResponse(request, env, {
-      data: sanitizedRows.map((row) => denormalizeRow(table, row)),
+      data: responseRows.map((row) => denormalizeRow(table, row)),
       count,
     });
   }
@@ -2345,6 +2452,13 @@ async function handleTableApi(request, env, user, table) {
       return jsonResponse(request, env, { error: "Not allowed." }, 403);
     }
     const updates = sanitizeRowForTable(table, rawUpdates, user);
+    if (table === "mood_diaries") {
+      if (Object.prototype.hasOwnProperty.call(rawUpdates, "diary_date")) {
+        return jsonResponse(request, env, { error: "心情日记日期不可修改。" }, 400);
+      }
+      const moodError = validateMoodDiaryRow(updates, { requireDate: false, requireMood: false });
+      if (moodError) return jsonResponse(request, env, { error: moodError }, 400);
+    }
     if (table === "photos" && Object.prototype.hasOwnProperty.call(updates, "note")) {
       const mediaError = validateDiaryPhotoMedia(updates.note);
       if (mediaError) return jsonResponse(request, env, { error: mediaError }, 400);
@@ -2504,6 +2618,7 @@ const BACKUP_TABLES = [
   "family_invitations",
   "user_profiles",
   "photos",
+  "mood_diaries",
   "photo_favorites",
   "photo_comments",
   "recipes",

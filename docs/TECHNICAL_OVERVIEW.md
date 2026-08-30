@@ -1,12 +1,12 @@
 # 咻蛋之家技术总览
 
-> 当前系统事实的长期入口。最后核验：2026-08-30。
+> 当前系统事实的长期入口。最后核验：2026-08-31。
 >
 > 正式站：<https://life-vlog-site.pages.dev/>
 
 ## 1. 产品与技术边界
 
-咻蛋之家是家庭成员共同使用的生活记录 PWA，主要功能包括日记与 VLOG、评论和收藏、菜谱、心愿与购物、周末计划、衣柜、纪念日、家庭动态、通知和秘藏相册。
+咻蛋之家是家庭成员共同使用的生活记录 PWA，主要功能包括日记与 VLOG、心情日记、评论和收藏、菜谱、心愿与购物、周末计划、衣柜、纪念日、家庭动态、通知和秘藏相册。
 
 项目采用原生 ES Modules，不使用 React/Vue 等 UI 框架：
 
@@ -60,6 +60,7 @@ flowchart LR
 | 周末 | `routes/weekend-route.js` | 周末计划和回顾 |
 | 衣柜 | `routes/wardrobe-route.js` | 衣柜记录 |
 | 留言 | `routes/thanks-route.js` | 家庭感谢与留言 |
+| 心情 | `routes/mood-diary-route.js` | 月历、固定心情、详情、编辑和历史 |
 | 秘藏 | `routes/secret-route.js` | 私密相册、文件夹、筛选和解锁 |
 | 设置 | `routes/settings-route.js` | 五组设置和数据工具 |
 
@@ -90,7 +91,9 @@ flowchart LR
 
 `cloudflare-worker/schema.d1.sql` 是当前完整数据库结构的事实来源。按照项目规则，新增结构直接更新完整 schema，不为旧实现增加兼容层、双读写或临时 migration。
 
-主要数据域：账号与家庭、日记、媒体元数据、评论、收藏、菜谱、心愿、购物、周末计划、纪念日、通知、回收站和秘藏。
+主要数据域：账号与家庭、日记、心情日记、媒体元数据、评论、收藏、菜谱、心愿、购物、周末计划、纪念日、通知、回收站和秘藏。
+
+心情日记使用 `mood_diaries`：`(user_id, diary_date)` 唯一约束保证每位成员每天一条；读取按家庭范围授权，写入、编辑和删除按当前 session 的 `user_id` 限制。`diary_date` 是 Asia/Tokyo 的自然日，月份查询使用 `[diary_date >= monthStart, diary_date < nextMonthStart)`，Worker 同时校验真实日期、未来日期、八种枚举心情、5000 Unicode 字符正文和最多八个 20 字符标签。`TABLE_CONFIG` 记录 family read / own write / `tags` JSON / conflict columns，D1 导出和每日备份包含该表。
 
 数据库结构不会由普通 Pages 发布自动变更；需要部署结构时必须显式执行 D1 命令，并在 `CHANGELOG.md` 记录影响和执行结果。
 
@@ -133,6 +136,8 @@ flowchart LR
 
 Service Worker 使用 `registerType: "prompt"`，新版本就绪后由用户确认更新。路由 chunk 和大媒体不进入核心 precache，避免安装包过大。
 
+心情日记的当前月份在 `localStorage` 使用 `life-vlog-mood-month:<userId>:<YYYY-MM>` 缓存，仅作为加速层；云端成功响应会替换 canonical 内容，用户、月份和请求 revision 均参与隔离与 latest-wins 判断。保存、编辑、删除先更新月历/历史/详情的内存快照，失败时恢复快照并保留编辑输入；没有离线写入队列。
+
 ## 9. 构建与资源
 
 开发和构建：
@@ -165,6 +170,8 @@ pnpm preview
 | `pnpm run test:build` | 构建与资源体积预算 |
 | `pnpm run test:release` | 确定性线上 fixture 冒烟 |
 | `pnpm run test:worker-online` | Worker CORS 与在线边界 |
+
+心情日记专项由 `tests/mood-diary-domain.mjs`、`tests/mood-diary-controller.mjs`、`tests/mood-diary-worker.mjs` 和 `tests/mood-diary-browser.mjs` 覆盖；浏览器用确定性假 session / API fixture 验证桌面与手机端月历、Picker、编辑、删除、历史和横向溢出。16 个最终透明心情素材当前未进入仓库，页面只保留素材缺失错误态，因此视觉素材验收仍是阻塞项。
 
 `pnpm test` 不包含全部发布门禁。发布必须遵循 [`release-checklist.md`](release-checklist.md)。
 

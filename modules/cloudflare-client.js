@@ -28,6 +28,7 @@ class CloudflareQueryBuilder {
     this.orderColumn = "created_at";
     this.ascending = false;
     this.limitCount = 500;
+    this.offsetCount = 0;
     this.singleMode = false;
     this.onConflict = "";
   }
@@ -70,6 +71,16 @@ class CloudflareQueryBuilder {
     return this;
   }
 
+  gte(column, value) {
+    this.filters.push({ op: "gte", column, value });
+    return this;
+  }
+
+  lt(column, value) {
+    this.filters.push({ op: "lt", column, value });
+    return this;
+  }
+
   order(column, options = {}) {
     this.orderColumn = column;
     this.ascending = Boolean(options.ascending);
@@ -78,6 +89,11 @@ class CloudflareQueryBuilder {
 
   limit(value) {
     this.limitCount = value;
+    return this;
+  }
+
+  offset(value) {
+    this.offsetCount = value;
     return this;
   }
 
@@ -100,6 +116,7 @@ class CloudflareQueryBuilder {
           order: this.orderColumn,
           ascending: String(this.ascending),
           limit: String(this.limitCount),
+          offset: String(this.offsetCount),
         });
         payload = await this.request(
           `/api/table/${encodeURIComponent(this.table)}?${params}`

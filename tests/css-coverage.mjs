@@ -31,7 +31,7 @@ const baseUrl = `http://127.0.0.1:${address.port}`;
 const browser = await chromium.launch({ headless: true });
 const coverage = [];
 try {
-  for (const path of ["/", "/?page=recipes", "/?page=wishlist", "/?page=weekend", "/?page=wardrobe", "/?page=thanks", "/?page=secret"]) {
+  for (const path of ["/", "/?page=recipes", "/?page=wishlist", "/?page=weekend", "/?page=wardrobe", "/?page=thanks", "/?page=secret", "/?page=mood"]) {
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
     const fixture = createCloudflareApiFixture();
     await fixture.install(context);

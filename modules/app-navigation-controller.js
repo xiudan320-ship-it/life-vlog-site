@@ -7,6 +7,7 @@ const PAGE_NAMES = new Set([
   "wardrobe",
   "thanks",
   "secret",
+  "mood",
 ]);
 
 export function createAppNavigationController({
@@ -52,6 +53,7 @@ export function createAppNavigationController({
       ["wardrobe", elements.wardrobeNav],
       ["thanks", elements.thanksNav],
       ["secret", elements.secretNav],
+      ["mood", elements.moodNav],
     ];
     for (const [page, navigation] of entries) {
       if (!navigation) continue;
@@ -123,6 +125,10 @@ export function createAppNavigationController({
     }
     const previousPage = state.activePage;
     const pageChanged = previousPage !== requestedPage;
+    if (pageChanged && previousPage === "mood") {
+      const canLeaveMood = await controllers?.moodDiary?.beforeLeave?.();
+      if (canLeaveMood === false) return false;
+    }
     if (pageChanged) rememberScrollPosition(previousPage);
     if (pageChanged && previousPage === "gallery" && requestedPage !== "gallery") {
       actions.stopGalleryMotionPreview?.();
@@ -160,6 +166,7 @@ export function createAppNavigationController({
       const showWardrobe = state.activePage === "wardrobe";
       const showThanks = state.activePage === "thanks";
       const showSecret = state.activePage === "secret";
+      const showMood = state.activePage === "mood";
       syncPageNavigationState();
       elements.composer.hidden = state.activePage !== "gallery" || !state.session;
       elements.overview.hidden = state.activePage !== "gallery" || !state.session;
@@ -177,6 +184,7 @@ export function createAppNavigationController({
       if (elements.wardrobePage) elements.wardrobePage.hidden = !showWardrobe;
       if (elements.thanksPage) elements.thanksPage.hidden = !showThanks;
       if (elements.secretPage) elements.secretPage.hidden = !showSecret;
+      if (elements.moodPage) elements.moodPage.hidden = !showMood;
       if (elements.recipeComposer) elements.recipeComposer.hidden = !showRecipes || !state.session;
       if (elements.wishlistComposer) elements.wishlistComposer.hidden = !showWishlist || !state.session;
       if (elements.shoppingComposer) elements.shoppingComposer.hidden = !showWishlist || !state.session;

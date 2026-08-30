@@ -175,6 +175,7 @@ const tableSeeds = {
   family_members: [],
   families: [],
   family_invitations: [],
+  mood_diaries: [],
 };
 
 function cloneSeed({ seedSecretPhoto = false } = {}) {
@@ -234,6 +235,8 @@ function applyFilters(rows, url) {
   try { filters = JSON.parse(raw); } catch { return []; }
   return rows.filter((row) => filters.every(({ op, column, value }) => {
     if (op === "neq") return row[column] !== value;
+    if (op === "gte") return row[column] >= value;
+    if (op === "lt") return row[column] < value;
     return row[column] === value;
   }));
 }

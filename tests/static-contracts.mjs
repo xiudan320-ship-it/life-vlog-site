@@ -31,7 +31,9 @@ const forbiddenPasswordEnv = ["RELEASE", "TEST", "PASSWORD"].join("_");
 
 const ids = [...html.matchAll(/\bid=["']([^"']+)["']/g)].map((match) => match[1]);
 assert.equal(new Set(ids).size, ids.length, "duplicate HTML id");
-assert.match(html, /maximum-scale=1\.0, user-scalable=no, viewport-fit=cover/);
+assert.match(html, /width=device-width, initial-scale=1\.0, viewport-fit=cover/);
+assert.doesNotMatch(html, /maximum-scale|user-scalable/);
+assert.match(html, /id="moodNav"/);
 assert.doesNotMatch(html, /\?v=\d/);
 assert.doesNotMatch(`${app}\n${appRuntime}\n${appRuntimeController}\n${appRuntimeInfrastructure}\n${appRuntimeRoute}\n${appRuntimeStartup}`, /\?v=\d/);
 assert.equal(releaseSmoke.includes(forbiddenUsernameEnv), false);
@@ -96,9 +98,11 @@ assert.doesNotMatch(await read("modules/weekend-plans-view.js"), /待完成/);
 for (const route of ["gallery", "recipes", "wishlist", "weekend", "wardrobe", "thanks", "secret"]) {
   await access(join(root, "modules", "routes", `${route}-route.js`));
 }
+await access(join(root, "modules", "routes", "mood-diary-route.js"));
 
 assert.equal(parseRoute({ href: "https://example.test/?page=wishlist&pushType=thanks" }).page, "wishlist");
 assert.equal(parseRoute({ href: "https://example.test/?page=invalid" }).page, "gallery");
+assert.equal(parseRoute({ href: "https://example.test/?page=mood" }).page, "mood");
 assert.equal(serializeRoute("weekend", "https://example.test/?pushPhoto=1#x"), "/?pushPhoto=1&page=weekend#x");
 assert.equal(serializeRoute("gallery", "https://example.test/?page=weekend&pushType=thanks"), "/?pushType=thanks");
 

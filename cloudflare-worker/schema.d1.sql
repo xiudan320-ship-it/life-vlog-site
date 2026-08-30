@@ -133,6 +133,23 @@ CREATE TABLE IF NOT EXISTS photos (
 CREATE INDEX IF NOT EXISTS photos_user_taken_idx ON photos (user_id, taken_at DESC);
 CREATE INDEX IF NOT EXISTS photos_flags_idx ON photos (is_pinned DESC, is_featured DESC, taken_at DESC);
 
+CREATE TABLE IF NOT EXISTS mood_diaries (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  diary_date TEXT NOT NULL,
+  mood TEXT NOT NULL CHECK (
+    mood IN ('tired', 'angry', 'excited', 'annoyed', 'heart', 'calm', 'sad', 'happy')
+  ),
+  content TEXT NOT NULL DEFAULT '',
+  tags TEXT NOT NULL DEFAULT '[]',
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  UNIQUE (user_id, diary_date)
+);
+
+CREATE INDEX IF NOT EXISTS mood_diaries_user_date_idx
+  ON mood_diaries (user_id, diary_date DESC);
+
 CREATE TABLE IF NOT EXISTS photo_favorites (
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   photo_id TEXT NOT NULL REFERENCES photos(id) ON DELETE CASCADE,

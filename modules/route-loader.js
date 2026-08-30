@@ -6,6 +6,7 @@ const routeImports = {
   wardrobe: () => import("./routes/wardrobe-route.js"),
   thanks: () => import("./routes/thanks-route.js"),
   secret: () => import("./routes/secret-route.js"),
+  mood: () => import("./routes/mood-diary-route.js"),
   settings: () => import("./routes/settings-route.js"),
 };
 

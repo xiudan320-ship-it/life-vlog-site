@@ -39,6 +39,7 @@ assert.ok(routeContext.includes("createRouteControllerOptions"), "route options 
 assert.ok(appRuntime.split(/\r?\n/).length <= 80, "runtime assembly grew beyond the startup boundary");
 assert.ok(moduleMap.includes("app-navigation-controller.js"));
 assert.ok(moduleMap.includes("app-session-controller.js"));
+assert.ok(moduleMap.includes("mood-diary-controller.js"));
 const runtimeFiles = (await readdir(modulesRoot))
   .filter((file) => /^app-runtime-.*\.js$/.test(file))
   .sort();
@@ -72,6 +73,16 @@ for (const file of [
   "modules/performance-monitor.js",
   "modules/performance-diagnostics-view.js",
   "modules/routes/settings-route.js",
+  "modules/mood-diary-domain.js",
+  "modules/mood-diary-repository.js",
+  "modules/mood-diary-view.js",
+  "modules/mood-diary-controller.js",
+  "modules/routes/mood-diary-route.js",
+  "modules/routes/templates/mood-diary.html",
+  "styles/mood-diary.css",
+  "tests/mood-diary-domain.mjs",
+  "tests/mood-diary-controller.mjs",
+  "tests/mood-diary-worker.mjs",
   "src/sw.js",
   "vite.config.js",
   "public/_headers",

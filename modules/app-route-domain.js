@@ -6,6 +6,7 @@ const ROUTES = new Set([
   "wardrobe",
   "thanks",
   "secret",
+  "mood",
 ]);
 
 export function normalizePage(value) {

@@ -1,0 +1,938 @@
+.mood-diary-page {
+  --mood-page-bg: var(--bg, #f8f6f1);
+  --mood-surface: var(--surface, #fffdf9);
+  --mood-ink: var(--ink, #17201b);
+  --mood-muted: var(--muted, #69756d);
+  --mood-line: var(--line, rgba(23, 32, 27, 0.14));
+  --mood-accent: var(--coral, #e9826c);
+  --mood-accent-soft: color-mix(in srgb, var(--mood-accent) 12%, transparent);
+  --mood-radius: 22px;
+  color: var(--mood-ink);
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 18px 0 64px;
+  overflow-wrap: anywhere;
+}
+
+.mood-diary-header,
+.mood-section-heading,
+.mood-month-toolbar,
+.mood-overlay-header,
+.mood-form-actions,
+.mood-calendar-legend,
+.mood-history-item,
+.mood-detail-author {
+  display: flex;
+  align-items: center;
+}
+
+.mood-diary-header,
+.mood-section-heading {
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.mood-diary-header h2,
+.mood-section-heading h3,
+.mood-month-heading h3,
+.mood-overlay-header h3,
+.mood-picker-panel h4,
+.mood-editor-panel h4,
+.mood-detail-panel h4 {
+  margin: 0;
+  color: var(--mood-ink);
+}
+
+.mood-diary-header h2 {
+  font-size: clamp(2rem, 4vw, 3.3rem);
+  letter-spacing: -0.055em;
+  line-height: 1.05;
+}
+
+.mood-diary-lede,
+.mood-picker-panel > p,
+.mood-family-state p,
+.mood-login-state p,
+.mood-field-help,
+.mood-month-heading p {
+  color: var(--mood-muted);
+}
+
+.mood-diary-lede {
+  margin: 10px 0 0;
+  max-width: 36rem;
+}
+
+.mood-secondary-button,
+.mood-primary-button,
+.mood-load-more,
+.mood-icon-button,
+.mood-fab,
+.mood-calendar-cell,
+.mood-picker-choice,
+.mood-person-choice,
+.mood-tag-remove {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.mood-secondary-button,
+.mood-primary-button,
+.mood-load-more {
+  min-height: 44px;
+  border: 1px solid var(--mood-line);
+  border-radius: 999px;
+  padding: 10px 17px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.mood-secondary-button,
+.mood-load-more {
+  color: var(--mood-ink);
+  background: var(--mood-surface);
+}
+
+.mood-primary-button {
+  color: #fff;
+  background: var(--mood-accent);
+  border-color: var(--mood-accent);
+}
+
+.mood-secondary-button:hover,
+.mood-load-more:hover {
+  background: var(--mood-accent-soft);
+  border-color: color-mix(in srgb, var(--mood-accent) 55%, var(--mood-line));
+}
+
+.mood-secondary-button:active,
+.mood-load-more:active,
+.mood-icon-button:active,
+.mood-calendar-cell:active,
+.mood-picker-choice:active,
+.mood-person-choice:active,
+.mood-tag-remove:active {
+  background: var(--mood-accent-soft);
+}
+
+.mood-primary-button:active,
+.mood-fab:active {
+  background: color-mix(in srgb, var(--mood-accent) 84%, #000);
+}
+
+.mood-primary-button:hover {
+  background: color-mix(in srgb, var(--mood-accent) 86%, #000);
+}
+
+.mood-secondary-button:disabled,
+.mood-primary-button:disabled,
+.mood-load-more:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.mood-secondary-button:focus-visible,
+.mood-primary-button:focus-visible,
+.mood-load-more:focus-visible,
+.mood-icon-button:focus-visible,
+.mood-fab:focus-visible,
+.mood-calendar-cell:focus-visible,
+.mood-picker-choice:focus-visible,
+.mood-person-choice:focus-visible,
+.mood-tag-remove:focus-visible,
+#moodEditorContent:focus-visible,
+#moodEditorTagInput:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--mood-accent) 55%, #fff);
+  outline-offset: 3px;
+}
+
+.mood-diary-login-state,
+.mood-diary-family-state {
+  margin-top: 30px;
+  padding: 28px;
+  border: 1px solid var(--mood-line);
+  border-radius: var(--mood-radius);
+  background: var(--mood-surface);
+}
+
+.mood-diary-login-state h3,
+.mood-diary-family-state h3 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.mood-diary-family-state .mood-secondary-button {
+  margin-top: 8px;
+}
+
+.mood-diary-status {
+  min-height: 24px;
+  margin: 18px 0 4px;
+  color: var(--mood-muted);
+  font-size: 0.92rem;
+}
+
+.mood-diary-status[data-kind="error"],
+.mood-form-error {
+  color: #b34f4b;
+}
+
+.mood-month-toolbar {
+  justify-content: space-between;
+  margin-top: 8px;
+  padding: 16px 0 12px;
+}
+
+.mood-month-heading {
+  text-align: center;
+}
+
+.mood-month-heading h3 {
+  font-size: 1.35rem;
+}
+
+.mood-month-heading p {
+  margin: 4px 0 0;
+  font-size: 0.82rem;
+}
+
+.mood-icon-button {
+  display: inline-grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 1px solid var(--mood-line);
+  border-radius: 50%;
+  color: var(--mood-ink);
+  background: var(--mood-surface);
+  cursor: pointer;
+}
+
+.mood-icon-button:hover {
+  color: var(--mood-accent);
+  border-color: color-mix(in srgb, var(--mood-accent) 55%, var(--mood-line));
+}
+
+.mood-calendar-weekdays,
+.mood-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.mood-calendar-weekdays {
+  padding: 0 4px 8px;
+  color: var(--mood-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.mood-calendar-grid {
+  min-width: 0;
+}
+
+.mood-calendar-cell {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 112px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding: 9px 7px;
+  border: 1px solid var(--mood-line);
+  border-radius: 16px;
+  color: var(--mood-ink);
+  background: color-mix(in srgb, var(--mood-surface) 92%, var(--mood-page-bg));
+  text-align: left;
+}
+
+button.mood-calendar-cell {
+  font: inherit;
+  cursor: pointer;
+}
+
+button.mood-calendar-cell:hover {
+  border-color: color-mix(in srgb, var(--mood-accent) 60%, var(--mood-line));
+  background: var(--mood-accent-soft);
+}
+
+.mood-calendar-cell.is-outside {
+  min-height: 0;
+  border-color: transparent;
+  background: transparent;
+  pointer-events: none;
+}
+
+.mood-calendar-cell.is-today {
+  border-color: var(--mood-accent);
+  box-shadow: inset 0 3px 0 var(--mood-accent);
+}
+
+.mood-calendar-cell.is-future {
+  color: var(--mood-muted);
+  background: color-mix(in srgb, var(--mood-page-bg) 80%, transparent);
+  cursor: not-allowed;
+}
+
+.mood-calendar-day {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.mood-calendar-today-label {
+  color: var(--mood-accent);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.mood-calendar-entries {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 5px;
+}
+
+.mood-calendar-entry {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: var(--mood-muted);
+  font-size: 0.68rem;
+  line-height: 1.15;
+  text-align: center;
+}
+
+.mood-calendar-entry img,
+.mood-detail-mood img,
+.mood-editor-selected img,
+.mood-picker-choice img,
+.mood-history-mood img {
+  display: block;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  object-fit: contain;
+}
+
+.mood-calendar-entry.is-square img {
+  width: 32px;
+  height: 32px;
+}
+
+.mood-calendar-entry > span:last-child {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mood-asset-error {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  color: var(--mood-muted);
+  font-size: 0.68rem;
+}
+
+.mood-calendar-legend {
+  justify-content: flex-end;
+  gap: 16px;
+  margin: 12px 2px 0;
+  color: var(--mood-muted);
+  font-size: 0.78rem;
+}
+
+.mood-calendar-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.mood-seat-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  background: var(--mood-accent);
+}
+
+.mood-seat-dot-circle { border-radius: 50%; }
+.mood-seat-dot-square { border-radius: 2px; }
+
+.mood-fab {
+  position: sticky;
+  z-index: 2;
+  display: grid;
+  width: 56px;
+  height: 56px;
+  margin: 20px 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--mood-accent);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--mood-accent) 28%, transparent);
+  cursor: pointer;
+}
+
+.mood-fab:hover {
+  background: color-mix(in srgb, var(--mood-accent) 84%, #000);
+}
+
+.mood-history-section {
+  margin-top: 18px;
+}
+
+.mood-section-heading {
+  padding: 14px 0 18px;
+  border-bottom: 1px solid var(--mood-line);
+}
+
+.mood-history-list {
+  display: grid;
+  gap: 0;
+}
+
+.mood-history-item {
+  position: relative;
+  min-width: 0;
+  align-items: stretch;
+  gap: 16px;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--mood-line);
+}
+
+.mood-history-date {
+  width: 74px;
+  flex: 0 0 74px;
+  padding-top: 3px;
+  color: var(--mood-muted);
+}
+
+.mood-history-date strong,
+.mood-history-date span {
+  display: block;
+}
+
+.mood-history-date strong {
+  color: var(--mood-ink);
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.mood-history-date span {
+  margin-top: 4px;
+  font-size: 0.75rem;
+}
+
+.mood-history-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.mood-history-mood,
+.mood-detail-mood,
+.mood-editor-selected {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mood-history-mood strong,
+.mood-detail-mood strong,
+.mood-editor-selected strong {
+  font-size: 1rem;
+}
+
+.mood-history-content,
+.mood-detail-content {
+  margin: 10px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.mood-history-content:empty::before,
+.mood-detail-content:empty::before {
+  content: "今天没有写下文字。";
+  color: var(--mood-muted);
+}
+
+.mood-history-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  color: var(--mood-muted);
+  font-size: 0.78rem;
+}
+
+.mood-history-accent {
+  width: 3px;
+  align-self: stretch;
+  border-radius: 99px;
+  background: var(--mood-accent);
+}
+
+.mood-author-avatar {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+  color: var(--mood-ink);
+  background: var(--mood-accent-soft);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.mood-author-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mood-tag-list,
+.mood-detail-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mood-tag-list {
+  min-height: 0;
+}
+
+.mood-tag,
+.mood-detail-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  max-width: 100%;
+  padding: 5px 9px;
+  border-radius: 999px;
+  color: var(--mood-ink);
+  background: var(--mood-accent-soft);
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+.mood-tag-remove {
+  display: inline-grid;
+  width: 44px;
+  height: 44px;
+  margin: -5px -7px -5px 0;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  color: currentColor;
+  background: transparent;
+  cursor: pointer;
+}
+
+.mood-empty-state {
+  margin: 30px 0;
+  color: var(--mood-muted);
+  text-align: center;
+}
+
+.mood-load-more {
+  display: block;
+  margin: 24px auto 0;
+}
+
+.mood-overlay[hidden],
+.mood-picker-panel[hidden],
+.mood-editor-panel[hidden],
+.mood-detail-panel[hidden] {
+  display: none;
+}
+
+.mood-overlay {
+  position: fixed;
+  z-index: 200;
+  inset: 0;
+  display: grid;
+  overflow: auto;
+  place-items: center;
+  padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
+}
+
+.mood-overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgb(16 22 18 / 48%);
+}
+
+.mood-overlay-panel {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 560px);
+  max-height: min(760px, calc(100dvh - 24px));
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 24px;
+  border: 1px solid var(--mood-line);
+  border-radius: 26px;
+  color: var(--mood-ink);
+  background: var(--mood-surface);
+  box-shadow: 0 24px 80px rgb(16 22 18 / 24%);
+}
+
+.mood-overlay-header {
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.mood-overlay-header h3 {
+  font-size: 1.45rem;
+}
+
+.mood-picker-panel > h4,
+.mood-editor-panel h4,
+.mood-detail-panel h4 {
+  font-size: 1.1rem;
+}
+
+.mood-picker-panel > p {
+  margin: 8px 0 0;
+}
+
+.mood-picker-orbit {
+  position: relative;
+  width: min(100%, 410px);
+  min-height: 330px;
+  margin: 20px auto 0;
+  isolation: isolate;
+}
+
+.mood-picker-orbit::before {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(72%, 280px);
+  aspect-ratio: 1;
+  border: 1px dashed var(--mood-line);
+  border-radius: 50%;
+  content: "";
+  transform: translate(-50%, -50%);
+}
+
+.mood-picker-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  max-width: 125px;
+  color: var(--mood-muted);
+  font-size: 0.84rem;
+  line-height: 1.5;
+  text-align: center;
+  transform: translate(-50%, -50%);
+}
+
+.mood-picker-choice {
+  position: absolute;
+  top: calc(var(--mood-top) * 1%);
+  left: calc(var(--mood-left) * 1%);
+  display: flex;
+  width: 72px;
+  min-height: 78px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid transparent;
+  border-radius: 16px;
+  color: var(--mood-ink);
+  background: transparent;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  transform: translate(-50%, -50%);
+}
+
+.mood-picker-choice:hover {
+  border-color: var(--mood-line);
+  background: var(--mood-accent-soft);
+}
+
+.mood-picker-choice img {
+  width: 48px;
+  height: 48px;
+}
+
+.mood-editor-selected {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--mood-accent-soft);
+}
+
+.mood-editor-selected img {
+  width: 48px;
+  height: 48px;
+}
+
+#moodEditorForm {
+  margin-top: 18px;
+}
+
+#moodEditorForm label {
+  display: block;
+  margin-top: 16px;
+  color: var(--mood-ink);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.mood-field-note {
+  color: var(--mood-muted);
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+#moodEditorContent,
+#moodEditorTagInput {
+  width: 100%;
+  margin-top: 8px;
+  border: 1px solid var(--mood-line);
+  border-radius: 12px;
+  color: var(--mood-ink);
+  background: var(--mood-page-bg);
+  font: inherit;
+}
+
+#moodEditorContent {
+  min-height: 132px;
+  resize: vertical;
+  padding: 12px;
+  line-height: 1.6;
+}
+
+.mood-tag-input-wrap {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--mood-line);
+  border-radius: 12px;
+  background: var(--mood-page-bg);
+}
+
+.mood-tag-input-wrap:focus-within {
+  border-color: var(--mood-accent);
+  box-shadow: 0 0 0 3px var(--mood-accent-soft);
+}
+
+#moodEditorTagInput {
+  min-height: 44px;
+  margin-top: 6px;
+  padding: 6px 2px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+}
+
+.mood-field-help {
+  margin: 6px 0 0;
+  font-size: 0.76rem;
+}
+
+.mood-form-error {
+  min-height: 22px;
+  margin: 10px 0 0;
+  font-size: 0.84rem;
+}
+
+.mood-form-actions {
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.mood-detail-person-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.mood-person-choice {
+  min-height: 44px;
+  border: 1px solid var(--mood-line);
+  border-radius: 999px;
+  padding: 8px 13px;
+  color: var(--mood-ink);
+  background: var(--mood-surface);
+  font: inherit;
+  cursor: pointer;
+}
+
+.mood-person-choice[aria-pressed="true"] {
+  border-color: var(--mood-accent);
+  background: var(--mood-accent-soft);
+}
+
+.mood-detail-mood {
+  margin-top: 4px;
+}
+
+.mood-detail-mood img {
+  width: 64px;
+  height: 64px;
+}
+
+.mood-detail-content {
+  min-height: 26px;
+  line-height: 1.7;
+}
+
+.mood-detail-tags {
+  margin-top: 16px;
+}
+
+.mood-detail-author {
+  gap: 8px;
+  margin-top: 18px;
+  color: var(--mood-muted);
+  font-size: 0.84rem;
+}
+
+body.theme-dark .mood-diary-page {
+  --mood-page-bg: var(--bg, #141916);
+  --mood-surface: var(--surface, #1d2520);
+  --mood-ink: var(--ink, #f0f4ef);
+  --mood-muted: var(--muted, #a7b3aa);
+  --mood-line: var(--line, rgba(240, 244, 239, 0.16));
+}
+
+@media (max-width: 700px) {
+  .mood-diary-page {
+    padding: 8px 0 calc(48px + env(safe-area-inset-bottom));
+  }
+
+  .mood-diary-header,
+  .mood-section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .mood-diary-header-actions,
+  .mood-section-heading .mood-secondary-button {
+    width: 100%;
+  }
+
+  .mood-diary-header-actions .mood-secondary-button,
+  .mood-section-heading .mood-secondary-button {
+    width: 100%;
+  }
+
+  .mood-calendar-weekdays,
+  .mood-calendar-grid {
+    gap: 4px;
+  }
+
+  .mood-calendar-cell {
+    min-height: 94px;
+    padding: 7px 3px;
+    border-radius: 11px;
+  }
+
+  .mood-calendar-day {
+    justify-content: center;
+  }
+
+  .mood-calendar-today-label {
+    display: none;
+  }
+
+  .mood-calendar-entry {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .mood-calendar-entry img {
+    width: 32px;
+    height: 32px;
+  }
+
+  .mood-calendar-entry.is-square img {
+    width: 27px;
+    height: 27px;
+  }
+
+  .mood-calendar-entry > span:last-child {
+    max-width: 100%;
+    font-size: 0.61rem;
+  }
+
+  .mood-calendar-legend {
+    justify-content: flex-start;
+    gap: 10px;
+    font-size: 0.7rem;
+  }
+
+  .mood-overlay {
+    align-items: end;
+    padding: 0;
+  }
+
+  .mood-overlay-panel {
+    width: 100%;
+    max-height: min(780px, 92dvh);
+    padding: 20px 16px calc(22px + env(safe-area-inset-bottom));
+    border-radius: 24px 24px 0 0;
+  }
+
+  .mood-picker-orbit {
+    min-height: 310px;
+  }
+
+  .mood-picker-choice {
+    width: 64px;
+    min-height: 72px;
+    font-size: 0.7rem;
+  }
+
+  .mood-picker-choice img {
+    width: 44px;
+    height: 44px;
+  }
+
+  .mood-history-item {
+    gap: 9px;
+  }
+
+  .mood-history-date {
+    width: 56px;
+    flex-basis: 56px;
+  }
+
+  .mood-history-date strong {
+    font-size: 1.25rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mood-secondary-button,
+  .mood-primary-button,
+  .mood-load-more,
+  .mood-icon-button {
+    transition: none;
+  }
+}
