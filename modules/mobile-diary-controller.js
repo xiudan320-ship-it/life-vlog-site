@@ -335,7 +335,7 @@ export function createMobileDiaryController({
       return true;
     }
     if (state.activePage !== "gallery") {
-      switchPage("gallery");
+      switchPage("gallery", { restoreScroll: false, focusHeading: false });
       window.scrollTo({ top: 0, behavior: "auto" });
       return true;
     }

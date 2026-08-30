@@ -219,7 +219,7 @@ export function createDiaryComposerController({
     );
     await loadPhotos();
     vlogMode.close();
-    switchPage("gallery");
+    switchPage("gallery", { restoreScroll: false, focusHeading: false });
     els.galleryHead?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 

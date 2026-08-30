@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | 应用启动、首屏加载态 | `modules/app-splash-controller.js` | `styles/app-splash.css`, `index.html` |
 | 页面切换、顶部导航、返回行为 | `modules/app-navigation-controller.js` | `modules/app-event-bindings.js` |
-| 登录、注册、邮箱与密码 | `modules/auth-controller.js` | `modules/app-session-controller.js`, `modules/settings-event-bindings.js` |
+| 登录、注册、邮箱与密码 | `modules/auth-controller.js`, `modules/auth-view.js` | `modules/app-session-controller.js`, `modules/settings-event-bindings.js` |
 | 顶部等级 / 经验面板点击无响应 | `modules/gamification-controller.js` | `modules/app-event-bindings.js`, `modules/settings-event-bindings.js` |
 | 账户资料、头像、家庭设置、缓存设置 | `modules/profile-preferences-controller.js`, `modules/family-settings-controller.js` | `modules/settings-event-bindings.js`, `modules/account-view.js` |
 | 日记列表、搜索、筛选、瀑布流 | `modules/diary-feed-controller.js` | `modules/diary-gallery-view.js`, `modules/diary-domain.js` |

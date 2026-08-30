@@ -161,7 +161,7 @@ export function createWardrobeController({
     <header class="wardrobe-head">
       <div>
         <p class="kicker">My Wardrobe</p>
-        <h1>衣柜</h1>
+        <h1 data-page-heading="wardrobe">衣柜</h1>
         <p>把试穿照、搭配和收纳位置放在一起，出门前少找十分钟。</p>
       </div>
       <div class="wardrobe-head-actions">

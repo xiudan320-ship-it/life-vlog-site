@@ -108,6 +108,180 @@ async function testHomeShell(viewport, label, reducedMotion = "no-preference") {
   await context.close();
 }
 
+async function testNavigationAndAuth(viewport, label) {
+  const context = await browser.newContext({ viewport, serviceWorkers: "block" });
+  const page = await context.newPage();
+  const pageErrors = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  await page.goto(`${baseUrl}/`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector("#appSplash[hidden]", { state: "attached", timeout: 30000 });
+  await page.waitForSelector("#authCard:not([hidden])", { state: "visible", timeout: 30000 });
+
+  const initialAuth = await page.evaluate(() => ({
+    inviteHidden: document.querySelector("#inviteCodeField")?.hidden ?? false,
+    loginHidden: document.querySelector("#loginButton")?.hidden ?? true,
+    signupHidden: document.querySelector("#signupButton")?.hidden ?? true,
+    forgotHidden: document.querySelector("#forgotPasswordButton")?.hidden ?? true,
+    passwordAutocomplete: document.querySelector("#passwordInput")?.getAttribute("autocomplete") || "",
+    labels: [...document.querySelectorAll(".auth-field > label")].map((label) => label.textContent.trim()),
+  }));
+  assert.equal(initialAuth.inviteHidden, true, `${label} invite field should be hidden in login mode`);
+  assert.equal(initialAuth.loginHidden, false, `${label} login action should be visible by default`);
+  assert.equal(initialAuth.signupHidden, true, `${label} signup action should be hidden by default`);
+  assert.equal(initialAuth.forgotHidden, false, `${label} forgot-password action should be visible in login mode`);
+  assert.equal(initialAuth.passwordAutocomplete, "current-password", `${label} login password autocomplete is incorrect`);
+  assert.deepEqual(initialAuth.labels.slice(0, 2), ["用户名", "密码"], `${label} auth fields are missing visible labels`);
+
+  await page.fill("#usernameInput", "luna");
+  await page.fill("#passwordInput", "secret-password");
+  await page.click("#authModeToggle");
+  const signupAuth = await page.evaluate(() => ({
+    inviteHidden: document.querySelector("#inviteCodeField")?.hidden ?? true,
+    loginHidden: document.querySelector("#loginButton")?.hidden ?? true,
+    signupHidden: document.querySelector("#signupButton")?.hidden ?? true,
+    forgotHidden: document.querySelector("#forgotPasswordButton")?.hidden ?? true,
+    passwordAutocomplete: document.querySelector("#passwordInput")?.getAttribute("autocomplete") || "",
+    username: document.querySelector("#usernameInput")?.value || "",
+    password: document.querySelector("#passwordInput")?.value || "",
+    mode: document.querySelector("#authCard")?.dataset.authMode || "",
+  }));
+  assert.equal(signupAuth.inviteHidden, false, `${label} signup mode did not reveal invite field`);
+  assert.equal(signupAuth.loginHidden, true, `${label} login action should hide in signup mode`);
+  assert.equal(signupAuth.signupHidden, false, `${label} signup action should show in signup mode`);
+  assert.equal(signupAuth.forgotHidden, true, `${label} forgot-password action should hide in signup mode`);
+  assert.equal(signupAuth.passwordAutocomplete, "new-password", `${label} signup password autocomplete is incorrect`);
+  assert.equal(signupAuth.username, "luna", `${label} auth mode switch cleared the username`);
+  assert.equal(signupAuth.password, "secret-password", `${label} auth mode switch cleared the password`);
+  assert.equal(signupAuth.mode, "signup", `${label} auth mode state is incorrect`);
+
+  await page.click("#passwordToggle");
+  const visiblePassword = await page.evaluate(() => ({
+    type: document.querySelector("#passwordInput")?.type || "",
+    pressed: document.querySelector("#passwordToggle")?.getAttribute("aria-pressed") || "",
+    label: document.querySelector("#passwordToggle")?.getAttribute("aria-label") || "",
+  }));
+  assert.deepEqual(visiblePassword, {
+    type: "text",
+    pressed: "true",
+    label: "隐藏密码",
+  }, `${label} password visibility control did not enter visible state`);
+  await page.click("#passwordToggle");
+  await page.click("#authModeToggle");
+  const loginAuth = await page.evaluate(() => ({
+    inviteHidden: document.querySelector("#inviteCodeField")?.hidden ?? false,
+    passwordType: document.querySelector("#passwordInput")?.type || "",
+    passwordAutocomplete: document.querySelector("#passwordInput")?.getAttribute("autocomplete") || "",
+    forgotHeight: Math.round(document.querySelector("#forgotPasswordButton")?.getBoundingClientRect().height || 0),
+    mode: document.querySelector("#authCard")?.dataset.authMode || "",
+  }));
+  assert.equal(loginAuth.inviteHidden, true, `${label} login mode did not hide invite field again`);
+  assert.equal(loginAuth.passwordType, "password", `${label} password input did not return to masked state`);
+  assert.equal(loginAuth.passwordAutocomplete, "current-password", `${label} login password autocomplete did not restore`);
+  assert.ok(loginAuth.forgotHeight >= 44, `${label} forgot-password target is too small: ${loginAuth.forgotHeight}px`);
+  assert.equal(loginAuth.mode, "login", `${label} auth mode did not return to login`);
+
+  await page.evaluate(() => {
+    document.body.style.minHeight = "3200px";
+    window.scrollTo({ top: 1800, behavior: "instant" });
+  });
+  assert.equal(await page.evaluate(() => Math.round(window.scrollY)), 1800, `${label} navigation fixture could not reach the source scroll position`);
+
+  await page.click("#wishlistNav");
+  await page.waitForFunction(() => document.activeElement?.dataset.pageHeading === "wishlist");
+  const firstWishlist = await page.evaluate(() => ({
+    scrollY: Math.round(window.scrollY),
+    current: [...document.querySelectorAll("#galleryNav, #wishlistNav, #weekendNav, #wardrobeNav")]
+      .filter((button) => button.getAttribute("aria-current") === "page")
+      .map((button) => button.id),
+  }));
+  assert.equal(firstWishlist.scrollY, 0, `${label} first wishlist visit did not start at the top`);
+  assert.deepEqual(firstWishlist.current, ["wishlistNav"], `${label} wishlist aria-current state is incorrect`);
+
+  await page.evaluate(() => window.scrollTo({ top: 640, behavior: "instant" }));
+  await page.click("#weekendNav");
+  await page.waitForFunction(() => document.activeElement?.dataset.pageHeading === "weekend");
+  assert.equal(await page.evaluate(() => Math.round(window.scrollY)), 0, `${label} first weekend visit did not start at the top`);
+
+  await page.evaluate(() => window.scrollTo({ top: 420, behavior: "instant" }));
+  await page.click("#wishlistNav");
+  await page.waitForFunction(() => document.activeElement?.dataset.pageHeading === "wishlist");
+  assert.equal(await page.evaluate(() => Math.round(window.scrollY)), 640, `${label} wishlist scroll position was not restored`);
+
+  await page.click("#galleryNav");
+  await page.waitForFunction(() => document.activeElement?.dataset.pageHeading === "gallery");
+  assert.equal(await page.evaluate(() => Math.round(window.scrollY)), 1800, `${label} diary scroll position was not restored`);
+  assert.deepEqual(
+    await page.evaluate(() => [...document.querySelectorAll("#galleryNav, #wishlistNav, #weekendNav, #wardrobeNav")]
+      .filter((button) => button.getAttribute("aria-current") === "page")
+      .map((button) => button.id)),
+    ["galleryNav"],
+    `${label} diary aria-current state is incorrect`
+  );
+  assert.deepEqual(pageErrors, [], `${label} navigation/auth runtime errors:\n${pageErrors.join("\n")}`);
+  await assertNoHorizontalOverflow(page, `${label} navigation/auth`);
+  await context.close();
+}
+
+async function testDesktopPageRails(viewport, label) {
+  const context = await browser.newContext({ viewport, serviceWorkers: "block" });
+  const page = await context.newPage();
+  await page.goto(`${baseUrl}/`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector(".topbar");
+
+  const rails = await page.evaluate(() => {
+    for (const selector of [
+      "#wishlistPage",
+      "#wishlistContent",
+      "#shoppingContent",
+      "#weekendPage",
+      "#weekendComposer",
+      "#weekendList",
+    ]) {
+      document.querySelector(selector)?.removeAttribute("hidden");
+    }
+
+    const main = document.querySelector("main");
+    const mainStyle = getComputedStyle(main);
+    const mainRect = main.getBoundingClientRect();
+    const contentRail = mainRect.width - parseFloat(mainStyle.paddingLeft) - parseFloat(mainStyle.paddingRight);
+    const widthOf = (selector) => document.querySelector(selector)?.getBoundingClientRect().width || 0;
+    const leftOf = (selector) => document.querySelector(selector)?.getBoundingClientRect().left || 0;
+
+    return {
+      contentRail,
+      wishlistHeader: widthOf(".wishlist-page-header"),
+      wishlistContent: widthOf("#wishlistContent"),
+      shoppingContent: widthOf("#shoppingContent"),
+      wishlistTabsLeft: leftOf(".wishlist-module-tabs"),
+      wishlistHeaderLeft: leftOf(".wishlist-page-header"),
+      weekendHeader: widthOf(".weekend-page-header"),
+      weekendComposer: widthOf(".weekend-composer"),
+      weekendList: widthOf(".weekend-list"),
+    };
+  });
+
+  assert.ok(rails.contentRail > 960, `${label} desktop content rail did not expand: ${JSON.stringify(rails)}`);
+  for (const [name, width] of Object.entries(rails).filter(([key]) => [
+    "wishlistHeader",
+    "wishlistContent",
+    "shoppingContent",
+    "weekendHeader",
+    "weekendComposer",
+    "weekendList",
+  ].includes(key))) {
+    assert.ok(
+      Math.abs(width - rails.contentRail) <= 1,
+      `${label} ${name} does not align to the shared desktop rail: ${JSON.stringify(rails)}`
+    );
+  }
+  assert.ok(
+    Math.abs(rails.wishlistTabsLeft - rails.wishlistHeaderLeft) <= 1,
+    `${label} wishlist module tabs are not aligned to the page rail: ${JSON.stringify(rails)}`
+  );
+  await assertNoHorizontalOverflow(page, `${label} desktop page rails`);
+  await context.close();
+}
+
 async function testDiaryDetail(viewport, label) {
   const context = await browser.newContext({ viewport, serviceWorkers: "block" });
   const page = await context.newPage();
@@ -181,11 +355,15 @@ async function testWeekendLayout(viewport, label) {
         stateControlWidth: stateControlRect ? Math.round(stateControlRect.width) : 0,
         stateControlHeight: stateControlRect ? Math.round(stateControlRect.height) : 0,
         stateControlText: openControl?.textContent.trim() || "",
+        hasOpenControl: Boolean(openControl),
+        stateControlBottom: stateControlRect ? Math.round(stateControlRect.bottom) : 0,
+        stateControlRight: stateControlRect ? Math.round(stateControlRect.right) : 0,
         stampWidth: stampRect ? Math.round(stampRect.width) : 0,
         stampHeight: stampRect ? Math.round(stampRect.height) : 0,
         stampTop: stampRect ? Math.round(stampRect.top) : 0,
         stampRight: stampRect ? Math.round(stampRect.right) : 0,
         cardTop: Math.round(cardRect.top),
+        cardBottom: Math.round(cardRect.bottom),
         cardRight: Math.round(cardRect.right),
       };
     })
@@ -198,10 +376,12 @@ async function testWeekendLayout(viewport, label) {
     assert.ok(card.bodyWidth >= 130, `${label} weekend card body is squeezed: ${JSON.stringify(card)}`);
     assert.ok(card.stateControlWidth >= 44 && card.stateControlHeight >= 44, `${label} weekend completion target is too small: ${JSON.stringify(card)}`);
   }
-  const openCards = cards.filter((card) => card.stateControlText);
-  assert.equal(openCards.length, 1, `${label} open weekend card is missing its action button`);
-  assert.equal(openCards[0].stateControlText, "完成", `${label} open weekend action should say 完成: ${JSON.stringify(openCards[0])}`);
-  assert.ok(openCards[0].stateControlWidth >= 60, `${label} open weekend action is too narrow: ${JSON.stringify(openCards[0])}`);
+  const openCards = cards.filter((card) => card.hasOpenControl);
+  assert.equal(openCards.length, 1, `${label} open weekend card is missing its action circle`);
+  assert.equal(openCards[0].stateControlText, "", `${label} open weekend action should be an empty circle: ${JSON.stringify(openCards[0])}`);
+  assert.ok(openCards[0].stateControlWidth >= 44 && openCards[0].stateControlHeight >= 44, `${label} open weekend action circle is too small: ${JSON.stringify(openCards[0])}`);
+  assert.ok(openCards[0].stateControlBottom > openCards[0].cardTop + openCards[0].cardHeight / 2, `${label} open weekend action circle is not placed at the lower edge: ${JSON.stringify(openCards[0])}`);
+  assert.ok(openCards[0].stateControlRight < openCards[0].cardRight, `${label} open weekend action circle is not inset from the right edge: ${JSON.stringify(openCards[0])}`);
   assert.ok(cards[0].cardHeight <= (viewport.width <= 700 ? 300 : 240), `${label} simple weekend card is too tall: ${JSON.stringify(cards[0])}`);
   assert.ok(cards[0].dateWidth <= (viewport.width <= 700 ? 64 : 88), `${label} weekend date tile is oversized: ${JSON.stringify(cards[0])}`);
   const completedCards = cards.filter((card) => card.stampWidth > 0);
@@ -361,6 +541,9 @@ try {
   await testHomeShell({ width: 390, height: 844 }, "mobile");
   await testHomeShell({ width: 375, height: 812 }, "small-mobile-reduced-motion", "reduce");
   await testHomeShell({ width: 844, height: 390 }, "mobile-landscape");
+  await testNavigationAndAuth({ width: 390, height: 844 }, "mobile");
+  await testNavigationAndAuth({ width: 1440, height: 900 }, "desktop");
+  await testDesktopPageRails({ width: 1440, height: 900 }, "desktop");
   await testDiaryDetail({ width: 1440, height: 900 }, "desktop");
   await testDiaryDetail({ width: 390, height: 844 }, "mobile");
   await testWeekendLayout({ width: 1440, height: 900 }, "desktop");

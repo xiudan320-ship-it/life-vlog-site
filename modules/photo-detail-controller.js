@@ -2,7 +2,7 @@ import { stopDiaryMotionVideo } from "./diary-video-layout.js?v=20260824-030";
 import { formatDate, formatDateTime } from "./ui-formatters.js";
 import { formatWishDate } from "./wishlist-view.js";
 import { createPhotoEditorController } from "./photo-editor-controller.js";
-import { createMobileDiaryController } from "./mobile-diary-controller.js";
+import { createMobileDiaryController } from "./mobile-diary-controller.js?v=20260827-001";
 
 export function createPhotoDetailController({
   elements,

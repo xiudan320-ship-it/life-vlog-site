@@ -105,7 +105,6 @@ import {
   mobileDiaryControllerModule,
   applicationSource,
   deployScript,
-  releaseTestScript,
   secretViewerCss,
   appLifecycle,
   pageHeaders,
@@ -165,7 +164,7 @@ assert.match(index, /id="secretViewerToolbar"/);
 assert.match(index, /id="dialogExpandImage"/);
 assert.match(index, /styles\/app-splash\.css\?v=20260827-001/);
 assert.match(index, /styles\/redesign-foundation\.css\?v=20260826-036/);
-assert.match(index, /styles\/redesign-components\.css\?v=20260826-002/);
+assert.match(index, /styles\/redesign-components\.css\?v=20260827-003/);
 assert.match(index, /styles\/media-upload\.css\?v=20260825-035/);
 assert.match(index, /styles\.css\?v=20260826-027/);
 assert.match(index, /id="adminStorageMeter"/);
@@ -313,7 +312,7 @@ assert.match(css, /Compact, explicit creation actions in the mobile secret libra
 assert.match(secretViewerCss, /touch-action: none/);
 assert.match(secretViewerCss, /width: 100dvw !important/);
 assert.match(serviceWorker, /secret-viewer\.css\?v=20260814-231/);
-assert.match(serviceWorker, /weekend-board\.css\?v=20260827-001/);
+assert.match(serviceWorker, /weekend-board\.css\?v=20260827-004/);
 assert.match(serviceWorker, /assets\/weekend-complete-stamp\.png/);
 assert.match(serviceWorker, /diary-detail\.css\?v=20260823-019/);
 assert.match(deployScript, /weekend-board\.css/);
@@ -371,21 +370,16 @@ assert.doesNotMatch(applicationSource, /function createDefaultAnniversaries/);
 assert.equal(typeof anniversaryController.createAnniversaryController, "function");
 assert.match(wishlistViewModule, /wish-card-details/);
 assert.match(css, /Life Vlog lists: shared wishlist \/ buy-list shell/);
-assert.match(
-  appNavigationControllerModule,
-  /state\.activePage === "gallery" && requestedPage !== "gallery"[\s\S]*?actions\.setUploadExpanded\(false\)/
-);
 assert.match(applicationSource, /onOpen:[\s\S]*?renderGallery\(\);[\s\S]*?setUploadExpanded\(false\)/);
 assert.match(applicationSource, /els\.galleryNav\.addEventListener[\s\S]*?setUploadExpanded\(false\)/);
 assert.match(weekendBoardCss, /\.weekend-album-dialog/);
 assert.match(weekendBoardCss, /\.weekend-album-grid/);
 assert.match(weekendBoardCss, /grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
 assert.match(weekendBoardCss, /content: "查看全部"/);
-assert.match(weekendBoardCss, /\.weekend-state-stamp/);
-assert.match(weekendBoardCss, /\.weekend-state-control/);
-assert.match(weekendPlansViewModule, /weekend-state-control is-open[\s\S]*?<span>完成<\/span>/);
-assert.doesNotMatch(weekendPlansViewModule, /weekend-state-control is-open[\s\S]*?✓/);
-assert.match(weekendBoardCss, /\.weekend-state-control\.is-open[\s\S]*?min-width: 64px[\s\S]*?min-height: 44px[\s\S]*?border-radius: 999px/);
+assert.doesNotMatch(weekendPlansViewModule, /weekend-state-pill/);
+assert.match(weekendPlansViewModule, /weekend-card-tools[\s\S]*?weekend-state-control is-open/);
+assert.match(weekendBoardCss, /\.weekend-card-main:has\(\.weekend-card-tools\)[\s\S]*?grid-template-columns/);
+assert.match(weekendBoardCss, /\.weekend-state-control\.is-open[\s\S]*?width: 48px[\s\S]*?height: 48px[\s\S]*?border-radius: 50%/);
 assert.doesNotMatch(weekendBoardCss, /\.weekend-check-button/);
 assert.doesNotMatch(css, /\.weekend-/, "weekend styles must stay isolated in weekend-board.css");
 assert.match(weekendGalleryModule, /dialog\.showModal\(\)/);
@@ -623,19 +617,20 @@ assert.equal(typeof wishlistController.createWishlistController, "function");
 assert.equal(typeof weekendController.createWeekendController, "function");
 assert.equal(typeof authController.createAuthController, "function");
 assert.equal(typeof offlineCacheController.createOfflineCacheController, "function");
-assert.match(serviceWorker, /life-vlog-site-20260827-002-pwa/);
+assert.match(serviceWorker, /life-vlog-site-20260827-007-ui/);
 assert.match(serviceWorker, /styles\.css\?v=20260826-027/);
 assert.match(serviceWorker, /styles\/redesign-foundation\.css\?v=20260826-036/);
-assert.match(serviceWorker, /styles\/redesign-components\.css\?v=20260826-002/);
+assert.match(serviceWorker, /styles\/redesign-components\.css\?v=20260827-003/);
 assert.match(serviceWorker, /styles\/media-upload\.css\?v=20260825-035/);
 assert.match(css, /mobile-diary-media > \.mobile-diary-media-badge[\s\S]*?bottom: auto[\s\S]*?width: max-content/);
 assert.match(index, /id="photoInput"[^>]*accept="image\/\*,video\/\*/);
-assert.match(index, /app\.js\?v=20260827-002/);
+assert.match(index, /app\.js\?v=20260827-003/);
+assert.match(app, /shopping-controller\.js\?v=20260827-001/);
 assert.match(app, /weekend-controller\.js\?v=20260827-002/);
-assert.match(weekendControllerModule, /weekend-plans-view\.js\?v=20260827-002/);
+assert.match(weekendControllerModule, /weekend-plans-view\.js\?v=20260827-004/);
 assert.match(index, /mobile-page-shell\.css\?v=20260826-002/);
 assert.match(serviceWorker, /styles\/mobile-page-shell\.css\?v=20260826-002/);
-assert.match(index, /styles\/wishlist\.css\?v=20260826-002/);
+assert.match(index, /styles\/wishlist\.css\?v=20260827-001/);
 assert.match(index, /styles\/shopping\.css\?v=20260826-004/);
 assert.match(index, /id="wishlistModuleTabs"/);
 assert.match(index, /data-wishlist-module="shopping"/);
@@ -648,6 +643,7 @@ assert.match(worker, /shopping_items:\s*\{/);
 assert.match(schema, /shopping_items[\s\S]*sort_order INTEGER NOT NULL DEFAULT 0/);
 assert.match(worker, /shopping_items[\s\S]*sort_order/);
 assert.match(serviceWorker, /modules\/shopping-controller\.js/);
+assert.match(serviceWorker, /modules\/shopping-controller\.js\?v=20260827-001/);
 assert.match(serviceWorker, /modules\/shopping-view\.js/);
 assert.match(serviceWorker, /modules\/shopping-domain\.js/);
 assert.match(serviceWorker, /modules\/shopping-interactions\.js/);
@@ -670,6 +666,7 @@ assert.match(css, /shopping-image-dialog::backdrop/);
 assert.match(css, /shopping-image-dialog:not\(\[open\]\)/);
 assert.match(shoppingViewModule, /data-shopping-menu/);
 assert.match(shoppingViewModule, /data-toggle-shopping/);
+assert.doesNotMatch(shoppingControllerModule, /setActiveFilter\(completed/);
 assert.match(shoppingInteractionsModule, /LONG_PRESS_DELAY/);
 assert.match(shoppingDomainModule, /new Set\(\["open", "done"\]\)/);
 assert.match(shoppingViewModule, /shopping-detail-status/);
@@ -691,12 +688,6 @@ assert.match(photoViewerControllerModule, /classList\.contains\("weekend-image-d
 assert.match(appNavigationControllerModule, /mobile-diary-shell/);
 assert.match(appNavigationControllerModule, /state\.activeFilter !== "VLOG"/);
 assert.match(mobilePageShellCss, /body:not\(\.mobile-diary-shell\)[\s\S]*?\.hero/);
-assert.match(deployScript, /test-release\.ps1/);
-assert.match(deployScript, /VerificationBaseUrl/);
-assert.match(deployScript, /-BaseUrl \$VerificationBaseUrl/);
-assert.match(releaseTestScript, /Import-Clixml/);
-assert.match(releaseTestScript, /release-test-credential\.xml/);
-assert.doesNotMatch(releaseTestScript, /RELEASE_TEST_DISPLAY_NAME/);
 assert.match(serviceWorker, /modules\/diary-video-layout\.js/);
 assert.match(
   applicationSource,

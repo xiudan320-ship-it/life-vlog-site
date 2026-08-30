@@ -63,7 +63,9 @@ export function bindAppEvents({
   const {
     login: loginWithPassword,
     resetEmailRecoveryUi,
+    setMode: setAuthMode,
     signup: signupWithPassword,
+    togglePasswordVisibility,
   } = controllers.auth;
   const { openLevelDialog } = controllers.gamification;
 
@@ -81,7 +83,7 @@ export function bindAppEvents({
     els.recipesPage?.scrollIntoView({ behavior: "smooth", block: "start" });
   });
   els.recipesToolOpen?.addEventListener("click", () => {
-    switchPage("recipes");
+    switchPage("recipes", { restoreScroll: false, focusHeading: false });
     els.recipesPage?.scrollIntoView({ behavior: "smooth", block: "start" });
   });
   els.wishlistNav.addEventListener("click", () => {
@@ -94,7 +96,7 @@ export function bindAppEvents({
   els.secretNav?.addEventListener("click", () => switchPage("secret"));
   els.brand?.addEventListener("click", (event) => {
     event.preventDefault();
-    switchPage("gallery");
+    switchPage("gallery", { restoreScroll: false, focusHeading: false });
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
   els.toolDock?.addEventListener("click", handleToolDockClick, true);
@@ -147,7 +149,7 @@ export function bindAppEvents({
     if (event.target === els.weeklyReviewDialog) els.weeklyReviewDialog.close();
   });
   els.secretOpen?.addEventListener("click", () => {
-    if (switchPage("secret")) {
+    if (switchPage("secret", { restoreScroll: false, focusHeading: false })) {
       els.secretPage?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   });
@@ -177,23 +179,23 @@ export function bindAppEvents({
   });
   els.quickPhoto.addEventListener("click", () => {
     vlogMode.close();
-    switchPage("gallery");
+    switchPage("gallery", { restoreScroll: false, focusHeading: false });
     setUploadExpanded(true);
     els.composer.scrollIntoView({ behavior: "smooth", block: "start" });
   });
   els.quickRecipe.addEventListener("click", () => {
-    switchPage("recipes");
+    switchPage("recipes", { restoreScroll: false, focusHeading: false });
     setRecipeExpanded(true);
     els.recipeComposer.scrollIntoView({ behavior: "smooth", block: "start" });
   });
   els.quickWish.addEventListener("click", () => {
     wishlistHubController.showWishlist();
-    switchPage("wishlist");
+    switchPage("wishlist", { restoreScroll: false, focusHeading: false });
     setWishlistExpanded(true);
     els.wishlistComposer.scrollIntoView({ behavior: "smooth", block: "start" });
   });
     els.quickWeekend.addEventListener("click", () => {
-    switchPage("weekend");
+    switchPage("weekend", { restoreScroll: false, focusHeading: false });
     setWeekendExpanded(true);
     els.weekendComposer.scrollIntoView({ behavior: "smooth", block: "start" });
   });
@@ -202,6 +204,8 @@ export function bindAppEvents({
   els.saveConfig.addEventListener("click", saveConfig);
   els.loginButton.addEventListener("click", loginWithPassword);
   els.signupButton.addEventListener("click", signupWithPassword);
+  els.authModeToggle?.addEventListener("click", () => setAuthMode());
+  els.passwordToggle?.addEventListener("click", togglePasswordVisibility);
   els.forgotPasswordButton.addEventListener("click", () => {
     els.forgotPasswordForm.reset();
     resetEmailRecoveryUi();

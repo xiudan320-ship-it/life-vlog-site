@@ -1,3 +1,5 @@
+import { createAuthView } from "./auth-view.js?v=20260827-001";
+
 function passwordsMatch(password, confirmation, statusElement) {
   if (password.length < 6) {
     statusElement.textContent = "密码至少需要 6 位。";
@@ -28,6 +30,8 @@ export function createAuthController({
   closeMobileDiaryPage,
   clearSecretUnlockState,
 }) {
+  const authView = createAuthView({ elements });
+
   async function login() {
     const database = getDatabase();
     if (!database) {
@@ -37,6 +41,7 @@ export function createAuthController({
     const username = elements.usernameInput.value.trim();
     const password = elements.passwordInput.value;
     const email = usernameToEmail(username);
+    authView.setFieldValidity({ username: !email, password: !password });
     if (!email || !password) {
       setHint("请输入用户名和密码。");
       return;
@@ -75,19 +80,23 @@ export function createAuthController({
     const password = elements.passwordInput.value;
     const inviteCode = elements.inviteCodeInput?.value.trim() || "";
     const email = usernameToEmail(username);
+    authView.setFieldValidity({ username: !email, password: !password });
     if (!email || !password) {
       setHint("请输入用户名和密码。用户名只能用中文、英文、数字、下划线或短横线。");
       return;
     }
     if (password.length < 6) {
+      authView.setFieldValidity({ password: true });
       setHint("密码至少需要 6 位。");
       return;
     }
     if (!inviteCode) {
+      authView.setFieldValidity({ inviteCode: true });
       setHint("注册需要邀请码，请找 xiudan320 获取。");
       elements.inviteCodeInput?.focus();
       return;
     }
+    authView.setFieldValidity();
     setHint("正在校验邀请码...");
     try {
       await verifyInviteCode(inviteCode);
@@ -332,7 +341,11 @@ export function createAuthController({
     resetEmailBindingDialog,
     resetEmailRecoveryUi,
     resetForgottenPassword,
+    resetUi: authView.reset,
     saveRecoveryKey,
+    setAuthFieldValidity: authView.setFieldValidity,
+    setMode: authView.setMode,
     signup,
+    togglePasswordVisibility: authView.togglePasswordVisibility,
   };
 }

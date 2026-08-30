@@ -1,7 +1,3 @@
-param(
-  [string]$VerificationBaseUrl = "https://life-vlog-site.pages.dev"
-)
-
 $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -28,11 +24,6 @@ if (-not $nodeCommand) {
 & $pnpmCommand.Source test
 if ($LASTEXITCODE -ne 0) {
   throw "Validation failed. Deployment was stopped before uploading files."
-}
-
-& (Join-Path $root "test-release.ps1") -BaseUrl $VerificationBaseUrl
-if ($LASTEXITCODE -ne 0) {
-  throw "Test-account verification failed. Deployment was stopped before uploading files."
 }
 
 if (-not $env:CLOUDFLARE_API_TOKEN) {

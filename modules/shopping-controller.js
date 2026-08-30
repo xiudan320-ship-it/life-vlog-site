@@ -324,7 +324,6 @@ export function createShoppingController({
     if (result.error) return setStatus(`状态同步失败：${result.error.message}`);
     const saved = shoppingFromCloudRow(result.data);
     setItems(getItems().map((entry) => entry.id === id ? saved : entry));
-    setActiveFilter(completed ? "done" : "open");
     setStatus(completed ? "已标记为已购买。" : "已恢复为未完成。");
     render();
   }

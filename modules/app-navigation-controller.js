@@ -14,7 +14,85 @@ export function createAppNavigationController({
   controllers,
   actions,
   documentTarget = document,
+  windowTarget = window,
 } = {}) {
+  const pageScrollPositions = new Map();
+
+  function getScrollTop() {
+    return Math.max(0, Number(windowTarget?.scrollY) || 0);
+  }
+
+  function getMaxScrollTop() {
+    const documentElement = documentTarget?.documentElement;
+    const body = documentTarget?.body;
+    const scrollHeight = Math.max(
+      Number(documentElement?.scrollHeight) || 0,
+      Number(body?.scrollHeight) || 0
+    );
+    const viewportHeight = Number(windowTarget?.innerHeight) || Number(documentElement?.clientHeight) || 0;
+    return Math.max(0, scrollHeight - viewportHeight);
+  }
+
+  function rememberScrollPosition(page) {
+    if (!page) return;
+    pageScrollPositions.set(page, getScrollTop());
+  }
+
+  function syncPageNavigationState() {
+    const entries = [
+      ["gallery", elements.galleryNav],
+      ["recipes", elements.recipesNav],
+      ["wishlist", elements.wishlistNav],
+      ["weekend", elements.weekendNav],
+      ["wardrobe", elements.wardrobeNav],
+      ["thanks", elements.thanksNav],
+      ["secret", elements.secretNav],
+    ];
+    for (const [page, navigation] of entries) {
+      if (!navigation) continue;
+      const isGallery = page === "gallery";
+      const isCurrent = page === state.activePage;
+      navigation.classList.toggle(
+        "active",
+        isGallery
+          ? isCurrent && state.activeFilter !== "VLOG"
+          : isCurrent
+      );
+      if (isCurrent) navigation.setAttribute("aria-current", "page");
+      else navigation.removeAttribute("aria-current");
+    }
+    elements.vlogNav?.removeAttribute("aria-current");
+    elements.vlogNav?.classList.toggle(
+      "active",
+      state.activePage === "gallery" && state.activeFilter === "VLOG"
+    );
+  }
+
+  function focusPageHeading(page) {
+    const heading = documentTarget?.querySelector?.(`[data-page-heading="${page}"]`);
+    if (!heading) return;
+    if (!heading.hasAttribute("tabindex")) heading.setAttribute("tabindex", "-1");
+    heading.focus?.({ preventScroll: true });
+  }
+
+  function finishPageTransition(page, { restoreScroll = true, focusHeading = true } = {}) {
+    if (restoreScroll && typeof windowTarget?.scrollTo === "function") {
+      const savedPosition = pageScrollPositions.get(page) ?? 0;
+      const boundedPosition = Math.min(savedPosition, getMaxScrollTop());
+      windowTarget.scrollTo({ top: boundedPosition, behavior: "instant" });
+    }
+    if (focusHeading) focusPageHeading(page);
+  }
+
+  function schedulePageTransition(page, options) {
+    const finish = () => finishPageTransition(page, options);
+    if (typeof windowTarget?.requestAnimationFrame === "function") {
+      windowTarget.requestAnimationFrame(finish);
+      return;
+    }
+    finish();
+  }
+
   function syncMobilePageShell() {
     documentTarget?.body?.classList.toggle(
       "mobile-diary-shell",
@@ -22,18 +100,24 @@ export function createAppNavigationController({
     );
   }
 
-  function switchPage(page, { skipSecretGate = false } = {}) {
+  function switchPage(
+    page,
+    { skipSecretGate = false, restoreScroll = true, focusHeading = true } = {}
+  ) {
     const requestedPage = PAGE_NAMES.has(page) ? page : "gallery";
     if (requestedPage === "secret" && !skipSecretGate && !actions.isSecretUnlocked()) {
       actions.openSecretPinDialog();
       return false;
     }
-    if (state.activePage === "gallery" && requestedPage !== "gallery") {
+    const previousPage = state.activePage;
+    const pageChanged = previousPage !== requestedPage;
+    if (pageChanged) rememberScrollPosition(previousPage);
+    if (previousPage === "gallery" && requestedPage !== "gallery") {
       actions.setUploadExpanded(false);
     }
     if (requestedPage !== "gallery") vlogMode.close();
     const enteringSecret = state.activePage !== "secret" && requestedPage === "secret";
-    if (state.activePage === "secret" && requestedPage !== "secret") actions.markSecretLeft();
+    if (previousPage === "secret" && requestedPage !== "secret") actions.markSecretLeft();
     actions.closeMobileDiaryPage();
     state.activePage = requestedPage;
     syncMobilePageShell();
@@ -50,20 +134,7 @@ export function createAppNavigationController({
     const showWardrobe = state.activePage === "wardrobe";
     const showThanks = state.activePage === "thanks";
     const showSecret = state.activePage === "secret";
-    elements.galleryNav.classList.toggle(
-      "active",
-      state.activePage === "gallery" && state.activeFilter !== "VLOG"
-    );
-    elements.vlogNav?.classList.toggle(
-      "active",
-      state.activePage === "gallery" && state.activeFilter === "VLOG"
-    );
-    elements.recipesNav?.classList.toggle("active", showRecipes);
-    elements.wishlistNav.classList.toggle("active", showWishlist);
-    elements.weekendNav.classList.toggle("active", showWeekend);
-    elements.wardrobeNav?.classList.toggle("active", showWardrobe);
-    elements.thanksNav?.classList.toggle("active", showThanks);
-    elements.secretNav?.classList.toggle("active", showSecret);
+    syncPageNavigationState();
     elements.composer.hidden = state.activePage !== "gallery" || !state.session;
     elements.overview.hidden = state.activePage !== "gallery" || !state.session;
     elements.foodWheelSection.hidden = !state.session;
@@ -109,6 +180,7 @@ export function createAppNavigationController({
       actions.renderGallery();
       actions.updateFeedLoader(state.filteredPhotoCount);
     }
+    if (pageChanged) schedulePageTransition(requestedPage, { restoreScroll, focusHeading });
     return true;
   }
 

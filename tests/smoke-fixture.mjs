@@ -114,6 +114,7 @@ export const wishlistControllerModule = await readFile(new URL("../modules/wishl
 export const weekendController = await import(new URL("../modules/weekend-controller.js", import.meta.url));
 export const weekendControllerModule = await readFile(new URL("../modules/weekend-controller.js", import.meta.url), "utf8");
 export const authController = await import(new URL("../modules/auth-controller.js", import.meta.url));
+export const authViewModule = await readFile(new URL("../modules/auth-view.js", import.meta.url), "utf8");
 export const offlineCacheController = await import(new URL("../modules/offline-cache-controller.js", import.meta.url));
 export const offlineCacheControllerModule = await readFile(new URL("../modules/offline-cache-controller.js", import.meta.url), "utf8");
 export const offlineSettingsController = await import(new URL("../modules/offline-settings-controller.js", import.meta.url));

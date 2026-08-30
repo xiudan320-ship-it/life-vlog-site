@@ -442,9 +442,9 @@ async function assertWeekendAlbumFlow(page, label) {
     `${label} weekend completion controls are missing`
   );
   completionControls.open.forEach((control) => {
-    assert.equal(control.text, "完成", `${label} unfinished weekend action should say 完成`);
+    assert.equal(control.text, "", `${label} unfinished weekend action should be an empty circle`);
     assert.equal(control.pressed, "false", `${label} unfinished weekend action aria state is incorrect`);
-    assert.ok(control.width >= 60 && control.height >= 44, `${label} unfinished weekend action is too small`);
+    assert.ok(control.width >= 44 && control.height >= 44, `${label} unfinished weekend action circle is too small`);
   });
   completionControls.complete.forEach((control) => {
     assert.equal(control.pressed, "true", `${label} completed weekend action aria state is incorrect`);

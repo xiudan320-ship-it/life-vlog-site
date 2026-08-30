@@ -140,6 +140,19 @@ box-shadow: 0 0 0 2px var(--lv-focus);
 color: var(--lv-on-accent);
 background: var(--lv-accent);
 }
+
+@media (min-width: 1180px) {
+  .wishlist-page > .wishlist-page-header,
+  #wishlistContent,
+  #shoppingContent {
+    width: 100%;
+  }
+
+  .wishlist-module-tabs {
+    margin-left: 0;
+  }
+}
+
 #wishlistContent,
 #shoppingContent {
 min-width: 0;

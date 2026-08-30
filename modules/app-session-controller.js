@@ -60,6 +60,7 @@ export function createAppSessionController({
     els.usernameInput.hidden = signedIn;
     els.passwordInput.hidden = signedIn;
     if (els.inviteCodeInput) els.inviteCodeInput.hidden = signedIn;
+    if (!signedIn) controllers.auth?.resetUi?.();
     els.userPopover.hidden = true;
     els.profileName.textContent = displayName;
     els.avatarInitial.textContent = getInitial(displayName);

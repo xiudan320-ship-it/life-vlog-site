@@ -10,25 +10,25 @@ import { createFamilySettingsController } from "./modules/family-settings-contro
 import { createFamilyActivityController } from "./modules/family-activity-controller.js";
 import { createToolDockController } from "./modules/tool-dock-controller.js";
 import { createLayoutSettingsController } from "./modules/layout-settings-controller.js";
-import { bindAppEvents } from "./modules/app-event-bindings.js?v=20260826-001";
+import { bindAppEvents } from "./modules/app-event-bindings.js?v=20260827-002";
 import { createAssetController } from "./modules/asset-controller.js";
-import { createDiaryComposerController } from "./modules/diary-composer-controller.js";
+import { createDiaryComposerController } from "./modules/diary-composer-controller.js?v=20260827-001";
 import { createGamificationController } from "./modules/gamification-controller.js?v=20260826-002";
 import { createProfilePreferencesController } from "./modules/profile-preferences-controller.js";
 import { createSecretPinController } from "./modules/secret-pin-controller.js";
 import { createSecretController } from "./modules/secret-controller.js?v=20260826-001";
 import { createPhotoViewerController } from "./modules/photo-viewer-controller.js?v=20260826-001";
-import { createPhotoDetailController } from "./modules/photo-detail-controller.js?v=20260825-003";
+import { createPhotoDetailController } from "./modules/photo-detail-controller.js?v=20260827-001";
 import { createCloudflareBackend } from "./modules/cloudflare-client.js?v=20260811-010";
 import { createMediaCacheService } from "./modules/media-cache.js";
 import { createUploadQueue } from "./modules/upload-queue.js";
 import { createPhotoFavoritesStore } from "./modules/photo-favorites.js";
 import { createWishlistController } from "./modules/wishlist-controller.js";
-import { createShoppingController } from "./modules/shopping-controller.js?v=20260826-002";
+import { createShoppingController } from "./modules/shopping-controller.js?v=20260827-001";
 import { createWishlistHubController } from "./modules/wishlist-hub-controller.js?v=20260826-001";
 import { createFoodWheelController } from "./modules/food-wheel-controller.js";
 import { createPushController } from "./modules/push-controller.js";
-import { createAuthController } from "./modules/auth-controller.js";
+import { createAuthController } from "./modules/auth-controller.js?v=20260827-001";
 import { createRecipeController } from "./modules/recipe-controller.js";
 import { createAnniversaryController } from "./modules/anniversary-controller.js";
 import {
@@ -61,9 +61,9 @@ import { createHouseholdRepository } from "./modules/household-repository.js";
 import { createAppLifecycleController } from "./modules/app-lifecycle.js";
 import { createAppSplashController } from "./modules/app-splash-controller.js";
 import { createAppFeedbackView } from "./modules/app-feedback-view.js";
-import { createAppNavigationController } from "./modules/app-navigation-controller.js";
+import { createAppNavigationController } from "./modules/app-navigation-controller.js?v=20260827-001";
 import { createAppIdentityController } from "./modules/app-identity-controller.js";
-import { createAppSessionController } from "./modules/app-session-controller.js";
+import { createAppSessionController } from "./modules/app-session-controller.js?v=20260827-001";
 import { createDiaryMetadata } from "./modules/diary-metadata.js";
 import { createHouseholdBrandingController } from "./modules/household-branding-controller.js";
 import { createSecretEntryPreferenceController } from "./modules/secret-entry-preference-controller.js";
@@ -2105,6 +2105,7 @@ appSessionController = createAppSessionController({
   vlogMode,
   photoFavorites,
   controllers: {
+    auth: authController,
     wardrobe: wardrobeController,
     secretPin: secretPinController,
     lifecycle: appLifecycleController,
