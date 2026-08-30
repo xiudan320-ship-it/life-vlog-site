@@ -1,0 +1,255 @@
+.settings-nav-icon {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  place-items: center;
+  color: var(--accent-strong);
+}
+
+.settings-nav-icon .list-icon {
+  width: 19px;
+  height: 19px;
+}
+
+.settings-sidebar button {
+  gap: 10px;
+}
+
+.settings-sidebar button:focus-visible,
+.settings-group button:focus-visible,
+.settings-secondary-card button:focus-visible,
+.settings-mobile-header button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 70%, #fff 30%);
+  outline-offset: 3px;
+}
+
+.settings-secondary-card {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface) 88%, var(--accent) 12%);
+  padding: 16px;
+}
+
+.settings-secondary-card h4 {
+  margin: 0;
+  font-size: 19px;
+}
+
+.settings-secondary-card > p:not(.kicker) {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.settings-secondary-card .settings-group,
+.settings-secondary-card .settings-nav {
+  margin: 0;
+}
+
+.settings-mobile-header {
+  display: none;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 10px;
+}
+
+.settings-mobile-header button {
+  display: inline-flex;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 850;
+}
+
+.settings-mobile-header h3 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.settings-mobile-header .list-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.settings-dialog .settings-group[hidden] {
+  display: none;
+}
+
+.settings-dialog .settings-group > .settings-secondary-card {
+  margin-top: 8px;
+}
+
+.feed-media-error button::before,
+.settings-secondary-card button::before {
+  display: none;
+}
+
+@media (max-width: 700px) {
+  .settings-dialog.settings-dialog[open] {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    box-sizing: border-box;
+    width: calc(100vw - 24px);
+    max-width: calc(100vw - 24px);
+    height: min(720px, calc(100dvh - 24px));
+    max-height: calc(100dvh - 24px);
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    border-radius: 14px;
+  }
+
+  .settings-dialog > .dialog-close {
+    top: 12px;
+    right: 12px;
+    left: auto;
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+  }
+
+  .settings-dialog .settings-sidebar {
+    grid-column: 1;
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 0;
+    overflow: auto;
+    border-right: 0;
+    border-bottom: 0;
+    padding: calc(80px + env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom));
+  }
+
+  .settings-dialog .settings-sidebar > .kicker,
+  .settings-dialog .settings-sidebar > h2 {
+    display: none;
+  }
+
+  .settings-dialog .settings-sidebar nav {
+    width: 100%;
+    min-width: 0;
+    display: grid;
+    gap: 8px;
+    margin-top: 0;
+    overflow: visible;
+    padding-bottom: 0;
+  }
+
+  .settings-dialog .settings-sidebar button {
+    width: 100%;
+    min-height: 56px;
+    min-width: 0;
+    padding: 0 12px;
+  }
+
+  .settings-dialog .settings-sidebar button:hover:not(.active) {
+    background: transparent;
+  }
+
+  .settings-dialog .settings-content {
+    grid-column: 1;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    display: none;
+    min-height: 0;
+    min-width: 0;
+    overflow-x: hidden;
+    padding: 0 16px calc(28px + env(safe-area-inset-bottom));
+  }
+
+  .settings-dialog[data-mobile-settings-section] .settings-sidebar {
+    display: none;
+  }
+
+  .settings-dialog[data-mobile-settings-section] .settings-content {
+    display: block;
+    overflow-y: auto;
+  }
+
+  .settings-dialog[data-mobile-settings-section] .settings-mobile-header {
+    display: flex;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    box-sizing: border-box;
+    min-width: 0;
+    min-height: 56px;
+    margin: 0 0 20px;
+    padding: calc(72px + env(safe-area-inset-top)) 0 12px;
+    background: var(--surface);
+  }
+
+  .settings-dialog .settings-group h3 {
+    font-size: 24px;
+  }
+
+  .settings-dialog[data-mobile-settings-section] .settings-group > h3 {
+    display: none;
+  }
+
+  .settings-dialog .settings-group,
+  .settings-dialog .settings-group > *,
+  .settings-dialog .settings-secondary-card {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .settings-dialog .settings-group button {
+    min-width: 0;
+  }
+
+  .settings-dialog .settings-group button strong {
+    min-width: 0;
+    max-width: 58%;
+  }
+
+  .settings-dialog .settings-group button strong em {
+    max-width: 100%;
+  }
+
+  .settings-dialog .settings-inline-control,
+  .settings-dialog .settings-install-card,
+  .settings-dialog .settings-performance-card {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .settings-dialog .settings-inline-control > span,
+  .settings-dialog .settings-install-card > div,
+  .settings-dialog .settings-performance-card > div:first-child {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .settings-dialog .text-scale-options,
+  .settings-dialog .settings-install-card button,
+  .settings-dialog .settings-performance-card > div:last-child {
+    max-width: 100%;
+  }
+
+  .settings-secondary-card {
+    padding: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-dialog * {
+    scroll-behavior: auto !important;
+    transition: none !important;
+    animation: none !important;
+  }
+}

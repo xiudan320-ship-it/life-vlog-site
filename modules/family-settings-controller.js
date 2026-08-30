@@ -6,6 +6,8 @@ import {
   buildSettingsFamilyMarkup,
 } from "./account-view.js";
 import { recipeFromCloudRow, wishFromCloudRow } from "./cloud-models.js";
+import { getSettingsSectionIds } from "./settings-section-registry.js";
+import { applySettingsNavigationSemantics } from "./settings-view.js";
 
 export function createFamilySettingsController({
   elements,
@@ -35,6 +37,18 @@ export function createFamilySettingsController({
   loadFamilyContext,
 }) {
   const els = elements;
+  let settingsReturnFocus = null;
+
+  function restoreSettingsFocus() {
+    if (state.returnToSettingsAfterDialog) return;
+    const returnFocus = settingsReturnFocus;
+    settingsReturnFocus = null;
+    const focusTarget = returnFocus === els.accountSettingsButton ? els.avatarButton : returnFocus;
+    if (els.userPopover) els.userPopover.hidden = true;
+    window.setTimeout(() => focusTarget?.focus?.(), 0);
+  }
+
+  els.settingsDialog?.addEventListener("close", restoreSettingsFocus);
 
   function renderFamilyDialog() {
     if (!els.familyDialog) return;
@@ -135,32 +149,34 @@ export function createFamilySettingsController({
       ?.addEventListener("click", (event) => readSignupInviteCode(event.currentTarget));
   }
   
-  function setActiveSettingsSection(sectionId = "settingsGeneral") {
-    const allowedSections = ["settingsGeneral", "settingsNotifications", "settingsCache", "settingsTools", "settingsAccount", "settingsFamily", "settingsSafety", "settingsDiagnostics", "settingsUploads"];
-    const nextSection = allowedSections.includes(sectionId) ? sectionId : "settingsGeneral";
+  function setActiveSettingsSection(sectionId = "settingsAppearance") {
+    const allowedSections = getSettingsSectionIds();
+    const nextSection = allowedSections.includes(sectionId) ? sectionId : "settingsAppearance";
     state.activeSettingsSection = nextSection;
-  
+
+    const { mobile: mobileNavigation } = applySettingsNavigationSemantics(els.settingsDialog, nextSection);
+    const tabs = [...els.settingsDialog.querySelectorAll("[data-settings-section]")];
     els.settingsDialog.querySelectorAll(".settings-group").forEach((group) => {
+      const tab = tabs.find((button) => button.dataset.settingsSection === group.id);
+      group.setAttribute("role", "tabpanel");
+      if (tab) group.setAttribute("aria-labelledby", tab.id);
       group.hidden = group.id !== nextSection;
     });
-    els.settingsDialog.querySelectorAll("[data-settings-section]").forEach((button) => {
-      const active = button.dataset.settingsSection === nextSection;
-      button.classList.toggle("active", active);
-      button.setAttribute("aria-selected", String(active));
-    });
-  
-    if (nextSection === "settingsTools") renderSettingsToolOrderPanel();
-    if (nextSection === "settingsNotifications") void refreshPushSettings();
     if (nextSection === "settingsFamily") renderSettingsFamilyPanel();
-    if (nextSection === "settingsSafety") {
+    if (nextSection === "settingsTools") {
+      void refreshPushSettings();
+      renderSettingsToolOrderPanel();
+    }
+    if (nextSection === "settingsStorage") {
       void renderCloudBackups();
       void renderTrashItems();
     }
-    if (nextSection === "settingsDiagnostics") void runOfflineDiagnostics();
-    if (nextSection === "settingsUploads") void renderUploadCenter();
   }
   
-  function openSettingsDialog(sectionId = state.activeSettingsSection || "settingsGeneral") {
+  function openSettingsDialog(sectionId = state.activeSettingsSection || "settingsAppearance") {
+    if (!els.settingsDialog.open && !settingsReturnFocus) {
+      settingsReturnFocus = els.accountSettingsButton || document.activeElement;
+    }
     renderSettingsSummary();
     void refreshCacheInfo();
     setActiveSettingsSection(sectionId);

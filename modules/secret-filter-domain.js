@@ -5,7 +5,7 @@ import {
   normalizeSecretPhotoTags,
   secretImageHasTag,
   sortSecretDisplayEntries as sortEntriesByAlbumOrder,
-} from "./secret-domain.js?v=20260826-005";
+} from "./secret-domain.js";
 
 export function getSecretPhotoSortDescending(item) {
   return item?.photoSortDescending !== false;

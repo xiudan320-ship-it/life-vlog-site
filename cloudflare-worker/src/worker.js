@@ -246,7 +246,6 @@ const TABLE_CONFIG = {
 
 function getCorsHeaders(request, env) {
   const origin = request.headers.get("Origin") || "";
-  const requestedHeaders = request.headers.get("Access-Control-Request-Headers") || "";
   const configuredOrigins = String(env.ALLOWED_ORIGINS || "")
     .split(",")
     .map((value) => value.trim().replace(/\/$/, ""))
@@ -259,7 +258,7 @@ function getCorsHeaders(request, env) {
   return {
     "Access-Control-Allow-Origin": allowedOrigin,
     "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": requestedHeaders || "Authorization, Content-Type",
+    "Access-Control-Allow-Headers": "Authorization, Content-Type",
     "Access-Control-Max-Age": "86400",
     Vary: "Origin",
   };
@@ -1380,6 +1379,32 @@ async function permanentlyDeleteTrashItem(request, env, user, payload) {
   return jsonResponse(request, env, { data: true });
 }
 
+async function adminDeletePhoto(request, env, user, payload) {
+  if (!(await isFamilyAdministrator(env, user))) {
+    return jsonResponse(request, env, { error: "Only the family administrator can delete diaries." }, 403);
+  }
+  const photoId = String(payload.p_photo_id || payload.photo_id || "").trim();
+  if (!photoId) return jsonResponse(request, env, { error: "Photo ID is required." }, 400);
+
+  const familyUserIds = await getFamilyUserIds(env, user.id);
+  const placeholders = familyUserIds.map(() => "?").join(",");
+  const target = await env.DB.prepare(
+    `select * from photos where id=? and user_id in (${placeholders}) limit 1`
+  )
+    .bind(photoId, ...familyUserIds)
+    .first();
+  if (!target) return jsonResponse(request, env, { data: [] });
+
+  await env.DB.prepare(
+    `delete from photos where id=? and user_id in (${placeholders})`
+  )
+    .bind(photoId, ...familyUserIds)
+    .run();
+  return jsonResponse(request, env, {
+    data: [denormalizeRow("photos", target)],
+  });
+}
+
 async function handleRpc(request, env, user, name) {
   const dbError = requireDb(request, env);
   if (dbError) return dbError;
@@ -1399,6 +1424,10 @@ async function handleRpc(request, env, user, name) {
 
   if (name === "permanently_delete_trash_item") {
     return permanentlyDeleteTrashItem(request, env, user, payload);
+  }
+
+  if (name === "admin_delete_photo") {
+    return adminDeletePhoto(request, env, user, payload);
   }
 
   if (name === "get_my_family_members") {
@@ -1708,6 +1737,11 @@ async function isFamilyOwner(env, userId) {
   return Boolean(family?.owner_id && String(family.owner_id) === String(userId));
 }
 
+async function isFamilyAdministrator(env, user) {
+  const namedAdmin = String(user?.username || "").trim().toLowerCase() === "xiudan320";
+  return namedAdmin || (Boolean(user?.id) && await isFamilyOwner(env, user.id));
+}
+
 async function getR2StorageUsage(env) {
   const now = new Date();
   const monthStart = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
@@ -1796,8 +1830,8 @@ async function sendPushToUser(env, userId, notification) {
   const data = {
     title,
     body: String(body || "").slice(0, 180),
-    icon: "/assets/app-icon-192.png",
-    badge: "/assets/app-icon-192.png",
+    icon: "/assets/generated/app-icon-192.png",
+    badge: "/assets/generated/app-icon-192.png",
     tag: `life-vlog-${notification.type}-${notification.photoId || notification.id}`,
     notificationId: notification.id,
     photoId: notification.photoId || "",
@@ -2617,7 +2651,7 @@ export default {
   async fetch(request, env) {
     try {
       if (request.method === "OPTIONS") {
-        return new Response(null, { headers: getCorsHeaders(request, env) });
+        return new Response(null, { status: 204, headers: getCorsHeaders(request, env) });
       }
 
       const url = new URL(request.url);

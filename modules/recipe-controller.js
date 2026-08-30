@@ -258,10 +258,10 @@ export function createRecipeController({
     setExpanded(false);
     const gainedExp = await awardExperience(wasEditing ? "recipeEdit" : "recipe");
     setStatus(`${wasEditing ? "菜谱已更新。" : "菜谱已保存。"}${gainedExp ? ` 修为 +${gainedExp}` : ""}`);
-    render();
+    render(recipe.id);
   }
 
-  function render() {
+  function render(updatedId = "") {
     renderOverview();
     renderFoodWheel();
     if (!getSession()) setStatus("");
@@ -273,6 +273,7 @@ export function createRecipeController({
       canManageItem,
       onEdit: edit,
       onDelete: remove,
+      updatedId,
     });
   }
 

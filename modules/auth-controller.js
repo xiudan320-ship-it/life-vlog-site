@@ -1,4 +1,4 @@
-import { createAuthView } from "./auth-view.js?v=20260827-001";
+import { createAuthView } from "./auth-view.js";
 
 function passwordsMatch(password, confirmation, statusElement) {
   if (password.length < 6) {

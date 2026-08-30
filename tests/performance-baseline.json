@@ -1,0 +1,21 @@
+{
+  "capturedAt": "2026-08-27",
+  "source": "planning-document baseline",
+  "scenarios": {
+    "fastMobile": { "fcpMs": 356, "lcpMs": 420, "cls": 0.0008, "requests": 169, "transferBytes": 2202000, "jsRequests": 104, "cssRequests": 20, "imageTransferBytes": 1625293 },
+    "slowMobileCold": { "splashHiddenMs": 7600 },
+    "slowMobileWarm": { "splashHiddenMs": 3300 }
+  },
+  "postDeployFastMobile": {
+    "fcpMs": 316,
+    "lcpMs": 252,
+    "cls": 0.000795,
+    "splashHiddenMs": 994,
+    "requests": 31,
+    "transferBytes": 190885,
+    "jsRequests": 5,
+    "cssRequests": 2,
+    "imageTransferBytes": 21668,
+    "longTaskMaxMs": 52
+  }
+}

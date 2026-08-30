@@ -89,14 +89,3 @@ export function validateVlogUpload(files, links = []) {
   })) return "VLOG 只能上传视频文件。";
   return "";
 }
-
-export function filterVlogPhotos(sortedPhotos, activeFilter, isFavoritePhoto, isPhotoWithinSevenDays) {
-  const diaryPhotos = sortedPhotos.filter((photo) => photo.category !== "VLOG");
-  if (activeFilter === "VLOG") return sortedPhotos.filter((photo) => photo.category === "VLOG");
-  if (activeFilter === "全部") return diaryPhotos;
-  if (activeFilter === "featured7") {
-    return diaryPhotos.filter((photo) => Boolean(photo.is_featured) && isPhotoWithinSevenDays(photo));
-  }
-  if (activeFilter === "favorites") return diaryPhotos.filter((photo) => isFavoritePhoto(photo));
-  return sortedPhotos.filter((photo) => photo.category === activeFilter);
-}

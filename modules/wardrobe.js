@@ -2,6 +2,7 @@ const ITEM_TYPES = [
   ["item", "单件"],
   ["outfit", "整套搭配"],
 ];
+import { renderListIcon } from "./list-icons.js";
 const CATEGORIES = ["上装", "下装", "连衣裙", "外套", "鞋", "包", "配饰", "家居服", "整套", "其他"];
 const SEASONS = ["春", "夏", "秋", "冬", "四季"];
 const OCCASIONS = ["日常", "通勤", "约会", "旅行", "运动", "正式", "居家"];
@@ -165,8 +166,8 @@ export function createWardrobeController({
         <p>把试穿照、搭配和收纳位置放在一起，出门前少找十分钟。</p>
       </div>
       <div class="wardrobe-head-actions">
-        <button class="wardrobe-random-button" type="button" data-wardrobe-random><span aria-hidden="true">↻</span>今天穿什么</button>
-        <button class="wardrobe-add-button" type="button" data-wardrobe-add><span aria-hidden="true">＋</span>添加衣服</button>
+        <button class="wardrobe-random-button" type="button" data-wardrobe-random><span aria-hidden="true">${renderListIcon("refresh")}</span>今天穿什么</button>
+        <button class="wardrobe-add-button" type="button" data-wardrobe-add><span aria-hidden="true">${renderListIcon("plus")}</span>添加衣服</button>
       </div>
     </header>
     <section class="wardrobe-overview" aria-label="衣柜概况">
@@ -176,11 +177,11 @@ export function createWardrobeController({
       <div><small>位置</small><strong data-wardrobe-locations>0</strong><span>处</span></div>
     </section>
     <section class="wardrobe-toolbar">
-      <label class="wardrobe-search"><span aria-hidden="true">⌕</span><input type="search" data-wardrobe-search placeholder="搜索衣服、颜色或风格" /></label>
+      <label class="wardrobe-search"><span aria-hidden="true">${renderListIcon("search")}</span><input type="search" data-wardrobe-search placeholder="搜索衣服、颜色或风格" /></label>
       <select data-wardrobe-category aria-label="按分类筛选"><option value="all">全部分类</option>${CATEGORIES.map((value) => `<option>${value}</option>`).join("")}</select>
       <select data-wardrobe-season aria-label="按季节筛选"><option value="all">全部季节</option>${SEASONS.map((value) => `<option>${value}</option>`).join("")}</select>
       <select data-wardrobe-status aria-label="按状态筛选">${[["all", "全部状态"], ...STATUSES].map(([value, label]) => `<option value="${value}"${value === "available" ? " selected" : ""}>${label}</option>`).join("")}</select>
-      <button class="wardrobe-favorite-filter" type="button" data-wardrobe-favorites aria-pressed="false" aria-label="只看收藏">♡</button>
+      <button class="wardrobe-favorite-filter" type="button" data-wardrobe-favorites aria-pressed="false" aria-label="只看收藏">${renderListIcon("heart")}</button>
     </section>
     <div class="wardrobe-location-bar">
       <div class="wardrobe-location-chips" data-wardrobe-location-chips></div>
@@ -198,7 +199,7 @@ export function createWardrobeController({
           <div class="wardrobe-drop" data-wardrobe-drop>
             <input class="native-file-input" id="wardrobeFileInput" type="file" accept="image/*" multiple data-wardrobe-file-input />
             <label class="wardrobe-file-trigger" for="wardrobeFileInput">
-              <span aria-hidden="true">＋</span><strong>选择或粘贴照片</strong><small>支持多张，上传时自动压缩</small>
+              ${renderListIcon("plus", "ui-icon-inline")}<strong>选择或粘贴照片</strong><small>支持多张，上传时自动压缩</small>
             </label>
           </div>
           <div class="wardrobe-url-row"><input type="url" inputmode="url" data-wardrobe-url placeholder="粘贴图片链接" /><button type="button" data-wardrobe-url-add>加入</button></div>
@@ -351,7 +352,7 @@ export function createWardrobeController({
     const grid = root.querySelector("[data-wardrobe-grid]");
     const visible = filteredItems();
     if (!visible.length) {
-      grid.innerHTML = `<div class="wardrobe-empty"><span aria-hidden="true">＋</span><h2>${items.length ? "没有符合条件的衣服" : "从第一件试穿照开始"}</h2><p>${items.length ? "换个筛选条件看看。" : "记录试穿照、搭配和收纳位置，以后找起来会轻松很多。"}</p><button type="button" data-wardrobe-add>添加衣服</button></div>`;
+      grid.innerHTML = `<div class="wardrobe-empty"><span aria-hidden="true">${renderListIcon("plus")}</span><h2>${items.length ? "没有符合条件的衣服" : "从第一件试穿照开始"}</h2><p>${items.length ? "换个筛选条件看看。" : "记录试穿照、搭配和收纳位置，以后找起来会轻松很多。"}</p><button type="button" data-wardrobe-add>添加衣服</button></div>`;
       return;
     }
     grid.innerHTML = visible.map((item) => {
@@ -359,9 +360,9 @@ export function createWardrobeController({
       return `<article class="wardrobe-card" data-wardrobe-item="${html(item.id)}" tabindex="0">
         ${imageCollage(item.images, item.name)}
         <div class="wardrobe-card-copy">
-          <div class="wardrobe-card-overline"><span>${html(typeName(item.item_type))} · ${html(item.category)}</span><button type="button" data-wardrobe-favorite="${html(item.id)}" aria-label="${item.is_favorite ? "取消收藏" : "收藏"}" aria-pressed="${item.is_favorite}">${item.is_favorite ? "♥" : "♡"}</button></div>
+          <div class="wardrobe-card-overline"><span>${html(typeName(item.item_type))} · ${html(item.category)}</span><button type="button" data-wardrobe-favorite="${html(item.id)}" aria-label="${item.is_favorite ? "取消收藏" : "收藏"}" aria-pressed="${item.is_favorite}">${renderListIcon("heart")}</button></div>
           <h2>${html(item.name)}</h2>
-          <p class="wardrobe-card-location"><span aria-hidden="true">⌂</span>${html(locationName(item.location_id))}</p>
+          <p class="wardrobe-card-location"><span aria-hidden="true">${renderListIcon("home")}</span>${html(locationName(item.location_id))}</p>
           <footer><span class="wardrobe-status-pill" data-status="${html(item.status)}">${html(statusName(item.status))}</span><span>${member ? html(member.username) : "家庭衣柜"}</span><span>${item.wear_count} 次</span></footer>
         </div>
       </article>`;
@@ -534,7 +535,7 @@ export function createWardrobeController({
       : `<div class="wardrobe-empty-art"><span>衣</span><small>还没有照片</small></div>`;
     detail.querySelector("[data-wardrobe-detail-thumbs]").innerHTML = images.map((image, index) => `<button type="button" class="${index === detailIndex ? "active" : ""}" data-detail-index="${index}"><img src="${html(mediaUrl(image))}" alt="${html(IMAGE_ROLES.find(([key]) => key === image.role)?.[1] || "照片")}" /></button>`).join("");
     detail.querySelector("[data-wardrobe-detail-copy]").innerHTML = `
-      <div class="wardrobe-detail-overline"><span>${html(typeName(activeItem.item_type))} · ${html(activeItem.category)}</span><button type="button" data-detail-favorite aria-label="收藏" aria-pressed="${activeItem.is_favorite}">${activeItem.is_favorite ? "♥ 已收藏" : "♡ 收藏"}</button></div>
+      <div class="wardrobe-detail-overline"><span>${html(typeName(activeItem.item_type))} · ${html(activeItem.category)}</span><button type="button" data-detail-favorite aria-label="收藏" aria-pressed="${activeItem.is_favorite}">${renderListIcon("heart", "ui-icon-inline")} ${activeItem.is_favorite ? "已收藏" : "收藏"}</button></div>
       <h2>${html(activeItem.name)}</h2>
       <div class="wardrobe-find-it"><small>收纳位置</small><strong>${html(locationName(activeItem.location_id))}</strong>${locations.length ? "" : `<button type="button" data-open-locations>添加位置</button>`}</div>
       <div class="wardrobe-detail-meta"><span>${html(statusName(activeItem.status))}</span><span>${member ? html(member.username) : "家庭共用"}</span><span>${activeItem.wear_count} 次穿着</span><span>${html(dateLabel(activeItem.last_worn_at))}</span></div>
@@ -666,7 +667,7 @@ export function createWardrobeController({
       host.innerHTML = `<div class="wardrobe-random-empty"><h3>暂时没有符合条件的衣服</h3><p>调整季节或场景，再转一次。</p></div>`;
       return;
     }
-    host.innerHTML = `<article class="wardrobe-random-result">${imageCollage(picked.images, picked.name)}<div><small>${html(typeName(picked.item_type))} · ${html(picked.category)}</small><h3>${html(picked.name)}</h3><p><span aria-hidden="true">⌂</span>${html(locationName(picked.location_id))}</p><p>${html(dateLabel(picked.last_worn_at))}</p><footer><button type="button" data-random-again>换一套</button><button type="button" class="primary" data-random-wear="${html(picked.id)}">今天穿它</button></footer></div></article>`;
+    host.innerHTML = `<article class="wardrobe-random-result">${imageCollage(picked.images, picked.name)}<div><small>${html(typeName(picked.item_type))} · ${html(picked.category)}</small><h3>${html(picked.name)}</h3><p><span aria-hidden="true">${renderListIcon("home")}</span>${html(locationName(picked.location_id))}</p><p>${html(dateLabel(picked.last_worn_at))}</p><footer><button type="button" data-random-again>换一套</button><button type="button" class="primary" data-random-wear="${html(picked.id)}">今天穿它</button></footer></div></article>`;
   }
 
   root.addEventListener("click", (event) => {
@@ -691,7 +692,7 @@ export function createWardrobeController({
   root.querySelector("[data-wardrobe-category]").addEventListener("change", (event) => { category = event.target.value; render(); });
   root.querySelector("[data-wardrobe-season]").addEventListener("change", (event) => { season = event.target.value; render(); });
   root.querySelector("[data-wardrobe-status]").addEventListener("change", (event) => { status = event.target.value; render(); });
-  root.querySelector("[data-wardrobe-favorites]").addEventListener("click", (event) => { favoritesOnly = !favoritesOnly; event.currentTarget.setAttribute("aria-pressed", String(favoritesOnly)); event.currentTarget.textContent = favoritesOnly ? "♥" : "♡"; render(); });
+  root.querySelector("[data-wardrobe-favorites]").addEventListener("click", (event) => { favoritesOnly = !favoritesOnly; event.currentTarget.setAttribute("aria-pressed", String(favoritesOnly)); event.currentTarget.innerHTML = renderListIcon("heart"); render(); });
 
   editor.querySelector("[data-wardrobe-file-input]").addEventListener("change", (event) => { addFiles(event.target.files); event.target.value = ""; });
   editor.querySelector("[data-wardrobe-url-add]").addEventListener("click", () => addPendingUrl(editor.querySelector("[data-wardrobe-url]").value));

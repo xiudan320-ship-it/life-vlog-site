@@ -30,9 +30,15 @@ body:has(#wishlistPage:not([hidden])) .topbar {
 border-bottom-color: var(--lv-border);
 background: color-mix(in srgb, var(--lv-bg), transparent 6%);
 }
+body:has(#wishlistPage:not([hidden])) .brand small {
+color: var(--lv-text-muted);
+}
 body:has(#wishlistPage:not([hidden])) .main-nav {
 border-color: var(--lv-border);
 background: var(--lv-surface);
+}
+body:has(#wishlistPage:not([hidden])) .main-nav button {
+color: var(--lv-text-muted);
 }
 body:has(#wishlistPage:not([hidden])) .main-nav button.active {
 color: var(--lv-on-accent);
@@ -628,23 +634,6 @@ animation: wishlist-check-pop var(--lv-motion-base) ease-out;
 outline: 2px solid var(--lv-focus);
 outline-offset: 2px;
 }
-.list-icon {
-display: block;
-width: 24px;
-height: 24px;
-fill: none;
-stroke: currentColor;
-stroke-linecap: round;
-stroke-linejoin: round;
-stroke-width: 1.8;
-}
-.list-icon-inline {
-display: inline-block;
-width: 15px;
-height: 15px;
-margin-left: 2px;
-vertical-align: -2px;
-}
 @keyframes wishlist-check-pop {
 0% { transform: scale(0.84); }
 70% { transform: scale(1.06); }
@@ -848,50 +837,6 @@ text-align: right;
 transition: none;
 animation: none;
 }
-}
-/* Shared media badges used by diary and mobile previews. */
-.live-photo-badge,
-.preview-live-badge {
-position: absolute;
-z-index: 2;
-display: inline-flex;
-align-items: center;
-gap: 3px;
-padding: 3px 5px;
-border: 1px solid rgba(255, 255,255, .34);
-border-radius: 999px;
-color: #fff;
-background: rgba(10, 14, 11, .78);
-font-size: 9px;
-}
-.live-photo-badge::before {
-width: 6px;
-height: 6px;
-border-radius: 50%;
-background: var(--accent);
-content: "";
-}
-.photo-media button > .live-photo-badge {
-top: 10px;
-right: 10px;
-}
-.mobile-diary-image-button {
-position: relative;
-}
-.mobile-diary-media .mobile-diary-image-button > .live-photo-badge {
-top: 12px;
-bottom: auto;
-}
-.mobile-diary-media > .mobile-diary-media-badge {
-top: 50px;
-right: 12px;
-bottom: auto;
-left: auto;
-width: max-content;
-height: auto;
-min-height: 0;
-line-height: 1.2;
-white-space: nowrap;
 }
 .mobile-diary-media > .mobile-diary-count {
 right: 12px;

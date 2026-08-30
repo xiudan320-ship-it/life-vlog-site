@@ -1,0 +1,18 @@
+      <dialog class="settings-dialog" id="settingsDialog">
+        <button class="dialog-close" id="closeSettingsDialog" type="button" aria-label="关闭"><svg class="list-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 6 12 12M18 6 6 18" /></svg></button>
+        <aside class="settings-sidebar">
+          <p class="kicker">Settings</p>
+          <h2>设置</h2>
+          <nav data-settings-nav aria-label="设置分类"></nav>
+        </aside>
+        <section class="settings-content" data-settings-content></section>
+      </dialog>
+      <dialog class="account-dialog" id="familyTaglineDialog">
+        <button class="dialog-close" type="button" data-close-family-tagline aria-label="关闭"><svg class="list-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 6 12 12M18 6 6 18" /></svg></button>
+        <form id="familyTaglineForm">
+          <div><p class="kicker">Family Signature</p><h2>家庭签名</h2><p>会显示在封面上，并同步给当前家庭的所有成员。</p></div>
+          <label>签名<textarea id="familyTaglineInput" rows="3" maxlength="120" required></textarea></label>
+          <p class="status-line" id="familyTaglineStatus"></p>
+          <div class="rename-home-actions"><button class="ghost-button" type="button" data-reset-family-tagline>恢复默认</button><button class="primary" type="submit">保存签名</button></div>
+        </form>
+      </dialog>

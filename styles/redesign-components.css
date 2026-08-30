@@ -1755,16 +1755,26 @@ body.mobile-dialog-open {
     padding-top: 12px;
   }
 
-  .mobile-diary-comments input {
-    width: 100%;
-    min-height: 48px;
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    background: var(--surface);
-    color: var(--ink);
-    font: inherit;
-    padding: 0 12px;
-  }
+.mobile-diary-comments textarea {
+  width: 100%;
+  min-height: 92px;
+  max-height: 220px;
+  overflow-y: hidden;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  line-height: 1.5;
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+.mobile-diary-comments textarea:focus-visible {
+  outline: 2px solid var(--lv-focus);
+  outline-offset: 2px;
+}
 
   .mobile-diary-comments form > button[type="submit"] {
     min-height: 48px;
@@ -2044,7 +2054,7 @@ body.mobile-dialog-open {
 
   .vip-badge {
     min-width: 88px;
-    min-height: 38px;
+    min-height: 44px;
     padding: 4px 8px;
   }
 
@@ -2524,64 +2534,6 @@ body.mobile-dialog-open {
   body.mobile-feed-single .photo-card:nth-child(odd),
   body.mobile-feed-single .photo-card:nth-child(even) {
     grid-row-end: auto;
-  }
-
-  .settings-dialog {
-    width: 100%;
-    height: 100dvh;
-    max-height: 100dvh;
-    min-height: 100dvh;
-    grid-template-columns: 1fr;
-    grid-template-rows: auto minmax(0, 1fr);
-    border-radius: 0;
-  }
-
-  .settings-dialog > .dialog-close {
-    top: calc(12px + env(safe-area-inset-top));
-    left: 14px;
-  }
-
-  .settings-sidebar {
-    overflow: hidden;
-    border-right: 0;
-    border-bottom: 1px solid var(--line);
-    padding: calc(76px + env(safe-area-inset-top)) 16px 14px;
-  }
-
-  .settings-sidebar nav {
-    display: flex;
-    overflow-x: auto;
-    padding-bottom: 4px;
-  }
-
-  .settings-sidebar button {
-    flex: 0 0 auto;
-    min-height: 40px;
-  }
-
-  .settings-content {
-    padding: 20px 16px calc(28px + env(safe-area-inset-bottom));
-  }
-
-  .settings-group h3 {
-    font-size: 24px;
-  }
-
-  .settings-group button {
-    min-height: 68px;
-    align-items: flex-start;
-    flex-direction: column;
-    justify-content: center;
-    gap: 4px;
-  }
-
-  .settings-group button strong {
-    justify-items: start;
-    text-align: left;
-  }
-
-  .settings-group button strong em {
-    max-width: min(72vw, 320px);
   }
 
   .settings-tool-card {

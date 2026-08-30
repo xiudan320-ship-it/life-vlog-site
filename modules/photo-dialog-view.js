@@ -1,6 +1,7 @@
-import { normalizeSecretPhotoTags } from "./secret-domain.js?v=20260826-005";
+import { normalizeSecretPhotoTags } from "./secret-domain.js";
 import { escapeHtml } from "./ui-formatters.js";
 import { fitVideoToContainer } from "./diary-video-layout.js";
+import { renderListIcon } from "./list-icons.js";
 
 export function updateDiaryViewerToolbar({
   toolbar,
@@ -42,14 +43,16 @@ export function updateSecretViewerToolbar({
   toolbar.hidden = !open;
   if (!open) return;
   const safeTotal = Math.max(1, total);
-  counter.textContent = `${Math.min(index + 1, safeTotal)} / ${safeTotal}`;
-  zoomValue.textContent = `${Math.round(zoomScale * 100)}%`;
-  previousButton.disabled = index <= 0;
-  nextButton.disabled = index >= safeTotal - 1;
-  zoomOutButton.disabled = zoomScale <= 1.01;
-  zoomInButton.disabled = zoomScale >= 5.99;
-  infoButton.setAttribute("aria-pressed", String(infoOpen));
-  infoButton.classList.toggle("active", infoOpen);
+  if (counter) counter.textContent = `${Math.min(index + 1, safeTotal)} / ${safeTotal}`;
+  if (zoomValue) zoomValue.textContent = `${Math.round(zoomScale * 100)}%`;
+  if (previousButton) previousButton.disabled = index <= 0;
+  if (nextButton) nextButton.disabled = index >= safeTotal - 1;
+  if (zoomOutButton) zoomOutButton.disabled = zoomScale <= 1.01;
+  if (zoomInButton) zoomInButton.disabled = zoomScale >= 5.99;
+  if (infoButton) {
+    infoButton.setAttribute("aria-pressed", String(infoOpen));
+    infoButton.classList.toggle("active", infoOpen);
+  }
 }
 
 export function setViewerStatus({ status, text }, state, message = "") {
@@ -82,7 +85,7 @@ export function renderSecretDialogControls(image) {
   const favorite = Boolean(image?.favorite);
   return `
     <div class="secret-dialog-tools secret-dialog-readonly-tools">
-      <button class="secret-dialog-favorite ${favorite ? "active" : ""}" type="button" data-secret-dialog-favorite>${favorite ? "♥ 已收藏" : "♡ 收藏"}</button>
+      <button class="secret-dialog-favorite ${favorite ? "active" : ""}" type="button" data-secret-dialog-favorite>${renderListIcon("heart", "ui-icon-inline")} ${favorite ? "已收藏" : "收藏"}</button>
       <button class="secret-dialog-delete" type="button" data-secret-dialog-delete>删除相片</button>
       <div class="secret-dialog-current-tags">
         <span>展品 Tag</span>

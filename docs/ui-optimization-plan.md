@@ -17,7 +17,7 @@
 - 正式站：`https://life-vlog-site.pages.dev`
 - 最近一次预览：`https://87e78d2c.life-vlog-site.pages.dev`
 - 当前 Service Worker 缓存版本：`life-vlog-site-20260827-006-pwa`
-- 当前入口版本：`app.js?v=20260827-002`
+- 当前入口版本：`app.js`
 - 最近完整测试基线：17 项单元测试及静态、结构、浏览器回归测试通过
 
 已观察到的关键问题：

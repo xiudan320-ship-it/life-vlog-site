@@ -1,3 +1,5 @@
+import { applySettingsNavigationSemantics, hideMobileSettingsSection, showMobileSettingsSection } from "./settings-view.js";
+
 export function bindSettingsEvents({ elements, state, controllers, core }) {
   const els = elements;
   const {
@@ -5,6 +7,7 @@ export function bindSettingsEvents({ elements, state, controllers, core }) {
     showMiniToast,
     loadHomeName,
     getSessionDisplayName,
+    performanceDiagnostics: performanceDiagnosticsFromCore,
   } = core;
   const {
     saveHomeName,
@@ -17,7 +20,6 @@ export function bindSettingsEvents({ elements, state, controllers, core }) {
   } = controllers.profilePreferences;
   const { openSettings: openSecretPinSettings } = controllers.secretPin;
   const {
-    openSettingsDialog,
     closeSettingsDialog,
     setActiveSettingsSection,
     openSettingsChildDialog,
@@ -51,29 +53,49 @@ export function bindSettingsEvents({ elements, state, controllers, core }) {
     applyCacheLimitPreset,
   } = controllers.offlineSettings;
   const { loadMobileFeedLayout, setMobileFeedLayout } = controllers.layoutSettings;
+  const textScale = controllers.textScale;
+  const performanceDiagnostics = performanceDiagnosticsFromCore || controllers.performanceDiagnostics;
   const {
-    openLevelDialog,
     openLevelGuidePage,
     renderVipCenter,
   } = controllers.gamification;
   const { processQueue: processDiaryUploadQueue } = controllers.diaryComposer;
   const { renderGallery } = controllers.diaryFeed;
 
-  els.avatarButton.addEventListener("click", () => {
-    els.userPopover.hidden = !els.userPopover.hidden;
-  });
-  els.accountSettingsButton.addEventListener("click", () => {
-    els.userPopover.hidden = true;
-    openSettingsDialog("settingsGeneral");
-  });
   els.closeSettingsDialog.addEventListener("click", closeSettingsDialog);
   els.settingsDialog.addEventListener("click", (event) => {
     if (event.target === els.settingsDialog) closeSettingsDialog();
-  });
-  els.settingsNavButtons.forEach((button) => {
-    button.addEventListener("click", () => {
+    const button = event.target.closest("[data-settings-section]");
+    if (button && els.settingsDialog.contains(button)) {
       setActiveSettingsSection(button.dataset.settingsSection);
-    });
+      showMobileSettingsSection(els.settingsDialog, button.dataset.settingsSection);
+    }
+    if (event.target.closest("[data-settings-back]")) {
+      hideMobileSettingsSection(els.settingsDialog);
+    }
+  });
+  const syncSettingsNavigationSemantics = () => {
+    applySettingsNavigationSemantics(els.settingsDialog);
+  };
+  const settingsViewport = window.matchMedia?.("(max-width: 700px)");
+  settingsViewport?.addEventListener?.("change", syncSettingsNavigationSemantics);
+  window.addEventListener("resize", syncSettingsNavigationSemantics);
+  els.settingsDialog.addEventListener("keydown", (event) => {
+    const currentTab = event.target.closest?.("[data-settings-section][role='tab']");
+    if (!currentTab || window.matchMedia?.("(max-width: 700px)").matches) return;
+    const tabs = [...els.settingsDialog.querySelectorAll("[data-settings-section][role='tab']")];
+    const currentIndex = tabs.indexOf(currentTab);
+    if (currentIndex < 0) return;
+    let nextIndex = currentIndex;
+    if (event.key === "ArrowDown" || event.key === "ArrowRight") nextIndex = (currentIndex + 1) % tabs.length;
+    else if (event.key === "ArrowUp" || event.key === "ArrowLeft") nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+    else if (event.key === "Home") nextIndex = 0;
+    else if (event.key === "End") nextIndex = tabs.length - 1;
+    else return;
+    event.preventDefault();
+    const nextTab = tabs[nextIndex];
+    setActiveSettingsSection(nextTab.dataset.settingsSection);
+    nextTab.focus({ preventScroll: true });
   });
   els.notificationButton.addEventListener("click", async () => {
     await openNotificationsPanel();
@@ -131,6 +153,17 @@ export function bindSettingsEvents({ elements, state, controllers, core }) {
   els.settingsFeedLayoutButton?.addEventListener("click", () => {
     setMobileFeedLayout(loadMobileFeedLayout() === "single" ? "double" : "single");
   });
+  els.settingsAppearance?.querySelectorAll("[data-text-scale]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const value = textScale.set(button.dataset.textScale);
+      els.settingsAppearance.querySelectorAll("[data-text-scale]").forEach((item) => item.setAttribute("aria-pressed", String(item.dataset.textScale === value)));
+    });
+  });
+  const activeTextScale = textScale.load();
+  els.settingsAppearance?.querySelectorAll("[data-text-scale]").forEach((button) => {
+    button.setAttribute("aria-pressed", String(button.dataset.textScale === activeTextScale));
+  });
+  els.settingsTogglePerformance?.addEventListener("click", () => performanceDiagnostics.render());
   els.refreshCacheInfoButton?.addEventListener("click", () => {
     void refreshCacheInfo();
   });
@@ -211,13 +244,9 @@ export function bindSettingsEvents({ elements, state, controllers, core }) {
   els.emailBindingDialog?.addEventListener("close", reopenSettingsAfterChildDialog);
   els.emailBindingRequestForm?.addEventListener("submit", requestEmailBinding);
   els.emailBindingConfirmForm?.addEventListener("submit", confirmEmailBinding);
-  els.closeLevelDialog?.addEventListener("click", () => els.levelDialog.close());
   els.closeAchievementDialog?.addEventListener("click", () => els.achievementDialog.close());
   els.achievementDialog?.addEventListener("click", (event) => {
     if (event.target === els.achievementDialog) els.achievementDialog.close();
-  });
-  els.levelDialog?.addEventListener("click", (event) => {
-    if (event.target === els.levelDialog) els.levelDialog.close();
   });
   els.levelCurrentTitle?.addEventListener("click", openLevelGuidePage);
   els.closeForgotPassword.addEventListener("click", () => els.forgotPasswordDialog.close());
@@ -227,7 +256,6 @@ export function bindSettingsEvents({ elements, state, controllers, core }) {
   els.emailResetRequestForm?.addEventListener("submit", requestEmailPasswordReset);
   els.emailResetConfirmForm?.addEventListener("submit", confirmEmailPasswordReset);
   els.forgotPasswordForm.addEventListener("submit", resetForgottenPassword);
-  els.vipBadge.addEventListener("click", openLevelDialog);
   els.vipPopoverBadge.addEventListener("click", () => {
     renderVipCenter();
     els.vipDialog.showModal();

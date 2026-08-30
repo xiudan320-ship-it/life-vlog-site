@@ -1,3 +1,5 @@
+import { renderListIcon } from "./list-icons.js";
+
 function escapeDialogText(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -21,7 +23,7 @@ export function confirmAction({
     dialog.dataset.kind = danger ? "danger" : "default";
     dialog.innerHTML = `
       <form method="dialog">
-        <div class="wish-delete-symbol" aria-hidden="true">${danger ? "!" : "?"}</div>
+        <div class="wish-delete-symbol" aria-hidden="true">${renderListIcon(danger ? "trash" : "alert")}</div>
         <div class="wish-delete-copy">
           <small>${escapeDialogText(eyebrow)}</small>
           <h2>${escapeDialogText(title)}</h2>

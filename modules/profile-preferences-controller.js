@@ -1,5 +1,6 @@
 import { getVipLevel } from "./vip-center.js";
 import { getInitial } from "./ui-formatters.js";
+import { renderListIcon } from "./list-icons.js";
 
 export function createProfilePreferencesController({
   elements,
@@ -53,7 +54,7 @@ export function createProfilePreferencesController({
         state.accountProfile.themePreference = nextTheme;
       }
     }
-    els.themeToggle.querySelector("span").textContent = nextTheme === "dark" ? "☀" : "☾";
+    els.themeToggle.querySelector("span").innerHTML = renderListIcon(nextTheme === "dark" ? "sun" : "moon", "ui-icon");
     els.themeToggle.title = nextTheme === "dark" ? "切换白天模式" : "切换黑夜模式";
     if (syncCloud) void persistThemeToCloud(nextTheme);
   }

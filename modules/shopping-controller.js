@@ -1,6 +1,7 @@
 import { shoppingFromCloudRow, shoppingToCloudRow } from "./cloud-models.js";
 import { renderShoppingDetail, renderShoppingItems } from "./shopping-view.js";
 import { createShoppingInteractions } from "./shopping-interactions.js";
+import { pulseListItem } from "./list-render-feedback.js";
 
 export function createShoppingController({
   elements,
@@ -115,7 +116,7 @@ export function createShoppingController({
     return { imageUrl: uploaded.url, imagePath: `r2:${uploaded.key}` };
   }
 
-  function render() {
+  function render(updatedId = "") {
     renderShoppingItems({
       listElement: elements.shoppingList,
       filtersElement: elements.shoppingFilters,
@@ -129,6 +130,7 @@ export function createShoppingController({
       canManageItem,
       escapeHtml,
     });
+    if (updatedId) pulseListItem(elements.shoppingList, "data-shopping-id", updatedId);
   }
 
   function ensureImageDialog() {
@@ -285,7 +287,7 @@ export function createShoppingController({
     resetForm();
     setExpanded(false);
     setStatus(previous ? "商品已更新。" : "商品已加入购物车。");
-    render();
+    render(item.id);
     if (previous?.imagePath && previous.imagePath !== item.imagePath) {
       const cleanupError = await cleanupImagePaths([previous.imagePath]);
       if (cleanupError) setStatus("商品已更新，但旧图片清理失败。");
@@ -325,7 +327,7 @@ export function createShoppingController({
     const saved = shoppingFromCloudRow(result.data);
     setItems(getItems().map((entry) => entry.id === id ? saved : entry));
     setStatus(completed ? "已标记为已购买。" : "已恢复为未完成。");
-    render();
+    render(id);
   }
 
   async function remove(id) {

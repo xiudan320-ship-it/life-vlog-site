@@ -13,34 +13,14 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="theme-color" content="#0d100f" />
     <link rel="manifest" href="./manifest.webmanifest" />
-    <link rel="apple-touch-icon" href="./assets/app-icon-180.png" />
-    <link rel="icon" type="image/png" sizes="32x32" href="./assets/app-icon-32.png" />
-    <link rel="stylesheet" href="./styles.css?v=20260826-027" />
-    <link rel="stylesheet" href="./styles/app-splash.css?v=20260827-001" />
-    <link rel="stylesheet" href="./styles/redesign-foundation.css?v=20260826-036" />
-    <link rel="stylesheet" href="./styles/redesign-components.css?v=20260827-003" />
-    <link rel="stylesheet" href="./styles/content-forms.css?v=20260825-035" />
-    <link rel="stylesheet" href="./styles/mobile-diary.css?v=20260825-035" />
-    <link rel="stylesheet" href="./styles/mobile-page-shell.css?v=20260826-002" />
-    <link rel="stylesheet" href="./styles/account-dialogs.css?v=20260825-035" />
-    <link rel="stylesheet" href="./styles/secret-gallery.css?v=20260826-004" />
-    <link rel="stylesheet" href="./styles/diary-reader.css?v=20260825-035" />
-    <link rel="stylesheet" href="./styles/secret-filters.css?v=20260825-035" />
-    <link rel="stylesheet" href="./styles/diary-comments.css?v=20260825-035" />
-    <link rel="stylesheet" href="./styles/feature-inspector.css?v=20260826-038" />
-    <link rel="stylesheet" href="./styles/wishlist.css?v=20260827-001" />
-    <link rel="stylesheet" href="./styles/shopping.css?v=20260826-004" />
-    <link rel="stylesheet" href="./styles/media-upload.css?v=20260825-035" />
-    <link rel="stylesheet" href="./weekend-board.css?v=20260827-004" />
-    <link rel="stylesheet" href="./diary-detail.css?v=20260823-019" />
-    <link rel="stylesheet" href="./secret-viewer.css?v=20260814-231" />
-    <link rel="stylesheet" href="./wardrobe.css?v=20260811-007" />
+    <link rel="apple-touch-icon" href="/assets/generated/app-icon-180.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/generated/app-icon-32.png" />
   </head>
   <body class="mobile-diary-shell" aria-busy="true">
     <div class="app-splash" id="appSplash" role="status" aria-live="polite">
       <div class="app-splash-inner">
         <div class="app-splash-mark" aria-hidden="true">
-          <img src="./assets/black-cat-logo.png" alt="" width="112" height="112" />
+          <img src="/assets/generated/black-cat-logo-112.webp" alt="" width="112" height="112" decoding="async" />
         </div>
         <div class="app-splash-copy">
           <span class="app-splash-overline">LIFE ARCHIVE</span>
@@ -53,7 +33,7 @@
     <header class="topbar" data-app-splash-blocked inert>
       <a class="brand" href="#gallery" aria-label="回到日记">
         <span class="brand-logo-wrap">
-          <img class="brand-logo" src="./assets/home-logo.jpg" alt="" />
+          <img class="brand-logo" src="/assets/generated/home-logo-96.webp" alt="" width="40" height="40" decoding="async" />
         </span>
         <span>
           <strong id="brandName">咻蛋之家</strong>
@@ -73,13 +53,13 @@
           <small id="adminStorageMonth">本月上传 —</small>
         </a>
         <button class="icon-button" id="themeToggle" type="button" title="切换日夜模式">
-          <span aria-hidden="true">◐</span>
+          <span aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" focusable="false"><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4"/><circle cx="12" cy="12" r="4.2"/></svg></span>
         </button>
         <button class="icon-button" id="setupToggle" type="button" title="设置">
-          <span aria-hidden="true">⚙</span>
+          <span aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" focusable="false"><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4"/><circle cx="12" cy="12" r="4.2"/></svg></span>
         </button>
         <button class="icon-button notification-button" id="notificationButton" type="button" title="互动通知" hidden>
-          <span aria-hidden="true">♢</span>
+          <span aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" focusable="false"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4"/></svg></span>
           <strong id="notificationBadge" hidden>0</strong>
         </button>
         <div class="user-menu" id="userMenu" hidden>
@@ -117,8 +97,13 @@
       <section class="hero">
         <img
           class="hero-cover"
-          src="./assets/black-cat-cover.jpg"
+          src="/assets/generated/black-cat-cover-640.webp"
+          srcset="/assets/generated/black-cat-cover-640.webp 640w, /assets/generated/black-cat-cover-1280.webp 1280w"
+          sizes="(max-width: 700px) calc(100vw - 32px), 960px"
           alt="绿色花园里舒展身体的黑猫插画"
+          width="1280"
+          height="720"
+          decoding="async"
         />
         <div class="hero-copy">
           <p class="kicker">Life, collected carefully</p>
@@ -143,7 +128,7 @@
           </span>
         </button>
         <button class="tool-dock-button recipes-tool-button" id="recipesToolOpen" type="button" data-tool-id="recipes">
-          <span class="tool-dock-mark recipes-mark" aria-hidden="true">谱</span>
+          <span class="tool-dock-mark recipes-mark" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" focusable="false"><path d="M5 4.5h5.5A2.5 2.5 0 0 1 13 7v13a2.5 2.5 0 0 0-2.5-2.5H5a2 2 0 0 1-2-2V6.5a2 2 0 0 1 2-2Z"/><path d="M19 4.5h-5.5A2.5 2.5 0 0 0 11 7v13a2.5 2.5 0 0 1 2.5-2.5H19a2 2 0 0 0 2-2V6.5a2 2 0 0 0-2-2Z"/></svg></span>
           <span>
             <strong>菜谱</strong>
             <small>打开家庭菜谱</small>
@@ -159,7 +144,7 @@
           hidden
         >
           <span class="anniversary-launch-mark" aria-hidden="true">
-            <img src="./assets/anniversary-icon.jpg" alt="" />
+            <img src="/assets/generated/anniversary-icon-1x.webp" alt="" />
           </span>
           <span>
             <strong>时间纪念册</strong>
@@ -167,28 +152,28 @@
           </span>
         </button>
         <button class="tool-dock-button memory-button" id="memoryButton" type="button" data-tool-id="memory" hidden>
-          <span class="tool-dock-mark" aria-hidden="true">↻</span>
+          <span class="tool-dock-mark" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" focusable="false"><path d="M20 11a8 8 0 0 0-14-4.8L4 8"/><path d="M4 4v4h4M4 13a8 8 0 0 0 14 4.8L20 16"/><path d="M20 20v-4h-4"/></svg></span>
           <span>
             <strong>随机回忆</strong>
             <small>抽一篇家庭日记</small>
           </span>
         </button>
         <button class="tool-dock-button weekly-review-button" id="weeklyReviewOpen" type="button" data-tool-id="weekly" hidden>
-          <span class="tool-dock-mark weekly-review-mark" aria-hidden="true">周</span>
+          <span class="tool-dock-mark weekly-review-mark" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" focusable="false"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M7 2v4M17 2v4M3 9h18M8 13h3M8 17h5"/></svg></span>
           <span>
             <strong>本周回顾</strong>
             <small>共同生活周报</small>
           </span>
         </button>
         <button class="tool-dock-button secret-button" id="secretOpen" type="button" data-tool-id="secret" hidden>
-          <span class="tool-dock-mark secret-mark" aria-hidden="true">✦</span>
+          <span class="tool-dock-mark secret-mark" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" focusable="false"><path d="m12 3 1.5 5.5L19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5L12 3Z"/><path d="m19 15 .6 2.4L22 18l-2.4.6L19 21l-.6-2.4L16 18l2.4-.6L19 15Z"/></svg></span>
           <span>
             <strong>秘藏</strong>
             <small>进入里世界展览</small>
           </span>
         </button>
         <button class="tool-dock-button thanks-tool-button" id="thanksOpen" type="button" data-tool-id="thanks" hidden>
-          <span class="tool-dock-mark thanks-mark" aria-hidden="true">谢</span>
+          <span class="tool-dock-mark thanks-mark" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" focusable="false"><path d="M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-7l-4.5 3V17H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/><path d="M7 9h10M7 13h6"/></svg></span>
           <span>
             <strong>留言</strong>
             <small>留下生活里的话</small>
@@ -377,6 +362,7 @@
                 <option>日常</option>
                 <option>旅行</option>
                 <option>食物</option>
+                <option>宠物</option>
                 <option>卢浮宫</option>
                 <option>城市</option>
                 <option>家</option>
@@ -420,16 +406,7 @@
           <datalist id="diarySearchSuggestions"></datalist>
           <button id="clearDiarySearch" type="button" aria-label="清空搜索" hidden>清空</button>
         </label>
-        <div class="filter-chip-row" aria-label="日记分类">
-          <button class="chip active" data-filter="全部" type="button">全部</button>
-          <button class="chip feature-chip" data-filter="featured7" type="button">七日精选</button>
-          <button class="chip favorite-chip" data-filter="favorites" type="button">我的收藏</button>
-          <button class="chip" data-filter="日常" type="button">日常</button>
-          <button class="chip" data-filter="旅行" type="button">旅行</button>
-          <button class="chip" data-filter="食物" type="button">食物</button>
-          <button class="chip" data-filter="卢浮宫" type="button">卢浮宫</button>
-          <button class="chip" data-filter="城市" type="button">城市</button>
-        </div>
+        <div class="filter-chip-row" id="diaryFilterChips" aria-label="日记分类筛选"></div>
       </section>
 
       <section class="gallery" id="gallery" aria-live="polite"></section>
@@ -439,533 +416,7 @@
         <span id="feedLoaderText">继续下滑加载</span>
       </div>
 
-      <section class="recipes-page" id="recipesPage" hidden>
-        <div class="feed-head">
-          <div>
-            <p class="kicker">Cookbook</p>
-            <h2 data-page-heading="recipes">我的菜谱</h2>
-          </div>
-          <p class="status-line" id="recipeStatus"></p>
-        </div>
-
-        <section class="recipe-composer" id="recipeComposer" hidden>
-          <div class="section-title">
-            <button class="section-heading-button" id="recipeToggle" type="button" aria-expanded="false">
-              <p class="kicker">New Recipe</p>
-              <h2 id="recipeFormTitle">添加菜谱</h2>
-            </button>
-          </div>
-
-          <form class="recipe-form" id="recipeForm" hidden>
-            <label class="recipe-cover-drop" id="recipeCoverDrop" tabindex="0">
-              <input class="native-file-input" id="recipeCoverInput" type="file" accept="image/*" />
-              <img id="recipeCoverPreview" alt="菜谱封面预览" hidden />
-              <span class="upload-native-trigger">上传封面</span>
-              <strong id="recipeCoverName">还没有选择封面</strong>
-            </label>
-            <div class="image-link-adder">
-              <input id="recipeCoverLinkInput" type="url" inputmode="url" placeholder="粘贴图片链接" aria-label="菜谱封面链接" />
-              <button id="recipeCoverLinkAdd" type="button">添加</button>
-            </div>
-            <div class="form-grid">
-              <label>
-                菜名
-                <input id="recipeNameInput" maxlength="80" required />
-              </label>
-              <label>
-                分类
-                <select id="recipeCategoryInput">
-                  <option>家常菜</option>
-                  <option>甜品</option>
-                  <option>早餐</option>
-                  <option>汤</option>
-                  <option>便当</option>
-                  <option>饮品</option>
-                </select>
-              </label>
-              <label>
-                用时
-                <input id="recipeTimeInput" maxlength="30" placeholder="比如 30 分钟" />
-              </label>
-              <label>
-                份量
-                <input id="recipeServingsInput" maxlength="30" placeholder="比如 2 人份" />
-              </label>
-            </div>
-
-            <fieldset class="seasoning-panel">
-              <legend>调味料</legend>
-              <label><input type="checkbox" name="recipeSeasoning" value="盐" /> 盐</label>
-              <label><input type="checkbox" name="recipeSeasoning" value="糖" /> 糖</label>
-              <label><input type="checkbox" name="recipeSeasoning" value="生抽" /> 生抽</label>
-              <label><input type="checkbox" name="recipeSeasoning" value="老抽" /> 老抽</label>
-              <label><input type="checkbox" name="recipeSeasoning" value="蚝油" /> 蚝油</label>
-              <label><input type="checkbox" name="recipeSeasoning" value="料酒" /> 料酒</label>
-              <label><input type="checkbox" name="recipeSeasoning" value="醋" /> 醋</label>
-              <label><input type="checkbox" name="recipeSeasoning" value="胡椒" /> 胡椒</label>
-              <label><input type="checkbox" name="recipeSeasoning" value="辣椒" /> 辣椒</label>
-              <label><input type="checkbox" name="recipeSeasoning" value="葱" /> 葱</label>
-              <label><input type="checkbox" name="recipeSeasoning" value="姜" /> 姜</label>
-              <label><input type="checkbox" name="recipeSeasoning" value="蒜" /> 蒜</label>
-              <label><input type="checkbox" name="recipeSeasoning" value="香油" /> 香油</label>
-              <label><input type="checkbox" name="recipeSeasoning" value="淀粉" /> 淀粉</label>
-            </fieldset>
-
-            <label>
-              食材
-              <textarea id="recipeIngredientsInput" rows="4" maxlength="1000" placeholder="每行写一种食材"></textarea>
-            </label>
-            <label>
-              步骤
-              <textarea id="recipeStepsInput" rows="5" maxlength="1600" placeholder="每行写一步"></textarea>
-            </label>
-            <label>
-              备注
-              <textarea id="recipeNoteInput" rows="3" maxlength="500"></textarea>
-            </label>
-            <div class="recipe-form-actions">
-              <button class="primary" id="recipeSubmitButton" type="submit">保存菜谱</button>
-              <button class="ghost-button" id="recipeCancelEdit" type="button" hidden>取消编辑</button>
-            </div>
-          </form>
-        </section>
-
-        <section class="recipes-list" id="recipesList" aria-live="polite"></section>
-      </section>
-
-      <section class="wishlist-page" id="wishlistPage" hidden>
-        <div class="feed-head wishlist-page-header">
-          <div class="wishlist-page-heading">
-            <p class="kicker" id="wishlistPageKicker">WISHLIST</p>
-            <h2 id="wishlistPageTitle" data-page-heading="wishlist">心愿单</h2>
-            <p class="wishlist-summary" id="wishlistSummary">0 个心愿 · 0 个已完成</p>
-            <p class="wishlist-summary" id="shoppingSummary" hidden>0 件商品 · 0 件已完成</p>
-          </div>
-          <div class="wishlist-page-statuses" aria-live="polite">
-            <p class="status-line" id="wishlistStatus"></p>
-            <p class="status-line" id="shoppingStatus" hidden></p>
-          </div>
-        </div>
-
-        <div class="wishlist-module-tabs" id="wishlistModuleTabs" role="tablist" aria-label="清单类型">
-          <button class="active" type="button" data-wishlist-module="wishlist" role="tab" aria-selected="true">心愿单</button>
-          <button type="button" data-wishlist-module="shopping" role="tab" aria-selected="false">购物车</button>
-        </div>
-
-        <div id="wishlistContent">
-
-        <section class="wishlist-composer" id="wishlistComposer" hidden>
-          <div class="section-title">
-            <button class="section-heading-button" id="wishlistToggle" type="button" aria-expanded="false">
-              <span class="wishlist-add-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" focusable="false"><path d="M12 5v14M5 12h14" /></svg>
-              </span>
-              <span id="wishlistFormTitle">添加心愿</span>
-            </button>
-          </div>
-
-          <form class="wishlist-form" id="wishlistForm" hidden>
-            <label class="wish-image-drop" id="wishImageDrop" tabindex="0">
-              <input class="native-file-input" id="wishImageInput" type="file" accept="image/*" />
-              <img id="wishImagePreview" alt="心愿图片预览" hidden />
-              <span class="upload-native-trigger">添加心愿图片</span>
-              <strong id="wishImageName">还没有选择图片</strong>
-            </label>
-            <div class="image-link-adder">
-              <input id="wishImageLinkInput" type="url" inputmode="url" placeholder="粘贴图片链接" aria-label="心愿图片链接" />
-              <button id="wishImageLinkAdd" type="button">添加</button>
-            </div>
-            <button class="wish-remove-image" id="wishRemoveImage" type="button" hidden>
-              移除图片
-            </button>
-            <div class="form-grid">
-              <label>
-                想做什么
-                <input id="wishTitleInput" maxlength="80" required />
-              </label>
-              <label>
-                类型
-                <select id="wishTypeInput">
-                  <option>想做</option>
-                  <option>想吃</option>
-                  <option>想去</option>
-                  <option>想买</option>
-                  <option>想学</option>
-                </select>
-              </label>
-              <label>
-                计划时间
-                <input id="wishDateInput" type="date" />
-              </label>
-              <label>
-                优先级
-                <select id="wishPriorityInput">
-                  <option>普通</option>
-                  <option>想尽快</option>
-                  <option>一定要做</option>
-                </select>
-              </label>
-            </div>
-            <label>
-              备注
-              <textarea id="wishNoteInput" rows="3" maxlength="500"></textarea>
-            </label>
-            <label>
-              完成后的留言感想
-              <textarea id="wishCompletionNoteInput" rows="3" maxlength="500"></textarea>
-            </label>
-            <div class="wish-form-actions">
-              <button class="primary" id="wishSubmitButton" type="submit">保存心愿</button>
-              <button class="ghost-button" id="wishCancelEdit" type="button" hidden>取消编辑</button>
-            </div>
-          </form>
-        </section>
-
-        <div class="wish-tabs" id="wishTabs" role="tablist" aria-label="心愿状态">
-          <button class="active" type="button" data-wish-view="open" role="tab" aria-selected="true">
-            未完成 <span id="wishOpenCount">0</span>
-          </button>
-          <button type="button" data-wish-view="done" role="tab" aria-selected="false">
-            已完成 <span id="wishDoneCount">0</span>
-          </button>
-        </div>
-
-        <section class="wishlist-list" id="wishlistList" aria-live="polite"></section>
-        </div>
-
-        <div id="shoppingContent" class="shopping-content" hidden>
-          <div class="shopping-primary-actions">
-            <button class="shopping-add-button" id="shoppingToggle" type="button" aria-expanded="false">
-              <span class="shopping-add-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" focusable="false"><path d="M12 5v14M5 12h14" /></svg>
-              </span>
-              <span>添加商品</span>
-            </button>
-          </div>
-
-          <section class="shopping-composer" id="shoppingComposer">
-            <form class="shopping-form" id="shoppingForm" hidden>
-              <div class="shopping-form-heading">
-                <div>
-                  <p class="kicker">NEW ITEM</p>
-                  <h3 id="shoppingFormTitle">添加商品</h3>
-                </div>
-                <button class="shopping-form-close" id="shoppingCancelEdit" type="button" hidden>取消</button>
-              </div>
-              <label class="shopping-image-drop">
-                <input class="native-file-input" id="shoppingImageInput" type="file" accept="image/*" />
-                <img id="shoppingImagePreview" alt="商品图片预览" hidden />
-                <span class="upload-native-trigger">上传商品图片</span>
-                <strong id="shoppingImageName">还没有选择图片</strong>
-              </label>
-              <button class="wish-remove-image" id="shoppingRemoveImage" type="button" hidden>删除图片</button>
-              <div class="form-grid">
-                <label>
-                  商品名称
-                  <input id="shoppingNameInput" maxlength="100" required placeholder="想买什么？" />
-                </label>
-                <label>
-                  商品价格（可选）
-                  <input id="shoppingPriceInput" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
-                </label>
-              </div>
-              <label>
-                商品链接（可选）
-                <input id="shoppingLinkInput" type="url" inputmode="url" maxlength="1000" placeholder="https://" />
-              </label>
-              <label>
-                备注（可选）
-                <textarea id="shoppingNoteInput" rows="3" maxlength="500" placeholder="颜色、型号、购买计划……"></textarea>
-              </label>
-              <div class="wish-form-actions">
-                <button class="primary" id="shoppingSubmitButton" type="submit">保存商品</button>
-              </div>
-            </form>
-          </section>
-
-          <nav class="shopping-filters" id="shoppingFilters" role="tablist" aria-label="购物车状态">
-            <button class="active" type="button" data-shopping-filter="open" role="tab" aria-selected="true">未完成 <span id="shoppingOpenCount">0</span></button>
-            <button type="button" data-shopping-filter="done" role="tab" aria-selected="false">已完成 <span id="shoppingDoneCount">0</span></button>
-          </nav>
-          <section class="shopping-list" id="shoppingList" aria-live="polite"></section>
-        </div>
-      </section>
-
-      <dialog class="wish-complete-dialog" id="wishCompleteDialog">
-        <button class="dialog-close" id="wishCompleteClose" type="button" aria-label="关闭">×</button>
-        <form id="wishCompleteForm">
-          <div class="wish-complete-hero">
-            <p class="kicker">Wish Complete</p>
-            <h2 id="wishCompleteTitle">完成心愿</h2>
-            <p id="wishCompleteMeta"></p>
-          </div>
-          <div class="wish-complete-body">
-            <div class="wish-complete-preview" id="wishCompletePreview"></div>
-            <label>
-              完成后的留言感想
-              <textarea
-                id="wishCompleteNoteInput"
-                rows="5"
-                maxlength="500"
-                placeholder="比如：终于一起去了，天气很好，值得再来一次。"
-              ></textarea>
-            </label>
-          </div>
-          <p class="status-line" id="wishCompleteStatus"></p>
-          <div class="wish-complete-actions">
-            <button class="primary" id="wishCompleteSubmit" type="submit">保存完成感想</button>
-          </div>
-        </form>
-      </dialog>
-
-      <section class="weekend-page" id="weekendPage" hidden>
-        <div class="feed-head weekend-page-header">
-          <div class="weekend-page-heading">
-            <p class="kicker">WEEKEND</p>
-            <h2 data-page-heading="weekend">周末计划</h2>
-            <p class="weekend-summary" id="weekendSummary">0 个计划 · 0 个已完成</p>
-          </div>
-          <div class="weekend-page-statuses" aria-live="polite">
-            <p class="status-line" id="weekendStatus"></p>
-          </div>
-        </div>
-
-        <section class="weekend-composer" id="weekendComposer" hidden>
-          <div class="section-title">
-            <button class="section-heading-button weekend-add-button" id="weekendToggle" type="button" aria-expanded="false" aria-controls="weekendForm">
-              <span class="weekend-add-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" focusable="false"><path d="M12 5v14M5 12h14" /></svg>
-              </span>
-              <span class="weekend-add-copy">
-                <small>NEW PLAN</small>
-                <strong id="weekendFormTitle">安排周末</strong>
-              </span>
-            </button>
-          </div>
-          <form class="weekend-form" id="weekendForm" hidden>
-            <div class="weekend-image-drop" id="weekendImageDrop" tabindex="0">
-              <input class="native-file-input" id="weekendImageInput" type="file" accept="image/*" multiple />
-              <label class="upload-native-trigger" for="weekendImageInput">添加当天场景</label>
-              <small>选择多张图片，或直接粘贴图片</small>
-              <div class="weekend-image-previews" id="weekendImagePreviews" hidden></div>
-            </div>
-            <div class="image-link-adder">
-              <input id="weekendImageLinkInput" type="url" inputmode="url" placeholder="粘贴图片链接" aria-label="周末图片链接" />
-              <button id="weekendImageLinkAdd" type="button">添加</button>
-            </div>
-            <div class="form-grid">
-              <label>
-                想做什么
-                <input id="weekendTitleInput" maxlength="80" required placeholder="比如：去镰仓看海" />
-              </label>
-              <label>
-                日期
-                <input id="weekendDateInput" type="date" required />
-              </label>
-              <label>
-                地点
-                <input id="weekendLocationInput" maxlength="80" placeholder="城市、店名或集合地点" />
-              </label>
-              <label>
-                类型
-                <select id="weekendTypeInput">
-                  <option>出门玩</option>
-                  <option>吃好吃的</option>
-                  <option>宅家</option>
-                  <option>运动</option>
-                  <option>约朋友</option>
-                  <option>学习充电</option>
-                </select>
-              </label>
-            </div>
-            <label>
-              计划备注
-              <textarea id="weekendNoteInput" rows="4" maxlength="600" placeholder="交通、预约、想带的东西……"></textarea>
-            </label>
-            <div class="weekend-form-actions">
-              <button class="primary" id="weekendSubmitButton" type="submit">保存计划</button>
-              <button class="ghost-button" id="weekendCancelEdit" type="button" hidden>取消编辑</button>
-            </div>
-          </form>
-        </section>
-
-        <section class="weekend-list" id="weekendList" aria-live="polite"></section>
-      </section>
-
-      <dialog class="weekend-completion-dialog" id="weekendCompletionDialog">
-        <button class="dialog-close" id="weekendCompletionClose" type="button" aria-label="关闭">×</button>
-        <form id="weekendCompletionForm">
-          <header>
-            <p class="kicker">Weekend Recap</p>
-            <h2>留下这一天</h2>
-            <p id="weekendCompletionPlanTitle"></p>
-          </header>
-          <label>
-            完成回顾
-            <textarea id="weekendCompletionNote" rows="5" placeholder="今天去了哪里、吃了什么，或者只写一句当时的心情。"></textarea>
-          </label>
-          <div class="weekend-completion-drop" id="weekendCompletionDrop" tabindex="0">
-            <input class="native-file-input" id="weekendCompletionInput" type="file" accept="image/*" multiple />
-            <label class="upload-native-trigger" for="weekendCompletionInput">添加当天照片</label>
-            <small>可以批量选择、粘贴图片或图片链接</small>
-            <div class="weekend-completion-previews" id="weekendCompletionPreviews" hidden></div>
-          </div>
-          <div class="image-link-adder">
-            <input id="weekendCompletionLinkInput" type="url" inputmode="url" placeholder="粘贴图片链接" aria-label="完成回顾图片链接" />
-            <button id="weekendCompletionLinkAdd" type="button">添加</button>
-          </div>
-          <p class="status-line" id="weekendCompletionStatus"></p>
-          <footer>
-            <button class="ghost-button" id="weekendCompletionCancel" type="button">取消</button>
-            <button class="primary" id="weekendCompletionSubmit" type="submit">完成并保存</button>
-          </footer>
-        </form>
-      </dialog>
-
-      <section class="wardrobe-page" id="wardrobePage" hidden>
-        <div id="wardrobeRoot"></div>
-      </section>
-
-      <section class="thanks-page" id="thanksPage" hidden>
-        <div class="thanks-head">
-          <div>
-            <p class="kicker">Little Notes</p>
-            <h2 data-page-heading="thanks">感谢留言板</h2>
-          </div>
-          <p>随时留一句想记住的话。</p>
-        </div>
-
-        <form class="thanks-composer" id="thanksForm" hidden>
-          <label>
-            留一句话
-            <textarea
-              id="thanksBodyInput"
-              rows="3"
-              maxlength="180"
-              required
-            ></textarea>
-          </label>
-          <fieldset class="thanks-colors">
-            <legend>字的颜色</legend>
-            <label class="active" style="--note-color:#2f6b3b">
-              <input type="radio" name="thanksColor" value="#2f6b3b" checked />
-              <span>森林绿</span>
-            </label>
-            <label style="--note-color:#d6544d">
-              <input type="radio" name="thanksColor" value="#d6544d" />
-              <span>珊瑚红</span>
-            </label>
-            <label style="--note-color:#2e6da4">
-              <input type="radio" name="thanksColor" value="#2e6da4" />
-              <span>晴空蓝</span>
-            </label>
-            <label style="--note-color:#81559b">
-              <input type="radio" name="thanksColor" value="#81559b" />
-              <span>葡萄紫</span>
-            </label>
-            <label style="--note-color:#a66b12">
-              <input type="radio" name="thanksColor" value="#a66b12" />
-              <span>麦穗金</span>
-            </label>
-          </fieldset>
-          <div class="thanks-form-actions">
-            <p class="status-line" id="thanksStatus"></p>
-            <button class="primary" id="thanksSubmitButton" type="submit">贴到留言板</button>
-            <button class="ghost-button" id="thanksCancelEdit" type="button" hidden>取消编辑</button>
-          </div>
-        </form>
-
-        <section class="thanks-board" id="thanksBoard" aria-live="polite"></section>
-      </section>
-
-      <section class="secret-page" id="secretPage" hidden>
-        <div class="secret-head">
-          <div>
-            <p class="kicker">Secret Gallery</p>
-            <h2 data-page-heading="secret">秘藏图集</h2>
-            <p>私人画廊，可以创建相册、上传收藏图，并按照片 tag 展览。</p>
-          </div>
-          <p class="status-line" id="secretStatus"></p>
-        </div>
-
-        <section class="secret-composer" id="secretComposer" hidden>
-          <div class="section-title">
-            <button class="section-heading-button" id="secretToggle" type="button" aria-expanded="false">
-              <p class="kicker">Album</p>
-              <h2>新建相册 / 上传图片</h2>
-            </button>
-          </div>
-
-          <form class="secret-form" id="secretForm" hidden>
-            <label class="secret-image-drop" id="secretImageDrop" tabindex="0">
-              <input class="native-file-input" id="secretImageInput" type="file" accept="image/*" multiple />
-              <img id="secretImagePreview" alt="秘藏图片预览" hidden />
-              <div class="preview-strip" id="secretPreviewStrip" hidden></div>
-              <span class="upload-native-trigger">选择图片</span>
-              <strong id="secretImageName">还没有选择图片</strong>
-            </label>
-            <div class="image-link-adder">
-              <input id="secretImageLinkInput" type="url" inputmode="url" placeholder="粘贴图片链接" aria-label="秘藏图片链接" />
-              <button id="secretImageLinkAdd" type="button">添加</button>
-            </div>
-            <label>
-              自定义封面
-              <input class="native-file-input" id="secretCoverInput" type="file" accept="image/*" />
-            </label>
-            <div class="form-grid">
-              <label>
-                相册名
-                <input id="secretTitleInput" maxlength="80" placeholder="比如：灵感收藏" />
-              </label>
-              <input id="secretCategoryInput" type="hidden" value="未分类" />
-              <datalist id="secretCategoryList"></datalist>
-              <label>
-                所属文件夹
-                <select id="secretFolderInput">
-                  <option value="">未归档</option>
-                </select>
-              </label>
-              <label>
-                关联日记
-                <select id="secretLinkedPhotoInput">
-                  <option value="">不关联</option>
-                </select>
-              </label>
-            </div>
-            <label>
-              备注
-              <textarea id="secretNoteInput" rows="4"></textarea>
-            </label>
-            <div class="secret-form-actions">
-              <button class="primary" id="secretSubmitButton" type="submit">保存相册</button>
-            </div>
-          </form>
-        </section>
-
-        <div class="secret-library-layout">
-          <aside class="secret-library-sidebar" aria-label="秘藏收藏夹">
-            <label class="secret-search" for="secretSearchInput">
-              <span>搜索展品</span>
-              <input id="secretSearchInput" type="search" list="secretSearchSuggestions" placeholder="相册或 Tag" autocomplete="off" />
-              <datalist id="secretSearchSuggestions"></datalist>
-            </label>
-            <div class="secret-sidebar-heading">
-              <span>收藏夹</span>
-              <button class="secret-create-folder-button" type="button" id="secretCreateFolderButton" aria-label="新建文件夹" title="新建文件夹">
-                <span class="secret-create-folder-icon" aria-hidden="true">+</span>
-                <span class="secret-create-folder-label">新建文件夹</span>
-              </button>
-            </div>
-            <nav class="secret-folder-list" id="secretFolderList" aria-label="秘藏文件夹"></nav>
-          </aside>
-          <div class="secret-library-main">
-            <div class="secret-filters" id="secretFilters" aria-label="秘藏照片 tag"></div>
-            <section class="secret-gallery" id="secretGallery" aria-live="polite"></section>
-          </div>
-        </div>
-      </section>
-    </main>
-
+      <div id="routeOutlet" data-route-outlet aria-live="polite"></div>
     <dialog class="anniversary-dialog" id="anniversaryDialog">
       <div class="anniversary-dialog-head">
         <div>
@@ -1048,88 +499,6 @@
       </form>
     </dialog>
 
-    <dialog class="settings-dialog" id="settingsDialog">
-      <button class="dialog-close" id="closeSettingsDialog" type="button" aria-label="关闭">×</button>
-      <aside class="settings-sidebar">
-        <p class="kicker">Settings</p>
-        <h2>设置</h2>
-        <nav aria-label="设置分类">
-          <button class="active" type="button" data-settings-section="settingsGeneral" aria-selected="true">常规</button>
-          <button type="button" data-settings-section="settingsTools" aria-selected="false">工具栏</button>
-          <button type="button" data-settings-section="settingsAccount" aria-selected="false">账户</button>
-          <button type="button" data-settings-section="settingsFamily" aria-selected="false">家庭</button>
-        </nav>
-      </aside>
-      <section class="settings-content">
-        <section class="settings-group" id="settingsGeneral">
-          <p class="kicker">General</p>
-          <h3>常规</h3>
-          <button id="renameHomeButton" type="button">
-            <span>主页名称</span>
-            <strong><em id="settingsHomeNameValue">咻蛋之家</em><small>点击修改</small></strong>
-          </button>
-          <button id="renameProfileButton" type="button">
-            <span>昵称</span>
-            <strong><em id="settingsNicknameValue">User</em><small>点击修改</small></strong>
-          </button>
-          <button id="changeAvatarButton" type="button">
-            <span>头像</span>
-            <strong><em id="settingsAvatarValue">文字头像</em><small>点击更换</small></strong>
-          </button>
-          <button id="settingsFeedLayoutButton" type="button">
-            <span>手机列表布局</span>
-            <strong><em id="settingsFeedLayoutValue">双列</em><small>点击切换单列/双列</small></strong>
-          </button>
-          <button id="refreshCacheInfoButton" type="button">
-            <span>缓存占用</span>
-            <strong><em id="settingsCacheValue">计算中</em><small>点击刷新缓存大小</small></strong>
-          </button>
-          <button id="cacheLimitButton" type="button">
-            <span>缓存上限</span>
-            <strong><em id="settingsCacheLimitValue">80 条</em><small>日记和秘藏超过上限会自动替换旧缓存</small></strong>
-          </button>
-          <button id="clearAppCacheButton" type="button">
-            <span>清除缓存</span>
-            <strong><em id="settingsCacheStatus">保留账号和设置</em><small>清除日记缓存和离线资源</small></strong>
-          </button>
-        </section>
-        <section class="settings-group" id="settingsTools" hidden>
-          <p class="kicker">Toolbar</p>
-          <h3>组件排序</h3>
-          <div class="settings-tool-order" id="settingsToolOrderList"></div>
-        </section>
-        <section class="settings-group" id="settingsAccount">
-          <p class="kicker">Security</p>
-          <h3>账户安全</h3>
-          <button id="changePasswordButton" type="button">
-            <span>修改密码</span>
-            <strong>更新当前登录密码</strong>
-          </button>
-          <button id="recoveryKeyButton" type="button">
-            <span>恢复密钥</span>
-            <strong>忘记密码时用来重设</strong>
-          </button>
-         <button id="changeSecretPinButton" type="button">
-           <span>秘藏密码</span>
-           <strong>修改进入秘藏的四位数字密码</strong>
-         </button>
-          <button id="bindEmailButton" type="button">
-            <span>绑定邮箱</span>
-            <strong><em id="settingsEmailValue">未绑定</em><small>用于找回用户名和密码</small></strong>
-          </button>
-       </section>
-        <section class="settings-group" id="settingsFamily">
-          <p class="kicker">Family</p>
-          <h3>家庭与会员</h3>
-          <div class="settings-family-panel" id="settingsFamilyPanel"></div>
-          <button id="familyAccountButton" type="button">
-            <span>管理家庭</span>
-            <strong>创建家庭、邀请成员或处理邀请</strong>
-          </button>
-        </section>
-      </section>
-    </dialog>
-
     <dialog class="account-dialog cache-limit-dialog" id="cacheLimitDialog">
       <button class="dialog-close" id="closeCacheLimitDialog" type="button" aria-label="关闭">×</button>
       <form id="cacheLimitForm">
@@ -1139,8 +508,12 @@
           <p>用于控制日记和秘藏在本机保留多少条缓存。超过上限会自动替换更旧的内容，云端数据不会被删除。</p>
         </div>
         <label class="cache-limit-field">
-          <span>缓存条数</span>
-          <input id="cacheLimitInput" type="number" min="20" max="300" step="10" inputmode="numeric" required />
+          <span>日记图片（MB）</span>
+          <input id="cacheLimitInput" type="number" min="20" max="2000" step="10" inputmode="numeric" required />
+        </label>
+        <label class="cache-limit-field">
+          <span>秘藏图片（MB）</span>
+          <input id="secretCacheLimitInput" type="number" min="20" max="2000" step="10" inputmode="numeric" required />
         </label>
         <div class="cache-limit-presets" aria-label="缓存上限快捷选择">
           <button type="button" data-cache-limit-preset="40">轻量 40</button>
@@ -1378,11 +751,15 @@
         <button class="carousel-button prev" id="dialogPrev" type="button" aria-label="上一张">‹</button>
         <img id="dialogImage" alt="" />
         <video id="dialogVideo" playsinline preload="metadata" style="width:auto;height:auto;max-width:100%;max-height:100%;object-fit:contain;background:#080b09;" hidden></video>
+        <div id="dialogVideoStatus" class="media-load-status" role="status" aria-live="polite" hidden>
+          <span id="dialogVideoStatusText" data-media-status-text></span>
+          <button id="dialogVideoRetry" type="button" data-media-retry hidden>重试</button>
+        </div>
         <button class="carousel-button next" id="dialogNext" type="button" aria-label="下一张">›</button>
         <span class="media-counter" id="dialogCounter"></span>
         <div class="dialog-dots" id="dialogDots" role="tablist" aria-label="图片位置" hidden></div>
         <button class="dialog-expand-image" id="dialogExpandImage" type="button" aria-label="查看大图" title="查看大图">
-          <span aria-hidden="true">⛶</span>
+          <span aria-hidden="true"><svg class="list-icon ui-icon" viewBox="0 0 24 24" focusable="false"><path d="M8 4H4v4M16 4h4v4M20 16v4h-4M4 16v4h4"/><path d="M4 4l6 6M20 4l-6 6M20 20l-6-6M4 20l6-6"/></svg></span>
         </button>
       </div>
       <nav class="diary-viewer-toolbar" id="diaryViewerToolbar" aria-label="大图工具" hidden>
@@ -1393,10 +770,10 @@
         <button id="diaryViewerZoomOut" type="button" aria-label="缩小">−</button>
         <output id="diaryViewerZoomValue">100%</output>
         <button id="diaryViewerZoomIn" type="button" aria-label="放大">+</button>
-        <button id="diaryViewerFit" type="button" aria-label="适应窗口">⌗</button>
+        <button id="diaryViewerFit" type="button" aria-label="适应窗口"><svg class="list-icon" viewBox="0 0 24 24" focusable="false"><path d="M4 9V5a1 1 0 0 1 1-1h4M20 9V5a1 1 0 0 0-1-1h-4M4 15v4a1 1 0 0 0 1 1h4M20 15v4a1 1 0 0 1-1 1h-4"/></svg></button>
         <i aria-hidden="true"></i>
-        <button id="diaryViewerRotate" type="button" aria-label="向右旋转">↻</button>
-        <button id="diaryViewerDownload" type="button" aria-label="下载原图">⇩</button>
+        <button id="diaryViewerRotate" type="button" aria-label="向右旋转"><svg class="list-icon" viewBox="0 0 24 24" focusable="false"><path d="M20 11a8 8 0 0 0-13.5-5.8L4 7.5"/><path d="M4 3.5v4h4"/><path d="M4 13a8 8 0 0 0 13.5 5.8L20 16.5"/><path d="M20 20.5v-4h-4"/></svg></button>
+        <button id="diaryViewerDownload" type="button" aria-label="下载原图"><svg class="list-icon" viewBox="0 0 24 24" focusable="false"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 20h16"/></svg></button>
       </nav>
       <div class="secret-viewer-status" id="secretViewerStatus" role="status" aria-live="polite" hidden>
         <span aria-hidden="true"></span>
@@ -1410,7 +787,7 @@
         <button id="secretViewerZoomOut" type="button" aria-label="Zoom out">−</button>
         <output id="secretViewerZoomValue">100%</output>
         <button id="secretViewerZoomIn" type="button" aria-label="Zoom in">+</button>
-        <button id="secretViewerFit" type="button" aria-label="Fit image to screen">⌗</button>
+        <button id="secretViewerFit" type="button" aria-label="Fit image to screen"><svg class="list-icon" viewBox="0 0 24 24" focusable="false"><path d="M4 9V5a1 1 0 0 1 1-1h4M20 9V5a1 1 0 0 0-1-1h-4M4 15v4a1 1 0 0 0 1 1h4M20 15v4a1 1 0 0 1-1 1h-4"/></svg></button>
         <i aria-hidden="true"></i>
         <button id="secretViewerInfo" type="button" aria-label="Show image information" aria-pressed="false">i</button>
       </nav>
@@ -1483,6 +860,7 @@
               <option>日常</option>
               <option>旅行</option>
               <option>食物</option>
+              <option>宠物</option>
               <option>卢浮宫</option>
               <option>城市</option>
               <option>家</option>
@@ -1597,7 +975,7 @@
           <h2 id="secretPinTitle">进入秘藏</h2>
           <p id="secretPinDescription">输入四位数字密码</p>
         </header>
-        <div class="secret-pin-dots" id="secretPinDots" aria-label="已输入 0 位密码">
+        <div class="secret-pin-dots" id="secretPinDots" role="img" aria-label="已输入 0 位密码">
           <i></i><i></i><i></i><i></i>
         </div>
         <p class="secret-pin-status" id="secretPinStatus" aria-live="polite"></p>
@@ -1622,6 +1000,6 @@
       </section>
     </dialog>
 
-    <script type="module" src="./app.js?v=20260827-003"></script>
+    <script type="module" src="./app.js"></script>
   </body>
 </html>

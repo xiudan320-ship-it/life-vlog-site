@@ -90,5 +90,5 @@ This system combines the verified UI/UX Pro Max matches for Minimalism & Swiss S
 - Browser zoom remains enabled.
 - Images have meaningful alt text or are explicitly decorative.
 - Validate keyboard, pointer, and touch behavior.
-- Before commit or deployment, run the complete automated suite and the repository release test with the dedicated test account on desktop and mobile.
+- Before commit or deployment, run the complete automated suite and the repository release test with deterministic in-memory fixture sessions on desktop and mobile.
 

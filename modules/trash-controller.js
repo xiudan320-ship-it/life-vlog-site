@@ -16,6 +16,7 @@ export function createTrashController({
   showMiniToast,
   setGlobalStatus,
   getPhotoLabel,
+  isAdmin,
   renderGallery,
   loadPhotos,
   loadSecretItems,
@@ -172,7 +173,8 @@ export function createTrashController({
       return false;
     }
   
-    if (photo.user_id && photo.user_id !== state.session.user.id) {
+    const deletingAnotherMemberPhoto = photo.user_id !== state.session.user.id;
+    if (deletingAnotherMemberPhoto && !isAdmin()) {
       setGlobalStatus("只能删除自己发布的日记。");
       return false;
     }
@@ -199,9 +201,9 @@ export function createTrashController({
       const trashPayload = { ...photo, comments };
       const trashSaved = await createTrashItem("photo", photo.id, getPhotoLabel(photo), trashPayload);
       if (!trashSaved) throw new Error("无法写入回收站，已取消删除。");
-      const { data: deletedRows, error: deleteError } = await diaryRepository.remove(photo.id, {
-        select: "id",
-      });
+      const { data: deletedRows, error: deleteError } = deletingAnotherMemberPhoto
+        ? await householdRepository.rpc("admin_delete_photo", { p_photo_id: photo.id })
+        : await diaryRepository.remove(photo.id, { select: "id" });
   
       if (deleteError) {
         await rollbackTrashItem(trashSaved);

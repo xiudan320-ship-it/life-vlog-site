@@ -4,6 +4,7 @@ import {
   buildWeeklyReviewMarkup,
 } from "./family-activity-view.js";
 import { formatDate } from "./ui-formatters.js";
+import { renderListIcon } from "./list-icons.js";
 
 export function createFamilyActivityController({
   elements,
@@ -176,7 +177,7 @@ export function createFamilyActivityController({
     button.className = "tool-dock-button timeline-tool-button";
     button.type = "button";
     button.dataset.toolId = "timeline";
-    button.innerHTML = '<span class="tool-dock-mark timeline-mark" aria-hidden="true">迹</span><span><strong>家庭足迹</strong><small>动态与往年今日</small></span>';
+    button.innerHTML = `<span class="tool-dock-mark timeline-mark" aria-hidden="true">${renderListIcon("calendar")}</span><span><strong>家庭足迹</strong><small>动态与往年今日</small></span>`;
     els.toolDock.append(button);
     const dialog = document.createElement("dialog");
     dialog.className = "account-dialog family-timeline-dialog";

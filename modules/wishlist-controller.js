@@ -2,6 +2,7 @@ import { renderWishlist } from "./wishlist-view.js";
 import { wishFromCloudRow, wishToCloudRow } from "./cloud-models.js";
 import { reorderWishlistItems } from "./wishlist-domain.js";
 import { createWishlistInteractions } from "./wishlist-interactions.js";
+import { pulseListItem } from "./list-render-feedback.js";
 
 export function createWishlistController({
   elements,
@@ -290,13 +291,13 @@ export function createWishlistController({
     setExpanded(false);
     const gainedExp = await awardExperience(wasEditing ? "wishEdit" : "wish");
     setStatus(`${wasEditing ? "心愿已更新。" : "心愿已保存。"}${gainedExp ? ` 修为 +${gainedExp}` : ""}`);
-    render();
+    render(wish.id);
     if (previous?.imagePath && previous.imagePath !== wish.imagePath && getDatabase()) {
       await cleanupStoredImagePaths([previous.imagePath]);
     }
   }
 
-  function render() {
+  function render(updatedId = "") {
     renderOverview();
     if (!getSession()) setStatus("");
     renderWishlist({
@@ -312,6 +313,7 @@ export function createWishlistController({
       getAuthorName,
       canManageItem,
     });
+    if (updatedId) pulseListItem(elements.wishlistList, "data-wish-id", updatedId);
   }
 
   function edit(id) {
@@ -396,7 +398,7 @@ export function createWishlistController({
     setActiveView(done ? "done" : "open");
     const gainedExp = await awardExperience(done ? "wishDone" : "wishEdit");
     setStatus(`${done ? "心愿已完成，感想已保存。" : "已取消完成状态。"}${gainedExp ? ` 修为 +${gainedExp}` : ""}`);
-    render();
+    render(current.id);
     return true;
   }
 

@@ -67,6 +67,63 @@
   object-fit: contain;
 }
 
+.media-load-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  max-width: min(100%, 34rem);
+  padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface) 90%, #080b09 10%);
+  color: var(--ink);
+  font-size: 0.82rem;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.media-load-status[data-state="error"] {
+  border-color: color-mix(in srgb, var(--danger, #b65f4b) 62%, var(--line));
+}
+
+.media-load-status button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 7px 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 66%, var(--line));
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mobile-diary-video-status {
+  width: 100%;
+  border-radius: 0;
+  border-right: 0;
+  border-left: 0;
+  background: color-mix(in srgb, var(--surface) 96%, #080b09 4%);
+}
+
+#photoDialog .dialog-media {
+  position: relative;
+}
+
+#photoDialog #dialogVideoStatus {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  left: 16px;
+  margin: 0 auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .media-load-status button { transition: none; }
+}
+
 @media (min-width: 701px) {
   #photoDialog.diary-detail-dialog.diary-image-fullscreen .dialog-media #dialogVideo {
     width: auto;

@@ -5,7 +5,8 @@ import { extname, join, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 
-const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
+const sourceRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
+const root = existsSync(join(sourceRoot, "dist", "index.html")) ? join(sourceRoot, "dist") : sourceRoot;
 const contentTypes = {
   ".css": "text/css; charset=utf-8",
   ".html": "text/html; charset=utf-8",
@@ -13,6 +14,7 @@ const contentTypes = {
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
   ".png": "image/png",
+  ".webp": "image/webp",
   ".svg": "image/svg+xml",
   ".webmanifest": "application/manifest+json; charset=utf-8",
 };
@@ -20,8 +22,14 @@ const contentTypes = {
 const server = createServer((request, response) => {
   const rawPath = decodeURIComponent(new URL(request.url, "http://localhost").pathname);
   const relativePath = rawPath === "/" ? "index.html" : rawPath.replace(/^\/+/, "");
-  const filePath = normalize(join(root, relativePath));
-  if (!filePath.startsWith(root) || !existsSync(filePath) || !statSync(filePath).isFile()) {
+  const fixtureAssetPath = relativePath.startsWith("tests/assets/")
+    ? relativePath.slice("tests/".length)
+    : relativePath;
+  const primaryRoot = relativePath.startsWith("tests/") ? sourceRoot : root;
+  const primaryPath = normalize(join(primaryRoot, fixtureAssetPath));
+  const sourceFallbackPath = normalize(join(sourceRoot, fixtureAssetPath));
+  const filePath = existsSync(primaryPath) && statSync(primaryPath).isFile() ? primaryPath : sourceFallbackPath;
+  if (!(filePath.startsWith(root) || filePath.startsWith(sourceRoot)) || !existsSync(filePath) || !statSync(filePath).isFile()) {
     response.writeHead(404).end("Not found");
     return;
   }
@@ -32,7 +40,11 @@ const server = createServer((request, response) => {
   createReadStream(filePath).pipe(response);
 });
 
-await new Promise((resolveListen) => server.listen(0, "127.0.0.1", resolveListen));
+const localRegressionPort = 61234;
+await new Promise((resolveListen, rejectListen) => {
+  server.once("error", rejectListen);
+  server.listen(localRegressionPort, "127.0.0.1", resolveListen);
+});
 const { port } = server.address();
 const baseUrl = `http://127.0.0.1:${port}`;
 const browser = await chromium.launch({ headless: true });
@@ -202,6 +214,10 @@ async function testNavigationAndAuth(viewport, label) {
   await page.waitForFunction(() => document.activeElement?.dataset.pageHeading === "weekend");
   assert.equal(await page.evaluate(() => Math.round(window.scrollY)), 0, `${label} first weekend visit did not start at the top`);
 
+  await page.click("#wardrobeNav");
+  await page.waitForSelector('#wardrobePage:not([hidden]) [data-page-heading="wardrobe"]', { state: "visible" });
+  assert.equal(await page.locator("#wardrobePage").isVisible(), true, `${label} wardrobe page did not open`);
+
   await page.evaluate(() => window.scrollTo({ top: 420, behavior: "instant" }));
   await page.click("#wishlistNav");
   await page.waitForFunction(() => document.activeElement?.dataset.pageHeading === "wishlist");
@@ -222,11 +238,68 @@ async function testNavigationAndAuth(viewport, label) {
   await context.close();
 }
 
+async function testGlobalLevelDialogEvents(viewport, label) {
+  const context = await browser.newContext({ viewport, serviceWorkers: "block" });
+  const page = await context.newPage();
+  const pageErrors = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  await context.route("https://life-vlog-r2-upload.xiudan320-life.workers.dev/**", async (route) => {
+    const headers = {
+      "access-control-allow-origin": baseUrl,
+      "access-control-allow-headers": "Authorization, Content-Type",
+      "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+      "content-type": "application/json",
+    };
+    if (route.request().method() === "OPTIONS") {
+      await route.fulfill({ status: 204, headers });
+      return;
+    }
+    await route.fulfill({ status: 200, headers, body: JSON.stringify({ data: [] }) });
+  });
+  await page.addInitScript(({ session }) => {
+    localStorage.setItem("life-vlog-cloudflare-auth", JSON.stringify(session));
+  }, {
+    session: {
+      access_token: "level-dialog-regression-token",
+      expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      user: {
+        id: "level-dialog-regression-user",
+        email: "level-dialog-regression@fixture.local",
+        user_metadata: { username: "level-dialog-regression" },
+      },
+    },
+  });
+  await page.goto(`${baseUrl}/`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector("#appSplash[hidden]", { state: "attached", timeout: 30000 });
+  await page.waitForSelector("#userMenu:not([hidden])", { state: "visible", timeout: 30000 });
+  await page.waitForSelector("#vipBadge:not([hidden])", { state: "visible", timeout: 30000 });
+
+  await page.click("#avatarButton");
+  await page.waitForSelector("#userPopover:not([hidden])", { state: "visible" });
+  await page.click("#xpPanel");
+  await page.waitForSelector("#levelDialog[open]", { state: "visible" });
+  await page.click("#closeLevelDialog");
+  await page.waitForFunction(() => !document.querySelector("#levelDialog")?.open);
+
+  await page.click("#vipBadge");
+  await page.waitForSelector("#levelDialog[open]", { state: "visible" });
+  await page.locator("#levelDialog").evaluate((dialog) => {
+    dialog.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  });
+  await page.waitForFunction(() => !document.querySelector("#levelDialog")?.open);
+  assert.deepEqual(pageErrors, [], `${label} level dialog runtime errors:\n${pageErrors.join("\n")}`);
+  await context.close();
+}
+
 async function testDesktopPageRails(viewport, label) {
   const context = await browser.newContext({ viewport, serviceWorkers: "block" });
   const page = await context.newPage();
   await page.goto(`${baseUrl}/`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector(".topbar");
+  await page.click("#wishlistNav");
+  await page.waitForSelector("#wishlistPage:not([hidden])");
+  await page.click("#weekendNav");
+  await page.waitForSelector("#weekendPage:not([hidden])");
 
   const rails = await page.evaluate(() => {
     for (const selector of [
@@ -536,13 +609,112 @@ async function testSecretAppendLinkPaste(viewport, label) {
   await context.close();
 }
 
+const pseudoSession = {
+  access_token: "local-regression-token",
+  expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+  user: {
+    id: "local-regression-user",
+    email: "luna@life-vlog.local",
+    user_metadata: { username: "luna", login_username: "luna" },
+  },
+};
+
+async function installPseudoSession(page, { corruptCaches = false } = {}) {
+  await page.addInitScript(({ session, corrupt }) => {
+    localStorage.setItem("life-vlog-cloudflare-auth", JSON.stringify(session));
+    localStorage.setItem(
+      "life-vlog-recipes:luna",
+      corrupt ? "{" : JSON.stringify([{ id: "cached-recipe", name: "本地菜谱", ingredients: [], steps: [] }])
+    );
+    localStorage.setItem(
+      "life-vlog-weekend-plans:luna",
+      corrupt ? "{" : JSON.stringify([{ id: "cached-weekend", title: "本地周末", date: "2030-01-01", images: [] }])
+    );
+  }, { session: pseudoSession, corrupt: corruptCaches });
+}
+
+async function testAuthenticatedHomeStartup() {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
+  const page = await context.newPage();
+  const pageErrors = [];
+  const scripts = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  page.on("request", (request) => {
+    if (request.resourceType() === "script" || request.resourceType() === "stylesheet") scripts.push(request.url());
+  });
+  await installPseudoSession(page, { corruptCaches: true });
+  const startedAt = Date.now();
+  await page.goto(`${baseUrl}/`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector("#appSplash[hidden]", { state: "attached", timeout: 2000 });
+  const boot = await page.evaluate(() => ({
+    busy: document.body.getAttribute("aria-busy"),
+    authHidden: document.querySelector("#authCard")?.hidden,
+    userMenuHidden: document.querySelector("#userMenu")?.hidden,
+    galleryDisabled: document.querySelector("#galleryNav")?.disabled,
+  }));
+  assert.ok(Date.now() - startedAt <= 2000, "authenticated home splash exceeded the 2 second budget");
+  assert.equal(boot.busy, null, "authenticated home stayed aria-busy");
+  assert.equal(boot.authHidden, true, "authenticated home still shows the auth card");
+  assert.equal(boot.userMenuHidden, false, "authenticated home did not expose the user menu");
+  assert.equal(boot.galleryDisabled, false, "authenticated home gallery navigation is not interactive");
+  assert.deepEqual(pageErrors, [], `authenticated home page errors:\n${pageErrors.join("\n")}`);
+  assert.equal(
+    scripts.some((url) => /(?:recipes|weekend|wardrobe|secret|settings)-route-/.test(url)),
+    false,
+    `authenticated gallery cold start requested page route chunks: ${scripts.join("\n")}`
+  );
+  await context.close();
+}
+
+async function testAuthenticatedDeepLink(pageName) {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
+  const page = await context.newPage();
+  const pageErrors = [];
+  const routeScripts = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  page.on("request", (request) => {
+    if (request.resourceType() === "script" && request.url().includes(`${pageName}-route-`)) routeScripts.push(request.url());
+  });
+  await installPseudoSession(page, { corruptCaches: true });
+  await page.goto(`${baseUrl}/?page=${pageName}`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector(`#${pageName}Page:not([hidden])`, { state: "attached", timeout: 5000 });
+  await page.waitForFunction((route) => document.querySelector(`#${route}Page`)?.hidden === false, pageName, { timeout: 5000 });
+  assert.equal(await page.locator("#appSplash").isHidden(), true, `${pageName} deep link left splash visible`);
+  assert.equal(await page.locator("body").getAttribute("aria-busy"), null, `${pageName} deep link left body busy`);
+  assert.equal(routeScripts.length, 1, `${pageName} route chunk was loaded ${routeScripts.length} times`);
+  assert.deepEqual(pageErrors, [], `${pageName} deep link page errors:\n${pageErrors.join("\n")}`);
+  const cacheKeys = await page.evaluate((route) => Object.keys(localStorage).filter((key) => key.startsWith(`life-vlog-${route === "recipes" ? "recipes" : "weekend-plans"}:`)), pageName);
+  assert.deepEqual(cacheKeys, [`life-vlog-${pageName === "recipes" ? "recipes" : "weekend-plans"}:luna`], `${pageName} cache scope was not user-specific`);
+  await context.close();
+}
+
+async function testOfflineShell() {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "allow" });
+  const page = await context.newPage();
+  await page.goto(`${baseUrl}/`, { waitUntil: "networkidle" });
+  await page.waitForSelector("#appSplash[hidden]", { state: "attached", timeout: 30000 });
+  await page.waitForFunction(async () => (await navigator.serviceWorker.getRegistrations()).some((registration) => registration.active), null, { timeout: 30000 });
+  await context.setOffline(true);
+  await page.reload({ waitUntil: "domcontentloaded", timeout: 15000 });
+  await page.waitForSelector(".topbar", { timeout: 15000 });
+  await page.waitForSelector("#appSplash[hidden]", { state: "attached", timeout: 15000 });
+  assert.equal(await page.locator(".topbar").count(), 1, "offline shell did not restore the topbar");
+  assert.equal(await page.locator("#appSplash").isHidden(), true, "offline shell left the splash visible");
+  await context.close();
+}
+
 try {
+  await testAuthenticatedHomeStartup();
+  await testAuthenticatedDeepLink("recipes");
+  await testAuthenticatedDeepLink("weekend");
   await testHomeShell({ width: 1440, height: 900 }, "desktop");
   await testHomeShell({ width: 390, height: 844 }, "mobile");
   await testHomeShell({ width: 375, height: 812 }, "small-mobile-reduced-motion", "reduce");
   await testHomeShell({ width: 844, height: 390 }, "mobile-landscape");
   await testNavigationAndAuth({ width: 390, height: 844 }, "mobile");
   await testNavigationAndAuth({ width: 1440, height: 900 }, "desktop");
+  await testGlobalLevelDialogEvents({ width: 390, height: 844 }, "mobile");
+  await testGlobalLevelDialogEvents({ width: 1440, height: 900 }, "desktop");
   await testDesktopPageRails({ width: 1440, height: 900 }, "desktop");
   await testDiaryDetail({ width: 1440, height: 900 }, "desktop");
   await testDiaryDetail({ width: 390, height: 844 }, "mobile");
@@ -554,6 +726,7 @@ try {
   await testComponentStates({ width: 390, height: 844 }, "mobile");
   await testSecretAppendLinkPaste({ width: 1440, height: 900 }, "desktop");
   await testSecretAppendLinkPaste({ width: 390, height: 844 }, "mobile");
+  await testOfflineShell();
   console.log("Browser regression checks passed for desktop and mobile.");
 } finally {
   await browser.close();

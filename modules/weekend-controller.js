@@ -1,12 +1,7 @@
-import { renderWeekendPlansView } from "./weekend-plans-view.js?v=20260827-004";
+import { renderWeekendPlansView } from "./weekend-plans-view.js";
 import { weekendFromCloudRow, weekendToCloudRow } from "./cloud-models.js";
-
-export function getNextWeekendDate(reference = new Date()) {
-  const date = new Date(reference);
-  const daysUntilSaturday = (6 - date.getDay() + 7) % 7;
-  date.setDate(date.getDate() + daysUntilSaturday);
-  return date.toISOString().slice(0, 10);
-}
+import { pulseListItem } from "./list-render-feedback.js";
+import { getNextWeekendDate } from "./weekend-date.js";
 
 export function createWeekendController({
   elements,
@@ -46,6 +41,7 @@ export function createWeekendController({
   let completionLinks = [];
   let completionExistingImages = [];
   let completionPreviewUrls = [];
+  let isSubmitting = false;
 
   function getStorageKey() {
     const name = getSession() ? getDisplayName() : "guest";
@@ -254,7 +250,7 @@ export function createWeekendController({
       if (removedCompletionPaths.length) void cleanupStoredImagePaths(removedCompletionPaths);
       closeCompletionDialog();
       setStatus("完成回顾已保存。");
-      render();
+      render(plan.id);
     } catch (error) {
       if (newlyUploadedPaths.length) void cleanupStoredImagePaths(newlyUploadedPaths);
       elements.weekendCompletionStatus.textContent = error.message || "完成回顾保存失败。";
@@ -295,6 +291,7 @@ export function createWeekendController({
 
   async function submit(event) {
     event.preventDefault();
+    if (isSubmitting) return;
     const session = getSession();
     if (!session) {
       setStatus("请先登录后再保存周末计划。");
@@ -311,29 +308,38 @@ export function createWeekendController({
     }
     const plans = getPlans();
     const previous = plans.find((item) => item.id === editingId);
+    const wasEditing = Boolean(editingId);
     const uploadedImages = [];
-    for (let index = 0; index < selectedFiles.length; index += 1) {
-      const uploaded = await uploadImageFile(
-        selectedFiles[index],
-        `${slugify(title || "weekend")}-${Date.now()}-${index + 1}`,
-        index + 1,
-        selectedFiles.length,
-        { folder: "weekend", statusSetter: setStatus }
-      );
-      if (!uploaded) {
-        setStatus("场景图片上传失败，请重试。");
-        return;
-      }
-      uploadedImages.push(uploaded);
+    const newlyUploadedPaths = [];
+    const submitButton = elements.weekendSubmitButton;
+    isSubmitting = true;
+    if (submitButton) {
+      submitButton.disabled = true;
+      submitButton.setAttribute("aria-busy", "true");
+      submitButton.textContent = "保存中…";
     }
-    for (let index = 0; index < selectedLinks.length; index += 1) {
-      setStatus(`正在导入第 ${index + 1}/${selectedLinks.length} 个图片链接…`);
-      try {
+    setStatus(wasEditing ? "正在保存周末计划修改…" : "正在保存周末计划…");
+    try {
+      for (let index = 0; index < selectedFiles.length; index += 1) {
+        const uploaded = await uploadImageFile(
+          selectedFiles[index],
+          `${slugify(title || "weekend")}-${Date.now()}-${index + 1}`,
+          index + 1,
+          selectedFiles.length,
+          { folder: "weekend", statusSetter: setStatus }
+        );
+        if (!uploaded) throw new Error("场景图片上传失败，请重试。");
+        uploadedImages.push(uploaded);
+        newlyUploadedPaths.push(...[uploaded.image_path, uploaded.thumbnail_path].filter(Boolean));
+      }
+      for (let index = 0; index < selectedLinks.length; index += 1) {
+        setStatus(`正在导入第 ${index + 1}/${selectedLinks.length} 个图片链接…`);
         const copied = await copyUrlToR2(
           selectedLinks[index],
           `${slugify(title || "weekend")}-link-${Date.now()}-${index + 1}`,
           "weekend"
         );
+        if (!copied?.key || !copied.url) throw new Error("图片链接导入失败，请重试。");
         uploadedImages.push({
           image_path: `r2:${copied.key}`,
           image_url: copied.url,
@@ -342,59 +348,71 @@ export function createWeekendController({
           width: 0,
           height: 0,
         });
-      } catch (error) {
-        setStatus(`图片链接导入失败：${error.message}`);
-        return;
+        newlyUploadedPaths.push(`r2:${copied.key}`);
+      }
+      let plan = {
+        id: normalizeUuid(editingId),
+        userId: previous?.userId || session.user.id,
+        title,
+        date: elements.weekendDateInput.value || getNextWeekendDate(),
+        location: elements.weekendLocationInput.value.trim(),
+        type: elements.weekendTypeInput.value,
+        note: elements.weekendNoteInput.value.trim(),
+        images: [...existingImages, ...uploadedImages],
+        done: previous?.done || false,
+        completionNote: previous?.completionNote || "",
+        completionImages: previous?.completionImages || [],
+        completedAt: previous?.completedAt || "",
+        createdAt: previous?.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      const { data, error } = await repository.upsert(
+        "weekend_plans",
+        weekendToCloudRow(plan, plan.userId),
+        { onConflict: "id", select: "*", single: true }
+      );
+      if (error) throw error;
+      if (!data) throw new Error("周末计划保存没有返回结果，请重试。");
+      plan = weekendFromCloudRow(data);
+      const retainedPaths = new Set(
+        (plan.images || []).flatMap((image) => [image.image_path, image.thumbnail_path]).filter(Boolean)
+      );
+      const removedPaths = (previous?.images || [])
+        .flatMap((image) => [image.image_path, image.thumbnail_path])
+        .filter((path) => path && !retainedPaths.has(path));
+      if (removedPaths.length) void cleanupStoredImagePaths(removedPaths);
+      setPlans(
+        wasEditing
+          ? plans.map((item) => (item.id === editingId ? plan : item))
+          : [plan, ...plans]
+      );
+      save();
+      resetForm();
+      setExpanded(false);
+      const successMessage = wasEditing ? "周末计划已更新。" : "周末计划已保存。";
+      setStatus(successMessage);
+      render(plan.id);
+      void Promise.resolve()
+        .then(() => awardExperience(wasEditing ? "weekendEdit" : "weekend"))
+        .then((gainedExp) => {
+          if (gainedExp) setStatus(`${successMessage} 修为 +${gainedExp}`);
+        })
+        .catch(() => {});
+    } catch (error) {
+      if (newlyUploadedPaths.length) void cleanupStoredImagePaths(newlyUploadedPaths);
+      setExpanded(true);
+      setStatus(error?.message || "周末计划保存失败，请重试。");
+    } finally {
+      isSubmitting = false;
+      if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.removeAttribute("aria-busy");
+        submitButton.textContent = editingId ? "保存修改" : "保存计划";
       }
     }
-    let plan = {
-      id: normalizeUuid(editingId),
-      userId: previous?.userId || session.user.id,
-      title,
-      date: elements.weekendDateInput.value || getNextWeekendDate(),
-      location: elements.weekendLocationInput.value.trim(),
-      type: elements.weekendTypeInput.value,
-      note: elements.weekendNoteInput.value.trim(),
-      images: [...existingImages, ...uploadedImages],
-      done: previous?.done || false,
-      completionNote: previous?.completionNote || "",
-      completionImages: previous?.completionImages || [],
-      completedAt: previous?.completedAt || "",
-      createdAt: previous?.createdAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    const { data, error } = await repository.upsert(
-      "weekend_plans",
-      weekendToCloudRow(plan, plan.userId),
-      { onConflict: "id", select: "*", single: true }
-    );
-    if (error) {
-      setStatus(`周末计划同步失败：${error.message}`);
-      return;
-    }
-    plan = weekendFromCloudRow(data);
-    const retainedPaths = new Set(
-      (plan.images || []).flatMap((image) => [image.image_path, image.thumbnail_path]).filter(Boolean)
-    );
-    const removedPaths = (previous?.images || [])
-      .flatMap((image) => [image.image_path, image.thumbnail_path])
-      .filter((path) => path && !retainedPaths.has(path));
-    if (removedPaths.length) void cleanupStoredImagePaths(removedPaths);
-    const wasEditing = Boolean(editingId);
-    setPlans(
-      wasEditing
-        ? plans.map((item) => (item.id === editingId ? plan : item))
-        : [plan, ...plans]
-    );
-    save();
-    resetForm();
-    setExpanded(false);
-    const gainedExp = await awardExperience(wasEditing ? "weekendEdit" : "weekend");
-    setStatus(`${wasEditing ? "周末计划已更新。" : "周末计划已保存。"}${gainedExp ? ` 修为 +${gainedExp}` : ""}`);
-    render();
   }
 
-  function render() {
+  function render(updatedId = "") {
     renderReminder();
     renderWeekendPlansView({
       listElement: elements.weekendList,
@@ -409,6 +427,7 @@ export function createWeekendController({
       onRecap: openCompletionDialog,
       onOpenGallery: openGallery,
     });
+    if (updatedId) pulseListItem(elements.weekendList, "data-weekend-id", updatedId);
   }
 
   function edit(id) {
@@ -457,10 +476,10 @@ export function createWeekendController({
     setPlans(getPlans().map((item) => (item.id === id ? weekendFromCloudRow(data) : item)));
     save();
     setStatus("周末计划状态已更新。");
-    render();
+    render(id);
   }
 
-  async function remove(id) {
+  async function remove(id, triggerButton = null) {
     const session = getSession();
     const plan = getPlans().find((item) => item.id === id);
     if (!session || !plan || !canManageItem(plan)) return;
@@ -472,7 +491,10 @@ export function createWeekendController({
       cancelLabel: "先保留",
       danger: true,
     });
-    if (!confirmed) return;
+    if (!confirmed) {
+      triggerButton?.focus({ preventScroll: true });
+      return;
+    }
     if (!canSync()) {
       setStatus("数据库尚未连接，不能删除周末计划。");
       return;
@@ -485,18 +507,30 @@ export function createWeekendController({
     );
     if (!trashSaved) {
       setStatus("无法写入回收站，已取消删除。");
+      triggerButton?.focus({ preventScroll: true });
       return;
     }
     const { error } = await repository.remove("weekend_plans", { id });
     if (error) {
       await rollbackTrashItem(trashSaved);
       setStatus(`删除同步失败：${error.message}`);
+      triggerButton?.focus({ preventScroll: true });
       return;
     }
+    const cards = [...(elements.weekendList?.querySelectorAll("[data-weekend-id]") || [])];
+    const removedIndex = cards.findIndex((card) => card.dataset.weekendId === id);
+    const adjacentId = cards[removedIndex + 1]?.dataset.weekendId || cards[removedIndex - 1]?.dataset.weekendId || "";
     setPlans(getPlans().filter((item) => item.id !== id));
     save();
     setStatus("周末计划已移到回收站，30 天内可以恢复。");
     render();
+    const adjacentCard = adjacentId
+      ? [...(elements.weekendList?.querySelectorAll("[data-weekend-id]") || [])]
+        .find((card) => card.dataset.weekendId === adjacentId)
+      : null;
+    const focusTarget = adjacentCard?.querySelector("[data-edit-weekend], [data-toggle-weekend], [data-delete-weekend]")
+      || elements.weekendPage?.querySelector('[data-page-heading="weekend"]');
+    focusTarget?.focus({ preventScroll: true });
   }
 
   function removeImageEntry(type, index) {

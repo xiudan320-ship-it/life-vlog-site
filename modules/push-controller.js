@@ -36,7 +36,7 @@ export function createPushController({
   function registerWorker() {
     if (!("serviceWorker" in navigator)) return;
     if (!["https:", "http:"].includes(window.location.protocol)) return;
-    navigator.serviceWorker.register("./service-worker.js", { scope: "./" }).catch(() => {});
+    navigator.serviceWorker.register("./sw.js", { scope: "./" }).catch(() => {});
   }
 
   async function getSubscription() {
@@ -156,31 +156,11 @@ export function createPushController({
   }
 
   function ensureSettingsPage() {
-    const nav = elements.settingsDialog?.querySelector(".settings-sidebar nav");
-    const content = elements.settingsDialog?.querySelector(".settings-content");
-    if (!nav || !content) return;
-    if (!nav.querySelector('[data-settings-section="settingsNotifications"]')) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.dataset.settingsSection = "settingsNotifications";
-      button.setAttribute("aria-selected", "false");
-      button.textContent = "通知";
-      button.addEventListener("click", () => setActiveSettingsSection("settingsNotifications"));
-      nav.insertBefore(button, nav.querySelector('[data-settings-section="settingsTools"]'));
-    }
-    if (!document.querySelector("#settingsNotifications")) {
-      const group = document.createElement("section");
-      group.className = "settings-group settings-notification-group";
-      group.id = "settingsNotifications";
-      group.hidden = true;
-      group.innerHTML = `<p class="kicker">Web Push</p><h3>消息通知</h3>
-        <div class="push-settings-card"><div><span>这台设备</span><strong id="pushNotificationState">检查中</strong><small id="pushNotificationDetail">正在读取通知状态...</small></div>
-        <div class="push-settings-actions"><button class="primary" id="enablePushNotifications" type="button">开启通知</button><button id="disablePushNotifications" type="button" hidden>关闭这台设备</button></div></div>
-        <p class="status-line" id="pushNotificationStatus"></p>`;
-      content.append(group);
-      group.querySelector("#enablePushNotifications").addEventListener("click", enable);
-      group.querySelector("#disablePushNotifications").addEventListener("click", disable);
-    }
+    const group = document.querySelector("#settingsNotifications");
+    if (!group || group.dataset.pushUiBound === "true") return;
+    group.dataset.pushUiBound = "true";
+    group.querySelector("#enablePushNotifications")?.addEventListener("click", enable);
+    group.querySelector("#disablePushNotifications")?.addEventListener("click", disable);
   }
 
   async function openDestination(data = {}) {
@@ -208,7 +188,13 @@ export function createPushController({
     } else {
       await openNotificationsPanel();
     }
-    if (location.search.includes("push")) history.replaceState({}, "", location.pathname);
+    if (location.search.includes("push")) {
+      const cleaned = new URL(location.href);
+      cleaned.searchParams.delete("pushPhoto");
+      cleaned.searchParams.delete("pushType");
+      cleaned.searchParams.delete("notificationId");
+      history.replaceState({}, "", `${cleaned.pathname}${cleaned.search}${cleaned.hash}`);
+    }
   }
 
   return {

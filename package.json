@@ -3,15 +3,37 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "node --check app.js && node --check service-worker.js && node --check cloudflare-worker/src/worker.js && node --check cloudflare-worker/src/r2-audit.js",
-    "test:unit": "node --test tests/r2-audit.mjs tests/app-domain.mjs tests/secret-filter-domain.mjs tests/shopping-controller.mjs tests/wishlist-domain.mjs tests/worker-object-delete.mjs",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "assets:optimize": "node scripts/optimize-assets.mjs",
+    "test:build": "node tests/build-budget.mjs && node tests/asset-budget.mjs",
+    "check": "node --check app.js && node --check src/sw.js && node --check cloudflare-worker/src/worker.js && node --check cloudflare-worker/src/r2-audit.js",
+    "test:unit": "node --test tests/r2-audit.mjs tests/app-domain.mjs tests/app-startup-controller.mjs tests/app-splash-controller.mjs tests/app-health-monitor.mjs tests/lazy-controller.mjs tests/list-render-feedback.mjs tests/diary-domain.mjs tests/diary-filter-domain.mjs tests/diary-gallery-view.mjs tests/diary-feed-motion-domain.mjs tests/diary-media-domain.mjs tests/diary-action-domain.mjs tests/settings-section-registry.mjs tests/diary-video-layout.mjs tests/image-service.mjs tests/photo-dialog-view.mjs tests/secret-data-service.mjs tests/secret-filter-domain.mjs tests/shopping-controller.mjs tests/wishlist-domain.mjs tests/worker-cors.mjs tests/worker-object-delete.mjs tests/worker-admin-photo-delete.mjs && node tests/secret-schema-contract.mjs",
     "test:static": "node tests/static-contracts.mjs && node tests/ui-contracts.mjs && node tests/smoke.mjs",
     "test:structure": "node tests/structure-health.mjs && node tests/css-health.mjs",
-    "test:browser": "node tests/browser-regression.mjs",
+    "test:browser": "node tests/browser-regression.mjs && node tests/c-performance-regression.mjs",
+    "test:coverage": "node tests/css-coverage.mjs",
+    "test:a11y": "node tests/axe-regression.mjs",
     "test:release": "node tests/release-smoke.mjs",
-    "test": "pnpm run check && pnpm run test:unit && pnpm run test:static && pnpm run test:structure && pnpm run test:browser"
+    "test:worker-online": "node tests/worker-cors-online.mjs",
+    "test": "pnpm run check && pnpm run test:unit && pnpm run test:static && pnpm run test:structure && pnpm run assets:optimize && pnpm run build && pnpm run test:build && pnpm run test:coverage && pnpm run test:browser"
   },
   "devDependencies": {
-    "playwright": "1.62.1"
+    "@axe-core/playwright": "4.10.2",
+    "@block65/webcrypto-web-push": "1.0.2",
+    "playwright": "1.62.1",
+    "sharp": "0.34.3",
+    "vite": "7.1.4",
+    "vite-plugin-pwa": "1.0.2"
+  },
+  "dependencies": {
+    "web-vitals": "5.1.0",
+    "workbox-core": "7.3.0",
+    "workbox-expiration": "7.3.0",
+    "workbox-precaching": "7.3.0",
+    "workbox-routing": "7.3.0",
+    "workbox-strategies": "7.3.0",
+    "workbox-window": "7.3.0"
   }
 }

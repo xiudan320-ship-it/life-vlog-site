@@ -9,6 +9,7 @@ import {
 } from "./diary-upload-domain.js";
 import { composeDiaryStoredNote, extractImageUrls, getClipboardImageUrl } from "./media-metadata.js";
 import { createVideoPosterFile, getVideoContentType } from "./image-service.js";
+import { isNetworkLikeError } from "./network-error.js";
 import { validateVlogUpload } from "./vlog-mode.js";
 
 export function createDiaryComposerController({
@@ -92,11 +93,6 @@ export function createDiaryComposerController({
 
   function clearDraft() {
     localStorage.removeItem(getDraftStorageKey());
-  }
-
-  function isNetworkLikeError(error) {
-    const message = String(error?.message || error || "").toLowerCase();
-    return !navigator.onLine || message.includes("failed to fetch") || message.includes("network");
   }
 
   async function publish(payload, { queued = false } = {}) {

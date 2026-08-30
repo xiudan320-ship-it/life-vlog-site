@@ -34,9 +34,17 @@ body:has(#weekendPage:not([hidden])) .topbar {
   background: color-mix(in srgb, var(--lv-bg), transparent 6%);
 }
 
+body:has(#weekendPage:not([hidden])) .brand small {
+  color: var(--lv-text-muted);
+}
+
 body:has(#weekendPage:not([hidden])) .main-nav {
   border-color: var(--lv-border);
   background: var(--lv-surface);
+}
+
+body:has(#weekendPage:not([hidden])) .main-nav button {
+  color: var(--lv-text-muted);
 }
 
 body:has(#weekendPage:not([hidden])) .main-nav button.active {
@@ -661,7 +669,11 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
 }
 
 .weekend-card-actions button {
-  min-height: 40px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   padding: 0 13px;
   border: 1px solid var(--lv-border);
   border-radius: 999px;
@@ -679,9 +691,22 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
   background: color-mix(in srgb, var(--lv-text), transparent 92%);
 }
 
-.weekend-card-actions button[data-delete-weekend] {
+.weekend-card-actions button[data-delete-weekend],
+.weekend-card-actions .weekend-delete-action {
   border-color: color-mix(in srgb, var(--lv-danger), transparent 62%);
   color: var(--lv-danger);
+}
+
+.weekend-card-actions .weekend-delete-action:hover {
+  border-color: color-mix(in srgb, var(--lv-danger), transparent 38%);
+  color: var(--lv-danger);
+  background: color-mix(in srgb, var(--lv-danger), transparent 92%);
+}
+
+.weekend-card-actions .weekend-delete-action .ui-icon-inline {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
 }
 
 .weekend-scenes {
@@ -876,7 +901,7 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
   }
 
   .weekend-card-actions button {
-    min-height: 42px;
+    min-height: 44px;
     padding-inline: 12px;
   }
 

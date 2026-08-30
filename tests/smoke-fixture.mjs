@@ -24,11 +24,14 @@ export const [app, redesignStyles, styles, worker, schema, index, manifestText] 
   readFile(new URL("../cloudflare-worker/src/worker.js", import.meta.url), "utf8"),
   readFile(new URL("../cloudflare-worker/schema.d1.sql", import.meta.url), "utf8"),
   readFile(new URL("../index.html", import.meta.url), "utf8"),
-  readFile(new URL("../manifest.webmanifest", import.meta.url), "utf8"),
+  readFile(new URL("../package.json", import.meta.url), "utf8"),
 ]);
 export const css = redesignStyles.join("\n");
-export const serviceWorker = await readFile(new URL("../service-worker.js", import.meta.url), "utf8");
+export const serviceWorker = await readFile(new URL("../src/sw.js", import.meta.url), "utf8");
 export const diaryDetailCss = await readFile(new URL("../diary-detail.css", import.meta.url), "utf8");
+export const settingsTemplate = await readFile(new URL("../modules/routes/templates/settings.html", import.meta.url), "utf8");
+export const settingsViewModule = await readFile(new URL("../modules/settings-view.js", import.meta.url), "utf8");
+export const settingsSectionRegistry = await import(new URL("../modules/settings-section-registry.js", import.meta.url));
 export const weekendBoardCss = await readFile(new URL("../weekend-board.css", import.meta.url), "utf8");
 export const weekendGalleryModule = await readFile(
   new URL("../modules/weekend-gallery.js", import.meta.url),
@@ -257,7 +260,7 @@ export const secretViewerCss = await readFile(
 export const appLifecycle = await import(
   new URL("../modules/app-lifecycle.js", import.meta.url)
 );
-export const pageHeaders = await readFile(new URL("../_headers", import.meta.url), "utf8");
+export const pageHeaders = await readFile(new URL("../public/_headers", import.meta.url), "utf8");
 export const confirmDialogModule = await readFile(
   new URL("../modules/confirm-dialog.js", import.meta.url),
   "utf8"
@@ -287,6 +290,7 @@ export const gratitudeView = await import(new URL("../modules/gratitude-view.js"
 export const notificationView = await import(new URL("../modules/notification-view.js", import.meta.url));
 export const vipCenter = await import(new URL("../modules/vip-center.js", import.meta.url));
 export const diaryGalleryView = await import(new URL("../modules/diary-gallery-view.js", import.meta.url));
+export const diaryFeedMotionDomain = await import(new URL("../modules/diary-feed-motion-domain.js", import.meta.url));
 export const mobileDiaryView = await import(new URL("../modules/mobile-diary-view.js", import.meta.url));
 export const mediaGestureDomain = await import(new URL("../modules/media-gesture-domain.js", import.meta.url));
 export const secretGalleryView = await import(new URL("../modules/secret-gallery-view.js", import.meta.url));

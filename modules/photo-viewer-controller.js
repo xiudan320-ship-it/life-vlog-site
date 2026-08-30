@@ -13,14 +13,14 @@ import {
   setViewerStatus,
   updateDiaryViewerToolbar,
   updateSecretViewerToolbar,
-} from "./photo-dialog-view.js?v=20260826-001";
+} from "./photo-dialog-view.js";
 import {
   getDiaryMediaPosterUrl,
   getDiaryMediaType,
   getDiaryMediaVideoUrl,
 } from "./media-metadata.js";
-import { normalizeSecretPhotoTags } from "./secret-domain.js?v=20260826-005";
-import { startDiaryMotionVideo, stopDiaryMotionVideo } from "./diary-video-layout.js?v=20260824-030";
+import { normalizeSecretPhotoTags } from "./secret-domain.js";
+import { startDiaryMotionVideo, stopDiaryMotionVideo } from "./diary-video-layout.js";
 
 export function createPhotoViewerController({
   elements,
@@ -389,6 +389,9 @@ export function createPhotoViewerController({
         startDiaryMotionVideo(els.dialogVideo, els.dialogMedia, {
           audible: mediaType === "video",
           controlsOnTap: mediaType === "video" && isMobileViewport(),
+          statusElement: els.dialogVideoStatus,
+          statusTextElement: els.dialogVideoStatusText,
+          retryButton: els.dialogVideoRetry,
         });
       }
     }

@@ -1,5 +1,7 @@
-import { bindWeekendGalleryInteractions } from "./weekend-gallery.js?v=20260824-030";
+import { bindWeekendGalleryInteractions } from "./weekend-gallery.js";
 import { escapeHtml, formatCommentTime } from "./ui-formatters.js";
+import { captureListFocus, restoreListFocus } from "./list-render-feedback.js";
+import { renderListIcon } from "./list-icons.js";
 
 export function sortWeekendPlans(plans = []) {
   return [...plans].sort(
@@ -31,11 +33,11 @@ function renderWeekendCards(plans, { getAuthorName, canManageItem }) {
     .map((plan, index) => {
       const canManage = canManageItem(plan);
       const date = formatWeekendDate(plan.date);
-      const stateText = plan.done ? "已完成" : "待完成";
+      const stateText = plan.done ? "已完成" : "未完成";
       const stateMarkup = plan.done
         ? canManage
-          ? `<button class="weekend-state-control is-complete" type="button" data-toggle-weekend="${escapeHtml(plan.id)}" aria-label="取消完成" aria-pressed="true" title="取消完成"><img src="./assets/weekend-complete-stamp.png" alt="" aria-hidden="true" /></button>`
-          : `<span class="weekend-state-stamp" role="img" aria-label="已完成" title="已完成"><img src="./assets/weekend-complete-stamp.png" alt="" /></span>`
+          ? `<button class="weekend-state-control is-complete" type="button" data-toggle-weekend="${escapeHtml(plan.id)}" aria-label="取消完成" aria-pressed="true" title="取消完成"><img src="/assets/generated/weekend-complete-stamp-1x.webp" alt="" aria-hidden="true" /></button>`
+          : `<span class="weekend-state-stamp" role="img" aria-label="已完成" title="已完成"><img src="/assets/generated/weekend-complete-stamp-1x.webp" alt="" /></span>`
         : "";
       const openControlMarkup = canManage && !plan.done
         ? `<div class="weekend-card-tools">
@@ -71,7 +73,7 @@ function renderWeekendCards(plans, { getAuthorName, canManageItem }) {
               ${canManage ? `<div class="weekend-card-actions">
                 <button type="button" data-edit-weekend="${escapeHtml(plan.id)}">编辑</button>
                 ${plan.done ? `<button type="button" data-recap-weekend="${escapeHtml(plan.id)}">${plan.completionNote || plan.completionImages?.length ? "编辑回顾" : "补充回顾"}</button>` : ""}
-                <button type="button" data-delete-weekend="${escapeHtml(plan.id)}">删除</button>
+                <button class="weekend-delete-action" type="button" data-delete-weekend="${escapeHtml(plan.id)}" aria-label="删除周末计划：${escapeHtml(plan.title || "未命名周末计划")}">${renderListIcon("trash", "ui-icon-inline")}<span>删除</span></button>
               </div>` : ""}
             </div>
             ${openControlMarkup}
@@ -97,14 +99,18 @@ export function renderWeekendPlansView({
   onOpenGallery,
 }) {
   if (!listElement) return;
+  const focusSnapshot = captureListFocus(listElement);
+  const finishRender = () => restoreListFocus(listElement, focusSnapshot);
   const doneCount = plans.filter((plan) => plan.done).length;
   if (summaryElement) summaryElement.textContent = `${plans.length} 个计划 · ${doneCount} 个已完成`;
   if (!signedIn) {
     listElement.innerHTML = `<div class="weekend-empty"><span class="weekend-empty-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><rect x="3" y="4" width="18" height="17" rx="3" /><path d="M7 2v4M17 2v4M3 9h18M8 13h3M8 17h5" /></svg></span><strong>登录后可以安排周末去哪、吃什么和做什么。</strong></div>`;
+    finishRender();
     return;
   }
   if (!plans.length) {
     listElement.innerHTML = `<div class="weekend-empty"><span class="weekend-empty-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><rect x="3" y="4" width="18" height="17" rx="3" /><path d="M7 2v4M17 2v4M3 9h18M8 13h3M8 17h5" /></svg></span><strong>这个周末还没有安排。给自己留一个值得期待的计划。</strong></div>`;
+    finishRender();
     return;
   }
 
@@ -117,7 +123,7 @@ export function renderWeekendPlansView({
     button.addEventListener("click", () => onToggle(button.dataset.toggleWeekend));
   });
   listElement.querySelectorAll("[data-delete-weekend]").forEach((button) => {
-    button.addEventListener("click", () => onDelete(button.dataset.deleteWeekend));
+    button.addEventListener("click", () => onDelete(button.dataset.deleteWeekend, button));
   });
   listElement.querySelectorAll("[data-recap-weekend]").forEach((button) => {
     button.addEventListener("click", () => onRecap(plans.find((plan) => plan.id === button.dataset.recapWeekend)));
@@ -126,4 +132,5 @@ export function renderWeekendPlansView({
     getPlan: (id) => plans.find((plan) => plan.id === id),
     openGallery: onOpenGallery,
   });
+  finishRender();
 }

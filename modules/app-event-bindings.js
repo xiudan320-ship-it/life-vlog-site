@@ -1,6 +1,4 @@
-import { bindContentFormEvents } from "./content-form-event-bindings.js";
 import { bindMediaEvents } from "./media-event-bindings.js";
-import { bindSettingsEvents } from "./settings-event-bindings.js?v=20260826-001";
 
 export function bindAppEvents({
   elements,
@@ -15,6 +13,14 @@ export function bindAppEvents({
     saveConfig,
     switchPage,
     openRandomMemory,
+    showMiniToast,
+    routeLoader,
+    pageControllers,
+    getControllerOptions,
+    performanceDiagnostics,
+    outlet,
+    collect,
+    bindRouteEvents,
   } = core;
   const {
     handleToolDockClick,
@@ -72,6 +78,27 @@ export function bindAppEvents({
   els.setupToggle.addEventListener("click", () => {
     els.setupPanel.hidden = !els.setupPanel.hidden;
   });
+  els.avatarButton?.addEventListener("click", () => {
+    els.userPopover.hidden = !els.userPopover.hidden;
+  });
+  els.accountSettingsButton?.addEventListener("click", () => {
+    els.userPopover.hidden = true;
+    void routeLoader?.load("settings", {
+      elements,
+      outlet,
+      collect,
+      bindRouteEvents,
+      state,
+      controllers: pageControllers || controllers,
+      actions: core,
+      getControllerOptions,
+    }).then(() => {
+      performanceDiagnostics?.render?.();
+      pageControllers?.familySettings?.openSettingsDialog?.("settingsAppearance");
+    }).catch((error) => {
+      showMiniToast?.(`设置加载失败：${error?.message || "请重试"}`, { kind: "error" });
+    });
+  });
   els.themeToggle.addEventListener("click", toggleTheme);
   els.galleryNav.addEventListener("click", () => {
     setUploadExpanded(false);
@@ -87,7 +114,6 @@ export function bindAppEvents({
     els.recipesPage?.scrollIntoView({ behavior: "smooth", block: "start" });
   });
   els.wishlistNav.addEventListener("click", () => {
-    wishlistHubController.showWishlist();
     switchPage("wishlist");
   });
   els.weekendNav.addEventListener("click", () => switchPage("weekend"));
@@ -148,11 +174,11 @@ export function bindAppEvents({
   els.weeklyReviewDialog?.addEventListener("click", (event) => {
     if (event.target === els.weeklyReviewDialog) els.weeklyReviewDialog.close();
   });
-  els.secretOpen?.addEventListener("click", () => {
-    if (switchPage("secret", { restoreScroll: false, focusHeading: false })) {
-      els.secretPage?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  });
+    els.secretOpen?.addEventListener("click", () => {
+      void switchPage("secret", { restoreScroll: false, focusHeading: false }).then((opened) => {
+        if (opened) els.secretPage?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
   els.thanksOpen?.addEventListener("click", () => switchPage("thanks"));
   els.secretPinClose?.addEventListener("click", () => els.secretPinDialog?.close());
   els.secretPinDialog?.addEventListener("close", () => {
@@ -184,23 +210,34 @@ export function bindAppEvents({
     els.composer.scrollIntoView({ behavior: "smooth", block: "start" });
   });
   els.quickRecipe.addEventListener("click", () => {
-    switchPage("recipes", { restoreScroll: false, focusHeading: false });
-    setRecipeExpanded(true);
-    els.recipeComposer.scrollIntoView({ behavior: "smooth", block: "start" });
+    void switchPage("recipes", { restoreScroll: false, focusHeading: false }).then((opened) => {
+      if (!opened) return;
+      setRecipeExpanded(true);
+      els.recipeComposer.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   });
   els.quickWish.addEventListener("click", () => {
-    wishlistHubController.showWishlist();
-    switchPage("wishlist", { restoreScroll: false, focusHeading: false });
-    setWishlistExpanded(true);
-    els.wishlistComposer.scrollIntoView({ behavior: "smooth", block: "start" });
+    void switchPage("wishlist", { restoreScroll: false, focusHeading: false }).then((opened) => {
+      if (!opened) return;
+      wishlistHubController.showWishlist();
+      setWishlistExpanded(true);
+      els.wishlistComposer.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   });
     els.quickWeekend.addEventListener("click", () => {
-    switchPage("weekend", { restoreScroll: false, focusHeading: false });
-    setWeekendExpanded(true);
-    els.weekendComposer.scrollIntoView({ behavior: "smooth", block: "start" });
+    void switchPage("weekend", { restoreScroll: false, focusHeading: false }).then((opened) => {
+      if (!opened) return;
+      setWeekendExpanded(true);
+      els.weekendComposer.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   });
   els.overviewLevelButton?.addEventListener("click", openLevelDialog);
   els.xpPanel?.addEventListener("click", openLevelDialog);
+  els.closeLevelDialog?.addEventListener("click", () => els.levelDialog.close());
+  els.levelDialog?.addEventListener("click", (event) => {
+    if (event.target === els.levelDialog) els.levelDialog.close();
+  });
+  els.vipBadge?.addEventListener("click", openLevelDialog);
   els.saveConfig.addEventListener("click", saveConfig);
   els.loginButton.addEventListener("click", loginWithPassword);
   els.signupButton.addEventListener("click", signupWithPassword);
@@ -214,9 +251,24 @@ export function bindAppEvents({
     els.forgotPasswordDialog.showModal();
     els.resetEmailInput?.focus();
   });
-  bindContentFormEvents({ elements, state, controllers });
-  bindSettingsEvents({ elements, state, controllers, core });
   bindMediaEvents({ elements, state, pageSize, controllers, vlogMode, core });
-  
-  
+  let contentFormModulePromise = null;
+  let settingsModulePromise = null;
+  let settingsBound = false;
+  return {
+    bindRouteEvents: (page) => {
+      if (page === "settings") {
+        settingsModulePromise ||= import("./settings-event-bindings.js");
+        return settingsModulePromise.then(({ bindSettingsEvents }) => {
+          if (settingsBound) return;
+          settingsBound = true;
+          return bindSettingsEvents({ elements, state, controllers, core });
+        });
+      }
+      contentFormModulePromise ||= import("./content-form-event-bindings.js");
+      return contentFormModulePromise.then(({ bindContentFormEvents }) => (
+        bindContentFormEvents({ elements, state, controllers })
+      ));
+    },
+  };
 }
