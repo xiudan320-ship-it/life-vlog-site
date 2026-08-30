@@ -13,7 +13,7 @@
 | 账户资料、头像、家庭设置、缓存设置 | `modules/profile-preferences-controller.js`, `modules/family-settings-controller.js` | `modules/settings-event-bindings.js`, `modules/account-view.js` |
 | 日记列表、搜索、筛选、瀑布流 | `modules/diary-feed-controller.js` | `modules/diary-gallery-view.js`, `modules/diary-domain.js` |
 | 发布 / 编辑日记、上传队列 | `modules/diary-composer-controller.js`, `modules/photo-detail-controller.js` | `modules/diary-upload-domain.js`, `modules/content-form-event-bindings.js` |
-| VLOG 模式、视频声音、自动播放、控件 | `modules/vlog-mode.js`, `modules/photo-viewer-controller.js` | `modules/diary-video-layout.js`, `modules/media-event-bindings.js` |
+| VLOG 模式、视频声音、列表视觉中心自动播放、控件 | `modules/vlog-mode.js`, `modules/photo-viewer-controller.js`, `modules/diary-feed-motion-coordinator.js` | `modules/diary-feed-motion-domain.js`, `modules/diary-video-layout.js`, `modules/media-event-bindings.js` |
 | 图片 / 视频详情、缩放、前后切换、手势 | `modules/photo-viewer-controller.js`, `modules/photo-detail-controller.js` | `modules/media-event-bindings.js`, `modules/media-gesture-domain.js`, `modules/photo-dialog-view.js` |
 | 周末计划、完成相册 | `modules/weekend-controller.js` | `modules/weekend-gallery.js`, `modules/weekend-plans-view.js`, `modules/content-form-event-bindings.js` |
 | 心愿单 | `modules/wishlist-controller.js` | `modules/wishlist-view.js`, `modules/list-icons.js`, `modules/wishlist-hub-controller.js`, `modules/content-form-event-bindings.js` |

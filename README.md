@@ -2,6 +2,8 @@
 
 一个给家庭成员一起用的生活日记网页软件。前端部署在 Cloudflare Pages，登录、数据库、图片上传和私密内容都走 Cloudflare Worker + D1 + R2。
 
+项目技术总览和维护入口见 [`docs/README.md`](docs/README.md)。新对话或其他程序接手前应先阅读该索引、[`docs/TECHNICAL_OVERVIEW.md`](docs/TECHNICAL_OVERVIEW.md) 与 [`CHANGELOG.md`](CHANGELOG.md)。
+
 线上地址：
 
 ```text
@@ -32,13 +34,15 @@ wrangler deploy
 ## 本地预览
 
 ```powershell
-python -m http.server 8000 --bind 127.0.0.1
+pnpm install --frozen-lockfile
+pnpm dev
 ```
 
-然后访问：
+使用终端输出的 Vite 本地地址。需要验证生产构建时：
 
-```text
-http://127.0.0.1:8000/index.html
+```powershell
+pnpm build
+pnpm preview
 ```
 
 ## iPhone 主屏幕
@@ -55,3 +59,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\deploy-cloudflare-pages.ps
 ```
 
 发布完成后检查正式地址的页面状态、核心资源版本和本次改动对应的页面行为。
+
+## 变更记录
+
+每次修改代码、样式、配置、数据库结构、依赖、测试或部署逻辑，都必须同步更新 [`CHANGELOG.md`](CHANGELOG.md)。完整规则见 [`docs/CHANGE_WORKFLOW.md`](docs/CHANGE_WORKFLOW.md)。

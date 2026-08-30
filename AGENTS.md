@@ -18,3 +18,5 @@
 
 10、凡涉及 UI 结构、视觉样式、交互、响应式、动效或无障碍的任务，使用 `ui-ux-pro-max` 作为顾问参考：先读取其 `SKILL.md`，按需查询相关 UX 或技术栈规则，并在交付前完成对应检查；插件建议不得覆盖本文件规则或用户的明确要求。
 
+11、每次修改仓库内容都必须同步维护技术文档。开始前阅读 `docs/README.md` 和相关文档；代码、样式、配置、数据库结构、依赖、测试或部署逻辑发生变化时，必须更新根目录 `CHANGELOG.md` 的 `[Unreleased]`。模块职责变化同步 `docs/MODULE_MAP.md`，架构、数据流、缓存、PWA、构建或部署变化同步 `docs/TECHNICAL_OVERVIEW.md`，具体流程遵循 `docs/CHANGE_WORKFLOW.md`。禁止只改代码不留记录。
+
