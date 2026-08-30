@@ -1,11 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { renderFeedImage, renderPhotoMedia, shouldAutoplayDiaryFeedMedia } from "../modules/diary-gallery-view.js";
+import { renderFeedImage, renderPhotoMedia } from "../modules/diary-gallery-view.js";
 
-test("diary feed keeps ordinary video cards poster-only", () => {
-  assert.equal(shouldAutoplayDiaryFeedMedia(0, { mobile: false, reducedMotion: true }), false);
-  assert.equal(shouldAutoplayDiaryFeedMedia(0, { mobile: false, connection: { saveData: true } }), false);
-  assert.equal(shouldAutoplayDiaryFeedMedia(0, { mobile: true, connection: { saveData: true } }), false);
+test("diary feed renders ordinary video cards as poster plus deferred motion source", () => {
   const markup =
     renderFeedImage(
       { type: "video", video_url: "/media/diary.mov", poster_url: "/media/diary.jpg", width: 1200, height: 800 },
@@ -15,7 +12,8 @@ test("diary feed keeps ordinary video cards poster-only", () => {
       { mobile: false }
     );
   assert.match(markup, /^<img /);
-  assert.doesNotMatch(markup, /data-motion-src|<video|\.mov/);
+  assert.match(markup, /data-motion-src="\/media\/diary\.mov"/);
+  assert.doesNotMatch(markup, /<video/);
 });
 
 test("Live Photo cards keep a poster and defer only muted motion preview", () => {
@@ -52,5 +50,28 @@ test("diary feed keeps late mobile cards poster-only", () => {
     { mobile: true },
   );
   assert.match(markup, /^<img /);
-  assert.doesNotMatch(markup, /\.mov/);
+  assert.match(markup, /data-motion-src="\/media\/diary\.mov"/);
+});
+
+test("static images do not opt into the motion coordinator", () => {
+  const markup = renderFeedImage(
+    { type: "image", image_url: "/media/photo.jpg" },
+    "照片",
+    0,
+    0,
+  );
+  assert.doesNotMatch(markup, /data-motion-src/);
+});
+
+test("every motion item keeps its own media badge in a collage", () => {
+  const markup = renderPhotoMedia(
+    [
+      { image_url: "/media/photo.jpg" },
+      { type: "video", image_url: "/media/diary.jpg", video_url: "/media/diary.mp4" },
+    ],
+    "混合日记",
+    0,
+    { mobile: true },
+  );
+  assert.match(markup, /aria-label="Video">VIDEO/);
 });

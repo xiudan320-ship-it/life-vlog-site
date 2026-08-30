@@ -26,8 +26,10 @@ export function createPhotoDetailController({
   renderAvatarMarkup,
   renderDialogMedia,
   resetSecretImageZoom,
+  resumeDiaryFeedMotion,
   setGlobalStatus,
   switchPage,
+  stopDiaryFeedMotion,
   toDateInputValue,
   togglePhotoFavorite,
   togglePhotoFlag,
@@ -247,6 +249,7 @@ export function createPhotoDetailController({
     }
     if (state.mobileDiaryPage && !state.mobileDiaryPage.hidden) {
       closeMobileDiaryPage();
+      resumeDiaryFeedMotion?.();
       return;
     }
     if (els.dialog?.classList.contains("diary-image-fullscreen")) {
@@ -255,13 +258,17 @@ export function createPhotoDetailController({
       els.dialog.scrollTop = 0;
       return;
     }
-    if (!els.dialog.open) return;
+    if (!els.dialog.open) {
+      resumeDiaryFeedMotion?.();
+      return;
+    }
     const returnToWeekendAlbum = els.dialog.classList.contains("weekend-image-dialog");
     els.dialog.removeAttribute("open");
     ensurePhotoDialogBackdrop().hidden = true;
     document.body.classList.remove("photo-dialog-open");
     els.dialog.dispatchEvent(new Event("close"));
     if (returnToWeekendAlbum) document.dispatchEvent(new Event("weekend-album-lightbox-closed"));
+    resumeDiaryFeedMotion?.();
   }
   
   function openMobileDiaryImageViewer() {
@@ -371,6 +378,7 @@ export function createPhotoDetailController({
   }
   
   async function openPhoto(photo, initialImageIndex = 0, options = {}) {
+    stopDiaryFeedMotion?.();
     if (isMobileViewport() && !options.forceDialog) {
       openMobileDiaryPage(photo, initialImageIndex, options);
       return;

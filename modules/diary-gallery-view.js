@@ -10,7 +10,9 @@ import { renderListIcon } from "./list-icons.js";
 
 const LAZY_IMAGE_PLACEHOLDER = "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=";
 const lazyObservers = new WeakMap();
-const motionObservers = new WeakMap();
+const motionCoordinators = new WeakMap();
+const motionCoordinatorVersions = new WeakMap();
+const motionPausedRoots = new WeakSet();
 const mediaStateHandlers = new WeakMap();
 
 export function getDiaryGalleryEmptyState({
@@ -29,27 +31,6 @@ export function getDiaryGalleryEmptyState({
   }
   if (filter === "VLOG") return { message: "还没有 VLOG，点击顶部 VLOG 发布第一条视频。", loading: false };
   return { message: "还没有这个分类的日记。", loading: false };
-}
-
-export function shouldAutoplayDiaryFeedMedia(
-  photoIndex = 0,
-  {
-    mobile = typeof window !== "undefined" && window.matchMedia("(max-width: 920px)").matches,
-    reducedMotion = typeof window !== "undefined"
-      && typeof window.matchMedia === "function"
-      && window.matchMedia("(prefers-reduced-motion: reduce)").matches,
-    connection = typeof navigator !== "undefined"
-      ? navigator.connection || navigator.mozConnection || navigator.webkitConnection
-      : null,
-  } = {}
-) {
-  if (connection?.saveData) return false;
-  if (reducedMotion) return false;
-  if (mobile) return photoIndex < 5;
-  if (!connection) return true;
-  if (connection.type === "cellular") return false;
-  if (connection.type === "wifi" || connection.type === "ethernet") return true;
-  return !/(^|-)2g$/.test(connection.effectiveType || "");
 }
 
 export function getPhotoAspectRatio(image) {
@@ -72,21 +53,29 @@ export function renderFeedImage(image, altText, photoIndex, imageIndex, { mobile
   const widthAttr = Number.isFinite(width) && width > 0 ? ` width="${Math.round(width)}"` : "";
   const heightAttr = Number.isFinite(height) && height > 0 ? ` height="${Math.round(height)}"` : "";
   const posterUrl = getDiaryMediaPosterUrl(image);
-  const motionUrl = getDiaryMediaType(image) === "live" ? getDiaryMediaVideoUrl(image) : "";
+  const mediaType = getDiaryMediaType(image);
+  const motionUrl = getDiaryMediaVideoUrl(image);
   const source = image?.thumbnail_url || posterUrl;
   const sourceAttributes = loading === "lazy"
     ? `src="${LAZY_IMAGE_PLACEHOLDER}" data-lazy-src="${escapeHtml(source)}"`
     : `src="${escapeHtml(source)}"`;
-  const motionAttribute = motionUrl ? ` data-motion-src="${escapeHtml(motionUrl)}"` : "";
+  const motionAttribute = motionUrl
+    ? ` data-motion-src="${escapeHtml(motionUrl)}"`
+    : "";
   return `<img class="feed-image" ${sourceAttributes} data-canonical-src="${escapeHtml(source)}" data-full-src="${escapeHtml(posterUrl)}" data-media-type="${escapeHtml(getDiaryMediaType(image))}"${motionAttribute} alt="${escapeHtml(altText)}" loading="${loading}" decoding="async" fetchpriority="${fetchPriority}"${widthAttr}${heightAttr} />`;
 }
 
 function renderMediaShell(image, altText, photoIndex, imageIndex, options) {
+  const mediaType = getDiaryMediaType(image);
+  const mediaBadge = mediaType === "live"
+    ? '<span class="live-photo-badge" aria-label="Live Photo">LIVE</span>'
+    : mediaType === "video"
+      ? '<span class="live-photo-badge" aria-label="Video">VIDEO</span>'
+      : "";
   return `<div class="feed-media-shell" data-media-state="loading">
     <button type="button" data-photo-index="${photoIndex}" data-image-index="${imageIndex}">
       ${renderFeedImage(image, altText, photoIndex, imageIndex, options)}
-      ${getDiaryMediaType(image) === "live" && imageIndex === 0 ? '<span class="live-photo-badge" aria-label="Live Photo">LIVE</span>' : ""}
-      ${getDiaryMediaType(image) === "video" && imageIndex === 0 ? '<span class="live-photo-badge" aria-label="Video">VIDEO</span>' : ""}
+      ${mediaBadge}
     </button>
     <div class="feed-media-error" data-media-error role="status" aria-live="polite" hidden>
       <span class="feed-media-error-icon" aria-hidden="true">${renderListIcon("image")}</span>
@@ -100,8 +89,6 @@ export function renderPhotoMedia(images, title, photoIndex, { mobile = false } =
   const altText = title || "日记图片";
   if (images.length <= 1) {
     const image = images[0] || {};
-    const mediaType = getDiaryMediaType(image);
-    const badgeLabel = mediaType === "live" ? "LIVE" : mediaType === "video" ? "VIDEO" : "";
     return `
       <div class="photo-media single"${getPhotoAspectStyle(image)}>
         ${renderMediaShell(image, altText, photoIndex, 0, { mobile })}
@@ -189,97 +176,39 @@ export function hydrateLazyFeedImages(root = document) {
   lazyObservers.set(root, observer);
 }
 
-function releaseMotionVideo(active) {
-  const video = active?.video || active;
-  if (!video) return;
-  video.pause();
-  video.removeAttribute("src");
-  video.load();
-  video.remove();
-  active?.image?.removeAttribute("data-motion-active");
-}
-
-function activateMotionImage(image, state) {
-  const source = image?.dataset.motionSrc;
-  if (!source || state.requestedSources.has(source) || !image.isConnected) return false;
-  if (state.active && state.active.image !== image) releaseMotionVideo(state.active);
-  const shell = image.closest(".feed-media-shell") || image.parentElement;
-  if (!shell) return false;
-  const video = image.ownerDocument.createElement("video");
-  video.className = "feed-motion-preview";
-  video.poster = image.dataset.fullSrc || image.currentSrc || image.src;
-  video.muted = true;
-  video.loop = true;
-  video.playsInline = true;
-  video.preload = "none";
-  video.setAttribute("aria-hidden", "true");
-  video.src = source;
-  shell.append(video);
-  image.dataset.motionActive = "true";
-  state.active = { image, video, source };
-  state.requestedSources.add(source);
-  void video.play().catch(() => {
-    releaseMotionVideo(state.active);
-    state.active = null;
-  });
-  return true;
-}
-
 export function hydrateMotionFeedVideos(root = document) {
-  const previous = motionObservers.get(root);
-  previous?.observer.disconnect();
-  previous?.cancel?.();
-  if (previous?.state.active) releaseMotionVideo(previous.state.active);
-  motionObservers.delete(root);
-  const images = [...root.querySelectorAll("img.feed-image[data-motion-src]")];
-  if (!images.length) {
-    return;
-  }
-  const state = {
-    active: null,
-    requestedSources: new Set(),
-    visibleImages: new Set(),
-    intersectionRatios: new Map(),
-    activationToken: 0,
-  };
-  const connection = typeof navigator !== "undefined"
-    ? navigator.connection || navigator.mozConnection || navigator.webkitConnection
-    : null;
-  const reducedMotion = typeof window !== "undefined"
-    && typeof window.matchMedia === "function"
-    && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  if (connection?.saveData || reducedMotion || !("IntersectionObserver" in window)) return;
-   const scheduleActivation = (image) => {
-     const token = ++state.activationToken;
-     const activate = () => {
-       if (token !== state.activationToken || state.active || image?.isConnected === false) return;
-       activateMotionImage(image, state);
-     };
-    if (typeof window.requestAnimationFrame === "function") window.requestAnimationFrame(activate);
-    else queueMicrotask(activate);
-  };
-     const observer = new IntersectionObserver((entries) => {
-     for (const entry of entries) {
-       state.intersectionRatios.set(entry.target, entry.intersectionRatio);
-       if (entry.isIntersecting) state.visibleImages.add(entry.target);
-       else state.visibleImages.delete(entry.target);
-     }
-     const activeLeft = state.active && !state.visibleImages.has(state.active.image);
-     if (activeLeft) {
-       releaseMotionVideo(state.active);
-       state.active = null;
-    }
-    if (state.active) return;
-     const visible = [...state.visibleImages]
-       .sort((left, right) => (state.intersectionRatios.get(right) || 0) - (state.intersectionRatios.get(left) || 0))
-       .find((image) => {
-         const source = image?.dataset.motionSrc;
-         return source && !state.requestedSources.has(source);
-       });
-     if (visible) scheduleActivation(visible);
-   }, { rootMargin: "120px 0px 180px", threshold: 0.2 });
-  images.forEach((image) => observer.observe(image));
-  motionObservers.set(root, { observer, state, cancel: () => { state.activationToken += 1; } });
+  motionCoordinators.get(root)?.destroy();
+  motionCoordinators.delete(root);
+  motionPausedRoots.delete(root);
+  const version = (motionCoordinatorVersions.get(root) || 0) + 1;
+  motionCoordinatorVersions.set(root, version);
+  import("./diary-feed-motion-coordinator.js")
+    .then(({ createDiaryFeedMotionCoordinator }) => {
+      if (motionCoordinatorVersions.get(root) !== version) return;
+      const coordinator = createDiaryFeedMotionCoordinator({ root });
+      if (!coordinator) return;
+      motionCoordinators.set(root, coordinator);
+      if (!motionPausedRoots.has(root)) coordinator.refresh();
+    })
+    .catch(() => undefined);
+}
+
+export function stopMotionFeedVideos(root = document) {
+  motionPausedRoots.add(root);
+  motionCoordinators.get(root)?.pause();
+}
+
+export function destroyMotionFeedVideos(root = document) {
+  motionPausedRoots.add(root);
+  motionCoordinatorVersions.set(root, (motionCoordinatorVersions.get(root) || 0) + 1);
+  const coordinator = motionCoordinators.get(root);
+  coordinator?.destroy();
+  motionCoordinators.delete(root);
+}
+
+export function resumeMotionFeedVideos(root = document) {
+  motionPausedRoots.delete(root);
+  motionCoordinators.get(root)?.resume();
 }
 
 export function retryFeedImage(root = document, photoIndex, imageIndex) {
@@ -364,6 +293,7 @@ function bindGalleryActions(container, photos, handlers) {
     if (button.matches("[data-media-retry]")) {
       handlers.retry?.(Number(button.dataset.photoIndex), Number(button.dataset.imageIndex));
     } else if (button.matches("[data-photo-index][data-image-index]")) {
+      stopMotionFeedVideos(container);
       handlers.open(getPhoto("photoIndex"), Number(button.dataset.imageIndex));
     } else if (button.dataset.deleteIndex != null) {
       void handlers.delete(getPhoto("deleteIndex"), button);

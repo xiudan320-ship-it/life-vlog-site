@@ -13,13 +13,16 @@ const [html, app, appRuntime, appRuntimeController, appRuntimeInfrastructure, ap
   read("vite.config.js"), read("public/_headers"), read("modules/routes/templates/settings.html"), read("modules/settings-view.js"), read("styles/account-dialogs.css"), read("modules/confirm-dialog.js"), read("styles/confirm-dialog.css"),
 ]);
 const releaseSmoke = await read("tests/release-smoke.mjs");
-const [mediaRuntime, photoDetailRuntime, accountAssembly, secretService, routeLoader, videoLayout] = await Promise.all([
+const [mediaRuntime, photoDetailRuntime, accountAssembly, secretService, routeLoader, videoLayout, galleryView, motionCoordinator, motionDomain] = await Promise.all([
   read("modules/app-runtime-media-assembly.js"),
   read("modules/photo-detail-controller.js"),
   read("modules/app-runtime-account-assembly.js"),
   read("modules/secret-data-service.js"),
   read("modules/route-loader.js"),
   read("modules/diary-video-layout.js"),
+  read("modules/diary-gallery-view.js"),
+  read("modules/diary-feed-motion-coordinator.js"),
+  read("modules/diary-feed-motion-domain.js"),
 ]);
 const diaryFeedController = await read("modules/diary-feed-controller.js");
 const vlogMode = await read("modules/vlog-mode.js");
@@ -59,6 +62,13 @@ assert.match(secretService, /repository\.listFolders/);
 assert.match(routeLoader, /isCurrent/);
 assert.match(videoLayout, /autoplay/);
 assert.match(videoLayout, /dataset\.state/);
+assert.match(galleryView, /import\("\.\/diary-feed-motion-coordinator\.js"\)/);
+assert.doesNotMatch(galleryView, /shouldAutoplayDiaryFeedMedia/);
+assert.match(motionCoordinator, /IntersectionObserver/);
+assert.match(motionCoordinator, /shouldLoopDiaryFeedMotion/);
+assert.match(motionCoordinator, /video\.controls = false/);
+assert.match(motionDomain, /DIARY_FEED_MOTION_LOOP_LIMIT_SECONDS/);
+assert.match(diaryFeedController, /stopMotionFeedPreview/);
 assert.match(diaryFeedController, /filterDiaryPhotos\(/);
 assert.doesNotMatch(diaryFeedController, /filterVlogPhotos/);
 assert.doesNotMatch(vlogMode, /filterVlogPhotos/);

@@ -2,6 +2,7 @@ const WORKER_URL = "https://life-vlog-r2-upload.xiudan320-life.workers.dev";
 const FIXTURE_IMAGE = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Crect width='8' height='8' fill='%23d9c2a3'/%3E%3C/svg%3E";
 const FIXTURE_MEDIA_URL = "/__fixture-media";
 const FIXTURE_VIDEO_URL = `${FIXTURE_MEDIA_URL}/fixture-camera-talent.mp4`;
+const FIXTURE_LONG_VIDEO_URL = `${FIXTURE_MEDIA_URL}/fixture-long-video.mp4`;
 const FIXTURE_VIDEO_NOTE = `<!--life-vlog-media:${encodeURIComponent(JSON.stringify([{
   type: "video",
   image_url: FIXTURE_IMAGE,
@@ -68,6 +69,29 @@ const tableSeeds = {
       poster_url: FIXTURE_IMAGE,
       created_at: "2029-06-01T00:00:00.000Z",
       taken_at: "2029-06-01T00:00:00.000Z",
+      is_public: true,
+    },
+    {
+      id: "fixture-long-video",
+      user_id: "fixture-user",
+      category: "日常",
+      title: "Fixture long video",
+      note: `<!--life-vlog-media:${encodeURIComponent(JSON.stringify([{
+        type: "video",
+        image_url: FIXTURE_IMAGE,
+        thumbnail_url: FIXTURE_IMAGE,
+        poster_url: FIXTURE_IMAGE,
+        video_url: FIXTURE_LONG_VIDEO_URL,
+        video_type: "video/mp4",
+      }]))}-->`,
+      image_url: FIXTURE_IMAGE,
+      thumbnail_url: FIXTURE_IMAGE,
+      type: "video",
+      video_url: FIXTURE_LONG_VIDEO_URL,
+      video_type: "video/mp4",
+      poster_url: FIXTURE_IMAGE,
+      created_at: "2029-05-01T00:00:00.000Z",
+      taken_at: "2029-05-01T00:00:00.000Z",
       is_public: true,
     },
     {
@@ -153,8 +177,29 @@ const tableSeeds = {
   family_invitations: [],
 };
 
-function cloneSeed() {
-  return new Map(Object.entries(tableSeeds).map(([table, rows]) => [table, rows.map((row) => ({ ...row }))]));
+function cloneSeed({ seedSecretPhoto = false } = {}) {
+  const tables = new Map(Object.entries(tableSeeds).map(([table, rows]) => [table, rows.map((row) => ({ ...row }))]));
+  if (seedSecretPhoto) {
+    tables.set("secret_folders", [{
+      id: "fixture-secret-folder",
+      user_id: "fixture-user",
+      name: "Fixture secret album",
+      sort_order: 0,
+      created_at: "2030-01-01T00:00:00.000Z",
+      updated_at: "2030-01-01T00:00:00.000Z",
+    }]);
+    tables.set("secret_items", [{
+      id: "fixture-secret-item",
+      user_id: "fixture-user",
+      folder_id: "fixture-secret-folder",
+      title: "Fixture secret photo",
+      category: "宠物",
+      images: [{ image_url: FIXTURE_IMAGE, thumbnail_url: FIXTURE_IMAGE, tags: ["宠物"] }],
+      created_at: "2030-01-01T00:00:00.000Z",
+      updated_at: "2030-01-01T00:00:00.000Z",
+    }]);
+  }
+  return tables;
 }
 
 function jsonResponse(request, body, status = 200) {
@@ -193,8 +238,8 @@ function applyFilters(rows, url) {
   }));
 }
 
-export function createCloudflareApiFixture({ scenario = "ok", delayMs = 0 } = {}) {
-  const tables = cloneSeed();
+export function createCloudflareApiFixture({ scenario = "ok", delayMs = 0, seedSecretPhoto = false } = {}) {
+  const tables = cloneSeed({ seedSecretPhoto });
   const requests = [];
   const writes = [];
   const uploads = [];

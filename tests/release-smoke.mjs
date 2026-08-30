@@ -26,9 +26,58 @@ function runtimeErrors(page) {
   return errors;
 }
 
-async function openFixturePage(browser, { path = "/", authenticated = true, scenario = "ok", delayMs = 0, serviceWorkers = "block", corrupt = false, corruptSession = false, expired = false, reducedMotion = "no-preference", saveData = false, viewport = { width: 390, height: 844 }, session = pseudoSession } = {}) {
+async function installFeedMotionMediaFixture(page) {
+  await page.addInitScript(() => {
+    const sourceDescriptor = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, "src");
+    const currentSourceDescriptor = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, "currentSrc");
+    const durationDescriptor = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, "duration");
+    const isFeedMotion = (element) => element?.classList?.contains("feed-motion-preview");
+    const setPaused = (element, value) => Object.defineProperty(element, "paused", { configurable: true, get: () => value });
+    Object.defineProperty(HTMLMediaElement.prototype, "src", {
+      configurable: true,
+      get() { return isFeedMotion(this) ? this.__fixtureMotionSrc || "" : currentSourceDescriptor?.get?.call(this) || ""; },
+      set(value) {
+        if (isFeedMotion(this)) this.__fixtureMotionSrc = String(value || "");
+        else sourceDescriptor?.set?.call(this, value);
+      },
+    });
+    Object.defineProperty(HTMLMediaElement.prototype, "currentSrc", {
+      configurable: true,
+      get() { return isFeedMotion(this) ? this.__fixtureMotionSrc || "" : currentSourceDescriptor?.get?.call(this) || ""; },
+    });
+    Object.defineProperty(HTMLMediaElement.prototype, "duration", {
+      configurable: true,
+      get() {
+        if (isFeedMotion(this) && this.__fixtureMotionDuration !== undefined) return this.__fixtureMotionDuration;
+        return durationDescriptor?.get?.call(this) ?? NaN;
+      },
+    });
+    const nativeLoad = HTMLMediaElement.prototype.load;
+    HTMLMediaElement.prototype.load = function load() {
+      if (!isFeedMotion(this)) return nativeLoad.call(this);
+      this.__fixtureMotionDuration = this.__fixtureMotionSrc?.includes("fixture-long-video") ? 8.01 : 4;
+      queueMicrotask(() => {
+        this.dispatchEvent(new Event("loadedmetadata"));
+        this.dispatchEvent(new Event("canplay"));
+      });
+    };
+    const nativePlay = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = function play() {
+      if (!isFeedMotion(this)) return nativePlay.call(this);
+      setPaused(this, false);
+      return Promise.resolve();
+    };
+    const nativePause = HTMLMediaElement.prototype.pause;
+    HTMLMediaElement.prototype.pause = function pause() {
+      if (!isFeedMotion(this)) return nativePause.call(this);
+      setPaused(this, true);
+    };
+  });
+}
+
+async function openFixturePage(browser, { path = "/", authenticated = true, scenario = "ok", delayMs = 0, serviceWorkers = "block", corrupt = false, corruptSession = false, expired = false, reducedMotion = "no-preference", saveData = false, viewport = { width: 390, height: 844 }, session = pseudoSession, secretUnlocked = false, seedSecretPhoto = false, mockFeedMotion = false } = {}) {
   const context = await browser.newContext({ viewport, serviceWorkers, reducedMotion });
-  const fixture = createCloudflareApiFixture({ scenario, delayMs });
+  const fixture = createCloudflareApiFixture({ scenario, delayMs, seedSecretPhoto });
   await fixture.install(context);
   if (saveData) {
     await context.addInitScript(() => Object.defineProperty(navigator, "connection", { configurable: true, value: { saveData: true, effectiveType: "4g", type: "wifi" } }));
@@ -42,16 +91,19 @@ async function openFixturePage(browser, { path = "/", authenticated = true, scen
     if (request.resourceType() === "script") scripts.push(request.url());
   });
   if (authenticated || corruptSession) {
-    await page.addInitScript(({ session, broken, invalidSession }) => {
+    await page.addInitScript(({ session, broken, invalidSession, secretUnlocked: shouldUnlock }) => {
       localStorage.setItem("life-vlog-cloudflare-auth", invalidSession ? "{" : JSON.stringify(session));
       localStorage.setItem("life-vlog-recipes:fixture-user", broken ? "{" : JSON.stringify([]));
       localStorage.setItem("life-vlog-weekend-plans:fixture-user", broken ? "{" : JSON.stringify([]));
+      if (shouldUnlock) sessionStorage.setItem("life-vlog-secret-unlock:fixture-user", JSON.stringify({ unlockedAt: Date.now(), leftAt: 0 }));
     }, {
       session: { ...session, expires_at: expired ? new Date(Date.now() - 1000).toISOString() : session.expires_at },
       broken: corrupt,
       invalidSession: corruptSession,
+      secretUnlocked,
     });
   }
+  if (mockFeedMotion) await installFeedMotionMediaFixture(page);
   const started = Date.now();
   await page.goto(`${baseUrl}${path}`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("#appSplash[hidden]", { state: "attached", timeout: 3000 });
@@ -94,7 +146,7 @@ async function testPublicShell(browser) {
 }
 
 async function testAuthenticatedGallery(browser) {
-  const result = await openFixturePage(browser, { corrupt: true, delayMs: 150 });
+  const result = await openFixturePage(browser, { corrupt: true, delayMs: 150, mockFeedMotion: true });
   try {
     await assertReady(result, "authenticated gallery");
     const page = result.page;
@@ -111,7 +163,8 @@ async function testAuthenticatedGallery(browser) {
     assert.ok(initialRequestCount <= 27, `authenticated gallery made ${initialRequestCount} initial requests`);
     const initialMotionRequests = result.fixture.requests.filter(({ path }) => path === "/fixture-live.mov").length;
     assert.ok(initialMotionRequests <= 1, `initial live media requested ${initialMotionRequests} times`);
-    assert.equal(result.fixture.requests.some(({ path }) => path === "/fixture-camera-talent.mp4"), false, "ordinary VLOG video was requested in the feed");
+    assert.ok(result.fixture.requests.filter(({ path }) => path === "/fixture-camera-talent.mp4").length <= 1, "ordinary VLOG video was requested more than once in the feed");
+    assert.equal(await page.locator('[data-photo-id="fixture-camera-talent-video"] .live-photo-badge').textContent(), "VIDEO");
     const initialMediaState = await page.evaluate(() => ({
       viewportBottom: window.innerHeight,
       status: document.querySelector("#globalStatus")?.textContent || "",
@@ -179,10 +232,13 @@ async function testAuthenticatedGallery(browser) {
 }
 
 async function testVideoDiaryPolicy(browser) {
-  const desktop = await openFixturePage(browser, { viewport: { width: 1440, height: 900 } });
+  const desktop = await openFixturePage(browser, { viewport: { width: 1440, height: 900 }, mockFeedMotion: true });
   try {
     const page = desktop.page;
     await page.locator('[data-photo-id="fixture-camera-talent-video"]').waitFor({ state: "visible" });
+    await page.locator('[data-photo-id="fixture-camera-talent-video"] video.feed-motion-preview').waitFor({ state: "attached", timeout: 10000 });
+    assert.equal(await page.locator('[data-photo-id="fixture-camera-talent-video"] .live-photo-badge').textContent(), "VIDEO");
+    assert.ok(await page.locator("video.feed-motion-preview").count() <= 1, "release feed mounted more than one preview");
     await page.getByRole("button", { name: "摄影小天才 Video" }).click();
     await page.waitForSelector("#photoDialog[open]");
     assert.deepEqual(await page.locator("#dialogVideo").evaluate((video) => ({
@@ -194,7 +250,7 @@ async function testVideoDiaryPolicy(browser) {
     })), { hidden: false, autoplay: false, muted: false, controls: true, paused: true });
   } finally { await desktop.context.close(); }
 
-  const mobile = await openFixturePage(browser, { viewport: { width: 390, height: 844 } });
+  const mobile = await openFixturePage(browser, { viewport: { width: 390, height: 844 }, mockFeedMotion: true });
   try {
     const page = mobile.page;
     await page.getByRole("button", { name: "摄影小天才 Video" }).click();
@@ -206,6 +262,35 @@ async function testVideoDiaryPolicy(browser) {
     })), { autoplay: false, muted: false, controls: true });
     assert.deepEqual(mobile.errors, [], `release video policy errors: ${mobile.errors.join(" | ")}`);
   } finally { await mobile.context.close(); }
+}
+
+async function testSecretPhotoViewer(browser) {
+  const result = await openFixturePage(browser, {
+    path: "/?page=secret",
+    viewport: { width: 390, height: 844 },
+    secretUnlocked: true,
+    seedSecretPhoto: true,
+  });
+  try {
+    const page = result.page;
+    await page.waitForSelector("#secretPage:not([hidden])");
+    await page.locator('[data-secret-album-card="fixture-secret-item"]').click();
+    const photo = page.locator('[data-secret-photo="0"]');
+    await photo.waitFor({ state: "visible" });
+    await photo.click();
+    await page.waitForSelector("#photoDialog[open].secret-image-dialog", { state: "attached", timeout: 10000 });
+    await page.waitForFunction(() => {
+      const image = document.querySelector("#dialogImage");
+      return Boolean(image?.getAttribute("src") && !image.classList.contains("is-loading"));
+    }, null, { timeout: 10000 });
+    assert.equal(await page.locator("#photoDialog").isVisible(), true, "release secret photo viewer did not open");
+    assert.equal(await page.locator("#secretViewerStatus").isHidden(), true, "release secret photo viewer stayed in loading state");
+    await page.keyboard.press("Escape");
+    await page.waitForSelector("#photoDialog:not([open])", { state: "attached", timeout: 10000 });
+    await page.waitForFunction(() => document.activeElement?.matches('[data-secret-photo="0"]'), null, { timeout: 10000 });
+    assert.equal(await page.evaluate(() => document.documentElement.classList.contains("dialog-scroll-locked")), false, "release secret viewer left the page locked");
+    assert.deepEqual(result.errors, [], `release secret photo viewer errors: ${result.errors.join(" | ")}`);
+  } finally { await result.context.close(); }
 }
 
 async function testDiaryImageUpload(browser) {
@@ -409,8 +494,9 @@ async function testMotionPolicies(browser) {
     try {
       await assertReady(result, options.saveData ? "save-data gallery" : "reduced-motion gallery");
       await result.page.waitForTimeout(500);
-      assert.equal(result.fixture.requests.filter(({ path }) => path === "/fixture-live.mov").length, 0, `${options.saveData ? "save-data" : "reduced-motion"} loaded feed video`);
-      assert.equal(await result.page.locator("video.feed-image[src]").count(), 0, `${options.saveData ? "save-data" : "reduced-motion"} activated feed video`);
+      assert.equal(result.fixture.requests.filter(({ path }) => /\.(?:mov|mp4)$/.test(path)).length, 0, `${options.saveData ? "save-data" : "reduced-motion"} loaded feed video`);
+      assert.equal(await result.page.locator("video.feed-motion-preview").count(), 0, `${options.saveData ? "save-data" : "reduced-motion"} activated feed video`);
+      assert.ok(await result.page.locator(".live-photo-badge").count() >= 1, `${options.saveData ? "save-data" : "reduced-motion"} removed motion labels`);
     } finally { await result.context.close(); }
   }
 }
@@ -469,6 +555,7 @@ try {
   await testPublicShell(browser);
   await testAuthenticatedGallery(browser);
   await testVideoDiaryPolicy(browser);
+  await testSecretPhotoViewer(browser);
   await testDiaryImageUpload(browser);
   await testFilterSettingsAndActions(browser);
   await testWeekendComposerAndDelete(browser);

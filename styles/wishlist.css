@@ -838,50 +838,6 @@ transition: none;
 animation: none;
 }
 }
-/* Shared media badges used by diary and mobile previews. */
-.live-photo-badge,
-.preview-live-badge {
-position: absolute;
-z-index: 2;
-display: inline-flex;
-align-items: center;
-gap: 3px;
-padding: 3px 5px;
-border: 1px solid rgba(255, 255,255, .34);
-border-radius: 999px;
-color: #fff;
-background: rgba(10, 14, 11, .78);
-font-size: 9px;
-}
-.live-photo-badge::before {
-width: 6px;
-height: 6px;
-border-radius: 50%;
-background: var(--accent);
-content: "";
-}
-.photo-media button > .live-photo-badge {
-top: 10px;
-right: 10px;
-}
-.mobile-diary-image-button {
-position: relative;
-}
-.mobile-diary-media .mobile-diary-image-button > .live-photo-badge {
-top: 12px;
-bottom: auto;
-}
-.mobile-diary-media > .mobile-diary-media-badge {
-top: 50px;
-right: 12px;
-bottom: auto;
-left: auto;
-width: max-content;
-height: auto;
-min-height: 0;
-line-height: 1.2;
-white-space: nowrap;
-}
 .mobile-diary-media > .mobile-diary-count {
 right: 12px;
 bottom: 12px;

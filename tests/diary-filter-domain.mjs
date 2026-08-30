@@ -31,3 +31,21 @@ test("category, system filter, and search are combined with AND semantics", () =
   assert.deepEqual(filterDiaryPhotos(entries, { filter: "favorites", query: "海边", isFavorite: favorite, isWithinSevenDays: recent }).map(({ id }) => id), ["travel"]);
   assert.deepEqual(filterDiaryPhotos(entries, { filter: "featured7", query: "咖啡", isFavorite: favorite, isWithinSevenDays: recent }).map(({ id }) => id), ["daily"]);
 });
+
+test("pet is a first-class diary category when entries use it", () => {
+  const options = getDiaryFilterOptions([
+    { id: "daily", category: "日常" },
+    { id: "pet", category: "宠物" },
+  ]);
+  assert.deepEqual(options.map(({ value, count }) => [value, count]), [
+    ["全部", 2],
+    ["featured7", 0],
+    ["favorites", 0],
+    ["日常", 1],
+    ["宠物", 1],
+  ]);
+  assert.deepEqual(filterDiaryPhotos([
+    { id: "daily", category: "日常" },
+    { id: "pet", category: "宠物" },
+  ], { filter: "宠物" }).map(({ id }) => id), ["pet"]);
+});

@@ -124,6 +124,9 @@ export function createAppNavigationController({
     const previousPage = state.activePage;
     const pageChanged = previousPage !== requestedPage;
     if (pageChanged) rememberScrollPosition(previousPage);
+    if (pageChanged && previousPage === "gallery" && requestedPage !== "gallery") {
+      actions.stopGalleryMotionPreview?.();
+    }
     elements.main?.setAttribute("aria-busy", "true");
     elements.main?.setAttribute("data-route-busy", "true");
     try {
@@ -185,6 +188,7 @@ export function createAppNavigationController({
         if (state.session && !actions.isAdminAccount()) actions.setGlobalStatus("");
         actions.renderFeedRefreshNotice();
         actions.renderGallery();
+        actions.resumeGalleryMotionPreview?.();
         actions.updateFeedLoader(state.filteredPhotoCount);
       }
       if (pageChanged && historyMode === "push") windowTarget.history.pushState({}, "", serializeRoute(requestedPage, windowTarget.location.href));
@@ -195,6 +199,7 @@ export function createAppNavigationController({
       if (!isCurrent()) return false;
       state.activePage = previousPage;
       syncPageNavigationState();
+      if (previousPage === "gallery") actions.resumeGalleryMotionPreview?.();
       const offline = windowTarget.navigator?.onLine === false
         || /fetch|network|offline/i.test(String(error?.message || ""));
       actions.setGlobalStatus(

@@ -548,6 +548,8 @@ export function createAppRouteRuntime({
       renderCachedSecretItems,
       renderFeedRefreshNotice,
       renderGallery: core.renderGallery,
+      stopGalleryMotionPreview: core.stopMotionFeedPreview,
+      resumeGalleryMotionPreview: core.resumeMotionFeedPreview,
       renderGratitudeNotes,
       renderRecipes,
       renderSecretGallery: (...args) => callLoaded(secretController, "renderSecretGallery", ...args),

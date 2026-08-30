@@ -90,7 +90,7 @@ export const APP_RUNTIME_CONFIG = Object.freeze({
   SECRET_UNLOCK_MAX_MS: 15 * 60 * 1000,
   THANKS_COLORS: new Set(["#2f6b3b", "#d6544d", "#2e6da4", "#81559b", "#a66b12"]),
   DEFAULT_THANKS_COLOR,
-  PHOTO_CATEGORIES: ["日常", "旅行", "食物", "卢浮宫", "城市"],
+  PHOTO_CATEGORIES: ["日常", "旅行", "食物", "宠物", "卢浮宫", "城市"],
   BUCKET: "life-photos",
   PRODUCTION_URL: "https://life-vlog-site.pages.dev/",
   R2_UPLOAD_ENDPOINT: "https://life-vlog-r2-upload.xiudan320-life.workers.dev",

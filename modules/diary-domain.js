@@ -35,7 +35,7 @@ export function isDiaryWithinDays(entry, days = 7, now = new Date()) {
   return difference >= 0 && difference < days;
 }
 
-const CATEGORY_ORDER = ["日常", "旅行", "食物", "卢浮宫", "朋友", "QA", "城市"];
+const CATEGORY_ORDER = ["日常", "旅行", "食物", "宠物", "卢浮宫", "朋友", "QA", "城市"];
 
 function sortDiaryCategories(left, right) {
   const leftIndex = CATEGORY_ORDER.indexOf(left);

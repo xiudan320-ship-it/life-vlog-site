@@ -121,6 +121,7 @@ import {
   notificationView,
   vipCenter,
   diaryGalleryView,
+  diaryFeedMotionDomain,
   mobileDiaryView,
   mediaGestureDomain,
   secretGalleryView,
@@ -760,21 +761,9 @@ assert.deepEqual(
   { message: "正在同步收藏…", loading: true }
 );
 assert.equal(diaryGalleryView.getPhotoAspectRatio({ width: 2000, height: 1000 }), "1.550");
-assert.equal(
-  diaryGalleryView.shouldAutoplayDiaryFeedMedia(4, { mobile: true, connection: null }),
-  true
-);
-assert.equal(
-  diaryGalleryView.shouldAutoplayDiaryFeedMedia(5, { mobile: true, connection: null }),
-  false
-);
-assert.equal(
-  diaryGalleryView.shouldAutoplayDiaryFeedMedia(0, {
-    mobile: false,
-    connection: { saveData: true },
-  }),
-  false
-);
+assert.equal(diaryFeedMotionDomain.shouldLoopDiaryFeedMotion(8), true);
+assert.equal(diaryFeedMotionDomain.shouldLoopDiaryFeedMotion(8.01), false);
+assert.equal(diaryFeedMotionDomain.isDiaryFeedMotionAllowed({ saveData: true }), false);
 assert.match(
   diaryGalleryView.renderPhotoMedia(
     [{ image_url: "one.jpg" }, { image_url: "two.jpg" }],

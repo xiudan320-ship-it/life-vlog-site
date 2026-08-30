@@ -8,7 +8,10 @@ import {
 import { normalizeDiaryMediaImages } from "./diary-media-domain.js";
 import {
   getDiaryGalleryEmptyState,
+  destroyMotionFeedVideos,
   renderDiaryGalleryCards,
+  resumeMotionFeedVideos,
+  stopMotionFeedVideos,
 } from "./diary-gallery-view.js";
 import {
   getDiaryMediaType,
@@ -515,9 +518,11 @@ export function createDiaryFeedController({
     });
     if (nextSignature === state.galleryRenderSignature && els.gallery.childElementCount) {
       updateFeedLoader(state.filteredPhotoCount);
+      resumeMotionFeedVideos(els.gallery);
       return;
     }
     if (!visible.length) {
+      destroyMotionFeedVideos(els.gallery);
       const empty = getDiaryGalleryEmptyState({
         search: state.diarySearchQuery,
         filter: state.activeFilter,
@@ -931,5 +936,7 @@ export function createDiaryFeedController({
     getPlainNote,
     updateFeedLoader,
     initializeFeedObserver,
+    stopMotionFeedPreview: () => stopMotionFeedVideos(els.gallery),
+    resumeMotionFeedPreview: () => resumeMotionFeedVideos(els.gallery),
   };
 }

@@ -1,7 +1,3 @@
-const ELEMENT_ALIASES = {
-  dialog: "photoDialog",
-};
-
 function collectElements(root) {
   return Object.fromEntries(
     [...root.querySelectorAll("[id]")].map((element) => [element.id, element])
@@ -9,9 +5,7 @@ function collectElements(root) {
 }
 
 function applySharedElementQueries(elements, documentTarget) {
-  for (const [alias, id] of Object.entries(ELEMENT_ALIASES)) {
-    elements[alias] = elements[id] || null;
-  }
+  elements.dialog = elements.photoDialog || documentTarget.getElementById("photoDialog");
 
   elements.brand = documentTarget.querySelector(".brand");
   elements.main = documentTarget.querySelector("main");

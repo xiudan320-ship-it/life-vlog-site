@@ -639,7 +639,7 @@ export function createSecretController({
     });
   }
   
-  function openSecretItem(item, initialImageIndex = 0, options = {}) {
+  async function openSecretItem(item, initialImageIndex = 0, options = {}) {
     if (!item) return;
     state.secretViewerReturnFocus = options.triggerElement || document.activeElement;
     state.secretViewerInfoOpen = false;
@@ -678,7 +678,13 @@ export function createSecretController({
       els.dialogSecretLinkButton.hidden = !item.linkedPhotoId;
     }
     showPhotoDialogPreservingScroll();
-    renderDialogMedia();
+    try {
+      await renderDialogMedia();
+    } catch (error) {
+      els.dialog?.close?.();
+      setGlobalStatus(`秘藏图片暂时无法打开：${error?.message || "查看器加载失败"}`);
+      return;
+    }
     requestAnimationFrame(() => {
       if (isMobileViewport()) {
         fitSecretViewerImage();

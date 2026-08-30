@@ -4140,6 +4140,59 @@ body.theme-dark .photo-media {
   height: 100%;
 }
 
+/* Shared media badges must be available on the gallery route as well as the
+   wishlist route; this is presentation for feed media, not wishlist-only UI. */
+.live-photo-badge,
+.preview-live-badge {
+  position: absolute;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 5px;
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  border-radius: 999px;
+  color: #fff;
+  background: rgba(10, 14, 11, 0.78);
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+.live-photo-badge::before {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  content: "";
+}
+
+.photo-media button > .live-photo-badge {
+  top: 10px;
+  right: 10px;
+  pointer-events: none;
+}
+
+.mobile-diary-image-button {
+  position: relative;
+}
+
+.mobile-diary-media .mobile-diary-image-button > .live-photo-badge {
+  top: 12px;
+  bottom: auto;
+}
+
+.mobile-diary-media > .mobile-diary-media-badge {
+  top: 50px;
+  right: 12px;
+  bottom: auto;
+  left: auto;
+  width: max-content;
+  height: auto;
+  min-height: 0;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
 .photo-media.single :is(img,video),
 .photo-card>.photo-open>:is(img,video) {
   height: 100%;
@@ -4211,6 +4264,7 @@ body.theme-dark .photo-media button::before {
   height: 100%;
   object-fit: cover;
   background: #080b09;
+  pointer-events: none;
 }
 
 .feed-media-error {

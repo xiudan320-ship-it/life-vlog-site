@@ -290,6 +290,7 @@ export const gratitudeView = await import(new URL("../modules/gratitude-view.js"
 export const notificationView = await import(new URL("../modules/notification-view.js", import.meta.url));
 export const vipCenter = await import(new URL("../modules/vip-center.js", import.meta.url));
 export const diaryGalleryView = await import(new URL("../modules/diary-gallery-view.js", import.meta.url));
+export const diaryFeedMotionDomain = await import(new URL("../modules/diary-feed-motion-domain.js", import.meta.url));
 export const mobileDiaryView = await import(new URL("../modules/mobile-diary-view.js", import.meta.url));
 export const mediaGestureDomain = await import(new URL("../modules/media-gesture-domain.js", import.meta.url));
 export const secretGalleryView = await import(new URL("../modules/secret-gallery-view.js", import.meta.url));
