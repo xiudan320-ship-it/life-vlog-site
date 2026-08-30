@@ -77,3 +77,15 @@ branch refs/heads/codex/recovery-5c0d-dirty
 `codex/life-vlog-stabilization` 未占用第三个 worktree，其树状态通过上述引用和
 `git diff a2c2fe9 508ae2a` 保留。整合完成后会再次记录两个实际 worktree 的
 状态；本文件只记录整合前证据，不替代最终测试报告。
+
+## 最终验收
+
+验收针对 `codex/recovery-integration` 的完整整合树执行；本节之后只追加本审计
+记录，不改变已验证的应用代码、测试或构建输入。结果如下：
+
+- `pnpm test`：通过。包含 68 个单元测试、静态/UI/结构/CSS 检查、确定性资源优化、Vite + Workbox 构建、构建/资源预算、CSS 覆盖率以及桌面和移动浏览器回归。
+- `pnpm run test:a11y`：通过。使用本地 `vite preview` 和确定性 fixture，Axe critical/serious 扫描通过。
+- `pnpm run test:release`：通过。设置 `RELEASE_BASE_URL=http://127.0.0.1:4176`，确定性 fixture 发布 smoke 通过。
+- `pnpm run test:build`：通过。入口 HTML、JavaScript、CSS、Workbox 预缓存和生成资源均在预算内。
+- `git diff --check`：通过。
+- 未执行部署、远程写入、强制推送或真实账户验收；5c0d worktree 的内容由 `6f058dd` 保存，未删除用户文件。
