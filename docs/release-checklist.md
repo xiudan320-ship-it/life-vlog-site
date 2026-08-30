@@ -9,7 +9,23 @@ pnpm install --frozen-lockfile
 pnpm test
 pnpm run test:a11y
 pnpm run test:release
+pnpm run test:build
 git diff --check
+```
+
+`test:a11y` 默认访问 `http://127.0.0.1:4176`，执行前先在终端 A 保持本地预览运行：
+
+```powershell
+pnpm exec vite preview --host 127.0.0.1 --port 4176
+```
+
+然后在终端 B 执行无障碍和发布 smoke；两者都使用确定性 fixture：
+
+```powershell
+$env:A11Y_BASE_URL = "http://127.0.0.1:4176"
+pnpm run test:a11y
+$env:RELEASE_BASE_URL = "http://127.0.0.1:4176"
+pnpm run test:release
 ```
 
 发布门必须同时通过完整功能测试、Axe critical/serious 扫描、确定性 fixture 发布 smoke 和差异检查；`pnpm test` 只覆盖功能/结构/构建/基础浏览器回归，不代替 `test:a11y` 或在线发布门。

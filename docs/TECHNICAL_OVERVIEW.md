@@ -152,6 +152,8 @@ pnpm preview
 - 生成 PWA manifest；
 - 通过 Workbox `injectManifest` 生成 `dist/sw.js`。
 
+`pnpm-workspace.yaml` 明确允许 `esbuild` 与 `sharp` 的安装构建脚本，使锁定依赖安装后的 Vite 构建使用完整的本地二进制依赖。
+
 源图片位于 `assets-source/`，`scripts/optimize-assets.mjs` 生成确定性资源到 `assets/generated/`。不要手工编辑生成文件来替代源文件和优化脚本。
 
 ## 10. 测试体系

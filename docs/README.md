@@ -9,6 +9,7 @@
 5. [`CHANGE_WORKFLOW.md`](CHANGE_WORKFLOW.md)：每次修改必须怎样同步文档。
 6. [`release-checklist.md`](release-checklist.md)：发布前后门禁。
 7. [`../design-system/life-vlog/MASTER.md`](../design-system/life-vlog/MASTER.md)：全局 UI 设计规范。
+8. [`recovery-audit-2026-08-30.md`](recovery-audit-2026-08-30.md)：本次 Git 恢复与整合的保存点、差异和验收证据。
 
 专项规划书记录某一轮任务的原因、范围和验收标准，不等同于当前系统事实。任务完成后，应以技术总览、模块图和变更日志为准；专项规划保留作决策背景。
 
