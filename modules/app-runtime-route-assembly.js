@@ -261,31 +261,37 @@ export function createAppRouteRuntime({
     getSessionDisplayName: getEventSessionDisplayName,
   } = core;
   let appNavigationController = null;
-  const moodEntryOverlayPromise = Promise.all([
-    import("./mood-entry-overlay-controller.js"),
-    import("./mood-diary-repository.js"),
-  ]).then(([{ createMoodEntryOverlayController }, { createMoodDiaryRepository }]) => createMoodEntryOverlayController({
-    elements,
-    repository: createMoodDiaryRepository({ getDatabase: () => state.cloudDb, getSession: () => state.session }),
-    getSession: () => state.session,
-    getFamilyMembers: () => state.familyMembers,
-    getAuthorName,
-    getAuthorAvatar,
-    showToast: showMiniToast,
-    confirmAction,
-    onMutation: async (payload) => {
-      pageControllerMap.moodDiary?.handleMutation?.(payload);
-      await pageControllerMap.todayMood?.refresh?.();
-    },
-    windowTarget: documentTarget.defaultView,
-  }));
+  let todayMoodControllerPromise = null;
+  let moodEntryOverlayPromise = null;
+  const loadMoodEntryOverlay = () => {
+    moodEntryOverlayPromise ||= todayMoodControllerPromise.then(async (todayMoodController) => {
+      const { createMoodEntryOverlayController } = await import("./mood-entry-overlay-controller.js");
+      return createMoodEntryOverlayController({
+        elements,
+        domain: todayMoodController.getMoodDomain(),
+        repository: todayMoodController.getRepository(),
+        getSession: () => state.session,
+        getFamilyMembers: () => state.familyMembers,
+        getAuthorName,
+        getAuthorAvatar,
+        showToast: showMiniToast,
+        confirmAction,
+        onMutation: async (payload) => {
+          pageControllerMap.moodDiary?.handleMutation?.(payload);
+          await pageControllerMap.todayMood?.refresh?.();
+        },
+        windowTarget: documentTarget.defaultView,
+      });
+    });
+    return moodEntryOverlayPromise;
+  };
   const moodEntryOverlayController = Object.freeze({
-    open: async (...args) => (await moodEntryOverlayPromise).open(...args),
-    close: async (...args) => (await moodEntryOverlayPromise).close(...args),
-    dispatch: async (...args) => (await moodEntryOverlayPromise).dispatch(...args),
+    open: async (...args) => (await loadMoodEntryOverlay()).open(...args),
+    close: async (...args) => (await loadMoodEntryOverlay()).close(...args),
+    dispatch: async (...args) => (await loadMoodEntryOverlay()).dispatch(...args),
   });
   pageControllerMap.moodEntryOverlay = moodEntryOverlayController;
-  void import("./today-mood-controller.js").then(({ createTodayMoodController }) => {
+  todayMoodControllerPromise = import("./today-mood-controller.js").then(({ createTodayMoodController }) => {
     const controller = createTodayMoodController({
       elements,
       state,
@@ -297,6 +303,7 @@ export function createAppRouteRuntime({
     pageControllerMap.todayMood = controller;
     if (state.session) void controller.refresh();
     else controller.render();
+    return controller;
   });
   const {
     createClient: createCloudflareClient,

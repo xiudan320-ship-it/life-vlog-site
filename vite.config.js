@@ -32,6 +32,13 @@ export default defineConfig({
     assetsDir: "assets",
     sourcemap: false,
     minify: "terser",
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (/[/\\]modules[/\\](?:today-mood-controller|mood-diary-repository|mood-diary-shared)\.js$/u.test(id)) return "today-mood";
+        },
+      },
+    },
   },
   plugins: [generatedAssetsPlugin(), compactIndexHtmlPlugin(), VitePWA({
     strategies: "injectManifest",

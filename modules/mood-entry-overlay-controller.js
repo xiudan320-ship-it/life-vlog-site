@@ -1,7 +1,6 @@
-import { MOOD_TYPES, normalizeDiaryDate, normalizeMood, normalizeMoodTags, sortMoodDiaries } from "./mood-diary-domain.js";
 import { createMoodEntryOverlayView } from "./mood-entry-overlay-view.js";
 
-function normalizeEntry(entry) {
+function normalizeEntry(entry, { normalizeDiaryDate, normalizeMood, normalizeMoodTags }) {
   const diaryDate = normalizeDiaryDate(entry?.diary_date);
   const mood = normalizeMood(entry?.mood);
   if (!entry?.id || !entry?.user_id || !diaryDate || !mood) return null;
@@ -12,7 +11,7 @@ function codePointLength(value) {
   return [...String(value ?? "")].length;
 }
 
-function normalizeTagDraft(values) {
+function normalizeTagDraft(values, normalizeMoodTags) {
   const source = values.flatMap((value) => String(value ?? "").split(/[,，]/u));
   const tags = normalizeMoodTags(source, { maxTags: 100, maxLength: 1000 });
   return { tags, tooMany: tags.length > 8, tooLong: source.some((value) => codePointLength(String(value).trim().replace(/^#+/u, "").trim()) > 20) };
@@ -20,6 +19,7 @@ function normalizeTagDraft(values) {
 
 export function createMoodEntryOverlayController({
   elements,
+  domain,
   repository,
   getSession = () => null,
   getFamilyMembers = () => [],
@@ -31,6 +31,7 @@ export function createMoodEntryOverlayController({
   windowTarget = globalThis.window,
   view: injectedView,
 } = {}) {
+  const { MOOD_TYPES, MOOD_META, getMoodAsset, normalizeDiaryDate, normalizeMood, normalizeMoodTags, sortMoodDiaries } = domain;
   const state = {
     mode: "closed",
     dateKey: "",
@@ -90,7 +91,7 @@ export function createMoodEntryOverlayController({
     visibleIds.add(currentUserId);
     let rows = entries;
     if (!Array.isArray(rows)) rows = await repository?.listDay?.(normalizedDate);
-    state.entries = sortMoodDiaries((rows || []).map(normalizeEntry).filter((entry) => entry && entry.diary_date === normalizedDate && visibleIds.has(entry.user_id)));
+    state.entries = sortMoodDiaries((rows || []).map((entry) => normalizeEntry(entry, { normalizeDiaryDate, normalizeMood, normalizeMoodTags })).filter((entry) => entry && entry.diary_date === normalizedDate && visibleIds.has(entry.user_id)));
     state.dateKey = normalizedDate;
     state.currentUserId = currentUserId;
     state.participants = resolvedParticipants.map((participant, index) => ({
@@ -135,7 +136,7 @@ export function createMoodEntryOverlayController({
 
   function readDraft() {
     const live = injectedView?.readDraft?.() || { content: "", tagInput: "" };
-    const normalized = normalizeTagDraft([...state.editorDraft.tags, live.tagInput]);
+    const normalized = normalizeTagDraft([...state.editorDraft.tags, live.tagInput], normalizeMoodTags);
     return { content: live.content, ...normalized };
   }
 
@@ -185,7 +186,7 @@ export function createMoodEntryOverlayController({
   }
 
   function replaceEntry(entry) {
-    const normalized = normalizeEntry(entry);
+    const normalized = normalizeEntry(entry, { normalizeDiaryDate, normalizeMood, normalizeMoodTags });
     if (!normalized) throw new Error("心情日记响应无效");
     state.entries = [normalized, ...state.entries.filter((item) => item.id !== normalized.id && item.user_id !== normalized.user_id)];
     state.activeDiary = normalized;
@@ -252,7 +253,7 @@ export function createMoodEntryOverlayController({
       case "edit": { const entry = state.entries.find((item) => item.id === action.id); if (entry?.user_id === state.currentUserId) beginEditor({ diary: entry, returnMode: "detail" }); break; }
       case "record": beginEditor({ returnMode: "detail" }); break;
       case "detail-user": selectDiary(action.userId); render(); break;
-      case "add-tag": { const live = injectedView.readDraft(); state.editorDraft.content = live.content; const next = normalizeTagDraft([...state.editorDraft.tags, action.value]); if (next.tooLong) state.error = "每个标签最多 20 个字符。"; else if (next.tooMany) state.error = "最多添加 8 个标签。"; else { state.editorDraft.tags = next.tags; state.error = ""; injectedView.clearTagInput(); } render(); break; }
+      case "add-tag": { const live = injectedView.readDraft(); state.editorDraft.content = live.content; const next = normalizeTagDraft([...state.editorDraft.tags, action.value], normalizeMoodTags); if (next.tooLong) state.error = "每个标签最多 20 个字符。"; else if (next.tooMany) state.error = "最多添加 8 个标签。"; else { state.editorDraft.tags = next.tags; state.error = ""; injectedView.clearTagInput(); } render(); break; }
       case "remove-tag": state.editorDraft.content = injectedView.readDraft().content; state.editorDraft.tags = state.editorDraft.tags.filter((value) => value !== action.tag); render(); break;
       case "save": await save(); break;
       case "delete": await remove(action.id); break;
@@ -269,7 +270,7 @@ export function createMoodEntryOverlayController({
     windowTarget?.addEventListener?.("popstate", () => { if (historyOpen) void close({ fromPopstate: true }); });
   }
 
-  const view = injectedView || createMoodEntryOverlayView({ elements, getAuthorName, getAuthorAvatar, onAction: (action) => { void dispatch(action); } });
+  const view = injectedView || createMoodEntryOverlayView({ elements, moodMeta: MOOD_META, moodTypes: MOOD_TYPES, getMoodAsset, getAuthorName, getAuthorAvatar, onAction: (action) => { void dispatch(action); } });
   injectedView = view;
   bind();
   render();

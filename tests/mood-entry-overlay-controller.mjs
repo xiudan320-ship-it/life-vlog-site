@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createMoodEntryOverlayController } from "../modules/mood-entry-overlay-controller.js";
+import * as moodDomain from "../modules/mood-diary-domain.js";
 
 const TODAY = "2026-08-31";
 const participants = [{ userId: "owner", shape: "square" }, { userId: "member", shape: "circle" }];
@@ -29,6 +30,7 @@ function createFixture({ entries = [], repository = {} } = {}) {
   };
   const controller = createMoodEntryOverlayController({
     elements: {},
+    domain: moodDomain,
     repository: {
       listDay: async () => entries,
       upsert: async (payload) => ({ ...payload, id: "new", user_id: "owner" }),

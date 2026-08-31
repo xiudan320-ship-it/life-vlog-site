@@ -1,5 +1,3 @@
-import { MOOD_META, MOOD_TYPES, getMoodAsset } from "./mood-diary-domain.js";
-
 const PICKER_POSITIONS = [[50, 7], [79, 19], [89, 50], [76, 80], [50, 92], [24, 80], [11, 50], [21, 19]];
 
 function text(documentTarget, tagName, value = "", className = "") {
@@ -9,7 +7,7 @@ function text(documentTarget, tagName, value = "", className = "") {
   return element;
 }
 
-function asset(documentTarget, mood, shape = "circle") {
+function asset(documentTarget, mood, shape, getMoodAsset) {
   const wrapper = text(documentTarget, "span", "", "mood-entry-asset");
   const image = documentTarget.createElement("img");
   image.src = getMoodAsset(mood, shape) || "";
@@ -37,7 +35,7 @@ function tag(documentTarget, value, removable = false) {
   return item;
 }
 
-export function createMoodEntryOverlayView({ elements = {}, getAuthorName, getAuthorAvatar, onAction = () => {} } = {}) {
+export function createMoodEntryOverlayView({ elements = {}, moodMeta, moodTypes, getMoodAsset, getAuthorName, getAuthorAvatar, onAction = () => {} } = {}) {
   let bound = false;
 
   function participantName(state, userId) {
@@ -51,15 +49,15 @@ export function createMoodEntryOverlayView({ elements = {}, getAuthorName, getAu
     const documentTarget = elements.moodPickerOrbit.ownerDocument;
     const fragment = documentTarget.createDocumentFragment();
     fragment.append(text(documentTarget, "span", "选一个最接近现在的词", "mood-picker-center"));
-    MOOD_TYPES.forEach((mood, index) => {
+    moodTypes.forEach((mood, index) => {
       const choice = documentTarget.createElement("button");
       choice.type = "button";
       choice.className = "mood-picker-choice";
       choice.dataset.mood = mood;
       choice.style.setProperty("--mood-left", PICKER_POSITIONS[index][0]);
       choice.style.setProperty("--mood-top", PICKER_POSITIONS[index][1]);
-      choice.setAttribute("aria-label", `选择${MOOD_META[mood].label}`);
-      choice.append(asset(documentTarget, mood), text(documentTarget, "span", MOOD_META[mood].label));
+      choice.setAttribute("aria-label", `选择${moodMeta[mood].label}`);
+      choice.append(asset(documentTarget, mood, "circle", getMoodAsset), text(documentTarget, "span", moodMeta[mood].label));
       fragment.append(choice);
     });
     elements.moodPickerOrbit.replaceChildren(fragment);
@@ -68,9 +66,9 @@ export function createMoodEntryOverlayView({ elements = {}, getAuthorName, getAu
   function renderEditor(state) {
     const documentTarget = elements.moodOverlay.ownerDocument;
     elements.moodEditorSelected?.replaceChildren();
-    if (state.selectedMood && MOOD_META[state.selectedMood]) {
-      elements.moodEditorSelected.append(asset(documentTarget, state.selectedMood), text(documentTarget, "strong", MOOD_META[state.selectedMood].label));
-      elements.moodEditorSelected.style.setProperty("--mood-accent", MOOD_META[state.selectedMood].accent);
+    if (state.selectedMood && moodMeta[state.selectedMood]) {
+      elements.moodEditorSelected.append(asset(documentTarget, state.selectedMood, "circle", getMoodAsset), text(documentTarget, "strong", moodMeta[state.selectedMood].label));
+      elements.moodEditorSelected.style.setProperty("--mood-accent", moodMeta[state.selectedMood].accent);
     }
     if (elements.moodEditorContent && documentTarget.activeElement !== elements.moodEditorContent) {
       elements.moodEditorContent.value = state.editorDraft.content;
@@ -100,11 +98,11 @@ export function createMoodEntryOverlayView({ elements = {}, getAuthorName, getAu
     elements.moodDetailTags?.replaceChildren();
     elements.moodDetailAuthor?.replaceChildren();
     elements.moodDetailActions?.replaceChildren();
-    if (!diary || !MOOD_META[diary.mood]) return;
+    if (!diary || !moodMeta[diary.mood]) return;
     const participant = state.participants.find(({ userId }) => userId === diary.user_id);
     const mood = documentTarget.createElement("div");
-    mood.style.setProperty("--mood-accent", MOOD_META[diary.mood].accent);
-    mood.append(asset(documentTarget, diary.mood, participant?.shape || "circle"), text(documentTarget, "strong", MOOD_META[diary.mood].label));
+    mood.style.setProperty("--mood-accent", moodMeta[diary.mood].accent);
+    mood.append(asset(documentTarget, diary.mood, participant?.shape || "circle", getMoodAsset), text(documentTarget, "strong", moodMeta[diary.mood].label));
     elements.moodDetailMood?.append(mood);
     if (elements.moodDetailContent) elements.moodDetailContent.textContent = diary.content || "";
     elements.moodDetailTags?.append(...(diary.tags || []).map((value) => tag(documentTarget, value)));

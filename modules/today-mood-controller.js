@@ -1,6 +1,10 @@
 import {
+  MOOD_META,
+  MOOD_TYPES,
+  getMoodAsset,
   normalizeDiaryDate,
   normalizeMood,
+  normalizeMoodTags,
   resolveMoodParticipants,
   sortMoodDiaries,
 } from "./mood-diary-shared.js";
@@ -165,6 +169,15 @@ export function createTodayMoodController({
   const view = injectedView || createTodayMoodView({ elements, getAuthorName });
   injectedView = view;
   bindEvents();
+  const moodDomain = Object.freeze({
+    MOOD_META,
+    MOOD_TYPES,
+    getMoodAsset,
+    normalizeDiaryDate,
+    normalizeMood,
+    normalizeMoodTags,
+    sortMoodDiaries,
+  });
 
   return Object.freeze({
     refresh,
@@ -172,6 +185,8 @@ export function createTodayMoodController({
     render,
     openCalendar,
     openSeat,
+    getRepository: () => repository,
+    getMoodDomain: () => moodDomain,
     getState: () => state,
   });
 }
