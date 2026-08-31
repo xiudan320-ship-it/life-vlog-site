@@ -204,6 +204,7 @@ export function createShellControllerAssembly({
     savePhotoFeedCache: defer("savePhotoFeedCache"),
     setGlobalStatus,
     updateCloudSyncStatus: defer("updateCloudSyncStatus"),
+    syncPrimaryNavigation: core.syncPrimaryNavigation,
     loadNotifications: loadNotificationsFromSocial,
     renderNotifications: renderNotificationsFromSocial,
     switchPage: core.switchPage,

@@ -4,6 +4,7 @@ import { createAppRouteContext, createRouteControllerOptionsLoader } from "./app
 import { createNavigationState, createSessionState } from "./app-state.js";
 import { createAppNavigationController } from "./app-navigation-controller.js";
 import { createAppSessionController } from "./app-session-controller.js";
+import { createPrimaryNavigationController } from "./primary-navigation-controller.js";
 import { createRouteLoader } from "./route-loader.js";
 import { createLazyControllerProxy } from "./lazy-controller.js";
 
@@ -384,6 +385,33 @@ export function createAppRouteRuntime({
   const {
     getImageFilesFromClipboard,
   } = secretActions;
+  const primaryNavigationController = createPrimaryNavigationController({
+    root: elements.mainNav,
+    getSettingsRoot: () => elements.settingsDialog,
+    preferenceStore: services.preferenceStore,
+    preferenceKey: config.primaryNavigationKey,
+    getSession: () => state.session,
+    getActivePage: () => state.activePage,
+    getActiveFilter: () => state.activeFilter,
+    routeAction: (item) => {
+      if (item.route === "gallery") {
+        setDiaryUploadExpanded(false);
+        vlogMode.close();
+      }
+      const navigation = appNavigationController?.switchPage(item.route) ?? false;
+      if (item.route === "recipes") {
+        return Promise.resolve(navigation).then((opened) => {
+          if (opened) elements.recipesPage?.scrollIntoView({ behavior: "smooth", block: "start" });
+          return opened;
+        });
+      }
+      return navigation;
+    },
+    modeActions: {
+      vlog: () => vlogMode.open(),
+    },
+  });
+  controllers.primaryNavigation = primaryNavigationController;
   const routeControllerOptionsContext = {
     elements,
     state,
@@ -580,6 +608,7 @@ export function createAppRouteRuntime({
     elements,
     state: appNavigationState,
     vlogMode,
+    primaryNavigationController,
     controllers: pageControllerMap,
     actions: {
       applyMobileSecretLayout: applyMobileSecretLayoutFromController,
@@ -605,6 +634,8 @@ export function createAppRouteRuntime({
       renderWeekendPlans,
       renderWeekendReminderNotice,
       performanceDiagnostics: core.performanceDiagnostics,
+      ensurePushSettingsPage,
+      renderPrimaryNavigationSettings: () => primaryNavigationController.renderSettings(),
       setGlobalStatus,
       setUploadExpanded: setDiaryUploadExpanded,
       updateFeedLoader,
@@ -685,7 +716,7 @@ export function createAppRouteRuntime({
       applyToolDockOrder: core.applyToolDockOrder,
       closeSecretAlbumContextMenu: (...args) => callLoaded(secretController, "closeSecretAlbumContextMenu", ...args),
       closeSecretFolderContextMenu: (...args) => callLoaded(secretController, "closeSecretFolderContextMenu", ...args),
-      ensurePushSettingsPage,
+      applyPrimaryNavigation: (...args) => primaryNavigationController.applyForUser(...args),
       getSessionDisplayName,
       loadAnniversaries,
       loadCachedAvatarUrl: core.loadCachedAvatarUrl,
@@ -740,6 +771,8 @@ export function createAppRouteRuntime({
       openRandomMemory,
       updateNetworkStatus,
       showMiniToast,
+      ensurePushSettingsPage,
+      renderPrimaryNavigationSettings: () => primaryNavigationController.renderSettings(),
       loadHomeName,
       getSessionDisplayName: getEventSessionDisplayName,
       updateDiaryBackTopButton,
@@ -759,6 +792,7 @@ export function createAppRouteRuntime({
     routeLoader,
     appNavigationController,
     appSessionController,
+    primaryNavigationController,
     appEventBindings,
   });
 }

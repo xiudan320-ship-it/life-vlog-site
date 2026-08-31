@@ -1130,16 +1130,25 @@ body.theme-dark .brand-logo-wrap {
 }
 
 .main-nav {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  display: flex;
+  align-items: stretch;
   justify-self: center;
   width: 100%;
-  gap: 2px;
-  padding: 3px;
+  min-width: 0;
+  max-width: 100%;
+  gap: 8px;
+  padding: 4px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.55);
   box-sizing: border-box;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: none;
+}
+
+.main-nav::-webkit-scrollbar {
+  display: none;
 }
 
 body.theme-dark .main-nav {
@@ -1147,8 +1156,10 @@ body.theme-dark .main-nav {
 }
 
 .main-nav button {
-  width: 100%;
-  min-height: 36px;
+  flex: 1 1 0;
+  width: auto;
+  min-width: 0;
+  min-height: 44px;
   border: 0;
   border-radius: 5px;
   color: var(--muted);
@@ -1156,6 +1167,12 @@ body.theme-dark .main-nav {
   font-weight: 750;
   padding: 0 14px;
   white-space: nowrap;
+  touch-action: manipulation;
+}
+
+.main-nav button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 72%, transparent);
+  outline-offset: 2px;
 }
 
 .main-nav button:hover {
@@ -3999,7 +4016,6 @@ body.theme-dark .recipe-cover-drop {
 }
 
 .filters {
-  top: calc(84px + env(safe-area-inset-top));
   display: grid;
   gap: 10px;
   margin-bottom: 20px;

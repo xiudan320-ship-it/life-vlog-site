@@ -1,6 +1,12 @@
 const VIDEO_ACCEPT = "video/*,.mov,.mp4,.m4v,.webm";
 
-export function createVlogMode({ root = document, canOpen = () => true, onOpen = () => {}, onClose = () => {} } = {}) {
+export function createVlogMode({
+  root = document,
+  canOpen = () => true,
+  onOpen = () => {},
+  onClose = () => {},
+  onNavigationStateChange = () => {},
+} = {}) {
   let active = false;
   let original = null;
 
@@ -27,12 +33,11 @@ export function createVlogMode({ root = document, canOpen = () => true, onOpen =
   }
 
   function open() {
+    if (!canOpen()) return false;
     capture();
     active = true;
     root.body.classList.add("vlog-mode");
     root.querySelector("#composer")?.setAttribute("data-vlog-mode", "true");
-    root.querySelector("#vlogNav")?.classList.add("active");
-    root.querySelector("#vlogNav")?.setAttribute("aria-pressed", "true");
     setText("#composer .section-title .kicker", "Vlog");
     setText("#composer .section-title h2", "发布新 VLOG");
     setText("label[for='photoInput']", "选择视频");
@@ -45,6 +50,9 @@ export function createVlogMode({ root = document, canOpen = () => true, onOpen =
     if (motionInput) motionInput.accept = VIDEO_ACCEPT;
     const linkAdder = root.querySelector(".image-link-adder");
     if (linkAdder) linkAdder.hidden = true;
+    void Promise.resolve(onOpen()).catch(() => {});
+    onNavigationStateChange();
+    return true;
   }
 
   function close() {
@@ -53,8 +61,6 @@ export function createVlogMode({ root = document, canOpen = () => true, onOpen =
     active = false;
     root.body.classList.remove("vlog-mode");
     root.querySelector("#composer")?.removeAttribute("data-vlog-mode");
-    root.querySelector("#vlogNav")?.classList.remove("active");
-    root.querySelector("#vlogNav")?.setAttribute("aria-pressed", "false");
     if (original) {
       setText("#composer .section-title .kicker", original.kicker);
       setText("#composer .section-title h2", original.title);
@@ -69,14 +75,12 @@ export function createVlogMode({ root = document, canOpen = () => true, onOpen =
     }
     const linkAdder = root.querySelector(".image-link-adder");
     if (linkAdder) linkAdder.hidden = false;
-    if (wasActive) onClose();
+    if (wasActive) {
+      onClose();
+      onNavigationStateChange();
+    }
   }
 
-  root.querySelector("#vlogNav")?.addEventListener("click", () => {
-    if (!canOpen()) return;
-    open();
-    onOpen();
-  });
   return { open, close, isActive: () => active };
 }
 

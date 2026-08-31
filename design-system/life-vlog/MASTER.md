@@ -75,6 +75,14 @@ This system combines the verified UI/UX Pro Max matches for Minimalism & Swiss S
 - Media previews use `object-fit: cover` in cards and `object-fit: contain` in full previews. Diary/VLOG detail videos may start muted on entry, retain native controls, and never force sound on the user.
 - Menus become bottom sheets on mobile and compact anchored dialogs on desktop.
 
+### Primary navigation and diary filters
+
+- Primary navigation is an adaptive horizontal flex row: visible entries use the available width, while overflow is contained by the navigation row itself and never by the page.
+- Keep every navigation item and settings action at least 44×44px with an 8px minimum gap; preserve DOM/visual order and expose route state with `aria-current` or mode state with `aria-pressed`.
+- The default top-level order is 日记、VLOG、心愿、周末、衣柜. Optional entries are 菜谱、留言、秘藏; 日记 is always enabled, VLOG remains a mode, and 心情 remains a deep-link/calendar destination rather than a top-level item.
+- The appearance settings panel owns enable/disable and up/down ordering. Changes provide immediate status feedback and remain scoped to the existing user/device preference store.
+- Diary search and tag filters stay in normal document flow. Do not use `position: sticky`, fixed top offsets, or a page-level horizontal overflow workaround for these filters.
+
 ## Motion
 
 - Default feedback: 140–220ms.
@@ -90,6 +98,7 @@ This system combines the verified UI/UX Pro Max matches for Minimalism & Swiss S
 - Mobile page-level browser zoom follows the product viewport contract; Dynamic Type / xlarge text settings and in-app media viewer zoom remain available.
 - Mobile text inputs, selects, and textareas use a computed font size of at least 16px to avoid focus zoom.
 - Notification loading, empty, error, and retry states remain visible in the dialog; closing during a request restores focus to the bell without reopening the dialog.
+- Push settings bind after the lazy settings DOM exists; disabling this device is busy/disabled during the operation, unsubscribes locally before remote cleanup, and clearly reports a remote cleanup failure without undoing the local result.
 - Images have meaningful alt text or are explicitly decorative.
 - Validate keyboard, pointer, and touch behavior.
 - Before commit or deployment, run the complete automated suite and the repository release test with deterministic in-memory fixture sessions on desktop and mobile.

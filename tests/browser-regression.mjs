@@ -221,39 +221,39 @@ async function testNavigationAndAuth(viewport, label) {
   });
   assert.equal(await page.evaluate(() => Math.round(window.scrollY)), 1800, `${label} navigation fixture could not reach the source scroll position`);
 
-  await page.click("#wishlistNav");
+  await page.click('[data-primary-nav-id="wishlist"]');
   await page.waitForFunction(() => document.activeElement?.dataset.pageHeading === "wishlist");
   const firstWishlist = await page.evaluate(() => ({
     scrollY: Math.round(window.scrollY),
-    current: [...document.querySelectorAll("#galleryNav, #wishlistNav, #weekendNav, #wardrobeNav")]
+    current: [...document.querySelectorAll('[data-primary-nav-id="gallery"], [data-primary-nav-id="wishlist"], [data-primary-nav-id="weekend"], [data-primary-nav-id="wardrobe"]')]
       .filter((button) => button.getAttribute("aria-current") === "page")
-      .map((button) => button.id),
+      .map((button) => button.dataset.primaryNavId),
   }));
   assert.equal(firstWishlist.scrollY, 0, `${label} first wishlist visit did not start at the top`);
-  assert.deepEqual(firstWishlist.current, ["wishlistNav"], `${label} wishlist aria-current state is incorrect`);
+  assert.deepEqual(firstWishlist.current, ["wishlist"], `${label} wishlist aria-current state is incorrect`);
 
   await page.evaluate(() => window.scrollTo({ top: 640, behavior: "instant" }));
-  await page.click("#weekendNav");
+  await page.click('[data-primary-nav-id="weekend"]');
   await page.waitForFunction(() => document.activeElement?.dataset.pageHeading === "weekend");
   assert.equal(await page.evaluate(() => Math.round(window.scrollY)), 0, `${label} first weekend visit did not start at the top`);
 
-  await page.click("#wardrobeNav");
+  await page.click('[data-primary-nav-id="wardrobe"]');
   await page.waitForSelector('#wardrobePage:not([hidden]) [data-page-heading="wardrobe"]', { state: "visible" });
   assert.equal(await page.locator("#wardrobePage").isVisible(), true, `${label} wardrobe page did not open`);
 
   await page.evaluate(() => window.scrollTo({ top: 420, behavior: "instant" }));
-  await page.click("#wishlistNav");
+  await page.click('[data-primary-nav-id="wishlist"]');
   await page.waitForFunction(() => document.activeElement?.dataset.pageHeading === "wishlist");
   assert.equal(await page.evaluate(() => Math.round(window.scrollY)), 640, `${label} wishlist scroll position was not restored`);
 
-  await page.click("#galleryNav");
+  await page.click('[data-primary-nav-id="gallery"]');
   await page.waitForFunction(() => document.activeElement?.dataset.pageHeading === "gallery");
   assert.equal(await page.evaluate(() => Math.round(window.scrollY)), 1800, `${label} diary scroll position was not restored`);
   assert.deepEqual(
-    await page.evaluate(() => [...document.querySelectorAll("#galleryNav, #wishlistNav, #weekendNav, #wardrobeNav")]
+    await page.evaluate(() => [...document.querySelectorAll('[data-primary-nav-id="gallery"], [data-primary-nav-id="wishlist"], [data-primary-nav-id="weekend"], [data-primary-nav-id="wardrobe"]')]
       .filter((button) => button.getAttribute("aria-current") === "page")
-      .map((button) => button.id)),
-    ["galleryNav"],
+      .map((button) => button.dataset.primaryNavId)),
+    ["gallery"],
     `${label} diary aria-current state is incorrect`
   );
   assert.deepEqual(pageErrors, [], `${label} navigation/auth runtime errors:\n${pageErrors.join("\n")}`);
@@ -262,6 +262,82 @@ async function testNavigationAndAuth(viewport, label) {
     await assertMobileViewportContracts(page, `${label} navigation/auth`);
   }
   await context.close();
+}
+
+async function testPrimaryNavigationPreferences(viewport, label) {
+  const context = await browser.newContext({ viewport, serviceWorkers: "block" });
+  const fixture = createCloudflareApiFixture();
+  await fixture.install(context);
+  const page = await context.newPage();
+  const pageErrors = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  await installPseudoSession(page);
+  try {
+    await page.goto(`${baseUrl}/`, { waitUntil: "domcontentloaded" });
+    await page.waitForSelector("#appSplash[hidden]", { state: "attached", timeout: 30000 });
+    await page.waitForSelector('[data-primary-nav-id="vlog"]', { state: "visible", timeout: 30000 });
+    const defaultItems = await page.locator(".main-nav [data-primary-nav-id]").evaluateAll((buttons) => buttons.map((button) => button.dataset.primaryNavId));
+    assert.deepEqual(defaultItems, ["gallery", "vlog", "wishlist", "weekend", "wardrobe"], `${label} default primary navigation is incorrect`);
+
+    await page.click("#avatarButton");
+    await page.click("#accountSettingsButton");
+    await page.waitForSelector("#settingsDialog[open]", { state: "visible", timeout: 30000 });
+    if (viewport.width <= 700) await page.click('[data-settings-section="settingsAppearance"]');
+    await page.waitForSelector("#settingsPrimaryNavigation [data-primary-nav-toggle]", { state: "visible", timeout: 30000 });
+    assert.equal(await page.locator('[data-primary-nav-toggle="recipes"]').isChecked(), false, `${label} recipes should be optional by default`);
+    await page.locator('[data-primary-nav-toggle="recipes"]').check();
+    await page.waitForSelector('[data-primary-nav-id="recipes"]', { state: "visible" });
+    await page.click('[data-primary-nav-move="recipes:up"]');
+    const reordered = await page.locator(".main-nav [data-primary-nav-id]").evaluateAll((buttons) => buttons.map((button) => button.dataset.primaryNavId));
+    assert.deepEqual(reordered, ["gallery", "vlog", "wishlist", "weekend", "recipes", "wardrobe"], `${label} primary navigation order did not update`);
+    await page.locator('[data-primary-nav-toggle="thanks"]').check();
+    await page.locator('[data-primary-nav-toggle="secret"]').check();
+    await page.click("#closeSettingsDialog");
+    await page.waitForFunction(() => !document.querySelector("#settingsDialog")?.open);
+
+    const navigationLayout = await page.evaluate(() => {
+      const nav = document.querySelector(".main-nav");
+      const buttons = [...document.querySelectorAll(".main-nav [data-primary-nav-id]")];
+      const rects = buttons.map((button) => button.getBoundingClientRect());
+      return {
+        documentWidth: document.documentElement.scrollWidth,
+        viewportWidth: document.documentElement.clientWidth,
+        navWidth: nav?.clientWidth || 0,
+        navScrollWidth: nav?.scrollWidth || 0,
+        minHeight: Math.min(...rects.map((rect) => rect.height)),
+        minGap: Math.min(...rects.slice(1).map((rect, index) => rect.left - rects[index].right)),
+      };
+    });
+    assert.ok(navigationLayout.minHeight >= 44, `${label} primary navigation target is too small: ${JSON.stringify(navigationLayout)}`);
+    assert.ok(navigationLayout.minGap >= 7, `${label} primary navigation gap is too small: ${JSON.stringify(navigationLayout)}`);
+    assert.ok(navigationLayout.documentWidth <= navigationLayout.viewportWidth + 1, `${label} primary navigation caused page overflow`);
+    if (viewport.width <= 430 || (viewport.height <= 700 && viewport.width > viewport.height)) {
+      assert.ok(navigationLayout.navScrollWidth >= navigationLayout.navWidth, `${label} navigation scroll metrics are invalid`);
+    }
+
+    const filterLayout = await page.evaluate(() => {
+      const filters = document.querySelector("#galleryFilters");
+      const styles = filters ? getComputedStyle(filters) : null;
+      return { position: styles?.position || "", top: styles?.top || "" };
+    });
+    assert.ok(["static", "relative"].includes(filterLayout.position), `${label} diary filters are not in normal flow: ${JSON.stringify(filterLayout)}`);
+    assert.ok(filterLayout.top === "auto" || filterLayout.top === "0px", `${label} diary filters retain a top offset: ${JSON.stringify(filterLayout)}`);
+
+    await page.click('[data-primary-nav-id="vlog"]');
+    await page.waitForFunction(() => document.querySelector('[data-primary-nav-id="vlog"]')?.getAttribute("aria-pressed") === "true");
+    assert.equal(new URL(page.url()).searchParams.get("page"), null, `${label} VLOG created a route query parameter`);
+    await page.click('[data-primary-nav-id="gallery"]');
+    await page.waitForFunction(() => document.querySelector('[data-primary-nav-id="vlog"]')?.getAttribute("aria-pressed") === "false");
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForSelector('[data-primary-nav-id="recipes"]', { state: "visible", timeout: 30000 });
+    const persisted = await page.locator(".main-nav [data-primary-nav-id]").evaluateAll((buttons) => buttons.map((button) => button.dataset.primaryNavId));
+    assert.deepEqual(persisted, ["gallery", "vlog", "wishlist", "weekend", "recipes", "wardrobe", "thanks", "secret"], `${label} primary navigation preference did not persist`);
+    assert.deepEqual(pageErrors, [], `${label} primary navigation page errors:\n${pageErrors.join("\n")}`);
+  } finally {
+    await fixture.dispose(context);
+    await context.close();
+  }
 }
 
 async function testGlobalLevelDialogEvents(viewport, label) {
@@ -322,9 +398,9 @@ async function testDesktopPageRails(viewport, label) {
   const page = await context.newPage();
   await page.goto(`${baseUrl}/`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector(".topbar");
-  await page.click("#wishlistNav");
+  await page.click('[data-primary-nav-id="wishlist"]');
   await page.waitForSelector("#wishlistPage:not([hidden])");
-  await page.click("#weekendNav");
+  await page.click('[data-primary-nav-id="weekend"]');
   await page.waitForSelector("#weekendPage:not([hidden])");
 
   const rails = await page.evaluate(() => {
@@ -832,7 +908,7 @@ async function testAuthenticatedHomeStartup() {
     busy: document.body.getAttribute("aria-busy"),
     authHidden: document.querySelector("#authCard")?.hidden,
     userMenuHidden: document.querySelector("#userMenu")?.hidden,
-    galleryDisabled: document.querySelector("#galleryNav")?.disabled,
+    galleryDisabled: document.querySelector('[data-primary-nav-id="gallery"]')?.disabled,
   }));
   assert.ok(Date.now() - startedAt <= 2000, "authenticated home splash exceeded the 2 second budget");
   assert.equal(boot.busy, null, "authenticated home stayed aria-busy");
@@ -890,6 +966,12 @@ try {
   await testAuthenticatedDeepLink("recipes");
   await testAuthenticatedDeepLink("weekend");
   await testWeekendCompletionUploadAssembly();
+  await testPrimaryNavigationPreferences({ width: 375, height: 812 }, "primary-small-mobile");
+  await testPrimaryNavigationPreferences({ width: 390, height: 844 }, "primary-mobile");
+  await testPrimaryNavigationPreferences({ width: 430, height: 932 }, "primary-large-mobile");
+  await testPrimaryNavigationPreferences({ width: 844, height: 390 }, "primary-landscape");
+  await testPrimaryNavigationPreferences({ width: 768, height: 1024 }, "primary-tablet");
+  await testPrimaryNavigationPreferences({ width: 1440, height: 900 }, "primary-desktop");
   await testHomeShell({ width: 1440, height: 900 }, "desktop");
   await testHomeShell({ width: 390, height: 844 }, "mobile");
   await testHomeShell({ width: 375, height: 812 }, "small-mobile-reduced-motion", "reduce");

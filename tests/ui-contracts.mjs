@@ -4,6 +4,10 @@ import {
   authController,
   authViewModule,
   appNavigationControllerModule,
+  primaryNavigationDomain,
+  primaryNavigationDomainModule,
+  primaryNavigationViewModule,
+  primaryNavigationControllerModule,
   settingsTemplate,
   settingsSectionRegistry,
   mobileDiaryViewModule,
@@ -18,8 +22,13 @@ assert.match(authViewModule, /new-password/);
 assert.match(index, /id="authModeToggle"/);
 assert.match(index, /id="passwordToggle"/);
 assert.match(index, /id="inviteCodeField"[^>]*hidden/);
-assert.match(index, /id="galleryNav"[^>]*aria-current="page"/);
-assert.match(appNavigationControllerModule, /aria-current/);
+assert.match(index, /class="main-nav"[^>]*aria-label="页面切换"><\/nav>/);
+assert.match(primaryNavigationDomainModule, /PRIMARY_NAVIGATION_REGISTRY/);
+assert.match(primaryNavigationDomainModule, /type: "mode"/);
+assert.match(primaryNavigationViewModule, /data-primary-nav-id/);
+assert.match(primaryNavigationControllerModule, /preferences-store|preferenceStore/);
+assert.match(appNavigationControllerModule, /primaryNavigationController/);
+assert.deepEqual(primaryNavigationDomain.PRIMARY_NAVIGATION_DEFAULT_IDS, ["gallery", "vlog", "wishlist", "weekend", "wardrobe"]);
 assert.match(appNavigationControllerModule, /scrollTo\(\{ top: boundedPosition, behavior: "instant" \}\)/);
 assert.match(
   appNavigationControllerModule,

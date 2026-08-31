@@ -111,6 +111,7 @@ const {
   R2_UPLOAD_ENDPOINT,
   R2_PUBLIC_URL,
   PAGE_SIZE,
+  PRIMARY_NAVIGATION_KEY,
   VIP_USERS,
   PHOTO_COMMENT_PREVIEW_LIMIT,
   METADATA_CACHE_ITEM_LIMIT,
@@ -291,7 +292,9 @@ let moveGlobalMobileBackSwipe = () => undefined;
 let finishGlobalMobileBackSwipe = () => undefined;
 let cancelGlobalMobileBackSwipe = () => undefined;
 const mediaHooks = { deletePhoto: null };
+let primaryNavigationController = null;
 const switchPage = (...args) => appNavigationController?.switchPage(...args) ?? false;
+const syncPrimaryNavigation = (...args) => primaryNavigationController?.syncActive?.(...args);
 const renderOverview = (...args) => appNavigationController?.renderOverview(...args);
 const openRandomMemory = (...args) => appNavigationController?.openRandomMemory(...args);
 const vlogMode = createRuntimeVlogMode({
@@ -304,6 +307,7 @@ const vlogMode = createRuntimeVlogMode({
   updateFilterChips: (...args) => updateFilterChips(...args),
   renderGallery: (...args) => renderGallery(...args),
   setUploadExpanded: (...args) => setUploadExpanded(...args),
+  syncPrimaryNavigation,
 });
 let activeSecretFilter = "全部";
 let activeSecretAlbumId = "";
@@ -1077,6 +1081,7 @@ const appRouteRuntime = createRuntimeRouteEntry({
     secretFavoritesFolderId: SECRET_FAVORITES_FOLDER_ID,
     mobileDialogBreakpoint: MOBILE_DIALOG_BREAKPOINT,
     pageSize: PAGE_SIZE,
+    primaryNavigationKey: PRIMARY_NAVIGATION_KEY,
     recipesKey: RECIPES_KEY,
     weekendKey: WEEKEND_KEY,
     r2UploadEndpoint: R2_UPLOAD_ENDPOINT,
@@ -1123,12 +1128,14 @@ const appRouteRuntime = createRuntimeRouteEntry({
 });
 appNavigationController = appRouteRuntime.appNavigationController;
 appSessionController = appRouteRuntime.appSessionController;
+primaryNavigationController = appRouteRuntime.primaryNavigationController;
 runtimeHooks.renderUploadCenter = (...args) =>
   callLoaded(dataSafetyController, "renderUploadCenter", ...args);
 
 export const appRuntime = Object.freeze({
   elements: els,
   appSessionController,
+  primaryNavigationController,
   healthMonitor,
   performanceMonitor,
   performanceDiagnosticsView,

@@ -30,4 +30,5 @@ export const APP_CONFIG = Object.freeze({
   avatarCacheKey: "life-vlog-avatar-cache",
   mobileFeedLayoutKey: "life-vlog-mobile-feed-layout",
   mobileSecretLayoutKey: "life-vlog-mobile-secret-layout",
+  primaryNavigationKey: "life-vlog-primary-navigation",
 });

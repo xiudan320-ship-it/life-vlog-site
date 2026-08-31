@@ -1,6 +1,6 @@
 # 咻蛋之家技术总览
 
-> 当前系统事实的长期入口。最后核验：2026-08-31。
+> 当前系统事实的长期入口。最后核验：2026-09-01。
 >
 > 正式站：<https://life-vlog-site.pages.dev/>
 
@@ -48,6 +48,8 @@ flowchart LR
 
 `app.js` 不承载业务逻辑。新增功能按职责进入 `modules/`，并保持 controller、view、domain、repository/service 分离。
 
+顶部分页由 `primary-navigation-controller.js` 在应用壳装配时接管：访客先使用默认可见入口，session 建立后按用户/设备作用域应用配置；设置路由在模板渲染完成后才绑定 Push 设置按钮和顶部分页设置。设置页不依赖提前加载的懒路由 DOM。
+
 移动端页面契约由主入口和基础样式共同维护：`index.html` 只有一个固定的 viewport（`width=device-width`、`initial-scale=1.0`、`minimum-scale=1.0`、`maximum-scale=1.0`、`user-scalable=no`、`viewport-fit=cover`）；手机与短横屏上的可见文本输入、`select` 和 `textarea` 的计算字号至少为 16px，并随动态字号根设置放大。页面保留纵向滚动和系统返回手势，不使用 `html/body` 的全局横向溢出遮罩、全局 `touch-action: none` 或全局 `touchmove` 拦截；照片查看器和下拉刷新只在各自的媒体/日记区域维护局部手势边界。
 
 通知铃铛属于应用外壳能力，由 `app-event-bindings.js` 在 shell 初始化时调用 `notification-event-bindings.js` 绑定一次，不依赖设置路由。`openNotificationsPanel()` 先同步打开 dialog，再复用共享的 `notificationsLoadPromise` 异步加载；视图区分缓存加载、空状态和错误状态，错误提供重试，加载期间关闭 dialog 不会在请求完成后重新打开，关闭事件恢复铃铛焦点。通知读取/标记已读失败都必须被控制器吸收为可读状态，不能产生未处理 Promise rejection。
@@ -73,6 +75,8 @@ flowchart LR
 首页的今日心情概览属于应用壳，不是独立路由：`today-mood-controller.js` 通过 `listDay(YYYY-MM-DD)` 读取 Asia/Tokyo 当天记录并过滤为稳定两席。应用壳同时装配唯一的 `mood-entry-overlay-controller.js`；gallery 概览与懒加载 mood 日历都向它传入日期、两席记录、参与者和触发元素，共用 Picker、编辑、详情、权限及写入流程。保存/删除后 overlay 同时通知月历内存状态与概览单日刷新。
 
 首次登录态 gallery 激活时，`app-navigation-controller.js` 负责一次性的首页落点。概览席位不切路由：已记录席位原地打开详情，本人空席原地打开 Picker，对方空席不可编辑；overlay 用同 URL history entry 支持 Back 关闭，并恢复打开时的 scrollY 与触发焦点。顶部不再提供心情分页按钮，`?page=mood` 深链接和概览日历 CTA 继续进入月历。
+
+一级导航的注册表、默认顺序和可选入口由 `primary-navigation-domain.js` 维护。默认顺序为“日记、VLOG、心愿、周末、衣柜”，菜谱、留言、秘藏默认关闭；日记始终启用。VLOG 是筛选 mode，不产生 `?page=vlog`，心情不占用一级导航但保留 mood 深链接和日历 CTA。`primary-navigation-view.js` 只渲染当前可见入口与设置列表，`primary-navigation-controller.js` 负责按作用域读写、启用/禁用和上下移动。
 
 ## 5. 分层约定
 
@@ -138,7 +142,7 @@ flowchart LR
 
 ## 8. 本地状态、缓存与离线
 
-- `preferences-store.js`：主题、字号、布局等设备偏好。
+- `preferences-store.js`：主题、字号、布局和顶部分页等设备偏好。
 - `upload-queue.js`：IndexedDB 上传队列与失败重试。
 - `media-cache.js` / `offline-cache-controller.js`：日记和秘藏媒体缓存。
 - `offline-records.js`：离线元数据记录。
@@ -147,6 +151,8 @@ flowchart LR
 Service Worker 使用 `registerType: "prompt"`，新版本就绪后由用户确认更新。路由 chunk 和大媒体不进入核心 precache，避免安装包过大。
 
 心情日记的当前月份在 `localStorage` 使用 `life-vlog-mood-month:<userId>:<YYYY-MM>` 缓存，仅作为加速层；云端成功响应会替换 canonical 内容，用户、月份和请求 revision 均参与隔离与 latest-wins 判断。首页今日概览使用独立的单日查询，不读取该月缓存。保存、编辑、删除先更新月历/历史/详情的内存快照，成功后刷新首页当天状态，失败时恢复快照并保留编辑输入；没有离线写入队列。
+
+顶部分页配置使用现有 `preferences-store.js` 的 `life-vlog-primary-navigation` key，按现有 user/device scope 隔离；只保存启用状态与顺序，不新增数据库、云端字段或依赖。关闭本机 Push 时先执行浏览器订阅的 `unsubscribe()`，再清理 Worker 记录；远端失败只反馈“本机已关闭、云端记录清理失败”，不阻断本地状态。
 
 ## 9. 构建与资源
 
@@ -174,6 +180,8 @@ pnpm preview
 
 源图片位于 `assets-source/`，`scripts/optimize-assets.mjs` 生成确定性资源到 `assets/generated/`。不要手工编辑生成文件来替代源文件和优化脚本。
 
+顶部分页和筛选样式只修改规范源码；每次构建由 Vite 重新生成带 hash 的入口资源，不能直接编辑 `dist/` 或用旧 hash 资源掩盖源码版本漂移。本次本地验收只完成构建和本地 fixture 检查，未执行 preview/production 部署。
+
 ## 10. 测试体系
 
 | 命令 | 覆盖范围 |
@@ -186,7 +194,7 @@ pnpm preview
 
 心情日记专项由 `tests/mood-diary-domain.mjs`、`tests/mood-diary-controller.mjs`、`tests/today-mood-controller.mjs`、`tests/mood-diary-worker.mjs`、`tests/mood-diary-assets.mjs` 和 `tests/mood-diary-browser.mjs` 覆盖；浏览器用确定性假 session / API fixture 验证首页今日概览的四种数据状态、真实昵称/形状、本人快速添加、冷启动落点、gallery 滚动恢复，以及桌面与手机端月历、Picker、编辑、删除、历史和横向溢出。16 个 512×512 透明心情素材位于 Vite 静态目录 `public/assets/mood-diary/`，构建后 URL 为 `/assets/mood-diary/*`；静态门禁会验证精确文件集合、PNG/Alpha、透明安全区和单文件体积，避免白底、棋盘格或缺失素材进入发布包。
 
-`pnpm test` 不包含全部发布门禁。发布必须遵循 [`release-checklist.md`](release-checklist.md)。浏览器回归和 release smoke 使用确定性通知 fixture 覆盖铃铛在设置路由未加载、慢请求、重复点击、关闭中请求、读取失败重试、已读写回和跳转场景下的行为；a11y 回归同时检查上述 viewport、无横向溢出和移动端表单字号契约。
+`pnpm test` 不包含全部发布门禁。发布必须遵循 [`release-checklist.md`](release-checklist.md)。浏览器回归和 release smoke 使用确定性通知 fixture 覆盖铃铛在设置路由未加载、慢请求、重复点击、关闭中请求、读取失败重试、已读写回和跳转场景下的行为；同时覆盖顶部分页默认/可选入口、启用排序持久化、VLOG mode 不改 URL、导航局部横向滚动、日记搜索/tag 随页面文档流滚动和 Push 本地优先关闭。a11y 回归同时检查上述 viewport、无横向溢出和移动端表单字号契约。
 
 ## 11. 部署
 

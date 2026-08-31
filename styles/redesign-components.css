@@ -2083,12 +2083,13 @@ body.mobile-dialog-open {
     order: 3;
     flex: 0 0 100%;
     width: 100%;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
     overflow-x: auto;
   }
 
   .main-nav button {
-    min-width: 0;
+    flex: 0 0 auto;
+    min-width: 68px;
+    min-height: 44px;
     padding-inline: 8px;
   }
 
@@ -2561,7 +2562,7 @@ body.mobile-dialog-open {
   }
 
   .filters {
-    top: calc(136px + env(safe-area-inset-top));
+    padding-block: 9px;
   }
 
   h2 {

@@ -14,6 +14,7 @@ export function createAppNavigationController({
   elements,
   state,
   vlogMode,
+  primaryNavigationController,
   controllers,
   actions,
   routeLoader,
@@ -46,33 +47,7 @@ export function createAppNavigationController({
   }
 
   function syncPageNavigationState() {
-    const entries = [
-      ["gallery", elements.galleryNav],
-      ["recipes", elements.recipesNav],
-      ["wishlist", elements.wishlistNav],
-      ["weekend", elements.weekendNav],
-      ["wardrobe", elements.wardrobeNav],
-      ["thanks", elements.thanksNav],
-      ["secret", elements.secretNav],
-    ];
-    for (const [page, navigation] of entries) {
-      if (!navigation) continue;
-      const isGallery = page === "gallery";
-      const isCurrent = page === state.activePage;
-      navigation.classList.toggle(
-        "active",
-        isGallery
-          ? isCurrent && state.activeFilter !== "VLOG"
-          : isCurrent
-      );
-      if (isCurrent) navigation.setAttribute("aria-current", "page");
-      else navigation.removeAttribute("aria-current");
-    }
-    elements.vlogNav?.removeAttribute("aria-current");
-    elements.vlogNav?.classList.toggle(
-      "active",
-      state.activePage === "gallery" && state.activeFilter === "VLOG"
-    );
+    primaryNavigationController?.syncActive?.();
   }
 
   function focusPageHeading(page) {

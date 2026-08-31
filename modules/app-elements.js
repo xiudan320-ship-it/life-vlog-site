@@ -8,6 +8,7 @@ function applySharedElementQueries(elements, documentTarget) {
   elements.dialog = elements.photoDialog || documentTarget.getElementById("photoDialog");
 
   elements.brand = documentTarget.querySelector(".brand");
+  elements.mainNav = documentTarget.querySelector(".main-nav");
   elements.main = documentTarget.querySelector("main");
   elements.heroSignature = documentTarget.querySelector(".hero-copy > p:last-child");
   elements.settingsNavButtons = documentTarget.querySelectorAll("[data-settings-section]");

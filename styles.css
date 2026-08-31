@@ -869,9 +869,6 @@ textarea:focus {
 }
 
 .filters {
-  position: sticky;
-  top: 71px;
-  z-index: 12;
   display: flex;
   gap: 9px;
   margin: 0 0 28px;
@@ -2129,7 +2126,7 @@ body.theme-dark .dialog-close {
   }
 
   .filters {
-    top: 65px;
+    padding-block: 8px 12px;
   }
 
   .photo-card h3 {

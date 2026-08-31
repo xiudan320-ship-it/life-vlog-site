@@ -14,6 +14,8 @@ export function mount(context) { mountRouteTemplate({ ...context, page: "setting
 export function initialize({ controllers, controllerOptions, elements, collect, actions }) {
   renderSettingsShell(elements.settingsDialog);
   collect?.("settings");
+  actions?.ensurePushSettingsPage?.();
+  actions?.renderPrimaryNavigationSettings?.();
   const options = controllerOptions.settings;
   if (!controllers.familySettings) controllers.familySettings = createFamilySettingsController(options.familySettings);
   if (!controllers.offlineSettings) controllers.offlineSettings = createOfflineSettingsController(options.offlineSettings);

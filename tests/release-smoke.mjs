@@ -233,10 +233,10 @@ async function testAuthenticatedGallery(browser) {
     for (const path of ["/fixture-live.mov", "/fixture-offscreen.mov", "/fixture-far.mov", "/fixture-remote.mov", "/fixture-deep.mov", "/fixture-last.mov"]) {
       assert.ok(result.fixture.requests.filter((request) => request.path === path).length <= 1, `${path} was requested more than once`);
     }
-    assert.equal(await page.locator("#galleryNav").isEnabled(), true, "gallery navigation is disabled");
+    assert.equal(await page.locator('[data-primary-nav-id="gallery"]').isEnabled(), true, "gallery navigation is disabled");
     const forbidden = routeScripts(result).filter((url) => /(?:recipes|weekend|wardrobe|secret|settings)-route-/.test(url));
     assert.equal(forbidden.length, 0, `gallery cold start loaded route chunks: ${forbidden.join(", ")}`);
-    await page.click("#wishlistNav");
+    await page.click('[data-primary-nav-id="wishlist"]');
     await page.waitForSelector("#wishlistPage:not([hidden])");
     await page.waitForSelector('[data-wish-id="fixture-wish"]', { timeout: 5000 });
     assert.equal(result.errors.some((error) => error.includes('Page controller "recipe" is not loaded')), false, "wishlist hit unloaded recipe controller");
@@ -247,10 +247,10 @@ async function testAuthenticatedGallery(browser) {
     await page.click('[data-toggle-shopping="fixture-shopping"]');
     await page.click('[data-shopping-filter="done"]');
     await page.waitForSelector('.shopping-card.completed[data-shopping-id="fixture-shopping"]');
-    await page.click("#wardrobeNav");
+    await page.click('[data-primary-nav-id="wardrobe"]');
     await page.waitForSelector('#wardrobePage:not([hidden]) [data-page-heading="wardrobe"]', { state: "visible", timeout: 10000 });
     assert.equal(result.errors.some((error) => error.includes("Wardrobe root is required")), false, "wardrobe route used an unmounted root");
-    await page.click("#galleryNav");
+    await page.click('[data-primary-nav-id="gallery"]');
     await page.waitForSelector("#gallery");
     assert.ok(result.fixture.requests.filter(({ path }) => path === "/fixture-live.mov").length <= 1, "returning to gallery requested the same live media twice");
     await page.click("#avatarButton");

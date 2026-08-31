@@ -201,7 +201,7 @@ async function runTodayMoodOverviewFlow() {
     assert.deepEqual(await page.locator("#moodCalendarLegend .mood-seat-name").allTextContents(), ["小秀", "小咻"]);
     assert.equal(await page.locator("#moodCalendarLegend").textContent().then((text) => /家庭成员\s*[12]/u.test(text)), false);
 
-    await page.click("#galleryNav");
+    await page.click('[data-primary-nav-id="gallery"]');
     await page.waitForSelector("#overview:not([hidden])", { state: "visible", timeout: 30000 });
     await page.waitForFunction(() => document.activeElement?.dataset.pageHeading === "gallery", null, { timeout: 30000 });
     await page.evaluate(() => {
@@ -214,7 +214,7 @@ async function runTodayMoodOverviewFlow() {
     assert.equal(await page.evaluate(() => Math.round(window.scrollY)), 1500);
     await page.locator("#overviewMoodCalendar").evaluate((element) => element.click());
     await page.waitForSelector("#moodPage:not([hidden])", { state: "visible", timeout: 30000 });
-    await page.click("#galleryNav");
+    await page.click('[data-primary-nav-id="gallery"]');
     await page.waitForSelector("#overview:not([hidden])", { state: "visible", timeout: 30000 });
     await page.waitForFunction(() => document.activeElement?.dataset.pageHeading === "gallery", null, { timeout: 30000 });
     assert.equal(await page.evaluate(() => Math.round(window.scrollY)), 1500, "returning to gallery did not restore the saved scroll position");
@@ -309,7 +309,7 @@ async function runMoodDiaryFlow(viewport, label) {
 
     const future = page.locator('#moodCalendarGrid [aria-disabled="true"]').first();
     if (await future.count()) {
-      await future.click();
+      await future.click({ force: true });
       await page.waitForSelector('.mini-toast-text:has-text("还不能记录未来的日记")', { state: "visible", timeout: 3000 });
     }
 

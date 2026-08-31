@@ -19,6 +19,7 @@
 .settings-sidebar button:focus-visible,
 .settings-group button:focus-visible,
 .settings-secondary-card button:focus-visible,
+.settings-primary-navigation input:focus-visible,
 .settings-mobile-header button:focus-visible {
   outline: 3px solid color-mix(in srgb, var(--accent) 70%, #fff 30%);
   outline-offset: 3px;
@@ -44,6 +45,85 @@
   color: var(--muted);
   font-size: 13px;
   line-height: 1.6;
+}
+
+.settings-primary-navigation-list {
+  display: grid;
+  gap: 8px;
+}
+
+.settings-primary-navigation-row {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--surface) 94%, var(--accent) 6%);
+  padding: 10px;
+}
+
+.settings-primary-navigation-row-copy {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.settings-primary-navigation-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings-primary-navigation-copy strong {
+  font-size: 14px;
+}
+
+.settings-primary-navigation-copy small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.settings-primary-navigation-toggle {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.settings-primary-navigation-toggle input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--accent-strong);
+}
+
+.settings-primary-navigation-row-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.settings-primary-navigation-row-actions button {
+  min-width: 64px;
+  min-height: 44px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.settings-primary-navigation-row-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
 }
 
 .settings-secondary-card .settings-group,

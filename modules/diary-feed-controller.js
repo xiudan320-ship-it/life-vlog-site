@@ -56,6 +56,7 @@ export function createDiaryFeedController({
   getR2PublicAssetUrl,
   r2PublicUrl = "",
   r2UploadEndpoint = "",
+  syncPrimaryNavigation = () => {},
 }) {
   const els = elements;
   const {
@@ -427,8 +428,7 @@ export function createDiaryFeedController({
         item.setAttribute("aria-pressed", String(item.dataset.filter === state.activeFilter));
       });
     }
-    els.galleryNav.classList.toggle("active", state.activePage === "gallery" && state.activeFilter !== "VLOG");
-    els.vlogNav?.classList.toggle("active", state.activePage === "gallery" && state.activeFilter === "VLOG");
+    syncPrimaryNavigation();
   }
   
   function showTodayPosts() {

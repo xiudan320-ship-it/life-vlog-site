@@ -57,7 +57,6 @@ export function createAppSessionController({
     els.anniversarySection.hidden = !signedIn;
     els.anniversaryOpen.hidden = !signedIn;
     els.memoryButton.hidden = !signedIn;
-    if (els.vlogNav) els.vlogNav.hidden = !signedIn;
     if (els.weeklyReviewOpen) els.weeklyReviewOpen.hidden = !signedIn;
     const timelineTool = documentTarget.querySelector('[data-tool-id="timeline"]');
     if (timelineTool) timelineTool.hidden = !signedIn;
@@ -107,6 +106,7 @@ export function createAppSessionController({
     actions.renderAnniversaries();
     if (els.thanksBoard) actions.renderGratitudeNotes();
     actions.renderFoodWheel();
+    actions.applyPrimaryNavigation?.(signedIn ? state.session.user.id : "guest");
     actions.switchPage(state.activePage);
     actions.setHint(signedIn ? "" : "输入用户名和密码登录。注册新账号需要 xiudan320 给的邀请码。");
     actions.setGlobalStatus("");
@@ -161,7 +161,6 @@ export function createAppSessionController({
     els.setupToggle.hidden = true;
     els.setupPanel.hidden = true;
     state.cloudDb = backend.createClient();
-    actions.ensurePushSettingsPage();
 
     state.cloudDb.auth.onAuthStateChange((_event, nextSession) => {
       const previousUserId = state.session?.user?.id || "";

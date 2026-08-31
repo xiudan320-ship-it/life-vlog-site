@@ -724,7 +724,7 @@ async function testOrdinaryVideoLifecycle(browser) {
     })), { hidden: false, autoplay: true, muted: true, loop: false, controls: true, paused: false });
     await page.keyboard.press("Escape");
     await page.waitForSelector("#photoDialog:not([open])", { state: "attached" });
-    await page.click("#weekendNav");
+    await page.click('[data-primary-nav-id="weekend"]');
     await page.waitForSelector("#weekendPage:not([hidden])", { state: "attached" });
     assert.equal(await page.locator("video.feed-motion-preview").count(), 0, "route switch left a feed preview mounted");
     await page.evaluate(() => document.querySelector("#dialogVideo")?.dispatchEvent(new Event("canplay")));
@@ -803,13 +803,13 @@ async function testRapidNavigationLatestWins(browser) {
   const beforeHistory = await page.evaluate(() => history.length);
   await page.evaluate((length) => { window.__rapidHistoryStart = length; }, beforeHistory);
   const sequences = [
-    ["galleryNav", "vlogNav", "weekendNav"],
-    ["weekendNav", "galleryNav", "vlogNav", "wishlistNav", "weekendNav"],
+    ["gallery", "vlog", "weekend"],
+    ["weekend", "gallery", "vlog", "wishlist", "weekend"],
   ];
   for (let round = 0; round < 30; round += 1) {
     const sequence = sequences[round % sequences.length];
     await page.evaluate((ids) => {
-      ids.forEach((id) => document.getElementById(id)?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+      ids.forEach((id) => document.querySelector(`[data-primary-nav-id="${id}"]`)?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
     }, sequence);
   }
   await page.waitForSelector("#weekendPage:not([hidden])", { state: "attached", timeout: 15000 });
@@ -817,7 +817,7 @@ async function testRapidNavigationLatestWins(browser) {
   await page.waitForFunction(() => document.querySelectorAll('[aria-current="page"]').length <= 1);
   const result = await page.evaluate(() => ({
     href: location.href,
-    current: document.querySelector('[aria-current="page"]')?.id || "",
+    current: document.querySelector('[aria-current="page"]')?.dataset.primaryNavId || "",
     historyDelta: history.length - window.__rapidHistoryStart,
     busy: document.querySelector("main")?.hasAttribute("aria-busy") || document.querySelector("main")?.hasAttribute("data-route-busy"),
     rejections: window.__rapidNavigationRejections,
@@ -825,7 +825,7 @@ async function testRapidNavigationLatestWins(browser) {
   // The previous gallery state is the only history entry that should remain
   // behind the final intent; delayed obsolete route loads cannot push entries.
   assert.equal(result.href.includes("page=weekend"), true, `latest navigation did not win: ${JSON.stringify(result)}`);
-  assert.equal(result.current, "weekendNav");
+  assert.equal(result.current, "weekend");
   assert.equal(result.historyDelta, 1, `obsolete navigation polluted history: ${JSON.stringify(result)}`);
   assert.equal(result.busy, false, `latest navigation left the shell busy: ${JSON.stringify(result)}`);
   assert.deepEqual(result.rejections, [], `rapid navigation rejected: ${JSON.stringify(result.rejections)}`);

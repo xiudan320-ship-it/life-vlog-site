@@ -32,6 +32,7 @@ export function createPushController({
   showToast,
 }) {
   let syncPromise = null;
+  let pushOperationPromise = null;
 
   function registerWorker() {
     if (!("serviceWorker" in navigator)) return;
@@ -96,7 +97,36 @@ export function createPushController({
     disable.hidden = !enabled;
   }
 
-  async function enable() {
+  function setOperationBusy(busy) {
+    const enable = document.querySelector("#enablePushNotifications");
+    const disable = document.querySelector("#disablePushNotifications");
+    [enable, disable].forEach((button) => {
+      if (!button) return;
+      button.disabled = busy || button.disabled;
+      if (busy) button.setAttribute("aria-busy", "true");
+      else button.removeAttribute("aria-busy");
+    });
+  }
+
+  function runPushOperation(task) {
+    if (pushOperationPromise) return pushOperationPromise;
+    setOperationBusy(true);
+    pushOperationPromise = Promise.resolve()
+      .then(task)
+      .catch((error) => {
+        const status = document.querySelector("#pushNotificationStatus");
+        if (status) status.textContent = `操作失败：${error?.message || "请重试"}`;
+        return false;
+      })
+      .finally(async () => {
+        await refreshSettings().catch(() => {});
+        setOperationBusy(false);
+        pushOperationPromise = null;
+      });
+    return pushOperationPromise;
+  }
+
+  function enable() {
     const session = getSession();
     if (!session || !supportsWebPush()) return;
     const status = document.querySelector("#pushNotificationStatus");
@@ -104,14 +134,13 @@ export function createPushController({
       if (status) status.textContent = "请先把咻蛋之家添加到主屏幕，再从桌面图标打开。";
       return;
     }
-    if (status) status.textContent = "正在向系统申请通知权限...";
-    const permission = await Notification.requestPermission();
-    if (permission !== "granted") {
-      if (status) status.textContent = "没有获得通知权限，可在系统设置中重新允许。";
-      await refreshSettings();
-      return;
-    }
-    try {
+    return runPushOperation(async () => {
+      if (status) status.textContent = "正在向系统申请通知权限...";
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        if (status) status.textContent = "没有获得通知权限，可在系统设置中重新允许。";
+        return false;
+      }
       const registration = await navigator.serviceWorker.ready;
       const config = await request("/api/push/config");
       const publicKey = String(config?.data?.publicKey || "");
@@ -130,29 +159,55 @@ export function createPushController({
       localStorage.setItem(`${SUBSCRIPTION_SYNC_KEY}:${session.user.id}`, String(Date.now()));
       if (status) status.textContent = "通知已开启，这台设备会收到家庭新消息。";
       showToast("通知已开启", { kind: "success", placement: "center" });
-    } catch (error) {
-      if (status) status.textContent = `开启失败：${error.message}`;
-    }
-    await refreshSettings();
+      return true;
+    });
   }
 
-  async function disable() {
-    const status = document.querySelector("#pushNotificationStatus");
-    try {
-      const subscription = await getSubscription();
+  function disable() {
+    return runPushOperation(async () => {
+      const status = document.querySelector("#pushNotificationStatus");
+      if (status) status.textContent = "正在关闭这台设备的通知…";
+      let subscription = null;
+      let localError = null;
+      let remoteError = null;
+      try {
+        subscription = await getSubscription();
+      } catch (error) {
+        localError = error;
+      }
+
+      const endpoint = String(subscription?.endpoint || "");
       if (subscription) {
-        await request("/api/push/unsubscribe", {
-          method: "POST",
-          body: JSON.stringify({ endpoint: subscription.endpoint }),
-        });
-        await subscription.unsubscribe();
+        try {
+          await subscription.unsubscribe();
+        } catch (error) {
+          localError = error;
+        }
       }
       if (navigator.clearAppBadge) await navigator.clearAppBadge().catch(() => {});
+      if (endpoint) {
+        try {
+          await request("/api/push/unsubscribe", {
+            method: "POST",
+            body: JSON.stringify({ endpoint }),
+          });
+        } catch (error) {
+          remoteError = error;
+        }
+      }
+
+      const remainingSubscription = await getSubscription().catch(() => null);
+      if (localError || remainingSubscription) {
+        if (status) status.textContent = `关闭失败：${localError?.message || "本机订阅仍然存在"}`;
+        return false;
+      }
+      if (remoteError) {
+        if (status) status.textContent = "本机已关闭，云端记录清理失败，可联网后重试。";
+        return false;
+      }
       if (status) status.textContent = "这台设备的通知已关闭。";
-    } catch (error) {
-      if (status) status.textContent = `关闭失败：${error.message}`;
-    }
-    await refreshSettings();
+      return true;
+    });
   }
 
   function ensureSettingsPage() {

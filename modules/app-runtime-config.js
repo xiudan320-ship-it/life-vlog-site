@@ -32,6 +32,7 @@ const {
   avatarCacheKey: AVATAR_CACHE_KEY,
   mobileFeedLayoutKey: MOBILE_FEED_LAYOUT_KEY,
   mobileSecretLayoutKey: MOBILE_SECRET_LAYOUT_KEY,
+  primaryNavigationKey: PRIMARY_NAVIGATION_KEY,
 } = APP_CONFIG;
 
 const DEFAULT_FAMILY_TAGLINE = "收藏生活里值得回看的照片、味道和还没完成的小愿望。";
@@ -86,6 +87,7 @@ export const APP_RUNTIME_CONFIG = Object.freeze({
   AVATAR_CACHE_KEY,
   MOBILE_FEED_LAYOUT_KEY,
   MOBILE_SECRET_LAYOUT_KEY,
+  PRIMARY_NAVIGATION_KEY,
   DEFAULT_FAMILY_TAGLINE,
   SECRET_UNLOCK_MAX_MS: 15 * 60 * 1000,
   THANKS_COLORS: new Set(["#2f6b3b", "#d6544d", "#2e6da4", "#81559b", "#a66b12"]),

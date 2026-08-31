@@ -158,6 +158,21 @@ export const appNavigationControllerModule = await readFile(
   new URL("../modules/app-navigation-controller.js", import.meta.url),
   "utf8"
 );
+export const primaryNavigationDomain = await import(
+  new URL("../modules/primary-navigation-domain.js", import.meta.url)
+);
+export const primaryNavigationDomainModule = await readFile(
+  new URL("../modules/primary-navigation-domain.js", import.meta.url),
+  "utf8"
+);
+export const primaryNavigationViewModule = await readFile(
+  new URL("../modules/primary-navigation-view.js", import.meta.url),
+  "utf8"
+);
+export const primaryNavigationControllerModule = await readFile(
+  new URL("../modules/primary-navigation-controller.js", import.meta.url),
+  "utf8"
+);
 export const appIdentityControllerModule = await readFile(
   new URL("../modules/app-identity-controller.js", import.meta.url),
   "utf8"

@@ -18,6 +18,12 @@ function renderSettingsGroups() {
       <button id="settingsFeedLayoutButton" type="button"><span>手机列表布局</span><strong><em id="settingsFeedLayoutValue">双列</em><small>点击切换单列/双列</small></strong></button>
       <div class="settings-inline-control"><span>文字大小</span><div class="text-scale-options" role="group" aria-label="文字大小"><button type="button" data-text-scale="standard">标准</button><button type="button" data-text-scale="large">较大</button><button type="button" data-text-scale="xlarge">特大</button></div></div>
       <div class="settings-install-card"><div><span>安装应用</span><small id="installAppHint" hidden></small></div><button class="primary" id="installAppButton" type="button" hidden>安装到主屏幕</button></div>
+      <section class="settings-secondary-card settings-primary-navigation" id="settingsPrimaryNavigation" aria-labelledby="settingsPrimaryNavigationTitle">
+        <p class="kicker">Primary Navigation</p><h4 id="settingsPrimaryNavigationTitle">顶部分页</h4>
+        <p class="settings-primary-navigation-intro">选择要显示的入口，并用上移/下移调整顺序。日记始终保留；VLOG 是日记的视频模式。</p>
+        <div class="settings-primary-navigation-list" data-primary-navigation-settings-list></div>
+        <p class="status-line" data-primary-navigation-status role="status" aria-live="polite"></p>
+      </section>
     </section>
 
     <section class="settings-group" id="settingsAccount" role="tabpanel" aria-labelledby="settings-tab-settingsAccount" hidden>

@@ -26,6 +26,12 @@ const [mediaRuntime, photoDetailRuntime, accountAssembly, secretService, routeLo
 ]);
 const diaryFeedController = await read("modules/diary-feed-controller.js");
 const vlogMode = await read("modules/vlog-mode.js");
+const [primaryNavigationDomain, primaryNavigationView, primaryNavigationController, pushController] = await Promise.all([
+  read("modules/primary-navigation-domain.js"),
+  read("modules/primary-navigation-view.js"),
+  read("modules/primary-navigation-controller.js"),
+  read("modules/push-controller.js"),
+]);
 const [notificationEvents, notificationView, foundation, components] = await Promise.all([
   read("modules/notification-event-bindings.js"),
   read("modules/notification-view.js"),
@@ -46,6 +52,12 @@ assert.match(html, /id="overviewMoodCalendar"/);
 assert.doesNotMatch(html, /overviewPhotos|overviewRecipes|overviewWishes|overviewLevelButton|overviewProgress/);
 assert.doesNotMatch(html, /\?v=\d/);
 assert.doesNotMatch(`${app}\n${appRuntime}\n${appRuntimeController}\n${appRuntimeInfrastructure}\n${appRuntimeRoute}\n${appRuntimeStartup}`, /\?v=\d/);
+assert.match(primaryNavigationDomain, /PRIMARY_NAVIGATION_REGISTRY/);
+assert.match(primaryNavigationView, /data-primary-nav-id/);
+assert.match(primaryNavigationController, /readJson/);
+assert.match(pushController, /subscription\.unsubscribe\(\)/);
+assert.match(pushController, /本机已关闭，云端记录清理失败/);
+assert.doesNotMatch(`${appRuntimeRoute}\n${appEvents}\n${diaryFeedController}\n${vlogMode}`, /galleryNav|vlogNav|wishlistNav|weekendNav|wardrobeNav|thanksNav|secretNav/);
 assert.equal(releaseSmoke.includes(forbiddenUsernameEnv), false);
 assert.equal(releaseSmoke.includes(forbiddenPasswordEnv), false);
 assert.equal(await access(join(root, "service-worker.js")).then(() => true, () => false), false);

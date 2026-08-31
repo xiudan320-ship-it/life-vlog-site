@@ -79,7 +79,7 @@ async function scan(result, label) {
 
 async function assertKeyboardAndTouchContracts(result, label) {
   const { page } = result;
-  await page.click("#wishlistNav");
+  await page.click('[data-primary-nav-id="wishlist"]');
   await page.waitForFunction(() => document.activeElement?.dataset.pageHeading === "wishlist");
   assert.equal(await page.locator("#wishlistPage").isVisible(), true, `${label} route did not activate`);
 

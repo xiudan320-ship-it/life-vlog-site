@@ -38,6 +38,8 @@ pnpm run test:release
 - 状态：guest gallery、fixture signed gallery、recipes、wishlist/shopping、weekend、wardrobe、thanks、secret PIN、secret collection，以及 settings dialog。
 - 主题/显示：light、dark、100%/115%/130% 动态字号和 reduced-motion。
 - 合同：Axe critical/serious=0、一级键盘导航、登录/筛选、dialog Escape 与焦点恢复、路由标题焦点、44 CSS px 触控目标、sticky 不遮挡和无横向溢出；主入口只有一条固定 viewport，手机与短横屏可见文本输入/select/textarea 计算字号至少 16px，页面不依赖全局横向溢出遮罩或触摸拦截。
+- 顶部分页：默认顺序为日记、VLOG、心愿、周末、衣柜；可选菜谱/留言/秘藏可启用、禁用、上下排序并在刷新后保持，日记不可关闭，VLOG 不写入 `?page=`，心情不出现在一级导航；导航过多时只有导航行横向滚动，页面本身无横向溢出，入口和排序按钮至少 44×44px、相邻间距至少 8px。
+- 日记筛选：搜索和 tag 在正常文档流中，计算样式不是 sticky/fixed，向下滚动后不会占据手机视口顶部。
 
 `test:browser`/`c-performance-regression.mjs` 另外验证首页今日心情概览的四种数据状态、两席稳定形状、真实昵称、本人快捷添加、冷启动滚动和 gallery 返回恢复；同时验证列表普通视频不触发视频网络加载、进入日记/VLOG 详情后静音自动播放且保留控件、失败可重试、gallery 同步读取秘藏表而不加载秘藏 route、30 轮快速路由 latest-wins、全局等级弹窗、心情日记双端月历/Picker/编辑/删除，以及既有周末/购物/回复交互。首屏 signed-in 请求预算包含今日心情的单日读取。所有 signed-in 场景均使用 `tests/fixtures/cloudflare-api-fixture.mjs` 的内存 fixture，不使用真实账户或真实业务数据。
 
@@ -61,6 +63,7 @@ Worker CORS 只允许 `https://life-vlog-site.pages.dev` 与固定 preview 别�
 - 秘藏：密码进入、文件夹/相册、上传、Tag 添加删除、收藏、移动、排序、图片预览和桌面端单张删除（保留最后一张保护）。
 - 等级面板：点击顶部等级徽章或经验区域后立即打开面板，云端家庭排行加载完成后再刷新内容。
 - 通知：铃铛在未加载设置路由时也可点击；dialog 先开窗再加载，慢网显示 loading，空结果显示 empty，读取失败显示 error 与重试；重复点击只复用一个请求，加载中关闭后不自动重开，关闭恢复铃铛焦点；新日记、评论和回复提示打开后会消失，自己发布的内容不提醒自己。
+- 设置 → 通知与工具：懒加载进入设置后“关闭这台设备”可点击；操作期间按钮显示 busy/disabled；本机 Push 订阅先关闭，即使 Worker 清理失败也明确反馈本机已关闭并允许后续重试，重复点击不会并发执行。
 - 手机 viewport：在 375×812、390×844、430×932 和 844×390 检查页面仍可纵向滚动、无横向溢出，文本控件聚焦不放大页面；日记/秘藏媒体查看器仍可局部缩放、拖拽，系统返回手势可用。
 - 离线与缓存：断网时能打开已缓存内容，恢复网络后不会重复上传或重复请求。
 - 深色/浅色模式、头像、昵称、家庭成员名称和长列表滚动没有错位或溢出。

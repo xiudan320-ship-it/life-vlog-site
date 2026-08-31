@@ -82,6 +82,7 @@ export function bindAppEvents({
     openNotificationsPanel,
     closeNotificationsPanel,
   });
+  controllers.primaryNavigation?.bind?.();
 
   els.setupToggle.addEventListener("click", () => {
     els.setupPanel.hidden = !els.setupPanel.hidden;
@@ -108,26 +109,10 @@ export function bindAppEvents({
     });
   });
   els.themeToggle.addEventListener("click", toggleTheme);
-  els.galleryNav.addEventListener("click", () => {
-    setUploadExpanded(false);
-    vlogMode.close();
-    switchPage("gallery");
-  });
-  els.recipesNav?.addEventListener("click", () => {
-    switchPage("recipes");
-    els.recipesPage?.scrollIntoView({ behavior: "smooth", block: "start" });
-  });
   els.recipesToolOpen?.addEventListener("click", () => {
     switchPage("recipes", { restoreScroll: false, focusHeading: false });
     els.recipesPage?.scrollIntoView({ behavior: "smooth", block: "start" });
   });
-  els.wishlistNav.addEventListener("click", () => {
-    switchPage("wishlist");
-  });
-  els.weekendNav.addEventListener("click", () => switchPage("weekend"));
-  els.wardrobeNav?.addEventListener("click", () => switchPage("wardrobe"));
-  els.thanksNav?.addEventListener("click", () => switchPage("thanks"));
-  els.secretNav?.addEventListener("click", () => switchPage("secret"));
   els.brand?.addEventListener("click", (event) => {
     event.preventDefault();
     switchPage("gallery", { restoreScroll: false, focusHeading: false });

@@ -13,6 +13,7 @@ export function createRuntimeVlogMode({
   updateFilterChips,
   renderGallery,
   setUploadExpanded,
+  syncPrimaryNavigation,
 }) {
   return createVlogMode({
     canOpen,
@@ -30,5 +31,6 @@ export function createRuntimeVlogMode({
       setActiveFilter("全部");
       updateFilterChips();
     },
+    onNavigationStateChange: () => syncPrimaryNavigation?.(),
   });
 }
