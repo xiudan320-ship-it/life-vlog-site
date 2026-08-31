@@ -168,6 +168,8 @@ pnpm preview
 - 生成 PWA manifest；
 - 通过 Workbox `injectManifest` 生成 `dist/sw.js`。
 
+今日心情的 controller、repository 与共享域模块固定合并为单个 `today-mood-*.js` 懒加载 chunk；overlay 仍在首次打开时才加载，gallery 冷启动保持最多 28 个请求，路由 chunk 继续排除在核心 Workbox precache 之外。
+
 `pnpm-workspace.yaml` 明确允许 `esbuild` 与 `sharp` 的安装构建脚本，使锁定依赖安装后的 Vite 构建使用完整的本地二进制依赖。
 
 源图片位于 `assets-source/`，`scripts/optimize-assets.mjs` 生成确定性资源到 `assets/generated/`。不要手工编辑生成文件来替代源文件和优化脚本。
