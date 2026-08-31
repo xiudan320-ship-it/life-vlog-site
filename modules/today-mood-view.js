@@ -65,7 +65,9 @@ export function createTodayMoodView({ elements, getAuthorName } = {}) {
       ? `${name}今天的心情暂时无法同步`
       : recorded
         ? `${name}今天的心情：${MOOD_META[entry.mood]?.label || "已记录"}，查看详情`
-        : `${name}今天还没有记录心情，添加今日心情`;
+        : isCurrentUser
+          ? `${name}今天还没有记录心情，添加今日心情`
+          : `${name}今天还没有记录心情`;
     element.setAttribute("aria-label", accessibleLabel);
     const media = documentTarget.createElement("span");
     media.className = `today-mood-seat-media is-${participant.shape}`;

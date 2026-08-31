@@ -270,7 +270,8 @@ export function createAppRouteRuntime({
       controllers: pageControllerMap,
     });
     pageControllerMap.todayMood = controller;
-    controller.render();
+    if (state.session) void controller.refresh();
+    else controller.render();
   });
   const {
     createClient: createCloudflareClient,

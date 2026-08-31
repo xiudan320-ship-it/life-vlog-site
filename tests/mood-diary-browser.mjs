@@ -135,6 +135,7 @@ async function runTodayMoodState(viewport, mode, label) {
     else {
       assert.equal(seats[1].userId, "");
       assert.equal(seats[1].mood, "还没记录");
+      assert.equal(seats[1].label, "小咻今天还没有记录心情");
     }
     assert.equal(await page.locator("#overviewPhotos, #overviewRecipes, #overviewWishes, #overviewLevelButton").count(), 0);
     assert.equal(await page.locator(".quick-actions button").count(), 4);
