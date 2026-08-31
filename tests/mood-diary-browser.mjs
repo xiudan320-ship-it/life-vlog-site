@@ -98,6 +98,14 @@ async function runMoodDiaryFlow(viewport, label) {
     await page.locator(`[data-mood-date="${today}"]`).click();
     await page.waitForSelector("#moodOverlay:not([hidden]) #moodPickerPanel:not([hidden])", { state: "visible" });
     assert.equal(await page.locator("#moodPickerOrbit [data-mood]").count(), 8);
+    await page.waitForFunction(() => [...document.querySelectorAll("#moodPickerOrbit [data-mood] img")].every((image) => image.complete));
+    const pickerAssets = await page.locator("#moodPickerOrbit [data-mood] img").evaluateAll((images) => images.map((image) => ({
+      naturalWidth: image.naturalWidth,
+      hidden: image.hidden,
+    })));
+    assert.equal(pickerAssets.length, 8);
+    assert.ok(pickerAssets.every(({ naturalWidth, hidden }) => naturalWidth > 0 && !hidden), `${label} mood picker assets failed to load`);
+    assert.equal(await page.locator("#moodPickerOrbit .mood-asset-error:not([hidden])").count(), 0);
     const pickerButtons = await page.locator("#moodPickerOrbit [data-mood]").evaluateAll((buttons) => buttons.map((button) => {
       const rect = button.getBoundingClientRect();
       return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom };

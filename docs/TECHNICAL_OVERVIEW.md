@@ -171,7 +171,7 @@ pnpm preview
 | `pnpm run test:release` | 确定性线上 fixture 冒烟 |
 | `pnpm run test:worker-online` | Worker CORS 与在线边界 |
 
-心情日记专项由 `tests/mood-diary-domain.mjs`、`tests/mood-diary-controller.mjs`、`tests/mood-diary-worker.mjs` 和 `tests/mood-diary-browser.mjs` 覆盖；浏览器用确定性假 session / API fixture 验证桌面与手机端月历、Picker、编辑、删除、历史和横向溢出。16 个最终透明心情素材当前未进入仓库，页面只保留素材缺失错误态，因此视觉素材验收仍是阻塞项。
+心情日记专项由 `tests/mood-diary-domain.mjs`、`tests/mood-diary-controller.mjs`、`tests/mood-diary-worker.mjs`、`tests/mood-diary-assets.mjs` 和 `tests/mood-diary-browser.mjs` 覆盖；浏览器用确定性假 session / API fixture 验证桌面与手机端月历、Picker、编辑、删除、历史和横向溢出。16 个 512×512 透明心情素材位于 Vite 静态目录 `public/assets/mood-diary/`，构建后 URL 为 `/assets/mood-diary/*`；静态门禁会验证精确文件集合、PNG/Alpha、透明安全区和单文件体积，避免白底、棋盘格或缺失素材进入发布包。
 
 `pnpm test` 不包含全部发布门禁。发布必须遵循 [`release-checklist.md`](release-checklist.md)。
 
