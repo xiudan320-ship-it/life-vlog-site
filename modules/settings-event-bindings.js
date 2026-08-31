@@ -28,7 +28,6 @@ export function bindSettingsEvents({ elements, state, controllers, core }) {
     createFamily,
     addFamilyMember,
   } = controllers.familySettings;
-  const { openNotificationsPanel } = controllers.social;
   const {
     changePassword,
     confirmEmailBinding,
@@ -96,13 +95,6 @@ export function bindSettingsEvents({ elements, state, controllers, core }) {
     const nextTab = tabs[nextIndex];
     setActiveSettingsSection(nextTab.dataset.settingsSection);
     nextTab.focus({ preventScroll: true });
-  });
-  els.notificationButton.addEventListener("click", async () => {
-    await openNotificationsPanel();
-  });
-  els.closeNotificationDialog.addEventListener("click", () => els.notificationDialog.close());
-  els.notificationDialog.addEventListener("click", (event) => {
-    if (event.target === els.notificationDialog) els.notificationDialog.close();
   });
   window.addEventListener("online", () => {
     updateNetworkStatus();

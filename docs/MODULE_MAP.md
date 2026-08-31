@@ -28,7 +28,7 @@
 | 秘藏筛选、标签计数、照片排序 | `modules/secret-filter-domain.js` | `modules/secret-domain.js` |
 | 秘藏文件夹、默认入口、右键菜单 | `modules/secret-folder-controller.js` | `modules/secret-gallery-view.js` |
 | 秘藏密码与解锁 | `modules/secret-pin-controller.js` | `modules/secret-entry-preference-controller.js` |
-| 评论、回复、通知 | `modules/social-controller.js` | `modules/notification-domain.js`, `modules/notification-view.js` |
+| 评论、回复、通知 | `modules/social-controller.js`, `modules/notification-event-bindings.js` | `modules/notification-domain.js`, `modules/notification-view.js` |
 | 推送通知与点击跳转 | `modules/push-controller.js` | `modules/media-event-bindings.js` |
 | 菜谱、留言、纪念日、吃什么 | 对应的 `*-controller.js` | 对应的 `*-view.js`, `modules/content-form-event-bindings.js` |
 | 离线缓存与容量 | `modules/offline-cache-controller.js`, `modules/offline-settings-controller.js` | `modules/cache-policy.js`, `modules/cache-management-view.js` |
@@ -60,7 +60,7 @@
 
 ## 事件入口边界
 
-- `app-event-bindings.js`：应用外壳、一级导航、工具坞、快捷入口和控制器装配。
+- `app-event-bindings.js`：应用外壳、一级导航、工具坞、快捷入口、全局通知事件和控制器装配。
 - `app-runtime-assembly.js`：启动入口；只调用共享 runtime 的明确启动边界。
 - `app-runtime-controller-assembly.js`：组合共享状态、基础设施、shell、账户、媒体和功能控制器；不持有服务实现、路由选项或启动/PWA 策略。
 - `app-runtime-infrastructure.js`：创建后端、仓储、缓存、上传队列、资产服务以及健康/性能监控的基础设施图。
@@ -73,8 +73,9 @@
 - `app-runtime-shell-assembly.js`：外壳、日记流、社交、家庭时间线、工具坞和布局控制器装配。
 - `app-runtime-account-assembly.js`：session/lifecycle、账户同步、资料偏好、等级和秘藏 PIN 控制器装配。
 - `app-runtime-vlog-mode.js`：VLOG 筛选模式的开关和视图联动。
+- `notification-event-bindings.js`：应用外壳的通知铃铛、关闭/遮罩和关闭后焦点回收事件；绑定只执行一次，不依赖设置路由。
 - `content-form-event-bindings.js`：菜谱、心愿、周末、留言、秘藏等内容表单事件。
-- `settings-event-bindings.js`：设置页账户、家庭、缓存、安全和网络状态事件；全局等级弹窗事件由 `app-event-bindings.js` 统一绑定。
+- `settings-event-bindings.js`：设置页账户、家庭、缓存、安全和网络状态事件；全局等级弹窗与通知事件不在设置路由绑定。
 - `media-event-bindings.js`：日记 / VLOG / 秘藏查看器、编辑器、搜索筛选和媒体手势事件。
 - `modules/routes/mood-diary-route.js`：心情日记路由的懒加载、模板挂载和 controller 生命周期；心情日记自己的点击/表单事件由 `mood-diary-view.js` 委托给 `mood-diary-controller.js`，不回流到 `app.js`。
 

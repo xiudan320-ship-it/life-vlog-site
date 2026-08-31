@@ -87,7 +87,9 @@ This system combines the verified UI/UX Pro Max matches for Minimalism & Swiss S
 - Normal text contrast must meet 4.5:1.
 - Focus must remain visible and unobscured.
 - State cannot be communicated by color alone; keep text, icon, or ARIA state.
-- Browser zoom remains enabled.
+- Mobile page-level browser zoom follows the product viewport contract; Dynamic Type / xlarge text settings and in-app media viewer zoom remain available.
+- Mobile text inputs, selects, and textareas use a computed font size of at least 16px to avoid focus zoom.
+- Notification loading, empty, error, and retry states remain visible in the dialog; closing during a request restores focus to the bell without reopening the dialog.
 - Images have meaningful alt text or are explicitly decorative.
 - Validate keyboard, pointer, and touch behavior.
 - Before commit or deployment, run the complete automated suite and the repository release test with deterministic in-memory fixture sessions on desktop and mobile.

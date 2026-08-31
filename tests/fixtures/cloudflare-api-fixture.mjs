@@ -178,8 +178,9 @@ const tableSeeds = {
   mood_diaries: [],
 };
 
-function cloneSeed({ seedSecretPhoto = false } = {}) {
+function cloneSeed({ seedSecretPhoto = false, notifications = tableSeeds.notifications } = {}) {
   const tables = new Map(Object.entries(tableSeeds).map(([table, rows]) => [table, rows.map((row) => ({ ...row }))]));
+  tables.set("notifications", notifications.map((row) => ({ ...row })));
   if (seedSecretPhoto) {
     tables.set("secret_folders", [{
       id: "fixture-secret-folder",
@@ -241,19 +242,30 @@ function applyFilters(rows, url) {
   }));
 }
 
-export function createCloudflareApiFixture({ scenario = "ok", delayMs = 0, seedSecretPhoto = false } = {}) {
-  const tables = cloneSeed({ seedSecretPhoto });
+export function createCloudflareApiFixture({
+  scenario = "ok",
+  delayMs = 0,
+  seedSecretPhoto = false,
+  notifications = [],
+  notificationDelayMs = 0,
+  notificationFailureCount = 0,
+  notificationFailureMode = "server",
+} = {}) {
+  const tables = cloneSeed({ seedSecretPhoto, notifications });
   const requests = [];
   const writes = [];
   const uploads = [];
   let generatedRowId = 0;
+  let remainingNotificationFailures = Math.max(0, Number(notificationFailureCount) || 0);
 
   async function handle(route) {
     const request = route.request();
     const url = new URL(request.url());
     const requestRecord = { method: request.method(), path: url.pathname, search: url.search };
     requests.push(requestRecord);
-    if (delayMs || scenario === "slow-api") await new Promise((resolve) => setTimeout(resolve, delayMs || 2500));
+    const isNotificationRpc = url.pathname === "/api/rpc/get_my_notifications";
+    const requestDelayMs = isNotificationRpc ? notificationDelayMs || delayMs : delayMs;
+    if (requestDelayMs || scenario === "slow-api") await new Promise((resolve) => setTimeout(resolve, requestDelayMs || 2500));
     if (scenario === "timeout") {
       await route.abort("timedout");
       return;
@@ -280,6 +292,15 @@ export function createCloudflareApiFixture({ scenario = "ok", delayMs = 0, seedS
     }
     if (scenario === "api-500") {
       await route.fulfill(jsonResponse(request, { error: "fixture server error" }, 500));
+      return;
+    }
+    if (isNotificationRpc && request.method() !== "OPTIONS" && remainingNotificationFailures > 0) {
+      remainingNotificationFailures -= 1;
+      if (notificationFailureMode === "offline") {
+        await route.abort("internetdisconnected");
+      } else {
+        await route.fulfill(jsonResponse(request, { error: "fixture notification failure" }, 503));
+      }
       return;
     }
     if (scenario === "weekend-upsert-500" && request.method() === "POST" && url.pathname === "/api/table/weekend_plans") {
@@ -380,7 +401,7 @@ export function createCloudflareApiFixture({ scenario = "ok", delayMs = 0, seedS
         await route.fulfill(jsonResponse(request, { data: removed ? [removed] : [] }));
         return;
       }
-      if (name === "get_my_notifications") await route.fulfill(jsonResponse(request, { data: [] }));
+      if (name === "get_my_notifications") await route.fulfill(jsonResponse(request, { data: rowsFor("notifications", tables) }));
       else await route.fulfill(jsonResponse(request, { data: [] }));
       return;
     }

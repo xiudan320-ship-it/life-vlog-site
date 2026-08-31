@@ -1000,7 +1000,6 @@ body {
 html,
 body {
   max-width: 100%;
-  overflow-x: hidden;
   overscroll-behavior-x: none;
   scrollbar-gutter: stable;
 }
@@ -1034,6 +1033,14 @@ input,
 select,
 textarea {
   touch-action: manipulation;
+}
+
+@media (max-width: 700px), (orientation: landscape) and (max-height: 700px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: max(16px, 1rem) !important;
+  }
 }
 
 button {
@@ -2578,6 +2585,39 @@ body.theme-dark .dialog-random-button {
   height: 54px;
   border-radius: 5px;
   object-fit: cover;
+}
+
+.notification-state {
+  display: grid;
+  min-width: 0;
+  gap: 7px;
+  border: 1px dashed var(--line);
+  border-radius: 7px;
+  color: var(--muted);
+  padding: 18px;
+}
+
+.notification-state strong {
+  color: var(--ink);
+}
+
+.notification-state span {
+  overflow-wrap: anywhere;
+}
+
+.notification-state button {
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 850;
+  padding: 8px 14px;
+}
+
+.notification-state button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 58%, transparent);
+  outline-offset: 2px;
 }
 
 #photoCommentForm input {

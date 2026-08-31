@@ -26,13 +26,20 @@ const [mediaRuntime, photoDetailRuntime, accountAssembly, secretService, routeLo
 ]);
 const diaryFeedController = await read("modules/diary-feed-controller.js");
 const vlogMode = await read("modules/vlog-mode.js");
+const [notificationEvents, notificationView, foundation, components] = await Promise.all([
+  read("modules/notification-event-bindings.js"),
+  read("modules/notification-view.js"),
+  read("styles/redesign-foundation.css"),
+  read("styles/redesign-components.css"),
+]);
 const forbiddenUsernameEnv = ["RELEASE", "TEST", "USERNAME"].join("_");
 const forbiddenPasswordEnv = ["RELEASE", "TEST", "PASSWORD"].join("_");
 
 const ids = [...html.matchAll(/\bid=["']([^"']+)["']/g)].map((match) => match[1]);
 assert.equal(new Set(ids).size, ids.length, "duplicate HTML id");
-assert.match(html, /width=device-width, initial-scale=1\.0, viewport-fit=cover/);
-assert.doesNotMatch(html, /maximum-scale|user-scalable/);
+const viewportTags = [...html.matchAll(/<meta\s+name=["']viewport["'][^>]*>/gi)];
+assert.equal(viewportTags.length, 1, "main entry must contain exactly one viewport meta tag");
+assert.match(html, /content="width=device-width, initial-scale=1\.0, minimum-scale=1\.0, maximum-scale=1\.0, user-scalable=no, viewport-fit=cover"/);
 assert.match(html, /id="moodNav"/);
 assert.doesNotMatch(html, /\?v=\d/);
 assert.doesNotMatch(`${app}\n${appRuntime}\n${appRuntimeController}\n${appRuntimeInfrastructure}\n${appRuntimeRoute}\n${appRuntimeStartup}`, /\?v=\d/);
@@ -82,7 +89,20 @@ assert.match(appRuntimeStartup, /createAppStartupController/);
 assert.match(appEvents, /els\.closeLevelDialog\?\.addEventListener\("click"/);
 assert.match(appEvents, /els\.levelDialog\?\.addEventListener\("click"/);
 assert.match(appEvents, /els\.vipBadge\?\.addEventListener\("click", openLevelDialog\)/);
+assert.match(appEvents, /bindNotificationEvents/);
+assert.match(notificationEvents, /notificationButton\.addEventListener\("click"/);
+assert.match(notificationEvents, /notificationDialog\?\.addEventListener\("close"/);
+assert.doesNotMatch(`${appEvents}\n${notificationEvents}`, /touchmove|gesturestart/);
 assert.doesNotMatch(settingsEvents, /els\.closeLevelDialog|els\.levelDialog\?\.addEventListener|els\.vipBadge(?:\?\.|\.)addEventListener/);
+assert.doesNotMatch(settingsEvents, /notificationButton|notificationDialog|openNotificationsPanel/);
+assert.match(notificationView, /data-notification-state="loading"/);
+assert.match(notificationView, /data-notification-state="error"/);
+assert.match(notificationView, /data-notification-state="empty"/);
+assert.doesNotMatch(foundation, /html,\s*body\s*\{[^}]*overflow-x\s*:\s*(?:hidden|clip)/);
+assert.doesNotMatch(components, /html,\s*body\s*\{[^}]*overflow-x\s*:\s*(?:hidden|clip)/);
+assert.match(foundation, /font-size: max\(16px, 1rem\) !important/);
+assert.match(diaryFeedController, /const pullRefreshTarget = els\.gallery/);
+assert.doesNotMatch(diaryFeedController, /document\.addEventListener\("touchmove"/);
 assert.match(startup, /initializeLocalSession/);
 assert.match(startup, /synchronizeRemoteSession/);
 assert.match(navigation, /pushState/);

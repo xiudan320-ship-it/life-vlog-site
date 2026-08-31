@@ -44,6 +44,30 @@ async function openPage(browser, {
 
 async function scan(result, label) {
   const report = await new AxeBuilder({ page: result.page }).analyze();
+  const responsive = await result.page.evaluate(() => {
+    const isMobileContract = window.innerWidth <= 700 || (window.innerHeight <= 700 && window.innerWidth > window.innerHeight);
+    const controls = [...document.querySelectorAll("input, select, textarea")]
+      .filter((element) => {
+        const rect = element.getBoundingClientRect();
+        const styles = getComputedStyle(element);
+        return !element.hidden && styles.display !== "none" && styles.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+      })
+      .filter((element) => !["checkbox", "radio", "range"].includes(element.type))
+      .map((element) => ({ id: element.id, fontSize: Number.parseFloat(getComputedStyle(element).fontSize) }));
+    return {
+      isMobileContract,
+      viewportTags: [...document.querySelectorAll('meta[name="viewport"]')].map((element) => element.getAttribute("content") || ""),
+      viewportWidth: document.documentElement.clientWidth,
+      documentWidth: document.documentElement.scrollWidth,
+      controls,
+    };
+  });
+  assert.deepEqual(responsive.viewportTags, ["width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"], `${label} viewport contract is not exact`);
+  assert.ok(responsive.documentWidth <= responsive.viewportWidth + 1, `${label} has horizontal overflow`);
+  if (responsive.isMobileContract) {
+    assert.ok(responsive.controls.every(({ fontSize }) => fontSize >= 16), `${label} has a focusable text control below 16px: ${JSON.stringify(responsive.controls)}`);
+  }
+  // Product-confirmed mobile contract fixes page zoom, so Axe's meta-viewport warning is the sole explicit exception; all other critical/serious findings still block.
   const blocking = report.violations.filter((violation) => ["critical", "serious"].includes(violation.impact) && violation.id !== "meta-viewport");
   assert.deepEqual(blocking, [], `${label} Axe violations: ${JSON.stringify(blocking)}`);
 }

@@ -37,7 +37,7 @@ pnpm run test:release
 - 视口：375、390、430、768、1440，以及 844 x 390 横屏。
 - 状态：guest gallery、fixture signed gallery、recipes、wishlist/shopping、weekend、wardrobe、thanks、secret PIN、secret collection，以及 settings dialog。
 - 主题/显示：light、dark、100%/115%/130% 动态字号和 reduced-motion。
-- 合同：Axe critical/serious=0、一级键盘导航、登录/筛选、dialog Escape 与焦点恢复、路由标题焦点、44 CSS px 触控目标、sticky 不遮挡和无横向溢出。
+- 合同：Axe critical/serious=0、一级键盘导航、登录/筛选、dialog Escape 与焦点恢复、路由标题焦点、44 CSS px 触控目标、sticky 不遮挡和无横向溢出；主入口只有一条固定 viewport，手机与短横屏可见文本输入/select/textarea 计算字号至少 16px，页面不依赖全局横向溢出遮罩或触摸拦截。
 
 `test:browser`/`c-performance-regression.mjs` 另外验证列表普通视频不触发视频网络加载、进入日记/VLOG 详情后静音自动播放且保留控件、失败可重试、gallery 同步读取秘藏表而不加载秘藏 route、30 轮快速路由 latest-wins、全局等级弹窗、心情日记双端月历/Picker/编辑/删除，以及既有周末/购物/回复交互。所有 signed-in 场景均使用 `tests/fixtures/cloudflare-api-fixture.mjs` 的内存 fixture，不使用真实账户或真实业务数据。
 
@@ -59,7 +59,8 @@ Worker CORS 只允许 `https://life-vlog-site.pages.dev` 与固定 preview 别�
 - 购物车：手机端紧凑卡片、图片放大、完成/编辑/删除按钮保持可触控，刷新后状态仍然存在。
 - 秘藏：密码进入、文件夹/相册、上传、Tag 添加删除、收藏、移动、排序、图片预览和桌面端单张删除（保留最后一张保护）。
 - 等级面板：点击顶部等级徽章或经验区域后立即打开面板，云端家庭排行加载完成后再刷新内容。
-- 通知：新日记、评论和回复提示；打开后提示会消失；自己发布的内容不提醒自己。
+- 通知：铃铛在未加载设置路由时也可点击；dialog 先开窗再加载，慢网显示 loading，空结果显示 empty，读取失败显示 error 与重试；重复点击只复用一个请求，加载中关闭后不自动重开，关闭恢复铃铛焦点；新日记、评论和回复提示打开后会消失，自己发布的内容不提醒自己。
+- 手机 viewport：在 375×812、390×844、430×932 和 844×390 检查页面仍可纵向滚动、无横向溢出，文本控件聚焦不放大页面；日记/秘藏媒体查看器仍可局部缩放、拖拽，系统返回手势可用。
 - 离线与缓存：断网时能打开已缓存内容，恢复网络后不会重复上传或重复请求。
 - 深色/浅色模式、头像、昵称、家庭成员名称和长列表滚动没有错位或溢出。
 

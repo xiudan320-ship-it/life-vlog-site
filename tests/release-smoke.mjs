@@ -87,9 +87,37 @@ async function installFeedMotionMediaFixture(page) {
   });
 }
 
-async function openFixturePage(browser, { path = "/", authenticated = true, scenario = "ok", delayMs = 0, serviceWorkers = "block", corrupt = false, corruptSession = false, expired = false, reducedMotion = "no-preference", saveData = false, viewport = { width: 390, height: 844 }, session = pseudoSession, secretUnlocked = false, seedSecretPhoto = false, mockFeedMotion = false } = {}) {
+async function openFixturePage(browser, {
+  path = "/",
+  authenticated = true,
+  scenario = "ok",
+  delayMs = 0,
+  serviceWorkers = "block",
+  corrupt = false,
+  corruptSession = false,
+  expired = false,
+  reducedMotion = "no-preference",
+  saveData = false,
+  viewport = { width: 390, height: 844 },
+  session = pseudoSession,
+  secretUnlocked = false,
+  seedSecretPhoto = false,
+  mockFeedMotion = false,
+  notifications = [],
+  notificationDelayMs = 0,
+  notificationFailureCount = 0,
+  notificationFailureMode = "server",
+} = {}) {
   const context = await browser.newContext({ viewport, serviceWorkers, reducedMotion });
-  const fixture = createCloudflareApiFixture({ scenario, delayMs, seedSecretPhoto });
+  const fixture = createCloudflareApiFixture({
+    scenario,
+    delayMs,
+    seedSecretPhoto,
+    notifications,
+    notificationDelayMs,
+    notificationFailureCount,
+    notificationFailureMode,
+  });
   await fixture.install(context);
   if (saveData) {
     await context.addInitScript(() => Object.defineProperty(navigator, "connection", { configurable: true, value: { saveData: true, effectiveType: "4g", type: "wifi" } }));
@@ -370,6 +398,93 @@ async function testGlobalLevelDialog(browser, viewport, label) {
   } finally { await result.context.close(); }
 }
 
+async function testGlobalNotificationPanel(browser) {
+  const notification = {
+    notification_id: "fixture-notification",
+    type: "thanks",
+    actor_username: "Fixture User",
+    body: "谢谢你的记录",
+    is_read: false,
+    created_at: "2030-01-02T00:00:00.000Z",
+  };
+  const slow = await openFixturePage(browser, {
+    viewport: { width: 390, height: 844 },
+    notifications: [notification],
+    notificationDelayMs: 1200,
+  });
+  try {
+    await assertReady(slow, "slow notification fixture");
+    const page = slow.page;
+    await page.waitForSelector("#notificationButton:not([hidden])", { state: "visible" });
+    await page.click("#notificationButton");
+    await page.waitForSelector("#notificationDialog[open]", { state: "visible" });
+    await page.waitForSelector('[data-notification-state="loading"]', { state: "visible" });
+    await page.click("#closeNotificationDialog");
+    await page.waitForFunction(() => !document.querySelector("#notificationDialog")?.open);
+    await page.waitForFunction(() => document.activeElement?.id === "notificationButton");
+    await page.waitForTimeout(1500);
+    assert.equal(await page.locator("#notificationDialog").isVisible(), false, "closed notification dialog reopened after loading");
+    assert.ok(
+      slow.fixture.requests.filter(({ method, path }) => method === "POST" && path === "/api/rpc/get_my_notifications").length <= 1,
+      "slow notification loading was not deduplicated"
+    );
+    assert.deepEqual(slow.errors, [], `slow notification errors: ${slow.errors.join(" | ")}`);
+  } finally { await slow.context.close(); }
+
+  const success = await openFixturePage(browser, {
+    viewport: { width: 390, height: 844 },
+    notifications: [notification],
+  });
+  try {
+    await assertReady(success, "successful notification fixture");
+    const page = success.page;
+    await page.waitForSelector("#notificationButton:not([hidden])", { state: "visible" });
+    await page.locator("#notificationButton").evaluate((button) => {
+      button.click();
+      button.click();
+    });
+    await page.waitForSelector('[data-notification-id="fixture-notification"]', { state: "visible" });
+    await page.locator("#notificationBadge").waitFor({ state: "hidden" });
+    assert.equal(
+      success.fixture.writes.some(({ path, action }) => path === "/api/table/notifications" && action === "update"),
+      true,
+      "notification read state was not persisted"
+    );
+    await page.click('[data-notification-id="fixture-notification"]');
+    await page.waitForSelector("#thanksPage:not([hidden])");
+    await page.waitForFunction(() => !document.querySelector("#notificationDialog")?.open);
+    assert.deepEqual(success.errors, [], `successful notification errors: ${success.errors.join(" | ")}`);
+  } finally { await success.context.close(); }
+
+  const retry = await openFixturePage(browser, {
+    viewport: { width: 390, height: 844 },
+    notifications: [],
+    notificationDelayMs: 900,
+    notificationFailureCount: 1,
+    notificationFailureMode: "offline",
+  });
+  try {
+    await assertReady(retry, "retry notification fixture");
+    const page = retry.page;
+    await page.waitForSelector("#notificationButton:not([hidden])", { state: "visible" });
+    await page.click("#notificationButton");
+    await page.waitForSelector('[data-notification-state="error"]', { state: "visible", timeout: 10000 });
+    assert.match(await page.locator('[data-notification-state="error"]').textContent(), /重试|网络/);
+    await page.click("[data-notification-retry]");
+    await page.waitForSelector('[data-notification-state="empty"]', { state: "visible", timeout: 10000 });
+    assert.equal(
+      retry.fixture.requests.filter(({ method, path }) => method === "POST" && path === "/api/rpc/get_my_notifications").length >= 2,
+      true,
+      "notification retry did not issue a second request"
+    );
+    assert.deepEqual(
+      retry.errors.filter((error) => error.startsWith("pageerror:")),
+      [],
+      `retry notification page errors: ${retry.errors.join(" | ")}`
+    );
+  } finally { await retry.context.close(); }
+}
+
 async function testFilterSettingsAndActions(browser) {
   const filters = await openFixturePage(browser, { viewport: { width: 390, height: 844 } });
   try {
@@ -603,6 +718,7 @@ try {
   await testDiaryImageUpload(browser);
   await testGlobalLevelDialog(browser, { width: 390, height: 844 }, "mobile account");
   await testGlobalLevelDialog(browser, { width: 1440, height: 900 }, "desktop account");
+  await testGlobalNotificationPanel(browser);
   await testFilterSettingsAndActions(browser);
   await testWeekendComposerAndDelete(browser);
   await testMobileCommentComposer(browser);

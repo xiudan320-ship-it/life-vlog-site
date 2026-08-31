@@ -1,4 +1,5 @@
 import { bindMediaEvents } from "./media-event-bindings.js";
+import { bindNotificationEvents } from "./notification-event-bindings.js";
 
 export function bindAppEvents({
   elements,
@@ -74,6 +75,13 @@ export function bindAppEvents({
     togglePasswordVisibility,
   } = controllers.auth;
   const { openLevelDialog } = controllers.gamification;
+  const { openNotificationsPanel, closeNotificationsPanel } = controllers.social;
+
+  bindNotificationEvents({
+    elements: els,
+    openNotificationsPanel,
+    closeNotificationsPanel,
+  });
 
   els.setupToggle.addEventListener("click", () => {
     els.setupPanel.hidden = !els.setupPanel.hidden;

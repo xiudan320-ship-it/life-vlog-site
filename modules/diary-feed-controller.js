@@ -607,13 +607,15 @@ export function createDiaryFeedController({
   
   function initializePullToRefresh() {
     const indicator = ensurePullRefreshIndicator();
-    document.addEventListener("touchstart", (event) => {
+    const pullRefreshTarget = els.gallery;
+    if (!pullRefreshTarget) return;
+    pullRefreshTarget.addEventListener("touchstart", (event) => {
       if (!isMobileViewport() || state.activePage !== "gallery" || window.scrollY > 2 || state.mobileDiaryPhoto || event.touches.length !== 1) return;
       if (event.target.closest("dialog, input, textarea, select, .photo-media, .tool-dock")) return;
       const touch = event.touches[0];
       state.pullRefreshState = { x: touch.clientX, y: touch.clientY, distance: 0, tracking: false };
     }, { passive: true });
-    document.addEventListener("touchmove", (event) => {
+    pullRefreshTarget.addEventListener("touchmove", (event) => {
       if (!state.pullRefreshState || event.touches.length !== 1) return;
       const touch = event.touches[0];
       const dy = touch.clientY - state.pullRefreshState.y;
@@ -632,7 +634,7 @@ export function createDiaryFeedController({
       indicator.style.setProperty("--pull-y", `${state.pullRefreshState.distance}px`);
       indicator.querySelector("span").textContent = ready ? "松开刷新" : "下拉刷新";
     }, { passive: false });
-    document.addEventListener("touchend", async () => {
+    pullRefreshTarget.addEventListener("touchend", async () => {
       if (!state.pullRefreshState) return;
       const shouldRefresh = state.pullRefreshState.tracking && state.pullRefreshState.distance >= 64;
       state.pullRefreshState = null;
@@ -653,7 +655,7 @@ export function createDiaryFeedController({
         }, 420);
       }
     }, { passive: true });
-    document.addEventListener("touchcancel", () => {
+    pullRefreshTarget.addEventListener("touchcancel", () => {
       state.pullRefreshState = null;
       indicator.classList.remove("visible", "ready", "refreshing");
       indicator.style.removeProperty("--pull-y");

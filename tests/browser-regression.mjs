@@ -61,6 +61,25 @@ async function assertNoHorizontalOverflow(page, label) {
   );
 }
 
+async function assertMobileViewportContracts(page, label) {
+  const contract = await page.evaluate(() => ({
+    viewportTags: [...document.querySelectorAll('meta[name="viewport"]')].map((element) => element.getAttribute("content") || ""),
+    viewportWidth: document.documentElement.clientWidth,
+    documentWidth: document.documentElement.scrollWidth,
+    controls: [...document.querySelectorAll("input, select, textarea")]
+      .filter((element) => {
+        const rect = element.getBoundingClientRect();
+        const styles = getComputedStyle(element);
+        return !element.hidden && styles.display !== "none" && styles.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+      })
+      .filter((element) => !["checkbox", "radio", "range"].includes(element.type))
+      .map((element) => ({ id: element.id, fontSize: Number.parseFloat(getComputedStyle(element).fontSize) })),
+  }));
+  assert.deepEqual(contract.viewportTags, ["width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"], `${label} viewport contract is not exact`);
+  assert.ok(contract.documentWidth <= contract.viewportWidth + 1, `${label} has horizontal overflow: ${contract.documentWidth}px > ${contract.viewportWidth}px`);
+  assert.ok(contract.controls.every(({ fontSize }) => fontSize >= 16), `${label} has a focusable text control below 16px: ${JSON.stringify(contract.controls)}`);
+}
+
 async function testHomeShell(viewport, label, reducedMotion = "no-preference") {
   const context = await browser.newContext({ viewport, serviceWorkers: "block", reducedMotion });
   const page = await context.newPage();
@@ -114,6 +133,9 @@ async function testHomeShell(viewport, label, reducedMotion = "no-preference") {
   assert.equal(shellIsInteractive.header, false, `${label} header stayed inert after boot`);
   assert.equal(shellIsInteractive.main, false, `${label} main stayed inert after boot`);
   await assertNoHorizontalOverflow(page, `${label} home shell`);
+  if (viewport.width <= 700 || (viewport.height <= 700 && viewport.width > viewport.height)) {
+    await assertMobileViewportContracts(page, `${label} home shell`);
+  }
 
   const topbar = await page.locator(".topbar").boundingBox();
   assert.ok(topbar && topbar.width <= viewport.width + 1, `${label} topbar must fit viewport`);
@@ -236,6 +258,9 @@ async function testNavigationAndAuth(viewport, label) {
   );
   assert.deepEqual(pageErrors, [], `${label} navigation/auth runtime errors:\n${pageErrors.join("\n")}`);
   await assertNoHorizontalOverflow(page, `${label} navigation/auth`);
+  if (viewport.width <= 700 || (viewport.height <= 700 && viewport.width > viewport.height)) {
+    await assertMobileViewportContracts(page, `${label} navigation/auth`);
+  }
   await context.close();
 }
 
@@ -634,6 +659,81 @@ async function installPseudoSession(page, { corruptCaches = false } = {}) {
   }, { session: pseudoSession, corrupt: corruptCaches });
 }
 
+async function openNotificationFixture({ notifications = [], notificationDelayMs = 0, notificationFailureCount = 0, notificationFailureMode = "server" } = {}) {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
+  const fixture = createCloudflareApiFixture({ notifications, notificationDelayMs, notificationFailureCount, notificationFailureMode });
+  await fixture.install(context);
+  const page = await context.newPage();
+  const pageErrors = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  await installPseudoSession(page);
+  await page.goto(`${baseUrl}/`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector("#appSplash[hidden]", { state: "attached", timeout: 30000 });
+  await page.waitForSelector("#notificationButton:not([hidden])", { state: "visible", timeout: 30000 });
+  return { context, fixture, page, pageErrors };
+}
+
+async function testNotificationPanel() {
+  const notification = {
+    notification_id: "fixture-notification",
+    user_id: "local-regression-user",
+    type: "thanks",
+    actor_username: "Fixture User",
+    body: "谢谢你的记录",
+    is_read: false,
+    created_at: "2030-01-02T00:00:00.000Z",
+  };
+  const slow = await openNotificationFixture({ notifications: [notification], notificationDelayMs: 1400 });
+  try {
+    const startedAt = Date.now();
+    await slow.page.click("#notificationButton");
+    await slow.page.waitForSelector("#notificationDialog[open]", { state: "visible" });
+    assert.ok(Date.now() - startedAt < 500, "notification dialog waited for the network before opening");
+    await slow.page.waitForSelector('[data-notification-state="loading"]', { state: "visible" });
+    await slow.page.click("#closeNotificationDialog");
+    await slow.page.waitForFunction(() => !document.querySelector("#notificationDialog")?.open);
+    await slow.page.waitForFunction(() => document.activeElement?.id === "notificationButton");
+    await slow.page.waitForTimeout(1700);
+    assert.equal(await slow.page.locator("#notificationDialog").isVisible(), false, "notification dialog reopened after being closed during loading");
+    assert.ok(
+      slow.fixture.requests.filter(({ method, path }) => method === "POST" && path === "/api/rpc/get_my_notifications").length <= 1,
+      "notification click started a duplicate request while loading"
+    );
+    assert.deepEqual(slow.pageErrors, [], `slow notification page errors: ${slow.pageErrors.join("\n")}`);
+  } finally { await slow.context.close(); }
+
+  const success = await openNotificationFixture({ notifications: [notification] });
+  try {
+    const before = success.fixture.requests.filter(({ method, path }) => method === "POST" && path === "/api/rpc/get_my_notifications").length;
+    await success.page.locator("#notificationButton").evaluate((button) => {
+      button.click();
+      button.click();
+    });
+    await success.page.waitForSelector('[data-notification-id="fixture-notification"]', { state: "visible" });
+    await success.page.locator("#notificationBadge").waitFor({ state: "hidden" });
+    const after = success.fixture.requests.filter(({ method, path }) => method === "POST" && path === "/api/rpc/get_my_notifications").length;
+    assert.ok(after <= before + 1, "repeated notification clicks were not deduplicated");
+    assert.equal(success.fixture.writes.some(({ path, action }) => path === "/api/table/notifications" && action === "update"), true, "notification read state was not persisted");
+    await success.page.click('[data-notification-id="fixture-notification"]');
+    await success.page.waitForSelector("#thanksPage:not([hidden])");
+    await success.page.waitForFunction(() => !document.querySelector("#notificationDialog")?.open);
+    assert.deepEqual(success.pageErrors, [], `successful notification page errors: ${success.pageErrors.join("\n")}`);
+  } finally { await success.context.close(); }
+
+  const retry = await openNotificationFixture({ notificationDelayMs: 900, notificationFailureCount: 1, notificationFailureMode: "offline" });
+  try {
+    await retry.page.click("#notificationButton");
+    await retry.page.waitForSelector('[data-notification-state="error"]', { state: "visible", timeout: 10000 });
+    await retry.page.click("[data-notification-retry]");
+    await retry.page.waitForSelector('[data-notification-state="empty"]', { state: "visible", timeout: 10000 });
+    assert.ok(
+      retry.fixture.requests.filter(({ method, path }) => method === "POST" && path === "/api/rpc/get_my_notifications").length >= 2,
+      "notification retry did not issue a second request"
+    );
+    assert.deepEqual(retry.pageErrors, [], `retry notification page errors: ${retry.pageErrors.join("\n")}`);
+  } finally { await retry.context.close(); }
+}
+
 async function testWeekendCompletionUploadAssembly() {
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
@@ -793,11 +893,13 @@ try {
   await testHomeShell({ width: 1440, height: 900 }, "desktop");
   await testHomeShell({ width: 390, height: 844 }, "mobile");
   await testHomeShell({ width: 375, height: 812 }, "small-mobile-reduced-motion", "reduce");
+  await testHomeShell({ width: 430, height: 932 }, "large-mobile");
   await testHomeShell({ width: 844, height: 390 }, "mobile-landscape");
   await testNavigationAndAuth({ width: 390, height: 844 }, "mobile");
   await testNavigationAndAuth({ width: 1440, height: 900 }, "desktop");
   await testGlobalLevelDialogEvents({ width: 390, height: 844 }, "mobile");
   await testGlobalLevelDialogEvents({ width: 1440, height: 900 }, "desktop");
+  await testNotificationPanel();
   await testDesktopPageRails({ width: 1440, height: 900 }, "desktop");
   await testDiaryDetail({ width: 1440, height: 900 }, "desktop");
   await testDiaryDetail({ width: 390, height: 844 }, "mobile");

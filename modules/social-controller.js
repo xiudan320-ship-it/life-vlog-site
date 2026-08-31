@@ -22,6 +22,30 @@ export function createSocialController({
   awardExperience,
 }) {
   const els = elements;
+  let notificationStatus = "idle";
+  let notificationErrorMessage = "";
+  let notificationUserId = null;
+
+  function syncNotificationSession() {
+    const nextUserId = state.session?.user?.id || "";
+    if (nextUserId === notificationUserId) return;
+    notificationUserId = nextUserId;
+    notificationStatus = nextUserId ? "idle" : "ready";
+    notificationErrorMessage = "";
+  }
+
+  function setNotificationStatus(nextStatus, errorMessage = "") {
+    notificationStatus = nextStatus;
+    notificationErrorMessage = errorMessage;
+    if (els.notificationStatus) els.notificationStatus.textContent = "";
+  }
+
+  function getNotificationErrorMessage(error) {
+    if (isMissingCloudSchema(error)) return "互动通知暂不可用，请稍后重试。";
+    return error?.message
+      ? `请检查网络后重试：${error.message}`
+      : "请检查网络后重试。";
+  }
 
   async function syncAppIconBadge(count = 0) {
     const nextCount = Math.max(0, Number(count) || 0);
@@ -60,107 +84,147 @@ export function createSocialController({
   }
   
   async function loadNotificationsInternal() {
+    syncNotificationSession();
     if (!state.cloudDb || !state.session) {
       state.notifications = [];
+      setNotificationStatus("ready");
       renderNotifications();
-      return;
+      return { data: [], error: null };
     }
-    const { data, error } = await notificationRepository.list(50);
-    if (error) {
-      state.notifications = [];
-      els.notificationStatus.textContent = isMissingCloudSchema(error)
-        ? "运行本次互动通知数据库补丁后即可使用。"
-        : `通知读取失败：${error.message}`;
-    } else {
-      state.notifications = data || [];
-      els.notificationStatus.textContent = "";
+    try {
+      const { data, error } = await notificationRepository.list(50);
+      if (error) {
+        setNotificationStatus("error", getNotificationErrorMessage(error));
+        renderNotifications();
+        return { data: state.notifications, error };
+      }
+      state.notifications = Array.isArray(data) ? data : [];
+      setNotificationStatus("ready");
+      renderNotifications();
+      return { data: state.notifications, error: null };
+    } catch (error) {
+      setNotificationStatus("error", getNotificationErrorMessage(error));
+      renderNotifications();
+      return { data: state.notifications, error };
     }
-    renderNotifications();
   }
   
-  async function loadNotifications() {
+  function loadNotifications() {
+    syncNotificationSession();
     if (state.notificationsLoadPromise) return state.notificationsLoadPromise;
-    state.notificationsLoadPromise = loadNotificationsInternal().finally(() => {
+    setNotificationStatus("loading");
+    renderNotifications();
+    const request = Promise.resolve()
+      .then(() => loadNotificationsInternal())
+      .catch((error) => {
+        setNotificationStatus("error", getNotificationErrorMessage(error));
+        renderNotifications();
+        return { data: state.notifications, error };
+      });
+    state.notificationsLoadPromise = request.finally(() => {
       state.notificationsLoadPromise = null;
     });
     return state.notificationsLoadPromise;
   }
   
   function renderNotifications() {
+    syncNotificationSession();
     const unread = renderNotificationsView({
       listElement: els.notificationList,
       badgeElement: els.notificationBadge,
       notifications: state.notifications,
+      status: state.session ? notificationStatus : "ready",
+      errorMessage: notificationErrorMessage,
       getText: getNotificationText,
       getActorName: getNotificationActorName,
       getActorAvatar: getNotificationActorAvatar,
       onOpen: openNotification,
+      onRetry: loadNotifications,
     });
     void syncAppIconBadge(unread);
   }
   
   async function openNotification(button) {
-    const id = button.dataset.notificationId;
-    const photoId = button.dataset.notificationPhoto;
-    const type = button.dataset.notificationType;
-    const item = state.notifications.find((entry) => (entry.notification_id || entry.id) === id);
-    if (item) item.is_read = true;
-    renderNotifications();
-    let photo = state.photos.find((entry) => entry.id === photoId);
-    if (!photo && photoId && state.cloudDb && state.session) {
-      const { data, error } = await diaryRepository.getById(photoId);
-      if (!error && data) {
-        photo = data;
-        if (!state.photos.some((entry) => entry.id === data.id)) state.photos.unshift(data);
-        savePhotoFeedCache(state.session.user.id);
-        renderGallery();
+    try {
+      const id = button.dataset.notificationId;
+      const photoId = button.dataset.notificationPhoto;
+      const type = button.dataset.notificationType;
+      const item = state.notifications.find((entry) => (entry.notification_id || entry.id) === id);
+      if (item) item.is_read = true;
+      renderNotifications();
+      let photo = state.photos.find((entry) => entry.id === photoId);
+      if (!photo && photoId && state.cloudDb && state.session) {
+        const { data, error } = await diaryRepository.getById(photoId);
+        if (!error && data) {
+          photo = data;
+          if (!state.photos.some((entry) => entry.id === data.id)) state.photos.unshift(data);
+          savePhotoFeedCache(state.session.user.id);
+          renderGallery();
+        }
       }
-    }
-    if (photo) {
-      els.notificationDialog.close();
-      switchPage("gallery");
-      await new Promise((resolve) => requestAnimationFrame(resolve));
-      openPhoto(photo);
-    } else if (type === "thanks") {
-      els.notificationDialog.close();
-      switchPage("thanks");
-    } else {
-      showMiniToast("这条日记可能已删除或暂时无法读取。", { kind: "error", duration: 2600 });
+      if (photo) {
+        closeNotificationsPanel();
+        switchPage("gallery");
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+        openPhoto(photo);
+      } else if (type === "thanks") {
+        closeNotificationsPanel();
+        switchPage("thanks");
+      } else {
+        showMiniToast("这条日记可能已删除或暂时无法读取。", { kind: "error", duration: 2600 });
+      }
+    } catch {
+      showMiniToast("通知打开失败，请稍后重试。", { kind: "error", duration: 2600 });
     }
   }
   
+  function closeNotificationsPanel() {
+    if (els.notificationDialog?.open) els.notificationDialog.close();
+  }
+
   async function openNotificationsPanel() {
-    await loadNotifications();
-    const justSeenIds = state.notifications
-      .filter((item) => !item.is_read)
-      .map((item) => item.notification_id || item.id)
-      .filter(Boolean);
-    if (justSeenIds.length) {
-      state.notifications.forEach((item) => {
-        if (justSeenIds.includes(item.notification_id || item.id)) {
-          item.is_read = true;
-          item.just_seen = true;
-        } else {
-          item.just_seen = false;
-        }
-      });
+    const dialog = els.notificationDialog;
+    try {
+      if (!dialog.open) dialog.showModal();
+      const result = await loadNotifications();
+      if (result?.error || !dialog.open) return;
+      const justSeenIds = state.notifications
+        .filter((item) => !item.is_read)
+        .map((item) => item.notification_id || item.id)
+        .filter(Boolean);
+      if (justSeenIds.length) {
+        state.notifications.forEach((item) => {
+          if (justSeenIds.includes(item.notification_id || item.id)) {
+            item.is_read = true;
+            item.just_seen = true;
+          } else {
+            item.just_seen = false;
+          }
+        });
+        renderNotifications();
+        await markUnreadNotificationsRead();
+      }
+    } catch (error) {
+      setNotificationStatus("error", getNotificationErrorMessage(error));
       renderNotifications();
     }
-    els.notificationDialog.showModal();
-    if (justSeenIds.length) await markUnreadNotificationsRead();
   }
   
   async function markUnreadNotificationsRead() {
     if (!state.cloudDb || !state.session) return;
-    const { error } = await notificationRepository.markAllUnread(state.session.user.id);
-    if (error) {
-      els.notificationStatus.textContent = `更新失败：${error.message}`;
-      return;
+    try {
+      const { error } = await notificationRepository.markAllUnread(state.session.user.id);
+      if (error) {
+        els.notificationStatus.textContent = `更新失败：${error.message}`;
+        return;
+      }
+      state.notifications.forEach((item) => {
+        item.is_read = true;
+      });
+      renderNotifications();
+    } catch (error) {
+      els.notificationStatus.textContent = `更新失败：${error?.message || "请稍后重试"}`;
     }
-    state.notifications.forEach((item) => {
-      item.is_read = true;
-    });
-    renderNotifications();
   }
   
   async function loadPhotoComments(photoId) {
@@ -314,6 +378,7 @@ export function createSocialController({
     renderNotifications,
     openNotification,
     openNotificationsPanel,
+    closeNotificationsPanel,
     markUnreadNotificationsRead,
     loadPhotoComments,
     renderPhotoComments,

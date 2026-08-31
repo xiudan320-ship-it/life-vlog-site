@@ -48,6 +48,10 @@ flowchart LR
 
 `app.js` 不承载业务逻辑。新增功能按职责进入 `modules/`，并保持 controller、view、domain、repository/service 分离。
 
+移动端页面契约由主入口和基础样式共同维护：`index.html` 只有一个固定的 viewport（`width=device-width`、`initial-scale=1.0`、`minimum-scale=1.0`、`maximum-scale=1.0`、`user-scalable=no`、`viewport-fit=cover`）；手机与短横屏上的可见文本输入、`select` 和 `textarea` 的计算字号至少为 16px，并随动态字号根设置放大。页面保留纵向滚动和系统返回手势，不使用 `html/body` 的全局横向溢出遮罩、全局 `touch-action: none` 或全局 `touchmove` 拦截；照片查看器和下拉刷新只在各自的媒体/日记区域维护局部手势边界。
+
+通知铃铛属于应用外壳能力，由 `app-event-bindings.js` 在 shell 初始化时调用 `notification-event-bindings.js` 绑定一次，不依赖设置路由。`openNotificationsPanel()` 先同步打开 dialog，再复用共享的 `notificationsLoadPromise` 异步加载；视图区分缓存加载、空状态和错误状态，错误提供重试，加载期间关闭 dialog 不会在请求完成后重新打开，关闭事件恢复铃铛焦点。通知读取/标记已读失败都必须被控制器吸收为可读状态，不能产生未处理 Promise rejection。
+
 ## 4. 页面与路由
 
 `modules/route-loader.js` 是路由模块注册表：
@@ -78,6 +82,8 @@ flowchart LR
 | Assembly | `app-runtime-*-assembly.js` | 依赖注入与模块装配，不放业务规则 |
 
 具体功能定位见 [`MODULE_MAP.md`](MODULE_MAP.md)。
+
+通知模块保持三层边界：`notification-event-bindings.js` 只负责 DOM 事件，`social-controller.js` 编排加载、已读和跳转，`notification-view.js` 负责列表及 loading/empty/error/retry 状态；通知数据仍通过 `data-repositories.js` 的 Worker/D1 repository 访问。
 
 ## 6. 数据与后端
 
@@ -173,7 +179,7 @@ pnpm preview
 
 心情日记专项由 `tests/mood-diary-domain.mjs`、`tests/mood-diary-controller.mjs`、`tests/mood-diary-worker.mjs`、`tests/mood-diary-assets.mjs` 和 `tests/mood-diary-browser.mjs` 覆盖；浏览器用确定性假 session / API fixture 验证桌面与手机端月历、Picker、编辑、删除、历史和横向溢出。16 个 512×512 透明心情素材位于 Vite 静态目录 `public/assets/mood-diary/`，构建后 URL 为 `/assets/mood-diary/*`；静态门禁会验证精确文件集合、PNG/Alpha、透明安全区和单文件体积，避免白底、棋盘格或缺失素材进入发布包。
 
-`pnpm test` 不包含全部发布门禁。发布必须遵循 [`release-checklist.md`](release-checklist.md)。
+`pnpm test` 不包含全部发布门禁。发布必须遵循 [`release-checklist.md`](release-checklist.md)。浏览器回归和 release smoke 使用确定性通知 fixture 覆盖铃铛在设置路由未加载、慢请求、重复点击、关闭中请求、读取失败重试、已读写回和跳转场景下的行为；a11y 回归同时检查上述 viewport、无横向溢出和移动端表单字号契约。
 
 ## 11. 部署
 
