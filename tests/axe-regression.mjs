@@ -20,6 +20,11 @@ async function openPage(browser, {
   await fixture.install(context);
   const page = await context.newPage();
   if (authenticated) await page.addInitScript(({ value }) => localStorage.setItem("life-vlog-cloudflare-auth", JSON.stringify(value)), { value: session });
+  if (dark) {
+    // Seed the scoped preference before startup so the async account sync
+    // cannot overwrite the deterministic dark-mode scan mid-analysis.
+    await page.addInitScript(() => localStorage.setItem("life-vlog-theme:fixture-user", "dark"));
+  }
   if (secretUnlocked) {
     await page.addInitScript(() => {
       sessionStorage.setItem("life-vlog-secret-unlock:fixture-user", JSON.stringify({ unlockedAt: Date.now(), leftAt: 0 }));
