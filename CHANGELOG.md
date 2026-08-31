@@ -37,6 +37,7 @@
 ### Changed
 
 - 发布今日心情概览、成员昵称/形状规则、冷启动定位、手机页面缩放锁定和全局通知窗口修复到 Cloudflare Pages 正式站；正式入口为 `index-R17uygvh.js`，Worker 版本为 `529ed395-c4d8-412f-b23f-6943e75e935b`，固定预览与生产均通过 CORS、Axe 和确定性 release smoke。
+- 发布今日心情单行概览与原地共享 overlay 收敛版到 Cloudflare Pages 正式站；入口为 `index-DUEnIUYJ.js`（SHA-256 `cf6e3a101352268a41fcd542699c8f3b5b6cab8beb1adfc0059a57b7106752c1`），`sw.js` SHA-256 为 `dedb8ea76d1956f395c2ed94d3961626ab5feb20889428bdc33d9326e5470b75`，Worker 版本为 `bc4ab33c-85e2-4831-bd26-895ba5ea4359`；固定预览与生产均通过 CORS、Axe 和确定性 release smoke。
 - 将主工作树、5c0d worktree 和稳定分支的有效改动整合到同一套模块化 Vite/Workbox 架构；保留确定性 fixture 发布门和不使用真实测试账户的规则。
 - 结构门只检查版本库中的旧发布目录；保留本机被 `.gitignore` 排除的历史构建产物，不将其当作源码或发布输入。
 - 通过 `pnpm-workspace.yaml` 固化 `esbuild` 与 `sharp` 的受信任安装构建脚本，避免锁定安装后生成构建不完整；发布 smoke 同时覆盖等级面板全局事件。
@@ -77,7 +78,7 @@
 - 新增手机端页面缩放锁定修复规划，明确固定 viewport、iOS 输入聚焦、横向溢出与照片查看器内部缩放的边界及真机验收。
 - 新增顶部通知铃铛无响应修复规划，记录 settings-only 事件绑定和先等待网络再开窗的双重根因，以及全局绑定、即时反馈和慢网回归要求。
 - 记录手机 viewport、通知 loading/empty/error/retry、焦点恢复和确定性 fixture 回归契约，更新模块图、技术总览、设计系统与发布验收清单。
-- 同步今日心情概览的模块边界、单日数据流、发布验收清单和心情日记页面特例；专项规划状态更新为本地验收通过，当前未部署。
+- 同步今日心情概览的模块边界、单日数据流、发布验收清单和心情日记页面特例；专项规划状态更新为生产发布完成，线上 CORS、Axe 与确定性 release smoke 均通过。
 
 ## [2026-08-30]
 
