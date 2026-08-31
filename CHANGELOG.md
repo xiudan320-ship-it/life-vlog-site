@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [2026-08-31]
+
 ### Added
 
 - 增加 P0“心情日记”模块：原生月历、八种固定心情、家庭两席稳定排序、选择/详情/编辑/删除/历史流程、用户隔离的当月缓存，以及独立 Domain、Repository、View、Controller 和懒加载 Route。
@@ -14,6 +16,7 @@
 
 ### Changed
 
+- 发布今日心情概览、成员昵称/形状规则、冷启动定位、手机页面缩放锁定和全局通知窗口修复到 Cloudflare Pages 正式站；正式入口为 `index-R17uygvh.js`，Worker 版本为 `529ed395-c4d8-412f-b23f-6943e75e935b`，固定预览与生产均通过 CORS、Axe 和确定性 release smoke。
 - 将主工作树、5c0d worktree 和稳定分支的有效改动整合到同一套模块化 Vite/Workbox 架构；保留确定性 fixture 发布门和不使用真实测试账户的规则。
 - 结构门只检查版本库中的旧发布目录；保留本机被 `.gitignore` 排除的历史构建产物，不将其当作源码或发布输入。
 - 通过 `pnpm-workspace.yaml` 固化 `esbuild` 与 `sharp` 的受信任安装构建脚本，避免锁定安装后生成构建不完整；发布 smoke 同时覆盖等级面板全局事件。
