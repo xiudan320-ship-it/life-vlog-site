@@ -54,7 +54,6 @@ export function createAppNavigationController({
       ["wardrobe", elements.wardrobeNav],
       ["thanks", elements.thanksNav],
       ["secret", elements.secretNav],
-      ["mood", elements.moodNav],
     ];
     for (const [page, navigation] of entries) {
       if (!navigation) continue;

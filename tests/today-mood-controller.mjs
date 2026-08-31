@@ -15,7 +15,7 @@ function createView() {
   };
 }
 
-function createFixture({ rows = [], members = [], listDay = async () => rows, sessionId = "owner", switchPage, moodDiaryController } = {}) {
+function createFixture({ rows = [], members = [], listDay = async () => rows, sessionId = "owner", switchPage, overlayController } = {}) {
   let session = sessionId ? { user: { id: sessionId } } : null;
   const view = createView();
   const controller = createTodayMoodController({
@@ -26,7 +26,7 @@ function createFixture({ rows = [], members = [], listDay = async () => rows, se
     getAuthorName: (userId) => ({ owner: "小秀", member: "小咻" })[userId] || "…",
     getTodayKey: () => TODAY,
     switchPage: switchPage || (async () => true),
-    getMoodDiaryController: () => moodDiaryController,
+    overlayController,
     view,
   });
   return { controller, view, setSession: (next) => { session = next; } };
@@ -107,7 +107,7 @@ test("today mood latest request wins across refreshes and session changes", asyn
   assert.deepEqual(switched.controller.getState().entries, []);
 });
 
-test("today mood opens the existing mood route and dispatches the requested seat", async () => {
+test("today seats open the shared overlay in place and only the calendar CTA navigates", async () => {
   const actions = [];
   const fixture = createFixture({
     members: [
@@ -118,13 +118,19 @@ test("today mood opens the existing mood route and dispatches the requested seat
       actions.push({ type: "switch", args });
       return true;
     },
-    moodDiaryController: { dispatch: async (action) => { actions.push(action); } },
+    rows: [{ id: "member-entry", user_id: "member", diary_date: TODAY, mood: "happy" }],
+    overlayController: { open: async (payload) => { actions.push({ type: "overlay", payload }); return true; } },
   });
   await fixture.controller.refresh();
   assert.equal(await fixture.controller.openSeat("member"), true);
-  assert.equal(actions[0].type, "switch");
-  assert.equal(actions[0].args[0], "mood");
-  assert.deepEqual(actions[1], { type: "open-today", userId: "member" });
+  assert.equal(actions[0].type, "overlay");
+  assert.equal(actions[0].payload.preferredUserId, "member");
+  assert.equal(actions.some(({ type }) => type === "switch"), false);
+  await fixture.controller.openCalendar();
+  assert.equal(actions.at(-1).type, "switch");
+  assert.equal(actions.at(-1).args[0], "mood");
+  assert.equal(await fixture.controller.openSeat("owner"), true);
+  assert.equal(await fixture.controller.openSeat("member"), true);
   assert.equal(await fixture.controller.openSeat("unknown"), false);
 });
 

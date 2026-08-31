@@ -7,6 +7,7 @@ export function createRouteControllerOptions({
   feature,
   pages,
   onMoodMutation,
+  moodEntryOverlayController,
 }) {
   const {
     secretRepository,
@@ -180,6 +181,7 @@ export function createRouteControllerOptions({
     getFamilyMembers: () => state.familyMembers.map((member) => ({ ...member, username: getAuthorName(member.user_id) })),
     getFamilyInfo: () => state.familyInfo,
     onMoodMutation,
+    moodEntryOverlayController,
     getAuthorName,
     getAuthorAvatar,
     uploadImageFile,
@@ -332,6 +334,7 @@ function buildRouteControllerOptions({
   getFamilyMembers,
   getFamilyInfo,
   onMoodMutation,
+  moodEntryOverlayController,
   getAuthorName,
   getAuthorAvatar,
   uploadImageFile,
@@ -599,6 +602,7 @@ function buildRouteControllerOptions({
     },
     moodDiary: {
       elements,
+      overlayController: moodEntryOverlayController,
       getDatabase,
       getSession,
       getFamilyInfo,

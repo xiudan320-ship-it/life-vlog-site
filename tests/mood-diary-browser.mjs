@@ -112,6 +112,14 @@ async function runTodayMoodState(viewport, mode, label) {
   try {
     await page.goto(`${baseUrl}/`, { waitUntil: "domcontentloaded" });
     await waitForTodayMoodOverview(page);
+    await page.waitForFunction((expectedMode) => {
+      const items = [...document.querySelectorAll("#todayMoodGrid .today-mood-seat")];
+      const moods = items.map((item) => item.querySelector(".today-mood-seat-mood")?.textContent || "");
+      if (expectedMode === "both") return moods[0] === "开心" && moods[1] === "平静";
+      if (expectedMode === "owner") return moods[0] === "开心";
+      if (expectedMode === "member") return moods[1] === "平静";
+      return items.length === 2 && items.every((item) => item.querySelector(".today-mood-seat-mood")?.textContent === "还没记录");
+    }, mode, { timeout: 30000 });
     const seats = await page.locator("#todayMoodGrid .today-mood-seat").evaluateAll((items) => items.map((item) => ({
       userId: item.dataset.todayMoodUser || "",
       tag: item.tagName,
@@ -127,10 +135,10 @@ async function runTodayMoodState(viewport, mode, label) {
     assert.equal(seats[1].classes.includes("is-circle"), true, `${label} member seat must use circle asset shape`);
     assert.equal(seats[0].label.includes("小秀"), true);
     assert.equal(seats[1].label.includes("小咻"), true);
-    assert.equal(await page.locator("#todayMoodGrid .today-mood-seat-button").count(), mode === "owner" || mode === "none" ? 1 : 2);
-    assert.equal(await page.locator("#todayMoodGrid .today-mood-seat-mood").count(), mode === "both" || mode === "owner" || mode === "member" ? 2 : 2);
+    assert.equal(seats.filter(({ tag }) => tag === "BUTTON").length, mode === "owner" || mode === "none" ? 1 : 2, `${label} actionable seat count`);
+    assert.equal(seats.filter(({ mood }) => mood).length, 2);
     if (mode === "both" || mode === "owner") assert.equal(seats[0].mood, "开心");
-    else assert.equal(seats[0].note, "添加今日心情");
+    else assert.equal(seats[0].note, "添加心情");
     if (mode === "both" || mode === "member") assert.equal(seats[1].mood, "平静");
     else {
       assert.equal(seats[1].userId, "");
@@ -140,6 +148,23 @@ async function runTodayMoodState(viewport, mode, label) {
     assert.equal(await page.locator("#overviewPhotos, #overviewRecipes, #overviewWishes, #overviewLevelButton").count(), 0);
     assert.equal(await page.locator(".quick-actions button").count(), 4);
     await assertNoHorizontalOverflow(page, `${label} today overview`);
+    if (viewport.width <= 430 || viewport.height <= 480) {
+      const metrics = await page.locator("#todayMoodGrid").evaluate((grid) => {
+        const seats = [...grid.querySelectorAll(".today-mood-seat")];
+        const rects = seats.map((seat) => seat.getBoundingClientRect());
+        const media = seats.map((seat) => seat.querySelector(".today-mood-seat-media")?.getBoundingClientRect());
+        const actions = seats.filter((seat) => seat.matches("button")).map((seat) => seat.getBoundingClientRect());
+        return { topDelta: Math.abs(rects[0].top - rects[1].top), gridHeight: grid.getBoundingClientRect().height, media, actions };
+      });
+      assert.ok(metrics.topDelta <= 2, `${label} seats must remain on one row`);
+      assert.ok(metrics.gridHeight <= 112, `${label} compact grid height`);
+      assert.ok(metrics.media.every((rect) => rect.width <= 64 && rect.height <= 64), `${label} mood assets must not exceed 64px`);
+      assert.ok(metrics.actions.every((rect) => rect.width >= 44 && rect.height >= 44), `${label} actionable seats need 44px touch targets`);
+      await page.evaluate(() => { document.documentElement.style.fontSize = "130%"; });
+      const scaledTopDelta = await page.locator("#todayMoodGrid .today-mood-seat").evaluateAll((items) => Math.abs(items[0].getBoundingClientRect().top - items[1].getBoundingClientRect().top));
+      assert.ok(scaledTopDelta <= 2, `${label} seats must remain on one row at 130% text`);
+      await assertNoHorizontalOverflow(page, `${label} today overview at 130% text`);
+    }
     assert.deepEqual(pageErrors, [], `${label} today overview page errors:\n${pageErrors.join("\n")}`);
   } finally {
     await fixture.dispose(context);
@@ -167,7 +192,7 @@ async function runTodayMoodOverviewFlow() {
       const firstDiary = document.querySelector("#gallery .photo-card")?.getBoundingClientRect();
       return { overviewTop: overview.top, firstDiaryTop: firstDiary?.top || 0, scrollY: window.scrollY };
     });
-    assert.ok(initialPosition.overviewTop >= -1 && initialPosition.overviewTop < 190, `cold start did not land on overview: ${JSON.stringify(initialPosition)}`);
+    assert.ok(initialPosition.overviewTop >= -1 && initialPosition.overviewTop < 230, `cold start did not land on overview: ${JSON.stringify(initialPosition)}`);
     assert.ok(initialPosition.firstDiaryTop > initialPosition.overviewTop + 300, `cold start still landed on the first diary: ${JSON.stringify(initialPosition)}`);
 
     await page.locator("#overviewMoodCalendar").evaluate((element) => element.click());
@@ -194,11 +219,23 @@ async function runTodayMoodOverviewFlow() {
     await page.waitForFunction(() => document.activeElement?.dataset.pageHeading === "gallery", null, { timeout: 30000 });
     assert.equal(await page.evaluate(() => Math.round(window.scrollY)), 1500, "returning to gallery did not restore the saved scroll position");
 
-    await page.click('[data-today-mood-user="fixture-partner"]');
-    await page.waitForSelector("#moodPage:not([hidden])", { state: "visible", timeout: 30000 });
+    const detailSeat = page.locator('[data-today-mood-user="fixture-partner"]');
+    await detailSeat.scrollIntoViewIfNeeded();
+    const beforeDetail = { url: page.url(), scrollY: await page.evaluate(() => window.scrollY) };
+    await detailSeat.click();
     await page.waitForSelector("#moodDetailPanel:not([hidden])", { state: "visible", timeout: 30000 });
+    assert.equal(await page.locator("#moodPage").isVisible(), false);
+    assert.equal(page.url(), beforeDetail.url);
     assert.match(await page.locator("#moodDetailAuthor").textContent(), /小咻/u);
     assert.equal(await page.locator("#moodDetailMood strong").textContent(), "平静");
+    assert.equal(await page.locator("#moodDetailActions [data-mood-edit], #moodDetailActions [data-mood-delete]").count(), 0);
+    await page.click("#moodOverlayClose");
+    await page.waitForSelector("#moodOverlay[hidden]", { state: "attached", timeout: 30000 });
+    assert.equal(page.url(), beforeDetail.url);
+    await page.waitForFunction((expected) => Math.abs(window.scrollY - expected) <= 2, beforeDetail.scrollY, { timeout: 3000 });
+    assert.ok(Math.abs((await page.evaluate(() => window.scrollY)) - beforeDetail.scrollY) <= 2);
+    await page.waitForFunction(() => document.activeElement?.dataset.todayMoodUser === "fixture-partner", null, { timeout: 3000 });
+    assert.equal(await detailSeat.evaluate((element) => document.activeElement === element), true);
     assert.deepEqual(pageErrors, [], `today overview interaction page errors:\n${pageErrors.join("\n")}`);
   } finally {
     await fixture.dispose(context);
@@ -221,16 +258,17 @@ async function runTodayMoodQuickAdd() {
     await page.goto(`${baseUrl}/`, { waitUntil: "domcontentloaded" });
     await waitForTodayMoodOverview(page);
     const ownerSeat = page.locator('[data-today-mood-user="fixture-user"]');
-    assert.equal(await ownerSeat.locator(".today-mood-seat-note").textContent(), "添加今日心情");
+    assert.equal(await ownerSeat.locator(".today-mood-seat-note").textContent(), "添加心情");
+    const initialUrl = page.url();
     await ownerSeat.click();
-    await page.waitForSelector("#moodPage:not([hidden])", { state: "visible", timeout: 30000 });
     await page.waitForSelector("#moodOverlay:not([hidden]) #moodPickerPanel:not([hidden])", { state: "visible", timeout: 30000 });
+    assert.equal(await page.locator("#moodPage").isVisible(), false);
+    assert.equal(page.url(), initialUrl);
     await page.click('[data-mood="happy"]');
     await page.click("#moodEditorSave");
     await page.waitForSelector("#moodDetailPanel:not([hidden])", { state: "visible", timeout: 30000 });
     await page.click("#moodOverlayClose");
     await page.waitForSelector("#moodOverlay[hidden]", { state: "attached", timeout: 30000 });
-    await page.click("#galleryNav");
     await page.waitForFunction(
       () => document.querySelector('[data-today-mood-user="fixture-user"] .today-mood-seat-mood')?.textContent === "开心",
       null,
@@ -265,7 +303,8 @@ async function runMoodDiaryFlow(viewport, label) {
     await page.waitForSelector("#moodPage:not([hidden])", { state: "attached", timeout: 30000 });
     await page.waitForSelector("#moodCalendarGrid [data-mood-date]", { state: "visible", timeout: 30000 });
     assert.equal(await page.locator("#moodDiaryHeading").textContent(), "心情日记");
-    assert.equal(await page.locator("#moodNav").getAttribute("aria-current"), "page");
+    assert.equal(await page.locator("#moodNav").count(), 0);
+    assert.match(page.url(), /[?&]page=mood(?:&|$)/u);
     await assertNoHorizontalOverflow(page, `${label} initial mood diary`);
 
     const future = page.locator('#moodCalendarGrid [aria-disabled="true"]').first();

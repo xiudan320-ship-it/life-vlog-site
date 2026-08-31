@@ -128,7 +128,6 @@ export function bindAppEvents({
   els.wardrobeNav?.addEventListener("click", () => switchPage("wardrobe"));
   els.thanksNav?.addEventListener("click", () => switchPage("thanks"));
   els.secretNav?.addEventListener("click", () => switchPage("secret"));
-  els.moodNav?.addEventListener("click", () => switchPage("mood"));
   els.brand?.addEventListener("click", (event) => {
     event.preventDefault();
     switchPage("gallery", { restoreScroll: false, focusHeading: false });

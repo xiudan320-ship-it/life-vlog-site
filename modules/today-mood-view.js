@@ -87,13 +87,13 @@ export function createTodayMoodView({ elements, getAuthorName } = {}) {
       copy.append(createText(documentTarget, "span", "请重试", "today-mood-seat-note"));
     } else if (recorded) {
       copy.append(createText(documentTarget, "strong", MOOD_META[entry.mood]?.label || "已记录", "today-mood-seat-mood"));
-      copy.append(createText(documentTarget, "span", "查看今日详情", "today-mood-seat-note"));
+      copy.append(createText(documentTarget, "span", "查看详情", "today-mood-seat-note"));
     } else if (isCurrentUser) {
       copy.append(createText(documentTarget, "strong", "还没记录", "today-mood-seat-mood"));
-      copy.append(createText(documentTarget, "span", "添加今日心情", "today-mood-seat-note"));
+      copy.append(createText(documentTarget, "span", "添加心情", "today-mood-seat-note"));
     } else {
       copy.append(createText(documentTarget, "strong", "还没记录", "today-mood-seat-mood"));
-      copy.append(createText(documentTarget, "span", "等待 TA 记录", "today-mood-seat-note"));
+      copy.append(createText(documentTarget, "span", "未记录", "today-mood-seat-note"));
     }
     element.append(media, copy);
     return element;

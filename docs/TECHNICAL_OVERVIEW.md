@@ -70,9 +70,9 @@ flowchart LR
 
 除 gallery 外的主要页面模板位于 `modules/routes/templates/`。路由状态由导航控制器维护，快速切换采用 latest-wins 事务，过期加载不得重新激活页面。
 
-首页的今日心情概览属于应用壳，不是独立路由：首屏只保留静态概览壳和轻量 lazy proxy，`today-mood-controller.js` 在应用壳装配后动态加载，完成后通过 `mood-diary-repository.js` 的 `listDay(YYYY-MM-DD)` 读取 Asia/Tokyo 当天记录，使用共享心情规则过滤为 owner 和最早加入的另一位成员，再由 `today-mood-view.js` 渲染已记录、本人未记录、成员未记录和同步失败状态。它不轮询、不写本地缓存，也不把第三位成员的数据带入首页。心情详情保存/删除通过注入的 `onMoodMutation` 回调通知概览刷新，昵称同步和家庭数据同步通过显式刷新桥接更新概览。
+首页的今日心情概览属于应用壳，不是独立路由：`today-mood-controller.js` 通过 `listDay(YYYY-MM-DD)` 读取 Asia/Tokyo 当天记录并过滤为稳定两席。应用壳同时装配唯一的 `mood-entry-overlay-controller.js`；gallery 概览与懒加载 mood 日历都向它传入日期、两席记录、参与者和触发元素，共用 Picker、编辑、详情、权限及写入流程。保存/删除后 overlay 同时通知月历内存状态与概览单日刷新。
 
-首次登录态 gallery 激活时，`app-navigation-controller.js` 负责一次性的首页落点：只有没有显式 `page`/深链参数时才滚动到概览；后续 gallery 返回保留用户滚动位置。概览席位进入心情路由后通过 `open-today` 选择对应成员，当前用户未记录时直接打开 Picker。概览区使用 `scroll-margin-top` 处理固定顶栏和安全区，不由 gallery 列表视图执行滚动副作用。
+首次登录态 gallery 激活时，`app-navigation-controller.js` 负责一次性的首页落点。概览席位不切路由：已记录席位原地打开详情，本人空席原地打开 Picker，对方空席不可编辑；overlay 用同 URL history entry 支持 Back 关闭，并恢复打开时的 scrollY 与触发焦点。顶部不再提供心情分页按钮，`?page=mood` 深链接和概览日历 CTA 继续进入月历。
 
 ## 5. 分层约定
 

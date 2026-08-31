@@ -1,4 +1,3 @@
-import "../../styles/mood-diary.css";
 import { createMoodDiaryController } from "../mood-diary-controller.js";
 import { createMoodDiaryRepository } from "../mood-diary-repository.js";
 import template from "./templates/mood-diary.html?raw";
@@ -15,6 +14,7 @@ export function initialize({ controllers, controllerOptions }) {
   const options = controllerOptions.moodDiary;
   controllers.moodDiary = createMoodDiaryController({
     ...options,
+    overlayController: options.overlayController,
     repository: createMoodDiaryRepository({
       getDatabase: options.getDatabase,
       getSession: options.getSession,

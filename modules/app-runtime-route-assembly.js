@@ -261,12 +261,37 @@ export function createAppRouteRuntime({
     getSessionDisplayName: getEventSessionDisplayName,
   } = core;
   let appNavigationController = null;
+  const moodEntryOverlayPromise = Promise.all([
+    import("./mood-entry-overlay-controller.js"),
+    import("./mood-diary-repository.js"),
+  ]).then(([{ createMoodEntryOverlayController }, { createMoodDiaryRepository }]) => createMoodEntryOverlayController({
+    elements,
+    repository: createMoodDiaryRepository({ getDatabase: () => state.cloudDb, getSession: () => state.session }),
+    getSession: () => state.session,
+    getFamilyMembers: () => state.familyMembers,
+    getAuthorName,
+    getAuthorAvatar,
+    showToast: showMiniToast,
+    confirmAction,
+    onMutation: async (payload) => {
+      pageControllerMap.moodDiary?.handleMutation?.(payload);
+      await pageControllerMap.todayMood?.refresh?.();
+    },
+    windowTarget: documentTarget.defaultView,
+  }));
+  const moodEntryOverlayController = Object.freeze({
+    open: async (...args) => (await moodEntryOverlayPromise).open(...args),
+    close: async (...args) => (await moodEntryOverlayPromise).close(...args),
+    dispatch: async (...args) => (await moodEntryOverlayPromise).dispatch(...args),
+  });
+  pageControllerMap.moodEntryOverlay = moodEntryOverlayController;
   void import("./today-mood-controller.js").then(({ createTodayMoodController }) => {
     const controller = createTodayMoodController({
       elements,
       state,
       getAuthorName,
       switchPage: (...args) => appNavigationController?.switchPage(...args) ?? false,
+      overlayController: moodEntryOverlayController,
       controllers: pageControllerMap,
     });
     pageControllerMap.todayMood = controller;
@@ -396,6 +421,7 @@ export function createAppRouteRuntime({
     getFamilyMembers: () => state.familyMembers.map((member) => ({ ...member, username: getAuthorName(member.user_id) })),
     getFamilyInfo: () => state.familyInfo,
     onMoodMutation: () => pageControllerMap.todayMood?.refresh(),
+    moodEntryOverlayController,
     getAuthorName,
     getAuthorAvatar,
     uploadImageFile,

@@ -575,6 +575,11 @@ button.mood-calendar-cell:hover {
 }
 
 .mood-overlay {
+  --mood-surface: var(--surface, #fffdf9);
+  --mood-ink: var(--ink, #17201b);
+  --mood-muted: var(--muted, #69756d);
+  --mood-line: var(--line, rgba(23, 32, 27, 0.14));
+  --mood-accent: var(--coral, #e9826c);
   position: fixed;
   z-index: 200;
   inset: 0;

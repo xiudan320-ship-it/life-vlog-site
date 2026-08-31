@@ -12,8 +12,8 @@
 | 顶部等级 / 经验面板点击无响应 | `modules/gamification-controller.js` | `modules/app-event-bindings.js` |
 | 账户资料、头像、家庭设置、缓存设置 | `modules/profile-preferences-controller.js`, `modules/family-settings-controller.js` | `modules/settings-event-bindings.js`, `modules/account-view.js` |
 | 日记列表、搜索、筛选、瀑布流 | `modules/diary-feed-controller.js` | `modules/diary-gallery-view.js`, `modules/diary-domain.js` |
-| 首页今日心情概览、两席状态、快捷添加和月历/详情跳转 | `modules/today-mood-controller.js` | `modules/today-mood-view.js`, `modules/mood-diary-shared.js`, `modules/mood-diary-repository.js`, `modules/app-navigation-controller.js` |
-| 心情日记月历、心情选择、详情、编辑和历史 | `modules/mood-diary-controller.js` | `modules/mood-diary-domain.js`, `modules/mood-diary-shared.js`, `modules/mood-diary-view.js`, `modules/mood-diary-repository.js`, `styles/mood-diary.css` |
+| 首页今日心情概览、两席状态、原地快捷添加/详情和月历 CTA | `modules/today-mood-controller.js` | `modules/today-mood-view.js`, `modules/mood-entry-overlay-controller.js`, `modules/mood-diary-repository.js` |
+| 心情日记月历与历史 | `modules/mood-diary-controller.js` | `modules/mood-diary-domain.js`, `modules/mood-diary-view.js`, `modules/mood-entry-overlay-controller.js`, `styles/mood-diary.css` |
 | 发布 / 编辑日记、上传队列 | `modules/diary-composer-controller.js`, `modules/photo-detail-controller.js` | `modules/diary-upload-domain.js`, `modules/content-form-event-bindings.js` |
 | VLOG 模式、视频声音、列表视觉中心自动播放、控件 | `modules/vlog-mode.js`, `modules/photo-viewer-controller.js`, `modules/diary-feed-motion-coordinator.js` | `modules/diary-feed-motion-domain.js`, `modules/diary-video-layout.js`, `modules/media-event-bindings.js` |
 | 图片 / 视频详情、缩放、前后切换、手势 | `modules/photo-viewer-controller.js`, `modules/photo-detail-controller.js` | `modules/media-event-bindings.js`, `modules/media-gesture-domain.js`, `modules/photo-dialog-view.js` |
@@ -79,8 +79,9 @@
 - `settings-event-bindings.js`：设置页账户、家庭、缓存、安全和网络状态事件；全局等级弹窗与通知事件不在设置路由绑定。
 - `media-event-bindings.js`：日记 / VLOG / 秘藏查看器、编辑器、搜索筛选和媒体手势事件。
 - `modules/routes/mood-diary-route.js`：心情日记路由的懒加载、模板挂载和 controller 生命周期；心情日记自己的点击/表单事件由 `mood-diary-view.js` 委托给 `mood-diary-controller.js`，不回流到 `app.js`。
-- `modules/today-mood-controller.js`：首页今日概览的东京自然日查询、两席过滤、loading/error/empty 状态和跨路由跳转；它只通过 `mood-diary-repository.js` 读取数据，并接收心情保存/删除回调及家庭同步后的显式刷新。
+- `modules/today-mood-controller.js`：首页今日概览的东京自然日查询、两席过滤和 loading/error/empty 状态；席位只调用共享 overlay，只有日历 CTA 调用 `switchPage("mood")`。
 - `modules/today-mood-view.js`：只负责首页今日概览 DOM，包括真实昵称、席位形状、心情素材、空态和错误态；首页点击入口由 `today-mood-controller.js` 在懒加载完成后绑定。
+- `modules/mood-entry-overlay-controller.js` / `mood-entry-overlay-view.js`：全局唯一的 Picker、编辑和详情边界；管理本人写权限、保存/删除、脏表单、history、滚动和焦点恢复，不依赖 gallery 或 mood 路由 DOM。
 - `modules/mood-diary-shared.js`：心情枚举、素材元数据、日期/标签标准化、两席解析和排序等首屏与懒加载路由共用的纯规则；不包含月历计算或 DOM。
 - `modules/app-navigation-controller.js`：只在首次成功的登录态 gallery 激活且没有显式深链参数时将首屏落到今日概览；后续路由进入、返回和滚动恢复不再由 gallery 视图注入滚动副作用。
 

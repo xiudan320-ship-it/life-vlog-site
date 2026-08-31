@@ -40,7 +40,7 @@ assert.equal(new Set(ids).size, ids.length, "duplicate HTML id");
 const viewportTags = [...html.matchAll(/<meta\s+name=["']viewport["'][^>]*>/gi)];
 assert.equal(viewportTags.length, 1, "main entry must contain exactly one viewport meta tag");
 assert.match(html, /content="width=device-width, initial-scale=1\.0, minimum-scale=1\.0, maximum-scale=1\.0, user-scalable=no, viewport-fit=cover"/);
-assert.match(html, /id="moodNav"/);
+assert.doesNotMatch(html, /id="moodNav"/);
 assert.match(html, /id="todayMoodGrid"/);
 assert.match(html, /id="overviewMoodCalendar"/);
 assert.doesNotMatch(html, /overviewPhotos|overviewRecipes|overviewWishes|overviewLevelButton|overviewProgress/);
@@ -123,8 +123,17 @@ for (const route of ["gallery", "recipes", "wishlist", "weekend", "wardrobe", "t
   await access(join(root, "modules", "routes", `${route}-route.js`));
 }
 const moodRoute = await read("modules/routes/mood-diary-route.js");
+const moodTemplate = await read("modules/routes/templates/mood-diary.html");
+const todayMoodController = await read("modules/today-mood-controller.js");
+const moodOverlayController = await read("modules/mood-entry-overlay-controller.js");
 await access(join(root, "modules", "routes", "mood-diary-route.js"));
 assert.match(moodRoute, /return controllers\.moodDiary\?\.activate\?\.\(\)/);
+assert.equal([...`${html}\n${moodTemplate}`.matchAll(/id="moodOverlay"/g)].length, 1, "there must be exactly one mood overlay");
+assert.doesNotMatch(appEvents, /moodNav/);
+assert.doesNotMatch(navigation, /elements\.moodNav/);
+assert.equal([...todayMoodController.matchAll(/switchPage\("mood"\)/g)].length, 1, "only the calendar CTA may navigate to mood");
+assert.match(todayMoodController, /overlayController\?\.open/);
+assert.match(moodOverlayController, /moodEntryOverlay: true/);
 
 assert.equal(parseRoute({ href: "https://example.test/?page=wishlist&pushType=thanks" }).page, "wishlist");
 assert.equal(parseRoute({ href: "https://example.test/?page=invalid" }).page, "gallery");

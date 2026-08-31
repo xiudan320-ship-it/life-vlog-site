@@ -43,8 +43,7 @@ export function createTodayMoodController({
   getAuthorName,
   getTodayKey,
   switchPage = async () => false,
-  controllers,
-  getMoodDiaryController = () => controllers?.moodDiary,
+  overlayController,
   view: injectedView,
 } = {}) {
   const repository = providedRepository || createMoodDiaryRepository({ getDatabase, getSession });
@@ -132,15 +131,17 @@ export function createTodayMoodController({
     }
   }
 
-  async function openSeat(userId) {
+  async function openSeat(userId, trigger = null) {
     const targetUserId = String(userId || "").trim();
     if (!targetUserId || !state.participants.some((participant) => participant.userId === targetUserId)) return false;
-    const opened = await switchPage("mood", { restoreScroll: false, focusHeading: false });
-    if (!opened) return false;
-    const moodDiaryController = getMoodDiaryController?.();
-    if (!moodDiaryController?.dispatch) return false;
-    await moodDiaryController.dispatch({ type: "open-today", userId: targetUserId });
-    return true;
+    if (targetUserId !== state.currentUserId && !state.entriesByUserId.has(targetUserId)) return false;
+    return Boolean(await overlayController?.open?.({
+      dateKey: state.todayKey,
+      entries: state.entries,
+      preferredUserId: targetUserId,
+      participants: state.participants,
+      trigger,
+    }));
   }
 
   function openCalendar() {
@@ -157,7 +158,7 @@ export function createTodayMoodController({
     elements?.todayMoodGrid?.addEventListener("click", (event) => {
       const seat = event.target.closest?.("[data-today-mood-user]");
       if (!seat) return;
-      void openSeat(seat.dataset.todayMoodUser);
+      void openSeat(seat.dataset.todayMoodUser, seat);
     });
   }
 
