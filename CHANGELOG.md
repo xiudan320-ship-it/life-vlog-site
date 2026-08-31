@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+### Documentation
+
+- 新增今日心情手机单行概览与原地详情流程规划，明确移除顶部心情分页、共享 route-independent overlay、关闭恢复概览上下文，以及 Luna Max 实现后由新 Sol Medium 线程审计整合的交付顺序。
+
 ## [2026-08-31]
 
 ### Added
