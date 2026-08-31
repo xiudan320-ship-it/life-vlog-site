@@ -240,7 +240,6 @@ export function bindAppEvents({
       els.weekendComposer.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   });
-  els.overviewLevelButton?.addEventListener("click", openLevelDialog);
   els.xpPanel?.addEventListener("click", openLevelDialog);
   els.closeLevelDialog?.addEventListener("click", () => els.levelDialog.close());
   els.levelDialog?.addEventListener("click", (event) => {

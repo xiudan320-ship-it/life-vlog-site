@@ -178,7 +178,12 @@ const tableSeeds = {
   mood_diaries: [],
 };
 
-function cloneSeed({ seedSecretPhoto = false, notifications = tableSeeds.notifications } = {}) {
+function cloneSeed({
+  seedSecretPhoto = false,
+  seedMoodFamily = false,
+  moodDiaries = [],
+  notifications = tableSeeds.notifications,
+} = {}) {
   const tables = new Map(Object.entries(tableSeeds).map(([table, rows]) => [table, rows.map((row) => ({ ...row }))]));
   tables.set("notifications", notifications.map((row) => ({ ...row })));
   if (seedSecretPhoto) {
@@ -200,6 +205,40 @@ function cloneSeed({ seedSecretPhoto = false, notifications = tableSeeds.notific
       created_at: "2030-01-01T00:00:00.000Z",
       updated_at: "2030-01-01T00:00:00.000Z",
     }]);
+  }
+  if (seedMoodFamily) {
+    tables.set("family_members", [
+      {
+        family_id: "fixture-family",
+        family_name: "咻蛋之家",
+        family_tagline: "只读验收家庭",
+        user_id: "fixture-user",
+        username: "小秀",
+        role: "owner",
+        joined_at: "2026-01-01T00:00:00.000Z",
+      },
+      {
+        family_id: "fixture-family",
+        family_name: "咻蛋之家",
+        family_tagline: "只读验收家庭",
+        user_id: "fixture-partner",
+        username: "小咻",
+        role: "member",
+        joined_at: "2026-02-01T00:00:00.000Z",
+      },
+      {
+        family_id: "fixture-family",
+        family_name: "咻蛋之家",
+        family_tagline: "只读验收家庭",
+        user_id: "fixture-third",
+        username: "第三位",
+        role: "member",
+        joined_at: "2026-03-01T00:00:00.000Z",
+      },
+    ]);
+  }
+  if (Array.isArray(moodDiaries)) {
+    tables.set("mood_diaries", moodDiaries.map((row) => ({ ...row })));
   }
   return tables;
 }
@@ -246,12 +285,14 @@ export function createCloudflareApiFixture({
   scenario = "ok",
   delayMs = 0,
   seedSecretPhoto = false,
+  seedMoodFamily = false,
+  moodDiaries = [],
   notifications = [],
   notificationDelayMs = 0,
   notificationFailureCount = 0,
   notificationFailureMode = "server",
 } = {}) {
-  const tables = cloneSeed({ seedSecretPhoto, notifications });
+  const tables = cloneSeed({ seedSecretPhoto, seedMoodFamily, moodDiaries, notifications });
   const requests = [];
   const writes = [];
   const uploads = [];
@@ -402,6 +443,8 @@ export function createCloudflareApiFixture({
         return;
       }
       if (name === "get_my_notifications") await route.fulfill(jsonResponse(request, { data: rowsFor("notifications", tables) }));
+      else if (name === "get_my_family_members") await route.fulfill(jsonResponse(request, { data: rowsFor("family_members", tables) }));
+      else if (name === "get_my_family_invitations") await route.fulfill(jsonResponse(request, { data: rowsFor("family_invitations", tables) }));
       else await route.fulfill(jsonResponse(request, { data: [] }));
       return;
     }

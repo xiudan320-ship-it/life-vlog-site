@@ -54,16 +54,6 @@
     padding: 16px 0 18px;
   }
 
-  .overview-grid article,
-  .overview-grid > button {
-    min-height: 108px;
-    padding: 14px;
-  }
-
-  .overview-grid strong {
-    font-size: 30px;
-  }
-
   .feed-head {
     margin: 32px 0 12px;
   }

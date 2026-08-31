@@ -12,6 +12,7 @@ export function createAppIdentityController({
   renderSettingsSummary,
   renderExperience,
   renderGallery,
+  renderOverview,
   renderMobileDiaryPage,
   showToast,
   documentTarget = document,
@@ -156,6 +157,7 @@ export function createAppIdentityController({
     renderAccountAvatar(state.accountProfile.avatarUrl, nextName);
     renderSettingsSummary();
     renderExperience(nextName);
+    renderOverview?.();
   }
 
   function getAuthorName(userId) {

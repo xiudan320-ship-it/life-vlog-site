@@ -39,7 +39,7 @@ pnpm run test:release
 - 主题/显示：light、dark、100%/115%/130% 动态字号和 reduced-motion。
 - 合同：Axe critical/serious=0、一级键盘导航、登录/筛选、dialog Escape 与焦点恢复、路由标题焦点、44 CSS px 触控目标、sticky 不遮挡和无横向溢出；主入口只有一条固定 viewport，手机与短横屏可见文本输入/select/textarea 计算字号至少 16px，页面不依赖全局横向溢出遮罩或触摸拦截。
 
-`test:browser`/`c-performance-regression.mjs` 另外验证列表普通视频不触发视频网络加载、进入日记/VLOG 详情后静音自动播放且保留控件、失败可重试、gallery 同步读取秘藏表而不加载秘藏 route、30 轮快速路由 latest-wins、全局等级弹窗、心情日记双端月历/Picker/编辑/删除，以及既有周末/购物/回复交互。所有 signed-in 场景均使用 `tests/fixtures/cloudflare-api-fixture.mjs` 的内存 fixture，不使用真实账户或真实业务数据。
+`test:browser`/`c-performance-regression.mjs` 另外验证首页今日心情概览的四种数据状态、两席稳定形状、真实昵称、本人快捷添加、冷启动滚动和 gallery 返回恢复；同时验证列表普通视频不触发视频网络加载、进入日记/VLOG 详情后静音自动播放且保留控件、失败可重试、gallery 同步读取秘藏表而不加载秘藏 route、30 轮快速路由 latest-wins、全局等级弹窗、心情日记双端月历/Picker/编辑/删除，以及既有周末/购物/回复交互。首屏 signed-in 请求预算包含今日心情的单日读取。所有 signed-in 场景均使用 `tests/fixtures/cloudflare-api-fixture.mjs` 的内存 fixture，不使用真实账户或真实业务数据。
 
 ## 3. 发布后只读检查
 
@@ -52,6 +52,7 @@ Worker CORS 只允许 `https://life-vlog-site.pages.dev` 与固定 preview 别�
 登录态回归统一使用确定性假 session 和假后端，分别在桌面端 `1440 x 900` 和手机端约 `390 x 844` 检查：
 
 - 登录、退出、刷新和回到前台后会话仍然正常。
+- 首页今日心情：登录冷启动在无显式深链时落到概览；显示 owner 方形和最早成员圆形、真实昵称及动态素材；分别检查双方已记录、本人未记录、成员未记录、查询失败/重试；本人空席可直接打开 Picker 并保存，进入月历/详情后返回 gallery 的滚动位置不被重置。
 - 日记：打开/关闭、长文滚动、多图切换、图片预览、评论、回复、收藏、编辑和删除。
 - 心情日记：顶部“心情”入口、当前月/跨月月历、今天与未来日期边界、八种心情 Picker、可留空正文、标签、自己的新建/编辑/删除、查看另一位成员、历史分页、深浅色、键盘 Escape、焦点和 375/390/1440 宽度无溢出；确认 16 张圆形/方形心情素材在深浅背景下均无棋盘格、白边或裁切，素材加载失败时仍应显示文字错误态且不得退化为 Emoji。
 - 菜谱：新建、封面上传/粘贴、编辑、删除和详情图片显示。

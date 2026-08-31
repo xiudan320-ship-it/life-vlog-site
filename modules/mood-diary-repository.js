@@ -3,7 +3,7 @@ import {
   normalizeDiaryDate,
   normalizeMood,
   normalizeMoodTags,
-} from "./mood-diary-domain.js";
+} from "./mood-diary-shared.js";
 
 function asRepositoryError(error, fallback = "心情日记请求失败") {
   if (error instanceof Error) return error;
@@ -46,6 +46,18 @@ export function createMoodDiaryRepository({ getDatabase, getSession }) {
       .gte("diary_date", start)
       .lt("diary_date", nextMonthStart)
       .order("diary_date", { ascending: false })
+      .limit(500);
+    if (result?.error) throw asRepositoryError(result.error);
+    return (result?.data || []).map(normalizeRow).filter(Boolean);
+  }
+
+  async function listDay(dateKey) {
+    const normalizedDate = normalizeDiaryDate(dateKey);
+    if (!normalizedDate) throw new RangeError("dateKey must use YYYY-MM-DD");
+    const result = await table()
+      .select("*")
+      .eq("diary_date", normalizedDate)
+      .order("user_id", { ascending: true })
       .limit(500);
     if (result?.error) throw asRepositoryError(result.error);
     return (result?.data || []).map(normalizeRow).filter(Boolean);
@@ -111,5 +123,5 @@ export function createMoodDiaryRepository({ getDatabase, getSession }) {
     return true;
   }
 
-  return Object.freeze({ listMonth, listHistory, upsert, update, remove });
+  return Object.freeze({ listDay, listMonth, listHistory, upsert, update, remove });
 }

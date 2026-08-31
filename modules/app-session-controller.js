@@ -200,6 +200,7 @@ export function createAppSessionController({
     const rejected = results.find((result) => result.status === "rejected");
     if (rejected) health?.setSync(rejected.reason?.kind || "unknown", rejected.reason?.status);
     else if (state.session) health?.setSync("ok", 200);
+    await actions.renderOverview();
     const params = new URLSearchParams(locationTarget.search);
     if (params.has("pushPhoto") || params.has("pushType")) void actions.openPushDestination();
   }

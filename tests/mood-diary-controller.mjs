@@ -38,6 +38,7 @@ function createFixture({ repository = {}, members = [] } = {}) {
     ...repository,
   };
   const view = createView();
+  const mutations = [];
   const controller = createMoodDiaryController({
     repository: baseRepository,
     getSession: () => session,
@@ -48,9 +49,10 @@ function createFixture({ repository = {}, members = [] } = {}) {
     confirmAction: async () => true,
     storage: createStorage(),
     getTodayKey: () => TODAY,
+    onMutation: (mutation) => mutations.push(mutation),
     view,
   });
-  return { controller, view, repository: baseRepository, calls, setSession: (next) => { session = next; } };
+  return { controller, view, repository: baseRepository, calls, mutations, setSession: (next) => { session = next; } };
 }
 
 test("controller does not request cloud data when there is no session", async () => {
@@ -89,6 +91,7 @@ test("controller loads a month, chooses a mood, and keeps optimistic save state 
   assert.equal(state.listEntries[0].id, "owner-new");
   assert.equal(state.entriesByDate.get(TODAY)[0].id, "owner-new");
   assert.match(fixture.calls.find((call) => call.type === "toast")?.message || "", /保存/);
+  assert.deepEqual(fixture.mutations.map(({ type }) => type), ["save"]);
 });
 
 test("failed save restores calendar and cache snapshot while preserving typed editor input", async () => {
@@ -114,7 +117,7 @@ test("failed save restores calendar and cache snapshot while preserving typed ed
   assert.match(state.editorError, /保存失败/);
 });
 
-test("stable family seats keep owner circle first and filter unsupported third members", async () => {
+test("stable family seats keep owner square first and filter unsupported third members", async () => {
   const fixture = createFixture({
     members: [
       { user_id: "member-late", role: "member", joined_at: "2026-03-01T00:00:00.000Z" },
@@ -131,8 +134,27 @@ test("stable family seats keep owner circle first and filter unsupported third m
   });
   await fixture.controller.activate();
   const state = fixture.controller.getState();
-  assert.deepEqual(state.participants.map(({ userId, shape }) => [userId, shape]), [["owner", "circle"], ["member-early", "square"]]);
+  assert.deepEqual(state.participants.map(({ userId, shape }) => [userId, shape]), [["owner", "square"], ["member-early", "circle"]]);
   assert.deepEqual(state.entriesByDate.get(TODAY).map(({ id }) => id), ["circle", "early"]);
+});
+
+test("open-today can select the requested member's detail after the route activates", async () => {
+  const fixture = createFixture({
+    members: [
+      { user_id: "owner", role: "owner", joined_at: "2026-01-01T00:00:00.000Z" },
+      { user_id: "member", role: "member", joined_at: "2026-02-01T00:00:00.000Z" },
+    ],
+    repository: {
+      listMonth: async () => [
+        { id: "owner-entry", user_id: "owner", diary_date: TODAY, mood: "calm" },
+        { id: "member-entry", user_id: "member", diary_date: TODAY, mood: "happy" },
+      ],
+    },
+  });
+  await fixture.controller.activate();
+  await fixture.controller.dispatch({ type: "open-today", userId: "member" });
+  assert.equal(fixture.controller.getState().activeView, "detail");
+  assert.equal(fixture.controller.getState().activeDiary.user_id, "member");
 });
 
 test("delete is optimistic, own-only in the controller, and updates both calendar and history", async () => {
@@ -146,6 +168,7 @@ test("delete is optimistic, own-only in the controller, and updates both calenda
   assert.equal(state.monthEntries.length, 0);
   assert.equal(state.listEntries.length, 0);
   assert.equal(fixture.calls.some((call) => call.type === "remove" && call.id === existing.id), true);
+  assert.deepEqual(fixture.mutations.map(({ type }) => type), ["delete"]);
 });
 
 console.log("Mood diary controller tests passed.");

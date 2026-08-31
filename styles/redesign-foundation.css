@@ -1295,8 +1295,7 @@ body.theme-dark .user-popover {
   cursor: pointer;
 }
 
-.xp-panel:hover,
-.overview-level:hover {
+.xp-panel:hover {
   border-color: var(--accent);
   background: color-mix(in srgb, var(--accent) 10%, var(--surface));
 }
@@ -1317,11 +1316,6 @@ body.theme-dark .user-popover {
 
 .xp-head strong {
   white-space: nowrap;
-}
-
-.overview-level strong {
-  font-size: clamp(18px, 2vw, 28px);
-  line-height: 1.12;
 }
 
 .xp-track {
@@ -3442,6 +3436,10 @@ h2 {
   border-bottom: 1px solid var(--line);
 }
 
+#overview {
+  scroll-margin-top: calc(96px + env(safe-area-inset-top));
+}
+
 .overview-head {
   display: flex;
   align-items: end;
@@ -3503,86 +3501,187 @@ h2 {
   z-index: 1;
 }
 
-.overview-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  border-top: 1px solid var(--line);
-  border-left: 1px solid var(--line);
+.overview-head > div {
+  min-width: 0;
 }
 
-.overview-grid article,
-.overview-grid > button {
-  position: relative;
-  display: grid;
-  min-height: 132px;
-  align-content: space-between;
-  gap: 8px;
-  border-right: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-  border-top: 0;
-  border-left: 0;
-  border-radius: 0;
-  background: rgba(255, 255, 255, 0.4);
+.today-mood-calendar-button,
+.today-mood-retry {
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
   color: var(--ink);
-  padding: 18px;
-  text-align: left;
-  transition: background 160ms ease, box-shadow 160ms ease, color 160ms ease, transform 160ms ease;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
 }
 
-.overview-level:hover,
-.overview-level:focus-visible {
-  z-index: 1;
-  background: color-mix(in srgb, var(--accent) 10%, var(--surface)) !important;
-  box-shadow:
-    inset 0 0 0 2px var(--accent),
-    0 16px 38px color-mix(in srgb, var(--accent) 22%, transparent);
-  outline: 0;
-  transform: translateY(-2px);
+.today-mood-calendar-button:hover,
+.today-mood-calendar-button:focus-visible,
+.today-mood-retry:hover,
+.today-mood-retry:focus-visible {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  outline: 3px solid color-mix(in srgb, var(--accent) 38%, transparent);
+  outline-offset: 2px;
 }
 
-body.theme-dark .overview-grid article,
-body.theme-dark .overview-grid > button {
-  background: rgba(255, 255, 255, 0.025);
-}
-
-.overview-grid span,
-.overview-grid small {
+.today-mood-date {
+  margin: 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 15px;
   font-weight: 700;
 }
 
-.overview-grid strong {
-  font-size: 36px;
-  font-weight: 830;
+.today-mood-status-row {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-.overview-grid > :nth-child(1) strong {
-  color: var(--accent-strong);
+.today-mood-status {
+  min-height: 22px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
 }
 
-.overview-grid > :nth-child(2) strong {
+.today-mood-status[data-kind="error"] {
   color: var(--coral);
 }
 
-.overview-grid > :nth-child(3) strong {
-  color: var(--blue);
+.today-mood-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
 }
 
-.overview-progress {
-  height: 7px;
+.today-mood-seat,
+.today-mood-skeleton {
+  min-width: 0;
+  min-height: 250px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+}
+
+.today-mood-seat {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 16px;
+  padding: 18px;
+  color: var(--ink);
+  text-align: center;
+}
+
+.today-mood-seat-button {
+  width: 100%;
+  cursor: pointer;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.today-mood-seat-button:hover {
+  border-color: var(--accent);
+  box-shadow: 0 14px 30px color-mix(in srgb, var(--accent) 16%, transparent);
+  transform: translateY(-1px);
+}
+
+.today-mood-seat-button:focus-visible {
+  border-color: var(--accent);
+  outline: 3px solid color-mix(in srgb, var(--accent) 46%, transparent);
+  outline-offset: 3px;
+}
+
+.today-mood-seat-media {
+  display: grid;
+  width: min(100%, 160px);
+  aspect-ratio: 1;
+  place-items: center;
   overflow: hidden;
-  border-radius: 999px;
-  background: var(--line);
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
 }
 
-.overview-progress span {
+.today-mood-seat-media.is-square {
+  border-radius: 16px;
+}
+
+.today-mood-seat-media.is-circle {
+  border-radius: 50%;
+}
+
+.today-mood-seat-asset,
+.today-mood-seat-asset img {
   display: block;
-  width: 0;
+  width: 100%;
   height: 100%;
-  border-radius: inherit;
-  background: var(--gold);
-  transition: width 260ms ease;
+}
+
+.today-mood-seat-asset img {
+  object-fit: contain;
+}
+
+.today-mood-asset-error {
+  display: grid;
+  height: 100%;
+  place-items: center;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.today-mood-seat-placeholder {
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 850;
+}
+
+.today-mood-seat-copy {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+  width: 100%;
+}
+
+.today-mood-seat-name,
+.today-mood-seat-mood,
+.today-mood-seat-note {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.today-mood-seat-name {
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.today-mood-seat-mood {
+  color: var(--accent-strong);
+  font-size: 20px;
+  font-weight: 850;
+}
+
+.today-mood-seat-note {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.today-mood-seat.is-unavailable {
+  background: color-mix(in srgb, var(--surface) 84%, var(--line));
+}
+
+.today-mood-skeleton {
+  background: color-mix(in srgb, var(--surface) 86%, var(--line));
 }
 
 .quick-actions {

@@ -134,7 +134,6 @@ export function createFeatureControllerAssembly({
     applyTheme,
     saveThanksColorPreference,
     syncExistingPushSubscription,
-    renderOverview,
     renderFoodWheel,
     setActiveSettingsSection,
     openPushDestination,

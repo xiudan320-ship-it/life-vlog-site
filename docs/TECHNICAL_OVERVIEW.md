@@ -70,6 +70,10 @@ flowchart LR
 
 除 gallery 外的主要页面模板位于 `modules/routes/templates/`。路由状态由导航控制器维护，快速切换采用 latest-wins 事务，过期加载不得重新激活页面。
 
+首页的今日心情概览属于应用壳，不是独立路由：首屏只保留静态概览壳和轻量 lazy proxy，`today-mood-controller.js` 在应用壳装配后动态加载，完成后通过 `mood-diary-repository.js` 的 `listDay(YYYY-MM-DD)` 读取 Asia/Tokyo 当天记录，使用共享心情规则过滤为 owner 和最早加入的另一位成员，再由 `today-mood-view.js` 渲染已记录、本人未记录、成员未记录和同步失败状态。它不轮询、不写本地缓存，也不把第三位成员的数据带入首页。心情详情保存/删除通过注入的 `onMoodMutation` 回调通知概览刷新，昵称同步和家庭数据同步通过显式刷新桥接更新概览。
+
+首次登录态 gallery 激活时，`app-navigation-controller.js` 负责一次性的首页落点：只有没有显式 `page`/深链参数时才滚动到概览；后续 gallery 返回保留用户滚动位置。概览席位进入心情路由后通过 `open-today` 选择对应成员，当前用户未记录时直接打开 Picker。概览区使用 `scroll-margin-top` 处理固定顶栏和安全区，不由 gallery 列表视图执行滚动副作用。
+
 ## 5. 分层约定
 
 | 层 | 命名 | 职责 |
@@ -142,7 +146,7 @@ flowchart LR
 
 Service Worker 使用 `registerType: "prompt"`，新版本就绪后由用户确认更新。路由 chunk 和大媒体不进入核心 precache，避免安装包过大。
 
-心情日记的当前月份在 `localStorage` 使用 `life-vlog-mood-month:<userId>:<YYYY-MM>` 缓存，仅作为加速层；云端成功响应会替换 canonical 内容，用户、月份和请求 revision 均参与隔离与 latest-wins 判断。保存、编辑、删除先更新月历/历史/详情的内存快照，失败时恢复快照并保留编辑输入；没有离线写入队列。
+心情日记的当前月份在 `localStorage` 使用 `life-vlog-mood-month:<userId>:<YYYY-MM>` 缓存，仅作为加速层；云端成功响应会替换 canonical 内容，用户、月份和请求 revision 均参与隔离与 latest-wins 判断。首页今日概览使用独立的单日查询，不读取该月缓存。保存、编辑、删除先更新月历/历史/详情的内存快照，成功后刷新首页当天状态，失败时恢复快照并保留编辑输入；没有离线写入队列。
 
 ## 9. 构建与资源
 
@@ -158,6 +162,7 @@ pnpm preview
 `vite.config.js` 负责：
 
 - 输出 `dist/` 和带 hash 的资源；
+- 使用仓库锁定的 Terser 压缩 JavaScript，满足入口体积预算；
 - 复制 `assets/generated/`；
 - 压缩最终 `index.html`；
 - 生成 PWA manifest；
@@ -177,7 +182,7 @@ pnpm preview
 | `pnpm run test:release` | 确定性线上 fixture 冒烟 |
 | `pnpm run test:worker-online` | Worker CORS 与在线边界 |
 
-心情日记专项由 `tests/mood-diary-domain.mjs`、`tests/mood-diary-controller.mjs`、`tests/mood-diary-worker.mjs`、`tests/mood-diary-assets.mjs` 和 `tests/mood-diary-browser.mjs` 覆盖；浏览器用确定性假 session / API fixture 验证桌面与手机端月历、Picker、编辑、删除、历史和横向溢出。16 个 512×512 透明心情素材位于 Vite 静态目录 `public/assets/mood-diary/`，构建后 URL 为 `/assets/mood-diary/*`；静态门禁会验证精确文件集合、PNG/Alpha、透明安全区和单文件体积，避免白底、棋盘格或缺失素材进入发布包。
+心情日记专项由 `tests/mood-diary-domain.mjs`、`tests/mood-diary-controller.mjs`、`tests/today-mood-controller.mjs`、`tests/mood-diary-worker.mjs`、`tests/mood-diary-assets.mjs` 和 `tests/mood-diary-browser.mjs` 覆盖；浏览器用确定性假 session / API fixture 验证首页今日概览的四种数据状态、真实昵称/形状、本人快速添加、冷启动落点、gallery 滚动恢复，以及桌面与手机端月历、Picker、编辑、删除、历史和横向溢出。16 个 512×512 透明心情素材位于 Vite 静态目录 `public/assets/mood-diary/`，构建后 URL 为 `/assets/mood-diary/*`；静态门禁会验证精确文件集合、PNG/Alpha、透明安全区和单文件体积，避免白底、棋盘格或缺失素材进入发布包。
 
 `pnpm test` 不包含全部发布门禁。发布必须遵循 [`release-checklist.md`](release-checklist.md)。浏览器回归和 release smoke 使用确定性通知 fixture 覆盖铃铛在设置路由未加载、慢请求、重复点击、关闭中请求、读取失败重试、已读写回和跳转场景下的行为；a11y 回归同时检查上述 viewport、无横向溢出和移动端表单字号契约。
 

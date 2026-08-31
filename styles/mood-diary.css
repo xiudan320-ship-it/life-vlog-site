@@ -363,6 +363,18 @@ button.mood-calendar-cell:hover {
   gap: 5px;
 }
 
+.mood-calendar-legend > span {
+  min-width: 0;
+  max-width: min(42vw, 220px);
+}
+
+.mood-seat-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .mood-seat-dot {
   display: inline-block;
   width: 9px;

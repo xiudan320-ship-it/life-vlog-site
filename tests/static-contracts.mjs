@@ -41,6 +41,9 @@ const viewportTags = [...html.matchAll(/<meta\s+name=["']viewport["'][^>]*>/gi)]
 assert.equal(viewportTags.length, 1, "main entry must contain exactly one viewport meta tag");
 assert.match(html, /content="width=device-width, initial-scale=1\.0, minimum-scale=1\.0, maximum-scale=1\.0, user-scalable=no, viewport-fit=cover"/);
 assert.match(html, /id="moodNav"/);
+assert.match(html, /id="todayMoodGrid"/);
+assert.match(html, /id="overviewMoodCalendar"/);
+assert.doesNotMatch(html, /overviewPhotos|overviewRecipes|overviewWishes|overviewLevelButton|overviewProgress/);
 assert.doesNotMatch(html, /\?v=\d/);
 assert.doesNotMatch(`${app}\n${appRuntime}\n${appRuntimeController}\n${appRuntimeInfrastructure}\n${appRuntimeRoute}\n${appRuntimeStartup}`, /\?v=\d/);
 assert.equal(releaseSmoke.includes(forbiddenUsernameEnv), false);
@@ -73,6 +76,7 @@ assert.match(videoLayout, /autoplay/);
 assert.match(videoLayout, /dataset\.state/);
 assert.match(galleryView, /import\("\.\/diary-feed-motion-coordinator\.js"\)/);
 assert.doesNotMatch(galleryView, /shouldAutoplayDiaryFeedMedia/);
+assert.doesNotMatch(galleryView, /scrollIntoView/);
 assert.match(motionCoordinator, /IntersectionObserver/);
 assert.match(motionCoordinator, /shouldLoopDiaryFeedMotion/);
 assert.match(motionCoordinator, /video\.controls = false/);
@@ -118,7 +122,9 @@ assert.doesNotMatch(await read("modules/weekend-plans-view.js"), /待完成/);
 for (const route of ["gallery", "recipes", "wishlist", "weekend", "wardrobe", "thanks", "secret"]) {
   await access(join(root, "modules", "routes", `${route}-route.js`));
 }
+const moodRoute = await read("modules/routes/mood-diary-route.js");
 await access(join(root, "modules", "routes", "mood-diary-route.js"));
+assert.match(moodRoute, /return controllers\.moodDiary\?\.activate\?\.\(\)/);
 
 assert.equal(parseRoute({ href: "https://example.test/?page=wishlist&pushType=thanks" }).page, "wishlist");
 assert.equal(parseRoute({ href: "https://example.test/?page=invalid" }).page, "gallery");

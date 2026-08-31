@@ -260,6 +260,18 @@ export function createAppRouteRuntime({
     updateDiaryBackTopButton,
     getSessionDisplayName: getEventSessionDisplayName,
   } = core;
+  let appNavigationController = null;
+  void import("./today-mood-controller.js").then(({ createTodayMoodController }) => {
+    const controller = createTodayMoodController({
+      elements,
+      state,
+      getAuthorName,
+      switchPage: (...args) => appNavigationController?.switchPage(...args) ?? false,
+      controllers: pageControllerMap,
+    });
+    pageControllerMap.todayMood = controller;
+    controller.render();
+  });
   const {
     createClient: createCloudflareClient,
     request: cloudflareRequest,
@@ -382,6 +394,7 @@ export function createAppRouteRuntime({
     getSession: () => state.session,
     getFamilyMembers: () => state.familyMembers.map((member) => ({ ...member, username: getAuthorName(member.user_id) })),
     getFamilyInfo: () => state.familyInfo,
+    onMoodMutation: () => pageControllerMap.todayMood?.refresh(),
     getAuthorName,
     getAuthorAvatar,
     uploadImageFile,
@@ -403,7 +416,6 @@ export function createAppRouteRuntime({
     getClipboardImageUrl,
     compressImage: core.compressImage,
     uploadToR2: core.uploadToR2,
-    renderOverview,
     renderFoodWheel,
     getDatabase: () => state.cloudDb,
     getWishes: () => state.wishes,
@@ -530,7 +542,7 @@ export function createAppRouteRuntime({
     health: healthMonitor,
     getControllerOptions,
   });
-  const appNavigationController = createAppNavigationController({
+  appNavigationController = createAppNavigationController({
     elements,
     state: appNavigationState,
     vlogMode,

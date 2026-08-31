@@ -200,7 +200,7 @@ async function testAuthenticatedGallery(browser) {
     const secretReads = result.fixture.requests.filter(({ method, path }) => method === "GET" && ["/api/table/secret_items", "/api/table/secret_folders"].includes(path));
     assert.equal(secretReads.length, 2, `gallery account sync did not read both secret tables: ${JSON.stringify(secretReads)}`);
     assert.equal(routeScripts(result).some((url) => /secret-route-/.test(url)), false, "gallery account sync loaded the secret UI route");
-    assert.ok(initialRequestCount <= 27, `authenticated gallery made ${initialRequestCount} initial requests`);
+    assert.ok(initialRequestCount <= 28, `authenticated gallery made ${initialRequestCount} initial requests`);
     const initialMotionRequests = result.fixture.requests.filter(({ path }) => path === "/fixture-live.mov").length;
     assert.ok(initialMotionRequests <= 1, `initial live media requested ${initialMotionRequests} times`);
     assert.ok(result.fixture.requests.filter(({ path }) => path === "/fixture-camera-talent.mp4").length <= 1, "ordinary VLOG video was requested more than once in the feed");
@@ -275,7 +275,9 @@ async function testVideoDiaryPolicy(browser) {
   const desktop = await openFixturePage(browser, { viewport: { width: 1440, height: 900 }, mockFeedMotion: true });
   try {
     const page = desktop.page;
-    await page.locator('[data-photo-id="fixture-camera-talent-video"]').waitFor({ state: "visible" });
+    const videoCard = page.locator('[data-photo-id="fixture-camera-talent-video"]');
+    await videoCard.waitFor({ state: "visible" });
+    await videoCard.scrollIntoViewIfNeeded();
     await page.locator('[data-photo-id="fixture-camera-talent-video"] video.feed-motion-preview').waitFor({ state: "attached", timeout: 10000 });
     assert.equal(await page.locator('[data-photo-id="fixture-camera-talent-video"] .live-photo-badge').textContent(), "VIDEO");
     assert.ok(await page.locator("video.feed-motion-preview").count() <= 1, "release feed mounted more than one preview");

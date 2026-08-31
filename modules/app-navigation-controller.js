@@ -23,6 +23,7 @@ export function createAppNavigationController({
 } = {}) {
   const pageScrollPositions = new Map();
   let transitionSequence = 0;
+  let initialGalleryLandingPending = true;
 
   function getScrollTop() {
     return Math.max(0, Number(windowTarget?.scrollY) || 0);
@@ -82,7 +83,14 @@ export function createAppNavigationController({
     heading.focus?.({ preventScroll: true });
   }
 
-  function finishPageTransition(page, { restoreScroll = true, focusHeading = true } = {}) {
+  function finishPageTransition(page, {
+    restoreScroll = true,
+    focusHeading = true,
+    landOverview = false,
+  } = {}) {
+    if (landOverview && elements.overview?.scrollIntoView) {
+      elements.overview.scrollIntoView({ behavior: "auto", block: "start" });
+    }
     if (restoreScroll && typeof windowTarget?.scrollTo === "function") {
       const savedPosition = pageScrollPositions.get(page) ?? 0;
       const boundedPosition = Math.min(savedPosition, getMaxScrollTop());
@@ -108,6 +116,13 @@ export function createAppNavigationController({
       "mobile-diary-shell",
       state.activePage === "gallery" && state.activeFilter !== "VLOG"
     );
+  }
+
+  function hasExplicitInitialTarget() {
+    const params = new URLSearchParams(windowTarget?.location?.search || "");
+    const page = params.get("page");
+    if (page && page !== "gallery") return true;
+    return [...params.keys()].some((key) => key !== "page");
   }
 
   async function switchPage(
@@ -199,9 +214,21 @@ export function createAppNavigationController({
         actions.resumeGalleryMotionPreview?.();
         actions.updateFeedLoader(state.filteredPhotoCount);
       }
+      const shouldLandOnOverview = requestedPage === "gallery"
+        && Boolean(state.session)
+        && initialGalleryLandingPending
+        && !hasExplicitInitialTarget();
+      if (initialGalleryLandingPending) initialGalleryLandingPending = false;
       if (pageChanged && historyMode === "push") windowTarget.history.pushState({}, "", serializeRoute(requestedPage, windowTarget.location.href));
       if (!pageChanged && historyMode === "replace") windowTarget.history.replaceState({}, "", serializeRoute(requestedPage, windowTarget.location.href));
-      if (pageChanged) schedulePageTransition(requestedPage, { restoreScroll, focusHeading, isCurrent });
+      if (pageChanged || shouldLandOnOverview) {
+        schedulePageTransition(requestedPage, {
+          restoreScroll: shouldLandOnOverview ? false : restoreScroll,
+          focusHeading: shouldLandOnOverview ? false : focusHeading,
+          landOverview: shouldLandOnOverview,
+          isCurrent,
+        });
+      }
       return true;
     } catch (error) {
       if (!isCurrent()) return false;
@@ -242,18 +269,8 @@ export function createAppNavigationController({
     if (!elements.overview) return;
     const signedIn = Boolean(state.session);
     elements.overview.hidden = !signedIn || state.activePage !== "gallery";
-    if (!signedIn) return;
-
-    const familyVisiblePhotos = getMemoryPhotos();
-    const unfinishedWishes = state.wishes.filter((wish) => !wish.done).length;
-    const experience = actions.loadExperience();
-    const progress = actions.getExperienceLevel(experience.total);
-    elements.overviewPhotos.textContent = String(familyVisiblePhotos.length);
-    elements.overviewRecipes.textContent = String(state.recipes.length);
-    elements.overviewWishes.textContent = String(unfinishedWishes);
-    elements.overviewLevel.textContent = progress.title;
-    elements.overviewProgress.style.width = `${progress.percent}%`;
-    elements.memoryButton.disabled = familyVisiblePhotos.length === 0;
+    controllers.todayMood?.refresh();
+    if (signedIn) elements.memoryButton.disabled = getMemoryPhotos().length === 0;
   }
 
   function openRandomMemory() {

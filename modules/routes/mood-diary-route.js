@@ -27,5 +27,5 @@ export function bind({ controllers }) {
 }
 
 export function activate({ controllers }) {
-  void controllers.moodDiary?.activate?.();
+  return controllers.moodDiary?.activate?.();
 }

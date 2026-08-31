@@ -34,7 +34,6 @@ export function createGamificationController({
   normalizeLoginDateKey,
   isYesterdayLoginDate,
   updateAuthUI,
-  renderOverview,
 }) {
   const els = elements;
   const VIP_RECHARGE_KEY = keys.vipRecharge;
@@ -685,7 +684,6 @@ export function createGamificationController({
     const todayAmount = addTodayExperience(amount);
     saveExperience(next);
     renderExperience();
-    renderOverview();
   
     if (state.cloudSyncAvailable && state.cloudDb) {
       const { error } = await householdRepository.update(

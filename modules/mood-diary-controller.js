@@ -6,6 +6,7 @@ import {
   normalizeDiaryDate,
   normalizeMood,
   normalizeMoodTags,
+  resolveMoodParticipants,
   sortMoodDiaries,
 } from "./mood-diary-domain.js";
 import { createMoodDiaryView } from "./mood-diary-view.js";
@@ -114,6 +115,7 @@ export function createMoodDiaryController({
   showToast = () => {},
   confirmAction = async () => false,
   openFamilySettings = () => {},
+  onMutation = () => {},
   storage = globalThis.localStorage,
   now = () => new Date(),
   getTodayKey,
@@ -190,26 +192,16 @@ export function createMoodDiaryController({
   }
 
   function buildParticipants() {
-    const members = (getFamilyMembers?.() || [])
-      .filter((member) => member?.user_id)
-      .map((member) => ({ ...member, user_id: String(member.user_id) }));
+    const members = getFamilyMembers?.() || [];
     const familyInfo = getFamilyInfo?.();
     state.hasFamily = Boolean(familyInfo || members.length);
     state.familyMemberCount = members.length;
-    let selected = [];
-    if (!members.length) {
-      const userId = state.currentUserId;
-      if (userId) selected = [{ userId, shape: "circle", role: "owner" }];
-    } else {
-      const owner = members.find((member) => member.role === "owner") || members[0];
-      const earliestMember = members
-        .filter((member) => member.user_id !== owner.user_id)
-        .sort((left, right) => String(left.joined_at || "").localeCompare(String(right.joined_at || "")))[0];
-      if (owner) selected.push({ userId: owner.user_id, shape: "circle", role: "owner" });
-      if (earliestMember) selected.push({ userId: earliestMember.user_id, shape: "square", role: "member" });
-    }
-    state.participants = selected;
-    state.seatByUserId = new Map(selected.map((participant, index) => [participant.userId, index]));
+    state.participants = resolveMoodParticipants({
+      currentUserId: state.currentUserId,
+      familyInfo,
+      familyMembers: members,
+    });
+    state.seatByUserId = new Map(state.participants.map((participant, index) => [participant.userId, index]));
   }
 
   function visibleEntries(entries) {
@@ -399,19 +391,26 @@ export function createMoodDiaryController({
     return true;
   }
 
-  function selectDate(dateKey) {
+  function selectDate(dateKey, { preferredUserId = "" } = {}) {
     const normalizedDate = normalizeDiaryDate(dateKey);
     if (!normalizedDate) return;
     if (isFutureLocalDate(normalizedDate, state.todayKey)) {
       showToast("还不能记录未来的日记", { kind: "info" });
       return;
     }
-    setDetailForDate(normalizedDate);
-    const own = findOwnEntry(normalizedDate);
-    if (own) {
+    const normalizedPreferredUserId = String(preferredUserId || "").trim();
+    setDetailForDate(normalizedDate, normalizedPreferredUserId);
+    const selectedEntry = state.detailEntries.find((entry) => (
+      normalizedPreferredUserId
+        ? entry.user_id === normalizedPreferredUserId
+        : entry.user_id === state.currentUserId
+    ));
+    if (selectedEntry) {
+      state.activeDiary = selectedEntry;
       state.activeView = "detail";
       openOverlay();
     } else {
+      state.activeDiary = null;
       state.selectedMood = null;
       state.editorError = "";
       state.activeView = "picker";
@@ -573,6 +572,7 @@ export function createMoodDiaryController({
       setStatus("");
       render();
       showToast("心情已保存", { kind: "success" });
+      notifyMutation({ type: "save", entry: cloneEntry(canonical), dateKey: canonical.diary_date });
     } catch (error) {
       state.saving = false;
       restoreSnapshot(snapshot);
@@ -589,6 +589,10 @@ export function createMoodDiaryController({
     const normalized = normalizeMood(mood);
     if (!normalized) throw new Error("心情类型无效");
     return normalized;
+  }
+
+  function notifyMutation(payload) {
+    void onMutation?.(payload);
   }
 
   async function remove(id) {
@@ -617,6 +621,7 @@ export function createMoodDiaryController({
       setStatus("");
       render();
       showToast("心情日记已删除", { kind: "success" });
+      notifyMutation({ type: "delete", entry: cloneEntry(entry), dateKey: entry.diary_date });
     } catch (error) {
       state.deleting = false;
       restoreSnapshot(snapshot);
@@ -691,7 +696,7 @@ export function createMoodDiaryController({
         await closeOverlay();
         break;
       case "open-today":
-        selectDate(state.todayKey);
+        selectDate(state.todayKey, { preferredUserId: action.userId || "" });
         break;
       case "previous-month":
       case "next-month": {

@@ -103,7 +103,6 @@ export function createAccountControllerAssembly({
     normalizeLoginDateKey: core.normalizeLoginDateKey,
     isYesterdayLoginDate: core.isYesterdayLoginDate,
     updateAuthUI: core.updateAuthUI,
-    renderOverview: core.renderOverview,
   });
 
   const gamificationActions = gamificationController;

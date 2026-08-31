@@ -46,7 +46,7 @@ function createMoodAsset(documentTarget, mood, shape, { className = "", errorTex
 }
 
 function createAvatar(documentTarget, userId, { getAuthorName, getAuthorAvatar } = {}) {
-  const name = getAuthorName?.(userId) || "家庭成员";
+  const name = getAuthorName?.(userId) || "…";
   const avatar = documentTarget.createElement("span");
   avatar.className = "mood-author-avatar";
   const avatarUrl = getAuthorAvatar?.(userId) || "";
@@ -81,9 +81,10 @@ function createTag(documentTarget, tag, onRemove = null) {
 }
 
 function getParticipantName(participants, userId, getAuthorName) {
+  const normalizedUserId = String(userId || "");
   return getAuthorName?.(userId)
-    || participants.find((participant) => participant.userId === userId)?.name
-    || "家庭成员";
+    || participants.find((participant) => String(participant.userId || "") === normalizedUserId)?.name
+    || "…";
 }
 
 export function createMoodDiaryView({
@@ -94,6 +95,27 @@ export function createMoodDiaryView({
 } = {}) {
   let bound = false;
   const els = elements || {};
+
+  function renderLegend(state) {
+    if (!els.moodCalendarLegend) return;
+    const documentTarget = els.moodCalendarLegend.ownerDocument;
+    const fragment = documentTarget.createDocumentFragment();
+    for (const participant of state.participants || []) {
+      const name = getParticipantName(state.participants || [], participant.userId, getAuthorName);
+      const item = documentTarget.createElement("span");
+      item.title = name;
+      item.setAttribute(
+        "aria-label",
+        `${name}，${participant.shape === "square" ? "方形" : "圆形"}席位`,
+      );
+      const dot = documentTarget.createElement("i");
+      dot.className = `mood-seat-dot mood-seat-dot-${participant.shape}`;
+      dot.setAttribute("aria-hidden", "true");
+      item.append(dot, createText(documentTarget, "span", name, "mood-seat-name"));
+      fragment.append(item);
+    }
+    els.moodCalendarLegend.replaceChildren(fragment);
+  }
 
   function renderCalendar(state) {
     if (!els.moodCalendarGrid || !state.currentMonthKey) return;
@@ -330,6 +352,7 @@ export function createMoodDiaryView({
     setHidden(els.moodCalendarView, !signedIn || isList);
     setHidden(els.moodListView, !signedIn || !isList);
     setHidden(els.moodFab, !signedIn || isList);
+    renderLegend(state);
     if (!signedIn) {
       setHidden(els.moodOverlay, true);
       setHidden(els.moodListOpen, true);

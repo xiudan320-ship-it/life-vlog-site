@@ -13,7 +13,8 @@ assert.ok(js, "missing hashed entry JS");
 assert.ok(css, "missing hashed entry CSS");
 assert.ok(!indexHtml.includes("?v="), "manual query version remains in built HTML");
 assert.ok(!sw.includes("CORE_ASSETS"), "legacy service worker asset list remains");
-const precacheCall = sw.match(/\bEe\((\[[\s\S]*?\])\)/);
+const precacheCall = sw.match(/\bEe\((\[[\s\S]*?\])\)/)
+  || sw.match(/\.precache\(e\)\}\((\[[\s\S]*?\])\)/);
 assert.ok(precacheCall, "final Workbox precache call is missing");
 let precacheEntries;
 try {

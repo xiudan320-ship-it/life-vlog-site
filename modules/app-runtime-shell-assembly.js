@@ -110,6 +110,7 @@ export function createShellControllerAssembly({
     renderSettingsSummary: (...args) => renderSettingsSummary(...args),
     renderExperience: defer("renderExperience"),
     renderGallery: (...args) => renderGallery(...args),
+    renderOverview: core.renderOverview,
     renderMobileDiaryPage: defer("renderMobileDiaryPage"),
     showToast: showMiniToast,
   });
@@ -209,7 +210,6 @@ export function createShellControllerAssembly({
     getLocalDateKey: core.getLocalDateKey,
     getPhotoLabel,
     getAuthorName,
-    renderOverview: core.renderOverview,
     renderAvatarMarkup,
     isAdminAccount,
     isMobileViewport,

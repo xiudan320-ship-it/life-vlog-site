@@ -315,12 +315,11 @@ function bindGalleryActions(container, photos, handlers) {
   };
 }
 
-export function renderDiaryGalleryCards({ container, photos = [], initialRender = false, updatedPhotoId = "", ...options }) {
+export function renderDiaryGalleryCards({ container, photos = [], updatedPhotoId = "", ...options }) {
   if (!container) return;
   const focusSnapshot = captureListFocus(container);
   container.innerHTML = photos.map((photo, index) => buildPhotoCard(photo, index, options)).join("");
   bindGalleryActions(container, photos, options.handlers);
-  if (initialRender) requestAnimationFrame(() => container.querySelector(".photo-media")?.scrollIntoView());
   hydrateLazyFeedImages(container);
   hydrateMotionFeedVideos(container);
   prepareFeedImages(container);

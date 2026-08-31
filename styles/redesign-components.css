@@ -1146,10 +1146,6 @@ body.mobile-dialog-open {
     object-position: 43% center;
   }
 
-  .overview-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .auth-card {
     grid-template-columns: 1fr;
   }
@@ -2165,16 +2161,6 @@ body.mobile-dialog-open {
     align-items: start;
   }
 
-  .overview-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 7px;
-    overflow: visible;
-    border: 0;
-    padding-bottom: 0;
-    scroll-snap-type: none;
-  }
-
   .overview {
     gap: 10px;
     margin: 12px 0 4px;
@@ -2193,31 +2179,41 @@ body.mobile-dialog-open {
     font-size: 22px;
   }
 
-  .overview-grid article,
-  .overview-grid > button {
-    min-height: 58px;
-    align-content: center;
-    gap: 2px;
-    padding: 8px 10px;
-    border: 1px solid var(--line);
+  #overview {
+    scroll-margin-top: calc(152px + env(safe-area-inset-top));
   }
 
-  .overview-grid span,
-  .overview-grid small {
-    font-size: 10px;
+  .today-mood-calendar-button {
+    padding: 9px 11px;
+    font-size: 13px;
   }
 
-  .overview-grid strong {
+  .today-mood-grid {
+    gap: 8px;
+  }
+
+  .today-mood-seat,
+  .today-mood-skeleton {
+    min-height: 230px;
+  }
+
+  .today-mood-seat {
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .today-mood-seat-media {
+    width: min(100%, 112px);
+  }
+
+  .today-mood-seat-mood {
     font-size: 18px;
-    line-height: 1.1;
   }
 
-  .overview-grid small {
-    display: none;
-  }
-
-  .overview-progress {
-    height: 4px;
+  .today-mood-seat-name,
+  .today-mood-seat-note,
+  .today-mood-status {
+    font-size: 13px;
   }
 
   .carousel-button {
@@ -2574,6 +2570,10 @@ body.mobile-dialog-open {
 
   .hero h1 {
     font-size: 42px;
+  }
+
+  .today-mood-grid {
+    grid-template-columns: 1fr;
   }
 }
 

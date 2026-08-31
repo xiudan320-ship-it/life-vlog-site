@@ -12,6 +12,7 @@ import {
   normalizeDiaryDate,
   normalizeMood,
   normalizeMoodTags,
+  resolveMoodParticipants,
   sortMoodDiaries,
 } from "../modules/mood-diary-domain.js";
 
@@ -63,7 +64,29 @@ test("month range crosses years and calendar weeks start on Monday with 4-6 rows
   assert.equal(buildCalendarWeeks("2026-08")[0][5].dateKey, "2026-08-01");
 });
 
-test("diaries sort newest first and put the circle seat before the square seat", () => {
+test("stable mood seats keep the owner square and earliest member circle", () => {
+  assert.deepEqual(
+    resolveMoodParticipants({
+      currentUserId: "owner",
+      familyInfo: { id: "family-1" },
+      familyMembers: [
+        { user_id: "member-late", role: "member", joined_at: "2026-03-01T00:00:00.000Z" },
+        { user_id: "owner", role: "owner", joined_at: "2026-01-01T00:00:00.000Z" },
+        { user_id: "member-early", role: "member", joined_at: "2026-02-01T00:00:00.000Z" },
+      ],
+    }),
+    [
+      { userId: "owner", shape: "square", role: "owner" },
+      { userId: "member-early", shape: "circle", role: "member" },
+    ],
+  );
+  assert.deepEqual(
+    resolveMoodParticipants({ currentUserId: "owner" }),
+    [{ userId: "owner", shape: "square", role: "owner" }],
+  );
+});
+
+test("diaries sort newest first and use the shared seat order", () => {
   const entries = [
     { id: "square", user_id: "member", diary_date: "2026-08-31" },
     { id: "older", user_id: "owner", diary_date: "2026-08-30" },

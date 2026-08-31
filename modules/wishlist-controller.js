@@ -27,7 +27,6 @@ export function createWishlistController({
   slugify,
   formatFileSize,
   awardExperience,
-  renderOverview,
   openWishImage,
   escapeHtml,
   confirmAction,
@@ -298,7 +297,6 @@ export function createWishlistController({
   }
 
   function render(updatedId = "") {
-    renderOverview();
     if (!getSession()) setStatus("");
     renderWishlist({
       listElement: elements.wishlistList,

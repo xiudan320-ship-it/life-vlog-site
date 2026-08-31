@@ -41,7 +41,6 @@ export function createDiaryFeedController({
   getLocalDateKey,
   getPhotoLabel,
   getAuthorName,
-  renderOverview,
   renderAvatarMarkup,
   isAdminAccount,
   isMobileViewport,
@@ -489,7 +488,6 @@ export function createDiaryFeedController({
   
   function renderGallery(updatedPhotoId = "") {
     updateFilterChips();
-    renderOverview();
     updateTodayPostsNotice();
     const sortedPhotos = getSortedPhotos(state.photos);
     const filtered = filterDiaryPhotos(sortedPhotos, {
@@ -506,7 +504,6 @@ export function createDiaryFeedController({
       Math.max(pageSize, state.filteredPhotoCount)
     );
     const visible = filtered.slice(0, state.visiblePhotoCount);
-    const p=!state.galleryRenderSignature;
     const nextSignature = JSON.stringify({
       filter: state.activeFilter,
       search: state.diarySearchQuery,
@@ -537,7 +534,6 @@ export function createDiaryFeedController({
     renderDiaryGalleryCards({
       container: els.gallery,
       photos: visible,
-      initialRender: p,
       signedIn: Boolean(state.session),
       currentUserId: state.session?.user?.id || "",
       admin: isAdminAccount(),

@@ -27,7 +27,6 @@ export function createRecipeController({
   uploadToR2,
   slugify,
   awardExperience,
-  renderOverview,
   renderFoodWheel,
   confirmAction,
   createTrashItem,
@@ -262,7 +261,6 @@ export function createRecipeController({
   }
 
   function render(updatedId = "") {
-    renderOverview();
     renderFoodWheel();
     if (!getSession()) setStatus("");
     renderRecipesView({

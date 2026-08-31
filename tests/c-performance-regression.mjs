@@ -165,6 +165,11 @@ async function openFixturePage({ viewport, authenticated = true, path = "/", fix
   if (path === "/") {
     await page.waitForSelector('[data-photo-id="fixture-photo"]', { state: "visible", timeout: 10000 });
   }
+  await page.waitForFunction(
+    () => performance.getEntriesByName("remote-sync-complete").length > 0,
+    null,
+    { timeout: 10000 },
+  );
   return { browserContext, page, fixture, errors };
 }
 
@@ -344,6 +349,13 @@ async function testFeedMediaRetryLifecycle(browser) {
   const result = await openFixturePage({ viewport: { width: 390, height: 844 } });
   try {
     const page = result.page;
+    await page.locator("#feedLoader").scrollIntoViewIfNeeded();
+    await page.waitForFunction(
+      () => document.querySelector("#feedLoader")?.classList.contains("complete"),
+      null,
+      { timeout: 10000 },
+    );
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
     const image = page.locator('[data-photo-id="fixture-photo"] img.feed-image').first();
     const shell = page.locator('[data-photo-id="fixture-photo"] .feed-media-shell').first();
     await image.evaluate((element) => {
@@ -639,6 +651,7 @@ async function testOrdinaryVideoLifecycle(browser) {
     const page = desktop.page;
     const card = page.locator('[data-photo-id="fixture-camera-talent-video"]');
     await card.waitFor({ state: "visible" });
+    await card.scrollIntoViewIfNeeded();
     await card.locator("video.feed-motion-preview").waitFor({ state: "attached", timeout: 10000 });
     const feedState = await page.evaluate(() => {
       const videos = [...document.querySelectorAll("video.feed-motion-preview")];

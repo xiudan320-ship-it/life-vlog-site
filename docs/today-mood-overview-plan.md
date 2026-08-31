@@ -1,10 +1,10 @@
 # 今日心情概览与启动定位改造规划书
 
-> 状态：待实现  
-> 规划日期：2026-08-31  
-> 适用项目：咻蛋之家 / Life Vlog  
-> 实施优先级：P0  
-> 本文是执行规划，不代表当前线上已经具备这些行为。
+> 状态：已实现（本地验收通过，未部署）
+> 规划日期：2026-08-31
+> 适用项目：咻蛋之家 / Life Vlog
+> 实施优先级：P0
+> 本文记录已完成的本地实现与验收约束；当前工作树尚未部署。
 
 ## 1. 目标
 
@@ -211,7 +211,7 @@
 | `modules/routes/mood-diary-route.js` | `activate()` 返回 controller Promise，保证首页快捷入口可以等待路由准备完成。 |
 | `modules/app-navigation-controller.js` | 删除旧统计概览逻辑；接管一次性冷启动定位；保留随机回忆和跨路由滚动恢复。 |
 | `modules/diary-gallery-view.js` | 删除首次渲染时滚到第一张日记的行为。 |
-| `modules/app-event-bindings.js` | 删除概览等级按钮绑定；保留四个既有快捷操作；接入今日心情卡动作。 |
+| `modules/app-event-bindings.js` | 删除概览等级按钮绑定；保留四个既有快捷操作。今日心情卡动作由懒加载 controller 自己绑定。 |
 | `modules/app-runtime-route-assembly.js` | 装配今日心情 controller/view/repository，注入 identity、session、family、switchPage 和懒加载心情 controller。 |
 | `modules/app-session-controller.js` | session / 家庭资料同步后显式激活或刷新今日心情，不再调用旧统计概览。 |
 | `modules/diary-feed-controller.js`、`recipe-controller.js`、`wishlist-controller.js`、`gamification-controller.js` | 删除只为四张旧统计卡服务的 `renderOverview()` 调用和注入，禁止留下空兼容函数。 |
