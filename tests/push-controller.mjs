@@ -164,6 +164,7 @@ test("push settings bind after lazy render and close locally before remote clean
     assert.equal(clearBadge.length, 1);
     assert.equal(disable.hidden, true, "local subscription state should drive the final UI");
     assert.equal(enable.disabled, false, "busy state should be released after cleanup");
+    assert.equal(disable.disabled, false, "close action should not remain disabled after cleanup");
     assert.equal(disable.getAttribute("aria-busy"), null);
 
     await controller.disable();

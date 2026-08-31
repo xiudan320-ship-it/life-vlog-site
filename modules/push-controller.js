@@ -81,6 +81,7 @@ export function createPushController({
       state.textContent = "当前设备不支持";
       detail.textContent = "请使用 iOS 16.4+ 主屏幕 Web App 或现代浏览器。";
       enable.disabled = true;
+      disable.disabled = true;
       disable.hidden = true;
       return;
     }
@@ -94,6 +95,7 @@ export function createPushController({
         : "开启后，即使没有打开页面也能收到家庭消息。";
     enable.hidden = enabled;
     enable.disabled = Notification.permission === "denied";
+    disable.disabled = false;
     disable.hidden = !enabled;
   }
 
@@ -102,9 +104,12 @@ export function createPushController({
     const disable = document.querySelector("#disablePushNotifications");
     [enable, disable].forEach((button) => {
       if (!button) return;
-      button.disabled = busy || button.disabled;
-      if (busy) button.setAttribute("aria-busy", "true");
-      else button.removeAttribute("aria-busy");
+      if (busy) {
+        button.disabled = true;
+        button.setAttribute("aria-busy", "true");
+      } else {
+        button.removeAttribute("aria-busy");
+      }
     });
   }
 
