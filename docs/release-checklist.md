@@ -43,6 +43,16 @@ pnpm run test:release
 
 `test:browser`/`c-performance-regression.mjs` 另外验证首页今日心情概览的四种数据状态、两席稳定形状、真实昵称、本人快捷添加、冷启动滚动和 gallery 返回恢复；同时验证列表普通视频不触发视频网络加载、进入日记/VLOG 详情后静音自动播放且保留控件、失败可重试、gallery 同步读取秘藏表而不加载秘藏 route、30 轮快速路由 latest-wins、全局等级弹窗、心情日记 375/390/430/768/844×390/1440 视口的完整月历与 4～6 周布局、360×440 罐体前后层和实际 bbox/clip、0/1/8/31/62 数量与慢速批次、离屏等待与单次视口动画、瓶体点击/键盘重播和中断、reduced-motion、月份切换/路由离开清理、mutation 单项动画、最多心情、趋势 SVG 实际尺寸/路径长度/点 bbox/计算字体/线宽/颜色、月底真实日期覆盖、44×44 命中区、单一键盘焦点、趋势图键盘提示、缓存错误重试、写后 canonical 重读、Picker/编辑/删除，以及既有周末/购物/回复交互。首屏 signed-in 请求预算包含今日心情的单日读取。所有 signed-in 场景均使用 `tests/fixtures/cloudflare-api-fixture.mjs` 的内存 fixture，不使用真实账户或真实业务数据。
 
+### V3 留言与心情瓶专项
+
+- [x] `tests/comment-thread-domain.mjs`：根留言、深层链、孤儿、循环 parent 和重复 id 均稳定输出，每条合法评论最多一行。
+- [x] `tests/mood-jar-physics.mjs`：固定种子、瓶壁/瓶底约束、粒子接触、轨迹变化、最终稳定态和 0/1/8/31/62 数量均通过。
+- [x] `tests/mood-diary-browser.mjs`：375/390/430/768/844×390/1440 视口通过瓶体 rAF 生命周期、replay/键盘、切月/离开清理、reduced-motion、趋势和溢出回归。
+- [x] `tests/c-performance-regression.mjs`：320/375/390/430/844×390 深层留言保持平面同级 DOM、16px 正文、44px 操作区、表单正常文档流和无横向溢出。
+- [x] 视觉验收：已检查 8/31/62 枚素材从瓶口进入、发生真实接触后自然堆积；深层留言在浅色/深色、横屏和长 URL 下保持同一正文左边界；未以旋转后的外接 bbox 代替内腔判断。
+- [x] 本轮只记录本地确定性 fixture 证据；未部署、未使用真实账户、密码、token 或真实业务数据。
+- [x] 构建预算：`pnpm run build` 与资源预算通过；入口 JS gzip 为 `122879` bytes，低于当前 `122880` bytes（120 KiB）阈值。
+
 ## 3. 发布后只读检查
 
 部署脚本会在本地回归通过后先部署 Worker 并执行精确 CORS 门，再发布 preview。preview 固定别名会使用 `tests/fixtures/cloudflare-api-fixture.mjs` 的确定性假后端执行公开壳、伪会话、深链接、错误矩阵和 PWA 烟雾测试；任何 preview/CORS 门失败都会停止，不会进入正式发布。发布完成后访问正式地址，确认返回状态为 200，并检查本次构建的入口文件名、入口哈希、`sw.js` 哈希和 Workbox 预缓存条目数已经记录且线上版本已更新。发布门禁止真实账户和真实凭证。

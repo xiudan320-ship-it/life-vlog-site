@@ -41,6 +41,8 @@ assert.ok(moduleMap.includes("app-navigation-controller.js"));
 assert.ok(moduleMap.includes("app-session-controller.js"));
 assert.ok(moduleMap.includes("mood-diary-controller.js"));
 assert.ok(moduleMap.includes("mood-diary-shared.js"));
+assert.ok(moduleMap.includes("comment-thread-domain.js"));
+assert.ok(moduleMap.includes("mood-jar-physics.js"));
 const runtimeFiles = (await readdir(modulesRoot))
   .filter((file) => /^app-runtime-.*\.js$/.test(file))
   .sort();
@@ -77,6 +79,10 @@ for (const file of [
   "modules/performance-monitor.js",
   "modules/performance-diagnostics-view.js",
   "modules/routes/settings-route.js",
+  "modules/comment-thread-domain.js",
+  "modules/mood-jar-physics.js",
+  "modules/mobile-diary-view.js",
+  "modules/social-controller.js",
   "modules/mood-diary-shared.js",
   "modules/mood-diary-domain.js",
   "modules/mood-month-summary-domain.js",
@@ -92,6 +98,8 @@ for (const file of [
   "modules/routes/templates/mood-diary.html",
   "styles/mood-diary.css",
   "tests/mood-diary-domain.mjs",
+  "tests/comment-thread-domain.mjs",
+  "tests/mood-jar-physics.mjs",
   "tests/mood-month-summary-domain.mjs",
   "tests/mood-entry-overlay-controller.mjs",
   "tests/mood-diary-controller.mjs",

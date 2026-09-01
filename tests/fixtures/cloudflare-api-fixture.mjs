@@ -182,6 +182,7 @@ function cloneSeed({
   seedSecretPhoto = false,
   seedMoodFamily = false,
   moodDiaries = [],
+  photoComments = null,
   notifications = tableSeeds.notifications,
 } = {}) {
   const tables = new Map(Object.entries(tableSeeds).map(([table, rows]) => [table, rows.map((row) => ({ ...row }))]));
@@ -240,6 +241,9 @@ function cloneSeed({
   if (Array.isArray(moodDiaries)) {
     tables.set("mood_diaries", moodDiaries.map((row) => ({ ...row })));
   }
+  if (Array.isArray(photoComments)) {
+    tables.set("photo_comments", photoComments.map((row) => ({ ...row })));
+  }
   return tables;
 }
 
@@ -287,12 +291,13 @@ export function createCloudflareApiFixture({
   seedSecretPhoto = false,
   seedMoodFamily = false,
   moodDiaries = [],
+  photoComments = null,
   notifications = [],
   notificationDelayMs = 0,
   notificationFailureCount = 0,
   notificationFailureMode = "server",
 } = {}) {
-  const tables = cloneSeed({ seedSecretPhoto, seedMoodFamily, moodDiaries, notifications });
+  const tables = cloneSeed({ seedSecretPhoto, seedMoodFamily, moodDiaries, photoComments, notifications });
   const requests = [];
   const writes = [];
   const uploads = [];

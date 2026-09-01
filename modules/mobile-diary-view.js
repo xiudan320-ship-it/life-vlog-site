@@ -6,6 +6,7 @@ import {
 import { escapeHtml, formatCommentTime, formatDateTime } from "./ui-formatters.js";
 import { renderListIcon } from "./list-icons.js";
 import { getDiaryActionModel } from "./diary-action-domain.js";
+import { flattenCommentThread } from "./comment-thread-domain.js";
 
 export function createMobileDiaryPage({ documentRef = document, handlers }) {
   const page = documentRef.createElement("section");
@@ -92,43 +93,28 @@ export function renderMobileDiaryCommentTree({
   getAuthorName,
   renderAvatar,
 }) {
-  if (!comments.length) return `<p class="photo-comments-empty">还没有留言。</p>`;
-  const byParent = new Map();
-  comments.forEach((comment) => {
-    const parentId = comment.parent_id || "root";
-    if (!byParent.has(parentId)) byParent.set(parentId, []);
-    byParent.get(parentId).push(comment);
-  });
-  const renderBranch = (parentId = "root", depth = 0) =>
-    (byParent.get(parentId) || []).map((comment) => {
-      const replyTarget = comment.parent_id
-        ? comments.find((item) => item.id === comment.parent_id)
-        : null;
-      return `
-        <div class="photo-comment-thread" style="--comment-depth:${Math.min(depth, 3)}">
-          <article class="photo-comment">
-            ${renderAvatar(comment.user_id)}
-            <div class="photo-comment-main">
-              <header>
-                <span class="photo-comment-author-line">
-                  <strong>${escapeHtml(getAuthorName(comment.user_id))}</strong>
-                  ${comment.user_id === photoOwnerId ? `<small class="photo-comment-author-badge">作者</small>` : ""}
-                </span>
-              </header>
-              ${replyTarget ? `<small class="reply-target">回复 ${escapeHtml(getAuthorName(replyTarget.user_id))}</small>` : ""}
-              <p>${escapeHtml(comment.body)}</p>
-              <time>${formatCommentTime(comment.created_at)}</time>
-              <div class="photo-comment-actions">
-                <button type="button" data-mobile-diary-reply="${escapeHtml(comment.id)}">回复</button>
-                ${comment.user_id === currentUserId ? `<button type="button" data-mobile-diary-delete-comment="${escapeHtml(comment.id)}">删除</button>` : ""}
-              </div>
-            </div>
-          </article>
-          ${renderBranch(comment.id, depth + 1)}
+  const flattened = flattenCommentThread(comments, { getAuthorName });
+  if (!flattened.length) return `<p class="photo-comments-empty">还没有留言。</p>`;
+  return flattened.map((comment) => `
+    <article class="photo-comment" data-comment-id="${escapeHtml(comment.id)}">
+      ${renderAvatar(comment.authorId)}
+      <div class="photo-comment-main">
+        <header>
+          <span class="photo-comment-author-line">
+            <strong>${escapeHtml(getAuthorName(comment.authorId))}</strong>
+            ${comment.authorId === photoOwnerId ? `<small class="photo-comment-author-badge">作者</small>` : ""}
+          </span>
+        </header>
+        ${comment.replyTargetId ? `<small class="reply-target">回复 ${escapeHtml(comment.replyTargetName)}</small>` : ""}
+        <p>${escapeHtml(comment.body)}</p>
+        <time>${formatCommentTime(comment.createdAt)}</time>
+        <div class="photo-comment-actions">
+          <button type="button" data-mobile-diary-reply="${escapeHtml(comment.id)}">回复</button>
+          ${comment.authorId === currentUserId ? `<button type="button" data-mobile-diary-delete-comment="${escapeHtml(comment.id)}">删除</button>` : ""}
         </div>
-      `;
-    }).join("");
-  return renderBranch();
+      </div>
+    </article>
+  `).join("");
 }
 
 export function buildMobileDiaryPageMarkup({
@@ -158,6 +144,7 @@ export function buildMobileDiaryPageMarkup({
     isPinned: canAdminUnpin,
     isFavorite: favorite,
   });
+  const flattenedComments = flattenCommentThread(comments, { getAuthorName });
   const commentTree = renderMobileDiaryCommentTree({
     comments,
     photoOwnerId: photo.user_id,
@@ -225,7 +212,7 @@ export function buildMobileDiaryPageMarkup({
     <section class="mobile-diary-comments">
       <div class="photo-comments-head">
         <p class="kicker">Family Comments</p>
-        <h3>共 ${comments.length} 条评论</h3>
+        <h3>共 ${flattenedComments.length} 条评论</h3>
       </div>
       <div class="photo-comments-list" data-mobile-diary-comments>${commentTree}</div>
       ${canComment ? `<form data-mobile-diary-comment-form>
@@ -262,14 +249,15 @@ export function refreshMobileDiaryComments({
       renderAvatar,
     });
   }
+  const flattenedComments = flattenCommentThread(comments, { getAuthorName });
   const heading = page.querySelector(".photo-comments-head h3");
-  if (heading) heading.textContent = `共 ${comments.length} 条评论`;
+  if (heading) heading.textContent = `共 ${flattenedComments.length} 条评论`;
   const replyBar = page.querySelector("[data-mobile-diary-replying]");
   const replyText = page.querySelector("[data-mobile-diary-replying-text]");
   const input = page.querySelector("[data-mobile-diary-comment-input]");
-  const replyComment = comments.find((item) => item.id === replyToId);
+  const replyComment = flattenedComments.find((item) => item.id === replyToId);
   if (replyBar) replyBar.hidden = !replyComment;
-  if (replyText) replyText.textContent = replyComment ? `正在回复 ${getAuthorName(replyComment.user_id)}` : "";
-  if (input) input.placeholder = replyComment ? `回复 ${getAuthorName(replyComment.user_id)}` : "给这篇日记留句话";
+  if (replyText) replyText.textContent = replyComment ? `正在回复 ${getAuthorName(replyComment.authorId)}` : "";
+  if (input) input.placeholder = replyComment ? `回复 ${getAuthorName(replyComment.authorId)}` : "给这篇日记留句话";
   resizeMobileDiaryCommentInput(input);
 }

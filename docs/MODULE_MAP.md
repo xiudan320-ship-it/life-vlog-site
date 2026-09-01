@@ -14,7 +14,7 @@
 | 账户资料、头像、家庭设置、缓存设置 | `modules/profile-preferences-controller.js`, `modules/family-settings-controller.js` | `modules/settings-event-bindings.js`, `modules/account-view.js`, `modules/primary-navigation-view.js` |
 | 日记列表、搜索、筛选、瀑布流 | `modules/diary-feed-controller.js` | `modules/diary-gallery-view.js`, `modules/diary-domain.js` |
 | 首页今日心情概览、两席状态、原地快捷添加/详情和月历 CTA | `modules/today-mood-controller.js` | `modules/today-mood-view.js`, `modules/mood-entry-overlay-controller.js`, `modules/mood-diary-repository.js` |
-| 心情日记月历、月度汇总与历史 | `modules/mood-diary-controller.js`, `modules/mood-month-summary-domain.js` | `modules/mood-diary-domain.js`, `modules/mood-diary-view.js`, `modules/mood-month-summary-view.js`, `modules/mood-entry-overlay-controller.js`, `styles/mood-diary.css`；月度汇总包含 360×440 可重播玻璃瓶、确定性慢动画计划和动态/稀疏趋势坐标 |
+| 心情日记月历、月度汇总与历史 | `modules/mood-diary-controller.js`, `modules/mood-month-summary-domain.js`, `modules/mood-jar-physics.js` | `modules/mood-diary-domain.js`, `modules/mood-diary-view.js`, `modules/mood-month-summary-view.js`, `modules/mood-entry-overlay-controller.js`, `styles/mood-diary.css`；月度汇总包含 360×440 可重播玻璃瓶、确定性粒子物理和动态/稀疏趋势坐标 |
 | 发布 / 编辑日记、上传队列 | `modules/diary-composer-controller.js`, `modules/photo-detail-controller.js` | `modules/diary-upload-domain.js`, `modules/content-form-event-bindings.js` |
 | VLOG 模式、视频声音、列表视觉中心自动播放、控件 | `modules/vlog-mode.js`, `modules/primary-navigation-controller.js`, `modules/photo-viewer-controller.js`, `modules/diary-feed-motion-coordinator.js` | `modules/app-runtime-vlog-mode.js`, `modules/diary-feed-motion-domain.js`, `modules/diary-video-layout.js`, `modules/media-event-bindings.js` |
 | 图片 / 视频详情、缩放、前后切换、手势 | `modules/photo-viewer-controller.js`, `modules/photo-detail-controller.js` | `modules/media-event-bindings.js`, `modules/media-gesture-domain.js`, `modules/photo-dialog-view.js` |
@@ -26,11 +26,11 @@
 | 秘藏相册编辑、图片批量操作与删除 | `modules/secret-album-actions-controller.js` | `modules/secret-controller.js`, `modules/photo-viewer-controller.js`, `modules/photo-dialog-view.js` |
 | 日记、心愿和周末媒体详情编排 | `modules/photo-detail-controller.js` | `modules/photo-viewer-controller.js` |
 | 日记编辑、图片替换和删除 | `modules/photo-editor-controller.js` | `modules/photo-detail-controller.js` |
-| 手机日记详情、留言与返回手势 | `modules/mobile-diary-controller.js` | `modules/mobile-diary-view.js` |
+| 手机日记详情、留言与返回手势 | `modules/mobile-diary-controller.js`, `modules/comment-thread-domain.js` | `modules/mobile-diary-view.js`, `styles/diary-comments.css`；留言以同级行渲染，回复关系只保留为语义元数据和目标文案 |
 | 秘藏筛选、标签计数、照片排序 | `modules/secret-filter-domain.js` | `modules/secret-domain.js` |
 | 秘藏文件夹、默认入口、右键菜单 | `modules/secret-folder-controller.js` | `modules/secret-gallery-view.js` |
 | 秘藏密码与解锁 | `modules/secret-pin-controller.js` | `modules/secret-entry-preference-controller.js` |
-| 评论、回复、通知 | `modules/social-controller.js`, `modules/notification-event-bindings.js` | `modules/notification-domain.js`, `modules/notification-view.js` |
+| 评论、回复、通知 | `modules/social-controller.js`, `modules/comment-thread-domain.js`, `modules/notification-event-bindings.js` | `modules/notification-domain.js`, `modules/notification-view.js`；桌面详情与移动详情共用扁平留言模型 |
 | 推送通知与点击跳转 | `modules/push-controller.js` | `modules/media-event-bindings.js` |
 | 菜谱、留言、纪念日、吃什么 | 对应的 `*-controller.js` | 对应的 `*-view.js`, `modules/content-form-event-bindings.js` |
 | 离线缓存与容量 | `modules/offline-cache-controller.js`, `modules/offline-settings-controller.js` | `modules/cache-policy.js`, `modules/cache-management-view.js` |
@@ -45,7 +45,8 @@
 - `modules/primary-navigation-domain.js` 是顶部分页注册表和配置规范化的唯一事实来源；`primary-navigation-controller.js` 通过现有 `preferences-store.js` 按用户/设备作用域读写，`primary-navigation-view.js` 只渲染当前可见入口和设置列表。VLOG 由 mode action 接入，不能被序列化成 `?page=vlog`。
 - `modules/push-controller.js` 的设置绑定只在 `settings-route.js` 完成 DOM 渲染后执行；关闭设备通知时本机 `unsubscribe()` 与 Worker 端点清理是分离失败边界，本机状态优先。
 - `modules/diary-video-layout.js` 管理详情媒体生命周期：普通视频进入日记/VLOG 详情后静音自动播放并保留原生控件，Live Photo 使用静音循环预览；加载、失败、重试、切图和关闭都会清理状态与监听。
-- `modules/mood-month-summary-domain.js` 从当前月份和稳定两席派生总数、最多心情、三档趋势、缺口桥接段、确定性罐体安全槽位、数量自适应慢动画计划及真实日期趋势坐标；`modules/mood-month-summary-view.js` 只负责罐体前后层、内腔裁切、原生按钮重播、数据/视口动效状态机、原生 SVG 趋势图、提示、明细和动效降级。`mood-diary-controller.js` 负责请求、缓存、latest-wins、上下文迟到重读和写后 canonical 对齐，不监听滚动或操作动画 DOM。
+- `modules/mood-month-summary-domain.js` 从当前月份和稳定两席派生总数、最多心情、三档趋势、缺口桥接段、确定性罐体素材元数据及真实日期趋势坐标；`modules/mood-jar-physics.js` 负责共享 `360×440` 几何、确定性出生计划、固定步长粒子碰撞、瓶壁/椭圆底约束、休眠和最终布局；`modules/mood-month-summary-view.js` 只负责罐体前后层、内腔裁切、原生按钮重播、数据/视口动效状态机、单一 rAF 到 transform 的映射、原生 SVG 趋势图、提示、明细和动效降级。`mood-diary-controller.js` 负责请求、缓存、latest-wins、上下文迟到重读和写后 canonical 对齐，不监听滚动或操作动画 DOM。
+- `modules/comment-thread-domain.js` 是评论树到扁平行的唯一转换边界：保留 root/depth/reply target 语义，稳定处理孤儿、循环和重复 id；`mobile-diary-view.js` 与 `social-controller.js` 只消费该模型并渲染同级 `.photo-comment`。
 
 ## 样式快速定位
 

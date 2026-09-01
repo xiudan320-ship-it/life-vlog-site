@@ -1,6 +1,6 @@
-/* Diary comments follow a compact social-feed rhythm: avatar, author, body,
-   timestamp, then the small reply actions. Keep the same stream on desktop
-   and on the dedicated mobile diary page. */
+/* One flat comment stream serves the desktop dialog and the mobile diary.
+   Logical reply depth remains available as data for labels and future cues;
+   it never changes the row's horizontal content width. */
 #photoCommentsSection .photo-comments-head,
 .mobile-diary-comments .photo-comments-head {
   display: flex !important;
@@ -38,25 +38,35 @@
 #photoCommentsSection .photo-comments-list,
 .mobile-diary-comments .photo-comments-list {
   display: grid;
+  align-content: start !important;
+  grid-auto-rows: max-content !important;
   gap: 0;
+  justify-content: stretch !important;
+  min-width: 0;
+  max-width: 100%;
+  overflow: visible;
 }
 
 #photoCommentsSection .photo-comment,
 .mobile-diary-comments .photo-comment {
   display: grid;
-  grid-template-columns: 40px minmax(0, 1fr);
+  grid-template-columns: 40px minmax(0, 1fr) !important;
   align-items: start;
   gap: 11px;
+  width: 100%;
   min-width: 0;
-  padding: 14px 0 16px;
+  min-height: 0 !important;
+  box-sizing: border-box;
+  padding: 14px 0 16px !important;
   border-bottom: 1px solid color-mix(in srgb, var(--line) 90%, var(--accent) 10%);
 }
 
 #photoCommentsSection .photo-comment-main,
 .mobile-diary-comments .photo-comment-main {
   display: grid;
+  grid-column: 2;
   min-width: 0;
-  gap: 6px;
+  gap: 6px !important;
 }
 
 #photoCommentsSection .photo-comment header,
@@ -87,23 +97,24 @@
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
-  min-height: 20px;
-  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
-  color: var(--accent-strong);
-  font-size: 11px;
-  font-weight: 800;
+  min-height: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--muted) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
   line-height: 1;
-  padding: 0 7px;
+  padding: 0 !important;
 }
 
 #photoCommentsSection .photo-comment p,
 .mobile-diary-comments .photo-comment p {
+  min-width: 0;
   margin: 0;
   color: var(--ink);
-  font-size: 16px;
-  line-height: 1.55;
+  font-size: 16px !important;
+  line-height: 1.6 !important;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
@@ -119,120 +130,58 @@
 #photoCommentsSection .photo-comment .reply-target,
 .mobile-diary-comments .photo-comment .reply-target {
   display: block;
+  min-width: 0;
   color: var(--muted);
   font-size: 12px;
   font-weight: 700;
   line-height: 1.3;
+  overflow-wrap: anywhere;
 }
 
 #photoCommentsSection .photo-comment-actions,
 .mobile-diary-comments .photo-comment-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 8px !important;
   margin-top: 1px;
+  min-width: 0;
 }
 
 #photoCommentsSection .photo-comment-actions button,
 .mobile-diary-comments .photo-comment-actions button {
-  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  box-sizing: border-box;
   border: 0;
+  border-radius: 8px;
   background: transparent;
   color: var(--muted);
   font-size: 12px;
   font-weight: 750;
-  padding: 0;
+  padding: 8px;
 }
 
 #photoCommentsSection .photo-comment-actions button:hover,
 #photoCommentsSection .photo-comment-actions button:focus-visible,
 .mobile-diary-comments .photo-comment-actions button:hover,
 .mobile-diary-comments .photo-comment-actions button:focus-visible {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
   color: var(--accent-strong);
   outline: 0;
 }
 
 #photoCommentsSection .photo-comment-avatar,
 .mobile-diary-comments .photo-comment-avatar {
+  grid-column: 1;
   width: 40px;
   height: 40px;
 }
 
-#photoCommentsSection .photo-comment-thread,
-.mobile-diary-comments .photo-comment-thread {
-  margin-left: calc(var(--comment-depth) * 30px);
-}
-
-@media (max-width: 720px) {
-  .mobile-diary-comments .photo-comments-head h3 {
-    font-size: 20px !important;
-  }
-
-  .mobile-diary-comments .photo-comment,
-  #photoCommentsSection .photo-comment {
-    grid-template-columns: 36px minmax(0, 1fr);
-    gap: 10px;
-    padding: 13px 0 15px;
-  }
-
-  .mobile-diary-comments .photo-comment-avatar,
-  #photoCommentsSection .photo-comment-avatar {
-    width: 36px;
-    height: 36px;
-  }
-
-  .mobile-diary-comments .photo-comment p,
-  #photoCommentsSection .photo-comment p {
-    font-size: 15px;
-    line-height: 1.5;
-  }
-
-  .mobile-diary-comments .photo-comment-thread,
-  #photoCommentsSection .photo-comment-thread {
-    margin-left: calc(var(--comment-depth) * 18px);
-  }
-}
-
-/* Comment rows must hug their content. A flex-filling list with the default
-   grid stretch behavior was distributing spare height between short comments. */
-#photoCommentsSection .photo-comments-list,
-.mobile-diary-comments .photo-comments-list {
-  align-content: start !important;
-  grid-auto-rows: max-content !important;
-  justify-content: stretch !important;
-}
-
-#photoCommentsSection .photo-comment-thread,
-.mobile-diary-comments .photo-comment-thread {
-  align-self: start !important;
-  height: auto !important;
-  min-height: 0 !important;
-}
-
-#photoCommentsSection .photo-comment,
-.mobile-diary-comments .photo-comment {
-  min-height: 0 !important;
-  padding: 8px 0 10px !important;
-}
-
-#photoCommentsSection .photo-comment-main,
-.mobile-diary-comments .photo-comment-main {
-  gap: 3px !important;
-}
-
-#photoCommentsSection .photo-comment p,
-.mobile-diary-comments .photo-comment p {
-  line-height: 1.38 !important;
-}
-
-#photoCommentsSection .photo-comment-actions,
-.mobile-diary-comments .photo-comment-actions {
-  gap: 12px !important;
-  margin-top: 0 !important;
-}
-
-/* The inline diary preview has its own comment stream. Keep its grid from
-   stretching short rows to fill the card and let each preview hug its text. */
+/* The preview stream is separate from the full comment stream but keeps the
+   same content-driven sizing so short previews do not absorb spare height. */
 .photo-card-comments {
   display: flex !important;
   flex-direction: column !important;
@@ -253,29 +202,38 @@
 }
 
 .photo-card-comments > article > div {
-  min-width: 0;
   display: grid;
+  min-width: 0;
   align-content: start;
   gap: 1px;
 }
 
-/* Keep authorship visible without turning it into a bright green pill. */
-#photoCommentsSection .photo-comment-author-badge,
-.mobile-diary-comments .photo-comment-author-badge {
-  min-height: 0 !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  color: var(--muted) !important;
-  font-size: 11px !important;
-  font-weight: 700 !important;
-  padding: 0 !important;
-}
+@media (max-width: 720px) {
+  .mobile-diary-comments .photo-comments-head h3 {
+    font-size: 20px !important;
+  }
 
-/* Replies stay indented without the heavy green rail. */
-#photoCommentsSection .photo-comment-thread .photo-comment-thread,
-.mobile-diary-comments .photo-comment-thread .photo-comment-thread {
-  border-left: 0 !important;
-  padding-left: 0 !important;
-}
+  .mobile-diary-comments .photo-comment,
+  #photoCommentsSection .photo-comment {
+    grid-template-columns: 36px minmax(0, 1fr) !important;
+    gap: 10px;
+    padding: 12px 0 14px !important;
+  }
 
+  .mobile-diary-comments .photo-comment-avatar,
+  #photoCommentsSection .photo-comment-avatar {
+    width: 36px;
+    height: 36px;
+  }
+
+  .mobile-diary-comments .photo-comment-main,
+  #photoCommentsSection .photo-comment-main {
+    gap: 6px !important;
+  }
+
+  .mobile-diary-comments .photo-comment p,
+  #photoCommentsSection .photo-comment p {
+    font-size: 16px !important;
+    line-height: 1.6 !important;
+  }
+}

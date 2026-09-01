@@ -1,6 +1,7 @@
 import { buildNotificationText } from "./notification-domain.js";
 import { renderNotificationsView } from "./notification-view.js";
 import { escapeHtml, formatCommentTime } from "./ui-formatters.js";
+import { flattenCommentThread } from "./comment-thread-domain.js";
 
 export function createSocialController({
   elements,
@@ -255,54 +256,38 @@ export function createSocialController({
   
   function renderPhotoComments() {
     if (!els.photoCommentsList) return;
+    const comments = flattenCommentThread(state.photoComments, {
+      getAuthorName,
+    });
     const heading = els.photoCommentsSection?.querySelector(".photo-comments-head h3");
-    if (heading) heading.textContent = `共 ${state.photoComments.length} 条评论`;
-    if (!state.photoComments.length) {
+    if (heading) heading.textContent = `共 ${comments.length} 条评论`;
+    if (!comments.length) {
       els.photoCommentsList.innerHTML = `<p class="photo-comments-empty">还没有留言。</p>`;
       return;
     }
-    const byParent = new Map();
-    state.photoComments.forEach((comment) => {
-      const parentId = comment.parent_id || "root";
-      if (!byParent.has(parentId)) byParent.set(parentId, []);
-      byParent.get(parentId).push(comment);
-    });
-  
-    const renderBranch = (parentId = "root", depth = 0) =>
-      (byParent.get(parentId) || [])
-        .map((comment) => {
-          const authorName = getAuthorName(comment.user_id);
-          const replyTarget = comment.parent_id
-            ? state.photoComments.find((item) => item.id === comment.parent_id)
-            : null;
-          const isAuthor = comment.user_id === state.activeDialogPhoto?.user_id;
-          return `
-            <div class="photo-comment-thread" style="--comment-depth:${Math.min(depth, 3)}">
-              <article class="photo-comment">
-                ${renderAvatarMarkup(comment.user_id)}
-                <div class="photo-comment-main">
-                  <header>
-                    <span class="photo-comment-author-line">
-                      <strong>${escapeHtml(authorName)}</strong>
-                      ${isAuthor ? `<small class="photo-comment-author-badge">作者</small>` : ""}
-                    </span>
-                  </header>
-                  ${replyTarget ? `<small class="reply-target">回复 ${escapeHtml(getAuthorName(replyTarget.user_id))}</small>` : ""}
-                  <p>${escapeHtml(comment.body)}</p>
-                  <time>${formatCommentTime(comment.created_at)}</time>
-                  <div class="photo-comment-actions">
-                    <button type="button" data-reply-comment="${escapeHtml(comment.id)}">回复</button>
-                    ${comment.user_id === state.session?.user?.id ? `<button type="button" data-delete-comment="${escapeHtml(comment.id)}">删除</button>` : ""}
-                  </div>
-                </div>
-              </article>
-              ${renderBranch(comment.id, depth + 1)}
+    els.photoCommentsList.innerHTML = comments.map((comment) => {
+      const isAuthor = comment.authorId === state.activeDialogPhoto?.user_id;
+      return `
+        <article class="photo-comment" data-comment-id="${escapeHtml(comment.id)}">
+          ${renderAvatarMarkup(comment.authorId)}
+          <div class="photo-comment-main">
+            <header>
+              <span class="photo-comment-author-line">
+                <strong>${escapeHtml(getAuthorName(comment.authorId))}</strong>
+                ${isAuthor ? `<small class="photo-comment-author-badge">作者</small>` : ""}
+              </span>
+            </header>
+            ${comment.replyTargetId ? `<small class="reply-target">回复 ${escapeHtml(comment.replyTargetName)}</small>` : ""}
+            <p>${escapeHtml(comment.body)}</p>
+            <time>${formatCommentTime(comment.createdAt)}</time>
+            <div class="photo-comment-actions">
+              <button type="button" data-reply-comment="${escapeHtml(comment.id)}">回复</button>
+              ${comment.authorId === state.session?.user?.id ? `<button type="button" data-delete-comment="${escapeHtml(comment.id)}">删除</button>` : ""}
             </div>
-          `;
-        })
-        .join("");
-  
-    els.photoCommentsList.innerHTML = renderBranch();
+          </div>
+        </article>
+      `;
+    }).join("");
     els.photoCommentsList.querySelectorAll("[data-reply-comment]").forEach((button) => {
       button.addEventListener("click", () => startCommentReply(button.dataset.replyComment));
     });
