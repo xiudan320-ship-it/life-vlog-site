@@ -76,8 +76,8 @@ function summarySignature(summary) {
     .join("|");
 }
 
-function trendSignature(summary) {
-  return (summary?.trendSeries || []).map((series) => `${series.userId}:${series.points.map((point) => `${point.entryId}:${point.dateKey}:${point.mood}:${point.level}`).join(",")}`).join("|");
+function trendSignature(summary, state) {
+  return (summary?.trendSeries || []).map((series) => `${series.userId}:${series.shape}:${nameFor(state, series)}:${series.points.map((point) => `${point.entryId}:${point.dateKey}:${point.mood}:${point.level}:${point.shape}`).join(",")}`).join("|");
 }
 
 function finalJarTransform(item) {
@@ -346,7 +346,7 @@ export function createMoodMonthSummaryView({
 
   function renderTrend(state, summary) {
     if (!elements.moodTrendChart) return;
-    const signature = trendSignature(summary);
+    const signature = trendSignature(summary, state);
     if (signature === lastTrendSignature) return;
     const documentTarget = elements.moodTrendChart.ownerDocument;
     const series = summary?.trendSeries || [];
