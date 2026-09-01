@@ -158,7 +158,7 @@ export function createMoodDiaryView({ elements = {}, getAuthorName, getAuthorAva
     if (bound || !elements.moodPage) return;
     bound = true;
     elements.moodPage.addEventListener("click", (event) => {
-      const target = event.target.closest?.("[data-mood-date], [data-mood-open-family-settings], #moodListOpen, #moodCalendarOpen, #moodFab, #moodMonthPrevious, #moodMonthNext, #moodMonthRetry, #moodHistoryLoadMore, [data-mood-history-id]");
+      const target = event.target.closest?.("[data-mood-date], [data-mood-open-family-settings], #moodListOpen, #moodCalendarOpen, #moodFab, #moodMonthPrevious, #moodMonthNext, #moodMonthRetry, #moodHistoryLoadMore, [data-mood-history-id], #moodJarStage");
       if (!target) return;
       if (target.dataset.moodDate) return onAction({ type: "date", dateKey: target.dataset.moodDate, trigger: target });
       if (target.dataset.moodOpenFamilySettings !== undefined) return onAction({ type: "open-family-settings" });
@@ -169,6 +169,7 @@ export function createMoodDiaryView({ elements = {}, getAuthorName, getAuthorAva
       if (target.id === "moodMonthNext") return onAction({ type: "next-month" });
       if (target.id === "moodMonthRetry") return onAction({ type: "retry-month" });
       if (target.id === "moodHistoryLoadMore") return onAction({ type: "load-more" });
+      if (target.id === "moodJarStage") return monthSummaryView.replayJar();
       if (target.dataset.moodHistoryId) return onAction({ type: "history-detail", id: target.dataset.moodHistoryId, trigger: target });
     });
     monthSummaryView.bind();

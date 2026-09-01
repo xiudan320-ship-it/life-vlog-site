@@ -1,21 +1,11 @@
+import { buildMoodJarAnimationPlan, getMoodTrendLayout, getMoodTrendX } from "./mood-month-summary-domain.js";
+
 const SVG_NS = "http://www.w3.org/2000/svg";
-const TREND_LAYOUT = Object.freeze({
-  width: 720,
-  height: 260,
-  left: 78,
-  right: 18,
-  top: 30,
-  bottom: 44,
-  highY: 54,
-  steadyY: 120,
-  lowY: 186,
-});
 const TREND_COLORS = Object.freeze([
-  "var(--mood-trend-primary, #9b4d48)",
-  "var(--mood-trend-secondary, #2e7083)",
+  "var(--mood-trend-primary)",
+  "var(--mood-trend-secondary)",
 ]);
-const TREND_FALLBACK_COLORS = Object.freeze(["#9b4d48", "#2e7083"]);
-const JAR_MOUTH = Object.freeze({ x: 160 / 320, y: 42 / 360 });
+const JAR_MOUTH = Object.freeze({ x: 180 / 360, y: 52 / 440 });
 const JAR_FINAL_MOTION = "translate3d(0px, 0px, 0px)";
 
 function text(documentTarget, tagName, value = "", className = "") {
@@ -148,12 +138,13 @@ function setJarNodeWaiting(node, item) {
   motion.style.transform = `translate3d(0px, -48px, 0px) rotate(${item.rotate - 12}deg) scale(${Math.max(0.72, item.scale - 0.12)})`;
 }
 
-function animateJarNode(node, item, { stageRect, delay = 0, reduced = false, enabled = false, kind = "enter" } = {}) {
+function animateJarNode(node, item, { stageRect, delay = 0, duration = 1050, reduced = false, enabled = false, kind = "auto-enter", onFinish } = {}) {
   const motion = jarMotionNode(node);
   if (!motion) return;
   cancelAnimations(motion);
   if (!enabled || reduced || typeof motion.animate !== "function") {
     setJarNodeFinal(node);
+    onFinish?.();
     return;
   }
   const keyframes = kind === "edit"
@@ -164,11 +155,13 @@ function animateJarNode(node, item, { stageRect, delay = 0, reduced = false, ena
     ]
     : [
       { opacity: 0, transform: `${jarMouthTransform(stageRect, item)} rotate(${item.rotate - 12}deg) scale(${Math.max(0.72, item.scale - 0.12)})` },
-      { offset: 0.72, opacity: 1, transform: jarBounceTransform(stageRect, item) },
+      { offset: 0.58, opacity: 0.84, transform: `${jarBounceTransform(stageRect, item)} rotate(${item.rotate - 3}deg)` },
+      { offset: 0.78, opacity: 1, transform: `${jarBounceTransform(stageRect, item)} rotate(${item.rotate}deg) scale(1.02)` },
+      { offset: 0.9, opacity: 1, transform: "translate3d(0px, 0px, 0px) scale(1.04)" },
       { opacity: 1, transform: JAR_FINAL_MOTION },
     ];
   const animation = motion.animate(keyframes, {
-    duration: 480,
+    duration: kind === "edit" ? 180 : duration,
     delay,
     easing: "cubic-bezier(0.2, 0.78, 0.24, 1)",
     fill: "both",
@@ -176,6 +169,7 @@ function animateJarNode(node, item, { stageRect, delay = 0, reduced = false, ena
   animation.onfinish = () => {
     animation.cancel();
     setJarNodeFinal(node);
+    onFinish?.();
   };
 }
 
@@ -232,36 +226,33 @@ function dateLabel(dateKey) {
   return `${year}年${month}月${day}日`;
 }
 
-function trendY(level) {
-  if (level >= 2) return TREND_LAYOUT.highY;
-  if (level <= 0) return TREND_LAYOUT.lowY;
-  return TREND_LAYOUT.steadyY;
+function trendY(level, layout) {
+  if (level >= 2) return layout.highY;
+  if (level <= 0) return layout.lowY;
+  return layout.steadyY;
 }
 
-function trendX(day, dayCount) {
-  const plotWidth = TREND_LAYOUT.width - TREND_LAYOUT.left - TREND_LAYOUT.right;
-  return TREND_LAYOUT.left + ((Math.max(1, day) - 1) / Math.max(1, dayCount - 1)) * plotWidth;
-}
-
-function makeTrendPath(segment, dayCount) {
-  return segment.points.map((point, index) => `${index ? "L" : "M"} ${trendX(point.day, dayCount).toFixed(2)} ${trendY(point.level)}`).join(" ");
+function makeTrendPath(segment, dayCount, layout) {
+  return segment.points.map((point, index) => `${index ? "L" : "M"} ${getMoodTrendX(layout, point.day, dayCount).toFixed(2)} ${trendY(point.level, layout)}`).join(" ");
 }
 
 function isCompactTrend(windowTarget) {
-  return Number(windowTarget?.innerWidth || 0) <= 700;
+  const width = Number(windowTarget?.innerWidth || 0);
+  const height = Number(windowTarget?.innerHeight || 0);
+  return width <= 700 || (height <= 700 && width > height);
 }
 
-function appendTrendAxis(documentTarget, svg, dayCount, compact, getMoodAsset) {
+function appendTrendAxis(documentTarget, svg, layout, dayCount, getMoodAsset) {
   const levels = [
-    { key: "high", label: "高涨", mood: "happy", y: TREND_LAYOUT.highY },
-    { key: "steady", label: "平稳", mood: "calm", y: TREND_LAYOUT.steadyY },
-    { key: "low", label: "低落", mood: "sad", y: TREND_LAYOUT.lowY },
+    { key: "high", label: "高涨", mood: "happy", y: layout.highY },
+    { key: "steady", label: "平稳", mood: "calm", y: layout.steadyY },
+    { key: "low", label: "低落", mood: "sad", y: layout.lowY },
   ];
-  const plotRight = TREND_LAYOUT.width - TREND_LAYOUT.right;
+  const plotRight = layout.plotRight;
   for (const level of levels) {
     svg.append(svgElement(documentTarget, "line", {
       class: "mood-trend-gridline",
-      x1: TREND_LAYOUT.left,
+      x1: layout.plotLeft,
       x2: plotRight,
       y1: level.y,
       y2: level.y,
@@ -279,35 +270,37 @@ function appendTrendAxis(documentTarget, svg, dayCount, compact, getMoodAsset) {
       class: "mood-trend-axis-label",
       x: 36,
       y: level.y + 4,
-    }));
+      }));
     svg.lastChild.textContent = level.label;
   }
-  const tickDays = compact
-    ? [...new Set([1, 5, 10, 15, 20, 25, dayCount])]
+  const tickDays = layout.mode === "recorded-days"
+    ? layout.recordedDays
     : [...new Set([1, 5, 10, 15, 20, 25, 30, dayCount])];
   for (const day of tickDays.filter((value) => value <= dayCount)) {
-    const x = trendX(day, dayCount);
+    const x = getMoodTrendX(layout, day, dayCount);
     svg.append(
-      svgElement(documentTarget, "line", { class: "mood-trend-tick", x1: x, x2: x, y1: TREND_LAYOUT.lowY + 8, y2: TREND_LAYOUT.lowY + 14 }),
+      svgElement(documentTarget, "line", { class: "mood-trend-tick", x1: x, x2: x, y1: layout.lowY + 8, y2: layout.lowY + 14 }),
       (() => {
-        const label = svgElement(documentTarget, "text", { class: "mood-trend-date-label", x, y: TREND_LAYOUT.lowY + 34, "text-anchor": "middle" });
+        const label = svgElement(documentTarget, "text", { class: "mood-trend-date-label", x, y: layout.lowY + 34, "text-anchor": "middle" });
         label.textContent = String(day);
         return label;
       })(),
     );
   }
-  svg.append(svgElement(documentTarget, "text", { class: "mood-trend-axis-caption", x: plotRight, y: TREND_LAYOUT.lowY + 34, "text-anchor": "end" }));
+  svg.append(svgElement(documentTarget, "text", { class: "mood-trend-axis-caption", x: plotRight, y: layout.lowY + 34, "text-anchor": "end" }));
   svg.lastChild.textContent = "日";
 }
 
-function buildTrendSummary(state, summary) {
+function buildTrendSummary(state, summary, layout) {
   const parts = (summary?.trendSeries || []).map((series) => {
     const name = nameFor(state, series);
     if (!series.points.length) return `${name}本月暂无记录`;
     const levels = [...new Set(series.points.map((point) => point.levelLabel))].join("、");
     return `${name}记录 ${series.points.length} 天，包含${levels}状态`;
   });
-  return parts.length ? `按日记录：${parts.join("；")}。` : "这个月还没有趋势数据，记录一条心情后就会显示。";
+  if (!parts.length) return "这个月还没有趋势数据，记录一条心情后就会显示。";
+  const prefix = layout?.mode === "recorded-days" ? "记录较少，按有记录日期等距展开；" : "按日记录：";
+  return `${prefix}${parts.join("；")}。`;
 }
 
 function trendPointLabel(state, series, point) {
@@ -354,6 +347,9 @@ export function createMoodMonthSummaryView({
   let jarVisibilityKnown = false;
   let jarInViewport = false;
   let pendingJarAnimation = null;
+  let jarAnimationRunId = 0;
+  let jarAnimationFrameId = null;
+  let currentSummary = null;
   const pointLookup = new Map();
 
   function isJarStageVisible() {
@@ -369,38 +365,77 @@ export function createMoodMonthSummaryView({
     return jarVisibilityKnown && jarInViewport;
   }
 
+  function setJarReplayStatus(message) {
+    if (elements.moodJarReplayStatus) elements.moodJarReplayStatus.textContent = message;
+  }
+
+  function setJarBusy(isBusy) {
+    if (!elements.moodJarStage) return;
+    elements.moodJarStage.setAttribute("aria-busy", String(Boolean(isBusy)));
+  }
+
   function cancelJarAnimations() {
+    jarAnimationRunId += 1;
+    if (jarAnimationFrameId !== null) {
+      windowTarget?.cancelAnimationFrame?.(jarAnimationFrameId);
+      jarAnimationFrameId = null;
+    }
+    setJarBusy(false);
     elements.moodJarItems?.querySelectorAll(".mood-jar-motion").forEach((node) => cancelAnimations(node));
+  }
+
+  function finishJarAnimation(pending) {
+    if (!pending || pending.runId !== jarAnimationRunId) return;
+    pending.completed += 1;
+    if (pending.completed < pending.entries.length) return;
+    pending.entries.forEach(({ node }) => setJarNodeFinal(node));
+    pendingJarAnimation = null;
+    lastAnimationKey = pending.key;
+    setJarBusy(false);
+    if (pending.manual) setJarReplayStatus(`本月 ${pending.entries.length} 条心情已重新播放完成。`);
   }
 
   function playPendingJarAnimation() {
     if (!pendingJarAnimation) return;
     const pending = pendingJarAnimation;
     const reduce = isReducedMotion(windowTarget);
-    if (reduce || (!jarObserver && !canPlayJarAnimation())) {
+    if (reduce || (!pending.force && !jarObserver && !canPlayJarAnimation())) {
       pending.entries.forEach(({ node }) => setJarNodeFinal(node));
       pendingJarAnimation = null;
       lastAnimationKey = pending.key;
+      setJarBusy(false);
+      if (pending.manual) setJarReplayStatus(reduce ? "已显示本月心情；系统已启用减少动态效果。" : `本月 ${pending.entries.length} 条心情已显示。`);
       return;
     }
-    if (jarObserver && !canPlayJarAnimation()) return;
-    if (!canPlayJarAnimation()) return;
+    if (!pending.force && jarObserver && !canPlayJarAnimation()) return;
+    if (!pending.force && !canPlayJarAnimation()) return;
+    if (pending.started) return;
     const stageRect = elements.moodJarStage?.getBoundingClientRect();
     if (!stageRect?.width || !stageRect.height) {
       pending.entries.forEach(({ node }) => setJarNodeFinal(node));
       pendingJarAnimation = null;
       lastAnimationKey = pending.key;
+      setJarBusy(false);
+      if (pending.manual) setJarReplayStatus(`本月 ${pending.entries.length} 条心情已显示。`);
       return;
     }
-    pending.entries.forEach(({ node, item, delay, kind }) => animateJarNode(node, item, {
-      stageRect,
-      delay,
-      kind,
-      reduced: false,
-      enabled: true,
-    }));
-    pendingJarAnimation = null;
-    lastAnimationKey = pending.key;
+    pending.started = true;
+    const start = () => {
+      jarAnimationFrameId = null;
+      if (pending.runId !== jarAnimationRunId || pendingJarAnimation !== pending) return;
+      pending.entries.forEach(({ node, item, delay, duration, kind }) => animateJarNode(node, item, {
+        stageRect,
+        delay,
+        duration,
+        kind,
+        reduced: false,
+        enabled: true,
+        onFinish: () => finishJarAnimation(pending),
+      }));
+      if (!pending.entries.length) finishJarAnimation(pending);
+    };
+    if (typeof windowTarget?.requestAnimationFrame === "function") jarAnimationFrameId = windowTarget.requestAnimationFrame(start);
+    else start();
   }
 
   function ensureJarObserver() {
@@ -427,6 +462,10 @@ export function createMoodMonthSummaryView({
     ensureJarObserver();
     const documentTarget = elements.moodJarItems.ownerDocument;
     const items = summary?.jarItems || [];
+    if (elements.moodJarStage) {
+      elements.moodJarStage.dataset.jarDensity = items.length > 31 ? "dense" : items.length > 12 ? "medium" : "relaxed";
+      elements.moodJarStage.setAttribute("aria-label", items.length ? `重新播放本月 ${items.length} 条心情落入瓶子的动画` : "重新播放本月心情落入瓶子的动画");
+    }
     const signature = summarySignature(summary);
     const animationKey = `${summary?.monthKey || ""}:${signature}`;
     if (signature === lastJarSignature) {
@@ -443,6 +482,7 @@ export function createMoodMonthSummaryView({
     );
     const animateChanged = animationMode === "mutation" && Boolean(state.changedEntryId) && isNewAnimationKey;
     const animationEntries = [];
+    const animationPlan = buildMoodJarAnimationPlan(items.length);
     const stageRect = elements.moodJarStage?.getBoundingClientRect();
     cancelJarAnimations();
     pendingJarAnimation = null;
@@ -456,8 +496,9 @@ export function createMoodMonthSummaryView({
         animationEntries.push({
           node,
           item,
-          kind: animateAll ? "enter" : existingNode ? "edit" : "enter",
-          delay: animateAll ? Math.min(720, item.slotIndex * 55) : 0,
+          kind: animateAll ? "auto-enter" : existingNode ? "edit" : "mutation-enter",
+          delay: animateAll ? animationPlan.entries[item.slotIndex]?.delay || 0 : 0,
+          duration: animateAll ? animationPlan.entries[item.slotIndex]?.duration || 1050 : 180,
         });
         if (stageRect?.width && stageRect.height) setJarNodePrepared(node, item, stageRect, animateAll ? "enter" : existingNode ? "edit" : "enter");
         else setJarNodeWaiting(node, item);
@@ -477,11 +518,57 @@ export function createMoodMonthSummaryView({
     elements.moodJarItems.classList.toggle("is-empty", !items.length);
     lastJarSignature = signature;
     if (animationEntries.length) {
-      pendingJarAnimation = { key: animationKey, entries: animationEntries };
+      pendingJarAnimation = {
+        key: animationKey,
+        entries: animationEntries,
+        completed: 0,
+        started: false,
+        runId: jarAnimationRunId,
+        force: false,
+        manual: false,
+      };
       playPendingJarAnimation();
     } else if (items.length) {
       lastAnimationKey = animationKey;
     }
+  }
+
+  function replayJar() {
+    const stage = elements.moodJarStage;
+    const items = currentSummary?.jarItems || [];
+    if (!stage) return;
+    cancelJarAnimations();
+    pendingJarAnimation = null;
+    if (!items.length) {
+      setJarReplayStatus("本月还没有可播放的心情记录。");
+      return;
+    }
+    const plan = buildMoodJarAnimationPlan(items.length);
+    const stageRect = stage.getBoundingClientRect();
+    const entries = items.map((item, index) => {
+      const node = elements.moodJarItems?.querySelector(`[data-mood-jar-item-id="${CSS.escape(item.entryId)}"]`);
+      if (node && stageRect.width && stageRect.height) setJarNodePrepared(node, item, stageRect, "replay");
+      return {
+        node,
+        item,
+        delay: plan.entries[index]?.delay || 0,
+        duration: plan.entries[index]?.duration || 1050,
+        kind: "replay",
+      };
+    }).filter(({ node }) => node);
+    const key = `${currentSummary.monthKey}:${summarySignature(currentSummary)}`;
+    pendingJarAnimation = {
+      key,
+      entries,
+      completed: 0,
+      started: false,
+      runId: jarAnimationRunId,
+      force: true,
+      manual: true,
+    };
+    setJarBusy(true);
+    setJarReplayStatus(`正在重新播放本月 ${entries.length} 条心情…`);
+    playPendingJarAnimation();
   }
 
   function renderDominant(state, summary) {
@@ -522,17 +609,21 @@ export function createMoodMonthSummaryView({
 
   function renderTrend(state, summary) {
     if (!elements.moodTrendChart) return;
-    elements.moodTrendChart.setAttribute("viewBox", `0 0 ${TREND_LAYOUT.width} ${TREND_LAYOUT.height}`);
-    elements.moodTrendChart.setAttribute("width", String(TREND_LAYOUT.width));
-    elements.moodTrendChart.setAttribute("height", String(TREND_LAYOUT.height));
-    elements.moodTrendChart.setAttribute("preserveAspectRatio", "xMidYMid meet");
-    const signature = trendSignature(summary, state);
-    if (signature === lastTrendSignature) return;
     const documentTarget = elements.moodTrendChart.ownerDocument;
     const series = summary?.trendSeries || [];
     const hasData = series.some((item) => item.points.length);
     const dayCount = dayCountFor(summary?.monthKey);
     const compact = isCompactTrend(windowTarget);
+    const recordedDays = [...new Set(series.flatMap((item) => item.points.map((point) => point.day)))].sort((left, right) => left - right);
+    const layout = getMoodTrendLayout({ compact, monthDays: dayCount, recordedDays });
+    const signature = `${trendSignature(summary, state)}::${layout.width}:${layout.height}:${layout.mode}:${layout.recordedDays.join(",")}`;
+    elements.moodTrendChart.setAttribute("viewBox", `0 0 ${layout.width} ${layout.height}`);
+    elements.moodTrendChart.setAttribute("width", String(layout.width));
+    elements.moodTrendChart.setAttribute("height", String(layout.height));
+    elements.moodTrendChart.setAttribute("preserveAspectRatio", "none");
+    elements.moodTrendChart.dataset.moodTrendMode = layout.mode;
+    elements.moodTrendChart.dataset.moodTrendLayout = `${layout.width}x${layout.height}`;
+    if (signature === lastTrendSignature) return;
     elements.moodTrendLegend?.replaceChildren(...series.map((item, index) => {
       const legend = text(documentTarget, "span", "", `mood-trend-legend-item series-${index}`);
       const swatch = text(documentTarget, "i", "", `mood-trend-swatch ${item.shape === "square" ? "is-square" : "is-circle"}`);
@@ -543,7 +634,7 @@ export function createMoodMonthSummaryView({
     if (elements.moodTrendEmpty) elements.moodTrendEmpty.hidden = hasData;
     elements.moodTrendChart.toggleAttribute("hidden", !hasData);
     elements.moodTrendPointControls?.replaceChildren();
-    if (elements.moodTrendSummary) elements.moodTrendSummary.textContent = buildTrendSummary(state, summary);
+    if (elements.moodTrendSummary) elements.moodTrendSummary.textContent = buildTrendSummary(state, summary, layout);
     pointLookup.clear();
     if (!hasData) {
       elements.moodTrendTooltip && (elements.moodTrendTooltip.hidden = true);
@@ -552,17 +643,16 @@ export function createMoodMonthSummaryView({
       return;
     }
     elements.moodTrendChart.replaceChildren();
-    appendTrendAxis(documentTarget, elements.moodTrendChart, dayCount, compact, getMoodAsset);
+    appendTrendAxis(documentTarget, elements.moodTrendChart, layout, dayCount, getMoodAsset);
     for (const [index, item] of series.entries()) {
       for (const segment of item.segments || []) {
         if (segment.points.length < 2) continue;
         const isGap = segment.kind === "gap";
         const path = svgElement(documentTarget, "path", {
           class: `mood-trend-line series-${index} ${isGap ? "is-gap is-dashed" : index === 0 ? "is-solid" : "is-dashed"}`,
-          d: makeTrendPath(segment, dayCount),
-          stroke: TREND_FALLBACK_COLORS[index] || TREND_FALLBACK_COLORS[0],
+          d: makeTrendPath(segment, dayCount, layout),
         });
-        path.style.setProperty("--trend-color", TREND_COLORS[index] || TREND_COLORS[0]);
+        path.style.setProperty("--trend-color", TREND_COLORS[index]);
         elements.moodTrendChart.append(path);
       }
       for (const point of item.points) {
@@ -570,8 +660,8 @@ export function createMoodMonthSummaryView({
         const group = svgElement(documentTarget, "g", {
           class: `mood-trend-point series-${index} is-${point.shape}`,
         });
-        const x = trendX(point.day, dayCount);
-        const y = trendY(point.level);
+        const x = getMoodTrendX(layout, point.day, dayCount);
+        const y = trendY(point.level, layout);
         const label = trendPointLabel(state, item, point);
         group.append(svgElement(documentTarget, "circle", {
           class: "mood-trend-hit",
@@ -579,30 +669,21 @@ export function createMoodMonthSummaryView({
           cy: y,
           r: 22,
           "data-mood-trend-point": pointId,
-          tabindex: 0,
-          role: "button",
-          focusable: "true",
-          "aria-describedby": "moodTrendTooltip",
-          "aria-label": label,
         }));
-        group.style.setProperty("--trend-color", TREND_COLORS[index] || TREND_COLORS[0]);
+        group.style.setProperty("--trend-color", TREND_COLORS[index]);
         if (point.shape === "square") group.append(svgElement(documentTarget, "rect", {
           class: "mood-trend-visible-point",
-          x: x - 5,
-          y: y - 5,
-          width: 10,
-          height: 10,
+          x: x - 7,
+          y: y - 7,
+          width: 14,
+          height: 14,
           rx: 2,
-          fill: TREND_FALLBACK_COLORS[index] || TREND_FALLBACK_COLORS[0],
-          stroke: "#ffffff",
         }));
         else group.append(svgElement(documentTarget, "circle", {
           class: "mood-trend-visible-point",
           cx: x,
           cy: y,
-          r: 5,
-          fill: TREND_FALLBACK_COLORS[index] || TREND_FALLBACK_COLORS[0],
-          stroke: "#ffffff",
+          r: 7,
         }));
         elements.moodTrendChart.append(group);
         if (elements.moodTrendPointControls) {
@@ -611,8 +692,8 @@ export function createMoodMonthSummaryView({
           documentButton.dataset.moodTrendPoint = pointId;
           documentButton.setAttribute("aria-label", label);
           documentButton.setAttribute("aria-describedby", "moodTrendTooltip");
-          documentButton.style.setProperty("--mood-trend-point-x", `${x / TREND_LAYOUT.width * 100}%`);
-          documentButton.style.setProperty("--mood-trend-point-y", `${y / TREND_LAYOUT.height * 100}%`);
+          documentButton.style.setProperty("--mood-trend-point-x", `${x / layout.width * 100}%`);
+          documentButton.style.setProperty("--mood-trend-point-y", `${y / layout.height * 100}%`);
           elements.moodTrendPointControls.append(documentButton);
         }
         pointLookup.set(pointId, { point, name: nameFor(state, item) });
@@ -624,6 +705,7 @@ export function createMoodMonthSummaryView({
 
   function render(state) {
     const summary = state.monthSummary || { monthKey: state.currentMonthKey, total: 0, jarItems: [], dominantByUser: [], trendSeries: [], textSummary: "这个月还没有心情记录。" };
+    currentSummary = summary;
     if (elements.moodJarCount) elements.moodJarCount.textContent = `${summary.total || 0} 条记录`;
     if (elements.moodJarSummary) elements.moodJarSummary.textContent = summary.textSummary || "这个月还没有心情记录。";
     if (elements.moodJarSync) {
@@ -679,7 +761,8 @@ export function createMoodMonthSummaryView({
     lastAnimationKey = "";
     cancelJarAnimations();
     elements.moodJarItems?.querySelectorAll(".mood-jar-item").forEach((node) => setJarNodeFinal(node));
+    currentSummary = null;
   }
 
-  return Object.freeze({ bind, destroy, render });
+  return Object.freeze({ bind, destroy, render, replayJar });
 }

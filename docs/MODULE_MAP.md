@@ -14,7 +14,7 @@
 | 账户资料、头像、家庭设置、缓存设置 | `modules/profile-preferences-controller.js`, `modules/family-settings-controller.js` | `modules/settings-event-bindings.js`, `modules/account-view.js`, `modules/primary-navigation-view.js` |
 | 日记列表、搜索、筛选、瀑布流 | `modules/diary-feed-controller.js` | `modules/diary-gallery-view.js`, `modules/diary-domain.js` |
 | 首页今日心情概览、两席状态、原地快捷添加/详情和月历 CTA | `modules/today-mood-controller.js` | `modules/today-mood-view.js`, `modules/mood-entry-overlay-controller.js`, `modules/mood-diary-repository.js` |
-| 心情日记月历、月度汇总与历史 | `modules/mood-diary-controller.js`, `modules/mood-month-summary-domain.js` | `modules/mood-diary-domain.js`, `modules/mood-diary-view.js`, `modules/mood-month-summary-view.js`, `modules/mood-entry-overlay-controller.js`, `styles/mood-diary.css` |
+| 心情日记月历、月度汇总与历史 | `modules/mood-diary-controller.js`, `modules/mood-month-summary-domain.js` | `modules/mood-diary-domain.js`, `modules/mood-diary-view.js`, `modules/mood-month-summary-view.js`, `modules/mood-entry-overlay-controller.js`, `styles/mood-diary.css`；月度汇总包含 360×440 可重播玻璃瓶、确定性慢动画计划和动态/稀疏趋势坐标 |
 | 发布 / 编辑日记、上传队列 | `modules/diary-composer-controller.js`, `modules/photo-detail-controller.js` | `modules/diary-upload-domain.js`, `modules/content-form-event-bindings.js` |
 | VLOG 模式、视频声音、列表视觉中心自动播放、控件 | `modules/vlog-mode.js`, `modules/primary-navigation-controller.js`, `modules/photo-viewer-controller.js`, `modules/diary-feed-motion-coordinator.js` | `modules/app-runtime-vlog-mode.js`, `modules/diary-feed-motion-domain.js`, `modules/diary-video-layout.js`, `modules/media-event-bindings.js` |
 | 图片 / 视频详情、缩放、前后切换、手势 | `modules/photo-viewer-controller.js`, `modules/photo-detail-controller.js` | `modules/media-event-bindings.js`, `modules/media-gesture-domain.js`, `modules/photo-dialog-view.js` |
@@ -45,7 +45,7 @@
 - `modules/primary-navigation-domain.js` 是顶部分页注册表和配置规范化的唯一事实来源；`primary-navigation-controller.js` 通过现有 `preferences-store.js` 按用户/设备作用域读写，`primary-navigation-view.js` 只渲染当前可见入口和设置列表。VLOG 由 mode action 接入，不能被序列化成 `?page=vlog`。
 - `modules/push-controller.js` 的设置绑定只在 `settings-route.js` 完成 DOM 渲染后执行；关闭设备通知时本机 `unsubscribe()` 与 Worker 端点清理是分离失败边界，本机状态优先。
 - `modules/diary-video-layout.js` 管理详情媒体生命周期：普通视频进入日记/VLOG 详情后静音自动播放并保留原生控件，Live Photo 使用静音循环预览；加载、失败、重试、切图和关闭都会清理状态与监听。
-- `modules/mood-month-summary-domain.js` 从当前月份和稳定两席派生总数、最多心情、三档趋势、缺口桥接段及确定性罐体安全槽位；`modules/mood-month-summary-view.js` 只负责罐体前后层、内腔裁切、数据/视口动效状态机、原生 SVG 趋势图、提示、明细和动效降级。`mood-diary-controller.js` 负责请求、缓存、latest-wins、上下文迟到重读和写后 canonical 对齐，不监听滚动或操作动画 DOM。
+- `modules/mood-month-summary-domain.js` 从当前月份和稳定两席派生总数、最多心情、三档趋势、缺口桥接段、确定性罐体安全槽位、数量自适应慢动画计划及真实日期趋势坐标；`modules/mood-month-summary-view.js` 只负责罐体前后层、内腔裁切、原生按钮重播、数据/视口动效状态机、原生 SVG 趋势图、提示、明细和动效降级。`mood-diary-controller.js` 负责请求、缓存、latest-wins、上下文迟到重读和写后 canonical 对齐，不监听滚动或操作动画 DOM。
 
 ## 样式快速定位
 

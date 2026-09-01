@@ -26,11 +26,38 @@ const MOOD_LEVEL_BY_TYPE = Object.freeze({
 
 const MAX_JAR_ITEMS = 62;
 const JAR_COLUMNS = 8;
-const JAR_MIN_X = 31;
-const JAR_MAX_X = 69;
-const JAR_MIN_Y = 42;
-const JAR_MAX_Y = 80;
-const JAR_ROW_STEP = 5.4;
+const JAR_MIN_X = 27;
+const JAR_MAX_X = 73;
+const JAR_MIN_Y = 34;
+const JAR_MAX_Y = 81;
+const JAR_ROW_STEP = 6.2;
+
+const JAR_ANIMATION_RULES = Object.freeze([
+  Object.freeze({ maxItems: 12, batchSize: 1, batchInterval: 160, intraBatchDelay: 0, duration: 1050 }),
+  Object.freeze({ maxItems: 31, batchSize: 2, batchInterval: 125, intraBatchDelay: 30, duration: 980 }),
+  Object.freeze({ maxItems: MAX_JAR_ITEMS, batchSize: 4, batchInterval: 95, intraBatchDelay: 24, duration: 920 }),
+]);
+
+const TREND_LAYOUTS = Object.freeze({
+  compact: Object.freeze({
+    width: 390,
+    height: 360,
+    plotLeft: 70,
+    plotRight: 374,
+    highY: 72,
+    steadyY: 180,
+    lowY: 288,
+  }),
+  regular: Object.freeze({
+    width: 720,
+    height: 320,
+    plotLeft: 88,
+    plotRight: 696,
+    highY: 64,
+    steadyY: 150,
+    lowY: 236,
+  }),
+});
 
 function participantId(participant) {
   return String(participant?.userId || participant?.user_id || "").trim();
@@ -159,6 +186,70 @@ export function buildJarItems(entries, { participants = [] } = {}) {
         scale,
       });
     });
+}
+
+export function buildMoodJarAnimationPlan(count) {
+  const itemCount = clamp(Number.isFinite(Number(count)) ? Math.floor(Number(count)) : 0, 0, MAX_JAR_ITEMS);
+  if (!itemCount) {
+    return Object.freeze({ itemCount: 0, batchSize: 0, entries: Object.freeze([]), totalDuration: 0 });
+  }
+  const rule = JAR_ANIMATION_RULES.find(({ maxItems }) => itemCount <= maxItems) || JAR_ANIMATION_RULES.at(-1);
+  const entries = Array.from({ length: itemCount }, (_, index) => {
+    const batchIndex = Math.floor(index / rule.batchSize);
+    const indexInBatch = index % rule.batchSize;
+    return Object.freeze({
+      index,
+      batchIndex,
+      delay: batchIndex * rule.batchInterval + indexInBatch * rule.intraBatchDelay,
+      duration: rule.duration,
+    });
+  });
+  const totalDuration = Math.max(...entries.map(({ delay, duration }) => delay + duration));
+  return Object.freeze({
+    itemCount,
+    batchSize: rule.batchSize,
+    batchInterval: rule.batchInterval,
+    entries: Object.freeze(entries),
+    totalDuration,
+  });
+}
+
+function normalizeRecordedDays(recordedDays, monthDays) {
+  return [...new Set((Array.isArray(recordedDays) ? recordedDays : [])
+    .map((day) => Number(day))
+    .filter((day) => Number.isInteger(day) && day >= 1 && day <= monthDays))]
+    .sort((left, right) => left - right);
+}
+
+export function getMoodTrendLayout({ compact = false, monthDays = 31, recordedDays = [] } = {}) {
+  const safeMonthDays = clamp(Number.isInteger(monthDays) ? monthDays : 31, 1, 31);
+  const normalizedDays = normalizeRecordedDays(recordedDays, safeMonthDays);
+  const daySpan = normalizedDays.length ? normalizedDays.at(-1) - normalizedDays[0] : 0;
+  const hasLeadingOrTrailingGap = normalizedDays.length > 0
+    && (normalizedDays[0] > 1 || normalizedDays.at(-1) < safeMonthDays);
+  const sparse = normalizedDays.length > 0 && (normalizedDays.length <= 8 || (daySpan <= 10 && hasLeadingOrTrailingGap));
+  const mode = compact && sparse ? "recorded-days" : "calendar-days";
+  const base = compact ? TREND_LAYOUTS.compact : TREND_LAYOUTS.regular;
+  return Object.freeze({
+    ...base,
+    mode,
+    monthDays: safeMonthDays,
+    recordedDays: Object.freeze(normalizedDays),
+  });
+}
+
+export function getMoodTrendX(layout, day, monthDays = layout?.monthDays || 31) {
+  const safeDay = clamp(Number(day) || 1, 1, Number(monthDays) || 31);
+  if (layout?.mode === "recorded-days" && layout.recordedDays?.length) {
+    const exactIndex = layout.recordedDays.indexOf(safeDay);
+    const index = exactIndex >= 0
+      ? exactIndex
+      : layout.recordedDays.reduce((closest, recordedDay, recordedIndex) => (
+        Math.abs(recordedDay - safeDay) < Math.abs(layout.recordedDays[closest] - safeDay) ? recordedIndex : closest
+      ), 0);
+    return layout.plotLeft + (index / Math.max(1, layout.recordedDays.length - 1)) * (layout.plotRight - layout.plotLeft);
+  }
+  return layout.plotLeft + ((safeDay - 1) / Math.max(1, (Number(monthDays) || 31) - 1)) * (layout.plotRight - layout.plotLeft);
 }
 
 function buildDominantMood(entries, participant) {

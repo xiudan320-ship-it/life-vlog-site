@@ -440,10 +440,29 @@ button.mood-calendar-cell:hover {
 
 .mood-jar-stage {
   position: relative;
+  display: block;
   width: min(100%, 360px);
-  aspect-ratio: 320 / 360;
+  aspect-ratio: 360 / 440;
   margin: 14px auto 0;
+  padding: 0;
+  border: 0;
+  border-radius: 26px;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
   isolation: isolate;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.mood-jar-stage:focus-visible {
+  outline: 3px solid var(--mood-focus);
+  outline-offset: 6px;
+}
+
+.mood-jar-stage:active {
+  opacity: 0.9;
 }
 
 .mood-jar-outline,
@@ -468,8 +487,8 @@ button.mood-calendar-cell:hover {
 .mood-jar-viewport {
   z-index: 2;
   overflow: hidden;
-  clip-path: polygon(34% 21%, 66% 21%, 66% 25%, 75% 36%, 77% 48%, 77% 78%, 75% 86%, 72% 88%, 28% 88%, 25% 86%, 23% 78%, 23% 48%, 25% 36%, 34% 25%);
-  -webkit-clip-path: polygon(34% 21%, 66% 21%, 66% 25%, 75% 36%, 77% 48%, 77% 78%, 75% 86%, 72% 88%, 28% 88%, 25% 86%, 23% 78%, 23% 48%, 25% 36%, 34% 25%);
+  clip-path: polygon(30% 21%, 70% 21%, 70% 26%, 78% 32%, 83% 42%, 84% 54%, 84% 78%, 81% 84%, 76% 87%, 24% 87%, 19% 84%, 16% 78%, 16% 54%, 17% 42%, 22% 32%, 30% 26%);
+  -webkit-clip-path: polygon(30% 21%, 70% 21%, 70% 26%, 78% 32%, 83% 42%, 84% 54%, 84% 78%, 81% 84%, 76% 87%, 24% 87%, 19% 84%, 16% 78%, 16% 54%, 17% 42%, 22% 32%, 30% 26%);
   pointer-events: none;
 }
 
@@ -483,35 +502,66 @@ button.mood-calendar-cell:hover {
 }
 
 .mood-jar-glass {
-  fill: color-mix(in srgb, var(--mood-surface) 58%, transparent);
+  fill: color-mix(in srgb, var(--mood-accent) 13%, var(--mood-surface) 87%);
+  fill-opacity: 0.72;
   stroke: none;
 }
 
 .mood-jar-rim,
-.mood-jar-rim-back {
-  fill: color-mix(in srgb, var(--mood-surface) 76%, transparent);
+.mood-jar-rim-back,
+.mood-jar-rim-inner,
+.mood-jar-rim-inner-back {
+  fill: color-mix(in srgb, var(--mood-surface) 72%, var(--mood-accent) 28%);
+  fill-opacity: 0.58;
   stroke: color-mix(in srgb, var(--mood-ink) 48%, transparent);
+  stroke-width: 2.5;
+}
+
+.mood-jar-rim-inner,
+.mood-jar-rim-inner-back {
+  fill: none;
+  stroke: color-mix(in srgb, var(--mood-ink) 34%, transparent);
   stroke-width: 2;
 }
 
 .mood-jar-body {
   fill: none;
   stroke: color-mix(in srgb, var(--mood-ink) 42%, transparent);
-  stroke-width: 2;
+  stroke-width: 2.5;
+  stroke-linejoin: round;
 }
 
+.mood-jar-highlight-wide,
 .mood-jar-highlight,
-.mood-jar-base {
+.mood-jar-base-back,
+.mood-jar-base,
+.mood-jar-base-inner {
   fill: none;
   stroke: color-mix(in srgb, var(--mood-ink) 28%, transparent);
   stroke-linecap: round;
   stroke-width: 3;
 }
 
+.mood-jar-base-back {
+  fill: color-mix(in srgb, var(--mood-surface) 68%, transparent);
+  fill-opacity: 0.7;
+  stroke-width: 2;
+}
+
+.mood-jar-base {
+  fill: color-mix(in srgb, var(--mood-surface) 72%, var(--mood-accent) 28%);
+  fill-opacity: 0.35;
+}
+
+.mood-jar-base-inner {
+  stroke: color-mix(in srgb, var(--mood-ink) 38%, transparent);
+  stroke-width: 2;
+}
+
 .mood-jar-item {
   position: absolute;
   display: grid;
-  width: clamp(24px, 9vw, 32px);
+  width: clamp(30px, 9vw, 36px);
   left: var(--jar-x);
   top: var(--jar-y);
   aspect-ratio: 1;
@@ -519,6 +569,14 @@ button.mood-calendar-cell:hover {
   transform: translate(-50%, -50%) rotate(var(--jar-rotation, 0deg)) scale(var(--jar-scale, 1));
   transform-origin: center;
   pointer-events: none;
+}
+
+.mood-jar-stage[data-jar-density="medium"] .mood-jar-item {
+  width: clamp(26px, 8vw, 32px);
+}
+
+.mood-jar-stage[data-jar-density="dense"] .mood-jar-item {
+  width: clamp(22px, 7vw, 28px);
 }
 
 .mood-jar-motion {
@@ -582,6 +640,13 @@ button.mood-calendar-cell:hover {
 .mood-jar-caption {
   min-height: 24px;
   margin: 10px 0 0;
+  text-align: center;
+}
+
+.mood-jar-replay-hint {
+  margin: 6px 0 0;
+  color: var(--mood-muted);
+  font-size: 0.78rem;
   text-align: center;
 }
 
@@ -719,7 +784,7 @@ button.mood-calendar-cell:hover {
 .mood-trend-chart-shell {
   position: relative;
   min-width: 0;
-  aspect-ratio: 720 / 260;
+  height: 320px;
   margin-top: 10px;
 }
 
@@ -767,7 +832,7 @@ button.mood-calendar-cell:hover {
   width: 100%;
   height: 100%;
   min-height: 0;
-  aspect-ratio: 720 / 260;
+  aspect-ratio: auto;
   overflow: visible;
   color: var(--mood-ink);
 }
@@ -788,7 +853,7 @@ button.mood-calendar-cell:hover {
 .mood-trend-axis-caption {
   fill: var(--mood-muted);
   font-family: inherit;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
 }
 
@@ -798,10 +863,10 @@ button.mood-calendar-cell:hover {
 
 .mood-trend-line {
   fill: none;
-  stroke: var(--trend-color, #9b4d48);
+  stroke: var(--trend-color);
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 3;
+  stroke-width: 3.5;
   vector-effect: non-scaling-stroke;
 }
 
@@ -810,16 +875,16 @@ button.mood-calendar-cell:hover {
   stroke-dasharray: 2 8;
   opacity: 0.58;
 }
-.mood-trend-line.series-0 { --trend-color: var(--mood-trend-primary, #9b4d48); }
-.mood-trend-line.series-1 { --trend-color: var(--mood-trend-secondary, #2e7083); }
+.mood-trend-line.series-0 { --trend-color: var(--mood-trend-primary); }
+.mood-trend-line.series-1 { --trend-color: var(--mood-trend-secondary); }
 
 .mood-trend-point {
-  --trend-color: var(--mood-trend-primary, #9b4d48);
+  --trend-color: var(--mood-trend-primary);
   cursor: pointer;
   outline: none;
 }
 
-.mood-trend-point.series-1 { --trend-color: var(--mood-trend-secondary, #2e7083); }
+.mood-trend-point.series-1 { --trend-color: var(--mood-trend-secondary); }
 
 .mood-trend-hit {
   fill: transparent;
@@ -827,8 +892,8 @@ button.mood-calendar-cell:hover {
 }
 
 .mood-trend-visible-point {
-  fill: var(--trend-color, #9b4d48);
-  stroke: var(--mood-surface, #ffffff);
+  fill: var(--trend-color);
+  stroke: var(--mood-surface);
   stroke-width: 2;
   vector-effect: non-scaling-stroke;
 }
@@ -850,7 +915,7 @@ button.mood-calendar-cell:hover {
   color: var(--mood-ink);
   background: var(--mood-surface);
   box-shadow: 0 8px 24px color-mix(in srgb, var(--mood-ink) 14%, transparent);
-  font-size: 0.8rem;
+  font-size: 0.88rem;
   line-height: 1.45;
 }
 
@@ -1461,6 +1526,20 @@ body.theme-dark .mood-diary-page {
     grid-template-columns: 1fr;
   }
 
+  .mood-trend-chart-shell {
+    height: clamp(300px, 86vw, 340px);
+  }
+
+  .mood-trend-axis-label,
+  .mood-trend-date-label,
+  .mood-trend-axis-caption {
+    font-size: 14px;
+  }
+
+  .mood-trend-line {
+    stroke-width: 3.5;
+  }
+
   .mood-trend-data-list li {
     grid-template-columns: 1fr;
     gap: 3px;
@@ -1504,6 +1583,12 @@ body.theme-dark .mood-diary-page {
 
   .mood-history-date strong {
     font-size: 1.25rem;
+  }
+}
+
+@media (max-height: 700px) and (orientation: landscape) {
+  .mood-trend-chart-shell {
+    height: clamp(300px, 86vw, 340px);
   }
 }
 
