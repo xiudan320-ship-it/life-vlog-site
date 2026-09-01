@@ -560,32 +560,25 @@ button.mood-calendar-cell:hover {
 
 .mood-jar-item {
   position: absolute;
-  display: grid;
-  width: clamp(30px, 9vw, 36px);
-  left: var(--jar-x);
-  top: var(--jar-y);
-  aspect-ratio: 1;
-  place-items: center;
-  transform: translate(-50%, -50%) rotate(var(--jar-rotation, 0deg)) scale(var(--jar-scale, 1));
-  transform-origin: center;
+  top: 0;
+  left: 0;
+  display: block;
+  width: 0;
+  height: 0;
   pointer-events: none;
 }
 
-.mood-jar-stage[data-jar-density="medium"] .mood-jar-item {
-  width: clamp(26px, 8vw, 32px);
-}
-
-.mood-jar-stage[data-jar-density="dense"] .mood-jar-item {
-  width: clamp(22px, 7vw, 28px);
-}
-
 .mood-jar-motion {
+  position: absolute;
+  top: 0;
+  left: 0;
   display: grid;
   width: 100%;
   height: 100%;
   place-items: center;
   opacity: 1;
   transform: translate3d(0px, 0px, 0px);
+  transform-origin: center;
   will-change: transform, opacity;
 }
 

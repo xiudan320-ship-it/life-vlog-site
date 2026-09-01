@@ -25,18 +25,6 @@ const MOOD_LEVEL_BY_TYPE = Object.freeze({
 });
 
 const MAX_JAR_ITEMS = 62;
-const JAR_COLUMNS = 8;
-const JAR_MIN_X = 27;
-const JAR_MAX_X = 73;
-const JAR_MIN_Y = 34;
-const JAR_MAX_Y = 81;
-const JAR_ROW_STEP = 6.2;
-
-const JAR_ANIMATION_RULES = Object.freeze([
-  Object.freeze({ maxItems: 12, batchSize: 1, batchInterval: 160, intraBatchDelay: 0, duration: 1050 }),
-  Object.freeze({ maxItems: 31, batchSize: 2, batchInterval: 125, intraBatchDelay: 30, duration: 980 }),
-  Object.freeze({ maxItems: MAX_JAR_ITEMS, batchSize: 4, batchInterval: 95, intraBatchDelay: 24, duration: 920 }),
-]);
 
 const TREND_LAYOUTS = Object.freeze({
   compact: Object.freeze({
@@ -155,19 +143,11 @@ export function getMoodTrendLevel(mood) {
 export function buildJarItems(entries, { participants = [] } = {}) {
   const normalizedParticipants = normalizeParticipants(participants);
   const seatRank = seatRankFactory(normalizedParticipants);
-  const columnStep = (JAR_MAX_X - JAR_MIN_X) / (JAR_COLUMNS - 1);
   return sortJarEntries(entries || [], seatRank)
     .slice(0, MAX_JAR_ITEMS)
     .map((entry, index) => {
       const participant = normalizedParticipants.find(({ userId }) => userId === entry.user_id);
       const seed = `${entry.id}:${entry.user_id}:${entry.diary_date}:${entry.mood}`;
-      const row = Math.floor(index / JAR_COLUMNS);
-      const column = index % JAR_COLUMNS;
-      const stagger = row % 2 ? 1.8 : 0;
-      const xOffset = (hashUnit(seed, "x") - 0.5) * 2.2;
-      const yOffset = (hashUnit(seed, "y") - 0.5) * 1.1;
-      const x = clamp(JAR_MIN_X + column * columnStep + stagger + xOffset, JAR_MIN_X, JAR_MAX_X);
-      const y = clamp(JAR_MAX_Y - row * JAR_ROW_STEP + yOffset, JAR_MIN_Y, JAR_MAX_Y);
       const rotate = Number((-7 + hashUnit(seed, "rotate") * 15).toFixed(2));
       const scale = Number((0.88 + hashUnit(seed, "scale") * 0.12).toFixed(3));
       const shape = participant?.shape || "circle";
@@ -180,38 +160,10 @@ export function buildJarItems(entries, { participants = [] } = {}) {
         shape,
         asset: getMoodAsset(entry.mood, shape),
         slotIndex: index,
-        x: Number(x.toFixed(3)),
-        y: Number(y.toFixed(3)),
         rotate,
         scale,
       });
     });
-}
-
-export function buildMoodJarAnimationPlan(count) {
-  const itemCount = clamp(Number.isFinite(Number(count)) ? Math.floor(Number(count)) : 0, 0, MAX_JAR_ITEMS);
-  if (!itemCount) {
-    return Object.freeze({ itemCount: 0, batchSize: 0, entries: Object.freeze([]), totalDuration: 0 });
-  }
-  const rule = JAR_ANIMATION_RULES.find(({ maxItems }) => itemCount <= maxItems) || JAR_ANIMATION_RULES.at(-1);
-  const entries = Array.from({ length: itemCount }, (_, index) => {
-    const batchIndex = Math.floor(index / rule.batchSize);
-    const indexInBatch = index % rule.batchSize;
-    return Object.freeze({
-      index,
-      batchIndex,
-      delay: batchIndex * rule.batchInterval + indexInBatch * rule.intraBatchDelay,
-      duration: rule.duration,
-    });
-  });
-  const totalDuration = Math.max(...entries.map(({ delay, duration }) => delay + duration));
-  return Object.freeze({
-    itemCount,
-    batchSize: rule.batchSize,
-    batchInterval: rule.batchInterval,
-    entries: Object.freeze(entries),
-    totalDuration,
-  });
 }
 
 function normalizeRecordedDays(recordedDays, monthDays) {

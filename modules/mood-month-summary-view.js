@@ -1,13 +1,11 @@
-import { buildMoodJarAnimationPlan, getMoodTrendLayout, getMoodTrendX } from "./mood-month-summary-domain.js";
+import { getMoodTrendLayout, getMoodTrendX } from "./mood-month-summary-domain.js";
+import { MOOD_JAR_GEOMETRY, createMoodJarSimulation } from "./mood-jar-physics.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 const TREND_COLORS = Object.freeze([
   "var(--mood-trend-primary)",
   "var(--mood-trend-secondary)",
 ]);
-const JAR_MOUTH = Object.freeze({ x: 180 / 360, y: 52 / 440 });
-const JAR_FINAL_MOTION = "translate3d(0px, 0px, 0px)";
-
 function text(documentTarget, tagName, value = "", className = "") {
   const element = documentTarget.createElement(tagName);
   if (className) element.className = className;
@@ -68,7 +66,7 @@ function moodAsset(documentTarget, mood, shape, getMoodAsset, className = "") {
 }
 
 function summarySignature(summary) {
-  return (summary?.jarItems || []).map((item) => [item.entryId, item.dateKey, item.mood, item.shape, item.x, item.y, item.rotate, item.scale].join(":"))
+  return (summary?.jarItems || []).map((item) => [item.entryId, item.dateKey, item.mood, item.shape, item.rotate, item.scale].join(":"))
     .join("|");
 }
 
@@ -84,111 +82,52 @@ function jarMotionNode(node) {
   return node?.querySelector?.(".mood-jar-motion");
 }
 
-function cancelAnimations(node) {
-  node?.getAnimations?.().forEach((animation) => animation.cancel());
-}
-
-function setJarNodeFinal(node) {
-  const motion = jarMotionNode(node);
-  if (!motion) return;
-  cancelAnimations(motion);
-  motion.style.opacity = "1";
-  motion.style.transform = JAR_FINAL_MOTION;
-}
-
-function jarMouthDelta(stageRect, item) {
-  const mouthX = stageRect.width * JAR_MOUTH.x;
-  const mouthY = stageRect.height * JAR_MOUTH.y;
-  const slotX = stageRect.width * item.x / 100;
-  const slotY = stageRect.height * item.y / 100;
-  return { x: mouthX - slotX, y: mouthY - slotY };
-}
-
 function translate3d(x, y) {
   return `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0px)`;
 }
 
-function jarMouthTransform(stageRect, item) {
-  const { x, y } = jarMouthDelta(stageRect, item);
-  return translate3d(x, y);
-}
-
-function jarBounceTransform(stageRect, item) {
-  const { x, y } = jarMouthDelta(stageRect, item);
-  return `${translate3d(x * 0.08, y * 0.08)} scale(1.04)`;
-}
-
-function setJarNodePrepared(node, item, stageRect, kind = "enter") {
-  const motion = jarMotionNode(node);
-  if (!motion) return;
-  if (kind === "edit") {
-    setJarNodeFinal(node);
-    return;
-  }
-  cancelAnimations(motion);
-  motion.style.opacity = "0";
-  motion.style.transform = `${jarMouthTransform(stageRect, item)} rotate(${item.rotate - 12}deg) scale(${Math.max(0.72, item.scale - 0.12)})`;
-}
-
-function setJarNodeWaiting(node, item) {
-  const motion = jarMotionNode(node);
-  if (!motion) return;
-  cancelAnimations(motion);
-  motion.style.opacity = "0";
-  motion.style.transform = `translate3d(0px, -48px, 0px) rotate(${item.rotate - 12}deg) scale(${Math.max(0.72, item.scale - 0.12)})`;
-}
-
-function animateJarNode(node, item, { stageRect, delay = 0, duration = 1050, reduced = false, enabled = false, kind = "auto-enter", onFinish } = {}) {
-  const motion = jarMotionNode(node);
-  if (!motion) return;
-  cancelAnimations(motion);
-  if (!enabled || reduced || typeof motion.animate !== "function") {
-    setJarNodeFinal(node);
-    onFinish?.();
-    return;
-  }
-  const keyframes = kind === "edit"
-    ? [
-      { opacity: 1, transform: "translate3d(0px, 0px, 0px) scale(0.94)" },
-      { opacity: 0.45, transform: "translate3d(0px, 0px, 0px) scale(1.04)" },
-      { opacity: 1, transform: JAR_FINAL_MOTION },
-    ]
-    : [
-      { opacity: 0, transform: `${jarMouthTransform(stageRect, item)} rotate(${item.rotate - 12}deg) scale(${Math.max(0.72, item.scale - 0.12)})` },
-      { offset: 0.58, opacity: 0.84, transform: `${jarBounceTransform(stageRect, item)} rotate(${item.rotate - 3}deg)` },
-      { offset: 0.78, opacity: 1, transform: `${jarBounceTransform(stageRect, item)} rotate(${item.rotate}deg) scale(1.02)` },
-      { offset: 0.9, opacity: 1, transform: "translate3d(0px, 0px, 0px) scale(1.04)" },
-      { opacity: 1, transform: JAR_FINAL_MOTION },
-    ];
-  const animation = motion.animate(keyframes, {
-    duration: kind === "edit" ? 180 : duration,
-    delay,
-    easing: "cubic-bezier(0.2, 0.78, 0.24, 1)",
-    fill: "both",
-  });
-  animation.onfinish = () => {
-    animation.cancel();
-    setJarNodeFinal(node);
-    onFinish?.();
+function stageMetrics(stageRect) {
+  const width = Number(stageRect?.width) || MOOD_JAR_GEOMETRY.width;
+  const height = Number(stageRect?.height) || MOOD_JAR_GEOMETRY.height;
+  return {
+    width,
+    height,
+    scaleX: width / MOOD_JAR_GEOMETRY.width,
+    scaleY: height / MOOD_JAR_GEOMETRY.height,
   };
 }
 
-function animateJarRemoval(node, reduced) {
+function setJarNodeGeometry(node, particle, stageRect) {
+  if (!node || !particle) return;
+  const metrics = stageMetrics(stageRect);
+  node.style.width = `${(particle.radius * 2 * metrics.scaleX).toFixed(2)}px`;
+  node.style.height = `${(particle.radius * 2 * metrics.scaleY).toFixed(2)}px`;
+}
+
+function setJarNodeState(node, particle, stageRect, { visible = particle?.spawned, active = false } = {}) {
   const motion = jarMotionNode(node);
-  if (!motion) {
-    node.remove();
-    return;
-  }
-  cancelAnimations(motion);
-  if (reduced || typeof motion.animate !== "function") {
-    node.remove();
-    return;
-  }
-  const animation = motion.animate([
-    { opacity: 1, transform: JAR_FINAL_MOTION },
-    { opacity: 0, transform: "translate3d(0px, -8px, 0px) scale(0.82)" },
-  ], { duration: 180, easing: "ease-in" });
-  animation.onfinish = () => node.remove();
+  if (!motion || !particle) return;
+  const metrics = stageMetrics(stageRect);
+  const width = particle.radius * 2 * metrics.scaleX;
+  const height = particle.radius * 2 * metrics.scaleY;
+  motion.style.opacity = visible ? "1" : "0";
+  motion.style.transform = `${translate3d(particle.x * metrics.scaleX - width / 2, particle.y * metrics.scaleY - height / 2)} rotate(${particle.rotation.toFixed(2)}deg)`;
+  if (active && motion.style.willChange !== "transform, opacity") motion.style.willChange = "transform, opacity";
+  if (!active && motion.style.willChange !== "auto") motion.style.willChange = "auto";
+}
+
+function setJarNodePrepared(node, particle, stageRect) {
+  const motion = jarMotionNode(node);
+  if (!motion || !particle) return;
+  setJarNodeGeometry(node, particle, stageRect);
+  setJarNodeState(node, particle, stageRect, { visible: false, active: true });
+}
+
+function settleJarSimulation(simulation) {
+  if (!simulation) return new Map();
+  const plan = simulation.getPlan();
+  simulation.advanceTo(plan.totalDurationMs || 0);
+  return new Map(simulation.getState().map((particle) => [particle.id, particle]));
 }
 
 function createJarNode(documentTarget, item, getMoodAsset) {
@@ -203,10 +142,6 @@ function createJarNode(documentTarget, item, getMoodAsset) {
 function updateJarNode(node, item, documentTarget, getMoodAsset) {
   node.className = `mood-jar-item is-${item.shape}`;
   node.dataset.moodJarItemId = item.entryId;
-  node.style.setProperty("--jar-x", `${item.x}%`);
-  node.style.setProperty("--jar-y", `${item.y}%`);
-  node.style.setProperty("--jar-rotation", `${item.rotate}deg`);
-  node.style.setProperty("--jar-scale", item.scale);
   node.title = `${item.dateKey}，${item.moodLabel}`;
   const motion = jarMotionNode(node);
   const image = motion?.querySelector("img");
@@ -344,6 +279,7 @@ export function createMoodMonthSummaryView({
   let lastTrendSignature = null;
   let lastAnimationKey = "";
   let jarObserver = null;
+  let jarViewportEventsBound = false;
   let jarVisibilityKnown = false;
   let jarInViewport = false;
   let pendingJarAnimation = null;
@@ -374,6 +310,24 @@ export function createMoodMonthSummaryView({
     elements.moodJarStage.setAttribute("aria-busy", String(Boolean(isBusy)));
   }
 
+  function readJarStageRect() {
+    const rect = elements.moodJarStage?.getBoundingClientRect?.();
+    return rect?.width > 0 && rect.height > 0 ? rect : null;
+  }
+
+  function jarSeed(summary) {
+    return `${summary?.monthKey || ""}:${summarySignature(summary)}`;
+  }
+
+  function applyJarState(pending, state, active = false, updateGeometry = false) {
+    for (const particle of state) {
+      const node = pending.nodesById.get(particle.id);
+      if (!node) continue;
+      if (updateGeometry) setJarNodeGeometry(node, particle, pending.stageRect);
+      setJarNodeState(node, particle, pending.stageRect, { active });
+    }
+  }
+
   function cancelJarAnimations() {
     jarAnimationRunId += 1;
     if (jarAnimationFrameId !== null) {
@@ -381,66 +335,93 @@ export function createMoodMonthSummaryView({
       jarAnimationFrameId = null;
     }
     setJarBusy(false);
-    elements.moodJarItems?.querySelectorAll(".mood-jar-motion").forEach((node) => cancelAnimations(node));
+    pendingJarAnimation = null;
   }
 
   function finishJarAnimation(pending) {
     if (!pending || pending.runId !== jarAnimationRunId) return;
-    pending.completed += 1;
-    if (pending.completed < pending.entries.length) return;
-    pending.entries.forEach(({ node }) => setJarNodeFinal(node));
+    if (!pending.simulation.isSettled()) settleJarSimulation(pending.simulation);
+    applyJarState(pending, pending.simulation.getState(), false, true);
     pendingJarAnimation = null;
     lastAnimationKey = pending.key;
     setJarBusy(false);
-    if (pending.manual) setJarReplayStatus(`本月 ${pending.entries.length} 条心情已重新播放完成。`);
+    if (pending.manual) setJarReplayStatus(pending.reduced
+      ? "已显示本月心情；系统已启用减少动态效果。"
+      : `本月 ${pending.entries.length} 条心情已重新播放完成。`);
+  }
+
+  function runJarAnimationFrame(timestamp, pending) {
+    jarAnimationFrameId = null;
+    if (pending.runId !== jarAnimationRunId || pendingJarAnimation !== pending) return;
+    const now = Number(timestamp);
+    const elapsed = pending.lastTimestamp === null
+      ? 1000 / 60
+      : Math.min(1000, Math.max(0, (Number.isFinite(now) ? now : pending.lastTimestamp) - pending.lastTimestamp));
+    pending.lastTimestamp = Number.isFinite(now) ? now : pending.lastTimestamp + elapsed;
+    pending.simulation.advanceFrame(elapsed || 1000 / 60);
+    applyJarState(pending, pending.simulation.getState(), true);
+    if (pending.simulation.isSettled()) {
+      finishJarAnimation(pending);
+      return;
+    }
+    if (typeof windowTarget?.requestAnimationFrame === "function") {
+      jarAnimationFrameId = windowTarget.requestAnimationFrame((nextTimestamp) => runJarAnimationFrame(nextTimestamp, pending));
+    } else {
+      pending.simulation.advanceTo(pending.simulation.getPlan().totalDurationMs);
+      finishJarAnimation(pending);
+    }
   }
 
   function playPendingJarAnimation() {
     if (!pendingJarAnimation) return;
     const pending = pendingJarAnimation;
     const reduce = isReducedMotion(windowTarget);
-    if (reduce || (!pending.force && !jarObserver && !canPlayJarAnimation())) {
-      pending.entries.forEach(({ node }) => setJarNodeFinal(node));
-      pendingJarAnimation = null;
-      lastAnimationKey = pending.key;
-      setJarBusy(false);
-      if (pending.manual) setJarReplayStatus(reduce ? "已显示本月心情；系统已启用减少动态效果。" : `本月 ${pending.entries.length} 条心情已显示。`);
+    if (reduce) {
+      pending.reduced = true;
+      pending.stageRect = readJarStageRect() || pending.stageRect;
+      settleJarSimulation(pending.simulation);
+      finishJarAnimation(pending);
       return;
     }
-    if (!pending.force && jarObserver && !canPlayJarAnimation()) return;
     if (!pending.force && !canPlayJarAnimation()) return;
     if (pending.started) return;
-    const stageRect = elements.moodJarStage?.getBoundingClientRect();
-    if (!stageRect?.width || !stageRect.height) {
-      pending.entries.forEach(({ node }) => setJarNodeFinal(node));
-      pendingJarAnimation = null;
-      lastAnimationKey = pending.key;
-      setJarBusy(false);
-      if (pending.manual) setJarReplayStatus(`本月 ${pending.entries.length} 条心情已显示。`);
+    const stageRect = readJarStageRect();
+    if (!stageRect) {
+      pending.stageRect = pending.stageRect || { width: MOOD_JAR_GEOMETRY.width, height: MOOD_JAR_GEOMETRY.height };
+      settleJarSimulation(pending.simulation);
+      finishJarAnimation(pending);
       return;
     }
+    pending.stageRect = stageRect;
     pending.started = true;
-    const start = () => {
-      jarAnimationFrameId = null;
-      if (pending.runId !== jarAnimationRunId || pendingJarAnimation !== pending) return;
-      pending.entries.forEach(({ node, item, delay, duration, kind }) => animateJarNode(node, item, {
-        stageRect,
-        delay,
-        duration,
-        kind,
-        reduced: false,
-        enabled: true,
-        onFinish: () => finishJarAnimation(pending),
-      }));
-      if (!pending.entries.length) finishJarAnimation(pending);
-    };
-    if (typeof windowTarget?.requestAnimationFrame === "function") jarAnimationFrameId = windowTarget.requestAnimationFrame(start);
-    else start();
+    setJarBusy(true);
+    applyJarState(pending, pending.simulation.getState(), true, true);
+    if (typeof windowTarget?.requestAnimationFrame === "function") {
+      jarAnimationFrameId = windowTarget.requestAnimationFrame((timestamp) => runJarAnimationFrame(timestamp, pending));
+    } else {
+      pending.simulation.advanceTo(pending.simulation.getPlan().totalDurationMs);
+      finishJarAnimation(pending);
+    }
+  }
+
+  function handleJarViewportChange() {
+    if (!pendingJarAnimation) return;
+    jarVisibilityKnown = true;
+    jarInViewport = isJarStageVisible();
+    if (jarInViewport) playPendingJarAnimation();
+  }
+
+  function bindJarViewportEvents() {
+    if (jarViewportEventsBound) return;
+    windowTarget?.addEventListener?.("scroll", handleJarViewportChange, { passive: true });
+    windowTarget?.addEventListener?.("resize", handleJarViewportChange, { passive: true });
+    jarViewportEventsBound = true;
   }
 
   function ensureJarObserver() {
     const stage = elements.moodJarStage;
     if (!stage || jarObserver || jarVisibilityKnown) return;
+    bindJarViewportEvents();
     const Observer = windowTarget?.IntersectionObserver || globalThis?.IntersectionObserver;
     if (typeof Observer !== "function") {
       jarVisibilityKnown = true;
@@ -473,62 +454,52 @@ export function createMoodMonthSummaryView({
       return;
     }
     const existing = new Map([...elements.moodJarItems.children].map((node) => [node.dataset.moodJarItemId, node]));
-    const reduce = isReducedMotion(windowTarget);
     const animationMode = state.monthRenderReason;
     const isNewAnimationKey = animationKey !== lastAnimationKey;
     const animateAll = Boolean(items.length) && isNewAnimationKey && (
-      ["initial", "month-change"].includes(animationMode)
+      ["initial", "month-change", "mutation"].includes(animationMode)
       || (!lastAnimationKey && !state.changedEntryId)
     );
-    const animateChanged = animationMode === "mutation" && Boolean(state.changedEntryId) && isNewAnimationKey;
-    const animationEntries = [];
-    const animationPlan = buildMoodJarAnimationPlan(items.length);
-    const stageRect = elements.moodJarStage?.getBoundingClientRect();
     cancelJarAnimations();
-    pendingJarAnimation = null;
+    const stageRect = readJarStageRect();
+    const simulation = createMoodJarSimulation(items, { seed: jarSeed(summary) });
+    const initialState = new Map(simulation.getState().map((particle) => [particle.id, particle]));
+    const settledState = animateAll ? null : settleJarSimulation(simulation);
+    const nodesById = new Map();
     for (const item of items) {
       const existingNode = existing.get(item.entryId);
       const node = existingNode || createJarNode(documentTarget, item, getMoodAsset);
       updateJarNode(node, item, documentTarget, getMoodAsset);
       elements.moodJarItems.append(node);
-      const shouldAnimate = animateAll || (animateChanged && item.entryId === state.changedEntryId);
-      if (shouldAnimate) {
-        animationEntries.push({
-          node,
-          item,
-          kind: animateAll ? "auto-enter" : existingNode ? "edit" : "mutation-enter",
-          delay: animateAll ? animationPlan.entries[item.slotIndex]?.delay || 0 : 0,
-          duration: animateAll ? animationPlan.entries[item.slotIndex]?.duration || 1050 : 180,
-        });
-        if (stageRect?.width && stageRect.height) setJarNodePrepared(node, item, stageRect, animateAll ? "enter" : existingNode ? "edit" : "enter");
-        else setJarNodeWaiting(node, item);
+      nodesById.set(item.entryId, node);
+      if (animateAll) {
+        setJarNodePrepared(node, initialState.get(item.entryId), stageRect || { width: MOOD_JAR_GEOMETRY.width, height: MOOD_JAR_GEOMETRY.height });
       } else {
-        setJarNodeFinal(node);
+        setJarNodeGeometry(node, settledState.get(item.entryId), stageRect || { width: MOOD_JAR_GEOMETRY.width, height: MOOD_JAR_GEOMETRY.height });
+        setJarNodeState(node, settledState.get(item.entryId), stageRect || { width: MOOD_JAR_GEOMETRY.width, height: MOOD_JAR_GEOMETRY.height });
       }
       existing.delete(item.entryId);
     }
     for (const [entryId, node] of existing) {
-      const shouldFade = animationMode === "mutation" && entryId === state.changedEntryId && !reduce && canPlayJarAnimation();
-      if (shouldFade) animateJarRemoval(node, reduce);
-      else {
-        setJarNodeFinal(node);
-        node.remove();
-      }
+      node.remove();
     }
     elements.moodJarItems.classList.toggle("is-empty", !items.length);
     lastJarSignature = signature;
-    if (animationEntries.length) {
+    if (animateAll) {
       pendingJarAnimation = {
         key: animationKey,
-        entries: animationEntries,
-        completed: 0,
+        entries: items,
+        nodesById,
+        simulation,
+        stageRect,
         started: false,
+        lastTimestamp: null,
         runId: jarAnimationRunId,
         force: false,
         manual: false,
       };
       playPendingJarAnimation();
-    } else if (items.length) {
+    } else {
       lastAnimationKey = animationKey;
     }
   }
@@ -538,30 +509,31 @@ export function createMoodMonthSummaryView({
     const items = currentSummary?.jarItems || [];
     if (!stage) return;
     cancelJarAnimations();
-    pendingJarAnimation = null;
     if (!items.length) {
       setJarReplayStatus("本月还没有可播放的心情记录。");
       return;
     }
-    const plan = buildMoodJarAnimationPlan(items.length);
-    const stageRect = stage.getBoundingClientRect();
-    const entries = items.map((item, index) => {
-      const node = elements.moodJarItems?.querySelector(`[data-mood-jar-item-id="${CSS.escape(item.entryId)}"]`);
-      if (node && stageRect.width && stageRect.height) setJarNodePrepared(node, item, stageRect, "replay");
-      return {
-        node,
-        item,
-        delay: plan.entries[index]?.delay || 0,
-        duration: plan.entries[index]?.duration || 1050,
-        kind: "replay",
-      };
-    }).filter(({ node }) => node);
+    const stageRect = readJarStageRect();
+    const simulation = createMoodJarSimulation(items, { seed: jarSeed(currentSummary) });
+    const initialState = new Map(simulation.getState().map((particle) => [particle.id, particle]));
+    const nodesById = new Map();
+    const existingNodes = new Map([...elements.moodJarItems.children].map((node) => [node.dataset.moodJarItemId, node]));
+    const entries = items.filter((item) => {
+      const node = existingNodes.get(item.entryId);
+      if (!node) return false;
+      nodesById.set(item.entryId, node);
+      setJarNodePrepared(node, initialState.get(item.entryId), stageRect || { width: MOOD_JAR_GEOMETRY.width, height: MOOD_JAR_GEOMETRY.height });
+      return true;
+    });
     const key = `${currentSummary.monthKey}:${summarySignature(currentSummary)}`;
     pendingJarAnimation = {
       key,
       entries,
-      completed: 0,
+      nodesById,
+      simulation,
+      stageRect,
       started: false,
+      lastTimestamp: null,
       runId: jarAnimationRunId,
       force: true,
       manual: true,
@@ -753,6 +725,11 @@ export function createMoodMonthSummaryView({
   function destroy() {
     jarObserver?.disconnect?.();
     jarObserver = null;
+    if (jarViewportEventsBound) {
+      windowTarget?.removeEventListener?.("scroll", handleJarViewportChange);
+      windowTarget?.removeEventListener?.("resize", handleJarViewportChange);
+      jarViewportEventsBound = false;
+    }
     jarVisibilityKnown = false;
     jarInViewport = false;
     pendingJarAnimation = null;
@@ -760,7 +737,7 @@ export function createMoodMonthSummaryView({
     lastTrendSignature = null;
     lastAnimationKey = "";
     cancelJarAnimations();
-    elements.moodJarItems?.querySelectorAll(".mood-jar-item").forEach((node) => setJarNodeFinal(node));
+    elements.moodJarItems?.querySelectorAll(".mood-jar-motion").forEach((node) => { node.style.willChange = "auto"; });
     currentSummary = null;
   }
 

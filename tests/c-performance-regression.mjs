@@ -943,6 +943,95 @@ async function testMobileCommentComposer(browser) {
   }
 }
 
+function deepCommentFixture() {
+  return Array.from({ length: 9 }, (_, index) => ({
+    id: `fixture-deep-comment-${index + 1}`,
+    photo_id: "fixture-photo",
+    user_id: index % 2 ? "fixture-member" : "fixture-user",
+    body: index === 0
+      ? "根留言：这是一段用于移动端宽度回归的中文长句。"
+      : `第 ${index} 层回复：中文内容保持可读宽度，连续英文 ABCDEFGHIJKLMNOPQRSTUVWXYZ 和 URL https://fixture.example/comments/${index}/very-long-path 不应让整行横向溢出。`,
+    parent_id: index ? `fixture-deep-comment-${index}` : null,
+    created_at: `2030-01-02T00:0${index}:00.000Z`,
+  }));
+}
+
+async function testMobileDeepCommentLayout(browser) {
+  for (const viewport of [
+    { width: 320, height: 844 },
+    { width: 375, height: 812 },
+    { width: 390, height: 844 },
+    { width: 430, height: 932 },
+    { width: 844, height: 390 },
+  ]) {
+    const result = await openFixturePage({
+      viewport,
+      fixtureOptions: { photoComments: deepCommentFixture() },
+    });
+    try {
+      const page = result.page;
+      await page.locator('[data-photo-id="fixture-photo"] .photo-media button').first().click();
+      await page.waitForSelector("body.mobile-diary-page-open", { state: "attached", timeout: 10000 });
+      await page.waitForFunction(() => document.querySelectorAll(".mobile-diary-comments .photo-comment").length === 9, null, { timeout: 10000 });
+      const metrics = await page.evaluate(() => {
+        const section = document.querySelector(".mobile-diary-comments");
+        const list = section?.querySelector(".photo-comments-list");
+        const form = section?.querySelector("[data-mobile-diary-comment-form]");
+        const rows = [...section?.querySelectorAll(":scope .photo-comments-list > .photo-comment") || []];
+        const mainRects = rows.map((row) => row.querySelector(".photo-comment-main")?.getBoundingClientRect()).filter(Boolean);
+        const body = rows[0]?.querySelector("p");
+        const bodyStyle = body ? getComputedStyle(body) : null;
+        const actionButtons = [...section?.querySelectorAll(".photo-comment-actions button") || []].map((button) => {
+          const rect = button.getBoundingClientRect();
+          return { width: rect.width, height: rect.height };
+        });
+        const actionStyle = section?.querySelector(".photo-comment-actions")
+          ? getComputedStyle(section.querySelector(".photo-comment-actions"))
+          : null;
+        const rect = (element) => {
+          if (!element) return null;
+          const value = element.getBoundingClientRect();
+          return { left: value.left, right: value.right, top: value.top, bottom: value.bottom, width: value.width };
+        };
+        return {
+          viewport: document.documentElement.clientWidth,
+          documentWidth: document.documentElement.scrollWidth,
+          rowCount: rows.length,
+          nestedRows: list?.querySelectorAll(".photo-comment .photo-comment").length || 0,
+          depthLeftDelta: mainRects.length ? Math.max(...mainRects.map(({ left }) => left)) - Math.min(...mainRects.map(({ left }) => left)) : Infinity,
+          mainWidths: mainRects.map(({ width }) => width),
+          bodyFontSize: bodyStyle ? Number.parseFloat(bodyStyle.fontSize) : 0,
+          bodyLineHeight: bodyStyle ? Number.parseFloat(bodyStyle.lineHeight) / Number.parseFloat(bodyStyle.fontSize) : 0,
+          bodyOverflowWrap: bodyStyle?.overflowWrap || "",
+          bodyWordBreak: bodyStyle?.wordBreak || "",
+          actionButtons,
+          actionGap: actionStyle ? Number.parseFloat(actionStyle.columnGap || actionStyle.gap) : 0,
+          section: rect(section),
+          list: rect(list),
+          form: rect(form),
+          lastRow: rect(rows.at(-1)),
+        };
+      });
+      assert.ok(metrics.documentWidth <= metrics.viewport + 1, `${viewport.width}x${viewport.height} deep comments overflowed horizontally: ${JSON.stringify(metrics)}`);
+      assert.equal(metrics.rowCount, 9, `${viewport.width}x${viewport.height} deep comments lost rows`);
+      assert.equal(metrics.nestedRows, 0, `${viewport.width}x${viewport.height} deep comments still render recursively`);
+      assert.ok(metrics.depthLeftDelta <= 4, `${viewport.width}x${viewport.height} reply rows drifted horizontally: ${JSON.stringify(metrics)}`);
+      const minimumMainWidth = viewport.width === 320 ? 205 : viewport.width === 375 ? 260 : 0;
+      if (minimumMainWidth) assert.ok(metrics.mainWidths.every((width) => width >= minimumMainWidth), `${viewport.width}px comment body became too narrow: ${JSON.stringify(metrics.mainWidths)}`);
+      assert.ok(metrics.bodyFontSize >= 16 && metrics.bodyLineHeight >= 1.55 && metrics.bodyLineHeight <= 1.7, `${viewport.width}x${viewport.height} body typography regressed: ${JSON.stringify(metrics)}`);
+      assert.equal(metrics.bodyOverflowWrap, "anywhere", `${viewport.width}x${viewport.height} long text does not use anywhere wrapping`);
+      assert.notEqual(metrics.bodyWordBreak, "break-all", `${viewport.width}x${viewport.height} body uses destructive break-all wrapping`);
+      assert.ok(metrics.actionButtons.length > 0 && metrics.actionButtons.every(({ width, height }) => width >= 44 && height >= 44), `${viewport.width}x${viewport.height} comment actions missed the 44px target: ${JSON.stringify(metrics.actionButtons)}`);
+      assert.ok(metrics.actionGap >= 8, `${viewport.width}x${viewport.height} comment actions are too close: ${metrics.actionGap}`);
+      assert.ok(metrics.form && metrics.list && Math.abs(metrics.form.width - metrics.list.width) <= 1, `${viewport.width}x${viewport.height} comment form did not fill the list width: ${JSON.stringify(metrics)}`);
+      assert.ok(metrics.form && metrics.lastRow && metrics.form.top >= metrics.lastRow.bottom - 1 && metrics.form.top - metrics.lastRow.bottom <= 40, `${viewport.width}x${viewport.height} comment form left the normal list flow: ${JSON.stringify(metrics)}`);
+      assert.equal(result.errors.length, 0, `${viewport.width}x${viewport.height} deep comment page errors: ${result.errors.join(" | ")}`);
+    } finally {
+      await closeFixturePage(result);
+    }
+  }
+}
+
 async function testFixtureSecretCrud(browser) {
   const browserContext = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
   const fixture = createCloudflareApiFixture();
@@ -988,8 +1077,9 @@ try {
   await testPhotoEditorLazyBoundary(browser);
   await testWeekendComposerAndDelete(browser);
   await testMobileCommentComposer(browser);
+  await testMobileDeepCommentLayout(browser);
   await testFixtureSecretCrud(browser);
-  console.log("C performance and interaction boundaries passed: lazy features, weekend forms, deletion focus, and mobile multiline comments.");
+  console.log("C performance and interaction boundaries passed: lazy features, weekend forms, deletion focus, and deep mobile comment layout.");
 } finally {
   await browser.close();
   await new Promise((resolveClose) => server.close(resolveClose));

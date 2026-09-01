@@ -141,6 +141,12 @@ const moodOverlayController = await read("modules/mood-entry-overlay-controller.
 const moodSummaryDomain = await read("modules/mood-month-summary-domain.js");
 const moodSummaryView = await read("modules/mood-month-summary-view.js");
 const moodDiaryController = await read("modules/mood-diary-controller.js");
+const [commentThreadDomain, moodJarPhysics, mobileDiaryView, socialController] = await Promise.all([
+  read("modules/comment-thread-domain.js"),
+  read("modules/mood-jar-physics.js"),
+  read("modules/mobile-diary-view.js"),
+  read("modules/social-controller.js"),
+]);
 await access(join(root, "modules", "routes", "mood-diary-route.js"));
 assert.match(moodRoute, /return controllers\.moodDiary\?\.activate\?\.\(\)/);
 assert.equal([...`${html}\n${moodTemplate}`.matchAll(/id="moodOverlay"/g)].length, 1, "there must be exactly one mood overlay");
@@ -157,6 +163,15 @@ assert.match(moodTemplate, /id="moodTrendChart"/);
 assert.match(moodTemplate, /id="moodTrendPointControls"/);
 assert.match(moodSummaryDomain, /export function buildMoodMonthSummary/);
 assert.doesNotMatch(moodSummaryDomain, /Math\.random/gi, "jar layout must not use random positions");
+assert.match(commentThreadDomain, /export function flattenCommentThread/);
+assert.match(moodJarPhysics, /export const MOOD_JAR_GEOMETRY/);
+assert.match(moodJarPhysics, /export function createMoodJarSimulation/);
+assert.match(moodJarPhysics, /constraintIterations/);
+assert.doesNotMatch(`${moodSummaryDomain}\n${moodSummaryView}`, /buildMoodJarAnimationPlan/);
+assert.match(moodSummaryView, /requestAnimationFrame/);
+assert.doesNotMatch(moodSummaryView, /\.animate\(|getAnimations/);
+assert.match(`${mobileDiaryView}\n${socialController}`, /flattenCommentThread/);
+assert.doesNotMatch(`${mobileDiaryView}\n${socialController}`, /photo-comment-thread/);
 assert.match(moodSummaryView, /prefers-reduced-motion/);
 assert.match(moodSummaryView, /data-mood-trend-point/);
 assert.match(moodSummaryView, /mood-trend-point-control/);

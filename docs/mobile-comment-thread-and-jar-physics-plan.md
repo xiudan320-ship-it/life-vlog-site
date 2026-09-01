@@ -1,6 +1,6 @@
 # 移动端留言线程与心情瓶物理下落 V3 规划
 
-> 状态：待实现。本文件是 Luna 下一轮实施依据，不代表功能已经完成或上线。
+> 状态：实现完成，待主任务审计；本轮未部署。本文件同时保留问题根因、验收契约和实现证据，不能替代线上发布记录。
 >
 > 编写日期：2026-09-01
 >
@@ -64,7 +64,7 @@
 规则：
 
 - `logicalDepth` 只用于语义、排序和测试，不直接换算为 CSS margin；
-- 所有评论最终作为 `.photo-comment-thread` 的同级 DOM 节点输出，禁止把回复节点继续嵌套进父节点；
+- 所有评论最终作为 `.photo-comment` 的同级 DOM 节点输出，禁止把回复节点继续嵌套进父节点；
 - 顺序保持“根评论 → 该会话的回复”，同一会话内按现有创建时间和稳定 id 排序；
 - 回复目标通过现有“回复 某人”文字表达，深层回复仍能看出在回复谁；
 - 父评论缺失或已删除时，回复仍显示为普通行，目标显示安全的回退文案，不丢失内容；
@@ -287,6 +287,13 @@
 - `design-system/life-vlog/pages/mood-diary.md`：记录瓶子物理动效与重播行为；
 - 对应移动日记/评论设计文档：记录回复不累计缩进的手机契约；
 - 本规划状态、测试证据和最终提交。
+
+## 9.1 V3 实现记录
+
+- 留言线程已由 `modules/comment-thread-domain.js` 统一转换；`mobile-diary-view.js` 与 `social-controller.js` 均输出同级 `.photo-comment`，不再生成递归线程容器或按深度累计的 CSS 位移。回复目标、root 和逻辑深度保留在共享模型中，DOM 只保留渲染和事件所需的评论 id。
+- 心情瓶已由 `modules/mood-jar-physics.js` 提供确定性 `360×440` 固定步长模拟；瓶壁、椭圆底和圆形粒子碰撞均在纯模块内求解，视图只在单一 rAF 中写缓存节点的 transform/opacity。`wallInset=10`、`floorEdgeY=372`、`floorCenterY=382` 是当前最终可视安全边界。
+- 移动日记专属样式覆盖到 `920px`，因此 `844×390` 横屏会显示真实移动详情页；正文保持 `16px`、表单跟随列表正常流，操作按钮至少 `44×44px`。
+- 已通过：`node --test tests/comment-thread-domain.mjs tests/mood-jar-physics.mjs tests/mood-month-summary-domain.mjs`、`node tests/mood-diary-browser.mjs`、`node tests/c-performance-regression.mjs`、Axe critical/serious 和确定性 release smoke（均使用内存 fixture）。62 枚固定种子离线测量为约 `36.43ms` 最大单步求解、`3018` 次粒子接触，未出现 NaN 或未收束状态。`pnpm run build`、`tests/build-budget.mjs` 与资源预算均通过，入口 JS gzip 为 `122879` bytes，低于 `122880` bytes 阈值。本状态不表示已部署。
 
 ## 10. 完成定义
 

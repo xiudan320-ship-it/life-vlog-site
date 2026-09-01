@@ -2302,15 +2302,6 @@ body.theme-dark .dialog-random-button {
   padding: 4px 0 12px;
 }
 
-.photo-comment-thread {
-  margin-left: calc(var(--comment-depth) * 28px);
-}
-
-.photo-comment-thread .photo-comment-thread {
-  border-left: 2px solid color-mix(in srgb, var(--accent) 28%, var(--line));
-  padding-left: 10px;
-}
-
 .photo-comment > div {
   display: grid;
   gap: 5px;
