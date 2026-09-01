@@ -806,6 +806,10 @@ button.mood-calendar-cell:hover {
 }
 
 .mood-trend-line.is-dashed { stroke-dasharray: 9 7; }
+.mood-trend-line.is-gap {
+  stroke-dasharray: 2 8;
+  opacity: 0.58;
+}
 .mood-trend-line.series-0 { --trend-color: var(--mood-trend-primary, #9b4d48); }
 .mood-trend-line.series-1 { --trend-color: var(--mood-trend-secondary, #2e7083); }
 

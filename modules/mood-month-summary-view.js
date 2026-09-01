@@ -456,10 +456,10 @@ export function createMoodMonthSummaryView({
         animationEntries.push({
           node,
           item,
-          kind: existingNode ? "edit" : "enter",
-          delay: animateAll ? Math.min(220, Math.floor(item.slotIndex / 8) * 24) : 0,
+          kind: animateAll ? "enter" : existingNode ? "edit" : "enter",
+          delay: animateAll ? Math.min(720, item.slotIndex * 55) : 0,
         });
-        if (stageRect?.width && stageRect.height) setJarNodePrepared(node, item, stageRect, existingNode ? "edit" : "enter");
+        if (stageRect?.width && stageRect.height) setJarNodePrepared(node, item, stageRect, animateAll ? "enter" : existingNode ? "edit" : "enter");
         else setJarNodeWaiting(node, item);
       } else {
         setJarNodeFinal(node);
@@ -674,6 +674,9 @@ export function createMoodMonthSummaryView({
     jarVisibilityKnown = false;
     jarInViewport = false;
     pendingJarAnimation = null;
+    lastJarSignature = null;
+    lastTrendSignature = null;
+    lastAnimationKey = "";
     cancelJarAnimations();
     elements.moodJarItems?.querySelectorAll(".mood-jar-item").forEach((node) => setJarNodeFinal(node));
   }

@@ -300,7 +300,8 @@ async function runMoodJarViewportAnimation() {
     await page.goto(`${baseUrl}/?page=mood`, { waitUntil: "domcontentloaded" });
     await waitForMoodDiaryPage(page);
     await page.waitForFunction(() => document.querySelector("#moodJarCount")?.textContent === "2 条记录", null, { timeout: 30000 });
-    assert.equal(await page.evaluate(() => window.__moodAnimationCalls.length), 0, "jar animation must wait while the stage is offscreen");
+    const offscreenCalls = await page.evaluate(() => window.__moodAnimationCalls.slice());
+    assert.equal(offscreenCalls.length, 0, `jar animation must wait while the stage is offscreen: ${JSON.stringify(offscreenCalls)}`);
 
     await page.evaluate(() => document.querySelector("#fixture-mood-jar-offscreen")?.remove());
     await page.locator("#moodJarStage").scrollIntoViewIfNeeded();
@@ -308,6 +309,7 @@ async function runMoodJarViewportAnimation() {
     const calls = await page.evaluate(() => window.__moodAnimationCalls.slice());
     assert.ok(calls.every(({ keyframes }) => keyframes.some(({ transform = "" }) => String(transform).includes("translate3d"))), `jar animation must originate from the mouth: ${JSON.stringify(calls)}`);
     assert.ok(calls.every(({ keyframes }) => String(keyframes.at(-1)?.transform || "").includes("translate3d(0px, 0px, 0px)")), `jar animation must settle at the final transform: ${JSON.stringify(calls)}`);
+    assert.equal(new Set(calls.map(({ options }) => options.delay)).size, calls.length, `jar entries should fall in a visible sequence: ${JSON.stringify(calls)}`);
     await page.waitForTimeout(700);
     assert.equal(await page.locator("#moodJarItems .mood-jar-motion").evaluateAll((items) => items.every((item) => item.getAnimations().length === 0)), true, "jar animations did not settle");
 
