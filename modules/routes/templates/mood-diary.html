@@ -1,14 +1,5 @@
 <section class="mood-diary-page" id="moodPage" aria-labelledby="moodDiaryHeading" hidden>
-  <header class="mood-diary-header">
-    <div>
-      <p class="kicker">Mood Diary</p>
-      <h2 id="moodDiaryHeading" data-page-heading="mood" tabindex="-1">心情日记</h2>
-      <p class="mood-diary-lede" id="moodDiaryLede">把今天的心情，留给未来的自己。</p>
-    </div>
-    <div class="mood-diary-header-actions" aria-label="心情日记视图">
-      <button class="mood-secondary-button" id="moodListOpen" type="button">全部日记</button>
-    </div>
-  </header>
+  <h2 class="mood-visually-hidden" id="moodDiaryHeading" data-page-heading="mood" tabindex="-1">心情日记</h2>
 
   <div class="mood-diary-login-state" id="moodLoginState" hidden>
     <h3>登录后记录心情</h3>
@@ -23,8 +14,6 @@
     </button>
   </div>
 
-  <div class="mood-diary-status" id="moodDiaryStatus" role="status" aria-live="polite"></div>
-
   <section class="mood-calendar-section" id="moodCalendarView" aria-labelledby="moodMonthLabel">
     <div class="mood-month-toolbar">
       <button class="mood-icon-button" id="moodMonthPrevious" type="button" aria-label="上个月">
@@ -38,6 +27,8 @@
         <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m9.5 5 7 7-7 7" /></svg>
       </button>
     </div>
+    <div class="mood-diary-status" id="moodDiaryStatus" role="status" aria-live="polite"></div>
+    <button class="mood-secondary-button mood-status-retry" id="moodMonthRetry" type="button" hidden>重试本月</button>
     <div class="mood-calendar-weekdays" aria-hidden="true">
       <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>
     </div>
@@ -45,10 +36,67 @@
     <div class="mood-calendar-legend" id="moodCalendarLegend" aria-label="座位说明"></div>
   </section>
 
+  <div class="mood-month-dashboard" id="moodMonthSummary" aria-label="本月心情汇总">
+    <section class="mood-summary-section mood-jar-section" aria-labelledby="moodJarHeading">
+      <div class="mood-summary-heading">
+        <div>
+          <h3 id="moodJarHeading">本月心情罐</h3>
+          <p id="moodJarCount">0 条记录</p>
+        </div>
+        <span class="mood-summary-sync" id="moodJarSync" hidden>正在同步</span>
+      </div>
+      <div class="mood-jar-stage" id="moodJarStage">
+        <svg class="mood-jar-outline" viewBox="0 0 320 360" aria-hidden="true" focusable="false">
+          <path class="mood-jar-glass" d="M108 26h104v28c0 12 5 21 16 30 19 16 31 43 31 78v91c0 56-43 101-96 101h-30c-53 0-96-45-96-101v-91c0-35 12-62 31-78 11-9 16-18 16-30V26h24Z" />
+          <path class="mood-jar-rim" d="M101 24h118v24H101z" />
+          <path class="mood-jar-highlight" d="M79 125c-9 18-13 36-13 58v66c0 39 28 73 66 82" />
+          <path class="mood-jar-base" d="M61 303c17 15 42 24 72 24h54c30 0 55-9 72-24" />
+        </svg>
+        <div class="mood-jar-items" id="moodJarItems" aria-hidden="true"></div>
+      </div>
+      <p class="mood-jar-caption" id="moodJarSummary">这个月还没有心情记录。</p>
+    </section>
+
+    <section class="mood-summary-section mood-dominant-section" aria-labelledby="moodDominantHeading">
+      <div class="mood-summary-heading">
+        <div>
+          <h3 id="moodDominantHeading">本月最多心情</h3>
+          <p>按记录次数回看每位成员的主旋律</p>
+        </div>
+      </div>
+      <div class="mood-dominant-list" id="moodDominantList"></div>
+    </section>
+
+    <section class="mood-summary-section mood-trend-section" aria-labelledby="moodTrendHeading">
+      <div class="mood-summary-heading">
+        <div>
+          <h3 id="moodTrendHeading">心情趋势</h3>
+          <p>高涨、平稳、低落三档仅用于回顾本月起伏</p>
+        </div>
+      </div>
+      <p class="mood-trend-disclaimer" id="moodTrendDisclaimer">趋势用于回顾本月心情起伏，不代表健康评估。</p>
+      <div class="mood-trend-legend" id="moodTrendLegend" aria-label="趋势图例"></div>
+      <div class="mood-trend-chart-shell" id="moodTrendChartShell">
+        <svg class="mood-trend-chart" id="moodTrendChart" viewBox="0 0 720 260" role="group" aria-labelledby="moodTrendHeading moodTrendSummary" hidden></svg>
+        <div class="mood-trend-point-controls" id="moodTrendPointControls"></div>
+        <p class="mood-empty-state" id="moodTrendEmpty" hidden>这个月还没有趋势数据，记录一条心情后就会显示。</p>
+        <div class="mood-trend-tooltip" id="moodTrendTooltip" role="tooltip" hidden></div>
+      </div>
+      <p class="mood-trend-summary" id="moodTrendSummary"></p>
+      <details class="mood-trend-details" id="moodTrendDetails">
+        <summary>查看按日明细</summary>
+        <div class="mood-trend-details-content" id="moodTrendDetailsContent"></div>
+      </details>
+    </section>
+
+    <div class="mood-month-footer-action">
+      <button class="mood-secondary-button mood-all-diary-button" id="moodListOpen" type="button">全部日记</button>
+    </div>
+  </div>
+
   <section class="mood-history-section" id="moodListView" aria-labelledby="moodListHeading" hidden>
     <div class="mood-section-heading">
       <div>
-        <p class="kicker">Your archive</p>
         <h3 id="moodListHeading">全部心情日记</h3>
       </div>
       <button class="mood-secondary-button" id="moodCalendarOpen" type="button">回到日历</button>

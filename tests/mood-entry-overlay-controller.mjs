@@ -6,10 +6,11 @@ import * as moodDomain from "../modules/mood-diary-domain.js";
 const TODAY = "2026-08-31";
 const participants = [{ userId: "owner", shape: "square" }, { userId: "member", shape: "circle" }];
 
-function createFixture({ entries = [], repository = {} } = {}) {
+function createFixture({ entries = [], repository = {}, mutationResult } = {}) {
   let draft = { content: "", tagInput: "" };
   const renders = [];
   const mutations = [];
+  const toasts = [];
   const listeners = new Map();
   const historyCalls = [];
   let scrollY = 321;
@@ -40,11 +41,12 @@ function createFixture({ entries = [], repository = {} } = {}) {
     },
     getSession: () => ({ user: { id: "owner" } }),
     confirmAction: async () => true,
-    onMutation: (payload) => mutations.push(payload),
+    onMutation: async (payload) => { mutations.push(payload); return mutationResult; },
+    showToast: (...args) => toasts.push(args),
     windowTarget,
     view,
   });
-  return { controller, view, renders, mutations, listeners, historyCalls, getScrollY: () => scrollY };
+  return { controller, view, renders, mutations, toasts, listeners, historyCalls, getScrollY: () => scrollY };
 }
 
 test("owner empty seat opens picker while another member empty seat stays inert", async () => {
@@ -90,6 +92,15 @@ test("delete stays owner-only and closes after the mutation succeeds", async () 
   await fixture.controller.dispatch({ type: "delete", id: "mine" });
   assert.equal(fixture.controller.getState().mode, "closed");
   assert.deepEqual(fixture.mutations.map(({ type }) => type), ["delete"]);
+});
+
+test("a successful write stays successful when the month sync reports a retryable failure", async () => {
+  const fixture = createFixture({ mutationResult: false });
+  await fixture.controller.open({ dateKey: TODAY, entries: [], preferredUserId: "owner", participants });
+  await fixture.controller.dispatch({ type: "pick", mood: "happy" });
+  await fixture.controller.dispatch({ type: "save" });
+  assert.equal(fixture.controller.getState().mode, "detail");
+  assert.equal(fixture.toasts.some(([message, options]) => message === "已保存，但本月汇总同步失败，可稍后重试" && options.kind === "warning"), true);
 });
 
 test("close and browser Back preserve URL context, scroll, and trigger focus", async () => {

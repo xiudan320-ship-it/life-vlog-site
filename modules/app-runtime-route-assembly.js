@@ -71,6 +71,11 @@ export function createRuntimeRouteEntry({
   feature,
   pages,
 }) {
+  const synchronizeAccountData = async (...args) => {
+    const result = await account.actions.synchronizeAccountData?.(...args);
+    await pages.pageControllers.moodDiary?.refreshContext?.();
+    return result;
+  };
   const core = Object.freeze({
     ...baseCore,
     ...shell.actions,
@@ -88,6 +93,7 @@ export function createRuntimeRouteEntry({
     compressImage: services.assetController.compressImage,
     uploadToR2: services.assetController.uploadToR2,
     cleanupStoredImagePaths: services.assetController.cleanupStoredImagePaths,
+    synchronizeAccountData,
     performanceDiagnostics: shell.performanceDiagnosticsView,
   });
   const controllers = {
@@ -278,8 +284,13 @@ export function createAppRouteRuntime({
         showToast: showMiniToast,
         confirmAction,
         onMutation: async (payload) => {
-          pageControllerMap.moodDiary?.handleMutation?.(payload);
-          await pageControllerMap.todayMood?.refresh?.();
+          const [moodResult] = await Promise.allSettled([
+            pageControllerMap.moodDiary?.handleMutation?.(payload),
+            pageControllerMap.todayMood?.refresh?.(),
+          ]);
+          if (moodResult.status === "rejected") throw moodResult.reason;
+          if (moodResult.value === false) throw new Error("本月汇总同步失败，可稍后重试");
+          return moodResult.value;
         },
         windowTarget: documentTarget.defaultView,
       });

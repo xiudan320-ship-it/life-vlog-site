@@ -74,4 +74,72 @@ test("overlay mutations update both calendar and loaded history", async () => {
   assert.equal(controller.getState().listEntries.length, 0);
 });
 
+test("late family context refresh restores the second seat before rebuilding the summary", async () => {
+  let familyMembers = [];
+  let familyInfo = null;
+  let reads = 0;
+  const rows = [
+    { id: "owner-entry", user_id: "owner", diary_date: TODAY, mood: "happy" },
+    { id: "member-entry", user_id: "member", diary_date: TODAY, mood: "calm" },
+  ];
+  const controller = createMoodDiaryController({
+    repository: { listMonth: async () => { reads += 1; return rows; } },
+    getSession: () => ({ user: { id: "owner" } }),
+    getFamilyInfo: () => familyInfo,
+    getFamilyMembers: () => familyMembers,
+    getTodayKey: () => TODAY,
+    view: { bind() {}, render() {} },
+  });
+  await controller.activate();
+  assert.deepEqual(controller.getState().participants.map(({ userId }) => userId), ["owner"]);
+  familyMembers = members;
+  familyInfo = { id: "family" };
+  await controller.refreshContext();
+  assert.deepEqual(controller.getState().participants.map(({ userId }) => userId), ["owner", "member"]);
+  assert.deepEqual(controller.getState().entriesByDate.get(TODAY).map(({ id }) => id), ["owner-entry", "member-entry"]);
+  assert.equal(controller.getState().monthSummary.total, 2);
+  assert.equal(reads, 2);
+});
+
+test("successful month mutations adopt the canonical reread instead of the optimistic row", async () => {
+  const original = { id: "mine", user_id: "owner", diary_date: TODAY, mood: "calm", content: "旧内容", tags: [] };
+  const canonical = { ...original, mood: "happy", content: "服务端内容" };
+  let rows = [original];
+  let reads = 0;
+  const controller = createMoodDiaryController({
+    repository: { listMonth: async () => { reads += 1; return rows.map((row) => ({ ...row })); } },
+    getSession: () => ({ user: { id: "owner" } }),
+    getFamilyInfo: () => ({ id: "family" }),
+    getFamilyMembers: () => members,
+    getTodayKey: () => TODAY,
+    view: { bind() {}, render() {} },
+  });
+  await controller.activate();
+  rows = [canonical];
+  await controller.handleMutation({ type: "save", entry: { ...original, mood: "sad", content: "暂存内容" } });
+  assert.equal(controller.getState().monthEntries[0].mood, "happy");
+  assert.equal(controller.getState().monthEntries[0].content, "服务端内容");
+  assert.equal(reads, 2);
+});
+
+test("failed month rereads keep the local mutation and expose a retryable status", async () => {
+  const original = { id: "mine", user_id: "owner", diary_date: TODAY, mood: "calm", content: "旧内容", tags: [] };
+  let reads = 0;
+  const controller = createMoodDiaryController({
+    repository: { listMonth: async () => { reads += 1; if (reads > 1) throw new Error("network down"); return [original]; } },
+    getSession: () => ({ user: { id: "owner" } }),
+    getFamilyInfo: () => ({ id: "family" }),
+    getFamilyMembers: () => members,
+    getTodayKey: () => TODAY,
+    showToast: () => {},
+    view: { bind() {}, render() {} },
+  });
+  await controller.activate();
+  await controller.handleMutation({ type: "save", entry: { ...original, mood: "happy", content: "本地结果" } });
+  assert.equal(controller.getState().monthEntries[0].mood, "happy");
+  assert.equal(controller.getState().monthEntries[0].content, "本地结果");
+  assert.equal(controller.getState().statusKind, "error");
+  assert.match(controller.getState().statusMessage, /最近结果/u);
+});
+
 console.log("Mood diary controller tests passed.");

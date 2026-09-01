@@ -27,6 +27,11 @@ export const [app, redesignStyles, styles, worker, schema, index, manifestText] 
   readFile(new URL("../package.json", import.meta.url), "utf8"),
 ]);
 export const css = redesignStyles.join("\n");
+export const moodMonthSummaryDomain = await import(new URL("../modules/mood-month-summary-domain.js", import.meta.url));
+export const moodMonthSummaryDomainModule = await readFile(new URL("../modules/mood-month-summary-domain.js", import.meta.url), "utf8");
+export const moodMonthSummaryViewModule = await readFile(new URL("../modules/mood-month-summary-view.js", import.meta.url), "utf8");
+export const moodDiaryViewModule = await readFile(new URL("../modules/mood-diary-view.js", import.meta.url), "utf8");
+export const moodDiaryControllerModule = await readFile(new URL("../modules/mood-diary-controller.js", import.meta.url), "utf8");
 export const serviceWorker = await readFile(new URL("../src/sw.js", import.meta.url), "utf8");
 export const diaryDetailCss = await readFile(new URL("../diary-detail.css", import.meta.url), "utf8");
 export const settingsTemplate = await readFile(new URL("../modules/routes/templates/settings.html", import.meta.url), "utf8");

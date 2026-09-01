@@ -19,6 +19,7 @@ const styleFiles = [
   "wishlist.css",
   "shopping.css",
   "media-upload.css",
+  "mood-diary.css",
 ];
 
 const normalize = (value) => value.replace(/\s+/g, " ").trim();

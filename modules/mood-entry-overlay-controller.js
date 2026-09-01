@@ -217,7 +217,12 @@ export function createMoodEntryOverlayController({
       state.editorBase = null;
       render();
       showToast("心情已保存", { kind: "success" });
-      await onMutation({ type: "save", entry: { ...state.activeDiary, tags: [...state.activeDiary.tags] }, dateKey: state.dateKey });
+      try {
+        const mutationResult = await onMutation({ type: "save", entry: { ...state.activeDiary, tags: [...state.activeDiary.tags] }, dateKey: state.dateKey });
+        if (mutationResult === false) throw new Error("本月汇总同步失败，可稍后重试");
+      } catch {
+        showToast("已保存，但本月汇总同步失败，可稍后重试", { kind: "warning" });
+      }
     } catch (error) {
       state.entries = previous ? [previous, ...state.entries.filter((entry) => entry.user_id !== state.currentUserId)] : state.entries.filter((entry) => entry.user_id !== state.currentUserId);
       state.activeDiary = previous;
@@ -238,7 +243,12 @@ export function createMoodEntryOverlayController({
       state.entries = state.entries.filter((item) => item.id !== id);
       state.deleting = false;
       showToast("心情日记已删除", { kind: "success" });
-      await onMutation({ type: "delete", entry, dateKey: state.dateKey });
+      try {
+        const mutationResult = await onMutation({ type: "delete", entry, dateKey: state.dateKey });
+        if (mutationResult === false) throw new Error("本月汇总同步失败，可稍后重试");
+      } catch {
+        showToast("已删除，但本月汇总同步失败，可稍后重试", { kind: "warning" });
+      }
       finishClose();
     } catch (error) {
       state.deleting = false;

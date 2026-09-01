@@ -1,4 +1,5 @@
 import { MOOD_META, buildCalendarWeeks, getMoodAsset } from "./mood-diary-domain.js";
+import { createMoodMonthSummaryView } from "./mood-month-summary-view.js";
 
 function text(documentTarget, tagName, value = "", className = "") {
   const element = documentTarget.createElement(tagName);
@@ -9,16 +10,30 @@ function text(documentTarget, tagName, value = "", className = "") {
 
 function asset(documentTarget, mood, shape) {
   const wrapper = documentTarget.createElement("span");
+  wrapper.setAttribute("aria-hidden", "true");
   const image = documentTarget.createElement("img");
   image.src = getMoodAsset(mood, shape) || "";
   image.alt = "";
   image.loading = "lazy";
-  wrapper.append(image);
+  const fallback = text(documentTarget, "span", "素材暂不可用", "mood-asset-error");
+  fallback.hidden = true;
+  image.addEventListener("error", () => {
+    image.hidden = true;
+    fallback.hidden = false;
+  }, { once: true });
+  wrapper.append(image, fallback);
   return wrapper;
 }
 
 export function createMoodDiaryView({ elements = {}, getAuthorName, getAuthorAvatar, onAction = () => {} } = {}) {
   let bound = false;
+  const monthSummaryView = createMoodMonthSummaryView({
+    elements,
+    getParticipantName: getAuthorName,
+    getParticipantAvatar: getAuthorAvatar,
+    getMoodAsset,
+    windowTarget: elements.moodPage?.ownerDocument?.defaultView || globalThis.window,
+  });
   const nameFor = (state, userId) => getAuthorName?.(userId) || state.participants.find((participant) => participant.userId === userId)?.name || "…";
 
   function avatar(documentTarget, state, userId) {
@@ -59,7 +74,11 @@ export function createMoodDiaryView({ elements = {}, getAuthorName, getAuthorAva
         const isToday = cell.dateKey === state.todayKey;
         const isFuture = state.isFutureDate(cell.dateKey);
         if (isToday) button.classList.add("is-today");
-        if (isFuture) { button.classList.add("is-future"); button.setAttribute("aria-disabled", "true"); }
+        if (isFuture) {
+          button.classList.add("is-future");
+          button.disabled = true;
+          button.setAttribute("aria-disabled", "true");
+        }
         const day = text(documentTarget, "span", "", "mood-calendar-day");
         day.append(text(documentTarget, "span", String(cell.day)));
         if (isToday) day.append(text(documentTarget, "span", "今天", "mood-calendar-today-label"));
@@ -69,12 +88,12 @@ export function createMoodDiaryView({ elements = {}, getAuthorName, getAuthorAva
         for (const entry of (state.entriesByDate.get(cell.dateKey) || []).slice(0, 2)) {
           const participant = state.participants.find(({ userId }) => userId === entry.user_id);
           const item = text(documentTarget, "span", "", `mood-calendar-entry is-${participant?.shape || "circle"}`);
-          item.append(asset(documentTarget, entry.mood, participant?.shape || "circle"), text(documentTarget, "span", MOOD_META[entry.mood].label));
+          item.append(asset(documentTarget, entry.mood, participant?.shape || "circle"), text(documentTarget, "span", MOOD_META[entry.mood]?.label || entry.mood));
           entryWrap.append(item);
           labels.push(`${nameFor(state, entry.user_id)}：${MOOD_META[entry.mood].label}`);
         }
         if (entryWrap.childElementCount) button.append(entryWrap);
-        button.setAttribute("aria-label", `${cell.dateKey}${isToday ? "，今天" : ""}${labels.length ? `，${labels.join("，")}` : "，暂无记录"}`);
+        button.setAttribute("aria-label", `${cell.dateKey}${isToday ? "，今天" : ""}${isFuture ? "，未来日期，不可记录" : ""}${labels.length ? `，${labels.join("，")}` : "，暂无记录"}`);
         cells.push(button);
       }
     }
@@ -118,15 +137,20 @@ export function createMoodDiaryView({ elements = {}, getAuthorName, getAuthorAva
     if (elements.moodLoginState) elements.moodLoginState.hidden = signedIn;
     if (elements.moodFamilyState) elements.moodFamilyState.hidden = !signedIn || state.hasFamily;
     if (elements.moodCalendarView) elements.moodCalendarView.hidden = !signedIn || list;
+    if (elements.moodMonthSummary) elements.moodMonthSummary.hidden = !signedIn || list;
     if (elements.moodListView) elements.moodListView.hidden = !signedIn || !list;
     if (elements.moodFab) elements.moodFab.hidden = !signedIn || list;
-    if (elements.moodListOpen) elements.moodListOpen.hidden = !signedIn;
-    if (elements.moodDiaryLede) elements.moodDiaryLede.textContent = state.familyMemberCount > 2 ? "心情日记当前支持两位家庭成员" : "把今天的心情，留给未来的自己。";
+    if (elements.moodListOpen) elements.moodListOpen.hidden = !signedIn || list;
     if (elements.moodDiaryStatus) { elements.moodDiaryStatus.textContent = state.statusMessage; elements.moodDiaryStatus.dataset.kind = state.statusKind; }
+    if (elements.moodMonthRetry) {
+      elements.moodMonthRetry.hidden = !signedIn || list || state.statusKind !== "error";
+      elements.moodMonthRetry.disabled = state.loadingMonth;
+    }
     if (elements.moodMonthLabel && state.currentMonthKey) { const [year, month] = state.currentMonthKey.split("-"); elements.moodMonthLabel.textContent = `${year} 年 ${Number(month)} 月`; }
     if (elements.moodMonthSubLabel) elements.moodMonthSubLabel.textContent = state.currentMonthKey === state.todayMonthKey ? "本月" : "浏览月份";
     renderLegend(state);
     renderCalendar(state);
+    monthSummaryView.render(state);
     renderHistory(state);
   }
 
@@ -134,7 +158,7 @@ export function createMoodDiaryView({ elements = {}, getAuthorName, getAuthorAva
     if (bound || !elements.moodPage) return;
     bound = true;
     elements.moodPage.addEventListener("click", (event) => {
-      const target = event.target.closest?.("[data-mood-date], [data-mood-open-family-settings], #moodListOpen, #moodCalendarOpen, #moodFab, #moodMonthPrevious, #moodMonthNext, #moodHistoryLoadMore, [data-mood-history-id]");
+      const target = event.target.closest?.("[data-mood-date], [data-mood-open-family-settings], #moodListOpen, #moodCalendarOpen, #moodFab, #moodMonthPrevious, #moodMonthNext, #moodMonthRetry, #moodHistoryLoadMore, [data-mood-history-id]");
       if (!target) return;
       if (target.dataset.moodDate) return onAction({ type: "date", dateKey: target.dataset.moodDate, trigger: target });
       if (target.dataset.moodOpenFamilySettings !== undefined) return onAction({ type: "open-family-settings" });
@@ -143,9 +167,11 @@ export function createMoodDiaryView({ elements = {}, getAuthorName, getAuthorAva
       if (target.id === "moodFab") return onAction({ type: "open-today", trigger: target });
       if (target.id === "moodMonthPrevious") return onAction({ type: "previous-month" });
       if (target.id === "moodMonthNext") return onAction({ type: "next-month" });
+      if (target.id === "moodMonthRetry") return onAction({ type: "retry-month" });
       if (target.id === "moodHistoryLoadMore") return onAction({ type: "load-more" });
       if (target.dataset.moodHistoryId) return onAction({ type: "history-detail", id: target.dataset.moodHistoryId, trigger: target });
     });
+    monthSummaryView.bind();
   }
 
   return Object.freeze({ bind, render });

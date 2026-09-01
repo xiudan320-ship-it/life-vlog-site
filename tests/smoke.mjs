@@ -9,6 +9,11 @@ import {
   index,
   manifestText,
   css,
+  moodMonthSummaryDomain,
+  moodMonthSummaryDomainModule,
+  moodMonthSummaryViewModule,
+  moodDiaryViewModule,
+  moodDiaryControllerModule,
   serviceWorker,
   diaryDetailCss,
   weekendBoardCss,
@@ -156,6 +161,11 @@ import {
 } from "./smoke-fixture.mjs";
 
 assert.equal(cachePolicy.normalizeCacheMb("5", 100), 20);
+assert.equal(typeof moodMonthSummaryDomain.buildMoodMonthSummary, "function");
+assert.match(moodMonthSummaryDomainModule, /MOOD_TREND_LEVELS/);
+assert.match(moodMonthSummaryViewModule, /createMoodMonthSummaryView/);
+assert.match(moodDiaryViewModule, /createMoodMonthSummaryView/);
+assert.match(moodDiaryControllerModule, /buildMoodMonthSummary/);
 assert.equal(cachePolicy.normalizeCacheMb("5000", 100), 2000);
 assert.equal(
   cachePolicy.getCacheCapacityStorageKey("secret", "user-1", {

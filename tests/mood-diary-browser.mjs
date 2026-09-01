@@ -76,6 +76,202 @@ function todayMoodRows(today, mode) {
   return rows;
 }
 
+function shiftMonthKey(monthKey, amount) {
+  const [year, month] = monthKey.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1 + amount, 1));
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+function daysInMonth(monthKey) {
+  const [year, month] = monthKey.split("-").map(Number);
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+function dateInMonth(monthKey, day) {
+  return `${monthKey}-${String(day).padStart(2, "0")}`;
+}
+
+function moodSummaryRows(today) {
+  const currentMonth = today.slice(0, 7);
+  const previousMonth = shiftMonthKey(currentMonth, -1);
+  return [
+    { id: "fixture-summary-owner-current", user_id: "fixture-user", diary_date: today, mood: "happy", content: "本月开心", tags: [] },
+    { id: "fixture-summary-partner-current", user_id: "fixture-partner", diary_date: today, mood: "calm", content: "本月平静", tags: [] },
+    { id: "fixture-summary-owner-01", user_id: "fixture-user", diary_date: dateInMonth(previousMonth, 1), mood: "happy", content: "月初开心", tags: [] },
+    { id: "fixture-summary-owner-02", user_id: "fixture-user", diary_date: dateInMonth(previousMonth, 2), mood: "sad", content: "月初低落", tags: [] },
+    { id: "fixture-summary-owner-10", user_id: "fixture-user", diary_date: dateInMonth(previousMonth, 10), mood: "excited", content: "月中兴奋", tags: [] },
+    { id: "fixture-summary-partner-09", user_id: "fixture-partner", diary_date: dateInMonth(previousMonth, 9), mood: "calm", content: "成员平静", tags: [] },
+    { id: "fixture-summary-partner-10", user_id: "fixture-partner", diary_date: dateInMonth(previousMonth, 10), mood: "annoyed", content: "成员烦恼", tags: [] },
+  ];
+}
+
+function moodReadCount(fixture) {
+  return fixture.requests.filter(({ method, path }) => method === "GET" && path === "/api/table/mood_diaries").length;
+}
+
+async function waitForMoodReads(fixture, expected, label) {
+  const deadline = Date.now() + 5000;
+  while (moodReadCount(fixture) < expected && Date.now() < deadline) {
+    await new Promise((resolveWait) => setTimeout(resolveWait, 20));
+  }
+  assert.ok(moodReadCount(fixture) >= expected, `${label} did not reread the canonical month after the write`);
+}
+
+async function installMoodSession(page) {
+  await page.addInitScript(() => {
+    localStorage.setItem("life-vlog-cloudflare-auth", JSON.stringify({
+      access_token: "fixture-token",
+      expires_at: new Date(Date.now() + 3600000).toISOString(),
+      user: { id: "fixture-user", email: "fixture-user@fixture.local", user_metadata: { username: "小秀" } },
+    }));
+  });
+}
+
+async function waitForMoodDiaryPage(page) {
+  await page.waitForSelector("#appSplash[hidden]", { state: "attached", timeout: 30000 });
+  await page.waitForSelector("#moodPage:not([hidden])", { state: "visible", timeout: 30000 });
+  await page.waitForSelector("#moodCalendarGrid [data-mood-date]", { state: "visible", timeout: 30000 });
+}
+
+async function assertMoodCalendarLayout(page, today, viewport, label) {
+  const monthKey = today.slice(0, 7);
+  const expectedDays = daysInMonth(monthKey);
+  const metrics = await page.locator("#moodCalendarGrid").evaluate((grid) => {
+    const children = [...grid.children];
+    const buttons = [...grid.querySelectorAll("[data-mood-date]")];
+    const rects = buttons.map((button) => button.getBoundingClientRect());
+    return {
+      currentMonthDays: buttons.length,
+      weekCount: children.length / 7,
+      cellWidth: rects[0]?.width || 0,
+      cellHeight: Math.min(...rects.map((rect) => rect.height)),
+      gridWidth: grid.getBoundingClientRect().width,
+    };
+  });
+  assert.equal(metrics.currentMonthDays, expectedDays, `${label} calendar must render every day in the month`);
+  assert.ok(metrics.weekCount >= 4 && metrics.weekCount <= 6 && Number.isInteger(metrics.weekCount), `${label} calendar must use four to six complete weeks`);
+  assert.ok(metrics.cellWidth >= 44, `${label} calendar cells need a 44px touch width: ${JSON.stringify(metrics)}`);
+  assert.ok(metrics.cellHeight >= 60, `${label} calendar cells need compact vertical room: ${JSON.stringify(metrics)}`);
+  assert.ok(metrics.gridWidth <= viewport.width + 1, `${label} calendar grid exceeds the viewport: ${JSON.stringify(metrics)}`);
+}
+
+async function assertMoodMonthSummary(page, today, label) {
+  assert.equal(await page.locator("#moodPage .mood-diary-header, #moodDiaryLede, #moodPage .kicker").count(), 0, `${label} retained the removed diary header`);
+  assert.equal(await page.locator("#moodMonthSummary").isVisible(), true, `${label} month summary should be visible`);
+  assert.equal(await page.locator("#moodListOpen").isVisible(), true, `${label} all-diary action must stay at the bottom of the summary`);
+  assert.equal(await page.locator("#moodJarCount").textContent(), "2 条记录");
+  assert.equal(await page.locator("#moodJarItems .mood-jar-item").count(), 2);
+  const jarItems = await page.locator("#moodJarItems .mood-jar-item").evaluateAll((items) => items.map((item) => ({
+    id: item.dataset.moodJarItemId,
+    shape: item.className.includes("is-square") ? "square" : "circle",
+    x: Number.parseFloat(item.style.getPropertyValue("--jar-x")),
+    y: Number.parseFloat(item.style.getPropertyValue("--jar-y")),
+  })));
+  assert.deepEqual(jarItems.map(({ shape }) => shape), ["square", "circle"], `${label} jar seats must keep stable shapes`);
+  assert.ok(jarItems.every(({ x, y }) => x >= 14.5 && x <= 85.5 && y >= 30 && y <= 86), `${label} jar item escaped the glass bounds`);
+  const dominantText = await page.locator("#moodDominantList").textContent();
+  assert.match(dominantText, /小秀/u);
+  assert.match(dominantText, /小咻/u);
+  assert.match(dominantText, /开心/u);
+  assert.match(dominantText, /平静/u);
+  const trendState = await page.locator("#moodTrendChart").evaluate((element) => ({
+    hidden: element.hidden,
+    hiddenAttribute: element.getAttribute("hidden"),
+    pointCount: element.querySelectorAll("[data-mood-trend-point]").length,
+    seriesCount: element.querySelectorAll(".mood-trend-line").length,
+  }));
+  assert.equal(trendState.hidden, false, `${label} trend chart should render for recorded points: ${JSON.stringify(trendState)}`);
+  assert.equal(await page.locator("#moodTrendChart [data-mood-trend-point]").count(), 2);
+  assert.equal(await page.locator("#moodTrendChart [role=button][tabindex=\"0\"]").count(), 2);
+  assert.equal(await page.locator("#moodTrendDetailsContent .mood-trend-data-list > li").count(), 1);
+  assert.match(await page.locator("#moodTrendSummary").textContent(), /小秀.*记录 1 天/u);
+  await assertMoodCalendarLayout(page, today, page.viewportSize(), label);
+}
+
+async function runMoodMonthSummaryLayout(viewport, label, { navigate = false, dark = false, reducedMotion = "reduce" } = {}) {
+  const today = todayInTokyo();
+  const context = await browser.newContext({ viewport, serviceWorkers: "block", reducedMotion });
+  const fixture = createCloudflareApiFixture({ seedMoodFamily: true, moodDiaries: moodSummaryRows(today) });
+  const page = await context.newPage();
+  const pageErrors = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  await fixture.install(context);
+  await installMoodSession(page);
+  try {
+    await page.goto(`${baseUrl}/?page=mood`, { waitUntil: "domcontentloaded" });
+    await waitForMoodDiaryPage(page);
+    try {
+      await page.waitForFunction(() => document.querySelector("#moodJarCount")?.textContent === "2 条记录", null, { timeout: 30000 });
+    } catch (error) {
+      throw new Error(`${label} summary did not load: ${error.message}; count=${await page.locator("#moodJarCount").textContent()}; status=${await page.locator("#moodDiaryStatus").textContent()}; requests=${JSON.stringify(fixture.requests)}`);
+    }
+    await assertMoodMonthSummary(page, today, label);
+    if (reducedMotion === "reduce") {
+      assert.equal(await page.locator("#moodJarItems .mood-jar-item").evaluateAll((items) => items.every((item) => item.getAnimations().length === 0)), true, `${label} reduced-motion jar still animates`);
+    }
+
+    if (viewport.width <= 430) {
+      await page.evaluate(() => { document.documentElement.style.fontSize = "130%"; });
+      await assertNoHorizontalOverflow(page, `${label} at 130% text`);
+      await assertMoodCalendarLayout(page, today, viewport, `${label} at 130% text`);
+    }
+    if (dark) {
+      await page.evaluate(() => document.body.classList.add("theme-dark"));
+      assert.notEqual(await page.locator("#moodMonthSummary").evaluate((element) => getComputedStyle(element).color), "", `${label} dark theme did not style the summary`);
+      await assertNoHorizontalOverflow(page, `${label} dark theme`);
+    }
+
+    if (navigate) {
+      const previousMonth = shiftMonthKey(today.slice(0, 7), -1);
+      await page.click("#moodMonthPrevious");
+      await page.waitForFunction((expected) => document.querySelector("#moodMonthLabel")?.textContent.includes(expected), `${previousMonth.split("-")[0]} 年 ${Number(previousMonth.split("-")[1])} 月`, { timeout: 30000 });
+      await page.waitForFunction(() => document.querySelector("#moodJarCount")?.textContent === "5 条记录", null, { timeout: 30000 });
+      assert.equal(await page.locator("#moodTrendChart [data-mood-trend-point]").count(), 5);
+      assert.equal(await page.locator("#moodTrendChart .mood-trend-line.series-0.is-solid").count(), 1);
+      assert.equal(await page.locator("#moodTrendChart .mood-trend-line.series-1.is-dashed").count(), 1);
+      assert.equal(await page.locator("#moodTrendLegend .mood-trend-line-swatch.is-dashed").count(), 1);
+      const firstPoint = page.locator("#moodTrendPointControls [data-mood-trend-point]").first();
+      await firstPoint.focus();
+      await firstPoint.evaluate((element) => element.focus());
+      await page.keyboard.press("Enter");
+      try {
+        await page.waitForFunction(() => document.querySelector("#moodTrendTooltip")?.hidden === false, null, { timeout: 3000 });
+      } catch (error) {
+        const focusDebug = await page.evaluate(() => ({
+          active: document.activeElement?.outerHTML?.slice(0, 240) || "",
+          point: document.querySelector("#moodTrendChart [data-mood-trend-point]")?.outerHTML?.slice(0, 240) || "",
+          tooltip: document.querySelector("#moodTrendTooltip")?.outerHTML || "",
+        }));
+        throw new Error(`${label} trend point was not keyboard reachable: ${error.message}; ${JSON.stringify(focusDebug)}`);
+      }
+      assert.match(await page.locator("#moodTrendTooltip").textContent(), /小秀/u);
+      await page.keyboard.press("Escape");
+      assert.equal(await page.locator("#moodTrendTooltip").getAttribute("hidden"), "");
+      await page.click("#moodTrendDetails summary");
+      assert.equal(await page.locator("#moodTrendDetails").getAttribute("open"), "");
+      assert.equal(await page.locator("#moodTrendDetailsContent .mood-trend-data-list > li").count(), 4);
+
+      await page.waitForTimeout(700);
+      const firstJarId = await page.locator("#moodJarItems .mood-jar-item").first().getAttribute("data-mood-jar-item-id");
+      await page.click("#moodListOpen");
+      await page.waitForSelector("#moodListView:not([hidden])", { state: "visible", timeout: 30000 });
+      await page.click("#moodCalendarOpen");
+      await page.waitForSelector("#moodMonthSummary:not([hidden])", { state: "visible", timeout: 30000 });
+      assert.equal(await page.locator("#moodJarItems .mood-jar-item").first().getAttribute("data-mood-jar-item-id"), firstJarId, `${label} passive render recreated jar nodes`);
+      const passiveAnimations = await page.locator("#moodJarItems .mood-jar-item").evaluateAll((items) => items.map((item) => ({
+        id: item.dataset.moodJarItemId,
+        animations: item.getAnimations().map((animation) => ({ playState: animation.playState, currentTime: animation.currentTime })),
+      })));
+      assert.ok(passiveAnimations.every(({ animations }) => animations.length === 0), `${label} passive render replayed jar animation: ${JSON.stringify(passiveAnimations)}`);
+    }
+    await assertNoHorizontalOverflow(page, `${label} final`);
+    assert.deepEqual(pageErrors, [], `${label} month summary page errors:\n${pageErrors.join("\n")}`);
+  } finally {
+    await fixture.dispose(context);
+    await context.close();
+  }
+}
+
 async function installTodayMoodSession(page) {
   await page.addInitScript(() => {
     localStorage.setItem("life-vlog-cloudflare-auth", JSON.stringify({
@@ -303,14 +499,18 @@ async function runMoodDiaryFlow(viewport, label) {
     await page.waitForSelector("#moodPage:not([hidden])", { state: "attached", timeout: 30000 });
     await page.waitForSelector("#moodCalendarGrid [data-mood-date]", { state: "visible", timeout: 30000 });
     assert.equal(await page.locator("#moodDiaryHeading").textContent(), "心情日记");
+    assert.equal(await page.locator("#moodPage .mood-diary-header, #moodDiaryLede, #moodPage .kicker").count(), 0);
+    assert.equal(await page.locator("#moodMonthSummary").isVisible(), true);
+    assert.equal(await page.locator("#moodListOpen").isVisible(), true);
     assert.equal(await page.locator("#moodNav").count(), 0);
     assert.match(page.url(), /[?&]page=mood(?:&|$)/u);
     await assertNoHorizontalOverflow(page, `${label} initial mood diary`);
+    await assertMoodCalendarLayout(page, todayInTokyo(), viewport, `${label} initial mood diary`);
 
     const future = page.locator('#moodCalendarGrid [aria-disabled="true"]').first();
     if (await future.count()) {
-      await future.click({ force: true });
-      await page.waitForSelector('.mini-toast-text:has-text("还不能记录未来的日记")', { state: "visible", timeout: 3000 });
+      assert.equal(await future.isDisabled(), true, `${label} future dates must be disabled before interaction`);
+      assert.match(await future.getAttribute("aria-label"), /未来日期，不可记录/u);
     }
 
     const today = todayInTokyo();
@@ -344,17 +544,22 @@ async function runMoodDiaryFlow(viewport, label) {
     await page.fill("#moodEditorContent", "今天把心情写下来 😊");
     await page.fill("#moodEditorTagInput", "#散步");
     await page.press("#moodEditorTagInput", "Enter");
+    const readsBeforeSave = moodReadCount(fixture);
     await page.click("#moodEditorSave");
     await page.waitForSelector("#moodOverlay:not([hidden]) #moodDetailPanel:not([hidden])", { state: "visible" });
+    await waitForMoodReads(fixture, readsBeforeSave + 1, `${label} save`);
     assert.equal(await page.locator("#moodDetailContent").textContent(), "今天把心情写下来 😊");
     assert.equal(await page.locator("#moodDetailTags").textContent(), "#散步");
+    assert.equal(await page.locator("#moodJarCount").textContent(), "1 条记录");
     assert.equal(fixture.writes.filter(({ path, action }) => path === "/api/table/mood_diaries" && action === "upsert").length, 1);
 
     await page.click('[data-mood-edit]');
     await page.waitForSelector("#moodEditorPanel:not([hidden])", { state: "visible" });
     await page.fill("#moodEditorContent", "已经编辑过了");
+    const readsBeforeUpdate = moodReadCount(fixture);
     await page.click("#moodEditorSave");
     await page.waitForSelector("#moodDetailPanel:not([hidden])", { state: "visible" });
+    await waitForMoodReads(fixture, readsBeforeUpdate + 1, `${label} update`);
     assert.equal(await page.locator("#moodDetailContent").textContent(), "已经编辑过了");
     assert.equal(fixture.writes.filter(({ path, action }) => path === "/api/table/mood_diaries" && action === "update").length, 1);
 
@@ -368,12 +573,49 @@ async function runMoodDiaryFlow(viewport, label) {
     await page.waitForSelector("#moodDetailPanel:not([hidden])", { state: "visible" });
     await page.click('[data-mood-delete]');
     await page.waitForSelector(".action-confirm-dialog[open]", { state: "visible" });
+    const readsBeforeDelete = moodReadCount(fixture);
     await page.click('.action-confirm-dialog button[value="confirm"]');
     await page.waitForSelector("#moodOverlay[hidden]", { state: "attached" });
+    await waitForMoodReads(fixture, readsBeforeDelete + 1, `${label} delete`);
     assert.equal(await page.locator(`[data-mood-date="${today}"] .mood-calendar-entry`).count(), 0);
+    assert.equal(await page.locator("#moodJarCount").textContent(), "0 条记录");
     assert.equal(fixture.writes.filter(({ path, action }) => path === "/api/table/mood_diaries" && action === "delete").length, 1);
     await assertNoHorizontalOverflow(page, `${label} final mood diary`);
     assert.deepEqual(pageErrors, [], `${label} mood diary page errors:\n${pageErrors.join("\n")}`);
+  } finally {
+    await fixture.dispose(context);
+    await context.close();
+  }
+}
+
+async function runMoodMonthFailureState() {
+  const today = todayInTokyo();
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block", reducedMotion: "reduce" });
+  const fixture = createCloudflareApiFixture({ scenario: "api-500", seedMoodFamily: true });
+  const page = await context.newPage();
+  const pageErrors = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  await fixture.install(context);
+  await installMoodSession(page);
+  await page.addInitScript((cache) => {
+    localStorage.setItem(`life-vlog-mood-month:fixture-user:${cache.monthKey}`, JSON.stringify(cache.rows));
+  }, {
+    monthKey: today.slice(0, 7),
+    rows: [{ id: "fixture-cached-mood", user_id: "fixture-user", diary_date: today, mood: "happy", content: "最近结果", tags: [] }],
+  });
+  try {
+    await page.goto(`${baseUrl}/?page=mood`, { waitUntil: "domcontentloaded" });
+    await waitForMoodDiaryPage(page);
+    await page.waitForSelector("#moodMonthRetry:not([hidden])", { state: "visible", timeout: 30000 });
+    assert.equal(await page.locator("#moodJarCount").textContent(), "1 条记录");
+    assert.match(await page.locator("#moodDiaryStatus").textContent(), /最近结果/u);
+    assert.equal(await page.locator("#moodMonthRetry").isEnabled(), true);
+    const readsBeforeRetry = moodReadCount(fixture);
+    await page.click("#moodMonthRetry");
+    await waitForMoodReads(fixture, readsBeforeRetry + 1, "month retry");
+    await page.waitForSelector("#moodMonthRetry:not([hidden])", { state: "visible", timeout: 30000 });
+    assert.equal(await page.locator("#moodJarCount").textContent(), "1 条记录");
+    assert.deepEqual(pageErrors, [], `month failure page errors:\n${pageErrors.join("\n")}`);
   } finally {
     await fixture.dispose(context);
     await context.close();
@@ -414,6 +656,13 @@ try {
   }
   await runTodayMoodOverviewFlow();
   await runTodayMoodQuickAdd();
+  await runMoodMonthFailureState();
+  await runMoodMonthSummaryLayout({ width: 375, height: 812 }, "mood-375");
+  await runMoodMonthSummaryLayout({ width: 390, height: 844 }, "mood-390");
+  await runMoodMonthSummaryLayout({ width: 430, height: 932 }, "mood-430", { dark: true });
+  await runMoodMonthSummaryLayout({ width: 768, height: 1024 }, "mood-768");
+  await runMoodMonthSummaryLayout({ width: 844, height: 390 }, "mood-landscape", { navigate: true });
+  await runMoodMonthSummaryLayout({ width: 1440, height: 900 }, "mood-1440", { navigate: true, dark: true, reducedMotion: "no-preference" });
   await runMoodDiaryFlow({ width: 375, height: 812 }, "mobile");
   await runMoodDiaryFlow({ width: 812, height: 375 }, "landscape");
   await runMoodDiaryFlow({ width: 1440, height: 900 }, "desktop");

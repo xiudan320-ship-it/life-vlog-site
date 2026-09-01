@@ -66,13 +66,13 @@ flowchart LR
 | 周末 | `routes/weekend-route.js` | 周末计划和回顾 |
 | 衣柜 | `routes/wardrobe-route.js` | 衣柜记录 |
 | 留言 | `routes/thanks-route.js` | 家庭感谢与留言 |
-| 心情 | `routes/mood-diary-route.js` | 月历、固定心情、详情、编辑和历史 |
+| 心情 | `routes/mood-diary-route.js` | 完整月历、玻璃心情罐、最多心情、趋势、详情、编辑和历史 |
 | 秘藏 | `routes/secret-route.js` | 私密相册、文件夹、筛选和解锁 |
 | 设置 | `routes/settings-route.js` | 五组设置和数据工具 |
 
 除 gallery 外的主要页面模板位于 `modules/routes/templates/`。路由状态由导航控制器维护，快速切换采用 latest-wins 事务，过期加载不得重新激活页面。
 
-首页的今日心情概览属于应用壳，不是独立路由：`today-mood-controller.js` 通过 `listDay(YYYY-MM-DD)` 读取 Asia/Tokyo 当天记录并过滤为稳定两席。应用壳同时装配唯一的 `mood-entry-overlay-controller.js`；gallery 概览与懒加载 mood 日历都向它传入日期、两席记录、参与者和触发元素，共用 Picker、编辑、详情、权限及写入流程。保存/删除后 overlay 同时通知月历内存状态与概览单日刷新。
+首页的今日心情概览属于应用壳，不是独立路由：`today-mood-controller.js` 通过 `listDay(YYYY-MM-DD)` 读取 Asia/Tokyo 当天记录并过滤为稳定两席。应用壳同时装配唯一的 `mood-entry-overlay-controller.js`；gallery 概览与懒加载 mood 日历都向它传入日期、两席记录、参与者和触发元素，共用 Picker、编辑、详情、权限及写入流程。保存/删除后 overlay 同时通知月历内存状态与概览单日刷新；账户同步完成后若家庭席位晚到，route assembly 调用 mood controller 的 `refreshContext()` 重新建立参与者并重读当前月份。
 
 首次登录态 gallery 激活时，`app-navigation-controller.js` 负责一次性的首页落点。概览席位不切路由：已记录席位原地打开详情，本人空席原地打开 Picker，对方空席不可编辑；overlay 用同 URL history entry 支持 Back 关闭，并恢复打开时的 scrollY 与触发焦点。顶部不再提供心情分页按钮，`?page=mood` 深链接和概览日历 CTA 继续进入月历。
 
@@ -150,7 +150,7 @@ flowchart LR
 
 Service Worker 使用 `registerType: "prompt"`，新版本就绪后由用户确认更新。路由 chunk 和大媒体不进入核心 precache，避免安装包过大。
 
-心情日记的当前月份在 `localStorage` 使用 `life-vlog-mood-month:<userId>:<YYYY-MM>` 缓存，仅作为加速层；云端成功响应会替换 canonical 内容，用户、月份和请求 revision 均参与隔离与 latest-wins 判断。首页今日概览使用独立的单日查询，不读取该月缓存。保存、编辑、删除先更新月历/历史/详情的内存快照，成功后刷新首页当天状态，失败时恢复快照并保留编辑输入；没有离线写入队列。
+心情日记的当前月份在 `localStorage` 使用 `life-vlog-mood-month:<userId>:<YYYY-MM>` 缓存，仅作为加速层；云端成功响应会替换 canonical 内容，用户、月份和请求 revision 均参与隔离与 latest-wins 判断。`monthSummary` 不单独持久化，而是由当前月 entries、稳定两席和月份键派生；`mood-month-summary-domain.js` 同时生成最多 62 个确定性罐体槽位、成员最多心情和按日三档趋势。首页今日概览使用独立的单日查询，不读取该月缓存。保存、编辑、删除先更新月历/历史/详情/汇总的内存快照，再强制重读受影响月份；成功响应覆盖 optimistic state，重读失败保留已写入结果并显示可重试状态；没有离线写入队列。
 
 顶部分页配置使用现有 `preferences-store.js` 的 `life-vlog-primary-navigation` key，按现有 user/device scope 隔离；只保存启用状态与顺序，不新增数据库、云端字段或依赖。关闭本机 Push 时先执行浏览器订阅的 `unsubscribe()`，再清理 Worker 记录；远端失败只反馈“本机已关闭、云端记录清理失败”，不阻断本地状态。
 
@@ -192,7 +192,7 @@ pnpm preview
 | `pnpm run test:release` | 确定性线上 fixture 冒烟 |
 | `pnpm run test:worker-online` | Worker CORS 与在线边界 |
 
-心情日记专项由 `tests/mood-diary-domain.mjs`、`tests/mood-diary-controller.mjs`、`tests/today-mood-controller.mjs`、`tests/mood-diary-worker.mjs`、`tests/mood-diary-assets.mjs` 和 `tests/mood-diary-browser.mjs` 覆盖；浏览器用确定性假 session / API fixture 验证首页今日概览的四种数据状态、真实昵称/形状、本人快速添加、冷启动落点、gallery 滚动恢复，以及桌面与手机端月历、Picker、编辑、删除、历史和横向溢出。16 个 512×512 透明心情素材位于 Vite 静态目录 `public/assets/mood-diary/`，构建后 URL 为 `/assets/mood-diary/*`；静态门禁会验证精确文件集合、PNG/Alpha、透明安全区和单文件体积，避免白底、棋盘格或缺失素材进入发布包。
+心情日记专项由 `tests/mood-diary-domain.mjs`、`tests/mood-month-summary-domain.mjs`、`tests/mood-diary-controller.mjs`、`tests/today-mood-controller.mjs`、`tests/mood-diary-worker.mjs`、`tests/mood-diary-assets.mjs` 和 `tests/mood-diary-browser.mjs` 覆盖；浏览器用确定性假 session / API fixture 验证首页今日概览的四种数据状态、真实昵称/形状、本人快速添加、冷启动落点、gallery 滚动恢复，以及 375/390/430/768/844×390/1440 视口的完整月历、月度汇总、趋势点键盘提示、暗色/130% 字号、reduced-motion、缓存错误重试、写后 canonical 重读、Picker、编辑、删除、历史和横向溢出。16 个 512×512 透明心情素材位于 Vite 静态目录 `public/assets/mood-diary/`，构建后 URL 为 `/assets/mood-diary/*`；静态门禁会验证精确文件集合、PNG/Alpha、透明安全区和单文件体积，避免白底、棋盘格或缺失素材进入发布包。
 
 `pnpm test` 不包含全部发布门禁。发布必须遵循 [`release-checklist.md`](release-checklist.md)。浏览器回归和 release smoke 使用确定性通知 fixture 覆盖铃铛在设置路由未加载、慢请求、重复点击、关闭中请求、读取失败重试、已读写回和跳转场景下的行为；同时覆盖顶部分页默认/可选入口、启用排序持久化、VLOG mode 不改 URL、导航局部横向滚动、日记搜索/tag 随页面文档流滚动和 Push 本地优先关闭。a11y 回归同时检查上述 viewport、无横向溢出和移动端表单字号契约。
 
