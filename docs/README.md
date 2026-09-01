@@ -50,6 +50,8 @@
 
 [`mood-month-visual-remediation-plan.md`](mood-month-visual-remediation-plan.md)：记录心情罐错位、滚动时未播放下落动画及趋势 SVG 不可见问题的后续修复方案和可视验收标准；在修复完成前不得把它当作当前实现事实。
 
+[`mood-jar-replay-large-trend-plan.md`](mood-jar-replay-large-trend-plan.md)：记录心情瓶高保真复刻、缓慢分批落入、点击/键盘重播和手机大趋势图的 V2 实施与验收方案；其目标覆盖旧规划中的瓶体外观、动画节奏和手机趋势尺寸。
+
 历史文档可以长期保留作为决策和审计依据，但不应继续承担当前系统说明职责。
 
 ## 文档职责
