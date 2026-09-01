@@ -52,6 +52,8 @@
 
 [`mood-jar-replay-large-trend-plan.md`](mood-jar-replay-large-trend-plan.md)：记录心情瓶高保真复刻、缓慢分批落入、点击/键盘重播和手机大趋势图的 V2 实施与验收方案；其目标覆盖旧规划中的瓶体外观、动画节奏和手机趋势尺寸。
 
+[`mobile-comment-thread-and-jar-physics-plan.md`](mobile-comment-thread-and-jar-physics-plan.md)：记录移动端深层留言不再累计缩进，以及心情表情使用确定性物理碰撞缓慢落入并可重播的 V3 实施与验收方案；其物理运动目标覆盖 V2 的固定槽位下落方案。
+
 历史文档可以长期保留作为决策和审计依据，但不应继续承担当前系统说明职责。
 
 ## 文档职责
