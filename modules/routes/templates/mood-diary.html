@@ -45,21 +45,28 @@
         </div>
         <span class="mood-summary-sync" id="moodJarSync" hidden>正在同步</span>
       </div>
-      <div class="mood-jar-stage" id="moodJarStage">
-        <svg class="mood-jar-outline mood-jar-back" viewBox="0 0 320 360" width="320" height="360" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false">
-          <path class="mood-jar-glass" d="M108 48H212V66C212 78 218 86 232 98C248 113 256 136 256 164V250C256 292 222 324 180 324H140C98 324 64 292 64 250V164C64 136 72 113 88 98C102 86 108 78 108 66V48Z" />
-          <path class="mood-jar-rim-back" d="M104 30H216V50H104Z" />
+      <button class="mood-jar-stage" id="moodJarStage" type="button" data-mood-jar-replay aria-label="重新播放本月心情落入瓶子的动画" aria-describedby="moodJarReplayHint moodJarReplayStatus" aria-busy="false">
+        <svg class="mood-jar-outline mood-jar-back" viewBox="0 0 360 440" width="360" height="440" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+          <path class="mood-jar-glass" d="M108 66H252V92C252 110 264 122 278 136C300 157 312 183 312 216V338C312 381 282 404 242 410H118C78 404 48 381 48 338V216C48 183 60 157 82 136C96 122 108 110 108 92V66Z" />
+          <ellipse class="mood-jar-rim-back" cx="180" cy="52" rx="88" ry="26" />
+          <ellipse class="mood-jar-rim-inner-back" cx="180" cy="54" rx="72" ry="14" />
         </svg>
-        <div class="mood-jar-viewport" id="moodJarViewport">
-          <div class="mood-jar-items" id="moodJarItems" aria-hidden="true"></div>
-        </div>
-        <svg class="mood-jar-outline mood-jar-front" viewBox="0 0 320 360" width="320" height="360" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false">
-          <path class="mood-jar-body" d="M108 48H212V66C212 78 218 86 232 98C248 113 256 136 256 164V250C256 292 222 324 180 324H140C98 324 64 292 64 250V164C64 136 72 113 88 98C102 86 108 78 108 66V48Z" />
-          <path class="mood-jar-rim" d="M104 40C104 34.5 129 30 160 30C191 30 216 34.5 216 40V48C216 53.5 191 58 160 58C129 58 104 53.5 104 48V40Z" />
-          <path class="mood-jar-highlight" d="M94 126C85 145 80 162 80 184V246C80 277 100 300 128 309" />
-          <path class="mood-jar-base" d="M68 302C91 318 112 324 140 324H180C208 324 229 318 252 302" />
+        <span class="mood-jar-viewport" id="moodJarViewport">
+          <span class="mood-jar-items" id="moodJarItems" aria-hidden="true"></span>
+        </span>
+        <svg class="mood-jar-outline mood-jar-front" viewBox="0 0 360 440" width="360" height="440" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+          <path class="mood-jar-body" d="M108 66H252V92C252 110 264 122 278 136C300 157 312 183 312 216V338C312 381 282 404 242 410H118C78 404 48 381 48 338V216C48 183 60 157 82 136C96 122 108 110 108 92V66Z" />
+          <ellipse class="mood-jar-rim" cx="180" cy="52" rx="88" ry="26" />
+          <ellipse class="mood-jar-rim-inner" cx="180" cy="54" rx="72" ry="14" />
+          <path class="mood-jar-highlight-wide" d="M98 134C82 164 76 198 76 242V310C76 352 98 378 137 393" />
+          <path class="mood-jar-highlight" d="M78 181C72 206 72 249 76 282" />
+          <ellipse class="mood-jar-base-back" cx="180" cy="386" rx="132" ry="28" />
+          <ellipse class="mood-jar-base" cx="180" cy="397" rx="132" ry="20" />
+          <ellipse class="mood-jar-base-inner" cx="180" cy="397" rx="108" ry="11" />
         </svg>
-      </div>
+      </button>
+      <p class="mood-jar-replay-hint" id="moodJarReplayHint">点击瓶子可重新播放本月心情落入瓶中的过程</p>
+      <span class="mood-visually-hidden" id="moodJarReplayStatus" role="status" aria-live="polite" aria-atomic="true"></span>
       <p class="mood-jar-caption" id="moodJarSummary">这个月还没有心情记录。</p>
     </section>
 
@@ -83,7 +90,7 @@
       <p class="mood-trend-disclaimer" id="moodTrendDisclaimer">趋势用于回顾本月心情起伏，不代表健康评估；虚线表示两次真实记录之间没有记录的日期。</p>
       <div class="mood-trend-legend" id="moodTrendLegend" aria-label="趋势图例"></div>
       <div class="mood-trend-chart-shell" id="moodTrendChartShell">
-        <svg class="mood-trend-chart" id="moodTrendChart" viewBox="0 0 720 260" width="720" height="260" preserveAspectRatio="xMidYMid meet" role="group" aria-labelledby="moodTrendHeading moodTrendSummary" hidden></svg>
+        <svg class="mood-trend-chart" id="moodTrendChart" viewBox="0 0 390 360" width="390" height="360" preserveAspectRatio="none" role="group" aria-labelledby="moodTrendHeading moodTrendSummary" hidden></svg>
         <div class="mood-trend-point-controls" id="moodTrendPointControls"></div>
         <p class="mood-empty-state" id="moodTrendEmpty" hidden>这个月还没有趋势数据，记录一条心情后就会显示。</p>
         <div class="mood-trend-tooltip" id="moodTrendTooltip" role="tooltip" hidden></div>

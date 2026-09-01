@@ -122,6 +122,268 @@ function denseMoodSummaryRows(today) {
   }).flat();
 }
 
+function eightMoodSummaryRows(today) {
+  const monthKey = shiftMonthKey(today.slice(0, 7), -1);
+  return Array.from({ length: 4 }, (_, index) => {
+    const day = index + 24;
+    const dateKey = dateInMonth(monthKey, day);
+    return [
+      { id: `fixture-eight-owner-${day}`, user_id: "fixture-user", diary_date: dateKey, mood: index % 2 ? "tired" : "happy", content: "慢速动画测试", tags: [] },
+      { id: `fixture-eight-partner-${day}`, user_id: "fixture-partner", diary_date: dateKey, mood: index % 2 ? "sad" : "calm", content: "慢速动画测试", tags: [] },
+    ];
+  }).flat();
+}
+
+function sparseMonthEndRows(today) {
+  const monthKey = shiftMonthKey(today.slice(0, 7), -1);
+  return [
+    { id: "fixture-sparse-owner-28", user_id: "fixture-user", diary_date: dateInMonth(monthKey, 28), mood: "happy", content: "月底趋势", tags: [] },
+    { id: "fixture-sparse-owner-29", user_id: "fixture-user", diary_date: dateInMonth(monthKey, 29), mood: "sad", content: "月底趋势", tags: [] },
+    { id: "fixture-sparse-partner-30", user_id: "fixture-partner", diary_date: dateInMonth(monthKey, 30), mood: "calm", content: "月底趋势", tags: [] },
+    { id: "fixture-sparse-partner-31", user_id: "fixture-partner", diary_date: dateInMonth(monthKey, 31), mood: "angry", content: "月底趋势", tags: [] },
+  ];
+}
+
+async function runMoodJarV2Contract() {
+  const today = todayInTokyo();
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block", reducedMotion: "no-preference" });
+  const fixture = createCloudflareApiFixture({ seedMoodFamily: true, moodDiaries: eightMoodSummaryRows(today) });
+  const page = await context.newPage();
+  await fixture.install(context);
+  await installMoodSession(page);
+  await page.addInitScript(() => {
+    window.__moodV2AnimationCalls = [];
+    const originalAnimate = Element.prototype.animate;
+    Element.prototype.animate = function instrumentMoodV2Animate(keyframes, options) {
+      const animation = originalAnimate.call(this, keyframes, options);
+      if (this.closest?.("#moodJarStage")) {
+        window.__moodV2AnimationCalls.push({
+          className: String(this.className),
+          entryId: this.closest?.(".mood-jar-item")?.dataset.moodJarItemId || "",
+          duration: Number(options?.duration) || 0,
+          delay: Number(options?.delay) || 0,
+          keyframes,
+        });
+      }
+      return animation;
+    };
+  });
+  try {
+    await page.goto(`${baseUrl}/?page=mood`, { waitUntil: "domcontentloaded" });
+    await waitForMoodDiaryPage(page);
+    await page.waitForFunction(() => document.querySelector("#moodJarCount")?.textContent === "0 条记录", null, { timeout: 30000 });
+    const emptyContract = await page.locator("#moodJarStage").evaluate((stage) => ({
+      tagName: stage.tagName,
+      type: stage.getAttribute("type"),
+      label: stage.getAttribute("aria-label"),
+      hint: Boolean(document.querySelector("#moodJarReplayHint")),
+      status: Boolean(document.querySelector("#moodJarReplayStatus")),
+      ratio: stage.getBoundingClientRect().height / stage.getBoundingClientRect().width,
+      viewBoxes: [...stage.querySelectorAll("svg")].map((svg) => svg.getAttribute("viewBox")),
+      ellipses: stage.querySelectorAll("ellipse").length,
+      rimLayers: stage.querySelectorAll(".mood-jar-rim, .mood-jar-rim-inner, .mood-jar-base, .mood-jar-base-inner").length,
+    }));
+    assert.equal(emptyContract.tagName, "BUTTON", "mood jar replay carrier must be a native button");
+    assert.equal(emptyContract.type, "button", "mood jar replay carrier must not submit a form");
+    assert.match(emptyContract.label || "", /重播|重新播放/u, "mood jar replay carrier needs an action label");
+    assert.equal(emptyContract.hint, true, "mood jar replay hint is missing");
+    assert.equal(emptyContract.status, true, "mood jar replay live status is missing");
+    assert.ok(Math.abs(emptyContract.ratio - 440 / 360) <= 0.04, `mood jar must preserve the 360x440 ratio: ${JSON.stringify(emptyContract)}`);
+    assert.ok(emptyContract.viewBoxes.every((viewBox) => viewBox === "0 0 360 440"), `mood jar SVG viewBox must be 360x440: ${JSON.stringify(emptyContract)}`);
+    assert.ok(emptyContract.ellipses >= 4 && emptyContract.rimLayers >= 4, `mood jar needs double rim and base ellipses: ${JSON.stringify(emptyContract)}`);
+
+    await page.click("#moodMonthPrevious");
+    const previousMonth = shiftMonthKey(today.slice(0, 7), -1);
+    await page.waitForFunction((expected) => document.querySelector("#moodMonthLabel")?.textContent.includes(expected), `${previousMonth.split("-")[0]} 年 ${Number(previousMonth.split("-")[1])} 月`, { timeout: 30000 });
+    await page.waitForFunction(() => document.querySelector("#moodJarCount")?.textContent === "8 条记录", null, { timeout: 30000 });
+    await page.locator("#moodJarStage").scrollIntoViewIfNeeded();
+    await page.waitForFunction(() => window.__moodV2AnimationCalls.length >= 8, null, { timeout: 5000 });
+    const jarGeometry = await page.locator("#moodJarStage").evaluate((stage) => {
+      const stageRect = stage.getBoundingClientRect();
+      const box = (element) => {
+        const value = element?.getBBox?.();
+        return value ? { x: value.x, y: value.y, width: value.width, height: value.height } : null;
+      };
+      const items = [...stage.querySelectorAll(".mood-jar-item")].map((item) => {
+        const rect = item.getBoundingClientRect();
+        const x = Number.parseFloat(item.style.getPropertyValue("--jar-x"));
+        const y = Number.parseFloat(item.style.getPropertyValue("--jar-y"));
+        return {
+          left: rect.left,
+          right: rect.right,
+          top: rect.top,
+          bottom: rect.bottom,
+          centerX: rect.left + rect.width / 2,
+          centerY: rect.top + rect.height / 2,
+          expectedCenterX: stageRect.left + stageRect.width * x / 100,
+          expectedCenterY: stageRect.top + stageRect.height * y / 100,
+        };
+      });
+      return {
+        stage: { left: stageRect.left, top: stageRect.top, width: stageRect.width, height: stageRect.height },
+        body: box(stage.querySelector(".mood-jar-body")),
+        rim: box(stage.querySelector(".mood-jar-rim")),
+        base: box(stage.querySelector(".mood-jar-base")),
+        items,
+      };
+    });
+    assert.ok(jarGeometry.stage.width > 0 && jarGeometry.stage.height > 0, `mood jar stage has no layout box: ${JSON.stringify(jarGeometry)}`);
+    assert.ok(jarGeometry.body?.width > 0 && jarGeometry.rim?.width > 0 && jarGeometry.base?.width > 0, `mood jar geometry is incomplete: ${JSON.stringify(jarGeometry)}`);
+    const centerX = (box) => box.x + box.width / 2;
+    assert.ok(Math.abs(centerX(jarGeometry.body) - centerX(jarGeometry.rim)) <= 2, "mood jar rim is not centered on the body");
+    assert.ok(Math.abs(centerX(jarGeometry.body) - centerX(jarGeometry.base)) <= 2, "mood jar base is not centered on the body");
+    assert.equal(jarGeometry.items.length, 8);
+    assert.ok(jarGeometry.items.every(({ left, right, top, bottom, centerX: itemCenterX, centerY: itemCenterY, expectedCenterX, expectedCenterY }) => (
+      left >= jarGeometry.stage.left && right <= jarGeometry.stage.left + jarGeometry.stage.width
+      && top >= jarGeometry.stage.top && bottom <= jarGeometry.stage.top + jarGeometry.stage.height
+      && Math.abs(itemCenterX - expectedCenterX) <= 2 && Math.abs(itemCenterY - expectedCenterY) <= 2
+    )), `mood jar items must keep real positions: ${JSON.stringify(jarGeometry)}`);
+    await assertNoHorizontalOverflow(page, "mood jar V2");
+
+    const calls = await page.evaluate(() => window.__moodV2AnimationCalls.slice(0, 8));
+    assert.equal(calls.length, 8, `mood jar should animate each item once: ${JSON.stringify(calls)}`);
+    assert.ok(calls.every(({ duration }) => duration >= 950 && duration <= 1150), `mood jar replay is not slow enough: ${JSON.stringify(calls)}`);
+    const delays = calls.map(({ delay }) => delay);
+    assert.ok(delays.every((delay, index) => index === 0 || delay - delays[index - 1] >= 140 && delay - delays[index - 1] <= 180), `mood jar stagger must stay between 140ms and 180ms: ${JSON.stringify(delays)}`);
+    const totalDuration = Math.max(...calls.map(({ delay, duration }) => delay + duration));
+    assert.ok(totalDuration >= 2000 && totalDuration <= 2500, `mood jar eight-item replay should last 2.0-2.5s: ${totalDuration}`);
+    assert.ok(calls.every(({ keyframes }) => keyframes.some(({ transform = "" }) => String(transform).includes("translate3d"))), `mood jar animation must originate at the mouth: ${JSON.stringify(calls)}`);
+
+    await page.waitForTimeout(totalDuration + 150);
+    assert.equal(await page.locator("#moodJarItems .mood-jar-motion").evaluateAll((items) => items.every((item) => item.getAnimations().length === 0)), true, "mood jar animation did not settle");
+
+    await page.evaluate(() => { window.__moodV2AnimationCalls = []; });
+    await page.click("#moodJarStage");
+    await page.waitForFunction(() => window.__moodV2AnimationCalls.length >= 8, null, { timeout: 1000 });
+    assert.equal(await page.evaluate(() => document.activeElement?.id), "moodJarStage", "click replay should keep focus on the native bottle control");
+    await page.click("#moodJarStage");
+    assert.ok(await page.locator("#moodJarItems .mood-jar-motion").evaluateAll((items) => items.reduce((total, item) => total + item.getAnimations().length, 0)) <= 8, "interrupting replay must cancel the previous run before restarting");
+    await page.waitForFunction(() => window.__moodV2AnimationCalls.length >= 16, null, { timeout: 1500 });
+    await page.waitForTimeout(2500);
+    assert.match(await page.locator("#moodJarReplayStatus").textContent(), /8/u, "replay completion should be announced");
+
+    await page.locator("#moodJarStage").focus();
+    await page.evaluate(() => { window.__moodV2AnimationCalls = []; });
+    await page.keyboard.press("Enter");
+    await page.waitForFunction(() => window.__moodV2AnimationCalls.length >= 8, null, { timeout: 1000 });
+    assert.equal(await page.evaluate(() => document.activeElement?.id), "moodJarStage", "keyboard replay should keep focus on the native bottle control");
+    await page.waitForTimeout(2500);
+
+    await page.evaluate(() => { window.__moodV2AnimationCalls = []; });
+    await page.click("#moodJarStage");
+    await page.waitForFunction(() => window.__moodV2AnimationCalls.length >= 8, null, { timeout: 1000 });
+    await page.click("#moodMonthNext");
+    await page.waitForFunction(() => document.querySelector("#moodJarCount")?.textContent === "0 条记录", null, { timeout: 30000 });
+    assert.equal(await page.evaluate(() => [...document.querySelectorAll("#moodJarItems .mood-jar-motion")].reduce((total, item) => total + item.getAnimations().length, 0)), 0, "month change must clean up jar animations");
+    await page.click('[data-primary-nav-id="gallery"]');
+    await page.waitForFunction(() => document.activeElement?.dataset.pageHeading === "gallery", null, { timeout: 30000 });
+    assert.equal(await page.evaluate(() => [...document.querySelectorAll("#moodJarItems .mood-jar-motion")].reduce((total, item) => total + item.getAnimations().length, 0)), 0, "route leave must clean up jar animations");
+  } finally {
+    await fixture.dispose(context);
+    await context.close();
+  }
+}
+
+async function runMoodJarReducedMotion() {
+  const today = todayInTokyo();
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block", reducedMotion: "reduce" });
+  const fixture = createCloudflareApiFixture({ seedMoodFamily: true, moodDiaries: eightMoodSummaryRows(today) });
+  const page = await context.newPage();
+  await fixture.install(context);
+  await installMoodSession(page);
+  await page.addInitScript(() => {
+    window.__moodReducedAnimationCalls = 0;
+    const originalAnimate = Element.prototype.animate;
+    Element.prototype.animate = function instrumentReducedAnimate(...args) {
+      if (this.closest?.("#moodJarStage")) window.__moodReducedAnimationCalls += 1;
+      return originalAnimate.apply(this, args);
+    };
+  });
+  try {
+    await page.goto(`${baseUrl}/?page=mood`, { waitUntil: "domcontentloaded" });
+    await waitForMoodDiaryPage(page);
+    await page.click("#moodMonthPrevious");
+    await page.waitForFunction(() => document.querySelector("#moodJarCount")?.textContent === "8 条记录", null, { timeout: 30000 });
+    await page.locator("#moodJarStage").focus();
+    await page.click("#moodJarStage");
+    await page.waitForTimeout(300);
+    assert.equal(await page.evaluate(() => window.__moodReducedAnimationCalls), 0, "reduced-motion replay must not create animations");
+    assert.equal(await page.locator("#moodJarItems .mood-jar-item").evaluateAll((items) => items.every((item) => item.getAnimations().length === 0)), true);
+    assert.match(await page.locator("#moodJarReplayStatus").textContent(), /减少动态效果/u);
+  } finally {
+    await fixture.dispose(context);
+    await context.close();
+  }
+}
+
+async function runMoodSparseTrendLayout(viewport, label) {
+  const today = todayInTokyo();
+  const context = await browser.newContext({ viewport, serviceWorkers: "block", reducedMotion: "reduce" });
+  const fixture = createCloudflareApiFixture({ seedMoodFamily: true, moodDiaries: sparseMonthEndRows(today) });
+  const page = await context.newPage();
+  await fixture.install(context);
+  await installMoodSession(page);
+  try {
+    await page.goto(`${baseUrl}/?page=mood`, { waitUntil: "domcontentloaded" });
+    await waitForMoodDiaryPage(page);
+    await page.click("#moodMonthPrevious");
+    await page.waitForFunction(() => document.querySelector("#moodJarCount")?.textContent === "4 条记录", null, { timeout: 30000 });
+    const trend = await page.locator("#moodTrendChart").evaluate((chart) => {
+      const viewBox = chart.viewBox.baseVal;
+      const svgRect = chart.getBoundingClientRect();
+      const visiblePoints = [...chart.querySelectorAll(".mood-trend-visible-point")].map((point) => {
+        const box = point.getBBox();
+        return { x: box.x + box.width / 2, y: box.y + box.height / 2, width: box.width, height: box.height };
+      });
+      const controls = [...document.querySelectorAll("#moodTrendPointControls [data-mood-trend-point]")].map((control) => {
+        const box = control.getBoundingClientRect();
+        return {
+          left: box.left,
+          top: box.top,
+          width: box.width,
+          height: box.height,
+          centerX: box.left + box.width / 2,
+          centerY: box.top + box.height / 2,
+          chartX: Number.parseFloat(control.style.getPropertyValue("--mood-trend-point-x")),
+          chartY: Number.parseFloat(control.style.getPropertyValue("--mood-trend-point-y")),
+        };
+      });
+      const labels = [...chart.querySelectorAll(".mood-trend-axis-label, .mood-trend-date-label")].map((label) => ({ text: label.textContent, fontSize: Number.parseFloat(getComputedStyle(label).fontSize) }));
+      return {
+        mode: chart.dataset.moodTrendMode,
+        viewBox: { width: viewBox.width, height: viewBox.height },
+        rect: { left: svgRect.left, top: svgRect.top, width: svgRect.width, height: svgRect.height },
+        visiblePoints,
+        controls,
+        labels,
+        svgFocusable: chart.querySelectorAll("[tabindex]:not([tabindex='-1']), [role='button']").length,
+        pointControlCount: controls.length,
+      };
+    });
+    assert.equal(trend.mode, "recorded-days", `${label} should explain and use the sparse recorded-days layout: ${JSON.stringify(trend)}`);
+    assert.deepEqual([trend.viewBox.width, trend.viewBox.height], [390, 360]);
+    assert.ok(trend.rect.height >= 300 && trend.rect.height <= 340, `${label} trend should have a tall mobile chart: ${JSON.stringify(trend)}`);
+    assert.ok(trend.labels.length >= 4 && trend.labels.every(({ fontSize }) => fontSize >= 14), `${label} trend labels are too small: ${JSON.stringify(trend)}`);
+    assert.ok(trend.visiblePoints.length === 4 && trend.visiblePoints.every(({ width, height }) => width >= 14 && height >= 14), `${label} trend points are too small: ${JSON.stringify(trend)}`);
+    const xValues = trend.visiblePoints.map(({ x }) => x);
+    assert.ok(Math.max(...xValues) - Math.min(...xValues) >= trend.viewBox.width * 0.7, `${label} sparse dates did not expand across the chart: ${JSON.stringify(trend)}`);
+    assert.equal(trend.svgFocusable, 0, `${label} trend SVG must not duplicate keyboard focus: ${JSON.stringify(trend)}`);
+    assert.equal(trend.pointControlCount, 4);
+    assert.ok(trend.controls.every(({ width, height }) => width >= 44 && height >= 44), `${label} trend controls are smaller than 44px: ${JSON.stringify(trend)}`);
+    assert.ok(trend.controls.every(({ centerX, centerY, chartX, chartY }, index) => {
+      const point = trend.visiblePoints[index];
+      const expectedX = trend.rect.left + point.x / trend.viewBox.width * trend.rect.width;
+      const expectedY = trend.rect.top + point.y / trend.viewBox.height * trend.rect.height;
+      return Number.isFinite(chartX) && Number.isFinite(chartY) && Math.abs(centerX - expectedX) <= 2 && Math.abs(centerY - expectedY) <= 2;
+    }), `${label} trend HTML controls drifted from SVG points: ${JSON.stringify(trend)}`);
+    assert.match(await page.locator("#moodTrendSummary").textContent(), /有记录日期/u, `${label} sparse trend needs an explanation`);
+    await assertNoHorizontalOverflow(page, label);
+  } finally {
+    await fixture.dispose(context);
+    await context.close();
+  }
+}
+
 function moodReadCount(fixture) {
   return fixture.requests.filter(({ method, path }) => method === "GET" && path === "/api/table/mood_diaries").length;
 }
@@ -264,7 +526,8 @@ async function assertMoodMonthSummary(page, today, label) {
   }));
   assert.equal(trendState.hiddenAttribute, null, `${label} trend chart should render for recorded points: ${JSON.stringify(trendState)}`);
   assert.equal(await page.locator("#moodTrendChart [data-mood-trend-point]").count(), 2);
-  assert.equal(await page.locator("#moodTrendChart [role=button][tabindex=\"0\"]").count(), 2);
+  assert.equal(await page.locator("#moodTrendPointControls [data-mood-trend-point]").count(), 2);
+  assert.equal(await page.locator("#moodTrendChart [role=button], #moodTrendChart [tabindex]:not([tabindex='-1'])").count(), 0);
   assert.equal(await page.locator("#moodTrendDetailsContent .mood-trend-data-list > li").count(), 1);
   assert.match(await page.locator("#moodTrendSummary").textContent(), /小秀.*记录 1 天/u);
   await assertMoodCalendarLayout(page, today, page.viewportSize(), label);
@@ -310,7 +573,7 @@ async function runMoodJarViewportAnimation() {
     assert.ok(calls.every(({ keyframes }) => keyframes.some(({ transform = "" }) => String(transform).includes("translate3d"))), `jar animation must originate from the mouth: ${JSON.stringify(calls)}`);
     assert.ok(calls.every(({ keyframes }) => String(keyframes.at(-1)?.transform || "").includes("translate3d(0px, 0px, 0px)")), `jar animation must settle at the final transform: ${JSON.stringify(calls)}`);
     assert.equal(new Set(calls.map(({ options }) => options.delay)).size, calls.length, `jar entries should fall in a visible sequence: ${JSON.stringify(calls)}`);
-    await page.waitForTimeout(700);
+    await page.waitForTimeout(1400);
     assert.equal(await page.locator("#moodJarItems .mood-jar-motion").evaluateAll((items) => items.every((item) => item.getAnimations().length === 0)), true, "jar animations did not settle");
 
     const settledCalls = await page.evaluate(() => window.__moodAnimationCalls.length);
@@ -390,7 +653,7 @@ async function runMoodJarDenseLayout() {
     const geometry = await page.locator("#moodJarStage").evaluate((stage) => {
       const stageRect = stage.getBoundingClientRect();
       const viewport = stage.querySelector(".mood-jar-viewport");
-      const clipPolygon = [[34, 21], [66, 21], [66, 25], [75, 36], [77, 48], [77, 78], [75, 86], [72, 88], [28, 88], [25, 86], [23, 78], [23, 48], [25, 36], [34, 25]];
+      const clipPolygon = [[30, 21], [70, 21], [70, 26], [78, 32], [83, 42], [84, 54], [84, 78], [81, 84], [76, 87], [24, 87], [19, 84], [16, 78], [16, 54], [17, 42], [22, 32], [30, 26]];
       const insideClip = (x, y) => {
         let inside = false;
         for (let index = 0, previous = clipPolygon.length - 1; index < clipPolygon.length; previous = index++) {
@@ -518,9 +781,11 @@ async function runMoodMonthSummaryLayout(viewport, label, { navigate = false, da
         }),
       }));
       assert.ok(trendGeometry.rect.width > 0 && trendGeometry.rect.height > 0, `${label} trend SVG has no mobile layout box: ${JSON.stringify(trendGeometry)}`);
-      assert.deepEqual(trendGeometry.viewBox && [trendGeometry.viewBox.width, trendGeometry.viewBox.height], [720, 260]);
+      const compactTrend = viewport.width <= 700 || (viewport.height <= 700 && viewport.width > viewport.height);
+      const expectedTrendViewBox = compactTrend ? [390, 360] : [720, 320];
+      assert.deepEqual(trendGeometry.viewBox && [trendGeometry.viewBox.width, trendGeometry.viewBox.height], expectedTrendViewBox);
       assert.ok(trendGeometry.lines.length >= 3 && trendGeometry.lines.every(({ length, box, stroke }) => length > 0 && box.width > 0 && box.height >= 0 && !/none|transparent/u.test(stroke)), `${label} trend path is invisible or has no geometry: ${JSON.stringify(trendGeometry)}`);
-      assert.ok(trendGeometry.points.length === 5 && trendGeometry.points.every(({ width, height, x, y }) => width > 0 && height > 0 && x >= 0 && x <= 720 && y >= 0 && y <= 260), `${label} trend points escaped the SVG viewBox: ${JSON.stringify(trendGeometry)}`);
+      assert.ok(trendGeometry.points.length === 5 && trendGeometry.points.every(({ width, height, x, y }) => width > 0 && height > 0 && x >= 0 && x <= expectedTrendViewBox[0] && y >= 0 && y <= expectedTrendViewBox[1]), `${label} trend points escaped the SVG viewBox: ${JSON.stringify(trendGeometry)}`);
       assert.ok(trendGeometry.controls.length === 5 && trendGeometry.controls.every(({ width, height }) => width >= 44 && height >= 44), `${label} trend point controls are smaller than 44px: ${JSON.stringify(trendGeometry.controls)}`);
       if (label === "mood-landscape" || label === "mood-390") {
         const trendScreenshot = await page.locator("#moodTrendChartShell").screenshot({ animations: "disabled" });
@@ -548,7 +813,7 @@ async function runMoodMonthSummaryLayout(viewport, label, { navigate = false, da
       assert.equal(await page.locator("#moodTrendDetails").getAttribute("open"), "");
       assert.equal(await page.locator("#moodTrendDetailsContent .mood-trend-data-list > li").count(), 4);
 
-      await page.waitForTimeout(700);
+      await page.waitForTimeout(1900);
       const firstJarId = await page.locator("#moodJarItems .mood-jar-item").first().getAttribute("data-mood-jar-item-id");
       await page.click("#moodListOpen");
       await page.waitForSelector("#moodListView:not([hidden])", { state: "visible", timeout: 30000 });
@@ -954,6 +1219,11 @@ try {
   await runTodayMoodOverviewFlow();
   await runTodayMoodQuickAdd();
   await runMoodMonthFailureState();
+  await runMoodJarV2Contract();
+  await runMoodJarReducedMotion();
+  await runMoodSparseTrendLayout({ width: 375, height: 812 }, "mood-sparse-375");
+  await runMoodSparseTrendLayout({ width: 390, height: 844 }, "mood-sparse-390");
+  await runMoodSparseTrendLayout({ width: 430, height: 932 }, "mood-sparse-430");
   await runMoodJarViewportAnimation();
   await runMoodJarMutationAnimation();
   await runMoodJarDenseLayout();

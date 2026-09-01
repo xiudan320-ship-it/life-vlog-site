@@ -3,7 +3,10 @@ import test from "node:test";
 
 import {
   MOOD_MONTH_SUMMARY_LIMIT,
+  buildMoodJarAnimationPlan,
   buildMoodMonthSummary,
+  getMoodTrendLayout,
+  getMoodTrendX,
   getMoodTrendLevel,
 } from "../modules/mood-month-summary-domain.js";
 
@@ -88,9 +91,58 @@ test("jar coordinates are deterministic, bounded, shaped by seat, and capped at 
   assert.equal(first.total, 62);
   assert.equal(first.jarItems.length, MOOD_MONTH_SUMMARY_LIMIT);
   assert.deepEqual(first.jarItems, second.jarItems);
-  assert.ok(first.jarItems.every(({ x, y }) => x >= 31 && x <= 69 && y >= 42 && y <= 80));
+  assert.ok(first.jarItems.every(({ x, y }) => x >= 27 && x <= 73 && y >= 34 && y <= 81));
   assert.deepEqual(first.jarItems.slice(0, 2).map(({ shape }) => shape), ["square", "circle"]);
   assert.equal(new Set(first.jarItems.map(({ slotIndex }) => slotIndex)).size, 62);
+});
+
+test("jar animation plan keeps slow eight-item replay and capped dense batches", () => {
+  const empty = buildMoodJarAnimationPlan(0);
+  assert.deepEqual(empty.entries, []);
+  assert.equal(empty.totalDuration, 0);
+
+  const one = buildMoodJarAnimationPlan(1);
+  assert.equal(one.entries.length, 1);
+  assert.ok(one.entries[0].duration >= 950 && one.entries[0].duration <= 1150);
+
+  const eight = buildMoodJarAnimationPlan(8);
+  assert.equal(eight.batchSize, 1);
+  assert.deepEqual(eight.entries.map(({ delay }) => delay), [0, 160, 320, 480, 640, 800, 960, 1120]);
+  assert.ok(eight.entries.every(({ duration }) => duration >= 950 && duration <= 1150));
+  assert.ok(eight.totalDuration >= 2000 && eight.totalDuration <= 2500);
+
+  const thirtyOne = buildMoodJarAnimationPlan(31);
+  assert.equal(thirtyOne.entries.length, 31);
+  assert.equal(thirtyOne.batchSize, 2);
+  assert.ok(thirtyOne.totalDuration <= 3000);
+  assert.equal(new Set(thirtyOne.entries.map(({ batchIndex }) => batchIndex)).size, 16);
+
+  const sixtyTwo = buildMoodJarAnimationPlan(62);
+  assert.equal(sixtyTwo.entries.length, 62);
+  assert.equal(sixtyTwo.batchSize, 4);
+  assert.ok(sixtyTwo.totalDuration <= 3200);
+  assert.ok(sixtyTwo.entries.every(({ duration }) => duration >= 850 && duration <= 1000));
+
+  for (const count of [12, 13, 32]) {
+    const plan = buildMoodJarAnimationPlan(count);
+    assert.equal(plan.entries.length, count);
+    assert.ok(plan.entries.every(({ delay, duration }) => delay >= 0 && duration >= 850 && duration <= 1150));
+    assert.ok(plan.totalDuration > 0);
+  }
+});
+
+test("trend layout expands sparse real dates without inventing points", () => {
+  const sparse = getMoodTrendLayout({ compact: true, monthDays: 31, recordedDays: [28, 29, 30, 31] });
+  assert.equal(sparse.mode, "recorded-days");
+  assert.deepEqual(sparse.recordedDays, [28, 29, 30, 31]);
+  assert.deepEqual([sparse.width, sparse.height], [390, 360]);
+  assert.ok(sparse.lowY - sparse.highY >= 200);
+  assert.equal(getMoodTrendX(sparse, 28, 31), sparse.plotLeft);
+  assert.equal(getMoodTrendX(sparse, 31, 31), sparse.plotRight);
+
+  const full = getMoodTrendLayout({ compact: true, monthDays: 31, recordedDays: [1, 5, 8, 12, 16, 20, 24, 28, 31] });
+  assert.equal(full.mode, "calendar-days");
+  assert.ok(getMoodTrendX(full, 28, 31) < getMoodTrendX(full, 31, 31));
 });
 
 test("empty or single-seat months remain explicit instead of inventing a dominant mood", () => {
