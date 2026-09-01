@@ -48,6 +48,8 @@
 
 [`recovery-audit-2026-08-30.md`](recovery-audit-2026-08-30.md)：记录 2026-08-30 Git 恢复与整合过程中的保存点、差异和验收证据，仅在调查该次恢复、追溯历史变更或验证恢复结果时查阅。
 
+[`mood-month-visual-remediation-plan.md`](mood-month-visual-remediation-plan.md)：记录心情罐错位、滚动时未播放下落动画及趋势 SVG 不可见问题的后续修复方案和可视验收标准；在修复完成前不得把它当作当前实现事实。
+
 历史文档可以长期保留作为决策和审计依据，但不应继续承担当前系统说明职责。
 
 ## 文档职责
