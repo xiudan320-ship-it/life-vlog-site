@@ -10,7 +10,13 @@ const TREND_LAYOUT = Object.freeze({
   steadyY: 120,
   lowY: 186,
 });
-const TREND_COLORS = Object.freeze(["var(--mood-trend-primary)", "var(--mood-trend-secondary)"]);
+const TREND_COLORS = Object.freeze([
+  "var(--mood-trend-primary, #9b4d48)",
+  "var(--mood-trend-secondary, #2e7083)",
+]);
+const TREND_FALLBACK_COLORS = Object.freeze(["#9b4d48", "#2e7083"]);
+const JAR_MOUTH = Object.freeze({ x: 160 / 320, y: 42 / 360 });
+const JAR_FINAL_MOTION = "translate3d(0px, 0px, 0px)";
 
 function text(documentTarget, tagName, value = "", className = "") {
   const element = documentTarget.createElement(tagName);
@@ -72,7 +78,7 @@ function moodAsset(documentTarget, mood, shape, getMoodAsset, className = "") {
 }
 
 function summarySignature(summary) {
-  return (summary?.jarItems || []).map((item) => [item.entryId, item.dateKey, item.mood, item.shape, item.x, item.y, item.rotate].join(":"))
+  return (summary?.jarItems || []).map((item) => [item.entryId, item.dateKey, item.mood, item.shape, item.x, item.y, item.rotate, item.scale].join(":"))
     .join("|");
 }
 
@@ -80,27 +86,88 @@ function trendSignature(summary, state) {
   return (summary?.trendSeries || []).map((series) => `${series.userId}:${series.shape}:${nameFor(state, series)}:${series.points.map((point) => `${point.entryId}:${point.dateKey}:${point.mood}:${point.level}:${point.shape}`).join(",")}`).join("|");
 }
 
-function finalJarTransform(item) {
-  return `translate(-50%, -50%) rotate(${item.rotate}deg) scale(${item.scale})`;
-}
-
-function mouthJarTransform(item) {
-  return `translate(-50%, -175%) rotate(${item.rotate - 12}deg) scale(${Math.max(0.72, item.scale - 0.12)})`;
-}
-
 function isReducedMotion(windowTarget) {
   return Boolean(windowTarget?.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches);
 }
 
-function animateJarNode(node, item, { delay = 0, reduced = false, enabled = false } = {}) {
-  node.getAnimations?.().forEach((animation) => animation.cancel());
-  node.style.removeProperty("opacity");
-  node.style.removeProperty("transform");
-  if (!enabled || reduced || typeof node.animate !== "function") return;
-  const animation = node.animate([
-    { opacity: 0, transform: mouthJarTransform(item) },
-    { opacity: 1, transform: finalJarTransform(item) },
-  ], {
+function jarMotionNode(node) {
+  return node?.querySelector?.(".mood-jar-motion");
+}
+
+function cancelAnimations(node) {
+  node?.getAnimations?.().forEach((animation) => animation.cancel());
+}
+
+function setJarNodeFinal(node) {
+  const motion = jarMotionNode(node);
+  if (!motion) return;
+  cancelAnimations(motion);
+  motion.style.opacity = "1";
+  motion.style.transform = JAR_FINAL_MOTION;
+}
+
+function jarMouthDelta(stageRect, item) {
+  const mouthX = stageRect.width * JAR_MOUTH.x;
+  const mouthY = stageRect.height * JAR_MOUTH.y;
+  const slotX = stageRect.width * item.x / 100;
+  const slotY = stageRect.height * item.y / 100;
+  return { x: mouthX - slotX, y: mouthY - slotY };
+}
+
+function translate3d(x, y) {
+  return `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0px)`;
+}
+
+function jarMouthTransform(stageRect, item) {
+  const { x, y } = jarMouthDelta(stageRect, item);
+  return translate3d(x, y);
+}
+
+function jarBounceTransform(stageRect, item) {
+  const { x, y } = jarMouthDelta(stageRect, item);
+  return `${translate3d(x * 0.08, y * 0.08)} scale(1.04)`;
+}
+
+function setJarNodePrepared(node, item, stageRect, kind = "enter") {
+  const motion = jarMotionNode(node);
+  if (!motion) return;
+  if (kind === "edit") {
+    setJarNodeFinal(node);
+    return;
+  }
+  cancelAnimations(motion);
+  motion.style.opacity = "0";
+  motion.style.transform = `${jarMouthTransform(stageRect, item)} rotate(${item.rotate - 12}deg) scale(${Math.max(0.72, item.scale - 0.12)})`;
+}
+
+function setJarNodeWaiting(node, item) {
+  const motion = jarMotionNode(node);
+  if (!motion) return;
+  cancelAnimations(motion);
+  motion.style.opacity = "0";
+  motion.style.transform = `translate3d(0px, -48px, 0px) rotate(${item.rotate - 12}deg) scale(${Math.max(0.72, item.scale - 0.12)})`;
+}
+
+function animateJarNode(node, item, { stageRect, delay = 0, reduced = false, enabled = false, kind = "enter" } = {}) {
+  const motion = jarMotionNode(node);
+  if (!motion) return;
+  cancelAnimations(motion);
+  if (!enabled || reduced || typeof motion.animate !== "function") {
+    setJarNodeFinal(node);
+    return;
+  }
+  const keyframes = kind === "edit"
+    ? [
+      { opacity: 1, transform: "translate3d(0px, 0px, 0px) scale(0.94)" },
+      { opacity: 0.45, transform: "translate3d(0px, 0px, 0px) scale(1.04)" },
+      { opacity: 1, transform: JAR_FINAL_MOTION },
+    ]
+    : [
+      { opacity: 0, transform: `${jarMouthTransform(stageRect, item)} rotate(${item.rotate - 12}deg) scale(${Math.max(0.72, item.scale - 0.12)})` },
+      { offset: 0.72, opacity: 1, transform: jarBounceTransform(stageRect, item) },
+      { opacity: 1, transform: JAR_FINAL_MOTION },
+    ];
+  const animation = motion.animate(keyframes, {
     duration: 480,
     delay,
     easing: "cubic-bezier(0.2, 0.78, 0.24, 1)",
@@ -108,20 +175,24 @@ function animateJarNode(node, item, { delay = 0, reduced = false, enabled = fals
   });
   animation.onfinish = () => {
     animation.cancel();
-    node.style.removeProperty("opacity");
-    node.style.removeProperty("transform");
+    setJarNodeFinal(node);
   };
 }
 
 function animateJarRemoval(node, reduced) {
-  node.getAnimations?.().forEach((animation) => animation.cancel());
-  if (reduced || typeof node.animate !== "function") {
+  const motion = jarMotionNode(node);
+  if (!motion) {
     node.remove();
     return;
   }
-  const animation = node.animate([
-    { opacity: 1, transform: node.style.transform || "translate(-50%, -50%)" },
-    { opacity: 0, transform: "translate(-50%, -62%) scale(0.82)" },
+  cancelAnimations(motion);
+  if (reduced || typeof motion.animate !== "function") {
+    node.remove();
+    return;
+  }
+  const animation = motion.animate([
+    { opacity: 1, transform: JAR_FINAL_MOTION },
+    { opacity: 0, transform: "translate3d(0px, -8px, 0px) scale(0.82)" },
   ], { duration: 180, easing: "ease-in" });
   animation.onfinish = () => node.remove();
 }
@@ -129,7 +200,9 @@ function animateJarRemoval(node, reduced) {
 function createJarNode(documentTarget, item, getMoodAsset) {
   const node = text(documentTarget, "span", "", `mood-jar-item is-${item.shape}`);
   node.dataset.moodJarItemId = item.entryId;
-  node.append(moodAsset(documentTarget, item.mood, item.shape, getMoodAsset, "mood-jar-asset"));
+  const motion = text(documentTarget, "span", "", "mood-jar-motion");
+  motion.append(moodAsset(documentTarget, item.mood, item.shape, getMoodAsset, "mood-jar-asset"));
+  node.append(motion);
   return node;
 }
 
@@ -141,10 +214,11 @@ function updateJarNode(node, item, documentTarget, getMoodAsset) {
   node.style.setProperty("--jar-rotation", `${item.rotate}deg`);
   node.style.setProperty("--jar-scale", item.scale);
   node.title = `${item.dateKey}，${item.moodLabel}`;
-  const image = node.querySelector("img");
+  const motion = jarMotionNode(node);
+  const image = motion?.querySelector("img");
   const imageSrc = getMoodAsset?.(item.mood, item.shape) || "";
   if (!image || image.getAttribute("src") !== imageSrc) {
-    node.replaceChildren(moodAsset(documentTarget, item.mood, item.shape, getMoodAsset, "mood-jar-asset"));
+    motion?.replaceChildren(moodAsset(documentTarget, item.mood, item.shape, getMoodAsset, "mood-jar-asset"));
   }
 }
 
@@ -170,7 +244,7 @@ function trendX(day, dayCount) {
 }
 
 function makeTrendPath(segment, dayCount) {
-  return segment.map((point, index) => `${index ? "L" : "M"} ${trendX(point.day, dayCount).toFixed(2)} ${trendY(point.level)}`).join(" ");
+  return segment.points.map((point, index) => `${index ? "L" : "M"} ${trendX(point.day, dayCount).toFixed(2)} ${trendY(point.level)}`).join(" ");
 }
 
 function isCompactTrend(windowTarget) {
@@ -276,36 +350,138 @@ export function createMoodMonthSummaryView({
   let lastJarSignature = null;
   let lastTrendSignature = null;
   let lastAnimationKey = "";
+  let jarObserver = null;
+  let jarVisibilityKnown = false;
+  let jarInViewport = false;
+  let pendingJarAnimation = null;
   const pointLookup = new Map();
+
+  function isJarStageVisible() {
+    const stage = elements.moodJarStage;
+    const viewportHeight = Number(windowTarget?.innerHeight || stage?.ownerDocument?.documentElement?.clientHeight || 0);
+    if (!stage || !viewportHeight) return false;
+    const rect = stage.getBoundingClientRect();
+    const visibleHeight = Math.max(0, Math.min(rect.bottom, viewportHeight) - Math.max(rect.top, 0));
+    return rect.height > 0 && visibleHeight / rect.height >= 0.35;
+  }
+
+  function canPlayJarAnimation() {
+    return jarVisibilityKnown && jarInViewport;
+  }
+
+  function cancelJarAnimations() {
+    elements.moodJarItems?.querySelectorAll(".mood-jar-motion").forEach((node) => cancelAnimations(node));
+  }
+
+  function playPendingJarAnimation() {
+    if (!pendingJarAnimation) return;
+    const pending = pendingJarAnimation;
+    const reduce = isReducedMotion(windowTarget);
+    if (reduce || (!jarObserver && !canPlayJarAnimation())) {
+      pending.entries.forEach(({ node }) => setJarNodeFinal(node));
+      pendingJarAnimation = null;
+      lastAnimationKey = pending.key;
+      return;
+    }
+    if (jarObserver && !canPlayJarAnimation()) return;
+    if (!canPlayJarAnimation()) return;
+    const stageRect = elements.moodJarStage?.getBoundingClientRect();
+    if (!stageRect?.width || !stageRect.height) {
+      pending.entries.forEach(({ node }) => setJarNodeFinal(node));
+      pendingJarAnimation = null;
+      lastAnimationKey = pending.key;
+      return;
+    }
+    pending.entries.forEach(({ node, item, delay, kind }) => animateJarNode(node, item, {
+      stageRect,
+      delay,
+      kind,
+      reduced: false,
+      enabled: true,
+    }));
+    pendingJarAnimation = null;
+    lastAnimationKey = pending.key;
+  }
+
+  function ensureJarObserver() {
+    const stage = elements.moodJarStage;
+    if (!stage || jarObserver || jarVisibilityKnown) return;
+    const Observer = windowTarget?.IntersectionObserver || globalThis?.IntersectionObserver;
+    if (typeof Observer !== "function") {
+      jarVisibilityKnown = true;
+      jarInViewport = isJarStageVisible();
+      return;
+    }
+    jarObserver = new Observer((entries) => {
+      const entry = entries.find(({ target }) => target === stage);
+      if (!entry) return;
+      jarVisibilityKnown = true;
+      jarInViewport = Boolean(entry.isIntersecting && entry.intersectionRatio >= 0.35);
+      if (jarInViewport) playPendingJarAnimation();
+    }, { threshold: [0, 0.35], rootMargin: "0px 0px -8% 0px" });
+    jarObserver.observe(stage);
+  }
 
   function renderJar(state, summary) {
     if (!elements.moodJarItems) return;
+    ensureJarObserver();
     const documentTarget = elements.moodJarItems.ownerDocument;
     const items = summary?.jarItems || [];
     const signature = summarySignature(summary);
-    if (signature === lastJarSignature) return;
+    const animationKey = `${summary?.monthKey || ""}:${signature}`;
+    if (signature === lastJarSignature) {
+      playPendingJarAnimation();
+      return;
+    }
     const existing = new Map([...elements.moodJarItems.children].map((node) => [node.dataset.moodJarItemId, node]));
     const reduce = isReducedMotion(windowTarget);
     const animationMode = state.monthRenderReason;
-    const animationKey = `${summary?.monthKey || ""}:${animationMode}:${state.changedEntryId || ""}:${signature}`;
-    const animateAll = ["initial", "month-change"].includes(animationMode) && Boolean(items.length) && animationKey !== lastAnimationKey;
-    const animateChanged = animationMode === "mutation" && Boolean(state.changedEntryId) && animationKey !== lastAnimationKey;
-    if (animateAll || animateChanged) lastAnimationKey = animationKey;
+    const isNewAnimationKey = animationKey !== lastAnimationKey;
+    const animateAll = Boolean(items.length) && isNewAnimationKey && (
+      ["initial", "month-change"].includes(animationMode)
+      || (!lastAnimationKey && !state.changedEntryId)
+    );
+    const animateChanged = animationMode === "mutation" && Boolean(state.changedEntryId) && isNewAnimationKey;
+    const animationEntries = [];
+    const stageRect = elements.moodJarStage?.getBoundingClientRect();
+    cancelJarAnimations();
+    pendingJarAnimation = null;
     for (const item of items) {
-      const node = existing.get(item.entryId) || createJarNode(documentTarget, item, getMoodAsset);
+      const existingNode = existing.get(item.entryId);
+      const node = existingNode || createJarNode(documentTarget, item, getMoodAsset);
       updateJarNode(node, item, documentTarget, getMoodAsset);
       elements.moodJarItems.append(node);
       const shouldAnimate = animateAll || (animateChanged && item.entryId === state.changedEntryId);
-      animateJarNode(node, item, { delay: animateAll ? Math.min(620, item.slotIndex * 14) : 0, reduced: reduce, enabled: shouldAnimate });
+      if (shouldAnimate) {
+        animationEntries.push({
+          node,
+          item,
+          kind: existingNode ? "edit" : "enter",
+          delay: animateAll ? Math.min(220, Math.floor(item.slotIndex / 8) * 24) : 0,
+        });
+        if (stageRect?.width && stageRect.height) setJarNodePrepared(node, item, stageRect, existingNode ? "edit" : "enter");
+        else setJarNodeWaiting(node, item);
+      } else {
+        setJarNodeFinal(node);
+      }
       existing.delete(item.entryId);
     }
     for (const [entryId, node] of existing) {
-      const shouldFade = animationMode === "mutation" && entryId === state.changedEntryId;
+      const shouldFade = animationMode === "mutation" && entryId === state.changedEntryId && !reduce && canPlayJarAnimation();
       if (shouldFade) animateJarRemoval(node, reduce);
-      else node.remove();
+      else {
+        setJarNodeFinal(node);
+        node.remove();
+      }
     }
     elements.moodJarItems.classList.toggle("is-empty", !items.length);
     lastJarSignature = signature;
+    if (animationEntries.length) {
+      pendingJarAnimation = { key: animationKey, entries: animationEntries };
+      playPendingJarAnimation();
+    } else if (items.length) {
+      lastAnimationKey = animationKey;
+    }
   }
 
   function renderDominant(state, summary) {
@@ -346,6 +522,10 @@ export function createMoodMonthSummaryView({
 
   function renderTrend(state, summary) {
     if (!elements.moodTrendChart) return;
+    elements.moodTrendChart.setAttribute("viewBox", `0 0 ${TREND_LAYOUT.width} ${TREND_LAYOUT.height}`);
+    elements.moodTrendChart.setAttribute("width", String(TREND_LAYOUT.width));
+    elements.moodTrendChart.setAttribute("height", String(TREND_LAYOUT.height));
+    elements.moodTrendChart.setAttribute("preserveAspectRatio", "xMidYMid meet");
     const signature = trendSignature(summary, state);
     if (signature === lastTrendSignature) return;
     const documentTarget = elements.moodTrendChart.ownerDocument;
@@ -361,7 +541,7 @@ export function createMoodMonthSummaryView({
       return legend;
     }));
     if (elements.moodTrendEmpty) elements.moodTrendEmpty.hidden = hasData;
-    elements.moodTrendChart.hidden = !hasData;
+    elements.moodTrendChart.toggleAttribute("hidden", !hasData);
     elements.moodTrendPointControls?.replaceChildren();
     if (elements.moodTrendSummary) elements.moodTrendSummary.textContent = buildTrendSummary(state, summary);
     pointLookup.clear();
@@ -375,10 +555,12 @@ export function createMoodMonthSummaryView({
     appendTrendAxis(documentTarget, elements.moodTrendChart, dayCount, compact, getMoodAsset);
     for (const [index, item] of series.entries()) {
       for (const segment of item.segments || []) {
-        if (segment.length < 2) continue;
+        if (segment.points.length < 2) continue;
+        const isGap = segment.kind === "gap";
         const path = svgElement(documentTarget, "path", {
-          class: `mood-trend-line series-${index} ${index === 0 ? "is-solid" : "is-dashed"}`,
+          class: `mood-trend-line series-${index} ${isGap ? "is-gap is-dashed" : index === 0 ? "is-solid" : "is-dashed"}`,
           d: makeTrendPath(segment, dayCount),
+          stroke: TREND_FALLBACK_COLORS[index] || TREND_FALLBACK_COLORS[0],
         });
         path.style.setProperty("--trend-color", TREND_COLORS[index] || TREND_COLORS[0]);
         elements.moodTrendChart.append(path);
@@ -403,8 +585,25 @@ export function createMoodMonthSummaryView({
           "aria-describedby": "moodTrendTooltip",
           "aria-label": label,
         }));
-        if (point.shape === "square") group.append(svgElement(documentTarget, "rect", { class: "mood-trend-visible-point", x: x - 5, y: y - 5, width: 10, height: 10, rx: 2 }));
-        else group.append(svgElement(documentTarget, "circle", { class: "mood-trend-visible-point", cx: x, cy: y, r: 5 }));
+        group.style.setProperty("--trend-color", TREND_COLORS[index] || TREND_COLORS[0]);
+        if (point.shape === "square") group.append(svgElement(documentTarget, "rect", {
+          class: "mood-trend-visible-point",
+          x: x - 5,
+          y: y - 5,
+          width: 10,
+          height: 10,
+          rx: 2,
+          fill: TREND_FALLBACK_COLORS[index] || TREND_FALLBACK_COLORS[0],
+          stroke: "#ffffff",
+        }));
+        else group.append(svgElement(documentTarget, "circle", {
+          class: "mood-trend-visible-point",
+          cx: x,
+          cy: y,
+          r: 5,
+          fill: TREND_FALLBACK_COLORS[index] || TREND_FALLBACK_COLORS[0],
+          stroke: "#ffffff",
+        }));
         elements.moodTrendChart.append(group);
         if (elements.moodTrendPointControls) {
           const documentButton = text(documentTarget, "button", label, "mood-trend-point-control");
@@ -412,6 +611,8 @@ export function createMoodMonthSummaryView({
           documentButton.dataset.moodTrendPoint = pointId;
           documentButton.setAttribute("aria-label", label);
           documentButton.setAttribute("aria-describedby", "moodTrendTooltip");
+          documentButton.style.setProperty("--mood-trend-point-x", `${x / TREND_LAYOUT.width * 100}%`);
+          documentButton.style.setProperty("--mood-trend-point-y", `${y / TREND_LAYOUT.height * 100}%`);
           elements.moodTrendPointControls.append(documentButton);
         }
         pointLookup.set(pointId, { point, name: nameFor(state, item) });
@@ -436,7 +637,8 @@ export function createMoodMonthSummaryView({
   }
 
   function bind() {
-    if (bound || !elements.moodTrendChart) return;
+    ensureJarObserver();
+    if (bound) return;
     bound = true;
     const bindPointInteractions = (target) => {
       target.addEventListener("pointerover", (event) => {
@@ -462,9 +664,19 @@ export function createMoodMonthSummaryView({
         }
       });
     };
-    bindPointInteractions(elements.moodTrendChart);
+    if (elements.moodTrendChart) bindPointInteractions(elements.moodTrendChart);
     if (elements.moodTrendPointControls) bindPointInteractions(elements.moodTrendPointControls);
   }
 
-  return Object.freeze({ bind, render });
+  function destroy() {
+    jarObserver?.disconnect?.();
+    jarObserver = null;
+    jarVisibilityKnown = false;
+    jarInViewport = false;
+    pendingJarAnimation = null;
+    cancelJarAnimations();
+    elements.moodJarItems?.querySelectorAll(".mood-jar-item").forEach((node) => setJarNodeFinal(node));
+  }
+
+  return Object.freeze({ bind, destroy, render });
 }

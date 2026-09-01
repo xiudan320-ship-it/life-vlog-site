@@ -87,6 +87,11 @@ function daysInMonth(monthKey) {
   return new Date(Date.UTC(year, month, 0)).getUTCDate();
 }
 
+function pngDimensions(buffer) {
+  assert.equal(buffer.toString("ascii", 1, 4), "PNG", "screenshot must be a PNG");
+  return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
+}
+
 function dateInMonth(monthKey, day) {
   return `${monthKey}-${String(day).padStart(2, "0")}`;
 }
@@ -103,6 +108,18 @@ function moodSummaryRows(today) {
     { id: "fixture-summary-partner-09", user_id: "fixture-partner", diary_date: dateInMonth(previousMonth, 9), mood: "calm", content: "成员平静", tags: [] },
     { id: "fixture-summary-partner-10", user_id: "fixture-partner", diary_date: dateInMonth(previousMonth, 10), mood: "annoyed", content: "成员烦恼", tags: [] },
   ];
+}
+
+function denseMoodSummaryRows(today) {
+  const monthKey = today.slice(0, 7);
+  return Array.from({ length: daysInMonth(monthKey) }, (_, index) => {
+    const day = index + 1;
+    const dateKey = dateInMonth(monthKey, day);
+    return [
+      { id: `fixture-dense-owner-${day}`, user_id: "fixture-user", diary_date: dateKey, mood: day % 2 ? "happy" : "tired", content: "密集测试", tags: [] },
+      { id: `fixture-dense-partner-${day}`, user_id: "fixture-partner", diary_date: dateKey, mood: day % 2 ? "calm" : "sad", content: "密集测试", tags: [] },
+    ];
+  }).flat();
 }
 
 function moodReadCount(fixture) {
@@ -161,31 +178,270 @@ async function assertMoodMonthSummary(page, today, label) {
   assert.equal(await page.locator("#moodListOpen").isVisible(), true, `${label} all-diary action must stay at the bottom of the summary`);
   assert.equal(await page.locator("#moodJarCount").textContent(), "2 条记录");
   assert.equal(await page.locator("#moodJarItems .mood-jar-item").count(), 2);
-  const jarItems = await page.locator("#moodJarItems .mood-jar-item").evaluateAll((items) => items.map((item) => ({
-    id: item.dataset.moodJarItemId,
-    shape: item.className.includes("is-square") ? "square" : "circle",
-    x: Number.parseFloat(item.style.getPropertyValue("--jar-x")),
-    y: Number.parseFloat(item.style.getPropertyValue("--jar-y")),
-  })));
+  const jarGeometry = await page.locator("#moodJarStage").evaluate((stage) => {
+    const stageRect = stage.getBoundingClientRect();
+    const viewport = stage.querySelector(".mood-jar-viewport");
+    const box = (element) => {
+      if (!element?.getBBox) return null;
+      const value = element.getBBox();
+      return { x: value.x, y: value.y, width: value.width, height: value.height };
+    };
+    const screenBox = (element) => {
+      const value = element?.getBoundingClientRect();
+      return value ? { left: value.left, top: value.top, width: value.width, height: value.height } : null;
+    };
+    return {
+      stage: { left: stageRect.left, top: stageRect.top, width: stageRect.width, height: stageRect.height },
+      viewportPresent: Boolean(viewport),
+      viewportClip: viewport ? getComputedStyle(viewport).clipPath : "",
+      body: box(stage.querySelector(".mood-jar-body")),
+      rim: box(stage.querySelector(".mood-jar-rim")),
+      base: box(stage.querySelector(".mood-jar-base")),
+      bodyScreen: screenBox(stage.querySelector(".mood-jar-body")),
+      rimScreen: screenBox(stage.querySelector(".mood-jar-rim")),
+      baseScreen: screenBox(stage.querySelector(".mood-jar-base")),
+      items: [...stage.querySelectorAll(".mood-jar-item")].map((item) => {
+        const rect = item.getBoundingClientRect();
+        const x = Number.parseFloat(item.style.getPropertyValue("--jar-x"));
+        const y = Number.parseFloat(item.style.getPropertyValue("--jar-y"));
+        return {
+          id: item.dataset.moodJarItemId,
+          shape: item.className.includes("is-square") ? "square" : "circle",
+          x,
+          y,
+          width: rect.width,
+          height: rect.height,
+          left: rect.left,
+          right: rect.right,
+          top: rect.top,
+          bottom: rect.bottom,
+          centerX: rect.left + rect.width / 2,
+          centerY: rect.top + rect.height / 2,
+          expectedCenterX: stageRect.left + stageRect.width * x / 100,
+          expectedCenterY: stageRect.top + stageRect.height * y / 100,
+          computedLeft: getComputedStyle(item).left,
+          computedTop: getComputedStyle(item).top,
+        };
+      }),
+    };
+  });
+  assert.equal(jarGeometry.viewportPresent, true, `${label} jar must have a clipped inner viewport`);
+  assert.match(jarGeometry.viewportClip, /polygon|path|inset/u, `${label} jar viewport must expose a real clip path`);
+  assert.ok(jarGeometry.stage.width > 0 && jarGeometry.stage.height > 0, `${label} jar stage has no layout box`);
+  assert.ok(jarGeometry.body?.width > 0 && jarGeometry.rim?.width > 0 && jarGeometry.base?.width > 0, `${label} jar geometry is incomplete`);
+  const jarCenter = (box) => box.x + box.width / 2;
+  assert.ok(Math.abs(jarCenter(jarGeometry.body) - jarCenter(jarGeometry.rim)) <= 1.5, `${label} jar rim is not centered on the body`);
+  assert.ok(Math.abs(jarCenter(jarGeometry.body) - jarCenter(jarGeometry.base)) <= 1.5, `${label} jar base is not centered on the body`);
+  const screenCenter = (box) => box.left + box.width / 2;
+  assert.ok(Math.abs(screenCenter(jarGeometry.bodyScreen) - screenCenter(jarGeometry.rimScreen)) <= 2, `${label} jar screen rim is not centered on the body`);
+  assert.ok(Math.abs(screenCenter(jarGeometry.bodyScreen) - screenCenter(jarGeometry.baseScreen)) <= 2, `${label} jar screen base is not centered on the body`);
+  const jarItems = jarGeometry.items;
   assert.deepEqual(jarItems.map(({ shape }) => shape), ["square", "circle"], `${label} jar seats must keep stable shapes`);
-  assert.ok(jarItems.every(({ x, y }) => x >= 14.5 && x <= 85.5 && y >= 30 && y <= 86), `${label} jar item escaped the glass bounds`);
+  assert.ok(jarItems.every(({ width, height, left, right, top, bottom, centerX, centerY, expectedCenterX, expectedCenterY, computedLeft, computedTop }) => {
+    const innerLeft = jarGeometry.stage.left + jarGeometry.stage.width * 0.2;
+    const innerRight = jarGeometry.stage.left + jarGeometry.stage.width * 0.8;
+    const innerTop = jarGeometry.stage.top + jarGeometry.stage.height * 0.22;
+    const innerBottom = jarGeometry.stage.top + jarGeometry.stage.height * 0.9;
+    return width > 0 && height > 0
+      && left >= innerLeft && right <= innerRight && top >= innerTop && bottom <= innerBottom
+      && Math.abs(centerX - expectedCenterX) <= 1.5 && Math.abs(centerY - expectedCenterY) <= 1.5
+      && computedLeft !== "auto" && computedTop !== "auto";
+  }), `${label} jar item escaped the clipped glass bounds: ${JSON.stringify(jarGeometry)}`);
+  if (label === "mood-390") {
+    const jarScreenshot = await page.locator("#moodJarStage").screenshot({ animations: "disabled" });
+    const jarScreenshotSize = pngDimensions(jarScreenshot);
+    assert.ok(jarScreenshot.length > 1000 && jarScreenshotSize.width > 0 && jarScreenshotSize.height > 0, `${label} jar screenshot has no visual surface`);
+  }
   const dominantText = await page.locator("#moodDominantList").textContent();
   assert.match(dominantText, /小秀/u);
   assert.match(dominantText, /小咻/u);
   assert.match(dominantText, /开心/u);
   assert.match(dominantText, /平静/u);
   const trendState = await page.locator("#moodTrendChart").evaluate((element) => ({
-    hidden: element.hidden,
     hiddenAttribute: element.getAttribute("hidden"),
     pointCount: element.querySelectorAll("[data-mood-trend-point]").length,
     seriesCount: element.querySelectorAll(".mood-trend-line").length,
   }));
-  assert.equal(trendState.hidden, false, `${label} trend chart should render for recorded points: ${JSON.stringify(trendState)}`);
+  assert.equal(trendState.hiddenAttribute, null, `${label} trend chart should render for recorded points: ${JSON.stringify(trendState)}`);
   assert.equal(await page.locator("#moodTrendChart [data-mood-trend-point]").count(), 2);
   assert.equal(await page.locator("#moodTrendChart [role=button][tabindex=\"0\"]").count(), 2);
   assert.equal(await page.locator("#moodTrendDetailsContent .mood-trend-data-list > li").count(), 1);
   assert.match(await page.locator("#moodTrendSummary").textContent(), /小秀.*记录 1 天/u);
   await assertMoodCalendarLayout(page, today, page.viewportSize(), label);
+}
+
+async function runMoodJarViewportAnimation() {
+  const today = todayInTokyo();
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block", reducedMotion: "no-preference" });
+  const fixture = createCloudflareApiFixture({ seedMoodFamily: true, moodDiaries: moodSummaryRows(today) });
+  const page = await context.newPage();
+  await fixture.install(context);
+  await installMoodSession(page);
+  await page.addInitScript(() => {
+    window.__moodAnimationCalls = [];
+    const originalAnimate = Element.prototype.animate;
+    Element.prototype.animate = function instrumentedAnimate(keyframes, options) {
+      if (this.closest?.("#moodJarStage")) {
+        window.__moodAnimationCalls.push({
+          className: String(this.className),
+          entryId: this.closest?.(".mood-jar-item")?.dataset.moodJarItemId || "",
+          keyframes,
+          options: { duration: options?.duration, delay: options?.delay },
+        });
+      }
+      return originalAnimate.call(this, keyframes, options);
+    };
+    const style = document.createElement("style");
+    style.id = "fixture-mood-jar-offscreen";
+    style.textContent = "#moodJarStage { transform: translateY(1200px) !important; }";
+    document.documentElement.append(style);
+  });
+  try {
+    await page.goto(`${baseUrl}/?page=mood`, { waitUntil: "domcontentloaded" });
+    await waitForMoodDiaryPage(page);
+    await page.waitForFunction(() => document.querySelector("#moodJarCount")?.textContent === "2 条记录", null, { timeout: 30000 });
+    assert.equal(await page.evaluate(() => window.__moodAnimationCalls.length), 0, "jar animation must wait while the stage is offscreen");
+
+    await page.evaluate(() => document.querySelector("#fixture-mood-jar-offscreen")?.remove());
+    await page.locator("#moodJarStage").scrollIntoViewIfNeeded();
+    await page.waitForFunction(() => window.__moodAnimationCalls.length >= 2, null, { timeout: 3000 });
+    const calls = await page.evaluate(() => window.__moodAnimationCalls.slice());
+    assert.ok(calls.every(({ keyframes }) => keyframes.some(({ transform = "" }) => String(transform).includes("translate3d"))), `jar animation must originate from the mouth: ${JSON.stringify(calls)}`);
+    assert.ok(calls.every(({ keyframes }) => String(keyframes.at(-1)?.transform || "").includes("translate3d(0px, 0px, 0px)")), `jar animation must settle at the final transform: ${JSON.stringify(calls)}`);
+    await page.waitForTimeout(700);
+    assert.equal(await page.locator("#moodJarItems .mood-jar-motion").evaluateAll((items) => items.every((item) => item.getAnimations().length === 0)), true, "jar animations did not settle");
+
+    const settledCalls = await page.evaluate(() => window.__moodAnimationCalls.length);
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await page.waitForTimeout(100);
+    await page.locator("#moodJarStage").scrollIntoViewIfNeeded();
+    await page.waitForTimeout(250);
+    assert.equal(await page.evaluate(() => window.__moodAnimationCalls.length), settledCalls, "jar animation replayed after returning to the viewport");
+  } finally {
+    await fixture.dispose(context);
+    await context.close();
+  }
+}
+
+async function runMoodJarMutationAnimation() {
+  const today = todayInTokyo();
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block", reducedMotion: "no-preference" });
+  const fixture = createCloudflareApiFixture({ seedMoodFamily: true, moodDiaries: moodSummaryRows(today) });
+  const page = await context.newPage();
+  await fixture.install(context);
+  await installMoodSession(page);
+  await page.addInitScript(() => {
+    window.__moodMutationAnimationCalls = [];
+    const originalAnimate = Element.prototype.animate;
+    Element.prototype.animate = function instrumentedMutationAnimate(keyframes, options) {
+      if (this.closest?.("#moodJarStage") && window.__recordMoodMutationAnimations) {
+        window.__moodMutationAnimationCalls.push({
+          entryId: this.closest(".mood-jar-item")?.dataset.moodJarItemId || "",
+          keyframes,
+          options: { duration: options?.duration, delay: options?.delay },
+        });
+      }
+      return originalAnimate.call(this, keyframes, options);
+    };
+  });
+  try {
+    await page.goto(`${baseUrl}/?page=mood`, { waitUntil: "domcontentloaded" });
+    await waitForMoodDiaryPage(page);
+    await page.waitForFunction(() => document.querySelector("#moodJarCount")?.textContent === "2 条记录", null, { timeout: 30000 });
+    await page.locator("#moodJarStage").scrollIntoViewIfNeeded();
+    await page.waitForTimeout(800);
+    await page.evaluate(() => {
+      window.__moodMutationAnimationCalls = [];
+      window.__recordMoodMutationAnimations = true;
+    });
+    const todayCell = page.locator(`[data-mood-date="${today}"]`);
+    await todayCell.click();
+    await page.waitForSelector("#moodDetailPanel:not([hidden])", { state: "visible", timeout: 30000 });
+    await page.locator("#moodJarStage").scrollIntoViewIfNeeded();
+    await page.click("[data-mood-delete]");
+    await page.waitForSelector('.action-confirm-dialog[open]', { state: "visible", timeout: 30000 });
+    await page.click('.action-confirm-dialog button[value="confirm"]');
+    await page.waitForFunction(() => document.querySelector("#moodJarCount")?.textContent === "1 条记录", null, { timeout: 30000 });
+    await page.waitForTimeout(250);
+    const calls = await page.evaluate(() => window.__moodMutationAnimationCalls.slice());
+    assert.equal(calls.length, 1, `mutation should animate only the affected jar item: ${JSON.stringify(calls)}`);
+    assert.equal(calls[0].entryId, "fixture-summary-owner-current");
+    assert.equal(calls[0].options.duration, 180);
+  } finally {
+    await fixture.dispose(context);
+    await context.close();
+  }
+}
+
+async function runMoodJarDenseLayout() {
+  const today = todayInTokyo();
+  const expectedCount = daysInMonth(today.slice(0, 7)) * 2;
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block", reducedMotion: "reduce" });
+  const fixture = createCloudflareApiFixture({ seedMoodFamily: true, moodDiaries: denseMoodSummaryRows(today) });
+  const page = await context.newPage();
+  await fixture.install(context);
+  await installMoodSession(page);
+  try {
+    await page.goto(`${baseUrl}/?page=mood`, { waitUntil: "domcontentloaded" });
+    await waitForMoodDiaryPage(page);
+    await page.waitForFunction((expected) => document.querySelector("#moodJarCount")?.textContent === `${expected} 条记录`, expectedCount, { timeout: 30000 });
+    const geometry = await page.locator("#moodJarStage").evaluate((stage) => {
+      const stageRect = stage.getBoundingClientRect();
+      const viewport = stage.querySelector(".mood-jar-viewport");
+      const clipPolygon = [[34, 21], [66, 21], [66, 25], [75, 36], [77, 48], [77, 78], [75, 86], [72, 88], [28, 88], [25, 86], [23, 78], [23, 48], [25, 36], [34, 25]];
+      const insideClip = (x, y) => {
+        let inside = false;
+        for (let index = 0, previous = clipPolygon.length - 1; index < clipPolygon.length; previous = index++) {
+          const [currentX, currentY] = clipPolygon[index];
+          const [previousX, previousY] = clipPolygon[previous];
+          const intersects = ((currentY > y) !== (previousY > y))
+            && x < (previousX - currentX) * (y - currentY) / (previousY - currentY) + currentX;
+          if (intersects) inside = !inside;
+        }
+        return inside;
+      };
+      const items = [...stage.querySelectorAll(".mood-jar-item")].map((item) => {
+        const rect = item.getBoundingClientRect();
+        const x = Number.parseFloat(item.style.getPropertyValue("--jar-x"));
+        const y = Number.parseFloat(item.style.getPropertyValue("--jar-y"));
+        return {
+          width: rect.width,
+          height: rect.height,
+          left: rect.left,
+          right: rect.right,
+          top: rect.top,
+          bottom: rect.bottom,
+          expectedLeft: stageRect.left + stageRect.width * x / 100 - rect.width / 2,
+          expectedTop: stageRect.top + stageRect.height * y / 100 - rect.height / 2,
+          cornersInsideClip: [[rect.left, rect.top], [rect.right, rect.top], [rect.right, rect.bottom], [rect.left, rect.bottom]].every(([left, top]) => insideClip(
+            (left - stageRect.left) / stageRect.width * 100,
+            (top - stageRect.top) / stageRect.height * 100,
+          )),
+        };
+      });
+      return {
+        stage: { left: stageRect.left, top: stageRect.top, width: stageRect.width, height: stageRect.height },
+        clip: viewport ? getComputedStyle(viewport).clipPath : "",
+        items,
+      };
+    });
+    assert.match(geometry.clip, /polygon|path|inset/u);
+    assert.equal(geometry.items.length, expectedCount);
+    assert.ok(geometry.items.every(({ width, height, left, right, top, bottom, expectedLeft, expectedTop, cornersInsideClip }) => {
+      const innerLeft = geometry.stage.left + geometry.stage.width * 0.2;
+      const innerRight = geometry.stage.left + geometry.stage.width * 0.8;
+      const innerTop = geometry.stage.top + geometry.stage.height * 0.22;
+      const innerBottom = geometry.stage.top + geometry.stage.height * 0.9;
+      return width > 0 && height > 0
+        && left >= innerLeft && right <= innerRight && top >= innerTop && bottom <= innerBottom
+        && Math.abs(left - expectedLeft) <= 1.5 && Math.abs(top - expectedTop) <= 1.5
+        && cornersInsideClip;
+    }), `dense jar geometry escaped the cavity: ${JSON.stringify(geometry)}`);
+    await assertNoHorizontalOverflow(page, "dense jar layout");
+  } finally {
+    await fixture.dispose(context);
+    await context.close();
+  }
 }
 
 async function runMoodMonthSummaryLayout(viewport, label, { navigate = false, dark = false, reducedMotion = "reduce" } = {}) {
@@ -228,8 +484,47 @@ async function runMoodMonthSummaryLayout(viewport, label, { navigate = false, da
       await page.waitForFunction(() => document.querySelector("#moodJarCount")?.textContent === "5 条记录", null, { timeout: 30000 });
       assert.equal(await page.locator("#moodTrendChart [data-mood-trend-point]").count(), 5);
       assert.equal(await page.locator("#moodTrendChart .mood-trend-line.series-0.is-solid").count(), 1);
+      assert.equal(await page.locator("#moodTrendChart .mood-trend-line.series-0.is-gap").count(), 1);
       assert.equal(await page.locator("#moodTrendChart .mood-trend-line.series-1.is-dashed").count(), 1);
       assert.equal(await page.locator("#moodTrendLegend .mood-trend-line-swatch.is-dashed").count(), 1);
+      const trendGeometry = await page.locator("#moodTrendChart").evaluate((element) => ({
+        rect: (() => {
+          const value = element.getBoundingClientRect();
+          return { width: value.width, height: value.height };
+        })(),
+        viewBox: element.viewBox?.baseVal ? {
+          x: element.viewBox.baseVal.x,
+          y: element.viewBox.baseVal.y,
+          width: element.viewBox.baseVal.width,
+          height: element.viewBox.baseVal.height,
+        } : null,
+        lines: [...element.querySelectorAll(".mood-trend-line")].map((path) => {
+          const box = path.getBBox();
+          return {
+            length: path.getTotalLength(),
+            box: { x: box.x, y: box.y, width: box.width, height: box.height },
+            stroke: getComputedStyle(path).stroke,
+          };
+        }),
+        points: [...element.querySelectorAll(".mood-trend-visible-point")].map((point) => {
+          const box = point.getBBox();
+          return { x: box.x, y: box.y, width: box.width, height: box.height };
+        }),
+        controls: [...element.ownerDocument.querySelectorAll("#moodTrendPointControls [data-mood-trend-point]")].map((control) => {
+          const box = control.getBoundingClientRect();
+          return { width: box.width, height: box.height };
+        }),
+      }));
+      assert.ok(trendGeometry.rect.width > 0 && trendGeometry.rect.height > 0, `${label} trend SVG has no mobile layout box: ${JSON.stringify(trendGeometry)}`);
+      assert.deepEqual(trendGeometry.viewBox && [trendGeometry.viewBox.width, trendGeometry.viewBox.height], [720, 260]);
+      assert.ok(trendGeometry.lines.length >= 3 && trendGeometry.lines.every(({ length, box, stroke }) => length > 0 && box.width > 0 && box.height >= 0 && !/none|transparent/u.test(stroke)), `${label} trend path is invisible or has no geometry: ${JSON.stringify(trendGeometry)}`);
+      assert.ok(trendGeometry.points.length === 5 && trendGeometry.points.every(({ width, height, x, y }) => width > 0 && height > 0 && x >= 0 && x <= 720 && y >= 0 && y <= 260), `${label} trend points escaped the SVG viewBox: ${JSON.stringify(trendGeometry)}`);
+      assert.ok(trendGeometry.controls.length === 5 && trendGeometry.controls.every(({ width, height }) => width >= 44 && height >= 44), `${label} trend point controls are smaller than 44px: ${JSON.stringify(trendGeometry.controls)}`);
+      if (label === "mood-landscape" || label === "mood-390") {
+        const trendScreenshot = await page.locator("#moodTrendChartShell").screenshot({ animations: "disabled" });
+        const trendScreenshotSize = pngDimensions(trendScreenshot);
+        assert.ok(trendScreenshot.length > 1000 && trendScreenshotSize.width > 0 && trendScreenshotSize.height > 0, `${label} trend screenshot has no visual surface`);
+      }
       const firstPoint = page.locator("#moodTrendPointControls [data-mood-trend-point]").first();
       await firstPoint.focus();
       await firstPoint.evaluate((element) => element.focus());
@@ -657,8 +952,11 @@ try {
   await runTodayMoodOverviewFlow();
   await runTodayMoodQuickAdd();
   await runMoodMonthFailureState();
+  await runMoodJarViewportAnimation();
+  await runMoodJarMutationAnimation();
+  await runMoodJarDenseLayout();
   await runMoodMonthSummaryLayout({ width: 375, height: 812 }, "mood-375");
-  await runMoodMonthSummaryLayout({ width: 390, height: 844 }, "mood-390");
+  await runMoodMonthSummaryLayout({ width: 390, height: 844 }, "mood-390", { navigate: true });
   await runMoodMonthSummaryLayout({ width: 430, height: 932 }, "mood-430", { dark: true });
   await runMoodMonthSummaryLayout({ width: 768, height: 1024 }, "mood-768");
   await runMoodMonthSummaryLayout({ width: 844, height: 390 }, "mood-landscape", { navigate: true });

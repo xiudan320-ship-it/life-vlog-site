@@ -246,5 +246,21 @@ export function createMoodDiaryController({ elements, repository, overlayControl
 
   const view = injectedView || createMoodDiaryView({ elements, getAuthorName, getAuthorAvatar, onAction: (action) => { void dispatch(action); } });
   injectedView = view;
-  return Object.freeze({ activate, bind: () => view.bind(), render, refreshContext, getState: () => state, dispatch, loadMonth, loadHistory, selectDate: openEntry, beforeLeave: () => overlayController?.close?.() ?? true, handleMutation });
+  return Object.freeze({
+    activate,
+    bind: () => view.bind(),
+    render,
+    refreshContext,
+    getState: () => state,
+    dispatch,
+    loadMonth,
+    loadHistory,
+    selectDate: openEntry,
+    beforeLeave: async () => {
+      const canLeave = await (overlayController?.close?.() ?? true);
+      if (canLeave !== false) view.destroy?.();
+      return canLeave;
+    },
+    handleMutation,
+  });
 }

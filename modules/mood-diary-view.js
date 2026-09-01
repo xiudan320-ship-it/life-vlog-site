@@ -174,5 +174,9 @@ export function createMoodDiaryView({ elements = {}, getAuthorName, getAuthorAva
     monthSummaryView.bind();
   }
 
-  return Object.freeze({ bind, render });
+  function destroy() {
+    monthSummaryView.destroy?.();
+  }
+
+  return Object.freeze({ bind, destroy, render });
 }

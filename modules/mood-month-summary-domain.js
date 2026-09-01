@@ -26,10 +26,11 @@ const MOOD_LEVEL_BY_TYPE = Object.freeze({
 
 const MAX_JAR_ITEMS = 62;
 const JAR_COLUMNS = 8;
-const JAR_MIN_X = 14.5;
-const JAR_MAX_X = 85.5;
-const JAR_MIN_Y = 30;
-const JAR_MAX_Y = 86;
+const JAR_MIN_X = 31;
+const JAR_MAX_X = 69;
+const JAR_MIN_Y = 42;
+const JAR_MAX_Y = 80;
+const JAR_ROW_STEP = 5.4;
 
 function participantId(participant) {
   return String(participant?.userId || participant?.user_id || "").trim();
@@ -127,6 +128,7 @@ export function getMoodTrendLevel(mood) {
 export function buildJarItems(entries, { participants = [] } = {}) {
   const normalizedParticipants = normalizeParticipants(participants);
   const seatRank = seatRankFactory(normalizedParticipants);
+  const columnStep = (JAR_MAX_X - JAR_MIN_X) / (JAR_COLUMNS - 1);
   return sortJarEntries(entries || [], seatRank)
     .slice(0, MAX_JAR_ITEMS)
     .map((entry, index) => {
@@ -134,11 +136,11 @@ export function buildJarItems(entries, { participants = [] } = {}) {
       const seed = `${entry.id}:${entry.user_id}:${entry.diary_date}:${entry.mood}`;
       const row = Math.floor(index / JAR_COLUMNS);
       const column = index % JAR_COLUMNS;
-      const stagger = row % 2 ? 4.6 : 0;
+      const stagger = row % 2 ? 1.8 : 0;
       const xOffset = (hashUnit(seed, "x") - 0.5) * 2.2;
       const yOffset = (hashUnit(seed, "y") - 0.5) * 1.1;
-      const x = clamp(17 + column * 9.4 + stagger + xOffset, JAR_MIN_X, JAR_MAX_X);
-      const y = clamp(86 - row * 8 + yOffset, JAR_MIN_Y, JAR_MAX_Y);
+      const x = clamp(JAR_MIN_X + column * columnStep + stagger + xOffset, JAR_MIN_X, JAR_MAX_X);
+      const y = clamp(JAR_MAX_Y - row * JAR_ROW_STEP + yOffset, JAR_MIN_Y, JAR_MAX_Y);
       const rotate = Number((-7 + hashUnit(seed, "rotate") * 15).toFixed(2));
       const scale = Number((0.88 + hashUnit(seed, "scale") * 0.12).toFixed(3));
       const shape = participant?.shape || "circle";
@@ -189,18 +191,24 @@ function ordinal(dateKey) {
   return Math.floor(Date.UTC(year, month - 1, day) / 86400000);
 }
 
+function trendSegment(kind, points) {
+  return Object.freeze({ kind, points: Object.freeze([...points]) });
+}
+
 function splitTrendSegments(points) {
   const segments = [];
   let current = [];
   for (const point of points) {
     const previous = current.at(-1);
     if (previous && ordinal(point.dateKey) - ordinal(previous.dateKey) > 1) {
-      if (current.length) segments.push(Object.freeze(current));
-      current = [];
+      if (current.length) segments.push(trendSegment("solid", current));
+      segments.push(trendSegment("gap", [previous, point]));
+      current = [point];
+      continue;
     }
     current.push(point);
   }
-  if (current.length) segments.push(Object.freeze(current));
+  if (current.length) segments.push(trendSegment("solid", current));
   return Object.freeze(segments);
 }
 

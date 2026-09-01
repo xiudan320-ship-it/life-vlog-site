@@ -41,7 +41,7 @@ pnpm run test:release
 - 顶部分页：默认顺序为日记、VLOG、心愿、周末、衣柜；可选菜谱/留言/秘藏可启用、禁用、上下排序并在刷新后保持，日记不可关闭，VLOG 不写入 `?page=`，心情不出现在一级导航；导航过多时只有导航行横向滚动，页面本身无横向溢出，入口和排序按钮至少 44×44px、相邻间距至少 8px。
 - 日记筛选：搜索和 tag 在正常文档流中，计算样式不是 sticky/fixed，向下滚动后不会占据手机视口顶部。
 
-`test:browser`/`c-performance-regression.mjs` 另外验证首页今日心情概览的四种数据状态、两席稳定形状、真实昵称、本人快捷添加、冷启动滚动和 gallery 返回恢复；同时验证列表普通视频不触发视频网络加载、进入日记/VLOG 详情后静音自动播放且保留控件、失败可重试、gallery 同步读取秘藏表而不加载秘藏 route、30 轮快速路由 latest-wins、全局等级弹窗、心情日记 375/390/430/768/844×390/1440 视口的完整月历与 4～6 周布局、罐体边界/动效、最多心情、趋势图键盘提示、缓存错误重试、写后 canonical 重读、Picker/编辑/删除，以及既有周末/购物/回复交互。首屏 signed-in 请求预算包含今日心情的单日读取。所有 signed-in 场景均使用 `tests/fixtures/cloudflare-api-fixture.mjs` 的内存 fixture，不使用真实账户或真实业务数据。
+`test:browser`/`c-performance-regression.mjs` 另外验证首页今日心情概览的四种数据状态、两席稳定形状、真实昵称、本人快捷添加、冷启动滚动和 gallery 返回恢复；同时验证列表普通视频不触发视频网络加载、进入日记/VLOG 详情后静音自动播放且保留控件、失败可重试、gallery 同步读取秘藏表而不加载秘藏 route、30 轮快速路由 latest-wins、全局等级弹窗、心情日记 375/390/430/768/844×390/1440 视口的完整月历与 4～6 周布局、罐体前后层和实际 bbox/clip、离屏等待与单次视口动画、mutation 单项动画、最多心情、趋势 SVG 实际尺寸/路径长度/点 bbox/计算颜色/44×44 命中区、趋势图键盘提示、缓存错误重试、写后 canonical 重读、Picker/编辑/删除，以及既有周末/购物/回复交互。首屏 signed-in 请求预算包含今日心情的单日读取。所有 signed-in 场景均使用 `tests/fixtures/cloudflare-api-fixture.mjs` 的内存 fixture，不使用真实账户或真实业务数据。
 
 ## 3. 发布后只读检查
 

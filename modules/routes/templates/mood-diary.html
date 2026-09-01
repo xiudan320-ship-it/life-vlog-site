@@ -46,13 +46,19 @@
         <span class="mood-summary-sync" id="moodJarSync" hidden>正在同步</span>
       </div>
       <div class="mood-jar-stage" id="moodJarStage">
-        <svg class="mood-jar-outline" viewBox="0 0 320 360" aria-hidden="true" focusable="false">
-          <path class="mood-jar-glass" d="M108 26h104v28c0 12 5 21 16 30 19 16 31 43 31 78v91c0 56-43 101-96 101h-30c-53 0-96-45-96-101v-91c0-35 12-62 31-78 11-9 16-18 16-30V26h24Z" />
-          <path class="mood-jar-rim" d="M101 24h118v24H101z" />
-          <path class="mood-jar-highlight" d="M79 125c-9 18-13 36-13 58v66c0 39 28 73 66 82" />
-          <path class="mood-jar-base" d="M61 303c17 15 42 24 72 24h54c30 0 55-9 72-24" />
+        <svg class="mood-jar-outline mood-jar-back" viewBox="0 0 320 360" width="320" height="360" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false">
+          <path class="mood-jar-glass" d="M108 48H212V66C212 78 218 86 232 98C248 113 256 136 256 164V250C256 292 222 324 180 324H140C98 324 64 292 64 250V164C64 136 72 113 88 98C102 86 108 78 108 66V48Z" />
+          <path class="mood-jar-rim-back" d="M104 30H216V50H104Z" />
         </svg>
-        <div class="mood-jar-items" id="moodJarItems" aria-hidden="true"></div>
+        <div class="mood-jar-viewport" id="moodJarViewport">
+          <div class="mood-jar-items" id="moodJarItems" aria-hidden="true"></div>
+        </div>
+        <svg class="mood-jar-outline mood-jar-front" viewBox="0 0 320 360" width="320" height="360" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false">
+          <path class="mood-jar-body" d="M108 48H212V66C212 78 218 86 232 98C248 113 256 136 256 164V250C256 292 222 324 180 324H140C98 324 64 292 64 250V164C64 136 72 113 88 98C102 86 108 78 108 66V48Z" />
+          <path class="mood-jar-rim" d="M104 40C104 34.5 129 30 160 30C191 30 216 34.5 216 40V48C216 53.5 191 58 160 58C129 58 104 53.5 104 48V40Z" />
+          <path class="mood-jar-highlight" d="M94 126C85 145 80 162 80 184V246C80 277 100 300 128 309" />
+          <path class="mood-jar-base" d="M68 302C91 318 112 324 140 324H180C208 324 229 318 252 302" />
+        </svg>
       </div>
       <p class="mood-jar-caption" id="moodJarSummary">这个月还没有心情记录。</p>
     </section>
@@ -74,10 +80,10 @@
           <p>高涨、平稳、低落三档仅用于回顾本月起伏</p>
         </div>
       </div>
-      <p class="mood-trend-disclaimer" id="moodTrendDisclaimer">趋势用于回顾本月心情起伏，不代表健康评估。</p>
+      <p class="mood-trend-disclaimer" id="moodTrendDisclaimer">趋势用于回顾本月心情起伏，不代表健康评估；虚线表示两次真实记录之间没有记录的日期。</p>
       <div class="mood-trend-legend" id="moodTrendLegend" aria-label="趋势图例"></div>
       <div class="mood-trend-chart-shell" id="moodTrendChartShell">
-        <svg class="mood-trend-chart" id="moodTrendChart" viewBox="0 0 720 260" role="group" aria-labelledby="moodTrendHeading moodTrendSummary" hidden></svg>
+        <svg class="mood-trend-chart" id="moodTrendChart" viewBox="0 0 720 260" width="720" height="260" preserveAspectRatio="xMidYMid meet" role="group" aria-labelledby="moodTrendHeading moodTrendSummary" hidden></svg>
         <div class="mood-trend-point-controls" id="moodTrendPointControls"></div>
         <p class="mood-empty-state" id="moodTrendEmpty" hidden>这个月还没有趋势数据，记录一条心情后就会显示。</p>
         <div class="mood-trend-tooltip" id="moodTrendTooltip" role="tooltip" hidden></div>

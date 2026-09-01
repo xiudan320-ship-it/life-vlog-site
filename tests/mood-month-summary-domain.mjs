@@ -68,8 +68,11 @@ test("trend series creates real points and breaks across missing dates", () => {
     ["2024-02-02", 1],
     ["2024-02-05", 0],
   ]);
-  assert.equal(summary.trendSeries[0].segments.length, 2);
-  assert.equal(summary.trendSeries[0].segments[1][0].dateKey, "2024-02-05");
+  assert.deepEqual(summary.trendSeries[0].segments.map(({ kind, points }) => [kind, points.map(({ dateKey }) => dateKey)]), [
+    ["solid", ["2024-02-01", "2024-02-02"]],
+    ["gap", ["2024-02-02", "2024-02-05"]],
+    ["solid", ["2024-02-05"]],
+  ]);
   assert.equal(summary.trendSeries[1].points[0].dateKey, "2024-02-29");
 });
 
@@ -85,7 +88,7 @@ test("jar coordinates are deterministic, bounded, shaped by seat, and capped at 
   assert.equal(first.total, 62);
   assert.equal(first.jarItems.length, MOOD_MONTH_SUMMARY_LIMIT);
   assert.deepEqual(first.jarItems, second.jarItems);
-  assert.ok(first.jarItems.every(({ x, y }) => x >= 14.5 && x <= 85.5 && y >= 30 && y <= 86));
+  assert.ok(first.jarItems.every(({ x, y }) => x >= 31 && x <= 69 && y >= 42 && y <= 80));
   assert.deepEqual(first.jarItems.slice(0, 2).map(({ shape }) => shape), ["square", "circle"]);
   assert.equal(new Set(first.jarItems.map(({ slotIndex }) => slotIndex)).size, 62);
 });
