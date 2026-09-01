@@ -12,6 +12,7 @@
 
 ### Changed
 
+- 发布本次圆肚玻璃罐替换到 Cloudflare Pages 正式站；源提交为 `e1bd56a`，正式入口为 `https://life-vlog-site.pages.dev`，固定 preview 为 `https://codex-preview.life-vlog-site.pages.dev`，Worker 版本为 `ef7250bf-2c8f-423e-b9e2-2c8348e57a60`，入口为 `index-B3GpTHDP.js`，`sw.js` SHA-256 为 `32f0bdb2a986d90584fffc0c51239cfbdceef28d5585f89ac122a96c6c06e2d9`；preview 与 production 均通过 CORS、Axe 和确定性 release smoke。
 - 将心情瓶替换为用户提供的 `360×480`（3:4）圆肚玻璃罐构图；表情按确定性物理模拟慢速分批进入，整只瓶子改为可点击/键盘重播的原生按钮，单一 `requestAnimationFrame` 生命周期负责播放、取消、月份切换和离开路由清理。
 - 将桌面照片详情与移动日记详情改为同级评论行；回复关系保留在共享模型和回复目标文案中，不再通过嵌套 DOM 或累计缩进挤压正文。
 - 将移动日记详情专属布局覆盖到 `920px` 以内，兼容 `844×390` 短横屏；评论正文保持 `16px` 起步、长 URL 使用 `overflow-wrap:anywhere`，操作按钮保持至少 `44×44px`。

@@ -293,7 +293,7 @@
 - 留言线程已由 `modules/comment-thread-domain.js` 统一转换；`mobile-diary-view.js` 与 `social-controller.js` 均输出同级 `.photo-comment`，不再生成递归线程容器或按深度累计的 CSS 位移。回复目标、root 和逻辑深度保留在共享模型中，DOM 只保留渲染和事件所需的评论 id。
 - 心情瓶已由 `modules/mood-jar-physics.js` 提供确定性 `360×480` 固定步长模拟，并使用 `assets/generated/mood-jar.webp` 作为用户参考瓶体；瓶壁、椭圆底和圆形粒子碰撞均在纯模块内求解，视图只在单一 rAF 中写缓存节点的 transform/opacity。`wallInset=8`、`floorEdgeY=420`、`floorCenterY=434` 是当前最终可视安全边界。
 - 移动日记专属样式覆盖到 `920px`，因此 `844×390` 横屏会显示真实移动详情页；正文保持 `16px`、表单跟随列表正常流，操作按钮至少 `44×44px`。
-- 已通过：`node --test tests/comment-thread-domain.mjs tests/mood-jar-physics.mjs tests/mood-month-summary-domain.mjs`、`node tests/mood-diary-browser.mjs`、`node tests/c-performance-regression.mjs`、Axe critical/serious 和确定性 release smoke（均使用内存 fixture）。62 枚固定种子离线测量为约 `36.43ms` 最大单步求解、`3018` 次粒子接触，未出现 NaN 或未收束状态。`pnpm run build`、`tests/build-budget.mjs` 与资源预算均通过，入口 JS gzip 为 `122878` bytes，低于 `122880` bytes 阈值。本状态不表示已部署。
+- 已通过：`node --test tests/comment-thread-domain.mjs tests/mood-jar-physics.mjs tests/mood-month-summary-domain.mjs`、`node tests/mood-diary-browser.mjs`、`node tests/c-performance-regression.mjs`、Axe critical/serious 和确定性 release smoke（均使用内存 fixture）。62 枚固定种子离线测量为约 `36.43ms` 最大单步求解、`3018` 次粒子接触，未出现 NaN 或未收束状态。`pnpm run build`、`tests/build-budget.mjs` 与资源预算均通过，入口 JS gzip 为 `122878` bytes，低于 `122880` bytes 阈值。随后 preview 与 production 均通过线上 CORS、Axe 和确定性 release smoke，正式地址为 `https://life-vlog-site.pages.dev`。
 
 ## 10. 完成定义
 

@@ -51,7 +51,7 @@ pnpm run test:release
 - [x] `tests/c-performance-regression.mjs`：320/375/390/430/844×390 深层留言保持平面同级 DOM、16px 正文、44px 操作区、表单正常文档流和无横向溢出。
 - [x] 视觉验收：已检查 8/31/62 枚素材从瓶口进入、发生真实接触后自然堆积；深层留言在浅色/深色、横屏和长 URL 下保持同一正文左边界；未以旋转后的外接 bbox 代替内腔判断。
 - [x] 瓶体资源门禁：用户参考图经 `scripts/optimize-assets.mjs` 生成透明 `720×960` WebP，`tests/asset-budget.mjs` 校验 `mood-jar.webp` 不超过 120 KiB。
-- [x] 本轮只记录本地确定性 fixture 证据；未部署、未使用真实账户、密码、token 或真实业务数据。
+- [x] 本轮 preview 与 production 已完成发布；固定 preview 和正式地址均通过线上 CORS、Axe critical/serious 与确定性 fixture release smoke。验证场景未使用真实账户、密码或真实业务数据，部署凭证未进入仓库。
 - [x] 构建预算：`pnpm run build` 与资源预算通过；入口 JS gzip 为 `122878` bytes，低于当前 `122880` bytes（120 KiB）阈值。
 
 ## 3. 发布后只读检查

@@ -180,7 +180,7 @@ pnpm preview
 
 源图片位于 `assets-source/`，`scripts/optimize-assets.mjs` 生成确定性资源到 `assets/generated/`。不要手工编辑生成文件来替代源文件和优化脚本。
 
-顶部分页和筛选样式只修改规范源码；每次构建由 Vite 重新生成带 hash 的入口资源，不能直接编辑 `dist/` 或用旧 hash 资源掩盖源码版本漂移。本次本地验收只完成构建和本地 fixture 检查，未执行 preview/production 部署。
+顶部分页和筛选样式只修改规范源码；每次构建由 Vite 重新生成带 hash 的入口资源，不能直接编辑 `dist/` 或用旧 hash 资源掩盖源码版本漂移。本轮修改已完成 preview 与 production 发布；固定 preview、正式地址的线上 CORS、Axe 和确定性 release smoke 均通过。部署仍通过仓库外的 `CLOUDFLARE_API_TOKEN` 或本机 token 文件授权，凭证不进入仓库、日志或文档。
 
 ## 10. 测试体系
 
