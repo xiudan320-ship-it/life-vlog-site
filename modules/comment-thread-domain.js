@@ -1,16 +1,10 @@
 function normalizeId(value) {
-  const id = String(value ?? "").trim();
-  return id || null;
+  return String(value ?? "").trim() || null;
 }
 
 function compareRecords(left, right) {
   const createdDifference = left.createdAt.localeCompare(right.createdAt);
   return createdDifference || left.id.localeCompare(right.id);
-}
-
-function safeAuthorName(getAuthorName, authorId) {
-  const value = getAuthorName?.(authorId);
-  return String(value || authorId || "成员");
 }
 
 function buildLineageMetadata(records, byId) {
@@ -95,7 +89,7 @@ function buildOutputOrder(records, byId, childrenByParent) {
 export function flattenCommentThread(comments = [], { getAuthorName } = {}) {
   const records = [];
   const byId = new Map();
-  for (const comment of Array.isArray(comments) ? comments : []) {
+  for (const comment of comments || []) {
     const id = normalizeId(comment?.id);
     if (!id || byId.has(id)) continue;
     const record = {
@@ -120,7 +114,7 @@ export function flattenCommentThread(comments = [], { getAuthorName } = {}) {
   const metadata = buildLineageMetadata(records, byId);
   const ordered = buildOutputOrder(records, byId, childrenByParent);
   return ordered.map((record) => {
-    const parent = record.parentId ? byId.get(record.parentId) : null;
+    const parent = byId.get(record.parentId);
     const lineage = metadata.get(record.id) || { rootId: record.id, logicalDepth: 0 };
     return {
       id: record.id,
@@ -130,7 +124,7 @@ export function flattenCommentThread(comments = [], { getAuthorName } = {}) {
       authorId: record.authorId,
       replyTargetId: record.parentId,
       replyTargetName: parent
-        ? safeAuthorName(getAuthorName, parent.authorId)
+        ? getAuthorName?.(parent.authorId) || parent.authorId || "成员"
         : record.parentId
           ? "原留言已不可用"
           : "",
