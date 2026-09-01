@@ -46,24 +46,10 @@
         <span class="mood-summary-sync" id="moodJarSync" hidden>正在同步</span>
       </div>
       <button class="mood-jar-stage" id="moodJarStage" type="button" data-mood-jar-replay aria-label="重新播放本月心情落入瓶子的动画" aria-describedby="moodJarReplayHint moodJarReplayStatus" aria-busy="false">
-        <svg class="mood-jar-outline mood-jar-back" viewBox="0 0 360 440" width="360" height="440" preserveAspectRatio="none" aria-hidden="true" focusable="false">
-          <path class="mood-jar-glass" d="M108 66H252V92C252 110 264 122 278 136C300 157 312 183 312 216V338C312 381 282 404 242 410H118C78 404 48 381 48 338V216C48 183 60 157 82 136C96 122 108 110 108 92V66Z" />
-          <ellipse class="mood-jar-rim-back" cx="180" cy="52" rx="88" ry="26" />
-          <ellipse class="mood-jar-rim-inner-back" cx="180" cy="54" rx="72" ry="14" />
-        </svg>
+        <img class="mood-jar-art" src="/assets/generated/mood-jar.webp" width="360" height="480" alt="" aria-hidden="true" decoding="async" loading="lazy" />
         <span class="mood-jar-viewport" id="moodJarViewport">
           <span class="mood-jar-items" id="moodJarItems" aria-hidden="true"></span>
         </span>
-        <svg class="mood-jar-outline mood-jar-front" viewBox="0 0 360 440" width="360" height="440" preserveAspectRatio="none" aria-hidden="true" focusable="false">
-          <path class="mood-jar-body" d="M108 66H252V92C252 110 264 122 278 136C300 157 312 183 312 216V338C312 381 282 404 242 410H118C78 404 48 381 48 338V216C48 183 60 157 82 136C96 122 108 110 108 92V66Z" />
-          <ellipse class="mood-jar-rim" cx="180" cy="52" rx="88" ry="26" />
-          <ellipse class="mood-jar-rim-inner" cx="180" cy="54" rx="72" ry="14" />
-          <path class="mood-jar-highlight-wide" d="M98 134C82 164 76 198 76 242V310C76 352 98 378 137 393" />
-          <path class="mood-jar-highlight" d="M78 181C72 206 72 249 76 282" />
-          <ellipse class="mood-jar-base-back" cx="180" cy="386" rx="132" ry="28" />
-          <ellipse class="mood-jar-base" cx="180" cy="397" rx="132" ry="20" />
-          <ellipse class="mood-jar-base-inner" cx="180" cy="397" rx="108" ry="11" />
-        </svg>
       </button>
       <p class="mood-jar-replay-hint" id="moodJarReplayHint">点击瓶子可重新播放本月心情落入瓶中的过程</p>
       <span class="mood-visually-hidden" id="moodJarReplayStatus" role="status" aria-live="polite" aria-atomic="true"></span>

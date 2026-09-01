@@ -19,7 +19,7 @@ async function png(sourceName, outputName, width, options = {}) {
   await sharp(input(sourceName)).resize({ width, height: options.height || width, fit: options.fit || "cover", background: options.background }).png({ compressionLevel: 9, effort: 10 }).toFile(join(output, outputName));
 }
 
-if (!files.has("home-logo.jpg") || !files.has("black-cat-cover.jpg") || !files.has("black-cat-logo.png")) {
+if (!files.has("home-logo.jpg") || !files.has("black-cat-cover.jpg") || !files.has("black-cat-logo.png") || !files.has("mood-jar.png")) {
   throw new Error("assets-source is missing a required design source");
 }
 
@@ -29,6 +29,7 @@ await Promise.all([
   webp("black-cat-logo.png", "black-cat-logo-112.webp", 112, { height: 112, fit: "contain" }),
   webp("black-cat-cover.jpg", "black-cat-cover-640.webp", 640, { height: 360, fit: "cover" }),
   webp("black-cat-cover.jpg", "black-cat-cover-1280.webp", 1280, { height: 720, fit: "cover" }),
+  webp("mood-jar.png", "mood-jar.webp", 720),
   webp("weekend-complete-stamp.png", "weekend-complete-stamp-1x.webp", 48, { height: 48, fit: "contain" }),
   webp("weekend-complete-stamp.png", "weekend-complete-stamp-2x.webp", 96, { height: 96, fit: "contain" }),
   webp("food-wheel-icon.png", "food-wheel-icon-1x.webp", 48, { height: 48, fit: "cover" }),
@@ -42,4 +43,4 @@ await Promise.all([
   png("black-cat-logo.png", "maskable-512.png", 512, { fit: "contain", background: "#8ed653" }),
 ]);
 
-console.log(`Optimized ${16} deterministic assets into ${output}`);
+console.log(`Optimized ${17} deterministic assets into ${output}`);

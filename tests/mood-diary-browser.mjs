@@ -170,18 +170,25 @@ async function runMoodJarV3Contract() {
       hint: Boolean(document.querySelector("#moodJarReplayHint")),
       status: Boolean(document.querySelector("#moodJarReplayStatus")),
       ratio: stage.getBoundingClientRect().height / stage.getBoundingClientRect().width,
-      viewBoxes: [...stage.querySelectorAll("svg")].map((svg) => svg.getAttribute("viewBox")),
-      ellipses: stage.querySelectorAll("ellipse").length,
-      rimLayers: stage.querySelectorAll(".mood-jar-rim, .mood-jar-rim-inner, .mood-jar-base, .mood-jar-base-inner").length,
+      art: stage.querySelector(".mood-jar-art")?.getAttribute("src"),
+      artAlt: stage.querySelector(".mood-jar-art")?.getAttribute("alt"),
+      artHidden: stage.querySelector(".mood-jar-art")?.getAttribute("aria-hidden"),
+      artWidth: stage.querySelector(".mood-jar-art")?.getAttribute("width"),
+      artHeight: stage.querySelector(".mood-jar-art")?.getAttribute("height"),
+      vectorLayers: stage.querySelectorAll("svg").length,
     }));
     assert.equal(emptyContract.tagName, "BUTTON", "mood jar replay carrier must be a native button");
     assert.equal(emptyContract.type, "button", "mood jar replay carrier must not submit a form");
     assert.match(emptyContract.label || "", /重播|重新播放/u, "mood jar replay carrier needs an action label");
     assert.equal(emptyContract.hint, true, "mood jar replay hint is missing");
     assert.equal(emptyContract.status, true, "mood jar replay live status is missing");
-    assert.ok(Math.abs(emptyContract.ratio - 440 / 360) <= 0.04, `mood jar must preserve the 360x440 ratio: ${JSON.stringify(emptyContract)}`);
-    assert.ok(emptyContract.viewBoxes.every((viewBox) => viewBox === "0 0 360 440"), `mood jar SVG viewBox must be 360x440: ${JSON.stringify(emptyContract)}`);
-    assert.ok(emptyContract.ellipses >= 4 && emptyContract.rimLayers >= 4, `mood jar needs double rim and base ellipses: ${JSON.stringify(emptyContract)}`);
+    assert.ok(Math.abs(emptyContract.ratio - 480 / 360) <= 0.04, `mood jar must preserve the 360x480 ratio: ${JSON.stringify(emptyContract)}`);
+    assert.equal(emptyContract.art, "/assets/generated/mood-jar.webp", `mood jar art asset is incorrect: ${JSON.stringify(emptyContract)}`);
+    assert.equal(emptyContract.artAlt, "", "mood jar art is decorative inside the labelled button");
+    assert.equal(emptyContract.artHidden, "true", "mood jar art must stay out of the accessibility tree");
+    assert.equal(emptyContract.artWidth, "360");
+    assert.equal(emptyContract.artHeight, "480");
+    assert.equal(emptyContract.vectorLayers, 0, "the reference raster jar must replace the old SVG bottle layers");
 
     await page.click("#moodMonthPrevious");
     const previousMonth = shiftMonthKey(today.slice(0, 7), -1);
@@ -393,11 +400,6 @@ async function assertMoodMonthSummary(page, today, label) {
   const jarGeometry = await page.locator("#moodJarStage").evaluate((stage) => {
     const stageRect = stage.getBoundingClientRect();
     const viewport = stage.querySelector(".mood-jar-viewport");
-    const box = (element) => {
-      if (!element?.getBBox) return null;
-      const value = element.getBBox();
-      return { x: value.x, y: value.y, width: value.width, height: value.height };
-    };
     const screenBox = (element) => {
       const value = element?.getBoundingClientRect();
       return value ? { left: value.left, top: value.top, width: value.width, height: value.height } : null;
@@ -406,12 +408,13 @@ async function assertMoodMonthSummary(page, today, label) {
       stage: { left: stageRect.left, top: stageRect.top, width: stageRect.width, height: stageRect.height },
       viewportPresent: Boolean(viewport),
       viewportClip: viewport ? getComputedStyle(viewport).clipPath : "",
-      body: box(stage.querySelector(".mood-jar-body")),
-      rim: box(stage.querySelector(".mood-jar-rim")),
-      base: box(stage.querySelector(".mood-jar-base")),
-      bodyScreen: screenBox(stage.querySelector(".mood-jar-body")),
-      rimScreen: screenBox(stage.querySelector(".mood-jar-rim")),
-      baseScreen: screenBox(stage.querySelector(".mood-jar-base")),
+      art: screenBox(stage.querySelector(".mood-jar-art")),
+      artAsset: stage.querySelector(".mood-jar-art") ? {
+        src: stage.querySelector(".mood-jar-art").getAttribute("src"),
+        loaded: stage.querySelector(".mood-jar-art").complete,
+        naturalWidth: stage.querySelector(".mood-jar-art").naturalWidth,
+        naturalHeight: stage.querySelector(".mood-jar-art").naturalHeight,
+      } : null,
       items: [...stage.querySelectorAll(".mood-jar-item")].map((item) => {
         const rect = item.querySelector(".mood-jar-motion")?.getBoundingClientRect();
         return {
@@ -432,20 +435,20 @@ async function assertMoodMonthSummary(page, today, label) {
   assert.equal(jarGeometry.viewportPresent, true, `${label} jar must have a clipped inner viewport`);
   assert.match(jarGeometry.viewportClip, /polygon|path|inset/u, `${label} jar viewport must expose a real clip path`);
   assert.ok(jarGeometry.stage.width > 0 && jarGeometry.stage.height > 0, `${label} jar stage has no layout box`);
-  assert.ok(jarGeometry.body?.width > 0 && jarGeometry.rim?.width > 0 && jarGeometry.base?.width > 0, `${label} jar geometry is incomplete`);
-  const jarCenter = (box) => box.x + box.width / 2;
-  assert.ok(Math.abs(jarCenter(jarGeometry.body) - jarCenter(jarGeometry.rim)) <= 1.5, `${label} jar rim is not centered on the body`);
-  assert.ok(Math.abs(jarCenter(jarGeometry.body) - jarCenter(jarGeometry.base)) <= 1.5, `${label} jar base is not centered on the body`);
-  const screenCenter = (box) => box.left + box.width / 2;
-  assert.ok(Math.abs(screenCenter(jarGeometry.bodyScreen) - screenCenter(jarGeometry.rimScreen)) <= 2, `${label} jar screen rim is not centered on the body`);
-  assert.ok(Math.abs(screenCenter(jarGeometry.bodyScreen) - screenCenter(jarGeometry.baseScreen)) <= 2, `${label} jar screen base is not centered on the body`);
+  assert.ok(jarGeometry.art?.width > 0 && jarGeometry.art?.height > 0, `${label} jar art is incomplete`);
+  assert.equal(jarGeometry.artAsset?.src, "/assets/generated/mood-jar.webp", `${label} jar art asset is incorrect`);
+  assert.equal(jarGeometry.artAsset?.loaded, true, `${label} jar art did not finish loading`);
+  assert.equal(jarGeometry.artAsset?.naturalWidth, 720, `${label} jar art has an unexpected source width`);
+  assert.equal(jarGeometry.artAsset?.naturalHeight, 960, `${label} jar art has an unexpected source height`);
+  assert.ok(Math.abs(jarGeometry.art.left - jarGeometry.stage.left) <= 1 && Math.abs(jarGeometry.art.top - jarGeometry.stage.top) <= 1, `${label} jar art is not aligned to the stage`);
+  assert.ok(Math.abs(jarGeometry.art.width - jarGeometry.stage.width) <= 1 && Math.abs(jarGeometry.art.height - jarGeometry.stage.height) <= 1, `${label} jar art does not cover the stage`);
   const jarItems = jarGeometry.items;
   assert.deepEqual(jarItems.map(({ shape }) => shape), ["square", "circle"], `${label} jar seats must keep stable shapes`);
   assert.ok(jarItems.every(({ width, height, left, right, top, bottom, computedLeft, computedTop }) => {
-    const innerLeft = jarGeometry.stage.left + jarGeometry.stage.width * 0.2;
-    const innerRight = jarGeometry.stage.left + jarGeometry.stage.width * 0.8;
-    const innerTop = jarGeometry.stage.top + jarGeometry.stage.height * 0.22;
-    const innerBottom = jarGeometry.stage.top + jarGeometry.stage.height * 0.9;
+    const innerLeft = jarGeometry.stage.left + jarGeometry.stage.width * 0.1;
+    const innerRight = jarGeometry.stage.left + jarGeometry.stage.width * 0.9;
+    const innerTop = jarGeometry.stage.top + jarGeometry.stage.height * 0.14;
+    const innerBottom = jarGeometry.stage.top + jarGeometry.stage.height * 0.92;
     return width > 0 && height > 0
       && left >= innerLeft && right <= innerRight && top >= innerTop && bottom <= innerBottom
       && computedLeft === "0px" && computedTop === "0px";
@@ -601,10 +604,10 @@ async function runMoodJarDenseLayout() {
           right: rect?.right || 0,
           top: rect?.top || 0,
           bottom: rect?.bottom || 0,
-          withinCavity: rect && rect.left >= stageRect.left + stageRect.width * 0.14
-            && rect.right <= stageRect.left + stageRect.width * 0.86
-            && rect.top >= stageRect.top + stageRect.height * 0.18
-            && rect.bottom <= stageRect.top + stageRect.height * 0.88,
+          withinCavity: rect && rect.left >= stageRect.left + stageRect.width * 0.08
+            && rect.right <= stageRect.left + stageRect.width * 0.92
+            && rect.top >= stageRect.top + stageRect.height * 0.14
+            && rect.bottom <= stageRect.top + stageRect.height * 0.92,
         };
       });
       return {

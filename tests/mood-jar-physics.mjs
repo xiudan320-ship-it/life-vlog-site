@@ -51,6 +51,7 @@ function assertFinalState(state, count) {
 }
 
 test("jar geometry keeps spawns inside the mouth and exposes curved wall and elliptical floor", () => {
+  assert.deepEqual({ width: MOOD_JAR_GEOMETRY.width, height: MOOD_JAR_GEOMETRY.height }, { width: 360, height: 480 });
   const spawn = getJarMouthSpawn("geometry-seed");
   const mouthBounds = getJarInnerBounds(spawn.y);
   assert.ok(spawn.x > mouthBounds.left + 8 && spawn.x < mouthBounds.right - 8);

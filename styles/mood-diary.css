@@ -442,7 +442,7 @@ button.mood-calendar-cell:hover {
   position: relative;
   display: block;
   width: min(100%, 360px);
-  aspect-ratio: 360 / 440;
+  aspect-ratio: 360 / 480;
   margin: 14px auto 0;
   padding: 0;
   border: 0;
@@ -465,7 +465,7 @@ button.mood-calendar-cell:hover {
   opacity: 0.9;
 }
 
-.mood-jar-outline,
+.mood-jar-art,
 .mood-jar-viewport,
 .mood-jar-items {
   position: absolute;
@@ -474,21 +474,19 @@ button.mood-calendar-cell:hover {
   height: 100%;
 }
 
-.mood-jar-outline {
-  overflow: visible;
-  color: var(--mood-ink);
-  pointer-events: none;
-}
-
-.mood-jar-back {
+.mood-jar-art {
   z-index: 1;
+  display: block;
+  object-fit: fill;
+  user-select: none;
+  pointer-events: none;
 }
 
 .mood-jar-viewport {
   z-index: 2;
   overflow: hidden;
-  clip-path: polygon(30% 21%, 70% 21%, 70% 26%, 78% 32%, 83% 42%, 84% 54%, 84% 78%, 81% 84%, 76% 87%, 24% 87%, 19% 84%, 16% 78%, 16% 54%, 17% 42%, 22% 32%, 30% 26%);
-  -webkit-clip-path: polygon(30% 21%, 70% 21%, 70% 26%, 78% 32%, 83% 42%, 84% 54%, 84% 78%, 81% 84%, 76% 87%, 24% 87%, 19% 84%, 16% 78%, 16% 54%, 17% 42%, 22% 32%, 30% 26%);
+  clip-path: polygon(29% 14%, 71% 14%, 74% 18%, 82% 24%, 88% 34%, 89% 48%, 89% 77%, 86% 84%, 80% 89%, 20% 89%, 14% 84%, 11% 77%, 11% 48%, 12% 34%, 18% 24%, 26% 18%);
+  -webkit-clip-path: polygon(29% 14%, 71% 14%, 74% 18%, 82% 24%, 88% 34%, 89% 48%, 89% 77%, 86% 84%, 80% 89%, 20% 89%, 14% 84%, 11% 77%, 11% 48%, 12% 34%, 18% 24%, 26% 18%);
   pointer-events: none;
 }
 
@@ -499,63 +497,6 @@ button.mood-calendar-cell:hover {
 
 .mood-jar-front {
   z-index: 3;
-}
-
-.mood-jar-glass {
-  fill: color-mix(in srgb, var(--mood-accent) 13%, var(--mood-surface) 87%);
-  fill-opacity: 0.72;
-  stroke: none;
-}
-
-.mood-jar-rim,
-.mood-jar-rim-back,
-.mood-jar-rim-inner,
-.mood-jar-rim-inner-back {
-  fill: color-mix(in srgb, var(--mood-surface) 72%, var(--mood-accent) 28%);
-  fill-opacity: 0.58;
-  stroke: color-mix(in srgb, var(--mood-ink) 48%, transparent);
-  stroke-width: 2.5;
-}
-
-.mood-jar-rim-inner,
-.mood-jar-rim-inner-back {
-  fill: none;
-  stroke: color-mix(in srgb, var(--mood-ink) 34%, transparent);
-  stroke-width: 2;
-}
-
-.mood-jar-body {
-  fill: none;
-  stroke: color-mix(in srgb, var(--mood-ink) 42%, transparent);
-  stroke-width: 2.5;
-  stroke-linejoin: round;
-}
-
-.mood-jar-highlight-wide,
-.mood-jar-highlight,
-.mood-jar-base-back,
-.mood-jar-base,
-.mood-jar-base-inner {
-  fill: none;
-  stroke: color-mix(in srgb, var(--mood-ink) 28%, transparent);
-  stroke-linecap: round;
-  stroke-width: 3;
-}
-
-.mood-jar-base-back {
-  fill: color-mix(in srgb, var(--mood-surface) 68%, transparent);
-  fill-opacity: 0.7;
-  stroke-width: 2;
-}
-
-.mood-jar-base {
-  fill: color-mix(in srgb, var(--mood-surface) 72%, var(--mood-accent) 28%);
-  fill-opacity: 0.35;
-}
-
-.mood-jar-base-inner {
-  stroke: color-mix(in srgb, var(--mood-ink) 38%, transparent);
-  stroke-width: 2;
 }
 
 .mood-jar-item {
@@ -619,15 +560,6 @@ button.mood-calendar-cell:hover {
   font-size: 0.48rem;
   line-height: 1.05;
   text-align: center;
-}
-
-.mood-jar-stage.is-loading .mood-jar-glass {
-  animation: mood-jar-breathe 900ms ease-in-out infinite alternate;
-}
-
-@keyframes mood-jar-breathe {
-  from { opacity: 0.66; }
-  to { opacity: 1; }
 }
 
 .mood-jar-caption {
@@ -1591,10 +1523,6 @@ body.theme-dark .mood-diary-page {
   .mood-load-more,
   .mood-icon-button {
     transition: none;
-  }
-
-  .mood-jar-stage.is-loading .mood-jar-glass {
-    animation: none;
   }
 
   .mood-jar-item {

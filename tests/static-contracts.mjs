@@ -158,6 +158,8 @@ assert.match(moodOverlayController, /moodEntryOverlay: true/);
 assert.match(moodTemplate, /class="mood-visually-hidden"[^>]*data-page-heading="mood"/);
 assert.doesNotMatch(moodTemplate, /class="kicker"/);
 assert.equal([...moodTemplate.matchAll(/id="moodListOpen"/g)].length, 1);
+assert.match(moodTemplate, /class="mood-jar-art"[^>]+src="\/assets\/generated\/mood-jar\.webp"/);
+assert.doesNotMatch(moodTemplate, /class="mood-jar-outline"/);
 assert.match(moodTemplate, /id="moodJarItems"/);
 assert.match(moodTemplate, /id="moodTrendChart"/);
 assert.match(moodTemplate, /id="moodTrendPointControls"/);

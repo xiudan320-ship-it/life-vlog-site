@@ -1,23 +1,20 @@
 export const MOOD_JAR_GEOMETRY = Object.freeze({
   width: 360,
-  height: 440,
+  height: 480,
   mouthX: 180,
-  mouthY: 52,
-  mouthSpawnY: 92,
-  wallInset: 10,
-  neckTopY: 92,
-  shoulderEndY: 136,
-  bodyStartY: 136,
-  bodyWideStartY: 216,
-  bodyWideEndY: 338,
-  bodyBottom: 410,
-  bodyLeft: 48,
-  bodyRight: 312,
+  mouthY: 42,
+  mouthSpawnY: 78,
+  wallInset: 8,
+  neckTopY: 76,
+  shoulderEndY: 116,
+  bodyWideStartY: 180,
+  bodyWideEndY: 404,
+  bodyBottom: 438,
+  bodyLeft: 25,
   floorCenterX: 180,
-  floorRadiusX: 108,
-  floorEdgeY: 372,
-  floorCenterY: 382,
-  svgBodyPath: "M108 66H252V92C252 110 264 122 278 136C300 157 312 183 312 216V338C312 381 282 404 242 410H118C78 404 48 381 48 338V216C48 183 60 157 82 136C96 122 108 110 108 92V66Z",
+  floorRadiusX: 126,
+  floorEdgeY: 420,
+  floorCenterY: 434,
 });
 
 export const MOOD_JAR_PHYSICS_DEFAULTS = Object.freeze({
@@ -92,21 +89,19 @@ function normalizeItems(items) {
 }
 
 export function getJarInnerBounds(y) {
-  const safeY = clamp(normalizeNumber(y, MOOD_JAR_GEOMETRY.mouthSpawnY), 70, 404);
+  const safeY = clamp(normalizeNumber(y, MOOD_JAR_GEOMETRY.mouthSpawnY), 70, MOOD_JAR_GEOMETRY.bodyBottom);
   const inset = MOOD_JAR_GEOMETRY.wallInset;
   let left;
   if (safeY <= MOOD_JAR_GEOMETRY.neckTopY) {
-    left = 108 + inset;
+    left = 56 + inset;
   } else if (safeY <= MOOD_JAR_GEOMETRY.shoulderEndY) {
-    left = lerp(108, 82, smoothStep((safeY - 92) / (136 - 92))) + inset;
+    left = lerp(56, 43, smoothStep((safeY - MOOD_JAR_GEOMETRY.neckTopY) / (MOOD_JAR_GEOMETRY.shoulderEndY - MOOD_JAR_GEOMETRY.neckTopY))) + inset;
   } else if (safeY <= MOOD_JAR_GEOMETRY.bodyWideStartY) {
-    left = lerp(82, 48, smoothStep((safeY - 136) / (216 - 136))) + inset;
+    left = lerp(43, MOOD_JAR_GEOMETRY.bodyLeft, smoothStep((safeY - MOOD_JAR_GEOMETRY.shoulderEndY) / (MOOD_JAR_GEOMETRY.bodyWideStartY - MOOD_JAR_GEOMETRY.shoulderEndY))) + inset;
   } else if (safeY <= MOOD_JAR_GEOMETRY.bodyWideEndY) {
     left = MOOD_JAR_GEOMETRY.bodyLeft + inset;
-  } else if (safeY <= 390) {
-    left = lerp(MOOD_JAR_GEOMETRY.bodyLeft + inset, 96, smoothStep((safeY - 338) / (390 - 338)));
   } else {
-    left = lerp(96, 112, smoothStep((safeY - 390) / 14));
+    left = lerp(MOOD_JAR_GEOMETRY.bodyLeft + inset, 50, smoothStep((safeY - MOOD_JAR_GEOMETRY.bodyWideEndY) / (MOOD_JAR_GEOMETRY.bodyBottom - MOOD_JAR_GEOMETRY.bodyWideEndY)));
   }
   return Object.freeze({ left, right: MOOD_JAR_GEOMETRY.width - left });
 }
