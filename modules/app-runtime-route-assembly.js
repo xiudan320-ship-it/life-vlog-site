@@ -94,6 +94,7 @@ export function createRuntimeRouteEntry({
     uploadToR2: services.assetController.uploadToR2,
     cleanupStoredImagePaths: services.assetController.cleanupStoredImagePaths,
     synchronizeAccountData,
+    renderOfflineSettingsSummary: (...args) => pages.offlineSettingsController.renderSummary(...args),
     performanceDiagnostics: shell.performanceDiagnosticsView,
   });
   const controllers = {
@@ -192,6 +193,7 @@ export function createAppRouteRuntime({
     shoppingController,
     wishlistHubController,
     weekendController,
+    offlineSettingsController,
     callLoaded,
   } = pages;
   const pageControllerMap = pages.pageControllers;
@@ -229,6 +231,7 @@ export function createAppRouteRuntime({
     renderSettingsToolOrderPanel,
     refreshPushSettings,
     renderSettingsSummary,
+    renderOfflineSettingsSummary,
     loadFamilyLevelProfiles,
     loadPhotos,
     synchronizeWeekendPlans,
@@ -333,6 +336,7 @@ export function createAppRouteRuntime({
     collectSecretOfflineMediaUrls,
     collectDiaryOfflineMediaUrls,
     cacheOfflineMedia,
+    clear: clearOfflineCache,
     refreshCacheInfo,
     getAppCacheStats: getFeatureCacheStats,
   } = offlineCacheActions;
@@ -525,6 +529,7 @@ export function createAppRouteRuntime({
     runOfflineDiagnostics,
     renderUploadCenter,
     renderSettingsSummary,
+    renderOfflineSettingsSummary,
     refreshCacheInfo,
     loadFamilyLevelProfiles,
     loadPhotos,
@@ -545,11 +550,11 @@ export function createAppRouteRuntime({
     secretItemsCacheKey: config.secretItemsCacheKey,
     photoFeedCacheKey: config.photoFeedCacheKey,
     mediaCacheService,
+    clearOfflineCache,
     getUserId: () => state.session?.user?.id,
     loadCacheCapacityMb,
     saveCacheCapacityMb,
     scheduleOfflineMediaCache,
-    configureCacheManagementUi: core.configureCacheManagementUi,
     setActiveSettingsSection,
     loadMediaCachePolicy,
     saveMediaCachePolicy,

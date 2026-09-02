@@ -180,6 +180,21 @@ assert.match(moodDiaryController, /loadMonth\(state\.currentMonthKey, \{ force: 
 assert.match(await read("modules/app-runtime-route-assembly.js"), /refreshContext/);
 assert.doesNotMatch(`${moodDiaryController}\n${moodOverlayController}`, /location\.reload/);
 
+const [layoutSettings, offlineSettings, cacheManagementView, settingsRoute] = await Promise.all([
+  read("modules/layout-settings-controller.js"),
+  read("modules/offline-settings-controller.js"),
+  read("modules/cache-management-view.js"),
+  read("modules/routes/settings-route.js"),
+]);
+assert.doesNotMatch(layoutSettings, /ensureCacheManagementUi|loadCacheCapacityMb|loadMediaCachePolicy|mediaCachePolicyButton|settingsCacheLimitValue/);
+assert.match(offlineSettings, /renderSummary/);
+assert.match(offlineSettings, /toggleAutoCache/);
+assert.match(offlineSettings, /initialize/);
+assert.match(cacheManagementView, /renderCacheManagementUi/);
+assert.match(cacheManagementView, /bindCacheManagementUi/);
+assert.doesNotMatch(cacheManagementView, /saveMediaCachePolicy|loadMediaCachePolicy/);
+assert.match(settingsRoute, /offlineSettings\?\.initialize/);
+
 assert.equal(parseRoute({ href: "https://example.test/?page=wishlist&pushType=thanks" }).page, "wishlist");
 assert.equal(parseRoute({ href: "https://example.test/?page=invalid" }).page, "gallery");
 assert.equal(parseRoute({ href: "https://example.test/?page=mood" }).page, "mood");

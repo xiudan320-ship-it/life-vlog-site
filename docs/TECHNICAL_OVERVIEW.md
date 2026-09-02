@@ -1,6 +1,6 @@
 # 咻蛋之家技术总览
 
-> 当前系统事实的长期入口。最后核验：2026-09-01。
+> 当前系统事实的长期入口。最后核验：2026-09-02。
 >
 > 正式站：<https://life-vlog-site.pages.dev/>
 
@@ -48,7 +48,7 @@ flowchart LR
 
 `app.js` 不承载业务逻辑。新增功能按职责进入 `modules/`，并保持 controller、view、domain、repository/service 分离。
 
-顶部分页由 `primary-navigation-controller.js` 在应用壳装配时接管：访客先使用默认可见入口，session 建立后按用户/设备作用域应用配置；设置路由在模板渲染完成后才绑定 Push 设置按钮和顶部分页设置。设置页不依赖提前加载的懒路由 DOM。
+顶部分页由 `primary-navigation-controller.js` 在应用壳装配时接管：访客先使用默认可见入口，session 建立后按用户/设备作用域应用配置；设置路由在模板渲染完成后才绑定 Push 设置按钮和顶部分页设置。设置页不依赖提前加载的懒路由 DOM。设置路由按 `mount → collect → initialize → bind → activate` 完成通用设置事件绑定后，再由 `offline-settings-controller.initialize()` 幂等绑定缓存设置事件并首次渲染容量/策略摘要；重新打开设置只读取当前用户作用域状态，不重复安装监听。
 
 移动端页面契约由主入口和基础样式共同维护：`index.html` 只有一个固定的 viewport（`width=device-width`、`initial-scale=1.0`、`minimum-scale=1.0`、`maximum-scale=1.0`、`user-scalable=no`、`viewport-fit=cover`）；手机与短横屏上的可见文本输入、`select` 和 `textarea` 的计算字号至少为 16px，并随动态字号根设置放大。页面保留纵向滚动和系统返回手势，不使用 `html/body` 的全局横向溢出遮罩、全局 `touch-action: none` 或全局 `touchmove` 拦截；照片查看器和下拉刷新只在各自的媒体/日记区域维护局部手势边界。
 
@@ -145,10 +145,13 @@ flowchart LR
 - `preferences-store.js`：主题、字号、布局和顶部分页等设备偏好。
 - `upload-queue.js`：IndexedDB 上传队列与失败重试。
 - `media-cache.js` / `offline-cache-controller.js`：日记和秘藏媒体缓存。
+- `offline-settings-controller.js` / `cache-management-view.js`：设置页缓存摘要、`off|wifi` 策略切换、容量弹窗、下载和清理交互；控制器生成唯一 view model 并使用存储动作返回的 canonical 值重绘，视图不读取 localStorage 或决定策略。
 - `offline-records.js`：离线元数据记录。
 - `src/sw.js`：Workbox 预缓存和运行时缓存策略。
 
 Service Worker 使用 `registerType: "prompt"`，新版本就绪后由用户确认更新。路由 chunk 和大媒体不进入核心 precache，避免安装包过大。
+
+缓存容量沿用 `life-vlog-diary-cache-mb:<userId>` / `life-vlog-secret-cache-mb:<userId>` 的用户作用域 key，策略沿用 `life-vlog-media-cache-policy:<userId>`；`offline-cache-controller` 负责归一化、持久化、统计和自动调度，`offline-settings-controller` 在设置 route 完成后读取并渲染。策略点击使用 `savePolicy()` 的返回值立即同步行内文案和 `aria-pressed`，容量保存使用两个 `saveCapacityMb()` 返回值更新摘要；清除离线内容不改变这些偏好。
 
 心情日记的当前月份在 `localStorage` 使用 `life-vlog-mood-month:<userId>:<YYYY-MM>` 缓存，仅作为加速层；云端成功响应会替换 canonical 内容，用户、月份和请求 revision 均参与隔离与 latest-wins 判断。`monthSummary` 不单独持久化，而是由当前月 entries、稳定两席和月份键派生；`mood-month-summary-domain.js` 生成最多 62 个确定性罐体素材元数据、成员最多心情、按日三档趋势（缺口只保留真实端点并输出虚线桥）和真实日期趋势坐标。`mood-jar-physics.js` 与 SVG 共用 `360×440` 几何，以瓶口 `(180,52)`、向内缩的曲面瓶壁和椭圆底部为边界，使用固定 `1/60s` 步长、最多 4 次逐帧补算、确定性批次出生、圆形粒子碰撞、摩擦、轻微回弹和休眠，最终稳定态仍由同一求解器收束。`mood-month-summary-view.js` 观察罐体约 35% 进入视口后启动当前月份/数据 key 的一次播放，单一 rAF 只把缓存粒子状态写入内层 `transform`/`opacity`，不在帧循环中查询 DOM；重播、切月、数据刷新、路由离开和 destroy 都取消旧 rAF 并重建唯一模拟，reduced-motion 直接采用求解器最终态并播报状态。物理内腔最终使用 `wallInset=10`、`floorEdgeY=372`、`floorCenterY=382`，与可见底座留出安全间距。手机趋势使用约 `390×360` 的高画布，记录较少时按真实有记录日期等距展开，HTML 命中按钮与 SVG 绘图共用同一坐标模型。评论由 `comment-thread-domain.js` 转为同级行模型；移动日记与桌面详情共享稳定排序、回复目标和孤儿/循环保护，正文至少 16px、长 URL 任意断行，表单保持列表后的正常文档流。首页今日概览使用独立的单日查询，不读取该月缓存。保存、编辑、删除先更新月历/历史/详情/汇总的内存快照，再强制重读受影响月份；成功响应覆盖 optimistic state，重读失败保留已写入结果并显示可重试状态；没有离线写入队列。
 
@@ -192,7 +195,7 @@ pnpm preview
 | `pnpm run test:release` | 确定性线上 fixture 冒烟 |
 | `pnpm run test:worker-online` | Worker CORS 与在线边界 |
 
-心情日记专项由 `tests/mood-diary-domain.mjs`、`tests/comment-thread-domain.mjs`、`tests/mood-jar-physics.mjs`、`tests/mood-month-summary-domain.mjs`、`tests/mood-diary-controller.mjs`、`tests/today-mood-controller.mjs`、`tests/mood-diary-worker.mjs`、`tests/mood-diary-assets.mjs` 和 `tests/mood-diary-browser.mjs` 覆盖；浏览器用确定性假 session / API fixture 验证首页今日概览的四种数据状态、真实昵称/形状、本人快速添加、冷启动落点、gallery 滚动恢复，以及 375/390/430/768/844×390/1440 视口的完整月历、月度汇总、360×440 罐体与前后层实际 bbox/clip、0/1/8/31/62 数量、固定步长碰撞/接触/最终稳定态、离屏/进视口/回滚动动画生命周期、单一 rAF 重播/中断/键盘/减少动态效果、月份切换和路由离开清理、稠密罐体边界、趋势 SVG `getTotalLength()`/点 bbox/计算字体/线宽/颜色、真实日期横向覆盖、44×44 点位命中区、单一键盘焦点、趋势点键盘提示、暗色/130% 字号、深层扁平留言在 320/375/390/430/844×390 的宽度/换行/表单顺序、缓存错误重试、写后 canonical 重读、Picker、编辑、删除、历史和横向溢出。16 个 512×512 透明心情素材位于 Vite 静态目录 `public/assets/mood-diary/`，构建后 URL 为 `/assets/mood-diary/*`；静态门禁会验证精确文件集合、PNG/Alpha、透明安全区和单文件体积，避免白底、棋盘格或缺失素材进入发布包。
+心情日记专项由 `tests/mood-diary-domain.mjs`、`tests/comment-thread-domain.mjs`、`tests/mood-jar-physics.mjs`、`tests/mood-month-summary-domain.mjs`、`tests/mood-diary-controller.mjs`、`tests/today-mood-controller.mjs`、`tests/mood-diary-worker.mjs`、`tests/mood-diary-assets.mjs` 和 `tests/mood-diary-browser.mjs` 覆盖；浏览器用确定性假 session / API fixture 验证首页今日概览的四种数据状态、真实昵称/形状、本人快速添加、冷启动落点、gallery 滚动恢复，以及 375/390/430/768/844×390/1440 视口的完整月历、月度汇总、360×440 罐体与前后层实际 bbox/clip、0/1/8/31/62 数量、固定步长碰撞/接触/最终稳定态、离屏/进视口/回滚动动画生命周期、单一 rAF 重播/中断/键盘/减少动态效果、月份切换和路由离开清理、稠密罐体边界、趋势 SVG `getTotalLength()`/点 bbox/计算字体/线宽/颜色、真实日期横向覆盖、44×44 点位命中区、单一键盘焦点、趋势点键盘提示、暗色/130% 字号、深层扁平留言在 320/375/390/430/844×390 的宽度/换行/表单顺序、缓存错误重试、写后 canonical 重读、Picker、编辑、删除、历史和横向溢出。设置缓存专项由 `tests/offline-settings-controller.mjs` 和 `tests/browser-regression.mjs` 的确定性内存/API fixture 覆盖默认/持久化容量、`off|wifi` 文案与 `aria-pressed`、键盘 Enter/Space、重复初始化和刷新后状态恢复。16 个 512×512 透明心情素材位于 Vite 静态目录 `public/assets/mood-diary/`，构建后 URL 为 `/assets/mood-diary/*`；静态门禁会验证精确文件集合、PNG/Alpha、透明安全区和单文件体积，避免白底、棋盘格或缺失素材进入发布包。
 
 `pnpm test` 不包含全部发布门禁。发布必须遵循 [`release-checklist.md`](release-checklist.md)。浏览器回归和 release smoke 使用确定性通知 fixture 覆盖铃铛在设置路由未加载、慢请求、重复点击、关闭中请求、读取失败重试、已读写回和跳转场景下的行为；同时覆盖顶部分页默认/可选入口、启用排序持久化、VLOG mode 不改 URL、导航局部横向滚动、日记搜索/tag 随页面文档流滚动和 Push 本地优先关闭。a11y 回归同时检查上述 viewport、无横向溢出和移动端表单字号契约。
 

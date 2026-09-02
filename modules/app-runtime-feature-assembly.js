@@ -27,7 +27,6 @@ export function createFeatureControllerAssembly({
     shoppingController,
     weekendController,
     familySettingsController,
-    offlineSettingsController,
     dataSafetyController,
     callLoaded,
   } = pages;
@@ -256,14 +255,6 @@ export function createFeatureControllerAssembly({
     removeFamilyMember,
   } = familySettingsController;
   const {
-    changeCacheLimit,
-    saveCacheLimitFromDialog,
-    applyCacheLimitPreset,
-    ensureCacheManagementUi,
-    downloadOfflinePool,
-    clearCachePool,
-  } = offlineSettingsController;
-  const {
     downloadFamilyBackup,
     renderTrashItems,
     downloadCloudBackup,
@@ -424,7 +415,6 @@ export function createFeatureControllerAssembly({
     getAccountProfile: () => state.accountProfile,
     getFamilyMembers: () => state.familyMemberMap,
     getFamilyLevelProfiles: () => state.familyLevelProfiles,
-    renderSettingsSummary,
     formatFileSize,
   });
   const {
@@ -719,14 +709,6 @@ export function createFeatureControllerAssembly({
       addFamilyMember,
       respondFamilyInvitation,
       removeFamilyMember,
-    },
-    offlineSettingsActions: {
-      changeCacheLimit,
-      saveCacheLimitFromDialog,
-      applyCacheLimitPreset,
-      ensureCacheManagementUi,
-      downloadOfflinePool,
-      clearCachePool,
     },
     dataSafetyActions: {
       downloadFamilyBackup,

@@ -41,7 +41,6 @@ export function createOfflineCacheController({
   getAccountProfile,
   getFamilyMembers,
   getFamilyLevelProfiles,
-  renderSettingsSummary,
   formatFileSize,
 }) {
   let cacheTimer = 0;
@@ -124,7 +123,6 @@ export function createOfflineCacheController({
   function savePolicy(policy, userId = getSession()?.user?.id || "guest") {
     const next = policy === "off" ? "off" : "wifi";
     preferenceStore.write(getPolicyKey(userId), next);
-    renderSettingsSummary();
     return next;
   }
 

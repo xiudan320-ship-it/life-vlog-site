@@ -22,7 +22,8 @@ export function initialize({ controllers, controllerOptions, elements, collect, 
   if (!controllers.dataSafety) controllers.dataSafety = createDataSafetyController(options.dataSafety);
   actions?.performanceDiagnostics?.render?.();
 }
-export function bind({ bindRouteEvents }) {
-  return bindRouteEvents?.("settings");
+export async function bind({ bindRouteEvents, controllers }) {
+  await bindRouteEvents?.("settings");
+  return controllers?.offlineSettings?.initialize?.();
 }
 export function activate() {}

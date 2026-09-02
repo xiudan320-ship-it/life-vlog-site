@@ -3,7 +3,6 @@
  * and startup concerns live in their dedicated runtime modules.
  */
 import { confirmAction } from "./confirm-dialog.js";
-import { configureCacheManagementUi } from "./cache-management-view.js";
 import {
   createMediaControllerAssembly,
   createMediaRuntimeState,
@@ -251,8 +250,6 @@ let awardExperience = () => undefined;
 let renderGratitudeNotes = () => undefined;
 let saveThanksColorPreference = () => undefined;
 let synchronizeAnniversaries = () => undefined;
-let loadCacheCapacityMb = () => 0;
-let loadMediaCachePolicy = () => undefined;
 let refreshCacheInfo = () => undefined;
 let renderCachedPhotoFeed = () => undefined;
 let savePhotoFeedCache = () => undefined;
@@ -556,7 +553,6 @@ const shellRuntime = createShellControllerAssembly({
   },
   pages: {
     familySettingsController,
-    offlineSettingsController,
     dataSafetyController,
     callLoaded,
   },
@@ -1063,8 +1059,6 @@ renderSecretFolderControls = featureRenderSecretFolderControls;
 openSettingsChildDialog = featureOpenSettingsChildDialog;
 reopenSettingsAfterChildDialog = featureReopenSettingsAfterChildDialog;
 synchronizeAnniversaries = anniversary.synchronizeAnniversaries;
-loadCacheCapacityMb = offlineCache.loadCacheCapacityMb;
-loadMediaCachePolicy = offlineCache.loadMediaCachePolicy;
 savePhotoFeedCache = offlineCache.savePhotoFeedCache;
 refreshCacheInfo = offlineCache.refreshCacheInfo;
 renderCachedPhotoFeed = offlineCache.renderCachedPhotoFeed;
@@ -1114,7 +1108,6 @@ const appRouteRuntime = createRuntimeRouteEntry({
     resolveRedirectUrl,
     openRandomMemory,
     refreshStorage,
-    configureCacheManagementUi,
     renderOverview,
     isMissingCloudSchema,
     applyTextScale: (...args) => textScaleController.apply(...args),

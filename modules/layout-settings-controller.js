@@ -9,15 +9,12 @@ export function createLayoutSettingsController({
   loadFamilyTagline,
   normalizeFamilyTagline,
   applyFamilyTagline,
-  ensureCacheManagementUi,
   ensureDataSafetyUi,
   ensureStabilitySettingsUi,
   renderSettingsAccountOverview,
   loadHomeName,
   getSessionDisplayName,
   getSessionBoundEmail,
-  loadCacheCapacityMb,
-  loadMediaCachePolicy,
 }) {
   const els = elements;
   const {
@@ -178,7 +175,6 @@ export function createLayoutSettingsController({
   }
   
   function renderSettingsSummary() {
-    ensureCacheManagementUi();
     ensureFamilySignatureUi();
     ensureDataSafetyUi();
     ensureStabilitySettingsUi();
@@ -199,14 +195,6 @@ export function createLayoutSettingsController({
     if (els.settingsFeedLayoutValue) {
       els.settingsFeedLayoutValue.textContent =
         loadMobileFeedLayout() === "single" ? "单列" : "双列";
-    }
-    if (els.settingsCacheLimitValue) {
-      els.settingsCacheLimitValue.textContent = `日记 ${loadCacheCapacityMb("diary")} MB · 秘藏 ${loadCacheCapacityMb("secret")} MB`;
-    }
-    const policyButton = document.querySelector("#mediaCachePolicyButton");
-    if (policyButton) {
-      const wifiOnly = loadMediaCachePolicy() === "wifi";
-      policyButton.innerHTML = `<span>自动缓存</span><strong><em>${wifiOnly ? "Wi-Fi · 最新 20 条" : "已关闭"}</em><small>${wifiOnly ? "自动保留最新日记；蜂窝网络和无法识别的网络不会下载" : "只通过下面按钮手动下载"}</small></strong>`;
     }
   }
   

@@ -39,7 +39,6 @@ export function createShellControllerAssembly({
   } = services;
   const {
     familySettingsController,
-    offlineSettingsController,
     dataSafetyController,
     callLoaded,
   } = pages;
@@ -348,15 +347,12 @@ export function createShellControllerAssembly({
     loadFamilyTagline,
     normalizeFamilyTagline,
     applyFamilyTagline,
-    ensureCacheManagementUi: (...args) => callLoaded(offlineSettingsController, "ensureCacheManagementUi", ...args),
     ensureDataSafetyUi: (...args) => callLoaded(dataSafetyController, "ensureDataSafetyUi", ...args),
     ensureStabilitySettingsUi: (...args) => callLoaded(dataSafetyController, "ensureStabilitySettingsUi", ...args),
     renderSettingsAccountOverview,
     loadHomeName,
     getSessionDisplayName,
     getSessionBoundEmail,
-    loadCacheCapacityMb: defer("loadCacheCapacityMb"),
-    loadMediaCachePolicy: defer("loadMediaCachePolicy"),
   });
   const {
     getMobileFeedLayoutKey,

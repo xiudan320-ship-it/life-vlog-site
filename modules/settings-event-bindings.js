@@ -41,16 +41,9 @@ export function bindSettingsEvents({ elements, state, controllers, core }) {
     saveRecoveryKey,
   } = controllers.auth;
   const {
-    clear: clearAppCache,
-    refreshInfo: refreshCacheInfo,
     schedule: scheduleOfflineMediaCache,
     shouldAutoCache: shouldAutoCacheMedia,
   } = controllers.offlineCache;
-  const {
-    changeCacheLimit,
-    saveCacheLimitFromDialog,
-    applyCacheLimitPreset,
-  } = controllers.offlineSettings;
   const { loadMobileFeedLayout, setMobileFeedLayout } = controllers.layoutSettings;
   const textScale = controllers.textScale;
   const performanceDiagnostics = performanceDiagnosticsFromCore || controllers.performanceDiagnostics;
@@ -156,23 +149,6 @@ export function bindSettingsEvents({ elements, state, controllers, core }) {
     button.setAttribute("aria-pressed", String(button.dataset.textScale === activeTextScale));
   });
   els.settingsTogglePerformance?.addEventListener("click", () => performanceDiagnostics.render());
-  els.refreshCacheInfoButton?.addEventListener("click", () => {
-    void refreshCacheInfo();
-  });
-  els.cacheLimitButton?.addEventListener("click", changeCacheLimit);
-  els.closeCacheLimitDialog?.addEventListener("click", () => els.cacheLimitDialog.close());
-  els.cancelCacheLimit?.addEventListener("click", () => els.cacheLimitDialog.close());
-  els.cacheLimitDialog?.addEventListener("click", (event) => {
-    if (event.target === els.cacheLimitDialog) els.cacheLimitDialog.close();
-  });
-  els.cacheLimitDialog?.addEventListener("close", reopenSettingsAfterChildDialog);
-  els.cacheLimitForm?.addEventListener("submit", saveCacheLimitFromDialog);
-  els.cacheLimitDialog?.querySelectorAll("[data-cache-limit-preset]").forEach((button) => {
-    button.addEventListener("click", () => applyCacheLimitPreset(button.dataset.cacheLimitPreset));
-  });
-  els.clearAppCacheButton?.addEventListener("click", () => {
-    void clearAppCache();
-  });
   els.closeAvatarDialog.addEventListener("click", () => els.avatarDialog.close());
   els.avatarDialog.addEventListener("click", (event) => {
     if (event.target === els.avatarDialog) els.avatarDialog.close();

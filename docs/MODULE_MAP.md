@@ -11,7 +11,7 @@
 | 顶部分页启用、排序、VLOG mode 与用户/设备偏好 | `modules/primary-navigation-controller.js`, `modules/primary-navigation-domain.js` | `modules/primary-navigation-view.js`, `modules/preferences-store.js`, `modules/app-navigation-controller.js` |
 | 登录、注册、邮箱与密码 | `modules/auth-controller.js`, `modules/auth-view.js` | `modules/app-session-controller.js`, `modules/settings-event-bindings.js` |
 | 顶部等级 / 经验面板点击无响应 | `modules/gamification-controller.js` | `modules/app-event-bindings.js` |
-| 账户资料、头像、家庭设置、缓存设置 | `modules/profile-preferences-controller.js`, `modules/family-settings-controller.js` | `modules/settings-event-bindings.js`, `modules/account-view.js`, `modules/primary-navigation-view.js` |
+| 账户资料、头像、家庭设置 | `modules/profile-preferences-controller.js`, `modules/family-settings-controller.js` | `modules/settings-event-bindings.js`, `modules/account-view.js`, `modules/primary-navigation-view.js` |
 | 日记列表、搜索、筛选、瀑布流 | `modules/diary-feed-controller.js` | `modules/diary-gallery-view.js`, `modules/diary-domain.js` |
 | 首页今日心情概览、两席状态、原地快捷添加/详情和月历 CTA | `modules/today-mood-controller.js` | `modules/today-mood-view.js`, `modules/mood-entry-overlay-controller.js`, `modules/mood-diary-repository.js` |
 | 心情日记月历、月度汇总与历史 | `modules/mood-diary-controller.js`, `modules/mood-month-summary-domain.js`, `modules/mood-jar-physics.js` | `modules/mood-diary-domain.js`, `modules/mood-diary-view.js`, `modules/mood-month-summary-view.js`, `modules/mood-entry-overlay-controller.js`, `styles/mood-diary.css`；月度汇总包含 360×440 可重播玻璃瓶、确定性粒子物理和动态/稀疏趋势坐标 |
@@ -33,7 +33,8 @@
 | 评论、回复、通知 | `modules/social-controller.js`, `modules/comment-thread-domain.js`, `modules/notification-event-bindings.js` | `modules/notification-domain.js`, `modules/notification-view.js`；桌面详情与移动详情共用扁平留言模型 |
 | 推送通知与点击跳转 | `modules/push-controller.js` | `modules/media-event-bindings.js` |
 | 菜谱、留言、纪念日、吃什么 | 对应的 `*-controller.js` | 对应的 `*-view.js`, `modules/content-form-event-bindings.js` |
-| 离线缓存与容量 | `modules/offline-cache-controller.js`, `modules/offline-settings-controller.js` | `modules/cache-policy.js`, `modules/cache-management-view.js` |
+| 缓存设置摘要、策略切换、容量弹窗与离线清理 | `modules/offline-settings-controller.js` | `modules/cache-management-view.js`, `modules/offline-cache-controller.js`, `modules/cache-policy.js` |
+| 离线媒体缓存、容量存储与自动调度 | `modules/offline-cache-controller.js` | `modules/cache-policy.js`, `modules/media-cache.js`, `modules/offline-records.js` |
 | 云端数据访问 | `modules/data-repositories.js`, `modules/household-repository.js` | `modules/cloudflare-client.js`, `modules/cloud-models.js` |
 
 ## 跨路由数据边界
@@ -44,6 +45,7 @@
 - `modules/route-loader.js` 与 `modules/app-navigation-controller.js` 共同维护 latest-wins 路由事务。过期的 chunk/activate 结果不得提交页面显隐、URL、焦点、滚动或 busy 状态。
 - `modules/primary-navigation-domain.js` 是顶部分页注册表和配置规范化的唯一事实来源；`primary-navigation-controller.js` 通过现有 `preferences-store.js` 按用户/设备作用域读写，`primary-navigation-view.js` 只渲染当前可见入口和设置列表。VLOG 由 mode action 接入，不能被序列化成 `?page=vlog`。
 - `modules/push-controller.js` 的设置绑定只在 `settings-route.js` 完成 DOM 渲染后执行；关闭设备通知时本机 `unsubscribe()` 与 Worker 端点清理是分离失败边界，本机状态优先。
+- `modules/offline-settings-controller.js` 是设置页缓存 UI 的唯一业务拥有者：按当前用户读取有限整数容量和 `off|wifi` 策略，生成 view model，绑定策略/容量/下载/清理事件，并在 `settings-route.js` 完成模板收集和通用设置事件后幂等初始化；`cache-management-view.js` 只渲染 DOM 和转发原生事件，`offline-cache-controller.js` 只提供缓存数据与调度动作。
 - `modules/diary-video-layout.js` 管理详情媒体生命周期：普通视频进入日记/VLOG 详情后静音自动播放并保留原生控件，Live Photo 使用静音循环预览；加载、失败、重试、切图和关闭都会清理状态与监听。
 - `modules/mood-month-summary-domain.js` 从当前月份和稳定两席派生总数、最多心情、三档趋势、缺口桥接段、确定性罐体素材元数据及真实日期趋势坐标；`modules/mood-jar-physics.js` 负责共享 `360×440` 几何、确定性出生计划、固定步长粒子碰撞、瓶壁/椭圆底约束、休眠和最终布局；`modules/mood-month-summary-view.js` 只负责罐体前后层、内腔裁切、原生按钮重播、数据/视口动效状态机、单一 rAF 到 transform 的映射、原生 SVG 趋势图、提示、明细和动效降级。`mood-diary-controller.js` 负责请求、缓存、latest-wins、上下文迟到重读和写后 canonical 对齐，不监听滚动或操作动画 DOM。
 - `modules/comment-thread-domain.js` 是评论树到扁平行的唯一转换边界：保留 root/depth/reply target 语义，稳定处理孤儿、循环和重复 id；`mobile-diary-view.js` 与 `social-controller.js` 只消费该模型并渲染同级 `.photo-comment`。
@@ -83,7 +85,7 @@
 - `primary-navigation-domain.js` / `primary-navigation-view.js` / `primary-navigation-controller.js`：维护顶部分页注册表、用户/设备配置、可见入口、设置开关/排序和 active/ARIA 状态。
 - `notification-event-bindings.js`：应用外壳的通知铃铛、关闭/遮罩和关闭后焦点回收事件；绑定只执行一次，不依赖设置路由。
 - `content-form-event-bindings.js`：菜谱、心愿、周末、留言、秘藏等内容表单事件。
-- `settings-event-bindings.js`：设置页账户、家庭、缓存、安全和网络状态事件；全局等级弹窗与通知事件不在设置路由绑定。
+- `settings-event-bindings.js`：设置页账户、家庭、安全和网络状态事件；缓存摘要、策略、容量、下载和清理事件由 `offline-settings-controller.js` 在 settings route 初始化后绑定；全局等级弹窗与通知事件不在设置路由绑定。
 - `media-event-bindings.js`：日记 / VLOG / 秘藏查看器、编辑器、搜索筛选和媒体手势事件；搜索与 tag 结果仍在 gallery 当前页面内更新。
 - `modules/routes/mood-diary-route.js`：心情日记路由的懒加载、模板挂载和 controller 生命周期；心情日记自己的点击/表单事件由 `mood-diary-view.js` 委托给 `mood-diary-controller.js`，不回流到 `app.js`。
 - `modules/today-mood-controller.js`：首页今日概览的东京自然日查询、两席过滤和 loading/error/empty 状态；席位只调用共享 overlay，只有日历 CTA 调用 `switchPage("mood")`。

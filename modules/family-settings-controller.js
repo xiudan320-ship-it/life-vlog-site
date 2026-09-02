@@ -7,7 +7,7 @@ import {
 } from "./account-view.js";
 import { recipeFromCloudRow, wishFromCloudRow } from "./cloud-models.js";
 import { getSettingsSectionIds } from "./settings-section-registry.js";
-import { applySettingsNavigationSemantics } from "./settings-view.js";
+import { applySettingsNavigationSemantics, hideMobileSettingsSection } from "./settings-view.js";
 
 export function createFamilySettingsController({
   elements,
@@ -22,6 +22,7 @@ export function createFamilySettingsController({
   runOfflineDiagnostics,
   renderUploadCenter,
   renderSettingsSummary,
+  renderOfflineSettingsSummary,
   refreshCacheInfo,
   loadFamilyLevelProfiles,
   loadPhotos,
@@ -48,7 +49,10 @@ export function createFamilySettingsController({
     window.setTimeout(() => focusTarget?.focus?.(), 0);
   }
 
-  els.settingsDialog?.addEventListener("close", restoreSettingsFocus);
+  els.settingsDialog?.addEventListener("close", () => {
+    hideMobileSettingsSection(els.settingsDialog);
+    restoreSettingsFocus();
+  });
 
   function renderFamilyDialog() {
     if (!els.familyDialog) return;
@@ -168,6 +172,8 @@ export function createFamilySettingsController({
       renderSettingsToolOrderPanel();
     }
     if (nextSection === "settingsStorage") {
+      renderOfflineSettingsSummary?.();
+      void refreshCacheInfo();
       void renderCloudBackups();
       void renderTrashItems();
     }
@@ -178,7 +184,6 @@ export function createFamilySettingsController({
       settingsReturnFocus = els.accountSettingsButton || document.activeElement;
     }
     renderSettingsSummary();
-    void refreshCacheInfo();
     setActiveSettingsSection(sectionId);
     if (!els.settingsDialog.open) els.settingsDialog.showModal();
   }

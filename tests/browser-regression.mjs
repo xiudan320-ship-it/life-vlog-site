@@ -340,6 +340,95 @@ async function testPrimaryNavigationPreferences(viewport, label) {
   }
 }
 
+async function testOfflineSettingsCache(viewport, label) {
+  const context = await browser.newContext({ viewport, serviceWorkers: "block" });
+  const fixture = createCloudflareApiFixture();
+  await fixture.install(context);
+  const page = await context.newPage();
+  const pageErrors = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  await page.addInitScript(() => {
+    const key = "life-vlog-media-cache-policy:local-regression-user";
+    if (!localStorage.getItem(key)) localStorage.setItem(key, "off");
+  });
+  await installPseudoSession(page);
+
+  const readState = () => page.evaluate(() => ({
+    capacity: document.querySelector("#settingsCacheLimitValue")?.textContent || "",
+    policy: document.querySelector("#mediaCachePolicyButton em")?.textContent || "",
+    pressed: document.querySelector("#mediaCachePolicyButton")?.getAttribute("aria-pressed") || "",
+    stored: localStorage.getItem("life-vlog-media-cache-policy:local-regression-user") || "",
+    text: document.querySelector("#settingsStorage")?.textContent || "",
+  }));
+  const openStorageSettings = async () => {
+    await page.click("#avatarButton");
+    await page.click("#accountSettingsButton");
+    await page.waitForSelector("#settingsDialog[open]", { state: "visible", timeout: 30000 });
+    await page.click('[data-settings-section="settingsStorage"]');
+    await page.waitForSelector("#settingsStorage:not([hidden])", { state: "visible", timeout: 30000 });
+  };
+
+  try {
+    await page.goto(`${baseUrl}/`, { waitUntil: "domcontentloaded" });
+    await page.waitForSelector("#appSplash[hidden]", { state: "attached", timeout: 30000 });
+    await openStorageSettings();
+    let state = await readState();
+    assert.equal(state.capacity, "日记 100 MB · 秘藏 300 MB", `${label} cache capacity summary is incorrect: ${JSON.stringify(state)}`);
+    assert.equal(state.policy, "已关闭", `${label} initial cache policy is incorrect: ${JSON.stringify(state)}`);
+    assert.equal(state.pressed, "false", `${label} initial cache pressed state is incorrect`);
+    assert.equal(state.stored, "off", `${label} initial cache policy storage is incorrect`);
+    assert.doesNotMatch(state.text, /undefined|NaN|null/, `${label} storage settings contains an invalid value: ${state.text}`);
+
+    await page.locator("#mediaCachePolicyButton").click();
+    await page.waitForFunction(() => document.querySelector("#mediaCachePolicyButton")?.getAttribute("aria-pressed") === "true");
+    state = await readState();
+    assert.deepEqual(
+      { policy: state.policy, pressed: state.pressed, stored: state.stored },
+      { policy: "Wi-Fi · 最新 20 条", pressed: "true", stored: "wifi" },
+      `${label} cache policy click did not persist and render one state`
+    );
+
+    await page.locator("#closeSettingsDialog").click();
+    await page.waitForFunction(() => !document.querySelector("#settingsDialog")?.open);
+    await openStorageSettings();
+    state = await readState();
+    assert.equal(state.policy, "Wi-Fi · 最新 20 条", `${label} cache policy did not survive reopening settings`);
+    assert.equal(state.pressed, "true", `${label} cache pressed state did not survive reopening settings`);
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForSelector("#appSplash[hidden]", { state: "attached", timeout: 30000 });
+    await openStorageSettings();
+    state = await readState();
+    assert.equal(state.policy, "Wi-Fi · 最新 20 条", `${label} cache policy did not survive page refresh`);
+    assert.equal(state.pressed, "true", `${label} cache pressed state did not survive page refresh`);
+
+    await page.locator("#cacheLimitButton").focus();
+    await page.keyboard.press("Tab");
+    assert.equal(await page.evaluate(() => document.activeElement?.id), "mediaCachePolicyButton", `${label} cache policy button is not reachable by Tab`);
+    await page.keyboard.press("Space");
+    await page.waitForFunction(() => document.querySelector("#mediaCachePolicyButton")?.getAttribute("aria-pressed") === "false");
+    await page.locator("#mediaCachePolicyButton").evaluate((button) => {
+      button.click();
+      button.click();
+    });
+    state = await readState();
+    assert.deepEqual(
+      { policy: state.policy, pressed: state.pressed, stored: state.stored },
+      { policy: "已关闭", pressed: "false", stored: "off" },
+      `${label} rapid cache policy clicks left an inconsistent state`
+    );
+    assert.doesNotMatch(state.text, /undefined|NaN|null/, `${label} storage settings contains an invalid value after interaction`);
+    assert.deepEqual(pageErrors, [], `${label} offline settings page errors:\n${pageErrors.join("\n")}`);
+    await assertNoHorizontalOverflow(page, `${label} offline settings`);
+    if (viewport.width <= 700 || (viewport.height <= 700 && viewport.width > viewport.height)) {
+      await assertMobileViewportContracts(page, `${label} offline settings`);
+    }
+  } finally {
+    await fixture.dispose(context);
+    await context.close();
+  }
+}
+
 async function testGlobalLevelDialogEvents(viewport, label) {
   const context = await browser.newContext({ viewport, serviceWorkers: "block" });
   const page = await context.newPage();
@@ -972,6 +1061,10 @@ try {
   await testPrimaryNavigationPreferences({ width: 844, height: 390 }, "primary-landscape");
   await testPrimaryNavigationPreferences({ width: 768, height: 1024 }, "primary-tablet");
   await testPrimaryNavigationPreferences({ width: 1440, height: 900 }, "primary-desktop");
+  await testOfflineSettingsCache({ width: 390, height: 844 }, "cache-mobile");
+  await testOfflineSettingsCache({ width: 844, height: 390 }, "cache-landscape");
+  await testOfflineSettingsCache({ width: 768, height: 1024 }, "cache-tablet");
+  await testOfflineSettingsCache({ width: 1440, height: 900 }, "cache-desktop");
   await testHomeShell({ width: 1440, height: 900 }, "desktop");
   await testHomeShell({ width: 390, height: 844 }, "mobile");
   await testHomeShell({ width: 375, height: 812 }, "small-mobile-reduced-motion", "reduce");
