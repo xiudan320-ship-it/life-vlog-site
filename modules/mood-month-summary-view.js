@@ -288,13 +288,16 @@ export function createMoodMonthSummaryView({
   let currentSummary = null;
   const pointLookup = new Map();
 
-  function isJarStageVisible() {
+  function isJarStageFocused() {
     const stage = elements.moodJarStage;
     const viewportHeight = Number(windowTarget?.innerHeight || stage?.ownerDocument?.documentElement?.clientHeight || 0);
     if (!stage || !viewportHeight) return false;
     const rect = stage.getBoundingClientRect();
     const visibleHeight = Math.max(0, Math.min(rect.bottom, viewportHeight) - Math.max(rect.top, 0));
-    return rect.height > 0 && visibleHeight / rect.height >= 0.35;
+    if (rect.height <= 0) return false;
+    const visibleRatio = visibleHeight / rect.height;
+    const centerY = rect.top + rect.height / 2;
+    return visibleRatio >= 0.55 && centerY >= viewportHeight * 0.2 && centerY <= viewportHeight * 0.8;
   }
 
   function canPlayJarAnimation() {
@@ -385,7 +388,7 @@ export function createMoodMonthSummaryView({
     }
     if (!pending.force) {
       jarVisibilityKnown = true;
-      jarInViewport = isJarStageVisible();
+      jarInViewport = isJarStageFocused();
       if (!canPlayJarAnimation()) return;
     }
     if (pending.started) return;
@@ -410,7 +413,7 @@ export function createMoodMonthSummaryView({
 
   function handleJarViewportChange() {
     jarVisibilityKnown = true;
-    jarInViewport = isJarStageVisible();
+    jarInViewport = isJarStageFocused();
     if (jarInViewport) playPendingJarAnimation();
   }
 
@@ -428,16 +431,16 @@ export function createMoodMonthSummaryView({
     const Observer = windowTarget?.IntersectionObserver || globalThis?.IntersectionObserver;
     if (typeof Observer !== "function") {
       jarVisibilityKnown = true;
-      jarInViewport = isJarStageVisible();
+      jarInViewport = isJarStageFocused();
       return;
     }
     jarObserver = new Observer((entries) => {
       const entry = entries.find(({ target }) => target === stage);
       if (!entry) return;
       jarVisibilityKnown = true;
-      jarInViewport = Boolean(entry.isIntersecting && entry.intersectionRatio >= 0.35);
+      jarInViewport = isJarStageFocused();
       if (jarInViewport) playPendingJarAnimation();
-    }, { threshold: [0, 0.35], rootMargin: "0px 0px -8% 0px" });
+    }, { threshold: [0, 0.35, 0.55, 0.75, 1], rootMargin: "0px" });
     jarObserver.observe(stage);
   }
 

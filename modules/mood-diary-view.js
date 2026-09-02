@@ -171,10 +171,10 @@ export function createMoodDiaryView({ elements = {}, getAuthorName, getAuthorAva
       if (target.id === "moodListOpen") return onAction({ type: "open-list" });
       if (target.id === "moodCalendarOpen") return onAction({ type: "open-calendar" });
       if (target.id === "moodFab") return onAction({ type: "open-today", trigger: target });
-      if (target.id === "moodMonthPrevious") return onAction({ type: "previous-month" });
-      if (target.id === "moodMonthNext") return onAction({ type: "next-month" });
-      if (target.id === "moodJarMonthPrevious") return onAction({ type: "previous-month" });
-      if (target.id === "moodJarMonthNext") return onAction({ type: "next-month" });
+      if (target.id === "moodMonthPrevious") return onAction({ type: "previous-month", trigger: target });
+      if (target.id === "moodMonthNext") return onAction({ type: "next-month", trigger: target });
+      if (target.id === "moodJarMonthPrevious") return onAction({ type: "previous-month", trigger: target });
+      if (target.id === "moodJarMonthNext") return onAction({ type: "next-month", trigger: target });
       if (target.id === "moodMonthRetry") return onAction({ type: "retry-month" });
       if (target.id === "moodHistoryLoadMore") return onAction({ type: "load-more" });
       if (target.id === "moodJarStage") return monthSummaryView.replayJar();

@@ -29,6 +29,7 @@ export function createMoodDiaryController({ elements, repository, overlayControl
   let monthRequestId = 0;
   let listRequestId = 0;
   let calendarScrollY = 0;
+  let monthScrollAnchor = null;
 
   const cacheKey = (monthKey = state.currentMonthKey) => `${MONTH_CACHE_PREFIX}${state.currentUserId}:${monthKey}`;
   const visible = (entries) => (entries || []).map(normalizeEntry).filter((entry) => entry && state.seatByUserId.has(entry.user_id));
@@ -56,8 +57,44 @@ export function createMoodDiaryController({ elements, repository, overlayControl
     rebuild();
   }
 
+  function captureMonthScrollAnchor(trigger) {
+    const element = trigger?.closest?.("#moodJarSummarySection, #moodCalendarView");
+    const rect = element?.getBoundingClientRect?.();
+    if (!element || !rect || !Number.isFinite(rect.top)) return null;
+    return {
+      element,
+      top: rect.top,
+      left: Number(windowTarget?.scrollX) || 0,
+      scrollY: Number(windowTarget?.scrollY) || 0,
+    };
+  }
+
+  function restoreMonthScrollAnchor() {
+    const anchor = monthScrollAnchor;
+    if (!anchor?.element || anchor.element.isConnected === false) return;
+    const rect = anchor.element.getBoundingClientRect?.();
+    if (!rect || !Number.isFinite(rect.top)) return;
+    const delta = rect.top - anchor.top;
+    if (Math.abs(delta) < 0.5) return;
+    const currentScrollY = Number(windowTarget?.scrollY);
+    const documentTarget = windowTarget?.document;
+    const root = documentTarget?.documentElement;
+    const previousScrollBehavior = root?.style?.scrollBehavior;
+    if (root) root.style.scrollBehavior = "auto";
+    try {
+      windowTarget?.scrollTo?.({
+        top: Math.max(0, (Number.isFinite(currentScrollY) ? currentScrollY : anchor.scrollY) + delta),
+        left: anchor.left,
+        behavior: "auto",
+      });
+    } finally {
+      if (root) root.style.scrollBehavior = previousScrollBehavior || "";
+    }
+  }
+
   function render() {
     injectedView?.render?.({ ...state, isFutureDate: (dateKey) => isFutureLocalDate(dateKey, state.todayKey) });
+    restoreMonthScrollAnchor();
   }
 
   function readCache(key) {
@@ -84,7 +121,7 @@ export function createMoodDiaryController({ elements, repository, overlayControl
     if (cached) {
       state.monthEntries = cached;
       rebuild();
-      state.monthRenderReason = "passive";
+      state.monthRenderReason = reason === "month-change" ? reason : "passive";
       state.changedEntryId = "";
     }
     render();
@@ -165,16 +202,37 @@ export function createMoodDiaryController({ elements, repository, overlayControl
       case "open-today": await openEntry(state.todayKey, action.userId || "", action.trigger); break;
       case "history-detail": { const entry = state.listEntries.find((item) => item.id === action.id); if (entry) await overlayController?.open?.({ dateKey: entry.diary_date, entries: state.listEntries.filter((item) => item.diary_date === entry.diary_date), preferredUserId: entry.user_id, participants: state.participants, trigger: action.trigger }); break; }
       case "previous-month":
-      case "next-month":
-        state.currentMonthKey = shiftMonth(state.currentMonthKey, action.type === "previous-month" ? -1 : 1);
-        state.monthEntries = [];
-        state.loadedMonthKey = "";
-        state.monthRenderReason = "month-change";
-        state.changedEntryId = "";
-        rebuild();
-        render();
-        await loadMonth(state.currentMonthKey, { force: true, reason: "month-change" });
+      case "next-month": {
+        const scrollAnchor = captureMonthScrollAnchor(action.trigger);
+        if (scrollAnchor) monthScrollAnchor = scrollAnchor;
+        try {
+          state.currentMonthKey = shiftMonth(state.currentMonthKey, action.type === "previous-month" ? -1 : 1);
+          state.monthEntries = [];
+          state.loadedMonthKey = "";
+          state.monthRenderReason = "month-change";
+          state.changedEntryId = "";
+          rebuild();
+          render();
+          await loadMonth(state.currentMonthKey, { force: true, reason: "month-change" });
+        } finally {
+          if (scrollAnchor && monthScrollAnchor === scrollAnchor) {
+            const releaseAnchor = () => {
+              if (monthScrollAnchor !== scrollAnchor) return;
+              restoreMonthScrollAnchor();
+              const finishRelease = () => {
+                if (monthScrollAnchor !== scrollAnchor) return;
+                restoreMonthScrollAnchor();
+                monthScrollAnchor = null;
+              };
+              if (typeof windowTarget?.requestAnimationFrame === "function") windowTarget.requestAnimationFrame(finishRelease);
+              else windowTarget?.setTimeout?.(finishRelease, 0);
+            };
+            if (typeof windowTarget?.requestAnimationFrame === "function") windowTarget.requestAnimationFrame(releaseAnchor);
+            else windowTarget?.setTimeout?.(releaseAnchor, 0);
+          }
+        }
         break;
+      }
       case "retry-month": await loadMonth(state.currentMonthKey, { force: true, reason: "passive" }); break;
       case "open-list":
         calendarScrollY = Number(windowTarget?.scrollY) || 0;

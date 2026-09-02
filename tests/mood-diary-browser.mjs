@@ -163,6 +163,7 @@ async function runMoodJarV3Contract() {
     await page.goto(`${baseUrl}/?page=mood`, { waitUntil: "domcontentloaded" });
     await waitForMoodDiaryPage(page);
     await page.waitForFunction(() => document.querySelector("#moodJarCount")?.textContent === "0 条记录", null, { timeout: 30000 });
+    await page.waitForFunction(() => document.querySelector("#moodJarSync")?.hidden, null, { timeout: 30000 });
     const emptyContract = await page.locator("#moodJarStage").evaluate((stage) => ({
       tagName: stage.tagName,
       type: stage.getAttribute("type"),
@@ -197,10 +198,24 @@ async function runMoodJarV3Contract() {
     assert.deepEqual(monthControls.map(({ label }) => label), ["查看上个月心情罐", "查看下个月心情罐"]);
     assert.ok(monthControls.every(({ width, height }) => width >= 44 && height >= 44), `mood jar month controls need 44px touch targets: ${JSON.stringify(monthControls)}`);
     assert.equal(await page.locator("#moodJarMonthLabel").textContent(), await page.locator("#moodMonthLabel").textContent(), "jar month label must mirror the calendar month");
+
+    const previousMonth = shiftMonthKey(today.slice(0, 7), -1);
+    await page.locator("#moodJarSummarySection").evaluate((section) => section.scrollIntoView({ block: "center", behavior: "instant" }));
+    const jarPositionBeforePrevious = await page.locator("#moodJarSummarySection").evaluate((section) => ({ top: section.getBoundingClientRect().top, scrollY: window.scrollY }));
+    await page.click("#moodJarMonthPrevious");
+    await page.waitForFunction((expected) => document.querySelector("#moodMonthLabel")?.textContent.includes(expected), `${previousMonth.split("-")[0]} 年 ${Number(previousMonth.split("-")[1])} 月`, { timeout: 30000 });
+    await page.waitForFunction(() => document.querySelector("#moodJarCount")?.textContent === "8 条记录" && document.querySelector("#moodJarSync")?.hidden, null, { timeout: 30000 });
+    await page.waitForTimeout(100);
+    const jarPositionAfterPrevious = await page.locator("#moodJarSummarySection").evaluate((section) => ({ top: section.getBoundingClientRect().top, scrollY: window.scrollY }));
+    assert.ok(Math.abs(jarPositionAfterPrevious.top - jarPositionBeforePrevious.top) <= 1, `month navigation moved the visible jar section: before=${JSON.stringify(jarPositionBeforePrevious)} after=${JSON.stringify(jarPositionAfterPrevious)}`);
+    await page.click("#moodJarMonthNext");
+    await page.waitForFunction((expected) => document.querySelector("#moodMonthLabel")?.textContent.includes(expected), `${today.slice(0, 4)} 年 ${Number(today.slice(5, 7))} 月`, { timeout: 30000 });
+    await page.waitForFunction(() => document.querySelector("#moodJarCount")?.textContent === "0 条记录" && document.querySelector("#moodJarSync")?.hidden, null, { timeout: 30000 });
+    const jarPositionAfterNext = await page.locator("#moodJarSummarySection").evaluate((section) => ({ top: section.getBoundingClientRect().top, scrollY: window.scrollY }));
+    assert.ok(Math.abs(jarPositionAfterNext.top - jarPositionBeforePrevious.top) <= 1, `month navigation moved the visible jar section on return: before=${JSON.stringify(jarPositionBeforePrevious)} after=${JSON.stringify(jarPositionAfterNext)}`);
     await page.locator("#moodCalendarView").evaluate((calendar) => calendar.style.setProperty("display", "none", "important"));
 
     await page.click("#moodJarMonthPrevious");
-    const previousMonth = shiftMonthKey(today.slice(0, 7), -1);
     await page.waitForFunction((expected) => document.querySelector("#moodMonthLabel")?.textContent.includes(expected), `${previousMonth.split("-")[0]} 年 ${Number(previousMonth.split("-")[1])} 月`, { timeout: 30000 });
     await page.waitForFunction(() => document.querySelector("#moodJarCount")?.textContent === "8 条记录", null, { timeout: 30000 });
     assert.equal(await page.locator("#moodJarMonthLabel").textContent(), await page.locator("#moodMonthLabel").textContent(), "jar month label must update with the selected month");
@@ -516,9 +531,18 @@ async function runMoodJarViewportAnimation() {
 
     await page.evaluate(() => document.querySelector("#fixture-mood-jar-offscreen")?.remove());
     await page.setViewportSize({ width: 391, height: 844 });
-    await page.locator("#moodJarStage").scrollIntoViewIfNeeded();
-    await page.mouse.wheel(0, 2);
-    await page.mouse.wheel(0, -2);
+    const partialVisibility = await page.locator("#moodJarStage").evaluate((stage) => {
+      const rect = stage.getBoundingClientRect();
+      const targetTop = window.innerHeight - rect.height * 0.25;
+      window.scrollTo({ top: Math.max(0, window.scrollY + rect.top - targetTop), behavior: "instant" });
+      const nextRect = stage.getBoundingClientRect();
+      const visibleHeight = Math.max(0, Math.min(nextRect.bottom, window.innerHeight) - Math.max(nextRect.top, 0));
+      return { visibleRatio: visibleHeight / nextRect.height, centerY: nextRect.top + nextRect.height / 2 };
+    });
+    await page.waitForTimeout(250);
+    assert.ok(partialVisibility.visibleRatio < 0.55 || partialVisibility.centerY > 844 * 0.8, `jar should wait for the focus area: ${JSON.stringify(partialVisibility)}`);
+    assert.equal(await page.evaluate(() => window.__moodJarViewportRafCalls), 0, "jar animation must wait until the stage reaches the focus area");
+    await page.locator("#moodJarStage").evaluate((stage) => stage.scrollIntoView({ block: "center", behavior: "instant" }));
     await page.waitForFunction(() => window.__moodJarViewportRafCalls >= 2, null, { timeout: 3000 });
     assert.equal(await page.locator("#moodJarItems .mood-jar-motion").evaluateAll((items) => items.every((item) => item.style.transform.includes("translate3d"))), true, "jar physics must write transform styles");
     await page.waitForFunction(() => document.querySelector("#moodJarStage")?.getAttribute("aria-busy") === "false", null, { timeout: 8000 });
@@ -526,7 +550,7 @@ async function runMoodJarViewportAnimation() {
     const settledCalls = await page.evaluate(() => window.__moodJarViewportRafCalls);
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
     await page.waitForTimeout(100);
-    await page.locator("#moodJarStage").scrollIntoViewIfNeeded();
+    await page.locator("#moodJarStage").evaluate((stage) => stage.scrollIntoView({ block: "center", behavior: "instant" }));
     await page.waitForTimeout(250);
     assert.equal(await page.evaluate(() => window.__moodJarViewportRafCalls), settledCalls, "jar animation replayed after returning to the viewport");
   } finally {
@@ -554,13 +578,13 @@ async function runMoodJarMutationAnimation() {
     await page.goto(`${baseUrl}/?page=mood`, { waitUntil: "domcontentloaded" });
     await waitForMoodDiaryPage(page);
     await page.waitForFunction(() => document.querySelector("#moodJarCount")?.textContent === "2 条记录", null, { timeout: 30000 });
-    await page.locator("#moodJarStage").scrollIntoViewIfNeeded();
+    await page.locator("#moodJarStage").evaluate((stage) => stage.scrollIntoView({ block: "center", behavior: "instant" }));
     await page.waitForTimeout(800);
     const framesBeforeMutation = await page.evaluate(() => window.__moodMutationRafCalls);
     const todayCell = page.locator(`[data-mood-date="${today}"]`);
     await todayCell.click();
     await page.waitForSelector("#moodDetailPanel:not([hidden])", { state: "visible", timeout: 30000 });
-    await page.locator("#moodJarStage").scrollIntoViewIfNeeded();
+    await page.locator("#moodJarStage").evaluate((stage) => stage.scrollIntoView({ block: "center", behavior: "instant" }));
     await page.click("[data-mood-delete]");
     await page.waitForSelector('.action-confirm-dialog[open]', { state: "visible", timeout: 30000 });
     await page.click('.action-confirm-dialog button[value="confirm"]');
