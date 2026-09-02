@@ -10,6 +10,7 @@
 
 ### Documentation
 
+- 将文档同步判断改为默认依据 `AGENTS.md` 与 `docs/README.md`，仅在存在歧义或涉及流程本身时查阅 `CHANGE_WORKFLOW.md`，避免普通任务重复加载工作流。
 - 将 Agent 文档接手流程改为按任务路由：默认读取 `AGENTS.md`、`docs/README.md` 和 CHANGELOG 的 `[Unreleased]`，其余长期文档与历史专项仅定位相关章节后按需查阅，避免批量加载无关上下文。
 - 将专项规划和恢复审计分别归入 `docs/plans/` 与 `docs/history/`，并同步更新文档路由、历史链接和内部引用。
 - 增加自动缓存设置失效修复规划，确认容量 `undefined MB` 与策略切换无可见反馈来自设置摘要的运行时动作桥接遗漏，并规定将缓存摘要、策略交互和初始化生命周期收归离线设置模块及对应回归门禁。
