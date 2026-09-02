@@ -48,6 +48,7 @@ assert.equal(viewportTags.length, 1, "main entry must contain exactly one viewpo
 assert.match(html, /content="width=device-width, initial-scale=1\.0, minimum-scale=1\.0, maximum-scale=1\.0, user-scalable=no, viewport-fit=cover"/);
 assert.doesNotMatch(html, /id="moodNav"/);
 assert.match(html, /id="todayMoodGrid"/);
+assert.match(html, /id="todayMoodStatusRow"/);
 assert.match(html, /id="overviewMoodCalendar"/);
 assert.doesNotMatch(html, /overviewPhotos|overviewRecipes|overviewWishes|overviewLevelButton|overviewProgress/);
 assert.doesNotMatch(html, /\?v=\d/);
@@ -161,6 +162,10 @@ assert.equal([...moodTemplate.matchAll(/id="moodListOpen"/g)].length, 1);
 assert.match(moodTemplate, /class="mood-jar-art"[^>]+src="\/assets\/generated\/mood-jar\.webp"/);
 assert.doesNotMatch(moodTemplate, /class="mood-jar-outline"/);
 assert.match(moodTemplate, /id="moodJarItems"/);
+assert.match(moodTemplate, /id="moodJarMonthPrevious"/);
+assert.match(moodTemplate, /id="moodJarMonthNext"/);
+assert.match(moodTemplate, /id="moodJarMonthLabel"/);
+assert.match(moodTemplate, /滚动到心情罐后会自动播放/);
 assert.match(moodTemplate, /id="moodTrendChart"/);
 assert.match(moodTemplate, /id="moodTrendPointControls"/);
 assert.match(moodSummaryDomain, /export function buildMoodMonthSummary/);

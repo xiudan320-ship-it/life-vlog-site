@@ -25,6 +25,11 @@ function asset(documentTarget, mood, shape) {
   return wrapper;
 }
 
+function formatMonthLabel(monthKey) {
+  const [year, month] = String(monthKey || "").split("-");
+  return year && month ? `${year} 年 ${Number(month)} 月` : "—";
+}
+
 export function createMoodDiaryView({ elements = {}, getAuthorName, getAuthorAvatar, onAction = () => {} } = {}) {
   let bound = false;
   const monthSummaryView = createMoodMonthSummaryView({
@@ -146,7 +151,8 @@ export function createMoodDiaryView({ elements = {}, getAuthorName, getAuthorAva
       elements.moodMonthRetry.hidden = !signedIn || list || state.statusKind !== "error";
       elements.moodMonthRetry.disabled = state.loadingMonth;
     }
-    if (elements.moodMonthLabel && state.currentMonthKey) { const [year, month] = state.currentMonthKey.split("-"); elements.moodMonthLabel.textContent = `${year} 年 ${Number(month)} 月`; }
+    if (elements.moodMonthLabel) elements.moodMonthLabel.textContent = formatMonthLabel(state.currentMonthKey);
+    if (elements.moodJarMonthLabel) elements.moodJarMonthLabel.textContent = formatMonthLabel(state.currentMonthKey);
     if (elements.moodMonthSubLabel) elements.moodMonthSubLabel.textContent = state.currentMonthKey === state.todayMonthKey ? "本月" : "浏览月份";
     renderLegend(state);
     renderCalendar(state);
@@ -158,7 +164,7 @@ export function createMoodDiaryView({ elements = {}, getAuthorName, getAuthorAva
     if (bound || !elements.moodPage) return;
     bound = true;
     elements.moodPage.addEventListener("click", (event) => {
-      const target = event.target.closest?.("[data-mood-date], [data-mood-open-family-settings], #moodListOpen, #moodCalendarOpen, #moodFab, #moodMonthPrevious, #moodMonthNext, #moodMonthRetry, #moodHistoryLoadMore, [data-mood-history-id], #moodJarStage");
+      const target = event.target.closest?.("[data-mood-date], [data-mood-open-family-settings], #moodListOpen, #moodCalendarOpen, #moodFab, #moodMonthPrevious, #moodMonthNext, #moodJarMonthPrevious, #moodJarMonthNext, #moodMonthRetry, #moodHistoryLoadMore, [data-mood-history-id], #moodJarStage");
       if (!target) return;
       if (target.dataset.moodDate) return onAction({ type: "date", dateKey: target.dataset.moodDate, trigger: target });
       if (target.dataset.moodOpenFamilySettings !== undefined) return onAction({ type: "open-family-settings" });
@@ -167,6 +173,8 @@ export function createMoodDiaryView({ elements = {}, getAuthorName, getAuthorAva
       if (target.id === "moodFab") return onAction({ type: "open-today", trigger: target });
       if (target.id === "moodMonthPrevious") return onAction({ type: "previous-month" });
       if (target.id === "moodMonthNext") return onAction({ type: "next-month" });
+      if (target.id === "moodJarMonthPrevious") return onAction({ type: "previous-month" });
+      if (target.id === "moodJarMonthNext") return onAction({ type: "next-month" });
       if (target.id === "moodMonthRetry") return onAction({ type: "retry-month" });
       if (target.id === "moodHistoryLoadMore") return onAction({ type: "load-more" });
       if (target.id === "moodJarStage") return monthSummaryView.replayJar();

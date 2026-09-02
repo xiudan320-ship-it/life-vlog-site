@@ -438,6 +438,34 @@ button.mood-calendar-cell:hover {
   font-weight: 700;
 }
 
+.mood-jar-heading-tools {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.mood-jar-month-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mood-jar-month-button {
+  flex: 0 0 44px;
+}
+
+.mood-jar-month-label {
+  min-width: 78px;
+  color: var(--mood-ink);
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-align: center;
+  white-space: nowrap;
+}
+
 .mood-jar-stage {
   position: relative;
   display: block;
@@ -1445,6 +1473,23 @@ body.theme-dark .mood-diary-page {
 
   .mood-summary-section {
     padding: 14px;
+  }
+
+  .mood-summary-heading {
+    gap: 10px;
+  }
+
+  .mood-jar-heading-tools {
+    gap: 6px;
+  }
+
+  .mood-jar-month-nav {
+    gap: 2px;
+  }
+
+  .mood-jar-month-label {
+    min-width: 72px;
+    font-size: 0.7rem;
   }
 
   .mood-dominant-list {

@@ -109,6 +109,7 @@ export function createTodayMoodView({ elements, getAuthorName } = {}) {
           : "";
       els.todayMoodStatus.dataset.kind = state.error ? "error" : state.loading ? "loading" : "";
     }
+    if (els.todayMoodStatusRow) els.todayMoodStatusRow.hidden = !state.loading && !state.error;
     if (els.todayMoodRetry) {
       els.todayMoodRetry.hidden = !state.error;
       els.todayMoodRetry.disabled = Boolean(state.loading);

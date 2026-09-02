@@ -3438,7 +3438,7 @@ h2 {
 
 .overview {
   display: grid;
-  gap: 18px;
+  gap: 12px;
   margin: 22px 0 8px;
   padding: 24px 0 26px;
   border-bottom: 1px solid var(--line);

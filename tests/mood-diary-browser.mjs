@@ -189,12 +189,21 @@ async function runMoodJarV3Contract() {
     assert.equal(emptyContract.artWidth, "360");
     assert.equal(emptyContract.artHeight, "480");
     assert.equal(emptyContract.vectorLayers, 0, "the reference raster jar must replace the old SVG bottle layers");
+    const monthControls = await page.locator("#moodJarMonthPrevious, #moodJarMonthNext").evaluateAll((buttons) => buttons.map((button) => {
+      const rect = button.getBoundingClientRect();
+      return { label: button.getAttribute("aria-label"), width: rect.width, height: rect.height };
+    }));
+    assert.equal(monthControls.length, 2, "mood jar must expose previous and next month controls");
+    assert.deepEqual(monthControls.map(({ label }) => label), ["查看上个月心情罐", "查看下个月心情罐"]);
+    assert.ok(monthControls.every(({ width, height }) => width >= 44 && height >= 44), `mood jar month controls need 44px touch targets: ${JSON.stringify(monthControls)}`);
+    assert.equal(await page.locator("#moodJarMonthLabel").textContent(), await page.locator("#moodMonthLabel").textContent(), "jar month label must mirror the calendar month");
+    await page.locator("#moodCalendarView").evaluate((calendar) => calendar.style.setProperty("display", "none", "important"));
 
-    await page.click("#moodMonthPrevious");
+    await page.click("#moodJarMonthPrevious");
     const previousMonth = shiftMonthKey(today.slice(0, 7), -1);
     await page.waitForFunction((expected) => document.querySelector("#moodMonthLabel")?.textContent.includes(expected), `${previousMonth.split("-")[0]} 年 ${Number(previousMonth.split("-")[1])} 月`, { timeout: 30000 });
     await page.waitForFunction(() => document.querySelector("#moodJarCount")?.textContent === "8 条记录", null, { timeout: 30000 });
-    await page.locator("#moodJarStage").scrollIntoViewIfNeeded();
+    assert.equal(await page.locator("#moodJarMonthLabel").textContent(), await page.locator("#moodMonthLabel").textContent(), "jar month label must update with the selected month");
     await page.waitForFunction(() => document.querySelector("#moodJarStage")?.getAttribute("aria-busy") === "true", null, { timeout: 5000 });
     const initialJarState = await page.locator("#moodJarItems").evaluate((items) => ({
       rows: items.querySelectorAll(":scope > .mood-jar-item").length,
@@ -228,7 +237,7 @@ async function runMoodJarV3Contract() {
     await page.keyboard.press("Enter");
     await page.waitForFunction(() => document.querySelector("#moodJarStage")?.getAttribute("aria-busy") === "true", null, { timeout: 1000 });
     assert.equal(await page.evaluate(() => document.activeElement?.id), "moodJarStage", "keyboard replay should keep focus on the native bottle control");
-    await page.click("#moodMonthNext");
+    await page.click("#moodJarMonthNext");
     await page.waitForFunction(() => document.querySelector("#moodJarCount")?.textContent === "0 条记录", null, { timeout: 30000 });
     assert.equal(await page.locator("#moodJarStage").getAttribute("aria-busy"), "false", "month change must cancel the active jar loop");
     await page.click('[data-primary-nav-id="gallery"]');
@@ -826,6 +835,16 @@ async function runTodayMoodState(viewport, mode, label) {
     }
     assert.equal(await page.locator("#overviewPhotos, #overviewRecipes, #overviewWishes, #overviewLevelButton").count(), 0);
     assert.equal(await page.locator(".quick-actions button").count(), 4);
+    const overviewSpacing = await page.evaluate(() => {
+      const heading = document.querySelector("#overview .overview-head")?.getBoundingClientRect();
+      const grid = document.querySelector("#todayMoodGrid")?.getBoundingClientRect();
+      return {
+        gap: heading && grid ? grid.top - heading.bottom : Number.POSITIVE_INFINITY,
+        statusHidden: Boolean(document.querySelector("#todayMoodStatusRow")?.hidden),
+      };
+    });
+    assert.equal(overviewSpacing.statusHidden, true, `${label} successful today mood state should collapse the empty status row`);
+    assert.ok(overviewSpacing.gap <= (viewport.width <= 430 || viewport.height <= 480 ? 10 : 14), `${label} overview-to-mood spacing is too large: ${JSON.stringify(overviewSpacing)}`);
     await assertNoHorizontalOverflow(page, `${label} today overview`);
     if (viewport.width <= 430 || viewport.height <= 480) {
       const metrics = await page.locator("#todayMoodGrid").evaluate((grid) => {

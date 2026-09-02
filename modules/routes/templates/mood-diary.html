@@ -43,7 +43,18 @@
           <h3 id="moodJarHeading">本月心情罐</h3>
           <p id="moodJarCount">0 条记录</p>
         </div>
-        <span class="mood-summary-sync" id="moodJarSync" hidden>正在同步</span>
+        <div class="mood-jar-heading-tools">
+          <div class="mood-jar-month-nav" role="group" aria-label="切换心情罐月份">
+            <button class="mood-icon-button mood-jar-month-button" id="moodJarMonthPrevious" type="button" aria-label="查看上个月心情罐">
+              <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m14.5 5-7 7 7 7" /></svg>
+            </button>
+            <span class="mood-jar-month-label" id="moodJarMonthLabel">—</span>
+            <button class="mood-icon-button mood-jar-month-button" id="moodJarMonthNext" type="button" aria-label="查看下个月心情罐">
+              <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m9.5 5 7 7-7 7" /></svg>
+            </button>
+          </div>
+          <span class="mood-summary-sync" id="moodJarSync" hidden>正在同步</span>
+        </div>
       </div>
       <button class="mood-jar-stage" id="moodJarStage" type="button" data-mood-jar-replay aria-label="重新播放本月心情落入瓶子的动画" aria-describedby="moodJarReplayHint moodJarReplayStatus" aria-busy="false">
         <img class="mood-jar-art" src="/assets/generated/mood-jar.webp" width="360" height="480" alt="" aria-hidden="true" decoding="async" loading="lazy" />
@@ -51,7 +62,7 @@
           <span class="mood-jar-items" id="moodJarItems" aria-hidden="true"></span>
         </span>
       </button>
-      <p class="mood-jar-replay-hint" id="moodJarReplayHint">点击瓶子可重新播放本月心情落入瓶中的过程</p>
+      <p class="mood-jar-replay-hint" id="moodJarReplayHint">滚动到心情罐后会自动播放；点击瓶子可重新播放本月心情落入瓶中的过程</p>
       <span class="mood-visually-hidden" id="moodJarReplayStatus" role="status" aria-live="polite" aria-atomic="true"></span>
       <p class="mood-jar-caption" id="moodJarSummary">这个月还没有心情记录。</p>
     </section>

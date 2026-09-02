@@ -2159,7 +2159,7 @@ body.mobile-dialog-open {
   }
 
   .overview {
-    gap: 10px;
+    gap: 8px;
     margin: 12px 0 4px;
     padding: 12px 0 14px;
   }
@@ -2578,6 +2578,10 @@ body.mobile-dialog-open {
 }
 
 @media (max-height: 480px) {
+  .overview {
+    gap: 8px;
+  }
+
   .today-mood-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;

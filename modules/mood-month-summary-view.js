@@ -383,7 +383,11 @@ export function createMoodMonthSummaryView({
       finishJarAnimation(pending);
       return;
     }
-    if (!pending.force && !canPlayJarAnimation()) return;
+    if (!pending.force) {
+      jarVisibilityKnown = true;
+      jarInViewport = isJarStageVisible();
+      if (!canPlayJarAnimation()) return;
+    }
     if (pending.started) return;
     const stageRect = readJarStageRect();
     if (!stageRect) {
@@ -405,7 +409,6 @@ export function createMoodMonthSummaryView({
   }
 
   function handleJarViewportChange() {
-    if (!pendingJarAnimation) return;
     jarVisibilityKnown = true;
     jarInViewport = isJarStageVisible();
     if (jarInViewport) playPendingJarAnimation();
@@ -499,6 +502,7 @@ export function createMoodMonthSummaryView({
         manual: false,
       };
       playPendingJarAnimation();
+      windowTarget?.setTimeout?.(handleJarViewportChange, 0);
     } else {
       lastAnimationKey = animationKey;
     }
