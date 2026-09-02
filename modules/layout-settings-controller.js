@@ -207,6 +207,7 @@ export function createLayoutSettingsController({
     if (policyButton) {
       const wifiOnly = loadMediaCachePolicy() === "wifi";
       policyButton.innerHTML = `<span>自动缓存</span><strong><em>${wifiOnly ? "Wi-Fi · 最新 20 条" : "已关闭"}</em><small>${wifiOnly ? "自动保留最新日记；蜂窝网络和无法识别的网络不会下载" : "只通过下面按钮手动下载"}</small></strong>`;
+      policyButton.setAttribute("aria-pressed", String(wifiOnly));
     }
   }
   

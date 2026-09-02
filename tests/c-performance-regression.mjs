@@ -439,6 +439,9 @@ async function testSettingsRegistryInteractions(browser) {
     await page.waitForSelector('#settingsDialog[data-mobile-settings-section="settingsStorage"]');
     assert.equal(await page.locator(".settings-sidebar").isVisible(), false);
     assert.equal(await page.locator("#settingsStorage").isVisible(), true);
+    const cacheLimitSummary = await page.locator("#settingsCacheLimitValue").textContent();
+    assert.match(cacheLimitSummary || "", /^日记 \d+ MB · 秘藏 \d+ MB$/, `cache capacity summary is invalid: ${cacheLimitSummary}`);
+    assert.equal((cacheLimitSummary || "").includes("undefined"), false, "cache capacity summary exposed an undefined limit");
     assert.equal(await page.locator("#settingsStorage [data-performance-copy]").count(), 1);
     assert.equal(await page.locator("#settingsStorage [data-run-diagnostics]").count(), 1);
     const childLayout = await page.evaluate(() => {
@@ -494,6 +497,36 @@ async function testSettingsRegistryInteractions(browser) {
       && document.querySelector("#settings-tab-settingsStorage")?.getAttribute("tabindex") === null
       && document.querySelector("#settings-tab-settingsStorage")?.getAttribute("aria-selected") === null
     ));
+    await page.click("#settings-tab-settingsStorage");
+    await page.waitForSelector('#settingsDialog[data-mobile-settings-section="settingsStorage"]');
+    const policyButton = page.locator("#mediaCachePolicyButton");
+    assert.equal(await policyButton.getAttribute("aria-pressed"), "true", "automatic cache did not render its enabled state");
+    await policyButton.click();
+    await page.waitForFunction(
+      () => (
+        document.querySelector("#mediaCachePolicyButton em")?.textContent === "已关闭"
+        && document.querySelector("#mediaCachePolicyButton")?.getAttribute("aria-pressed") === "false"
+      ),
+      null,
+      { timeout: 3000 },
+    );
+    await page.waitForSelector("#settingsDialog .mini-toast.visible", { state: "visible", timeout: 3000 });
+    const policyFeedback = await page.evaluate(() => {
+      const dialog = document.querySelector("#settingsDialog");
+      const toast = dialog?.querySelector(".mini-toast");
+      return {
+        buttonLabel: dialog?.querySelector("#mediaCachePolicyButton em")?.textContent || "",
+        toastVisible: Boolean(toast?.classList.contains("visible")),
+        toastInsideDialog: Boolean(toast?.closest("#settingsDialog")),
+      };
+    });
+    assert.equal(policyFeedback.buttonLabel, "已关闭", "automatic cache toggle did not update its label");
+    assert.equal(policyFeedback.toastVisible, true, "automatic cache toggle did not show visible feedback");
+    assert.equal(policyFeedback.toastInsideDialog, true, "settings feedback was mounted outside the open dialog");
+    await page.click("#closeSettingsDialog");
+    await page.waitForFunction(() => !document.querySelector("#settingsDialog")?.open);
+    await page.waitForFunction(() => document.querySelectorAll(".mini-toast").length === 0, null, { timeout: 3000 });
+    assert.equal(await page.locator("body > .mini-toast-host").count(), 0, "settings feedback remained behind the closed dialog");
   } finally {
     await closeFixturePage(mobile);
   }

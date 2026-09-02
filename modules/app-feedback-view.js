@@ -22,13 +22,15 @@ export function createAppFeedbackView({
   ) {
     const centered = placement === "center";
     const hostId = centered ? "miniToastHostCenter" : "miniToastHost";
+    const dialog = documentTarget.querySelector("dialog[open]");
     let host = documentTarget.querySelector(`#${hostId}`);
     if (!host) {
       host = documentTarget.createElement("div");
       host.id = hostId;
       host.className = centered ? "mini-toast-host mini-toast-host-center" : "mini-toast-host";
-      documentTarget.body.appendChild(host);
     }
+    (dialog || documentTarget.body).append(host);
+    dialog?.addEventListener("close", () => host.remove(), { once: true });
     const toast = documentTarget.createElement("div");
     toast.className = `mini-toast mini-toast-${kind}`;
     toast.innerHTML = `

@@ -98,6 +98,7 @@ This system combines the verified UI/UX Pro Max matches for Minimalism & Swiss S
 - Mobile page-level browser zoom follows the product viewport contract; Dynamic Type / xlarge text settings and in-app media viewer zoom remain available.
 - Mobile text inputs, selects, and textareas use a computed font size of at least 16px to avoid focus zoom.
 - Notification loading, empty, error, and retry states remain visible in the dialog; closing during a request restores focus to the bell without reopening the dialog.
+- Transient feedback opened while a native dialog is active follows the current dialog into the top layer and is removed when that dialog closes; it must not remain behind or reappear after close.
 - Push settings bind after the lazy settings DOM exists; disabling this device is busy/disabled during the operation, unsubscribes locally before remote cleanup, and clearly reports a remote cleanup failure without undoing the local result.
 - Images have meaningful alt text or are explicitly decorative.
 - Validate keyboard, pointer, and touch behavior.

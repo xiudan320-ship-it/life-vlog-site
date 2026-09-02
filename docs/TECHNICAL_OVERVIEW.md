@@ -145,6 +145,8 @@ flowchart LR
 - `preferences-store.js`：主题、字号、布局和顶部分页等设备偏好。
 - `upload-queue.js`：IndexedDB 上传队列与失败重试。
 - `media-cache.js` / `offline-cache-controller.js`：日记和秘藏媒体缓存。
+- `offline-settings-controller.js` / `cache-management-view.js`：缓存容量、自动缓存策略、离线包和清理操作；设置摘要通过 runtime 桥接读取已装配的缓存控制器，避免显示未解析值。
+- `app-feedback-view.js`：全局即时反馈；原生 dialog 打开时将提示 host 跟随当前 dialog，并在关闭事件中清理，后续页面提示会自动恢复到 body。
 - `offline-records.js`：离线元数据记录。
 - `src/sw.js`：Workbox 预缓存和运行时缓存策略。
 
@@ -153,6 +155,8 @@ Service Worker 使用 `registerType: "prompt"`，新版本就绪后由用户确�
 心情日记的当前月份在 `localStorage` 使用 `life-vlog-mood-month:<userId>:<YYYY-MM>` 缓存，仅作为加速层；云端成功响应会替换 canonical 内容，用户、月份和请求 revision 均参与隔离与 latest-wins 判断。`monthSummary` 不单独持久化，而是由当前月 entries、稳定两席和月份键派生；`mood-month-summary-domain.js` 生成最多 62 个确定性罐体素材元数据、成员最多心情、按日三档趋势（缺口只保留真实端点并输出虚线桥）和真实日期趋势坐标。`mood-jar-physics.js` 与透明圆肚玻璃罐 WebP 共用 `360×480` 几何，以瓶口 `(180,42)`、向内缩的曲面瓶壁和椭圆底部为边界，使用固定 `1/60s` 步长、最多 4 次逐帧补算、确定性批次出生、圆形粒子碰撞、摩擦、轻微回弹和休眠，最终稳定态仍由同一求解器收束。`mood-month-summary-view.js` 观察罐体至少 55% 可见且中心进入视口 20%～80% 焦点带后，启动当前月份/数据 key 的一次播放；月历和罐体旁的月份按钮都复用 `mood-diary-controller.js` 的月份 action。月份 action 从触发按钮所属的月历或心情罐模块读取视口锚点，在同步/缓存/canonical 多次渲染后增量恢复位置，并在完成后的两帧内避开全局平滑滚动释放锚点，因此 4～6 周月历切换不会推动当前可见模块。数据渲染后会重新读取罐体布局，覆盖隐藏路由激活时的旧视口判断；单一 rAF 只把缓存粒子状态写入内层 `transform`/`opacity`，不在帧循环中查询 DOM。重播、切月、数据刷新、路由离开和 destroy 都取消旧 rAF 并重建唯一模拟，reduced-motion 直接采用求解器最终态并播报状态。物理内腔最终使用 `wallInset=8`、`floorEdgeY=420`、`floorCenterY=434`，与可见底座留出安全间距。瓶体源图位于 `assets-source/mood-jar.png`，构建时由 `scripts/optimize-assets.mjs` 输出 720×960 的 `/assets/generated/mood-jar.webp`。手机趋势使用约 `390×360` 的高画布，记录较少时按真实有记录日期等距展开，HTML 命中按钮与 SVG 绘图共用同一坐标模型。评论由 `comment-thread-domain.js` 转为同级行模型；移动日记与桌面详情共享稳定排序、回复目标和孤儿/循环保护，正文至少 16px、长 URL 任意断行，表单保持列表后的正常文档流。首页今日概览使用独立的单日查询，不读取该月缓存；成功态折叠空状态行并使用更紧凑的桌面/手机间距。保存、编辑、删除先更新月历/历史/详情/汇总的内存快照，再强制重读受影响月份；成功响应覆盖 optimistic state，重读失败保留已写入结果并显示可重试状态；没有离线写入队列。
 
 顶部分页配置使用现有 `preferences-store.js` 的 `life-vlog-primary-navigation` key，按现有 user/device scope 隔离；只保存启用状态与顺序，不新增数据库、云端字段或依赖。关闭本机 Push 时先执行浏览器订阅的 `unsubscribe()`，再清理 Worker 记录；远端失败只反馈“本机已关闭、云端记录清理失败”，不阻断本地状态。
+
+设置页的缓存容量摘要和自动缓存策略由 shell 的显式桥接读取 feature assembly 完成装配后的 `offline-cache-controller.js`；自动缓存切换先更新按钮文本，再显示成功提示。即时提示在存在原生 dialog 时跟随当前 dialog 进入 top layer，并在 dialog 关闭事件中清理，避免提示被 dialog 遮挡或在关闭后残留。
 
 ## 9. 构建与资源
 

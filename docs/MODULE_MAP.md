@@ -33,7 +33,7 @@
 | 评论、回复、通知 | `modules/social-controller.js`, `modules/comment-thread-domain.js`, `modules/notification-event-bindings.js` | `modules/notification-domain.js`, `modules/notification-view.js`；桌面详情与移动详情共用扁平留言模型 |
 | 推送通知与点击跳转 | `modules/push-controller.js` | `modules/media-event-bindings.js` |
 | 菜谱、留言、纪念日、吃什么 | 对应的 `*-controller.js` | 对应的 `*-view.js`, `modules/content-form-event-bindings.js` |
-| 离线缓存与容量 | `modules/offline-cache-controller.js`, `modules/offline-settings-controller.js` | `modules/cache-policy.js`, `modules/cache-management-view.js` |
+| 离线缓存与容量、自动缓存设置反馈 | `modules/offline-cache-controller.js`, `modules/offline-settings-controller.js` | `modules/cache-policy.js`, `modules/cache-management-view.js`, `modules/app-feedback-view.js` |
 | 云端数据访问 | `modules/data-repositories.js`, `modules/household-repository.js` | `modules/cloudflare-client.js`, `modules/cloud-models.js` |
 
 ## 跨路由数据边界
@@ -82,6 +82,7 @@
 - `app-runtime-vlog-mode.js`：VLOG 筛选模式的开关和视图联动。
 - `primary-navigation-domain.js` / `primary-navigation-view.js` / `primary-navigation-controller.js`：维护顶部分页注册表、用户/设备配置、可见入口、设置开关/排序和 active/ARIA 状态。
 - `notification-event-bindings.js`：应用外壳的通知铃铛、关闭/遮罩和关闭后焦点回收事件；绑定只执行一次，不依赖设置路由。
+- `app-feedback-view.js`：统一即时提示、网络状态和回顶按钮；原生 dialog 打开时把提示 host 放入当前 dialog，并在关闭事件中清理，后续页面提示会自动恢复到 body。
 - `content-form-event-bindings.js`：菜谱、心愿、周末、留言、秘藏等内容表单事件。
 - `settings-event-bindings.js`：设置页账户、家庭、缓存、安全和网络状态事件；全局等级弹窗与通知事件不在设置路由绑定。
 - `media-event-bindings.js`：日记 / VLOG / 秘藏查看器、编辑器、搜索筛选和媒体手势事件；搜索与 tag 结果仍在 gallery 当前页面内更新。
