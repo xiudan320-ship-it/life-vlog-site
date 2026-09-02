@@ -54,6 +54,8 @@
 
 [`mobile-comment-thread-and-jar-physics-plan.md`](mobile-comment-thread-and-jar-physics-plan.md)：记录移动端深层留言不再累计缩进，以及心情表情使用确定性物理碰撞缓慢落入并可重播的 V3 实施与验收方案；其物理运动目标覆盖 V2 的固定槽位下落方案。
 
+[`automatic-cache-settings-remediation-plan.md`](automatic-cache-settings-remediation-plan.md)：记录存储设置中自动缓存看似无法切换、容量摘要显示 `undefined MB` 的共同根因，以及缓存状态职责收归、懒加载生命周期和确定性验收方案；在代码实施前不得视为已修复。
+
 历史文档可以长期保留作为决策和审计依据，但不应继续承担当前系统说明职责。
 
 ## 文档职责
