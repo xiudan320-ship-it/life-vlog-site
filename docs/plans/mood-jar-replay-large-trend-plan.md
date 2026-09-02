@@ -1,5 +1,10 @@
 # 心情瓶高保真复刻、缓慢重播与大趋势图 V2 规划
 
+> Status: Implemented (not deployed)
+> Scope: 仅在当前任务直接涉及本专项时查阅
+> Default loading: No
+> Source of truth: 当前源码及对应长期系统文档
+
 > 状态：实现完成，正在进行本地门禁验证；未部署。本文件的实施记录见文末。
 >
 > 编写日期：2026-09-01

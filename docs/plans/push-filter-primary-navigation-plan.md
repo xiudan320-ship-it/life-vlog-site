@@ -1,5 +1,10 @@
 # 消息通知关闭、日记筛选滚动与可配置顶部导航修复规划
 
+> Status: Implemented (not deployed)
+> Scope: 仅在当前任务直接涉及本专项时查阅
+> Default loading: No
+> Source of truth: 当前源码及对应长期系统文档
+
 > 状态：已完成本地代码、测试与构建验收；未执行线上部署。
 >
 > 规划日期：2026-08-31（Asia/Tokyo）

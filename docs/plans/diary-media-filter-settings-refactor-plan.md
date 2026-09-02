@@ -1,5 +1,10 @@
 # 咻蛋之家：日记媒体、筛选与设置体验修复规划（执行版）
 
+> Status: Planned
+> Scope: 仅在当前任务直接涉及本专项时查阅
+> Default loading: No
+> Source of truth: 当前源码及对应长期系统文档
+
 > 文档日期：2026-08-29
 > 当前源码基线：`codex/life-vlog-stabilization` / `178d251`
 > 正式站：<https://life-vlog-site.pages.dev>

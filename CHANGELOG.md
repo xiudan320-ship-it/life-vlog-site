@@ -10,6 +10,8 @@
 
 ### Documentation
 
+- 统一根 README、技术总览与三层流程职责，清理“每次修改都必须记录 CHANGELOG”的旧规则，避免入口文档重复触发全量记录。
+- 将任务流程分为最小固定上下文与风险触发式扩展：低风险无行为变化修改默认不更新 CHANGELOG、不创建 plan，也不运行完整测试；高风险改动再按影响扩展文档和验收。
 - 将文档同步判断改为默认依据 `AGENTS.md` 与 `docs/README.md`，仅在存在歧义或涉及流程本身时查阅 `CHANGE_WORKFLOW.md`，避免普通任务重复加载工作流。
 - 将 Agent 文档接手流程改为按任务路由：默认读取 `AGENTS.md`、`docs/README.md` 和 CHANGELOG 的 `[Unreleased]`，其余长期文档与历史专项仅定位相关章节后按需查阅，避免批量加载无关上下文。
 - 将专项规划和恢复审计分别归入 `docs/plans/` 与 `docs/history/`，并同步更新文档路由、历史链接和内部引用。

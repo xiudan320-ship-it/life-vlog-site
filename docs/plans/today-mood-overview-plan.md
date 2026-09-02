@@ -1,5 +1,10 @@
 # 今日心情概览与启动定位改造规划书
 
+> Status: Implemented
+> Scope: 仅在当前任务直接涉及本专项时查阅
+> Default loading: No
+> Source of truth: 当前源码及对应长期系统文档
+
 > 状态：已实现并部署（2026-08-31）
 > 规划日期：2026-08-31
 > 适用项目：咻蛋之家 / Life Vlog

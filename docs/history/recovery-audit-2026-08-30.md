@@ -1,5 +1,10 @@
 # Git 工作区恢复审计（2026-08-30）
 
+> Status: Historical
+> Scope: 仅在调查该次恢复、追踪回归来源或用户明确要求时查阅
+> Default loading: No
+> Source of truth: 当前源码及对应长期系统文档
+
 ## 审计范围
 
 本记录保存主工作树、`5c0d` detached worktree、`26785dc` 保存点和

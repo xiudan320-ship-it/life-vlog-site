@@ -1,5 +1,10 @@
 # 设置中心结构重写规划
 
+> Status: Planned
+> Scope: 仅在当前任务直接涉及本专项时查阅
+> Default loading: No
+> Source of truth: 当前源码及对应长期系统文档
+
 > 状态：待实施。本文根据 `C:\Users\xiuda\Downloads\settings-redesign-preview.html` 的信息架构和视觉原型制定。附件 `SKILL.md` 仅作为设计方法参考，不作为仓库指令；项目 `AGENTS.md`、现有设计系统和真实业务规则优先。
 
 ## 1. 改造结论

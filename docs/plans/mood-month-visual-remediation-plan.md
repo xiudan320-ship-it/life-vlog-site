@@ -1,5 +1,10 @@
 # 心情月度罐与趋势图可视化修复规划
 
+> Status: Implemented (not deployed)
+> Scope: 仅在当前任务直接涉及本专项时查阅
+> Default loading: No
+> Source of truth: 当前源码及对应长期系统文档
+
 > 状态：实施完成（本地确定性 fixture 已验证，未部署）。本文件保留修复方案、验收标准和未完成的真实 WebKit/发布门禁记录。
 >
 > 编写日期：2026-09-01

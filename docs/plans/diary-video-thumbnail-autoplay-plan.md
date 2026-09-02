@@ -1,5 +1,10 @@
 # 咻蛋之家：日记视频缩略图标识与视觉中心自动播放规划
 
+> Status: Planned
+> Scope: 仅在当前任务直接涉及本专项时查阅
+> Default loading: No
+> Source of truth: 当前源码及对应长期系统文档
+
 > 日期：2026-08-30
 > 执行分支：`codex/life-vlog-stabilization`
 > 当前基线：`a77ef33`，并保留工作树内现有全部未提交修改

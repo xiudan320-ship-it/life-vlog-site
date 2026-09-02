@@ -62,4 +62,4 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\deploy-cloudflare-pages.ps
 
 ## 变更记录
 
-每次修改代码、样式、配置、数据库结构、依赖、测试或部署逻辑，都必须同步更新 [`CHANGELOG.md`](CHANGELOG.md)。完整规则见 [`docs/CHANGE_WORKFLOW.md`](docs/CHANGE_WORKFLOW.md)。
+发生用户可见行为、系统行为或重要工程影响时，按文档路由同步 [`CHANGELOG.md`](CHANGELOG.md)；纯拼写、排版、注释和无行为小整理通常无需记录。完整规则见 [`docs/README.md`](docs/README.md)。

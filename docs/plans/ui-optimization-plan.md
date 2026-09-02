@@ -1,5 +1,10 @@
 # 咻蛋之家 UI 优化执行规划（Luna）
 
+> Status: Planned
+> Scope: 仅在当前任务直接涉及本专项时查阅
+> Default loading: No
+> Source of truth: 当前源码及对应长期系统文档
+
 > 给 Luna 的执行指令：严格按本文档从上到下完成范围内的全部工作。不要只改代码；必须完成自动化测试、桌面与手机端实测、缓存版本更新、Cloudflare Pages 部署和线上复核后，才算交付。
 
 ## 1. 目标与当前基线
