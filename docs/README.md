@@ -1,14 +1,35 @@
 # 项目文档入口
 
-新开发者、AI Agent 或自动化程序接手项目时，按以下顺序阅读：
+本文件是项目文档路由表。
 
-1. [`../AGENTS.md`](../AGENTS.md)：不可违反的实现、修改与交付规则。
-2. [`TECHNICAL_OVERVIEW.md`](TECHNICAL_OVERVIEW.md)：当前系统架构、运行时、数据流、媒体、PWA、测试、构建和部署总览。
-3. [`MODULE_MAP.md`](MODULE_MAP.md)：根据功能、页面、模块或故障快速定位对应源码。
-4. [`../CHANGELOG.md`](../CHANGELOG.md)：已交付及当前仓库中的变更记录，以及对应的用户影响。
-5. [`CHANGE_WORKFLOW.md`](CHANGE_WORKFLOW.md)：每次修改需要遵循的记录、文档同步和交付流程。
-6. [`release-checklist.md`](release-checklist.md)：发布前、发布过程和发布后的可执行验收门禁。
-7. [`../design-system/life-vlog/MASTER.md`](../design-system/life-vlog/MASTER.md)：全局 UI、视觉、组件和交互设计规范。
+## 任务启动顺序
+
+除用户另有要求外，任务开始按以下顺序进行：
+
+1. 阅读根目录 `AGENTS.md`。
+2. 阅读本文件。
+3. 运行 `git status --short`。
+4. 使用 `rg` 或文件名搜索定位当前任务涉及的源码。
+5. 根据下方任务类型路由，决定是否读取其他文档。
+6. 大型文档先搜索标题或关键词，再读取相关章节。
+7. 禁止在尚未确定任务相关性之前批量读取 `docs/`。
+
+## 按任务类型查阅文档
+
+| 当前任务涉及 | 按需读取 |
+| --- | --- |
+| 普通局部功能、Bug 修复 | 通常直接定位源码；按下方同步规则判断是否需要其他文档 |
+| 模块位置、模块职责、新增/删除/移动模块 | `MODULE_MAP.md` 的相关章节 |
+| 架构、运行时、数据流、状态边界 | `TECHNICAL_OVERVIEW.md` 的相关章节 |
+| 缓存、PWA、离线行为 | `TECHNICAL_OVERVIEW.md` 的相关章节 |
+| 构建、部署、关键依赖 | `TECHNICAL_OVERVIEW.md`；发布相关时再读 `release-checklist.md` |
+| UI、视觉、交互、响应式、无障碍 | `design-system/` 中与当前页面或组件相关的规范 |
+| 发布或部署验收 | `release-checklist.md` |
+| 查看尚未发布的变更 | `CHANGELOG.md` 的 `[Unreleased]` |
+| 调查历史决策或某次专项工作 | `plans/` 或 `history/` 中对应文档 |
+| 文档同步和交付规则存在疑问 | `CHANGE_WORKFLOW.md` 的相关章节 |
+
+不要因为文档存在就默认读取。对于大型文档，应先使用文件名、关键词、标题或 `rg` 定位相关章节，再读取局部内容。
 
 ## 文档优先级
 
@@ -33,30 +54,30 @@
 
 ## 历史与专项文档
 
-以下类型文档不属于默认接手必读内容，应根据具体任务按需查阅：
+以下类型文档不属于默认接手必读内容，应根据具体任务按需查阅。`plans/` 与 `history/` 默认不读取，仅当当前任务直接涉及对应专项时，通过关键词定位并局部读取：
 
-* 专项功能规划
+* 专项功能规划（位于 `plans/`）
 * 重构规划
 * 故障调查报告
 * 数据迁移方案
-* Git 恢复记录
+* Git 恢复记录（位于 `history/`）
 * 阶段性审计报告
 * 发布事故复盘
 * 历史验收记录
 
 例如：
 
-[`recovery-audit-2026-08-30.md`](recovery-audit-2026-08-30.md)：记录 2026-08-30 Git 恢复与整合过程中的保存点、差异和验收证据，仅在调查该次恢复、追溯历史变更或验证恢复结果时查阅。
+[`history/recovery-audit-2026-08-30.md`](history/recovery-audit-2026-08-30.md)：记录 2026-08-30 Git 恢复与整合过程中的保存点、差异和验收证据，仅在调查该次恢复、追溯历史变更或验证恢复结果时查阅。
 
-[`mood-month-visual-remediation-plan.md`](mood-month-visual-remediation-plan.md)：记录心情罐错位、滚动时未播放下落动画及趋势 SVG 不可见问题的后续修复方案和可视验收标准；在修复完成前不得把它当作当前实现事实。
+[`plans/mood-month-visual-remediation-plan.md`](plans/mood-month-visual-remediation-plan.md)：记录心情罐错位、滚动时未播放下落动画及趋势 SVG 不可见问题的后续修复方案和可视验收标准；在修复完成前不得把它当作当前实现事实。
 
-[`mood-jar-replay-large-trend-plan.md`](mood-jar-replay-large-trend-plan.md)：记录心情瓶高保真复刻、缓慢分批落入、点击/键盘重播和手机大趋势图的 V2 实施与验收方案；其目标覆盖旧规划中的瓶体外观、动画节奏和手机趋势尺寸。
+[`plans/mood-jar-replay-large-trend-plan.md`](plans/mood-jar-replay-large-trend-plan.md)：记录心情瓶高保真复刻、缓慢分批落入、点击/键盘重播和手机大趋势图的 V2 实施与验收方案；其目标覆盖旧规划中的瓶体外观、动画节奏和手机趋势尺寸。
 
-[`mobile-comment-thread-and-jar-physics-plan.md`](mobile-comment-thread-and-jar-physics-plan.md)：记录移动端深层留言不再累计缩进，以及心情表情使用确定性物理碰撞缓慢落入并可重播的 V3 实施与验收方案；其物理运动目标覆盖 V2 的固定槽位下落方案。
+[`plans/mobile-comment-thread-and-jar-physics-plan.md`](plans/mobile-comment-thread-and-jar-physics-plan.md)：记录移动端深层留言不再累计缩进，以及心情表情使用确定性物理碰撞缓慢落入并可重播的 V3 实施与验收方案；其物理运动目标覆盖 V2 的固定槽位下落方案。
 
-[`automatic-cache-settings-remediation-plan.md`](automatic-cache-settings-remediation-plan.md)：记录存储设置中自动缓存看似无法切换、容量摘要显示 `undefined MB` 的共同根因，以及缓存状态职责收归、懒加载生命周期和确定性验收结果；该修复已于 2026-09-02 完成本地验证，尚未部署。
+[`plans/automatic-cache-settings-remediation-plan.md`](plans/automatic-cache-settings-remediation-plan.md)：记录存储设置中自动缓存看似无法切换、容量摘要显示 `undefined MB` 的共同根因，以及缓存状态职责收归、懒加载生命周期和确定性验收结果；该修复已于 2026-09-02 完成本地验证，尚未部署。
 
-[`settings-architecture-redesign-plan.md`](settings-architecture-redesign-plan.md)：记录基于设置重设计预览稿重写设置中心结构的实施方案，明确桌面双栏、手机目录/详情、真实设置搜索、模块职责迁移、无障碍和分阶段回归要求；在代码实施前不得视为当前 UI。
+[`plans/settings-architecture-redesign-plan.md`](plans/settings-architecture-redesign-plan.md)：记录基于设置重设计预览稿重写设置中心结构的实施方案，明确桌面双栏、手机目录/详情、真实设置搜索、模块职责迁移、无障碍和分阶段回归要求；在代码实施前不得视为当前 UI。
 
 历史文档可以长期保留作为决策和审计依据，但不应继续承担当前系统说明职责。
 
@@ -156,13 +177,14 @@
 当源码、长期文档和专项文档之间存在不一致时：
 
 1. 先确认当前源码和实际运行行为。
-2. 检查 `AGENTS.md` 是否定义了相关强制规则。
-3. 检查最近的 `CHANGELOG.md` 记录。
-4. 对照 `TECHNICAL_OVERVIEW.md` 和 `MODULE_MAP.md`。
-5. 将专项规划、恢复记录或历史审计作为背景证据，而不是默认事实来源。
-6. 确认文档已经过期后，应在本次修改中同步修正，而不是继续让冲突存在。
+2. 检查 `AGENTS.md` 是否定义相关强制规则。
+3. 检查 `CHANGELOG.md` 的 `[Unreleased]`；需要历史背景时再按关键词搜索历史版本。
+4. 如果冲突涉及架构、数据流、构建、部署等系统事实，定位并检查 `TECHNICAL_OVERVIEW.md` 的相关章节。
+5. 如果冲突涉及模块位置或职责，定位并检查 `MODULE_MAP.md` 的相关章节。
+6. 专项规划、恢复记录和历史审计只作为背景证据，不作为默认当前事实来源。
+7. 确认长期文档已经过期后，应在本次修改中同步修正。
 
-不要为了让文档与旧规划一致而修改正确的当前实现。
+禁止为了判断一个局部问题而无差别加载全部长期文档。
 
 ## 文档维护目标
 
