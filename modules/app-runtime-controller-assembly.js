@@ -38,6 +38,7 @@ import {
   wishlistHubController,
   weekendController,
   familySettingsController,
+  settingsShellController,
   offlineSettingsController,
   dataSafetyController,
   callLoaded,
@@ -122,6 +123,7 @@ const {
   MAX_CACHE_MB,
   TOOL_DOCK_ORDER_KEY,
   TOOL_DOCK_DEFAULT_ORDER,
+  TOOL_DOCK_MOBILE_DEFAULT_ORDER,
   TOOL_DOCK_LABELS,
   MOBILE_DIALOG_BREAKPOINT,
   SECRET_ALL_FOLDER_ID,
@@ -230,8 +232,6 @@ let lastAppBadgeCount = -1;
 let pendingNewPhotos = [];
 let dismissedFeedRefreshIds = new Set();
 let feedRefreshCheckInFlight = false;
-let returnToSettingsAfterDialog = false;
-let activeSettingsSection = "settingsAppearance";
 let dialogRestoreScrollY = 0;
 let dialogRestorePhotoId = "";
 let dialogRestorePhotoTop = 0;
@@ -248,6 +248,8 @@ let registerAppShellWorker = () => undefined;
 let renderFoodWheel = () => undefined;
 let renderExperience = () => undefined;
 let awardExperience = () => undefined;
+let openThanksDialog = () => undefined;
+let closeThanksDialog = () => undefined;
 let renderGratitudeNotes = () => undefined;
 let saveThanksColorPreference = () => undefined;
 let synchronizeAnniversaries = () => undefined;
@@ -438,8 +440,6 @@ const runtimeState = createRuntimeStateAccessors({
   secretMobileToolsExpanded: { get: () => secretMobileToolsExpanded, set: (value) => { secretMobileToolsExpanded = value; } },
   secretAlbumContextMenu: { get: () => secretAlbumContextMenu, set: (value) => { secretAlbumContextMenu = value; } },
   secretDefaultFolderId: { get: () => secretDefaultFolderId, set: (value) => { secretDefaultFolderId = value; } },
-  activeSettingsSection: { get: () => activeSettingsSection, set: (value) => { activeSettingsSection = value; } },
-  returnToSettingsAfterDialog: { get: () => returnToSettingsAfterDialog, set: (value) => { returnToSettingsAfterDialog = value; } },
   activeVipLevel: { get: () => activeVipLevel, set: (value) => { activeVipLevel = value; } },
   cloudSyncAvailable: { get: () => cloudSyncAvailable, set: (value) => { cloudSyncAvailable = value; } },
   cloudSyncInFlight: { get: () => cloudSyncInFlight, set: (value) => { cloudSyncInFlight = value; } },
@@ -521,6 +521,7 @@ const shellRuntime = createShellControllerAssembly({
     getNextWeekendDate,
     toolDockOrderKey: TOOL_DOCK_ORDER_KEY,
     toolDockDefaultOrder: TOOL_DOCK_DEFAULT_ORDER,
+    toolDockMobileDefaultOrder: TOOL_DOCK_MOBILE_DEFAULT_ORDER,
     toolDockLabels: TOOL_DOCK_LABELS,
     mobileFeedLayoutKey: MOBILE_FEED_LAYOUT_KEY,
     mobileSecretLayoutKey: MOBILE_SECRET_LAYOUT_KEY,
@@ -550,6 +551,7 @@ const shellRuntime = createShellControllerAssembly({
     openEditPhoto: (...args) => openEditPhoto(...args),
     renderMobileDiaryComments: (...args) => renderMobileDiaryComments(...args),
     awardExperience: (...args) => awardExperience(...args),
+    openThanksDialog: (...args) => openThanksDialog(...args),
     loadCacheCapacityMb: (...args) => loadCacheCapacityMb(...args),
     loadMediaCachePolicy: (...args) => loadMediaCachePolicy(...args),
     openSettingsChildDialog: (...args) => openSettingsChildDialog(...args),
@@ -560,6 +562,7 @@ const shellRuntime = createShellControllerAssembly({
     familySettingsController,
     offlineSettingsController,
     dataSafetyController,
+    wishlistHubController,
     callLoaded,
   },
   performanceMonitor,
@@ -668,13 +671,8 @@ const {
   cancelCommentReply,
   savePhotoComment,
   deletePhotoComment,
-  getFamilyTimelineEntries,
-  getCurrentWeekRange,
-  isWithinRange,
   loadWeeklyReview,
   openWeeklyReview,
-  renderFamilyTimeline,
-  ensureFamilyTimelineUi,
   getToolDockOrderStorageKey,
   normalizeToolDockOrder,
   loadToolDockOrder,
@@ -779,6 +777,7 @@ const accountRuntime = createAccountControllerAssembly({
     recipeController,
     wishlistController,
     shoppingController,
+    wishlistHubController,
     weekendController,
     secretController,
     callLoaded,
@@ -977,6 +976,7 @@ const featureRuntime = createFeatureControllerAssembly({
     normalizeSecretImages,
     normalizeUuid,
     openNotificationsPanel,
+    openThanksDialog: (...args) => openThanksDialog(...args),
     openPhoto,
     refreshCacheInfo,
     renderAccountAvatar,
@@ -1007,7 +1007,6 @@ const featureRuntime = createFeatureControllerAssembly({
     saveThanksColorPreference,
     syncExistingPushSubscription,
     renderFoodWheel,
-    setActiveSettingsSection: (...args) => callLoaded(familySettingsController, "setActiveSettingsSection", ...args),
     openPushDestination: undefined,
     getTodayExperienceStorageKey,
     saveExperience,
@@ -1026,18 +1025,16 @@ const featureRuntime = createFeatureControllerAssembly({
     shoppingController,
     weekendController,
     familySettingsController,
+    settingsShellController,
     offlineSettingsController,
     dataSafetyController,
+    wishlistHubController,
     callLoaded,
   },
 });
 const featureBindings = createFeatureRuntimeBindings(featureRuntime);
 const {
   secret: { renderSecretFolderControls: featureRenderSecretFolderControls },
-  familySettings: {
-    openSettingsChildDialog: featureOpenSettingsChildDialog,
-    reopenSettingsAfterChildDialog: featureReopenSettingsAfterChildDialog,
-  },
   trash,
   diaryComposer,
   offlineCache,
@@ -1055,6 +1052,8 @@ processDiaryUploadQueue = diaryComposer.processDiaryUploadQueue;
 syncExistingPushSubscription = push.syncExistingPushSubscription;
 registerAppShellWorker = push.registerAppShellWorker;
 renderFoodWheel = foodWheel.renderFoodWheel;
+openThanksDialog = gratitude.openThanksDialog;
+closeThanksDialog = gratitude.closeThanksDialog;
 renderGratitudeNotes = gratitude.renderGratitudeNotes;
 saveThanksColorPreference = gratitude.saveThanksColorPreference;
 loadFoodOptions = foodWheel.loadFoodOptions;
@@ -1062,14 +1061,14 @@ loadThanksColor = gratitude.loadThanksColor;
 setSelectedThanksColor = gratitude.setSelectedThanksColor;
 saveFoodOptionsCache = foodWheel.saveFoodOptionsCache;
 renderSecretFolderControls = featureRenderSecretFolderControls;
-openSettingsChildDialog = featureOpenSettingsChildDialog;
-reopenSettingsAfterChildDialog = featureReopenSettingsAfterChildDialog;
+openSettingsChildDialog = (...args) => callLoaded(settingsShellController, "openChildDialog", ...args);
+reopenSettingsAfterChildDialog = (...args) => callLoaded(settingsShellController, "reopenAfterChildDialog", ...args);
 synchronizeAnniversaries = anniversary.synchronizeAnniversaries;
-loadCacheCapacityMb = offlineCache.loadCacheCapacityMb;
-loadMediaCachePolicy = offlineCache.loadMediaCachePolicy;
 savePhotoFeedCache = offlineCache.savePhotoFeedCache;
 refreshCacheInfo = offlineCache.refreshCacheInfo;
 renderCachedPhotoFeed = offlineCache.renderCachedPhotoFeed;
+loadCacheCapacityMb = offlineCache.loadCacheCapacityMb;
+loadMediaCachePolicy = offlineCache.loadMediaCachePolicy;
 const appRouteRuntime = createRuntimeRouteEntry({
   elements: els,
   documentTarget: document,
@@ -1116,9 +1115,9 @@ const appRouteRuntime = createRuntimeRouteEntry({
     resolveRedirectUrl,
     openRandomMemory,
     refreshStorage,
-    configureCacheManagementUi,
     renderOverview,
     isMissingCloudSchema,
+    configureCacheManagementUi,
     applyTextScale: (...args) => textScaleController.apply(...args),
     loadTextScale: (...args) => textScaleController.load(...args),
   },
@@ -1143,7 +1142,6 @@ export const appRuntime = Object.freeze({
   performanceDiagnosticsView,
   restoreCloudflareSessionBackup,
   registerAppShellWorker,
-  ensureFamilyTimelineUi,
   updateDiarySearchUi,
   renderFoodWheel,
   initializeFeedObserver,

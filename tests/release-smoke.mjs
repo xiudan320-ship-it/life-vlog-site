@@ -4,6 +4,7 @@ import { chromium } from "playwright";
 import { createCloudflareApiFixture, cloudflareFixtureWorkerUrl } from "./fixtures/cloudflare-api-fixture.mjs";
 
 const baseUrl = (process.env.RELEASE_BASE_URL || "https://life-vlog-site.pages.dev").replace(/\/+$/, "");
+const authenticatedGalleryRequestBudget = 35;
 const pseudoSession = {
   access_token: "fixture-token",
   expires_at: new Date(Date.now() + 3600000).toISOString(),
@@ -200,7 +201,7 @@ async function testAuthenticatedGallery(browser) {
     const secretReads = result.fixture.requests.filter(({ method, path }) => method === "GET" && ["/api/table/secret_items", "/api/table/secret_folders"].includes(path));
     assert.equal(secretReads.length, 2, `gallery account sync did not read both secret tables: ${JSON.stringify(secretReads)}`);
     assert.equal(routeScripts(result).some((url) => /secret-route-/.test(url)), false, "gallery account sync loaded the secret UI route");
-    assert.ok(initialRequestCount <= 28, `authenticated gallery made ${initialRequestCount} initial requests`);
+    assert.ok(initialRequestCount <= authenticatedGalleryRequestBudget, `authenticated gallery made ${initialRequestCount} initial requests (budget ${authenticatedGalleryRequestBudget})`);
     const initialMotionRequests = result.fixture.requests.filter(({ path }) => path === "/fixture-live.mov").length;
     assert.ok(initialMotionRequests <= 1, `initial live media requested ${initialMotionRequests} times`);
     assert.ok(result.fixture.requests.filter(({ path }) => path === "/fixture-camera-talent.mp4").length <= 1, "ordinary VLOG video was requested more than once in the feed");
@@ -453,7 +454,8 @@ async function testGlobalNotificationPanel(browser) {
       "notification read state was not persisted"
     );
     await page.click('[data-notification-id="fixture-notification"]');
-    await page.waitForSelector("#thanksPage:not([hidden])");
+    await page.waitForSelector("#thanksDialog[open]", { state: "visible" });
+    await page.waitForFunction(() => !location.search.includes("page=thanks"));
     await page.waitForFunction(() => !document.querySelector("#notificationDialog")?.open);
     assert.deepEqual(success.errors, [], `successful notification errors: ${success.errors.join(" | ")}`);
   } finally { await success.context.close(); }

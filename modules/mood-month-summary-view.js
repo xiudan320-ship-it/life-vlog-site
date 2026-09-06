@@ -120,7 +120,7 @@ function setJarNodePrepared(node, particle, stageRect) {
   const motion = jarMotionNode(node);
   if (!motion || !particle) return;
   setJarNodeGeometry(node, particle, stageRect);
-  setJarNodeState(node, particle, stageRect, { visible: false, active: true });
+  setJarNodeState(node, particle, stageRect, { visible: false, active: false });
 }
 
 function settleJarSimulation(simulation) {

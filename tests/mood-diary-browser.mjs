@@ -169,6 +169,7 @@ async function runMoodJarV3Contract() {
       type: stage.getAttribute("type"),
       label: stage.getAttribute("aria-label"),
       hint: Boolean(document.querySelector("#moodJarReplayHint")),
+      hintText: document.querySelector("#moodJarReplayHint")?.textContent.trim() || "",
       status: Boolean(document.querySelector("#moodJarReplayStatus")),
       ratio: stage.getBoundingClientRect().height / stage.getBoundingClientRect().width,
       art: stage.querySelector(".mood-jar-art")?.getAttribute("src"),
@@ -182,6 +183,7 @@ async function runMoodJarV3Contract() {
     assert.equal(emptyContract.type, "button", "mood jar replay carrier must not submit a form");
     assert.match(emptyContract.label || "", /重播|重新播放/u, "mood jar replay carrier needs an action label");
     assert.equal(emptyContract.hint, true, "mood jar replay hint is missing");
+    assert.equal(emptyContract.hintText, "点击瓶子，重新下落本月心情", "mood jar replay hint should stay concise");
     assert.equal(emptyContract.status, true, "mood jar replay live status is missing");
     assert.ok(Math.abs(emptyContract.ratio - 480 / 360) <= 0.04, `mood jar must preserve the 360x480 ratio: ${JSON.stringify(emptyContract)}`);
     assert.equal(emptyContract.art, "/assets/generated/mood-jar.webp", `mood jar art asset is incorrect: ${JSON.stringify(emptyContract)}`);
@@ -839,12 +841,15 @@ async function runTodayMoodState(viewport, mode, label) {
       name: item.querySelector(".today-mood-seat-name")?.textContent || "",
       mood: item.querySelector(".today-mood-seat-mood")?.textContent || "",
       note: item.querySelector(".today-mood-seat-note")?.textContent || "",
+      imageLoading: item.querySelector(".today-mood-seat-asset img")?.loading || "",
       label: item.getAttribute("aria-label") || "",
     })));
     assert.equal(seats.length, 2, `${label} should render two stable seats`);
     assert.deepEqual(seats.map(({ name }) => name), ["小秀", "小咻"]);
     assert.equal(seats[0].classes.includes("is-square"), true, `${label} owner seat must use square asset shape`);
     assert.equal(seats[1].classes.includes("is-circle"), true, `${label} member seat must use circle asset shape`);
+    assert.equal(seats[0].imageLoading, mode === "both" || mode === "owner" ? "eager" : "", `${label} owner mood asset should load eagerly when recorded`);
+    assert.equal(seats[1].imageLoading, mode === "both" || mode === "member" ? "eager" : "", `${label} member mood asset should load eagerly when recorded`);
     assert.equal(seats[0].label.includes("小秀"), true);
     assert.equal(seats[1].label.includes("小咻"), true);
     assert.equal(seats.filter(({ tag }) => tag === "BUTTON").length, mode === "owner" || mode === "none" ? 1 : 2, `${label} actionable seat count`);
@@ -869,6 +874,87 @@ async function runTodayMoodState(viewport, mode, label) {
     });
     assert.equal(overviewSpacing.statusHidden, true, `${label} successful today mood state should collapse the empty status row`);
     assert.ok(overviewSpacing.gap <= (viewport.width <= 430 || viewport.height <= 480 ? 10 : 14), `${label} overview-to-mood spacing is too large: ${JSON.stringify(overviewSpacing)}`);
+    if (viewport.width >= 768 && viewport.height > 480) {
+      await page.waitForFunction(() => !document.querySelector("#overviewMoodMonthMeta")?.textContent.includes("同步"), null, { timeout: 30000 });
+      const desktopOverview = await page.evaluate(() => {
+        const left = document.querySelector(".today-mood-panel")?.getBoundingClientRect();
+        const right = document.querySelector(".overview-mood-month")?.getBoundingClientRect();
+        const grid = document.querySelector("#todayMoodGrid")?.getBoundingClientRect();
+        const overview = document.querySelector("#overview")?.getBoundingClientRect();
+        const head = document.querySelector("#overview .overview-head")?.getBoundingClientRect();
+        const quickActions = document.querySelector("#overview .quick-actions")?.getBoundingClientRect();
+        const galleryHead = document.querySelector("#galleryHead")?.getBoundingClientRect();
+        const seatRects = [...document.querySelectorAll("#todayMoodGrid .today-mood-seat")].map((item) => item.getBoundingClientRect());
+        const media = [...document.querySelectorAll("#todayMoodGrid .today-mood-seat-media")].map((item) => item.getBoundingClientRect());
+        return {
+          mainLeft: document.querySelector("main")?.getBoundingClientRect().left || 0,
+          mainRight: document.querySelector("main")?.getBoundingClientRect().right || 0,
+          galleryLeft: galleryHead?.left || 0,
+          galleryRight: galleryHead?.right || 0,
+          overviewLeft: overview?.left || 0,
+          overviewRight: overview?.right || 0,
+          leftLeft: left?.left || 0,
+          leftRight: left?.right || 0,
+          rightRight: right?.right || 0,
+          rightLeft: right?.left || 0,
+          leftTop: left?.top || 0,
+          leftBottom: left?.bottom || 0,
+          leftWidth: left?.width || 0,
+          rightWidth: right?.width || 0,
+          rightBottom: right?.bottom || 0,
+          leftHeight: left?.height || 0,
+          rightHeight: right?.height || 0,
+          topDelta: Math.abs((left?.top || 0) - (right?.top || 0)),
+          bottomDelta: Math.abs((left?.bottom || 0) - (right?.bottom || 0)),
+          gridTop: grid?.top || 0,
+          gridBottom: grid?.bottom || 0,
+          headTop: head?.top || 0,
+          headBottom: head?.bottom || 0,
+          quickActionsTop: quickActions?.top || 0,
+          quickActionsBottom: quickActions?.bottom || 0,
+          seatHeights: seatRects.map((rect) => rect.height),
+          seatTops: [...document.querySelectorAll("#todayMoodGrid .today-mood-seat")].map((item) => item.getBoundingClientRect().top),
+          calendarVisible: document.querySelector("#overviewMoodMonth:not([hidden])") !== null,
+          calendarCells: document.querySelectorAll("#overviewMoodCalendarGrid .overview-mood-calendar-cell:not(.is-outside)").length,
+          calendarSlots: document.querySelectorAll("#overviewMoodCalendarGrid .overview-mood-calendar-cell").length,
+          jarPreview: document.querySelectorAll(".overview-mood-month-jar, .overview-mood-month-item").length,
+          media,
+        };
+      });
+      assert.equal(desktopOverview.calendarVisible, true, `${label} desktop overview should show the month calendar`);
+      assert.ok([28, 29, 30, 31].includes(desktopOverview.calendarCells), `${label} desktop month calendar should contain every day: ${JSON.stringify(desktopOverview)}`);
+      assert.ok([35, 42].includes(desktopOverview.calendarSlots), `${label} desktop month calendar should contain complete week rows: ${JSON.stringify(desktopOverview)}`);
+      assert.equal(desktopOverview.jarPreview, 0, `${label} desktop overview should not render the jar thumbnail`);
+      assert.ok(desktopOverview.media.every((rect) => rect.width <= 64 && rect.height <= 64), `${label} desktop mood assets must stay compact: ${JSON.stringify(desktopOverview)}`);
+      if (viewport.width >= 1900) {
+        assert.ok(desktopOverview.topDelta <= 2, `${label} side mood panels should share a top edge: ${JSON.stringify(desktopOverview)}`);
+        assert.ok(desktopOverview.gridTop - desktopOverview.leftTop <= 2, `${label} side mood cards should start at the aligned panel top: ${JSON.stringify(desktopOverview)}`);
+        assert.ok(desktopOverview.quickActionsTop - desktopOverview.headBottom >= 12, `${label} quick actions should retain the overview gap after the heading: ${JSON.stringify(desktopOverview)}`);
+        assert.ok(desktopOverview.quickActionsTop - desktopOverview.headBottom <= 24, `${label} quick actions should follow the heading without a side-panel-sized gap: ${JSON.stringify(desktopOverview)}`);
+        assert.ok(Math.min(desktopOverview.leftBottom, desktopOverview.rightBottom) - desktopOverview.quickActionsBottom >= 48, `${label} quick actions must appear well before the side panels end: ${JSON.stringify(desktopOverview)}`);
+        assert.ok(desktopOverview.leftRight <= desktopOverview.galleryLeft + 2, `${label} left side mood panel must not cover the centered content column: ${JSON.stringify(desktopOverview)}`);
+        assert.ok(desktopOverview.rightLeft >= desktopOverview.galleryRight - 2, `${label} right month panel must not cover the centered content column: ${JSON.stringify(desktopOverview)}`);
+        assert.ok(Math.abs(desktopOverview.leftWidth - desktopOverview.rightWidth) <= 2, `${label} side mood panels should share the wide rail width: ${JSON.stringify(desktopOverview)}`);
+        assert.ok(desktopOverview.leftLeft - desktopOverview.overviewLeft <= 2, `${label} left mood panel should occupy the left page rail: ${JSON.stringify(desktopOverview)}`);
+        assert.ok(desktopOverview.overviewRight - desktopOverview.rightRight <= 2, `${label} month panel should occupy the right page rail: ${JSON.stringify(desktopOverview)}`);
+        assert.ok(desktopOverview.leftLeft < desktopOverview.mainLeft, `${label} left mood panel should sit outside the centered content column: ${JSON.stringify(desktopOverview)}`);
+        assert.ok(desktopOverview.rightRight > desktopOverview.mainRight, `${label} month panel should sit outside the centered content column: ${JSON.stringify(desktopOverview)}`);
+      } else {
+        assert.ok(desktopOverview.topDelta <= 2, `${label} mood panels should share a top edge: ${JSON.stringify(desktopOverview)}`);
+        assert.ok(desktopOverview.bottomDelta <= 2, `${label} mood panels should share a bottom edge: ${JSON.stringify(desktopOverview)}`);
+        assert.ok(desktopOverview.gridTop - desktopOverview.leftTop <= 2, `${label} mood cards should start at the aligned panel top: ${JSON.stringify(desktopOverview)}`);
+        assert.ok(desktopOverview.leftBottom - desktopOverview.gridBottom <= 14, `${label} mood cards should fill the aligned panel: ${JSON.stringify(desktopOverview)}`);
+        assert.ok(Math.abs(desktopOverview.seatHeights[0] - desktopOverview.seatHeights[1]) <= 2, `${label} mood cards should share the available height: ${JSON.stringify(desktopOverview)}`);
+        assert.ok(desktopOverview.leftWidth < desktopOverview.rightWidth, `${label} right month panel should receive the wider column: ${JSON.stringify(desktopOverview)}`);
+      }
+      assert.ok(desktopOverview.seatTops[1] - desktopOverview.seatTops[0] >= 100, `${label} mood seats should stack vertically on desktop: ${JSON.stringify(desktopOverview)}`);
+      if (viewport.width >= 1180) {
+        if (viewport.width < 1900) {
+          assert.ok(desktopOverview.leftLeft - desktopOverview.mainLeft <= 2, `${label} mood layout should reach the left content edge: ${JSON.stringify(desktopOverview)}`);
+          assert.ok(desktopOverview.mainRight - desktopOverview.rightRight <= 2, `${label} mood layout should reach the right content edge: ${JSON.stringify(desktopOverview)}`);
+        }
+      }
+    }
     await assertNoHorizontalOverflow(page, `${label} today overview`);
     if (viewport.width <= 430 || viewport.height <= 480) {
       const metrics = await page.locator("#todayMoodGrid").evaluate((grid) => {
@@ -1177,6 +1263,8 @@ try {
     [{ width: 844, height: 390 }, "mobile-landscape"],
     [{ width: 768, height: 900 }, "tablet"],
     [{ width: 1440, height: 900 }, "desktop"],
+    [{ width: 2048, height: 1000 }, "desktop-wide"],
+    [{ width: 3750, height: 1000 }, "desktop-ultrawide"],
   ]) {
     await runTodayMoodState(viewport, "both", label);
   }

@@ -23,6 +23,7 @@ export function createPrimaryNavigationController({
   getActiveFilter = () => "全部",
   routeAction = () => false,
   modeActions = {},
+  dialogActions = {},
 } = {}) {
   let scope = "guest";
   let config = normalizePrimaryNavigationConfig(null);
@@ -77,7 +78,11 @@ export function createPrimaryNavigationController({
     if (!button || !root?.contains?.(button)) return;
     const item = getPrimaryNavigationItem(button.dataset.primaryNavId);
     if (!item) return;
-    const action = item.type === "mode" ? modeActions[item.mode] : routeAction;
+    const action = item.type === "mode"
+      ? modeActions[item.mode]
+      : item.type === "dialog"
+        ? dialogActions[item.dialog]
+        : routeAction;
     if (typeof action !== "function") return;
     Promise.resolve(action(item)).catch(() => {});
   }

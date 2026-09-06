@@ -32,34 +32,3 @@ export function buildWeeklyReviewMarkup({
         </button>`).join("") || '<p class="settings-empty">本周还没有动态，下周回顾会从第一条记录开始。</p>'}
     </section>`;
 }
-
-export function buildFamilyMemoryMarkup({
-  monthPhotoCount = 0,
-  monthWishCount = 0,
-  monthMessageCount = 0,
-  photos = [],
-  getImage,
-  getLabel,
-}) {
-  return `
-    <section class="family-recap-stats">
-      <article><strong>${monthPhotoCount}</strong><span>本月日记</span></article>
-      <article><strong>${monthWishCount}</strong><span>完成心愿</span></article>
-      <article><strong>${monthMessageCount}</strong><span>本月留言</span></article>
-    </section>
-    <div class="family-timeline-title"><strong>往年今日</strong><span>${photos.length ? `${photos.length} 篇回忆` : "今天还没有往年回忆"}</span></div>
-    <section class="family-memory-grid">${photos.map((photo) => {
-      const image = getImage(photo);
-      return `<button type="button" data-timeline-photo="${escapeHtml(photo.id)}">${image ? `<img src="${escapeHtml(image.thumbnail_url || image.image_url)}" alt="" loading="lazy" decoding="async" />` : ""}<span>${escapeHtml(getLabel(photo))}</span><small>${new Date(photo.created_at).getFullYear()} 年</small></button>`;
-    }).join("") || '<p class="settings-empty">日子继续积累，明年的今天这里就会有故事。</p>'}</section>`;
-}
-
-export function buildFamilyTimelineMarkup(entries = [], getAuthorName) {
-  return `<section class="family-activity-list">${entries.map((item) => `
-    <button type="button" ${item.photoId ? `data-timeline-photo="${escapeHtml(item.photoId)}"` : ""}>
-      <i>${escapeHtml(item.type.slice(0, 1))}</i>
-      <span><small>${escapeHtml(item.type)} · ${escapeHtml(getAuthorName(item.userId))}</small><strong>${escapeHtml(item.title || "未命名")}</strong><em>${escapeHtml(item.detail || "")}</em></span>
-      <time>${formatCommentTime(item.date)}</time>
-    </button>
-  `).join("") || '<p class="settings-empty">还没有家庭动态。</p>'}</section>`;
-}

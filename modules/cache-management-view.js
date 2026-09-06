@@ -27,11 +27,25 @@ export function configureCacheManagementUi({
   if (summary) summary.textContent = "日记和秘藏分别按容量自动淘汰旧图片";
 
   const policyButton = documentRef.querySelector("#mediaCachePolicyButton");
+  const updatePolicyUi = (policy) => {
+    if (!policyButton) return;
+    const wifiOnly = policy === "wifi";
+    const policyValue = policyButton.querySelector("em");
+    const policyHelp = policyButton.querySelector("small");
+    if (policyValue) policyValue.textContent = wifiOnly ? "Wi-Fi · 最新 20 条" : "已关闭";
+    if (policyHelp) {
+      policyHelp.textContent = wifiOnly
+        ? "自动保留最新日记；蜂窝网络和无法识别的网络不会下载"
+        : "只通过下面按钮手动下载";
+    }
+    policyButton.setAttribute("aria-pressed", String(wifiOnly));
+  };
   if (policyButton && policyButton.dataset.cacheUiBound !== "true") {
     policyButton.dataset.cacheUiBound = "true";
     policyButton.addEventListener("click", () => {
       const next = loadPolicy() === "wifi" ? "off" : "wifi";
       savePolicy(next);
+      updatePolicyUi(next);
       showToast(next === "wifi" ? "仅在明确识别为 Wi-Fi 时自动缓存" : "已关闭自动缓存", { kind: "success" });
     });
   }

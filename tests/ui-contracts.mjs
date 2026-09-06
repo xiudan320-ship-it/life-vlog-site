@@ -36,8 +36,14 @@ assert.match(
 );
 assert.doesNotMatch(index, /id="settingsDialog"/);
 assert.match(settingsTemplate, /id="settingsDialog"/);
+assert.match(settingsTemplate, /class="settings-shell"[^>]*data-settings-shell/);
 assert.match(settingsTemplate, /data-settings-nav/);
 assert.match(settingsTemplate, /data-settings-content/);
+assert.match(settingsTemplate, /id="settingsSearchInput"/);
+assert.match(settingsTemplate, /data-settings-mobile-header/);
+assert.match(settingsTemplate, /data-settings-back/);
+assert.doesNotMatch(settingsTemplate, /role="listbox"/);
+assert.doesNotMatch(settingsTemplate, /class="settings-header-copy">\s*<p class="kicker">/);
 assert.deepEqual(
   settingsSectionRegistry.getSettingsSectionIds(),
   ["settingsAppearance", "settingsAccount", "settingsFamily", "settingsTools", "settingsStorage"],

@@ -285,13 +285,20 @@ async function testPrimaryNavigationPreferences(viewport, label) {
     if (viewport.width <= 700) await page.click('[data-settings-section="settingsAppearance"]');
     await page.waitForSelector("#settingsPrimaryNavigation [data-primary-nav-toggle]", { state: "visible", timeout: 30000 });
     assert.equal(await page.locator('[data-primary-nav-toggle="recipes"]').isChecked(), false, `${label} recipes should be optional by default`);
+    assert.match(
+      await page.locator("#settingsPrimaryNavigation .settings-card-header p").textContent(),
+      /最多显示 5 个入口/,
+      `${label} navigation settings should explain the five-item limit`,
+    );
+    await page.locator('[data-primary-nav-toggle="wardrobe"]').uncheck();
+    await page.waitForSelector('[data-primary-nav-id="wardrobe"]', { state: "detached" });
     await page.locator('[data-primary-nav-toggle="recipes"]').check();
     await page.waitForSelector('[data-primary-nav-id="recipes"]', { state: "visible" });
     await page.click('[data-primary-nav-move="recipes:up"]');
     const reordered = await page.locator(".main-nav [data-primary-nav-id]").evaluateAll((buttons) => buttons.map((button) => button.dataset.primaryNavId));
-    assert.deepEqual(reordered, ["gallery", "vlog", "wishlist", "weekend", "recipes", "wardrobe"], `${label} primary navigation order did not update`);
-    await page.locator('[data-primary-nav-toggle="thanks"]').check();
-    await page.locator('[data-primary-nav-toggle="secret"]').check();
+    assert.deepEqual(reordered, ["gallery", "vlog", "wishlist", "recipes", "weekend"], `${label} primary navigation order did not update`);
+    assert.equal(await page.locator('[data-primary-nav-toggle="thanks"]').isDisabled(), true, `${label} sixth navigation entry should be disabled at the limit`);
+    assert.equal(await page.locator('[data-primary-nav-toggle="secret"]').isDisabled(), true, `${label} sixth navigation entry should be disabled at the limit`);
     await page.click("#closeSettingsDialog");
     await page.waitForFunction(() => !document.querySelector("#settingsDialog")?.open);
 
@@ -304,15 +311,26 @@ async function testPrimaryNavigationPreferences(viewport, label) {
         viewportWidth: document.documentElement.clientWidth,
         navWidth: nav?.clientWidth || 0,
         navScrollWidth: nav?.scrollWidth || 0,
+        buttonCount: buttons.length,
+        buttonRightMax: Math.max(...rects.map((rect) => rect.right), 0),
+        navRight: nav?.getBoundingClientRect().right || 0,
+        galleryGap: (() => {
+          const overview = document.querySelector("#overview");
+          const gallery = document.querySelector("#galleryHead");
+          return overview && gallery && !overview.hidden ? gallery.getBoundingClientRect().top - overview.getBoundingClientRect().bottom : null;
+        })(),
         minHeight: Math.min(...rects.map((rect) => rect.height)),
         minGap: Math.min(...rects.slice(1).map((rect, index) => rect.left - rects[index].right)),
       };
     });
     assert.ok(navigationLayout.minHeight >= 44, `${label} primary navigation target is too small: ${JSON.stringify(navigationLayout)}`);
     assert.ok(navigationLayout.minGap >= 7, `${label} primary navigation gap is too small: ${JSON.stringify(navigationLayout)}`);
+    assert.ok(navigationLayout.buttonCount <= 5, `${label} primary navigation exceeded the five-item limit: ${JSON.stringify(navigationLayout)}`);
+    assert.ok(navigationLayout.buttonRightMax <= navigationLayout.navRight + 1, `${label} final navigation entry is clipped: ${JSON.stringify(navigationLayout)}`);
     assert.ok(navigationLayout.documentWidth <= navigationLayout.viewportWidth + 1, `${label} primary navigation caused page overflow`);
-    if (viewport.width <= 430 || (viewport.height <= 700 && viewport.width > viewport.height)) {
-      assert.ok(navigationLayout.navScrollWidth >= navigationLayout.navWidth, `${label} navigation scroll metrics are invalid`);
+    assert.ok(navigationLayout.navScrollWidth <= navigationLayout.navWidth + 1, `${label} five navigation entries should fit inside the navigation row: ${JSON.stringify(navigationLayout)}`);
+    if (viewport.width <= 860 || (viewport.height <= 700 && viewport.width > viewport.height)) {
+      assert.ok(navigationLayout.galleryGap !== null && navigationLayout.galleryGap <= 24, `${label} gallery heading is too far from today's overview: ${JSON.stringify(navigationLayout)}`);
     }
 
     const filterLayout = await page.evaluate(() => {
@@ -332,7 +350,7 @@ async function testPrimaryNavigationPreferences(viewport, label) {
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.waitForSelector('[data-primary-nav-id="recipes"]', { state: "visible", timeout: 30000 });
     const persisted = await page.locator(".main-nav [data-primary-nav-id]").evaluateAll((buttons) => buttons.map((button) => button.dataset.primaryNavId));
-    assert.deepEqual(persisted, ["gallery", "vlog", "wishlist", "weekend", "recipes", "wardrobe", "thanks", "secret"], `${label} primary navigation preference did not persist`);
+    assert.deepEqual(persisted, ["gallery", "vlog", "wishlist", "recipes", "weekend"], `${label} primary navigation preference did not persist`);
     assert.deepEqual(pageErrors, [], `${label} primary navigation page errors:\n${pageErrors.join("\n")}`);
   } finally {
     await fixture.dispose(context);
@@ -791,7 +809,8 @@ async function testNotificationPanel() {
     assert.ok(after <= before + 1, "repeated notification clicks were not deduplicated");
     assert.equal(success.fixture.writes.some(({ path, action }) => path === "/api/table/notifications" && action === "update"), true, "notification read state was not persisted");
     await success.page.click('[data-notification-id="fixture-notification"]');
-    await success.page.waitForSelector("#thanksPage:not([hidden])");
+    await success.page.waitForSelector("#thanksDialog[open]", { state: "visible" });
+    await success.page.waitForFunction(() => !location.search.includes("page=thanks"));
     await success.page.waitForFunction(() => !document.querySelector("#notificationDialog")?.open);
     assert.deepEqual(success.pageErrors, [], `successful notification page errors: ${success.pageErrors.join("\n")}`);
   } finally { await success.context.close(); }

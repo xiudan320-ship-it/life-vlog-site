@@ -18,6 +18,7 @@ export function createPageControllerRegistry() {
   const wishlistHubController = createLazyControllerProxy(pageControllers, "wishlistHub");
   const weekendController = createLazyControllerProxy(pageControllers, "weekend");
   const familySettingsController = createLazyControllerProxy(pageControllers, "familySettings");
+  const settingsShellController = createLazyControllerProxy(pageControllers, "settingsShell");
   const offlineSettingsController = createLazyControllerProxy(pageControllers, "offlineSettings");
   const dataSafetyController = createLazyControllerProxy(pageControllers, "dataSafety");
   const callLoaded = (controller, method, ...args) => (
@@ -34,12 +35,12 @@ export function createPageControllerRegistry() {
     wishlistHubController,
     weekendController,
     familySettingsController,
+    settingsShellController,
     offlineSettingsController,
     dataSafetyController,
     callLoaded,
   });
 }
-
 export const pageControllerRegistry = createPageControllerRegistry();
 export const {
   pageControllers,
@@ -51,6 +52,7 @@ export const {
   wishlistHubController,
   weekendController,
   familySettingsController,
+  settingsShellController,
   offlineSettingsController,
   dataSafetyController,
   callLoaded,
@@ -94,6 +96,7 @@ export function createRuntimeRouteEntry({
     uploadToR2: services.assetController.uploadToR2,
     cleanupStoredImagePaths: services.assetController.cleanupStoredImagePaths,
     synchronizeAccountData,
+    renderOfflineSettingsSummary: (...args) => pages.offlineSettingsController.ensureCacheManagementUi(...args),
     performanceDiagnostics: shell.performanceDiagnosticsView,
   });
   const controllers = {
@@ -114,6 +117,7 @@ export function createRuntimeRouteEntry({
     weekend: pages.weekendController,
     gratitude: feature.gratitudeController,
     familySettings: pages.familySettingsController,
+    settingsShell: pages.settingsShellController,
     social: shell.socialController,
     auth: feature.authController,
     offlineCache: feature.offlineCacheController,
@@ -172,7 +176,6 @@ export function createAppRouteRuntime({
     recipeActions,
     wishlistActions,
     weekendActions,
-    familySettingsActions,
     dataSafetyActions,
     trashActions,
     diaryComposerActions,
@@ -192,6 +195,9 @@ export function createAppRouteRuntime({
     shoppingController,
     wishlistHubController,
     weekendController,
+    familySettingsController,
+    settingsShellController,
+    offlineSettingsController,
     callLoaded,
   } = pages;
   const pageControllerMap = pages.pageControllers;
@@ -228,7 +234,10 @@ export function createAppRouteRuntime({
     renderFoodWheel,
     renderSettingsToolOrderPanel,
     refreshPushSettings,
+    openSettingsChildDialog,
+    reopenSettingsAfterChildDialog,
     renderSettingsSummary,
+    renderOfflineSettingsSummary,
     loadFamilyLevelProfiles,
     loadPhotos,
     synchronizeWeekendPlans,
@@ -286,7 +295,7 @@ export function createAppRouteRuntime({
         onMutation: async (payload) => {
           const [moodResult] = await Promise.allSettled([
             pageControllerMap.moodDiary?.handleMutation?.(payload),
-            pageControllerMap.todayMood?.refresh?.(),
+            pageControllerMap.todayMood?.refresh?.({ forceMonth: true }),
           ]);
           if (moodResult.status === "rejected") throw moodResult.reason;
           if (moodResult.value === false) throw new Error("本月汇总同步失败，可稍后重试");
@@ -310,6 +319,7 @@ export function createAppRouteRuntime({
       getAuthorName,
       switchPage: (...args) => appNavigationController?.switchPage(...args) ?? false,
       overlayController: moodEntryOverlayController,
+      windowTarget: documentTarget.defaultView,
       controllers: pageControllerMap,
     });
     pageControllerMap.todayMood = controller;
@@ -333,11 +343,14 @@ export function createAppRouteRuntime({
     collectSecretOfflineMediaUrls,
     collectDiaryOfflineMediaUrls,
     cacheOfflineMedia,
+    clear: clearOfflineCache,
     refreshCacheInfo,
     getAppCacheStats: getFeatureCacheStats,
   } = offlineCacheActions;
   const {
     renderGratitudeNotes,
+    openThanksDialog,
+    closeThanksDialog,
     setSelectedThanksColor,
   } = gratitudeActions;
   const {
@@ -389,11 +402,6 @@ export function createAppRouteRuntime({
     syncMobileComposerPlacement,
   } = core;
   const {
-    renderFamilyDialog,
-    openSettingsChildDialog,
-    setActiveSettingsSection,
-  } = familySettingsActions;
-  const {
     getImageFilesFromClipboard,
   } = secretActions;
   const primaryNavigationController = createPrimaryNavigationController({
@@ -420,6 +428,9 @@ export function createAppRouteRuntime({
     },
     modeActions: {
       vlog: () => vlogMode.open(),
+    },
+    dialogActions: {
+      thanks: () => openThanksDialog?.(),
     },
   });
   controllers.primaryNavigation = primaryNavigationController;
@@ -525,6 +536,7 @@ export function createAppRouteRuntime({
     runOfflineDiagnostics,
     renderUploadCenter,
     renderSettingsSummary,
+    renderOfflineSettingsSummary,
     refreshCacheInfo,
     loadFamilyLevelProfiles,
     loadPhotos,
@@ -545,18 +557,19 @@ export function createAppRouteRuntime({
     secretItemsCacheKey: config.secretItemsCacheKey,
     photoFeedCacheKey: config.photoFeedCacheKey,
     mediaCacheService,
+    clearOfflineCache,
+    configureCacheManagementUi: core.configureCacheManagementUi,
     getUserId: () => state.session?.user?.id,
     loadCacheCapacityMb,
     saveCacheCapacityMb,
     scheduleOfflineMediaCache,
-    configureCacheManagementUi: core.configureCacheManagementUi,
-    setActiveSettingsSection,
     loadMediaCachePolicy,
     saveMediaCachePolicy,
     collectSecretOfflineMediaUrls,
     collectDiaryOfflineMediaUrls,
     cacheOfflineMedia,
     openSettingsChildDialog,
+    reopenSettingsAfterChildDialog,
     dataSafetyState,
     cloudflareRequest,
     getLocalDateKey,
@@ -750,6 +763,7 @@ export function createAppRouteRuntime({
       renderExperience: core.renderExperience,
       renderFoodWheel,
       renderGratitudeNotes,
+      closeThanksDialog,
       renderNotifications: core.renderNotifications,
       renderOverview,
       renderRecipes,

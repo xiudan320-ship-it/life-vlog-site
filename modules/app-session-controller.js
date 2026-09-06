@@ -58,10 +58,10 @@ export function createAppSessionController({
     els.anniversaryOpen.hidden = !signedIn;
     els.memoryButton.hidden = !signedIn;
     if (els.weeklyReviewOpen) els.weeklyReviewOpen.hidden = !signedIn;
-    const timelineTool = documentTarget.querySelector('[data-tool-id="timeline"]');
-    if (timelineTool) timelineTool.hidden = !signedIn;
     if (els.secretOpen) els.secretOpen.hidden = !signedIn;
+    if (!signedIn) actions.closeThanksDialog?.();
     if (els.thanksOpen) els.thanksOpen.hidden = !signedIn;
+    if (els.thanksForm) els.thanksForm.hidden = !signedIn;
     actions.applyToolDockOrder(signedIn ? state.session.user.id : "guest");
     els.authCard.hidden = signedIn;
     els.userMenu.hidden = !signedIn;

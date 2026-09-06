@@ -3,6 +3,9 @@ export function buildNotificationText(item, actor = "有人") {
   const countText = count > 1 ? ` ${count} 次` : "";
   if (item?.type === "diary") return `${actor} 发布了新日记`;
   if (item?.type === "thanks") return `${actor} 写了一句感谢留言`;
+  if (item?.type === "wish") return `${actor} 新增了一条心愿`;
+  if (item?.type === "shopping") return `${actor} 添加了购物车商品`;
+  if (item?.type === "mood_reminder") return "今天还没有记录心情";
   if (item?.type === "favorite") return `${actor} 收藏了你的日记`;
   if (item?.type === "reply") return `${actor} 回复了你${countText}`;
   return `${actor} 评论了你的日记${countText}`;

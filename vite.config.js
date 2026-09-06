@@ -65,7 +65,7 @@ export default defineConfig({
       ],
     },
     injectManifest: {
-      globPatterns: ["**/*.{js,css,html,webmanifest,png,webp}"],
+      globPatterns: ["**/*.{js,css,html,webmanifest,png,webp,svg}"],
       globIgnores: [
         "**/*-route-*.js",
         "**/*-route-*.css",

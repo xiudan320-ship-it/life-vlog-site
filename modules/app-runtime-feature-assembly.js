@@ -25,9 +25,8 @@ export function createFeatureControllerAssembly({
     recipeController,
     wishlistController,
     shoppingController,
+    wishlistHubController,
     weekendController,
-    familySettingsController,
-    offlineSettingsController,
     dataSafetyController,
     callLoaded,
   } = pages;
@@ -40,7 +39,7 @@ export function createFeatureControllerAssembly({
     preferenceStore,
     assetController,
     photoFavorites,
-    cloudflareRequest,
+    cloudflareBackend,
     secretDataService,
   } = services;
   const {
@@ -135,7 +134,6 @@ export function createFeatureControllerAssembly({
     saveThanksColorPreference,
     syncExistingPushSubscription,
     renderFoodWheel,
-    setActiveSettingsSection,
     openPushDestination,
     getTodayExperienceStorageKey,
     saveExperience,
@@ -239,30 +237,6 @@ export function createFeatureControllerAssembly({
     submit: saveWeekendPlan,
     toggle: toggleWeekendPlan,
   } = weekendController;
-  const {
-    renderFamilyDialog,
-    renderSettingsFamilyPanel,
-    readSignupInviteCode,
-    bindSettingsFamilyActions,
-    setActiveSettingsSection: setFamilySettingsSection,
-    openSettingsDialog,
-    openSettingsChildDialog,
-    reopenSettingsAfterChildDialog,
-    closeSettingsDialog,
-    refreshSharedContent,
-    createFamily,
-    addFamilyMember,
-    respondFamilyInvitation,
-    removeFamilyMember,
-  } = familySettingsController;
-  const {
-    changeCacheLimit,
-    saveCacheLimitFromDialog,
-    applyCacheLimitPreset,
-    ensureCacheManagementUi,
-    downloadOfflinePool,
-    clearCachePool,
-  } = offlineSettingsController;
   const {
     downloadFamilyBackup,
     renderTrashItems,
@@ -412,6 +386,7 @@ export function createFeatureControllerAssembly({
     setVisiblePhotoCount: (value) => { state.visiblePhotoCount = value; },
     getActivePage: () => state.activePage,
     renderGallery,
+    renderSettingsSummary,
     setGlobalStatus,
     getSecretItems: () => state.secretItems,
     setSecretItems: (items) => { state.secretItems = items; },
@@ -424,7 +399,6 @@ export function createFeatureControllerAssembly({
     getAccountProfile: () => state.accountProfile,
     getFamilyMembers: () => state.familyMemberMap,
     getFamilyLevelProfiles: () => state.familyLevelProfiles,
-    renderSettingsSummary,
     formatFileSize,
   });
   const {
@@ -457,10 +431,6 @@ export function createFeatureControllerAssembly({
     get familyMembers() { return state.familyMembers; },
     get familyInvitations() { return state.familyInvitations; },
     get session() { return state.session; },
-    get activeSettingsSection() { return state.activeSettingsSection; },
-    set activeSettingsSection(value) { state.activeSettingsSection = value; },
-    get returnToSettingsAfterDialog() { return state.returnToSettingsAfterDialog; },
-    set returnToSettingsAfterDialog(value) { state.returnToSettingsAfterDialog = value; },
     get cloudDb() { return state.cloudDb; },
     get recipes() { return state.recipes; },
     set recipes(value) { state.recipes = value; },
@@ -513,7 +483,7 @@ export function createFeatureControllerAssembly({
 
   const pushController = createPushController({
     elements,
-    request: cloudflareRequest,
+    request: cloudflareBackend.request,
     notificationRepository,
     diaryRepository,
     getSession: () => state.session,
@@ -522,7 +492,8 @@ export function createFeatureControllerAssembly({
     prependPhoto: (photo) => state.photos.unshift(photo),
     loadNotifications: core.loadNotifications,
     openNotificationsPanel,
-    setActiveSettingsSection,
+    openThanksDialog: core.openThanksDialog,
+    openWishlistDestination: (moduleName) => wishlistHubController.show(moduleName),
     switchPage,
     openPhoto,
     showToast: showMiniToast,
@@ -593,6 +564,8 @@ export function createFeatureControllerAssembly({
     rollbackTrashItem: rollbackTrashItemFromController,
   });
   const {
+    openDialog: openThanksDialog,
+    closeDialog: closeThanksDialog,
     edit: editGratitudeNote,
     getSelectedColor: getSelectedThanksColor,
     loadColor: loadThanksColor,
@@ -703,30 +676,6 @@ export function createFeatureControllerAssembly({
       setWeekendStatus,
       saveWeekendPlan,
       toggleWeekendPlan,
-    },
-    familySettingsActions: {
-      renderFamilyDialog,
-      renderSettingsFamilyPanel,
-      readSignupInviteCode,
-      bindSettingsFamilyActions,
-      setActiveSettingsSection: setFamilySettingsSection,
-      openSettingsDialog,
-      openSettingsChildDialog,
-      reopenSettingsAfterChildDialog,
-      closeSettingsDialog,
-      refreshSharedContent,
-      createFamily,
-      addFamilyMember,
-      respondFamilyInvitation,
-      removeFamilyMember,
-    },
-    offlineSettingsActions: {
-      changeCacheLimit,
-      saveCacheLimitFromDialog,
-      applyCacheLimitPreset,
-      ensureCacheManagementUi,
-      downloadOfflinePool,
-      clearCachePool,
     },
     dataSafetyActions: {
       downloadFamilyBackup,
@@ -843,6 +792,8 @@ export function createFeatureControllerAssembly({
     },
     gratitudeController,
     gratitudeActions: {
+      openThanksDialog,
+      closeThanksDialog,
       editGratitudeNote,
       getSelectedThanksColor,
       loadThanksColor,

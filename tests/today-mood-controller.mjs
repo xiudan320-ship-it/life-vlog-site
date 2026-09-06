@@ -15,11 +15,11 @@ function createView() {
   };
 }
 
-function createFixture({ rows = [], members = [], listDay = async () => rows, sessionId = "owner", switchPage, overlayController } = {}) {
+function createFixture({ rows = [], members = [], listDay = async () => rows, listMonth = async () => [], sessionId = "owner", switchPage, overlayController, windowTarget = { innerWidth: 0 }, storage } = {}) {
   let session = sessionId ? { user: { id: sessionId } } : null;
   const view = createView();
   const controller = createTodayMoodController({
-    repository: { listDay },
+    repository: { listDay, listMonth },
     getSession: () => session,
     getFamilyInfo: () => members.length ? { id: "family-1" } : null,
     getFamilyMembers: () => members,
@@ -27,6 +27,8 @@ function createFixture({ rows = [], members = [], listDay = async () => rows, se
     getTodayKey: () => TODAY,
     switchPage: switchPage || (async () => true),
     overlayController,
+    windowTarget,
+    storage,
     view,
   });
   return { controller, view, setSession: (next) => { session = next; } };
@@ -70,6 +72,69 @@ test("today mood keeps empty data distinct from an unavailable request", async (
   await fixture.controller.retry();
   assert.equal(fixture.controller.getState().error, "");
   assert.deepEqual(fixture.controller.getState().entries, []);
+});
+
+test("today mood renders the cached family result before the cloud response", async () => {
+  const values = new Map([
+    ["life-vlog-mood-day:owner:2026-08-31", JSON.stringify([
+      { id: "cached-owner", user_id: "owner", diary_date: TODAY, mood: "calm" },
+      { id: "cached-member", user_id: "member", diary_date: TODAY, mood: "sad" },
+    ])],
+  ]);
+  let resolveCloud;
+  const pendingCloud = new Promise((resolve) => { resolveCloud = resolve; });
+  const fixture = createFixture({
+    members: [
+      { user_id: "owner", role: "owner", joined_at: "2026-01-01T00:00:00.000Z" },
+      { user_id: "member", role: "member", joined_at: "2026-02-01T00:00:00.000Z" },
+    ],
+    listDay: async () => pendingCloud,
+    storage: {
+      getItem: (key) => values.get(key) || null,
+      setItem: (key, value) => values.set(key, String(value)),
+    },
+  });
+  const refresh = fixture.controller.refresh();
+  assert.equal(fixture.controller.getState().loading, false);
+  assert.equal(fixture.controller.getState().syncing, true);
+  assert.deepEqual(fixture.controller.getState().entries.map(({ id }) => id), ["cached-owner", "cached-member"]);
+  resolveCloud([
+    { id: "canonical-owner", user_id: "owner", diary_date: TODAY, mood: "happy" },
+    { id: "canonical-member", user_id: "member", diary_date: TODAY, mood: "calm" },
+  ]);
+  await refresh;
+  assert.equal(fixture.controller.getState().syncing, false);
+  assert.deepEqual(fixture.controller.getState().entries.map(({ id }) => id), ["canonical-owner", "canonical-member"]);
+  assert.match(values.get("life-vlog-mood-day:owner:2026-08-31"), /canonical-member/u);
+});
+
+test("desktop today mood loads a compact current-month preview without coupling daily state", async () => {
+  let monthCalls = 0;
+  const fixture = createFixture({
+    members: [
+      { user_id: "owner", role: "owner", joined_at: "2026-01-01T00:00:00.000Z" },
+      { user_id: "member", role: "member", joined_at: "2026-02-01T00:00:00.000Z" },
+    ],
+    rows: [{ id: "today", user_id: "owner", diary_date: TODAY, mood: "happy" }],
+    listMonth: async () => {
+      monthCalls += 1;
+      return [
+        { id: "today", user_id: "owner", diary_date: TODAY, mood: "happy" },
+        { id: "earlier", user_id: "member", diary_date: "2026-08-12", mood: "calm" },
+      ];
+    },
+    windowTarget: { innerWidth: 1440 },
+  });
+  await fixture.controller.refresh();
+  await fixture.controller.loadMonthPreview();
+  assert.equal(monthCalls, 1);
+  assert.equal(fixture.controller.getState().monthSummary.total, 2);
+  assert.equal(fixture.controller.getState().entries.length, 1);
+  await fixture.controller.refresh();
+  assert.equal(monthCalls, 1);
+  await fixture.controller.refresh({ forceMonth: true });
+  await fixture.controller.loadMonthPreview();
+  assert.equal(monthCalls, 2);
 });
 
 test("today mood latest request wins across refreshes and session changes", async () => {

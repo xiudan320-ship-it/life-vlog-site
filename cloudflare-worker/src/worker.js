@@ -1808,7 +1808,10 @@ function getPushCopy(type, actorName, body = "", aggregateCount = 1) {
     comment: [`${name} 评论了你的日记${count > 1 ? ` ${count} 次` : ""}`, body || "打开看看对方说了什么"],
     reply: [`${name} 回复了你${count > 1 ? ` ${count} 次` : ""}`, body || "你收到了一条新回复"],
     favorite: [`${name} 收藏了你的日记`, "你的记录被家人收藏了"],
-    push_ready: ["通知已开启", "以后家人发布新日记或回复时，这台设备会收到提醒"],
+    wish: [`${name} 新增了一条心愿`, body || "打开看看家人想要什么"],
+    shopping: [`${name} 添加了购物车商品`, body || "打开看看家人准备买什么"],
+    mood_reminder: ["今天还没有记录心情", body || "点开咻蛋之家，补上今天的心情吧"],
+    push_ready: ["通知已开启", "以后家人发布新日记、心愿、购物车商品或留言时，这台设备会收到提醒"],
   };
   return snippets[type] || [`${name} 有新动态`, body || "打开咻蛋之家查看"];
 }
@@ -1917,7 +1920,7 @@ async function handlePushSubscribe(request, env, user) {
       id: `push-ready-${id}`,
       actorId: user.id,
       type: "push_ready",
-      body: "以后家人发布新日记或回复时，这台设备会收到提醒",
+      body: "以后家人发布新日记、心愿、购物车商品或留言时，这台设备会收到提醒",
     });
   }
   return jsonResponse(request, env, { data: { subscribed: true } });
@@ -1973,6 +1976,20 @@ async function createActivityNotifications(env, table, rows, actorId) {
       continue;
     }
 
+    if (table === "wishes" || table === "shopping_items") {
+      const familyUserIds = await getFamilyUserIds(env, actorId);
+      await Promise.all(
+        familyUserIds
+          .filter((userId) => userId !== actorId)
+          .map((userId) => insertNotification({
+            userId,
+            type: table === "wishes" ? "wish" : "shopping",
+            body: table === "wishes" ? row.title : row.name,
+          }))
+      );
+      continue;
+    }
+
     if (table === "photo_favorites") {
       const photo = await env.DB.prepare("select user_id from photos where id=?").bind(row.photo_id).first();
       await insertNotification({ userId: photo?.user_id, type: "favorite", photoId: row.photo_id });
@@ -2003,6 +2020,49 @@ async function createActivityNotifications(env, table, rows, actorId) {
         )
       );
     }
+  }
+}
+
+function getTokyoDayUtcRange(dateKey) {
+  const [year, month, day] = String(dateKey).split("-").map(Number);
+  const start = Date.UTC(year, month - 1, day) - 9 * 60 * 60 * 1000;
+  return {
+    start: new Date(start).toISOString(),
+    end: new Date(start + 24 * 60 * 60 * 1000).toISOString(),
+  };
+}
+
+async function createDailyMoodReminders(env) {
+  if (!env.DB) return;
+  const dateKey = getTokyoDateKey();
+  const { start, end } = getTokyoDayUtcRange(dateKey);
+  const users = await env.DB.prepare("select id from users").all();
+  for (const user of users.results || []) {
+    const userId = String(user.id || "").trim();
+    if (!userId) continue;
+    const mood = await env.DB.prepare(
+      "select id from mood_diaries where user_id=? and diary_date=? limit 1"
+    ).bind(userId, dateKey).first();
+    if (mood) continue;
+    const existing = await env.DB.prepare(
+      `select id from notifications
+        where user_id=? and actor_id=? and type='mood_reminder'
+          and created_at>=? and created_at<?
+        limit 1`
+    ).bind(userId, userId, start, end).first();
+    if (existing) continue;
+    const notificationId = randomId();
+    const body = "今天还没有记录心情，点开首页补上吧";
+    await env.DB.prepare(
+      `insert into notifications (id, user_id, actor_id, type, photo_id, comment_id, body, is_read, created_at)
+       values (?, ?, ?, 'mood_reminder', null, null, ?, 0, ?)`
+    ).bind(notificationId, userId, userId, body, nowIso()).run();
+    await sendPushToUser(env, userId, {
+      id: notificationId,
+      actorId: userId,
+      type: "mood_reminder",
+      body,
+    });
   }
 }
 
@@ -2398,15 +2458,15 @@ async function handleTableApi(request, env, user, table) {
         if (mediaError) return jsonResponse(request, env, { error: mediaError }, 400);
       }
     }
-    let existingPhotoIds = new Set();
-    if (table === "photos" && action === "upsert") {
+    let existingActivityIds = new Set();
+    if (action === "upsert" && ["photos", "wishes", "shopping_items"].includes(table)) {
       const ids = sanitizedRows.map((row) => row.id).filter(Boolean);
       if (ids.length) {
         const placeholders = ids.map(() => "?").join(",");
         const existing = await env.DB.prepare(
-          `select id from photos where id in (${placeholders})`
+          `select id from ${table} where id in (${placeholders})`
         ).bind(...ids).all();
-        existingPhotoIds = new Set((existing.results || []).map((row) => row.id));
+        existingActivityIds = new Set((existing.results || []).map((row) => row.id));
       }
     }
     const conflict = table === "mood_diaries"
@@ -2415,9 +2475,9 @@ async function handleTableApi(request, env, user, table) {
         ? String(payload.onConflict).split(",").map((item) => item.trim()).filter(Boolean)
         : config.conflictColumns || [config.columns.includes("id") ? "id" : config.columns[0]];
     const count = await upsertRows(env, table, sanitizedRows, config.columns, conflict);
-    if (["photos", "gratitude_notes", "photo_favorites", "photo_comments"].includes(table)) {
-      const activityRows = table === "photos" && action === "upsert"
-        ? sanitizedRows.filter((row) => !existingPhotoIds.has(row.id))
+    if (["photos", "gratitude_notes", "photo_favorites", "photo_comments", "wishes", "shopping_items"].includes(table)) {
+      const activityRows = ["photos", "wishes", "shopping_items"].includes(table) && action === "upsert"
+        ? sanitizedRows.filter((row) => !existingActivityIds.has(row.id))
         : action === "insert"
           ? sanitizedRows
           : [];
@@ -2891,9 +2951,11 @@ export default {
     }
   },
   async scheduled(_controller, env, ctx) {
-    // Cloudflare cron runs once per day. The date-based object key makes a
-    // repeated invocation on the same day idempotent, while the backup job
-    // removes snapshots older than the seven-day retention window.
+    // 20:00 Asia/Tokyo runs through the UTC cron entry and creates one
+    // idempotent reminder per user who has not recorded today's mood.
+    ctx.waitUntil(createDailyMoodReminders(env));
+    // The backup job removes snapshots older than the seven-day retention
+    // window and keeps its existing daily schedule.
     ctx.waitUntil(cleanupExpiredTrash(env));
     ctx.waitUntil(createDailyBackup(env));
   },

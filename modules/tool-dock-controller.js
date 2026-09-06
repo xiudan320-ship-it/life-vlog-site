@@ -15,9 +15,9 @@ export function createToolDockController({
   const {
     toolDockOrderKey,
     toolDockDefaultOrder,
+    toolDockMobileDefaultOrder,
     toolDockLabels,
   } = constants;
-
   function getToolDockOrderStorageKey(userId = state.session?.user?.id || "guest") {
     return preferenceStore.scopedKey(toolDockOrderKey, userId);
   }
@@ -59,6 +59,33 @@ export function createToolDockController({
     writeToolDockOrder(order, userId);
     renderSettingsToolOrderPanel();
   }
+
+  function syncMobileToolDockVisibility() {
+    if (!els.toolDock) return;
+    const buttons = Array.from(els.toolDock.querySelectorAll("[data-tool-id]"));
+    const availableButtons = buttons.filter((button) => !button.hidden);
+    const preferredButtons = (toolDockMobileDefaultOrder || [])
+      .map((id) => availableButtons.find((button) => button.dataset.toolId === id))
+      .filter(Boolean);
+    const mobileOrder = [
+      ...preferredButtons,
+      ...availableButtons.filter((button) => !preferredButtons.includes(button)),
+    ];
+    const orderByButton = new Map(mobileOrder.map((button, index) => [button, index]));
+
+    buttons.forEach((button) => {
+      const mobileOrderIndex = orderByButton.get(button);
+      const available = mobileOrderIndex !== undefined;
+      button.dataset.mobileToolVisible = String(available);
+      if (available) {
+        button.dataset.mobileToolOrder = String(mobileOrderIndex);
+        button.style.setProperty("--mobile-tool-order", String(mobileOrderIndex));
+      } else {
+        delete button.dataset.mobileToolOrder;
+        button.style.removeProperty("--mobile-tool-order");
+      }
+    });
+  }
   
   function applyToolDockOrder(userId = state.session?.user?.id || "guest") {
     if (!els.toolDock) return;
@@ -72,6 +99,7 @@ export function createToolDockController({
       const button = buttons.get(id);
       if (button) els.toolDock.appendChild(button);
     });
+    syncMobileToolDockVisibility();
     ensureToolDockSortControls();
     renderSettingsToolOrderPanel();
   }
@@ -263,6 +291,7 @@ export function createToolDockController({
     applyToolDockOrder,
     renderSettingsToolOrderPanel,
     renderSettingsAccountOverview,
+    syncMobileToolDockVisibility,
     ensureToolDockSortControls,
     startToolDockPointer,
     beginToolDockTouchSort,

@@ -1,10 +1,5 @@
-import {
-  buildFamilyMemoryMarkup,
-  buildFamilyTimelineMarkup,
-  buildWeeklyReviewMarkup,
-} from "./family-activity-view.js";
+import { buildWeeklyReviewMarkup } from "./family-activity-view.js";
 import { formatDate } from "./ui-formatters.js";
-import { renderListIcon } from "./list-icons.js";
 
 export function createFamilyActivityController({
   elements,
@@ -13,44 +8,10 @@ export function createFamilyActivityController({
   getPhotoLabel,
   getSortedPhotos,
   getAuthorName,
-  getPhotoImages,
   openPhoto,
 }) {
   const els = elements;
 
-  function getFamilyTimelineEntries() {
-    const entries = [];
-    state.photos.forEach((photo) => entries.push({
-      type: "日记",
-      title: getPhotoLabel(photo),
-      detail: photo.category || "日常",
-      date: photo.created_at,
-      userId: photo.user_id,
-      photoId: photo.id,
-    }));
-    state.recipes.forEach((item) => entries.push({
-      type: "菜谱", title: item.name, detail: item.category || "家常菜",
-      date: item.createdAt, userId: item.userId,
-    }));
-    state.wishes.forEach((item) => entries.push({
-      type: item.done ? "完成心愿" : "心愿", title: item.title,
-      detail: item.done ? (item.completionNote || "愿望达成") : (item.priority || "普通"),
-      date: item.completedAt || item.updatedAt || item.createdAt, userId: item.userId,
-    }));
-    state.weekendPlans.forEach((item) => entries.push({
-      type: item.done ? "完成周末" : "周末", title: item.title,
-      detail: item.location || item.type || "周末安排",
-      date: item.updatedAt || item.createdAt, userId: item.userId,
-    }));
-    state.gratitudeNotes.forEach((item) => entries.push({
-      type: "留言", title: item.body, detail: "感谢留言板",
-      date: item.created_at, userId: item.user_id,
-    }));
-    return entries
-      .filter((item) => item.date)
-      .sort((a, b) => new Date(b.date) - new Date(a.date));
-  }
-  
   function getCurrentWeekRange(reference = new Date()) {
     const start = new Date(reference);
     const day = start.getDay() || 7;
@@ -130,81 +91,8 @@ export function createFamilyActivityController({
     void loadWeeklyReview();
   }
   
-  function renderFamilyTimeline(mode = "activity") {
-    const dialog = document.querySelector("#familyTimelineDialog");
-    const output = dialog?.querySelector("[data-family-timeline-content]");
-    if (!output) return;
-    dialog.dataset.mode = mode;
-    dialog.querySelectorAll("[data-family-timeline-mode]").forEach((button) => {
-      button.classList.toggle("active", button.dataset.familyTimelineMode === mode);
-    });
-    const now = new Date();
-    if (mode === "memory") {
-      const sameDayPhotos = getSortedPhotos(state.photos).filter((photo) => {
-        const date = new Date(photo.created_at || photo.taken_at);
-        return date.getFullYear() < now.getFullYear() && date.getMonth() === now.getMonth() && date.getDate() === now.getDate();
-      });
-      const monthPhotos = state.photos.filter((photo) => {
-        const date = new Date(photo.created_at);
-        return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
-      });
-      const monthWishes = state.wishes.filter((wish) => wish.done && new Date(wish.completedAt || wish.updatedAt).getMonth() === now.getMonth());
-      output.innerHTML = buildFamilyMemoryMarkup({
-        monthPhotoCount: monthPhotos.length,
-        monthWishCount: monthWishes.length,
-        monthMessageCount: state.gratitudeNotes.filter((note) => new Date(note.created_at).getMonth() === now.getMonth()).length,
-        photos: sameDayPhotos,
-        getImage: (photo) => getPhotoImages(photo)[0],
-        getLabel: getPhotoLabel,
-      });
-    } else {
-      const entries = getFamilyTimelineEntries().slice(0, 60);
-      output.innerHTML = buildFamilyTimelineMarkup(entries, getAuthorName);
-    }
-    output.querySelectorAll("[data-timeline-photo]").forEach((button) => {
-      button.addEventListener("click", () => {
-        const photo = state.photos.find((item) => item.id === button.dataset.timelinePhoto);
-        if (!photo) return;
-        dialog.close();
-        openPhoto(photo, 0);
-      });
-    });
-  }
-  
-  function ensureFamilyTimelineUi() {
-    if (!els.toolDock || document.querySelector("#familyTimelineDialog")) return;
-    const button = document.createElement("button");
-    button.className = "tool-dock-button timeline-tool-button";
-    button.type = "button";
-    button.dataset.toolId = "timeline";
-    button.innerHTML = `<span class="tool-dock-mark timeline-mark" aria-hidden="true">${renderListIcon("calendar")}</span><span><strong>家庭足迹</strong><small>动态与往年今日</small></span>`;
-    els.toolDock.append(button);
-    const dialog = document.createElement("dialog");
-    dialog.className = "account-dialog family-timeline-dialog";
-    dialog.id = "familyTimelineDialog";
-    dialog.innerHTML = `
-      <button class="dialog-close" type="button" data-close-family-timeline aria-label="关闭">×</button>
-      <header><p class="kicker">Family Timeline</p><h2>家庭足迹</h2><p>把家里最近发生的事和值得重看的日子放在一起。</p></header>
-      <nav><button class="active" type="button" data-family-timeline-mode="activity">最近动态</button><button type="button" data-family-timeline-mode="memory">时间回顾</button></nav>
-      <div class="family-timeline-content" data-family-timeline-content></div>`;
-    document.body.append(dialog);
-    button.addEventListener("click", () => {
-      renderFamilyTimeline("activity");
-      dialog.showModal();
-    });
-    dialog.querySelector("[data-close-family-timeline]").addEventListener("click", () => dialog.close());
-    dialog.querySelectorAll("[data-family-timeline-mode]").forEach((tab) => tab.addEventListener("click", () => renderFamilyTimeline(tab.dataset.familyTimelineMode)));
-    dialog.addEventListener("click", (event) => { if (event.target === dialog) dialog.close(); });
-  }
-  
-  
   return {
-    getFamilyTimelineEntries,
-    getCurrentWeekRange,
-    isWithinRange,
     loadWeeklyReview,
     openWeeklyReview,
-    renderFamilyTimeline,
-    ensureFamilyTimelineUi,
   };
 }

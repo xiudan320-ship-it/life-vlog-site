@@ -3,7 +3,6 @@ function collectElements(root) {
     [...root.querySelectorAll("[id]")].map((element) => [element.id, element])
   );
 }
-
 function applySharedElementQueries(elements, documentTarget) {
   elements.dialog = elements.photoDialog || documentTarget.getElementById("photoDialog");
 
@@ -11,8 +10,11 @@ function applySharedElementQueries(elements, documentTarget) {
   elements.mainNav = documentTarget.querySelector(".main-nav");
   elements.main = documentTarget.querySelector("main");
   elements.heroSignature = documentTarget.querySelector(".hero-copy > p:last-child");
-  elements.settingsNavButtons = documentTarget.querySelectorAll("[data-settings-section]");
-  elements.settingsGroups = documentTarget.querySelectorAll(".settings-group");
+  elements.settingsShell = documentTarget.querySelector("[data-settings-shell]");
+  elements.settingsDirectory = documentTarget.querySelector("[data-settings-directory]");
+  elements.settingsSearchInput = documentTarget.querySelector("#settingsSearchInput");
+  elements.settingsNavButtons = documentTarget.querySelectorAll("[data-settings-nav] [data-settings-section]");
+  elements.settingsGroups = documentTarget.querySelectorAll("[data-settings-content] .settings-group");
   elements.chips = documentTarget.querySelectorAll(".chip");
   elements.dialogMedia = documentTarget.querySelector("#photoDialog .dialog-media");
   return elements;

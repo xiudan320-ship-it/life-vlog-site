@@ -23,7 +23,6 @@ export function createDataSafetyController({
   secretRepository,
   loadPhotos,
   loadSecretItems,
-  setActiveSettingsSection,
   mediaCacheService,
   getAppCacheStats,
   collectDiaryOfflineMediaUrls,

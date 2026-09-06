@@ -5,7 +5,6 @@ const PAGE_NAMES = new Set([
   "wishlist",
   "weekend",
   "wardrobe",
-  "thanks",
   "secret",
   "mood",
 ]);
@@ -153,7 +152,6 @@ export function createAppNavigationController({
       const showWishlist = state.activePage === "wishlist";
       const showWeekend = state.activePage === "weekend";
       const showWardrobe = state.activePage === "wardrobe";
-      const showThanks = state.activePage === "thanks";
       const showSecret = state.activePage === "secret";
       const showMood = state.activePage === "mood";
       syncPageNavigationState();
@@ -171,14 +169,12 @@ export function createAppNavigationController({
       if (elements.wishlistPage) elements.wishlistPage.hidden = !showWishlist;
       if (elements.weekendPage) elements.weekendPage.hidden = !showWeekend;
       if (elements.wardrobePage) elements.wardrobePage.hidden = !showWardrobe;
-      if (elements.thanksPage) elements.thanksPage.hidden = !showThanks;
       if (elements.secretPage) elements.secretPage.hidden = !showSecret;
       if (elements.moodPage) elements.moodPage.hidden = !showMood;
       if (elements.recipeComposer) elements.recipeComposer.hidden = !showRecipes || !state.session;
       if (elements.wishlistComposer) elements.wishlistComposer.hidden = !showWishlist || !state.session;
       if (elements.shoppingComposer) elements.shoppingComposer.hidden = !showWishlist || !state.session;
       if (elements.weekendComposer) elements.weekendComposer.hidden = !showWeekend || !state.session;
-      if (elements.thanksForm) elements.thanksForm.hidden = !showThanks || !state.session;
       if (elements.secretComposer) elements.secretComposer.hidden = !showSecret || !state.session;
 
       if (state.activePage === "gallery") {

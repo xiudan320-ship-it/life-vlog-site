@@ -51,12 +51,6 @@ export function bindContentFormEvents({ elements, state, controllers }) {
     closeCompletionDialog: closeWeekendCompletionDialog,
   } = controllers.weekend;
   const {
-    submit: saveGratitudeNote,
-    resetForm: resetGratitudeForm,
-    setSelectedColor: setSelectedThanksColor,
-    saveColor: saveThanksColorPreference,
-  } = controllers.gratitude;
-  const {
     addSecretImageLinks,
     getImageFilesFromClipboard,
     handleSecretPaste,
@@ -205,19 +199,6 @@ export function bindContentFormEvents({ elements, state, controllers }) {
     }
     const url = getClipboardImageUrl(event.clipboardData);
     if (url && addWeekendCompletionLinks(url)) event.preventDefault();
-  });
-  listen(els.thanksForm, "submit", saveGratitudeNote);
-  listen(els.thanksCancelEdit, "click", resetGratitudeForm);
-  els.thanksForm?.querySelectorAll('input[name="thanksColor"]').forEach((input) => {
-    listen(input, "change", () => {
-      setSelectedThanksColor(input.value);
-      if (state.session) {
-        saveThanksColorPreference(input.value, {
-          userId: state.session.user.id,
-          syncCloud: true,
-        });
-      }
-    });
   });
   listen(els.secretToggle, "click", () => {
     renderSecretLinkedPhotoOptions();

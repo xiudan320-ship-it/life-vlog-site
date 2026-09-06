@@ -8,7 +8,6 @@
 export function createFeatureRuntimeBindings(featureRuntime) {
   const {
     secretActions,
-    familySettingsActions,
     dataSafetyActions,
     trashActions,
     diaryComposerActions,
@@ -22,10 +21,6 @@ export function createFeatureRuntimeBindings(featureRuntime) {
   return Object.freeze({
     secret: Object.freeze({
       renderSecretFolderControls: secretActions.renderSecretFolderControls,
-    }),
-    familySettings: Object.freeze({
-      openSettingsChildDialog: familySettingsActions.openSettingsChildDialog,
-      reopenSettingsAfterChildDialog: familySettingsActions.reopenSettingsAfterChildDialog,
     }),
     dataSafety: Object.freeze({
       renderUploadCenter: dataSafetyActions.renderUploadCenter,
@@ -58,6 +53,8 @@ export function createFeatureRuntimeBindings(featureRuntime) {
       synchronizeAnniversaries: anniversaryActions.synchronizeAnniversaries,
     }),
     gratitude: Object.freeze({
+      openThanksDialog: gratitudeActions.openThanksDialog,
+      closeThanksDialog: gratitudeActions.closeThanksDialog,
       renderGratitudeNotes: gratitudeActions.renderGratitudeNotes,
       saveThanksColorPreference: gratitudeActions.saveThanksColorPreference,
       loadThanksColor: gratitudeActions.loadThanksColor,

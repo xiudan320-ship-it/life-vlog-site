@@ -21,7 +21,6 @@ export function createRouteControllerOptions({
   } = services;
   const {
     secretActions,
-    familySettingsActions,
     dataSafetyActions,
     trashActions,
     diaryComposerActions,
@@ -33,6 +32,8 @@ export function createRouteControllerOptions({
     recipeController,
     wishlistController,
     weekendController,
+    familySettingsController,
+    offlineSettingsController,
     dataSafetyController,
     callLoaded,
   } = pages;
@@ -67,6 +68,10 @@ export function createRouteControllerOptions({
     renderFoodWheel,
     renderSettingsToolOrderPanel,
     renderSettingsSummary,
+    renderOfflineSettingsSummary,
+    configureCacheManagementUi,
+    openSettingsChildDialog,
+    reopenSettingsAfterChildDialog,
     loadFamilyLevelProfiles,
     loadPhotos,
     synchronizeWeekendPlans,
@@ -97,6 +102,7 @@ export function createRouteControllerOptions({
     collectSecretOfflineMediaUrls,
     collectDiaryOfflineMediaUrls,
     cacheOfflineMedia,
+    clear: clearOfflineCache,
     refreshCacheInfo,
     getAppCacheStats: getFeatureCacheStats,
   } = offlineCacheActions;
@@ -104,11 +110,6 @@ export function createRouteControllerOptions({
     renderAnniversaries,
     synchronizeAnniversaries,
   } = anniversaryActions;
-  const {
-    renderFamilyDialog,
-    openSettingsChildDialog,
-    setActiveSettingsSection,
-  } = familySettingsActions;
   const {
     renderCloudBackups,
     renderTrashItems,
@@ -239,6 +240,8 @@ export function createRouteControllerOptions({
     runOfflineDiagnostics,
     renderUploadCenter,
     renderSettingsSummary,
+    renderOfflineSettingsSummary,
+    configureCacheManagementUi,
     refreshCacheInfo,
     loadFamilyLevelProfiles,
     loadPhotos,
@@ -259,18 +262,18 @@ export function createRouteControllerOptions({
     secretItemsCacheKey: config.secretItemsCacheKey,
     photoFeedCacheKey: config.photoFeedCacheKey,
     mediaCacheService,
+    clearOfflineCache,
     getUserId: () => state.session?.user?.id,
     loadCacheCapacityMb,
     saveCacheCapacityMb,
     scheduleOfflineMediaCache,
-    configureCacheManagementUi: core.configureCacheManagementUi,
-    setActiveSettingsSection,
     loadMediaCachePolicy,
     saveMediaCachePolicy,
     collectSecretOfflineMediaUrls,
     collectDiaryOfflineMediaUrls,
     cacheOfflineMedia,
     openSettingsChildDialog,
+    reopenSettingsAfterChildDialog,
     dataSafetyState: feature.dataSafetyState,
     cloudflareRequest,
     getLocalDateKey: core.getLocalDateKey,
@@ -291,10 +294,10 @@ export function createRouteControllerOptions({
     wishlistController,
     weekendController,
     dataSafetyController,
+    offlineSettingsController,
     callLoaded,
   });
 }
-
 function buildRouteControllerOptions({
   elements,
   secretState,
@@ -390,6 +393,8 @@ function buildRouteControllerOptions({
   runOfflineDiagnostics,
   renderUploadCenter,
   renderSettingsSummary,
+  renderOfflineSettingsSummary,
+  configureCacheManagementUi,
   refreshCacheInfo,
   loadFamilyLevelProfiles,
   loadPhotos,
@@ -410,18 +415,18 @@ function buildRouteControllerOptions({
   secretItemsCacheKey,
   photoFeedCacheKey,
   mediaCacheService,
+  clearOfflineCache,
   getUserId,
   loadCacheCapacityMb,
   saveCacheCapacityMb,
   scheduleOfflineMediaCache,
-  configureCacheManagementUi,
-  setActiveSettingsSection,
   loadMediaCachePolicy,
   saveMediaCachePolicy,
   collectSecretOfflineMediaUrls,
   collectDiaryOfflineMediaUrls,
   cacheOfflineMedia,
   openSettingsChildDialog,
+  reopenSettingsAfterChildDialog,
   dataSafetyState,
   cloudflareRequest,
   getLocalDateKey,
@@ -442,6 +447,7 @@ function buildRouteControllerOptions({
   wishlistController,
   weekendController,
   dataSafetyController,
+  offlineSettingsController,
   callLoaded,
 }) {
   return {
@@ -621,14 +627,6 @@ function buildRouteControllerOptions({
         r2UploadEndpoint,
         householdRepository,
         renderAvatarMarkup,
-        renderSettingsToolOrderPanel,
-        refreshPushSettings: (...args) => refreshPushSettings(...args),
-        renderCloudBackups: (...args) => callLoaded(dataSafetyController, "renderCloudBackups", ...args),
-        renderTrashItems: (...args) => callLoaded(dataSafetyController, "renderTrashItems", ...args),
-        runOfflineDiagnostics: (...args) => callLoaded(dataSafetyController, "runOfflineDiagnostics", ...args),
-        renderUploadCenter: (...args) => callLoaded(dataSafetyController, "renderUploadCenter", ...args),
-        renderSettingsSummary,
-        refreshCacheInfo,
         loadFamilyLevelProfiles,
         loadPhotos,
         synchronizeWeekendPlans,
@@ -641,6 +639,28 @@ function buildRouteControllerOptions({
         renderAnniversaries: (...args) => renderAnniversaries(...args),
         isMissingCloudSchema,
         loadFamilyContext,
+      },
+      settingsShell: {
+        elements,
+        getSession: () => state.session,
+        renderSettingsSummary,
+        onSectionActivate: (sectionId) => {
+          if (sectionId === "settingsFamily") {
+            return callLoaded(familySettingsController, "renderSettingsFamilyPanel");
+          }
+          if (sectionId === "settingsTools") {
+            void refreshPushSettings?.();
+            return renderSettingsToolOrderPanel?.();
+          }
+          if (sectionId === "settingsStorage") {
+            renderOfflineSettingsSummary?.();
+            void refreshCacheInfo?.();
+            void callLoaded(dataSafetyController, "renderCloudBackups");
+            void callLoaded(dataSafetyController, "renderTrashItems");
+            void callLoaded(dataSafetyController, "renderUploadCenter");
+          }
+          return undefined;
+        },
       },
       offlineSettings: {
         elements,
@@ -655,14 +675,13 @@ function buildRouteControllerOptions({
           photoFeedCacheKey,
         },
         mediaCacheService,
+        clearOfflineCache,
+        configureCacheManagementUi,
         getUserId,
         loadCacheCapacityMb,
         saveCacheCapacityMb,
         scheduleOfflineMediaCache,
         refreshCacheInfo,
-        renderSettingsSummary,
-        configureCacheManagementUi,
-        setActiveSettingsSection,
         loadMediaCachePolicy,
         saveMediaCachePolicy,
         showMiniToast,
@@ -672,6 +691,7 @@ function buildRouteControllerOptions({
         cacheOfflineMedia,
         formatFileSize,
         openSettingsChildDialog,
+        reopenSettingsAfterChildDialog,
       },
       dataSafety: {
         elements,
@@ -694,7 +714,6 @@ function buildRouteControllerOptions({
         secretRepository,
         loadPhotos,
         loadSecretItems: (...args) => secretDataService.load(...args),
-        setActiveSettingsSection,
         mediaCacheService,
         getAppCacheStats,
         collectDiaryOfflineMediaUrls,

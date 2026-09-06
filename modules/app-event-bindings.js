@@ -66,7 +66,7 @@ export function bindAppEvents({
   const {
     setExpanded: setWeekendExpanded,
   } = controllers.weekend;
-  const { reopenSettingsAfterChildDialog } = controllers.familySettings;
+  const { reopenAfterChildDialog: reopenSettingsAfterChildDialog } = controllers.settingsShell;
   const {
     login: loginWithPassword,
     resetEmailRecoveryUi,
@@ -76,6 +76,15 @@ export function bindAppEvents({
   } = controllers.auth;
   const { openLevelDialog } = controllers.gamification;
   const { openNotificationsPanel, closeNotificationsPanel } = controllers.social;
+  const {
+    openDialog: openThanksDialog,
+    closeDialog: closeThanksDialog,
+    handleDialogClose: handleThanksDialogClose,
+    resetForm: resetGratitudeForm,
+    setSelectedColor: setSelectedThanksColor,
+    saveColor: saveThanksColorPreference,
+    submit: saveGratitudeNote,
+  } = controllers.gratitude;
 
   bindNotificationEvents({
     elements: els,
@@ -103,7 +112,7 @@ export function bindAppEvents({
       getControllerOptions,
     }).then(() => {
       performanceDiagnostics?.render?.();
-      pageControllers?.familySettings?.openSettingsDialog?.("settingsAppearance");
+      pageControllers?.settingsShell?.open?.("settingsAppearance");
     }).catch((error) => {
       showMiniToast?.(`设置加载失败：${error?.message || "请重试"}`, { kind: "error" });
     });
@@ -172,7 +181,25 @@ export function bindAppEvents({
         if (opened) els.secretPage?.scrollIntoView({ behavior: "smooth", block: "start" });
       });
     });
-  els.thanksOpen?.addEventListener("click", () => switchPage("thanks"));
+  els.thanksOpen?.addEventListener("click", openThanksDialog);
+  els.thanksClose?.addEventListener("click", closeThanksDialog);
+  els.thanksDialog?.addEventListener("click", (event) => {
+    if (event.target === els.thanksDialog) closeThanksDialog();
+  });
+  els.thanksDialog?.addEventListener("close", handleThanksDialogClose);
+  els.thanksForm?.addEventListener("submit", saveGratitudeNote);
+  els.thanksCancelEdit?.addEventListener("click", resetGratitudeForm);
+  els.thanksForm?.querySelectorAll('input[name="thanksColor"]').forEach((input) => {
+    input.addEventListener("change", () => {
+      setSelectedThanksColor(input.value);
+      if (state.session) {
+        saveThanksColorPreference(input.value, {
+          userId: state.session.user.id,
+          syncCloud: true,
+        });
+      }
+    });
+  });
   els.secretPinClose?.addEventListener("click", () => els.secretPinDialog?.close());
   els.secretPinDialog?.addEventListener("close", () => {
     reopenSettingsAfterChildDialog();

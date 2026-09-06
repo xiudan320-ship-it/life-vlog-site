@@ -4,7 +4,6 @@ const ROUTES = new Set([
   "wishlist",
   "weekend",
   "wardrobe",
-  "thanks",
   "secret",
   "mood",
 ]);

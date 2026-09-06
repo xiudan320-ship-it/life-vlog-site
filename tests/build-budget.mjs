@@ -40,6 +40,11 @@ assert.ok(cssGzip <= 32 * 1024, `core CSS gzip ${cssGzip} exceeds 32 KiB`);
 const generated = await readdir(join(dist, "assets", "generated"));
 assert.ok(generated.includes("maskable-512.png"), "maskable icon missing from dist");
 assert.ok(generated.includes("app-icon-512.png"), "PWA icon missing from dist");
+const toolIconFiles = ["today-food.svg", "recipe.svg", "time-album.svg", "random-memory.svg", "weekly-review.svg", "secret-vault.svg", "message.svg"];
+for (const toolIconFile of toolIconFiles) {
+  assert.ok(await stat(join(dist, "assets", "tool-icons", toolIconFile)).then(() => true, () => false), `${toolIconFile} missing from dist`);
+  assert.ok(precacheUrls.some((url) => url.replace(/^\/+/, "") === `assets/tool-icons/${toolIconFile}`), `${toolIconFile} missing from Workbox precache`);
+}
 assert.ok((await stat(join(dist, "_headers"))).isFile(), "_headers missing from dist");
 assert.ok(!precacheUrls.some((url) => url.includes("assets-source")), "source asset directory leaked into the precache manifest");
-console.log(JSON.stringify({ htmlBytes, entryJs: js, entryJsGzip: jsGzip, entryCss: css, entryCssBytes: cssBytes, entryCssGzip: cssGzip, precacheEntries: precacheUrls.length, generatedAssets: generated.length }, null, 2));
+console.log(JSON.stringify({ htmlBytes, entryJs: js, entryJsGzip: jsGzip, entryCss: css, entryCssBytes: cssBytes, entryCssGzip: cssGzip, precacheEntries: precacheUrls.length, generatedAssets: generated.length, toolIconAssets: toolIconFiles.length }, null, 2));

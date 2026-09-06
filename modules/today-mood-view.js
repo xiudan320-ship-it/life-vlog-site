@@ -1,3 +1,4 @@
+import { buildCalendarWeeks } from "./mood-diary-domain.js";
 import { MOOD_META, getMoodAsset } from "./mood-diary-shared.js";
 
 function createText(documentTarget, tagName, text = "", className = "") {
@@ -13,7 +14,7 @@ function createMoodAsset(documentTarget, mood, shape) {
   const image = documentTarget.createElement("img");
   image.src = getMoodAsset(mood, shape) || "";
   image.alt = "";
-  image.loading = "lazy";
+  image.loading = "eager";
   image.decoding = "async";
   const error = createText(documentTarget, "span", "素材暂不可用", "today-mood-asset-error");
   error.hidden = true;
@@ -35,6 +36,38 @@ function formatTodayLabel(todayKey) {
   return `今天 · ${Number(match[2])} 月 ${Number(match[3])} 日`;
 }
 
+function formatMonthLabel(monthKey) {
+  const match = String(monthKey || "").match(/^(\d{4})-(\d{2})$/u);
+  if (!match) return "本月";
+  return `${match[1]} 年 ${Number(match[2])} 月`;
+}
+
+function createMonthCalendarAsset(documentTarget, mood, shape) {
+  const wrapper = documentTarget.createElement("span");
+  wrapper.className = `overview-mood-calendar-asset is-${shape}`;
+  wrapper.setAttribute("aria-hidden", "true");
+  const image = documentTarget.createElement("img");
+  image.src = getMoodAsset(mood, shape) || "";
+  image.alt = "";
+  image.width = 24;
+  image.height = 24;
+  image.decoding = "async";
+  wrapper.append(image);
+  return wrapper;
+}
+
+function createMonthEntriesByDate(entries) {
+  const entriesByDate = new Map();
+  for (const entry of entries || []) {
+    const dateKey = String(entry?.diary_date || "").trim();
+    if (!dateKey) continue;
+    const dateEntries = entriesByDate.get(dateKey) || [];
+    dateEntries.push(entry);
+    entriesByDate.set(dateKey, dateEntries);
+  }
+  return entriesByDate;
+}
+
 function createSeatPlaceholder(documentTarget, text = "未记录") {
   const placeholder = createText(documentTarget, "span", text, "today-mood-seat-placeholder");
   placeholder.setAttribute("aria-hidden", "true");
@@ -43,6 +76,62 @@ function createSeatPlaceholder(documentTarget, text = "未记录") {
 
 export function createTodayMoodView({ elements, getAuthorName } = {}) {
   const els = elements || {};
+
+  function renderMonthPreview(state) {
+    const panel = els.overviewMoodMonth;
+    if (!panel) return;
+    panel.hidden = !state.currentUserId;
+    if (!state.currentUserId) return;
+    if (els.overviewMoodMonthLabel) els.overviewMoodMonthLabel.textContent = formatMonthLabel(state.monthKey);
+    if (els.overviewMoodMonthMeta) {
+      els.overviewMoodMonthMeta.textContent = state.monthLoading
+        ? "正在同步本月心情…"
+        : state.monthError
+          ? state.monthError
+          : `${state.monthSummary?.total || 0} 条记录`;
+    }
+    const calendar = els.overviewMoodCalendarGrid;
+    if (!calendar || !state.monthKey) return;
+    const documentTarget = calendar.ownerDocument;
+    const entriesByDate = createMonthEntriesByDate(state.monthEntries);
+    const participantById = new Map((state.participants || []).map((participant) => [participant.userId, participant]));
+    const cells = [];
+    for (const week of buildCalendarWeeks(state.monthKey)) {
+      for (const dayCell of week) {
+        if (!dayCell.isCurrentMonth) {
+          const outside = createText(documentTarget, "span", "", "overview-mood-calendar-cell is-outside");
+          outside.setAttribute("aria-hidden", "true");
+          cells.push(outside);
+          continue;
+        }
+        const isToday = dayCell.dateKey === state.todayKey;
+        const isFuture = Boolean(state.todayKey) && dayCell.dateKey > state.todayKey;
+        const cell = createText(documentTarget, "span", "", "overview-mood-calendar-cell");
+        cell.setAttribute("role", "img");
+        if (isToday) cell.classList.add("is-today");
+        if (isFuture) cell.classList.add("is-future");
+        const day = createText(documentTarget, "span", String(dayCell.day), "overview-mood-calendar-day");
+        const entries = (entriesByDate.get(dayCell.dateKey) || []).slice(0, 2);
+        const entryWrap = createText(documentTarget, "span", "", "overview-mood-calendar-entries");
+        const labels = [];
+        for (const entry of entries) {
+          const participant = participantById.get(entry.user_id);
+          const shape = participant?.shape || "circle";
+          const moodLabel = MOOD_META[entry.mood]?.label || entry.mood || "已记录";
+          const entryItem = createText(documentTarget, "span", "", `overview-mood-calendar-entry is-${shape}`);
+          entryItem.append(createMonthCalendarAsset(documentTarget, entry.mood, shape));
+          entryWrap.append(entryItem);
+          labels.push(`${participant?.name || "成员"}：${moodLabel}`);
+        }
+        if (!labels.length) entryWrap.append(createText(documentTarget, "span", "·", "overview-mood-calendar-empty"));
+        cell.append(day, entryWrap);
+        cell.setAttribute("aria-label", `${dayCell.dateKey}${isToday ? "，今天" : ""}${isFuture ? "，未来日期" : ""}${labels.length ? `，${labels.join("，")}` : "，暂无记录"}`);
+        cells.push(cell);
+      }
+    }
+    calendar.setAttribute("aria-busy", String(Boolean(state.monthLoading)));
+    calendar.replaceChildren(...cells);
+  }
 
   function renderSeat(state, participant) {
     const documentTarget = els.todayMoodGrid.ownerDocument;
@@ -101,15 +190,20 @@ export function createTodayMoodView({ elements, getAuthorName } = {}) {
 
   function render(state) {
     if (els.todayMoodDate) els.todayMoodDate.textContent = formatTodayLabel(state.todayKey);
+    renderMonthPreview(state);
     if (els.todayMoodStatus) {
       els.todayMoodStatus.textContent = state.loading
         ? "正在加载今日心情"
-        : state.error
-          ? "今日心情暂时无法同步"
-          : "";
-      els.todayMoodStatus.dataset.kind = state.error ? "error" : state.loading ? "loading" : "";
+        : state.syncing
+          ? "正在更新今日心情"
+          : state.stale
+            ? "显示最近缓存，暂时无法更新"
+            : state.error
+              ? "今日心情暂时无法同步"
+              : "";
+      els.todayMoodStatus.dataset.kind = state.error ? "error" : state.loading ? "loading" : state.stale ? "stale" : "";
     }
-    if (els.todayMoodStatusRow) els.todayMoodStatusRow.hidden = !state.loading && !state.error;
+    if (els.todayMoodStatusRow) els.todayMoodStatusRow.hidden = !state.loading && !state.syncing && !state.error && !state.stale;
     if (els.todayMoodRetry) {
       els.todayMoodRetry.hidden = !state.error;
       els.todayMoodRetry.disabled = Boolean(state.loading);
@@ -120,7 +214,7 @@ export function createTodayMoodView({ elements, getAuthorName } = {}) {
       els.todayMoodGrid.replaceChildren();
       return;
     }
-    if (state.loading) {
+    if (state.loading && !state.hasLocalResult) {
       const documentTarget = els.todayMoodGrid.ownerDocument;
       els.todayMoodGrid.replaceChildren(
         ...[0, 1].map(() => {

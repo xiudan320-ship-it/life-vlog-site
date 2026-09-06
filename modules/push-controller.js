@@ -6,7 +6,6 @@ function decodeVapidPublicKey(value) {
   const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
   return Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
 }
-
 function supportsWebPush() {
   return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
 }
@@ -26,8 +25,9 @@ export function createPushController({
   prependPhoto,
   loadNotifications,
   openNotificationsPanel,
-  setActiveSettingsSection,
   switchPage,
+  openThanksDialog,
+  openWishlistDestination = () => {},
   openPhoto,
   showToast,
 }) {
@@ -89,7 +89,7 @@ export function createPushController({
     const enabled = Notification.permission === "granted" && Boolean(subscription);
     state.textContent = enabled ? "已开启" : Notification.permission === "denied" ? "已被系统关闭" : "未开启";
     detail.textContent = enabled
-      ? "新日记、评论、回复和感谢留言会发送到这台设备。"
+      ? "新日记、心愿、购物车商品、留言和晚间心情提醒会发送到这台设备。"
       : (/(iPhone|iPad|iPod)/i.test(navigator.userAgent) && !isStandaloneWebApp())
         ? "请先添加到主屏幕，再从桌面图标打开并开启。"
         : "开启后，即使没有打开页面也能收到家庭消息。";
@@ -244,7 +244,12 @@ export function createPushController({
         requestAnimationFrame(() => openPhoto(photo));
       }
     } else if (type === "thanks") {
-      switchPage("thanks");
+      openThanksDialog();
+    } else if (type === "wish" || type === "shopping") {
+      await switchPage("wishlist");
+      await openWishlistDestination(type === "shopping" ? "shopping" : "wishlist");
+    } else if (type === "mood_reminder") {
+      await switchPage("mood");
     } else {
       await openNotificationsPanel();
     }

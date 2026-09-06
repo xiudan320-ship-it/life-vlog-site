@@ -2,6 +2,55 @@
 
 本文件记录咻蛋之家所有重要修改。格式参考 Keep a Changelog；尚未发布的修改进入 `[Unreleased]`。
 
+## [2026-09-06]
+
+### Fixed
+
+- 发布超宽屏今日概览中央空白修复到 Cloudflare Pages 正式站：左右心情面板继续占用页面两侧栏，但改由标题后的零高度锚点独立定位，不再撑高中央内容流；快捷操作和后续日记内容现在紧接标题自然上移，并新增 2048px/3750px 防回归断言。正式入口为 `https://life-vlog-site.pages.dev`，固定 preview 为 `https://codex-preview.life-vlog-site.pages.dev`，生产 deployment 为 `0e97fd9f`，Worker 版本为 `e2b8bd35-4e02-449e-9338-e0e9bb8ca0fd`，入口为 `index-BHYBSckO.js`（SHA-256 `a05cdb923264ebc3056065257e5729a699aa2393f03f43694f2640b9cdf724b0`），样式为 `index-v6wSNZnO.css`（SHA-256 `9b5f93649654dc0e4304542f9b9230a1b2382ff92788cffefb102f8c8eb0f8c5`），`sw.js` SHA-256 为 `e495a075899564ebc81f57e33fc9204d9c8c64d16459da9a6d50aa855920a735`，Workbox 预缓存条目为 44；preview 与 production 均通过 CORS、Axe 和确定性 release smoke，线上样式已核对包含超宽侧栏脱离中央流规则。
+
+## [2026-09-05]
+
+### Added
+
+- 为家庭通知增加心愿、购物车商品和晚间心情提醒：成员首次新增心愿或购物车商品时通知其他家庭成员；每天东京时间 20:00 为尚未记录当日心情的成员创建一次站内提醒，并向已订阅设备发送 Push，通知点击可进入对应功能。
+
+### Changed
+
+- 发布宽屏今日概览三列侧栏布局修复到 Cloudflare Pages 正式站：今日双人心情框进入页面最左侧空白栏，本月心情日历进入页面最右侧空白栏，标题与快捷操作保持在中央内容列；普通桌面、手机端和短横屏布局保持不变。正式入口为 `https://life-vlog-site.pages.dev`，固定 preview 为 `https://codex-preview.life-vlog-site.pages.dev`，生产 deployment 为 `14c27dea`，Worker 版本为 `2d0d2d96-731f-46d5-acf4-2e61e38306cf`，入口为 `index-DeirAxi3.js`（SHA-256 `0cd682f78dcefc0520ea27544a824e48b3cf4b0a10bd3670aca4fa31d3481065`），样式为 `index-Bc2Elofg.css`（SHA-256 `142b4b3135a3661c1dc0d27afc0dd5ccc562fb784caf6ece437a3d3edd367367`），`sw.js` SHA-256 为 `7635cd00bb98643840f97666cafbc57dbe64cb621b766cefda93adb7899d1889`，Workbox 预缓存条目为 44；preview 与 production 均通过 CORS、Axe 和确定性 release smoke，线上样式已核对包含宽屏侧栏规则。
+
+- 发布桌面今日概览双面板左右锚定修复到 Cloudflare Pages 正式站；左侧双人心情面板与右侧本月心情日历已贴齐页面内容左右边缘，手机端和短横屏布局保持不变。正式入口为 `https://life-vlog-site.pages.dev`，固定 preview 为 `https://codex-preview.life-vlog-site.pages.dev`，生产 deployment 为 `20907bce`，Worker 版本为 `553804f0-1258-4372-8c13-9e07d58a0a35`，入口为 `index-DuUqADBh.js`（SHA-256 `7b8facfc1ac69873f1fb7791abf2973f322b1d3af5d1092b1473d7755b72e5ad`），样式为 `index-BvYdj0PR.css`（SHA-256 `ddcc64f4e33ace675865d8c2a2f676d5d8d7f33f80fb05807b2fd79aa443f08e`），`sw.js` SHA-256 为 `9b65a00a5c2adc129fb3c6f59f24f46c9eae8a7af3d6869161279dec9d30f568`，Workbox 预缓存条目为 44；preview 与 production 均通过 CORS、Axe 和确定性 release smoke。
+
+- 发布桌面今日概览紧凑双人心情面板与本月心情日历缩略网格修复到 Cloudflare Pages 正式站；正式入口为 `https://life-vlog-site.pages.dev`，固定 preview 为 `https://codex-preview.life-vlog-site.pages.dev`，生产 deployment 为 `3d738108`，Worker 版本为 `ff9e6c3d-92b6-44b7-a773-f890b0e7030f`，入口为 `index-N8PJp_d0.js`（SHA-256 `9d6a6488e5609ebe11757ea6a62ffe39111eec3e5ca2e1c058b53c2951a02096`），样式为 `index-DUrkK025.css`（SHA-256 `d95a60e673390159153528e13aa46b43223cf954d119a3a1bd87ceefd28496b9`），`sw.js` SHA-256 为 `19565d43836fa3047a78d67123fbd16cdf72f081cc82ee277ae44f33b276114c`，Workbox 预缓存条目为 44；preview 与 production 均通过 CORS、Axe 和确定性 release smoke。
+
+- 发布桌面今日概览窄左栏上下排列双人心情卡、加宽右侧本月心情日历，以及今日心情按用户/自然日缓存优先与后台同步修复到 Cloudflare Pages 正式站；正式入口为 `https://life-vlog-site.pages.dev`，固定 preview 为 `https://codex-preview.life-vlog-site.pages.dev`，生产 deployment 为 `a09f2f6b`，Worker 版本为 `977cac93-2e32-4b38-951d-103b48da1ccd`，入口为 `index-DFqa2MKZ.js`（SHA-256 `1dcca6845dd8ee0796529a4fd8a2e3639d0fd8bfa19045c4124d66467fb3dc12`），样式为 `index-zpoFI0-H.css`（SHA-256 `84a2e26f3ee472600c3f673b24a6fd52d6537c35bbc9e7e059ba57954adfd1b6`），`sw.js` SHA-256 为 `f8d15466305809fbb5886be75be972d67e3e7e1e651d4a9180f4428d79c0333c`，Workbox 预缓存条目为 44；preview 与 production 均通过 CORS、Axe 和确定性 release smoke，线上资源已核对更新。
+
+- 发布桌面今日概览左右外框等高对齐修复到 Cloudflare Pages 正式站；正式入口为 `https://life-vlog-site.pages.dev`，固定 preview 为 `https://codex-preview.life-vlog-site.pages.dev`，生产 deployment 为 `cac2cf7c`，Worker 版本为 `27584fe0-bafd-4b0c-b05c-3aa963bce1d7`，入口为 `index-BXSX6g5z.js`（SHA-256 `89cd5a512d31ad394d82c8791468ddc4aaeb1884fe82bf9834c2b7acf58220be`），样式为 `index-BpteYBCl.css`（SHA-256 `61ab124251db0c08b5bfdca469d5a125345e0e9749b845f1a62a97ed9aae0361`），`sw.js` SHA-256 为 `c686829874ec4f19d644fa5d7988662a308522ff79c6b67cceabe12da01ae682`，Workbox 预缓存条目为 44；preview 与 production 均通过 CORS、Axe 和确定性 release smoke，正式资源已核对包含等高对齐规则。
+
+- 发布桌面心情卡填充左右对齐面板修复到 Cloudflare Pages 正式站；正式入口为 `https://life-vlog-site.pages.dev`，固定 preview 为 `https://codex-preview.life-vlog-site.pages.dev`，生产 deployment 为 `47ce8ab0`，Worker 版本为 `60f4ebcd-bcfc-4022-8f30-ae626ccb12ec`，入口为 `index-Cws5J7YD.js`（SHA-256 `5b8a87ac6a8c2ec15171367a73767e5679035b574195d73be5cd72e0b8a4d07b`），样式为 `index-BqnbwVQF.css`（SHA-256 `2d2a5965a651b412a9c27818d4b169f15038cfc84ec6be8684a407dcb97c053e`），`sw.js` SHA-256 为 `6f81dbe113a37e380506ad9e07615bd336ed5ff0d8fd0367fb52c4a365f9123d`，Workbox 预缓存条目为 44；preview 与 production 均通过 CORS、Axe 和确定性 release smoke，线上资源已核对包含桌面填充与短横屏回退规则。
+
+- 发布新版设置中心恢复与缓存设置装配修复到 Cloudflare Pages 正式站；正式入口为 `https://life-vlog-site.pages.dev`，固定 preview 为 `https://codex-preview.life-vlog-site.pages.dev`，生产 deployment 为 `f123ddd7`，Worker 版本为 `e0bd6723-e5cd-4aaf-b9de-a0055d12feb9`，入口为 `index-vvlJN4L3.js`（SHA-256 `6338930fd1b98730e0c8e312191090cd140840804e08657d747eb4cebbbbef2b`），样式为 `index-B5TqmHVV.css`（SHA-256 `3c9d620479979496f335808019b52da2a70fa25c61ea0a97c4cef051a0b23bcf`），`sw.js` SHA-256 为 `fcda7a434716379a039f9a4d669572bab4cdfab56823366195c03d46eaf6010f`，Workbox 预缓存条目为 44；preview 与 production 均通过 CORS、Axe 和确定性 release smoke。
+- 发布家庭新增通知、20:00 心情提醒和桌面今日概览双面板到 Cloudflare Pages 正式站；正式入口为 `https://life-vlog-site.pages.dev`，固定 preview 为 `https://codex-preview.life-vlog-site.pages.dev`，生产 deployment 为 `7bb8cafd`，Worker 版本为 `439082fc-aa0f-4104-987e-dfee58c4f2b7`，入口为 `index-knLnUjJl.js`（SHA-256 `d5a75a7ecc198b8d8b08ed14ab43170f9bc01359ec206a8f249c5b7c1430370e`），样式为 `index-aaA-yE7I.css`（SHA-256 `8c445aa971cfeb7fea782aa6839b4b48afae8d31ca6cea8c41b87713e1227ecb`），`sw.js` SHA-256 为 `c8cd1f1799e7fb512bac6cd3cda32c101d38fb3b8a643ddbc65d24daf5dc6d19`，Workbox 预缓存条目为 45；preview 与 production 均通过 CORS、Axe 和确定性 release smoke。
+- 电脑端今日概览改为左侧双成员心情面板、右侧本月心情罐缩略图；保留手机端紧凑双席布局并隐藏额外缩略面板。
+
+### Fixed
+
+- 修复新增心愿/购物车商品没有通知其他家庭成员的问题，并增加晚间提醒的东京时区计算和按天幂等去重。
+- 修复桌面今日概览左侧面板被右侧月度内容撑出大块空白、心情素材过大的问题，并将右侧月度预览改为日历式心情缩略展示。
+
+- 修复首页每次打开都等待今日心情云端请求、对方心情素材使用懒加载导致首屏延迟的问题；现在优先展示按用户/自然日隔离的最近缓存，月度缓存可作为回退，并在后台同步云端 canonical 数据，暂时同步失败时保留可用的缓存结果。
+
+- 修复新版设置中心恢复后缓存设置依赖未完整装配的问题，恢复设置弹窗打开、缓存容量摘要和自动缓存即时状态更新；同时清除重复的移动端日记 CSS 规则。
+
+## [2026-09-04]
+
+### Changed
+
+- 发布设置页 Push 请求注入修复到 Cloudflare Pages 正式站；正式入口为 `https://life-vlog-site.pages.dev`，固定 preview 为 `https://codex-preview.life-vlog-site.pages.dev`，生产 deployment 为 `f309acad`，Worker 版本为 `3acff541-92a2-435f-9443-023731e9b659`，入口为 `index-CM8v_eRU.js`（SHA-256 `7f71b211b469e05b9d6b4f65c98a4cfcd84d8c6e288a0d10b42c60524798387f`），样式为 `index-B5TqmHVV.css`（SHA-256 `3c9d620479979496f335808019b52da2a70fa25c61ea0a97c4cef051a0b23bcf`），`sw.js` SHA-256 为 `5dff96f978e533f47db4416383f859e0878653844991326a8523e9878d2fe370`，Workbox 预缓存条目为 45；preview 与 production 均通过 CORS、Axe 和确定性 release smoke。
+
+### Fixed
+
+- 修复设置页“开启通知”未从 Cloudflare backend 注入请求函数的问题，避免点击后显示 `t is not a function`，并恢复推送公钥读取与设备订阅注册。
+
 ## [Unreleased]
 
 ### Added
@@ -10,17 +59,29 @@
 - 新增 `mood-jar-physics.js` 确定性心情瓶粒子求解器，覆盖瓶口出生、曲面瓶壁、椭圆瓶底、表情碰撞、摩擦、轻微回弹和休眠。
 - 纳入用户提供的圆肚玻璃罐透明参考图：源文件保存在 `assets-source/mood-jar.png`，构建时生成 720×960 的 `mood-jar.webp`。
 - 为心情罐增加贴近罐体的月份前后翻页控件，并与月历月份状态保持同步。
+- 纳入 `files.zip` 提供的统一 120×120 青绿色/金色 SVG 图标集，替换生活小工具栏现有的内联 SVG 与旧位图图标；现有七个入口保持原有排序、文案和交互，图标资源随 Workbox 预缓存。
 
 ### Changed
 
+- 发布移除家庭足迹功能到 Cloudflare Pages 正式站；正式入口为 `https://life-vlog-site.pages.dev`，固定 preview 为 `https://codex-preview.life-vlog-site.pages.dev`，本次部署入口为 `index-DY_ZGYel.js`，样式为 `index-D7uLlt8v.css`，`sw.js` SHA-256 为 `abf82d336fab0fb623add63e0a3d61ed681788ec1f2aabdc04a81360144a8e38`，Workbox 预缓存条目为 45，Worker 版本为 `be0fcbae-8d50-4018-8792-9849fd3fd8a9`；preview 与 production 均通过 CORS、Axe 和确定性 release smoke。
 - 发布本次圆肚玻璃罐替换到 Cloudflare Pages 正式站；源提交为 `e1bd56a`，正式入口为 `https://life-vlog-site.pages.dev`，固定 preview 为 `https://codex-preview.life-vlog-site.pages.dev`，Worker 版本为 `ef7250bf-2c8f-423e-b9e2-2c8348e57a60`，入口为 `index-B3GpTHDP.js`，`sw.js` SHA-256 为 `32f0bdb2a986d90584fffc0c51239cfbdceef28d5585f89ac122a96c6c06e2d9`；preview 与 production 均通过 CORS、Axe 和确定性 release smoke。
+- 发布生活小工具统一 SVG 图标替换到 Cloudflare Pages 正式站；正式入口为 `https://life-vlog-site.pages.dev`，固定 preview 为 `https://codex-preview.life-vlog-site.pages.dev`，Worker 版本为 `84315072-813a-41fd-bc15-d07db64945fa`，入口为 `index-4DuDc_aD.js`，`sw.js` SHA-256 为 `54c620c733199e665d2c2b765f81eb847a460c0d8b3df871b6ca6cf19d1e6839`，Workbox 预缓存条目为 46；preview 与 production 均通过 CORS、Axe 和确定性 release smoke。
 - 将心情瓶替换为用户提供的 `360×480`（3:4）圆肚玻璃罐构图；表情按确定性物理模拟慢速分批进入，整只瓶子改为可点击/键盘重播的原生按钮，单一 `requestAnimationFrame` 生命周期负责播放、取消、月份切换和离开路由清理。
 - 将桌面照片详情与移动日记详情改为同级评论行；回复关系保留在共享模型和回复目标文案中，不再通过嵌套 DOM 或累计缩进挤压正文。
 - 将移动日记详情专属布局覆盖到 `920px` 以内，兼容 `844×390` 短横屏；评论正文保持 `16px` 起步、长 URL 使用 `overflow-wrap:anywhere`，操作按钮保持至少 `44×44px`。
 - 将趋势图改为手机/桌面动态坐标；少量月底记录按真实有记录日期等距展开，保留真实点、缺口说明和单一键盘命中路径。
 - 收紧桌面与手机端今日概览到双席心情卡片的间距；成功态折叠空状态行，避免手机端保留无内容的垂直空白。
 - 心情罐在数据完成渲染后重新读取当前布局，进入视口焦点带即可自动播放，不再要求额外点击；月份切换会保持当前月历/心情罐模块的视口位置，手动点击和 reduced-motion 行为保持不变。
+- 顶部分页最多启用 5 个入口；手机端五项在导航行内完整显示，日记筛选标签改为单行横向触摸滚动，并收紧今日概览与时计流之间的间距。
 - 将入口 JS gzip 预算从 120 KiB 调整为 121 KiB，以容纳设置弹窗顶层反馈逻辑；其余构建和资源门禁保持不变。
+- 认证首页请求预算调整为 36 次，以覆盖工具栏统一 SVG 图标的静态资源请求；八个图标同时纳入构建产物和 Workbox 预缓存合同。
+- 手机端生活小工具栏首屏改为三张完整等宽卡片，默认顺序为时间纪念册、本周回顾、留言；其余入口继续保留在横向触摸轨道中，桌面端仍保留七个入口，首屏不露出半张卡片。
+- 本周回顾弹窗复用时间纪念册的外框、标题栏、关闭按钮、分区间距和卡片视觉；摘要与统计卡统一使用语义边框、8px 圆角和 surface 背景，移除破坏层级的反色大块。
+- 将留言从独立 `thanks` 路由收回应用壳，工具栏、可选顶部分页、通知和 Push 跳转统一打开复用时间纪念册外框的留言 dialog；发布、颜色、编辑、删除和列表能力保持不变，关闭后恢复触发入口焦点。
+- 发布留言统一 dialog 与心情罐等待态修复到 Cloudflare Pages 正式站；正式入口为 `https://life-vlog-site.pages.dev`，固定 preview 为 `https://codex-preview.life-vlog-site.pages.dev`，生产 deployment 为 `86245caf`，Worker 版本为 `546766a2-7ea6-4971-968d-0625b507ed9a`，入口为 `index-CtGR0UKi.js`（SHA-256 `7d9c02d85fc89d8eaad6a5e084ef0c53268959564d96f8365ab4f1ba71a93b0a`），样式为 `index-B5TqmHVV.css`（SHA-256 `3c9d620479979496f335808019b52da2a70fa25c61ea0a97c4cef051a0b23bcf`），`sw.js` SHA-256 为 `9a4050ef88ed158fbe5b708c461077d63111122fe0ff431f60e904129c8cdcd0`，Workbox 预缓存条目为 45；preview 与 production 均通过 CORS、Axe 和确定性 release smoke。
+- 发布手机端生活小工具栏调整到 Cloudflare Pages 正式站；正式入口为 `https://life-vlog-site.pages.dev`，固定 preview 为 `https://codex-preview.life-vlog-site.pages.dev`，Worker 版本为 `87834079-d7d6-4593-91e1-103824e8b990`，入口为 `index-wITx31VG.js`（SHA-256 `63fe1da45dc0ec8238a3a440a37a3f0f102535c85571e229477b6899a0bca6df`），样式为 `index-D7uLlt8v.css`（SHA-256 `f383d0bd9aebf535c22cfcb5511fcd28cb2eb8fe15d65d7f3b902c16e9395ee9`），`sw.js` SHA-256 为 `42eee9d0d9e69478ea2dffb0be1fb29a01bceba21c8ceb5666c13c4001838a58`，Workbox 预缓存条目为 45；preview 与 production 均通过 CORS、Axe 和确定性 release smoke。
+- 发布手机工具栏横向滚动修复及本周回顾/时间纪念册 UI 统一到 Cloudflare Pages 正式站；生产 deployment 为 `7ca3eee5`，正式入口为 `https://life-vlog-site.pages.dev`，固定 preview 为 `https://codex-preview.life-vlog-site.pages.dev`，Worker 版本为 `0c4019e6-733b-48fa-8140-3a59805ddd31`，入口为 `index-DAAsSNbl.js`（SHA-256 `05b6b8b5858eba6aba618df9b2afa9cd45ee37dd8f4d1c718b229df6762e7524`），样式为 `index-D5XO_Jr_.css`（SHA-256 `d9bb7f1e1aae658c1089697c7b0bfb58fc3c3c464e87813740864c7ef78674c7`），`sw.js` SHA-256 为 `9d7df36b35d2638aacb8d9d2106e58ecddc910c86030c0e803acd2a1acce9506`，Workbox 预缓存条目为 45；preview 与 production 均通过 CORS、Axe 和确定性 release smoke。
+- 发布修正后的手机工具栏横向触摸轨道及周回顾/时间纪念册统一 UI 到 Cloudflare Pages 正式站；生产 deployment 为 `f174cd2a`，正式入口为 `https://life-vlog-site.pages.dev`，固定 preview 为 `https://codex-preview.life-vlog-site.pages.dev`，Worker 版本为 `b722b1ea-0e7c-4537-974a-ba501ce00281`，入口为 `index-CJmEqXrH.js`（SHA-256 `c69b288aa847e86db205c2f86612cc7012a7a6b0d7a41c6bf4a6412da010273d`），样式为 `index-CgtpDiib.css`（SHA-256 `ed1c8cf5ade43361564606d65ee7449f62d2a682277128e29ae3564e9663eec6`），`sw.js` SHA-256 为 `f2d7734c5718d3282acede9dd5c92467b42d90cbc93eaa861aed9f2e501c9d99`，Workbox 预缓存条目为 45；preview 与 production 均通过 CORS、Axe 和确定性 release smoke。
 
 ### Fixed
 
@@ -33,6 +94,16 @@
 - 修复心情罐月份翻页因月历 4～6 周高度变化造成页面上下跳动、缓存月份跳过重播以及罐体刚露出视口就提前落完的问题；现在切月保留可见模块锚点，缓存/云端月份切换都会重新进入待播放状态，至少半瓶进入视口且罐体中心处于焦点带后才启动动画。
 - 修复存储设置的缓存容量读取桥接缺失导致上限显示为 `undefined`，并让自动缓存切换即时更新开关状态与 `aria-pressed`。
 - 修复设置弹窗内的自动缓存、离线下载等提示被原生 dialog 顶层遮挡的问题；提示现在挂载到当前最上层 dialog，dialog 关闭时同步清理，不会在退出后滞留在背后。
+- 简化心情罐重播提示为“点击瓶子，重新下落本月心情”，保留原生按钮的重播与键盘操作语义。
+- 修复手机工具栏误隐藏其余入口且错误禁止横向滑动的问题；现在首屏显示三张完整卡片，仍可左右滑动查看全部工具，并限制滚动只发生在工具栏内部。
+- 修复本周回顾与时间纪念册 dialog 外框、标题栏、摘要/统计卡的边框、圆角、背景和间距不一致的问题。
+- 修复留言入口需要切换独立页面、留言页面视觉与应用壳不一致以及关闭后焦点不稳定的问题。
+- 修复心情罐在进入视口焦点区前的等待态提前保留动画渲染提示；现在只有真正开始 rAF 播放时才启用 `will-change`。
+
+### Removed
+
+- 移除家庭足迹动态/往年回顾入口、弹窗、专属样式、运行时装配和图标资源；工具栏恢复为七个实际工具入口。
+- 移除留言独立路由模板、路由注册和页面显隐逻辑；留言不再通过 `?page=thanks` 渲染页面。
 
 ### Documentation
 

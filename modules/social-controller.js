@@ -14,6 +14,8 @@ export function createSocialController({
   savePhotoFeedCache,
   renderGallery,
   switchPage,
+  openThanksDialog,
+  openWishlistDestination = () => {},
   openPhoto,
   showMiniToast,
   renderMobileDiaryComments,
@@ -170,7 +172,14 @@ export function createSocialController({
         openPhoto(photo);
       } else if (type === "thanks") {
         closeNotificationsPanel();
-        switchPage("thanks");
+        openThanksDialog();
+      } else if (type === "wish" || type === "shopping") {
+        closeNotificationsPanel();
+        await switchPage("wishlist");
+        await openWishlistDestination(type === "shopping" ? "shopping" : "wishlist");
+      } else if (type === "mood_reminder") {
+        closeNotificationsPanel();
+        await switchPage("mood");
       } else {
         showMiniToast("这条日记可能已删除或暂时无法读取。", { kind: "error", duration: 2600 });
       }

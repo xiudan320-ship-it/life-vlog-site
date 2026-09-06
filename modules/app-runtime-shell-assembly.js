@@ -16,7 +16,7 @@ const view = (state, names) => createRuntimeStateView(state, names);
 
 /**
  * Assemble controllers that own the persistent shell: feedback, identity,
- * diary feed, social activity, family timeline, settings presentation, and
+ * diary feed, social activity, settings presentation, and
  * secret-entry preferences. Feature-page controllers stay in the feature
  * assembly and route/session wiring stays in the route assembly.
  */
@@ -41,6 +41,7 @@ export function createShellControllerAssembly({
     familySettingsController,
     offlineSettingsController,
     dataSafetyController,
+    wishlistHubController,
     callLoaded,
   } = pages;
   const defer = (name) => (...args) => core[name]?.(...args);
@@ -254,6 +255,8 @@ export function createShellControllerAssembly({
     savePhotoFeedCache: defer("savePhotoFeedCache"),
     renderGallery: (...args) => renderGallery(...args),
     switchPage: core.switchPage,
+    openThanksDialog: defer("openThanksDialog"),
+    openWishlistDestination: (moduleName) => wishlistHubController.show(moduleName),
     openPhoto: defer("openPhoto"),
     showMiniToast,
     renderMobileDiaryComments: defer("renderMobileDiaryComments"),
@@ -287,18 +290,9 @@ export function createShellControllerAssembly({
     getPhotoLabel,
     getSortedPhotos: diaryFeedActions.getSortedPhotos,
     getAuthorName,
-    getPhotoImages: diaryFeedActions.getPhotoImages,
     openPhoto: defer("openPhoto"),
   });
-  const {
-    getFamilyTimelineEntries,
-    getCurrentWeekRange,
-    isWithinRange,
-    loadWeeklyReview,
-    openWeeklyReview,
-    renderFamilyTimeline,
-    ensureFamilyTimelineUi,
-  } = familyActivityController;
+  const { loadWeeklyReview, openWeeklyReview } = familyActivityController;
 
   const toolDockController = createToolDockController({
     elements,
@@ -307,6 +301,7 @@ export function createShellControllerAssembly({
     constants: {
       toolDockOrderKey: config.toolDockOrderKey,
       toolDockDefaultOrder: config.toolDockDefaultOrder,
+      toolDockMobileDefaultOrder: config.toolDockMobileDefaultOrder,
       toolDockLabels: config.toolDockLabels,
     },
     getSessionDisplayName,

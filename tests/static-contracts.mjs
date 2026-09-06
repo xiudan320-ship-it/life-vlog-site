@@ -7,8 +7,8 @@ import { createTextScaleController } from "../modules/text-scale-controller.js";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const read = (file) => readFile(join(root, file), "utf8");
-const [html, app, appRuntime, appRuntimeController, appRuntimeInfrastructure, appRuntimeRoute, appRuntimeStartup, routeContext, sw, index, startup, navigation, vite, headers, settingsTemplate, settingsView, accountDialogs, confirmDialog, confirmStyles, appEvents, settingsEvents] = await Promise.all([
-  read("index.html"), read("app.js"), read("modules/app-runtime-assembly.js"), read("modules/app-runtime-controller-assembly.js"), read("modules/app-runtime-infrastructure.js"), read("modules/app-runtime-route-assembly.js"), read("modules/app-runtime-startup.js"), read("modules/app-route-context.js"), read("src/sw.js"), read("index.html"),
+const [html, app, appRuntime, appRuntimeController, appRuntimeInfrastructure, appRuntimeFeature, appRuntimeRoute, appRuntimeStartup, routeContext, sw, index, startup, navigation, vite, headers, settingsTemplate, settingsView, accountDialogs, confirmDialog, confirmStyles, appEvents, settingsEvents] = await Promise.all([
+  read("index.html"), read("app.js"), read("modules/app-runtime-assembly.js"), read("modules/app-runtime-controller-assembly.js"), read("modules/app-runtime-infrastructure.js"), read("modules/app-runtime-feature-assembly.js"), read("modules/app-runtime-route-assembly.js"), read("modules/app-runtime-startup.js"), read("modules/app-route-context.js"), read("src/sw.js"), read("index.html"),
   read("modules/app-startup-controller.js"), read("modules/app-navigation-controller.js"),
   read("vite.config.js"), read("public/_headers"), read("modules/routes/templates/settings.html"), read("modules/settings-view.js"), read("styles/account-dialogs.css"), read("modules/confirm-dialog.js"), read("styles/confirm-dialog.css"), read("modules/app-event-bindings.js"), read("modules/settings-event-bindings.js"),
 ]);
@@ -24,8 +24,15 @@ const [mediaRuntime, photoDetailRuntime, accountAssembly, secretService, routeLo
   read("modules/diary-feed-motion-coordinator.js"),
   read("modules/diary-feed-motion-domain.js"),
 ]);
+const [settingsShellController, settingsShellView, settingsSearchDomain] = await Promise.all([
+  read("modules/settings-shell-controller.js"),
+  read("modules/settings-shell-view.js"),
+  read("modules/settings-search-domain.js"),
+]);
 const diaryFeedController = await read("modules/diary-feed-controller.js");
 const vlogMode = await read("modules/vlog-mode.js");
+const familyActivityController = await read("modules/family-activity-controller.js");
+const appRuntimeConfig = await read("modules/app-runtime-config.js");
 const [primaryNavigationDomain, primaryNavigationView, primaryNavigationController, pushController] = await Promise.all([
   read("modules/primary-navigation-domain.js"),
   read("modules/primary-navigation-view.js"),
@@ -40,6 +47,15 @@ const [notificationEvents, notificationView, foundation, components] = await Pro
 ]);
 const forbiddenUsernameEnv = ["RELEASE", "TEST", "USERNAME"].join("_");
 const forbiddenPasswordEnv = ["RELEASE", "TEST", "PASSWORD"].join("_");
+const toolIconMap = {
+  food: "today-food.svg",
+  recipes: "recipe.svg",
+  anniversary: "time-album.svg",
+  memory: "random-memory.svg",
+  weekly: "weekly-review.svg",
+  secret: "secret-vault.svg",
+  thanks: "message.svg",
+};
 
 const ids = [...html.matchAll(/\bid=["']([^"']+)["']/g)].map((match) => match[1]);
 assert.equal(new Set(ids).size, ids.length, "duplicate HTML id");
@@ -50,14 +66,19 @@ assert.doesNotMatch(html, /id="moodNav"/);
 assert.match(html, /id="todayMoodGrid"/);
 assert.match(html, /id="todayMoodStatusRow"/);
 assert.match(html, /id="overviewMoodCalendar"/);
+assert.match(html, /id="overviewMoodCalendarGrid"/);
+assert.doesNotMatch(html, /overviewMoodMonthItems|overview-mood-month-jar|overview-mood-month-stage/);
 assert.doesNotMatch(html, /overviewPhotos|overviewRecipes|overviewWishes|overviewLevelButton|overviewProgress/);
 assert.doesNotMatch(html, /\?v=\d/);
 assert.doesNotMatch(`${app}\n${appRuntime}\n${appRuntimeController}\n${appRuntimeInfrastructure}\n${appRuntimeRoute}\n${appRuntimeStartup}`, /\?v=\d/);
 assert.match(primaryNavigationDomain, /PRIMARY_NAVIGATION_REGISTRY/);
+assert.match(primaryNavigationDomain, /id: "thanks"[\s\S]*?type: "dialog"[\s\S]*?dialog: "thanks"/);
 assert.match(primaryNavigationView, /data-primary-nav-id/);
 assert.match(primaryNavigationController, /readJson/);
 assert.match(pushController, /subscription\.unsubscribe\(\)/);
 assert.match(pushController, /本机已关闭，云端记录清理失败/);
+assert.match(appRuntimeFeature, /cloudflareBackend,\s*\n\s*secretDataService/);
+assert.match(appRuntimeFeature, /request:\s*cloudflareBackend\.request/);
 assert.doesNotMatch(`${appRuntimeRoute}\n${appEvents}\n${diaryFeedController}\n${vlogMode}`, /galleryNav|vlogNav|wishlistNav|weekendNav|wardrobeNav|thanksNav|secretNav/);
 assert.equal(releaseSmoke.includes(forbiddenUsernameEnv), false);
 assert.equal(releaseSmoke.includes(forbiddenPasswordEnv), false);
@@ -65,6 +86,29 @@ assert.equal(await access(join(root, "service-worker.js")).then(() => true, () =
 assert.equal(await access(join(root, "manifest.webmanifest")).then(() => true, () => false), false);
 assert.doesNotMatch(html, /[◐⚙♢⛶⌗⇩↻]/);
 assert.doesNotMatch(html, />[♥♡📌＋⌕⌂]</);
+assert.doesNotMatch(html, /家庭足迹|data-tool-id="timeline"/);
+assert.match(appRuntimeConfig, /TOOL_DOCK_MOBILE_DEFAULT_ORDER: \["anniversary", "weekly", "thanks"\]/);
+const toolDockMarkup = html.match(/<section class="tool-dock"[\s\S]*?<\/section>/)?.[0] || "";
+assert.ok(toolDockMarkup, "tool dock markup is missing");
+assert.doesNotMatch(toolDockMarkup, /<svg\b/);
+assert.match(html, /id="thanksDialog"/);
+assert.doesNotMatch(html, /id="thanksPage"|data-page-heading="thanks"/);
+assert.doesNotMatch(routeLoader, /thanks-route/);
+for (const [toolId, iconFile] of Object.entries(toolIconMap)) {
+  assert.match(toolDockMarkup, new RegExp(`data-tool-id="${toolId}"[\\s\\S]*?src="/assets/tool-icons/${iconFile}"`), `${toolId} tool icon mapping is missing`);
+}
+assert.match(familyActivityController, /loadWeeklyReview/);
+assert.doesNotMatch(familyActivityController, /FamilyTimeline|familyTimeline|家庭足迹|data-family-timeline/);
+assert.doesNotMatch(appRuntimeConfig, /timeline/);
+assert.doesNotMatch(appRuntimeController, /ensureFamilyTimelineUi|renderFamilyTimeline|getFamilyTimelineEntries/);
+assert.doesNotMatch(appRuntimeStartup, /ensureFamilyTimelineUi/);
+assert.equal(await access(join(root, "public", "assets", "tool-icons", "family-timeline.svg")).then(() => true, () => false), false);
+for (const iconFile of Object.values(toolIconMap)) {
+  const icon = await read(`public/assets/tool-icons/${iconFile}`);
+  assert.match(icon, /^\s*<svg\b/);
+  assert.match(icon, /viewBox="0 0 120 120"/);
+  assert.doesNotMatch(icon, /<script\b|<foreignObject\b|<image\b|<use\b|(?:href|xlink:href)=/i, `${iconFile} must remain a self-contained SVG asset`);
+}
 assert.match(html, /class="list-icon ui-icon"/);
 assert.doesNotMatch(sw, /CORE_ASSETS|CACHE_NAME/);
 assert.match(sw, /precacheAndRoute\(self\.__WB_MANIFEST\)/);
@@ -129,10 +173,25 @@ assert.match(routeContext, /collectRouteElements/);
 assert.match(settingsView, /data-text-scale="xlarge"/);
 assert.match(settingsView, /id="installAppButton"/);
 assert.match(settingsView, /data-performance-copy/);
+assert.match(settingsTemplate, /data-settings-shell/);
+assert.match(settingsTemplate, /id="settingsSearchInput"/);
+assert.match(settingsTemplate, /data-settings-mobile-header/);
+assert.match(settingsTemplate, /data-settings-back/);
+assert.doesNotMatch(settingsTemplate, /role="listbox"/);
+assert.doesNotMatch(settingsTemplate, /class="settings-header-copy">\s*<p class="kicker">/);
+assert.match(settingsShellView, /renderSettingsShell/);
+assert.match(settingsShellView, /applySettingsShellSemantics/);
+assert.match(settingsShellController, /openChildDialog/);
+assert.match(settingsShellController, /reopenAfterChildDialog/);
+assert.match(settingsSearchDomain, /export function querySettings/);
+assert.doesNotMatch(settingsShellView, /role="option"/);
+assert.match(settingsShellView, /prefers-reduced-motion/);
+assert.match(settingsShellView, /element\.hidden/);
+assert.match(settingsShellView, /behavior: reducedMotion \? "auto" : "smooth"/);
 assert.match(headers, /Cache-Control: no-cache, no-store, must-revalidate/);
 assert.match(headers, /max-age=31536000, immutable/);
 assert.doesNotMatch(await read("modules/weekend-plans-view.js"), /待完成/);
-for (const route of ["gallery", "recipes", "wishlist", "weekend", "wardrobe", "thanks", "secret"]) {
+for (const route of ["gallery", "recipes", "wishlist", "weekend", "wardrobe", "secret"]) {
   await access(join(root, "modules", "routes", `${route}-route.js`));
 }
 const moodRoute = await read("modules/routes/mood-diary-route.js");
@@ -165,7 +224,7 @@ assert.match(moodTemplate, /id="moodJarItems"/);
 assert.match(moodTemplate, /id="moodJarMonthPrevious"/);
 assert.match(moodTemplate, /id="moodJarMonthNext"/);
 assert.match(moodTemplate, /id="moodJarMonthLabel"/);
-assert.match(moodTemplate, /滚动到心情罐后会自动播放/);
+assert.match(moodTemplate, /点击瓶子，重新下落本月心情/);
 assert.match(moodTemplate, /id="moodTrendChart"/);
 assert.match(moodTemplate, /id="moodTrendPointControls"/);
 assert.match(moodSummaryDomain, /export function buildMoodMonthSummary/);
@@ -187,7 +246,23 @@ assert.match(moodDiaryController, /loadMonth\(state\.currentMonthKey, \{ force: 
 assert.match(await read("modules/app-runtime-route-assembly.js"), /refreshContext/);
 assert.doesNotMatch(`${moodDiaryController}\n${moodOverlayController}`, /location\.reload/);
 
+const [layoutSettings, offlineSettings, cacheManagementView, settingsRoute] = await Promise.all([
+  read("modules/layout-settings-controller.js"),
+  read("modules/offline-settings-controller.js"),
+  read("modules/cache-management-view.js"),
+  read("modules/routes/settings-route.js"),
+]);
+assert.match(layoutSettings, /ensureCacheManagementUi/);
+assert.match(layoutSettings, /loadCacheCapacityMb/);
+assert.match(layoutSettings, /loadMediaCachePolicy/);
+assert.match(offlineSettings, /ensureCacheManagementUi/);
+assert.match(offlineSettings, /changeCacheLimit/);
+assert.match(cacheManagementView, /configureCacheManagementUi/);
+assert.doesNotMatch(cacheManagementView, /renderCacheManagementUi|bindCacheManagementUi/);
+assert.match(settingsRoute, /offlineSettings\?\.initialize/);
+
 assert.equal(parseRoute({ href: "https://example.test/?page=wishlist&pushType=thanks" }).page, "wishlist");
+assert.equal(parseRoute({ href: "https://example.test/?page=thanks" }).page, "gallery");
 assert.equal(parseRoute({ href: "https://example.test/?page=invalid" }).page, "gallery");
 assert.equal(parseRoute({ href: "https://example.test/?page=mood" }).page, "mood");
 assert.equal(serializeRoute("weekend", "https://example.test/?pushPhoto=1#x"), "/?pushPhoto=1&page=weekend#x");

@@ -6,8 +6,6 @@ import {
   buildSettingsFamilyMarkup,
 } from "./account-view.js";
 import { recipeFromCloudRow, wishFromCloudRow } from "./cloud-models.js";
-import { getSettingsSectionIds } from "./settings-section-registry.js";
-import { applySettingsNavigationSemantics } from "./settings-view.js";
 
 export function createFamilySettingsController({
   elements,
@@ -15,14 +13,6 @@ export function createFamilySettingsController({
   r2UploadEndpoint,
   householdRepository,
   renderAvatarMarkup,
-  renderSettingsToolOrderPanel,
-  refreshPushSettings,
-  renderCloudBackups,
-  renderTrashItems,
-  runOfflineDiagnostics,
-  renderUploadCenter,
-  renderSettingsSummary,
-  refreshCacheInfo,
   loadFamilyLevelProfiles,
   loadPhotos,
   synchronizeWeekendPlans,
@@ -37,18 +27,6 @@ export function createFamilySettingsController({
   loadFamilyContext,
 }) {
   const els = elements;
-  let settingsReturnFocus = null;
-
-  function restoreSettingsFocus() {
-    if (state.returnToSettingsAfterDialog) return;
-    const returnFocus = settingsReturnFocus;
-    settingsReturnFocus = null;
-    const focusTarget = returnFocus === els.accountSettingsButton ? els.avatarButton : returnFocus;
-    if (els.userPopover) els.userPopover.hidden = true;
-    window.setTimeout(() => focusTarget?.focus?.(), 0);
-  }
-
-  els.settingsDialog?.addEventListener("close", restoreSettingsFocus);
 
   function renderFamilyDialog() {
     if (!els.familyDialog) return;
@@ -147,61 +125,6 @@ export function createFamilySettingsController({
     els.settingsFamilyPanel
       ?.querySelector("[data-settings-signup-invite]")
       ?.addEventListener("click", (event) => readSignupInviteCode(event.currentTarget));
-  }
-  
-  function setActiveSettingsSection(sectionId = "settingsAppearance") {
-    const allowedSections = getSettingsSectionIds();
-    const nextSection = allowedSections.includes(sectionId) ? sectionId : "settingsAppearance";
-    state.activeSettingsSection = nextSection;
-
-    const { mobile: mobileNavigation } = applySettingsNavigationSemantics(els.settingsDialog, nextSection);
-    const tabs = [...els.settingsDialog.querySelectorAll("[data-settings-section]")];
-    els.settingsDialog.querySelectorAll(".settings-group").forEach((group) => {
-      const tab = tabs.find((button) => button.dataset.settingsSection === group.id);
-      group.setAttribute("role", "tabpanel");
-      if (tab) group.setAttribute("aria-labelledby", tab.id);
-      group.hidden = group.id !== nextSection;
-    });
-    if (nextSection === "settingsFamily") renderSettingsFamilyPanel();
-    if (nextSection === "settingsTools") {
-      void refreshPushSettings();
-      renderSettingsToolOrderPanel();
-    }
-    if (nextSection === "settingsStorage") {
-      void renderCloudBackups();
-      void renderTrashItems();
-    }
-  }
-  
-  function openSettingsDialog(sectionId = state.activeSettingsSection || "settingsAppearance") {
-    if (!els.settingsDialog.open && !settingsReturnFocus) {
-      settingsReturnFocus = els.accountSettingsButton || document.activeElement;
-    }
-    renderSettingsSummary();
-    void refreshCacheInfo();
-    setActiveSettingsSection(sectionId);
-    if (!els.settingsDialog.open) els.settingsDialog.showModal();
-  }
-  
-  function openSettingsChildDialog(dialog, prepare = null) {
-    if (!dialog) return;
-    els.userPopover.hidden = true;
-    state.returnToSettingsAfterDialog = true;
-    if (els.settingsDialog.open) els.settingsDialog.close();
-    dialog.showModal();
-    if (typeof prepare === "function") prepare();
-  }
-  
-  function reopenSettingsAfterChildDialog() {
-    if (!state.returnToSettingsAfterDialog) return;
-    state.returnToSettingsAfterDialog = false;
-    if (!state.session) return;
-    window.setTimeout(() => openSettingsDialog(state.activeSettingsSection), 0);
-  }
-  
-  function closeSettingsDialog() {
-    state.returnToSettingsAfterDialog = false;
-    els.settingsDialog.close();
   }
   
   async function refreshSharedContent() {
@@ -311,11 +234,6 @@ export function createFamilySettingsController({
     renderSettingsFamilyPanel,
     readSignupInviteCode,
     bindSettingsFamilyActions,
-    setActiveSettingsSection,
-    openSettingsDialog,
-    openSettingsChildDialog,
-    reopenSettingsAfterChildDialog,
-    closeSettingsDialog,
     refreshSharedContent,
     createFamily,
     addFamilyMember,

@@ -17,6 +17,8 @@ export const PRIMARY_NAVIGATION_DEFAULT_IDS = Object.freeze([
   "wardrobe",
 ]);
 
+export const PRIMARY_NAVIGATION_MAX_ENABLED = 5;
+
 export const PRIMARY_NAVIGATION_REGISTRY = Object.freeze([
   Object.freeze({
     id: "gallery",
@@ -75,8 +77,8 @@ export const PRIMARY_NAVIGATION_REGISTRY = Object.freeze([
   Object.freeze({
     id: "thanks",
     label: "留言",
-    type: "route",
-    route: "thanks",
+    type: "dialog",
+    dialog: "thanks",
     requiresSession: true,
     defaultEnabled: false,
     description: "感谢与留言",
@@ -138,7 +140,12 @@ export function normalizePrimaryNavigationConfig(value) {
     enabled.push(normalizedId);
   }
   if (!seen.has("gallery")) enabled.unshift("gallery");
-  return { order, enabled };
+  const cappedEnabled = enabled.slice(0, PRIMARY_NAVIGATION_MAX_ENABLED);
+  if (!cappedEnabled.includes("gallery")) {
+    cappedEnabled.pop();
+    cappedEnabled.unshift("gallery");
+  }
+  return { order, enabled: cappedEnabled };
 }
 
 export function getPrimaryNavigationItem(id) {
@@ -163,6 +170,7 @@ export function setPrimaryNavigationEnabled(config, id, enabled) {
   const next = normalizePrimaryNavigationConfig(config);
   if (!REGISTRY_BY_ID.has(id) || id === "gallery") return next;
   const enabledIds = new Set(next.enabled);
+  if (enabled && !enabledIds.has(id) && enabledIds.size >= PRIMARY_NAVIGATION_MAX_ENABLED) return next;
   if (enabled) enabledIds.add(id);
   else enabledIds.delete(id);
   next.enabled = next.order.filter((itemId) => enabledIds.has(itemId));

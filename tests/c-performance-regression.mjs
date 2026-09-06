@@ -64,7 +64,6 @@ const adminPseudoSession = {
 function scriptUrls(page) {
   return page.__cScriptUrls || [];
 }
-
 async function installFeedMotionMediaFixture(page) {
   await page.addInitScript(() => {
     const mediaSrc = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, "src");
@@ -329,6 +328,28 @@ async function testDynamicDiaryFilters(browser) {
     assert.deepEqual(options.slice(0, 3).map(({ value }) => value), ["全部", "featured7", "favorites"]);
     assert.ok(options.filter(({ value }) => !["全部", "featured7", "favorites"].includes(value)).every(({ label }) => !label.endsWith("，0篇")), "ordinary zero-count category was rendered");
 
+    const filterLayout = await page.locator("#diaryFilterChips").evaluate((row) => {
+      const chips = [...row.querySelectorAll(".chip")];
+      const rects = chips.map((chip) => chip.getBoundingClientRect());
+      const styles = getComputedStyle(row);
+      return {
+        documentWidth: document.documentElement.scrollWidth,
+        viewportWidth: document.documentElement.clientWidth,
+        flexWrap: styles.flexWrap,
+        overflowX: styles.overflowX,
+        scrollWidth: row.scrollWidth,
+        clientWidth: row.clientWidth,
+        minHeight: Math.min(...rects.map((rect) => rect.height)),
+        topRange: rects.length ? Math.max(...rects.map((rect) => rect.top)) - Math.min(...rects.map((rect) => rect.top)) : 0,
+      };
+    });
+    assert.equal(filterLayout.flexWrap, "nowrap", `diary tags should stay on one row: ${JSON.stringify(filterLayout)}`);
+    assert.ok(["auto", "scroll"].includes(filterLayout.overflowX), `diary tags should scroll inside their row: ${JSON.stringify(filterLayout)}`);
+    assert.ok(filterLayout.scrollWidth > filterLayout.clientWidth, `diary tags should have horizontal overflow inside their row: ${JSON.stringify(filterLayout)}`);
+    assert.ok(filterLayout.minHeight >= 44, `diary tags are too small to touch: ${JSON.stringify(filterLayout)}`);
+    assert.ok(filterLayout.topRange <= 1, `diary tags wrapped to multiple rows: ${JSON.stringify(filterLayout)}`);
+    assert.ok(filterLayout.documentWidth <= filterLayout.viewportWidth + 1, `diary tags caused page overflow: ${JSON.stringify(filterLayout)}`);
+
     const travel = page.locator('#diaryFilterChips [data-filter="旅行"]');
     await travel.focus();
     await travel.click();
@@ -401,7 +422,7 @@ async function testSettingsRegistryInteractions(browser) {
       const dialog = document.querySelector("#settingsDialog");
       const sidebar = dialog?.querySelector(".settings-sidebar");
       const content = dialog?.querySelector(".settings-content");
-      const close = dialog?.querySelector(":scope > .dialog-close");
+      const close = dialog?.querySelector("#closeSettingsDialog");
       const rect = (element) => {
         if (!element) return null;
         const box = element.getBoundingClientRect();
@@ -424,6 +445,57 @@ async function testSettingsRegistryInteractions(browser) {
     assert.equal(initialLayout.contentDisplay, "none", "mobile settings opened a hidden child panel");
     assert.ok(initialLayout.sidebar?.right <= initialLayout.dialog?.right + 1, "mobile settings category list overflowed its dialog");
     assert.ok(initialLayout.close?.bottom < initialLayout.sidebar?.bottom, "mobile settings close control is not in the dialog");
+    assert.equal(await page.locator("[data-settings-search-results]").getAttribute("role"), null, "settings results exposed an unsupported listbox role");
+
+    await page.fill("#settingsSearchInput", "密码");
+    await page.waitForSelector('[data-settings-search-result="changePasswordButton"]', { state: "visible" });
+    assert.equal(await page.locator('[data-settings-search-result="changePasswordButton"]').getAttribute("role"), null, "settings result button exposed an unsupported option role");
+    assert.equal(
+      await page.locator('[data-settings-search-result="changePasswordButton"] small').textContent(),
+      "账户与安全 · 更新账户登录密码",
+      "settings search result did not expose its category and description"
+    );
+    await page.click('[data-settings-search-result="changePasswordButton"]');
+    await page.waitForSelector('#settingsDialog[data-mobile-settings-section="settingsAccount"]');
+    await page.waitForFunction(() => document.activeElement?.id === "changePasswordButton");
+    assert.equal(await page.locator("#changePasswordButton").isVisible(), true, "settings search result did not reveal its target");
+    await page.click("[data-settings-back]");
+    await page.waitForFunction(() => !document.querySelector("#settingsDialog")?.dataset.mobileSettingsSection);
+    await page.click("#settingsSearchClear");
+    await page.waitForFunction(() => document.querySelector("[data-settings-search-results]")?.hidden === true);
+    await page.waitForFunction(() => !document.querySelector("#settingsDialog")?.dataset.settingsSearchActive);
+
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.evaluate(() => {
+      const target = document.querySelector("#settingsInstallApp");
+      if (!target) return;
+      target.dataset.testScrollBehavior = "";
+      target.scrollIntoView = (options) => {
+        target.dataset.testScrollBehavior = options?.behavior || "";
+      };
+    });
+    await page.fill("#settingsSearchInput", "安装");
+    await page.waitForSelector('[data-settings-search-result="settingsInstallApp"]', { state: "visible" });
+    await page.click('[data-settings-search-result="settingsInstallApp"]');
+    await page.waitForSelector('#settingsDialog[data-mobile-settings-section="settingsAppearance"]');
+    await page.waitForFunction(() => document.activeElement?.id === "settingsInstallApp");
+    const installFocusState = await page.evaluate(() => {
+      const target = document.querySelector("#settingsInstallApp");
+      return {
+        activeId: document.activeElement?.id || "",
+        tabIndex: target?.getAttribute("tabindex") || "",
+        buttonHidden: document.querySelector("#installAppButton")?.hidden ?? false,
+        scrollBehavior: target?.dataset.testScrollBehavior || "",
+      };
+    });
+    assert.equal(installFocusState.activeId, "settingsInstallApp", "hidden install action did not focus its visible settings row");
+    assert.equal(installFocusState.tabIndex, "-1", "hidden install action did not make its fallback row focusable");
+    assert.equal(installFocusState.buttonHidden, true, "install fixture unexpectedly exposed the install button");
+    assert.equal(installFocusState.scrollBehavior, "auto", "settings search ignored reduced-motion scrolling");
+    await page.click("[data-settings-back]");
+    await page.waitForFunction(() => !document.querySelector("#settingsDialog")?.dataset.mobileSettingsSection);
+    await page.click("#settingsSearchClear");
+    await page.waitForFunction(() => document.querySelector("[data-settings-search-results]")?.hidden === true);
 
     await page.click("#settings-tab-settingsTools");
     await page.waitForSelector('#settingsDialog[data-mobile-settings-section="settingsTools"]');
@@ -448,7 +520,7 @@ async function testSettingsRegistryInteractions(browser) {
       const dialog = document.querySelector("#settingsDialog");
       const content = dialog?.querySelector(".settings-content");
       const header = dialog?.querySelector(".settings-mobile-header");
-      const close = dialog?.querySelector(":scope > .dialog-close");
+      const close = dialog?.querySelector("#closeSettingsDialog");
       const heading = header?.querySelector("h3");
       const back = header?.querySelector("[data-settings-back]");
       const rect = (element) => {
@@ -1093,6 +1165,192 @@ async function testFixtureSecretCrud(browser) {
   await browserContext.close();
 }
 
+async function testMobileToolDock(browser) {
+  for (const viewport of [
+    { width: 320, height: 844 },
+    { width: 375, height: 812 },
+    { width: 390, height: 844 },
+    { width: 430, height: 932 },
+  ]) {
+    const result = await openFixturePage({ viewport });
+    try {
+      const page = result.page;
+      await page.waitForFunction(
+        () => [...document.querySelectorAll("#toolDock .tool-dock-button")]
+          .filter((button) => !button.hidden && getComputedStyle(button).display !== "none")
+          .length === 7,
+        null,
+        { timeout: 10000 },
+      );
+      const layout = await page.evaluate(() => {
+        const dock = document.querySelector("#toolDock");
+        const buttons = [...(dock?.querySelectorAll(".tool-dock-button") || [])]
+          .filter((button) => !button.hidden && getComputedStyle(button).display !== "none");
+        const dockRect = dock?.getBoundingClientRect();
+        const visualButtons = [...buttons].sort((a, b) => a.getBoundingClientRect().left - b.getBoundingClientRect().left);
+        const rects = visualButtons.map((button) => {
+          const rect = button.getBoundingClientRect();
+          return { left: rect.left, right: rect.right, width: rect.width, height: rect.height };
+        });
+        const styles = dock ? getComputedStyle(dock) : null;
+        const markStyles = Object.fromEntries(["anniversary", "weekly"].map((id) => {
+          const mark = dock?.querySelector(`[data-tool-id="${id}"] .tool-dock-mark`);
+          const style = mark ? getComputedStyle(mark) : null;
+          return [id, {
+            border: style?.border || "",
+            borderRadius: style?.borderRadius || "",
+            background: style?.backgroundColor || "",
+          }];
+        }));
+        const initialScrollWidth = dock?.scrollWidth || 0;
+        const initialClientWidth = dock?.clientWidth || 0;
+        const firstThreeFullyVisible = Boolean(dockRect) && rects.slice(0, 3).every(({ left, right }) => left >= dockRect.left - 1 && right <= dockRect.right + 1);
+        if (dock) dock.scrollLeft = 100;
+        return {
+          ids: visualButtons.map((button) => button.dataset.toolId),
+          rects,
+          dockRect: dockRect ? { left: dockRect.left, right: dockRect.right, width: dockRect.width } : null,
+          gridColumns: styles?.gridTemplateColumns || "",
+          columnGap: Number.parseFloat(styles?.columnGap || "0"),
+          display: styles?.display || "",
+          overflowX: styles?.overflowX || "",
+          overscrollBehaviorX: styles?.overscrollBehaviorX || "",
+          touchAction: styles?.touchAction || "",
+          initialScrollWidth,
+          initialClientWidth,
+          scrollLeftAfterProgrammaticMove: dock?.scrollLeft || 0,
+          firstThreeFullyVisible,
+          markStyles,
+          viewportWidth: document.documentElement.clientWidth,
+          documentWidth: document.documentElement.scrollWidth,
+        };
+      });
+      assert.deepEqual(layout.ids.slice(0, 3), ["anniversary", "weekly", "thanks"], `${viewport.width}px mobile tool dock default order changed: ${JSON.stringify(layout)}`);
+      assert.equal(layout.ids.length, 7, `${viewport.width}px mobile tool dock did not keep swipeable entries: ${JSON.stringify(layout)}`);
+      assert.equal(layout.display, "flex", `${viewport.width}px mobile tool dock is not a horizontal card rail: ${JSON.stringify(layout)}`);
+      assert.equal(layout.gridColumns, "none", `${viewport.width}px mobile tool dock unexpectedly uses a grid: ${JSON.stringify(layout)}`);
+      assert.ok(layout.columnGap >= 8, `${viewport.width}px mobile tool dock gap is below 8px: ${JSON.stringify(layout)}`);
+      assert.equal(layout.overflowX, "auto", `${viewport.width}px mobile tool dock is not horizontally scrollable: ${JSON.stringify(layout)}`);
+      assert.equal(layout.overscrollBehaviorX, "contain", `${viewport.width}px mobile tool dock lacks a bounded horizontal scroll rail: ${JSON.stringify(layout)}`);
+      assert.equal(layout.touchAction, "pan-x", `${viewport.width}px mobile tool dock does not accept horizontal touch panning: ${JSON.stringify(layout)}`);
+      assert.ok(layout.initialScrollWidth > layout.initialClientWidth, `${viewport.width}px mobile tool dock has no hidden swipeable entries: ${JSON.stringify(layout)}`);
+      assert.ok(layout.scrollLeftAfterProgrammaticMove > 0, `${viewport.width}px mobile tool dock did not move horizontally: ${JSON.stringify(layout)}`);
+      assert.equal(layout.firstThreeFullyVisible, true, `${viewport.width}px mobile tool dock does not show three complete cards initially: ${JSON.stringify(layout)}`);
+      assert.deepEqual(layout.markStyles.anniversary, layout.markStyles.weekly, `${viewport.width}px anniversary and weekly tool marks are not visually aligned: ${JSON.stringify(layout)}`);
+      assert.ok(layout.rects.every(({ width, height }) => width > 0 && height >= 44), `${viewport.width}px mobile tool dock missed the touch target: ${JSON.stringify(layout)}`);
+      assert.ok(layout.dockRect && layout.rects.slice(0, 3).every(({ left, right }) => left >= layout.dockRect.left - 1 && right <= layout.dockRect.right + 1), `${viewport.width}px mobile tool dock initial cards escaped its bounds: ${JSON.stringify(layout)}`);
+      assert.ok(layout.documentWidth <= layout.viewportWidth + 1, `${viewport.width}px mobile tool dock caused page overflow: ${JSON.stringify(layout)}`);
+      assert.deepEqual(result.errors, [], `${viewport.width}px mobile tool dock page errors: ${result.errors.join(" | ")}`);
+    } finally {
+      await closeFixturePage(result);
+    }
+  }
+}
+
+async function testWeeklyReviewVisualAlignment(browser) {
+  const result = await openFixturePage({ viewport: { width: 390, height: 844 } });
+  try {
+    const page = result.page;
+    await page.waitForFunction(() => {
+      const button = document.querySelector("#weeklyReviewOpen");
+      return button && !button.hidden && getComputedStyle(button).display !== "none";
+    }, null, { timeout: 10000 });
+    await page.click("#weeklyReviewOpen");
+    await page.waitForFunction(
+      () => document.querySelectorAll("#weeklyReviewContent .weekly-review-stats article").length === 4,
+      null,
+      { timeout: 10000 },
+    );
+    const styles = await page.evaluate(() => {
+      const read = (elementOrSelector) => {
+        const element = typeof elementOrSelector === "string"
+          ? document.querySelector(elementOrSelector)
+          : elementOrSelector;
+        const style = getComputedStyle(element);
+        return {
+          border: style.border,
+          borderRadius: style.borderRadius,
+          background: style.backgroundColor,
+          boxShadow: style.boxShadow,
+          padding: style.padding,
+        };
+      };
+      const referenceHolder = document.createElement("div");
+      referenceHolder.innerHTML = '<i></i><article class="anniversary-card"></article>';
+      document.body.append(referenceHolder);
+      const anniversaryCard = read(referenceHolder.querySelector(".anniversary-card"));
+      referenceHolder.remove();
+      return {
+        weeklyDialog: read("#weeklyReviewDialog"),
+        anniversaryDialog: read("#anniversaryDialog"),
+        weeklyHead: read("#weeklyReviewDialog .weekly-review-head"),
+        anniversaryHead: read("#anniversaryDialog .anniversary-dialog-head"),
+        weeklyIntro: read("#weeklyReviewContent .weekly-review-intro"),
+        weeklyStat: read("#weeklyReviewContent .weekly-review-stats article"),
+        anniversaryCard,
+      };
+    });
+    assert.deepEqual(styles.weeklyDialog, styles.anniversaryDialog, `weekly review dialog shell is not aligned: ${JSON.stringify(styles)}`);
+    assert.deepEqual(styles.weeklyHead, styles.anniversaryHead, `weekly review dialog header is not aligned: ${JSON.stringify(styles)}`);
+    assert.deepEqual(styles.weeklyStat, styles.anniversaryCard, `weekly review stat cards are not aligned with the time album cards: ${JSON.stringify(styles)}`);
+    assert.equal(styles.weeklyIntro.border, styles.anniversaryCard.border, `weekly review intro border is inconsistent: ${JSON.stringify(styles)}`);
+    assert.equal(styles.weeklyIntro.borderRadius, styles.anniversaryCard.borderRadius, `weekly review intro radius is inconsistent: ${JSON.stringify(styles)}`);
+    assert.match(styles.weeklyStat.borderRadius, /8px/, `weekly review stat cards lost the shared radius: ${JSON.stringify(styles)}`);
+  } finally {
+    await closeFixturePage(result);
+  }
+}
+
+async function testThanksDialogVisualAlignment(browser) {
+  const result = await openFixturePage({ viewport: { width: 390, height: 844 } });
+  try {
+    const page = result.page;
+    await page.waitForFunction(() => {
+      const button = document.querySelector("#thanksOpen");
+      return button && !button.hidden && getComputedStyle(button).display !== "none";
+    }, null, { timeout: 10000 });
+    await page.click("#thanksOpen");
+    await page.waitForSelector("#thanksDialog[open]", { state: "visible" });
+    const styles = await page.evaluate(() => {
+      const read = (elementOrSelector) => {
+        const element = typeof elementOrSelector === "string"
+          ? document.querySelector(elementOrSelector)
+          : elementOrSelector;
+        const style = getComputedStyle(element);
+        return {
+          border: style.border,
+          borderRadius: style.borderRadius,
+          background: style.backgroundColor,
+          boxShadow: style.boxShadow,
+          padding: style.padding,
+        };
+      };
+      return {
+        thanksDialog: read("#thanksDialog"),
+        anniversaryDialog: read("#anniversaryDialog"),
+        thanksHead: read("#thanksDialog .thanks-dialog-head"),
+        anniversaryHead: read("#anniversaryDialog .anniversary-dialog-head"),
+        thanksBody: read("#thanksDialog .thanks-dialog-body"),
+        anniversaryBody: read("#anniversaryDialog .anniversary-dialog-body"),
+        thanksClose: read("#thanksDialog .anniversary-close"),
+        anniversaryClose: read("#anniversaryDialog .anniversary-close"),
+      };
+    });
+    assert.deepEqual(styles.thanksDialog, styles.anniversaryDialog, `thanks dialog shell is not aligned: ${JSON.stringify(styles)}`);
+    assert.deepEqual(styles.thanksHead, styles.anniversaryHead, `thanks dialog header is not aligned: ${JSON.stringify(styles)}`);
+    assert.deepEqual(styles.thanksBody, styles.anniversaryBody, `thanks dialog body is not aligned: ${JSON.stringify(styles)}`);
+    assert.deepEqual(styles.thanksClose, styles.anniversaryClose, `thanks dialog close button is not aligned: ${JSON.stringify(styles)}`);
+    assert.equal(await page.locator("#routeOutlet [data-route-root='thanks']").count(), 0, "thanks dialog mounted a legacy route root");
+    assert.equal(new URL(page.url()).searchParams.has("page"), false, "opening thanks changed the page route");
+    await page.click("#thanksClose");
+    await page.waitForFunction(() => !document.querySelector("#thanksDialog")?.open);
+    await page.waitForFunction(() => document.activeElement?.id === "thanksOpen");
+    assert.deepEqual(result.errors, [], `thanks dialog page errors: ${result.errors.join(" | ")}`);
+  } finally {
+    await closeFixturePage(result);
+  }
+}
+
 const browser = await chromium.launch({ headless: true });
 try {
   await testAnonymousColdRequestBudget(browser);
@@ -1111,6 +1369,9 @@ try {
   await testWeekendComposerAndDelete(browser);
   await testMobileCommentComposer(browser);
   await testMobileDeepCommentLayout(browser);
+  await testMobileToolDock(browser);
+  await testWeeklyReviewVisualAlignment(browser);
+  await testThanksDialogVisualAlignment(browser);
   await testFixtureSecretCrud(browser);
   console.log("C performance and interaction boundaries passed: lazy features, weekend forms, deletion focus, and deep mobile comment layout.");
 } finally {

@@ -360,7 +360,7 @@ CREATE TABLE IF NOT EXISTS notifications (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   actor_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  type TEXT NOT NULL CHECK (type IN ('favorite', 'comment', 'reply', 'diary', 'thanks')),
+  type TEXT NOT NULL CHECK (type IN ('favorite', 'comment', 'reply', 'diary', 'thanks', 'wish', 'shopping', 'mood_reminder')),
   photo_id TEXT REFERENCES photos(id) ON DELETE CASCADE,
   comment_id TEXT REFERENCES photo_comments(id) ON DELETE CASCADE,
   body TEXT NOT NULL DEFAULT '',

@@ -18,7 +18,6 @@ export function startAppRuntime(runtime) {
     performanceDiagnosticsView,
     restoreCloudflareSessionBackup,
     registerAppShellWorker,
-    ensureFamilyTimelineUi,
     updateDiarySearchUi,
     renderFoodWheel,
     initializeFeedObserver,
@@ -43,7 +42,6 @@ export function startAppRuntime(runtime) {
   });
 
   registerAppShellWorker();
-  ensureFamilyTimelineUi();
   updateDiarySearchUi();
   renderFoodWheel();
   initializeFeedObserver();

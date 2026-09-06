@@ -35,7 +35,7 @@ async function openPage(browser, {
   await page.waitForSelector("#appSplash[hidden]", { state: "attached", timeout: 3000 });
   if (pageName === "secret" && secretUnlocked) await page.waitForSelector("#secretPage:not([hidden])");
   if (pageName === "secret" && !secretUnlocked) await page.waitForSelector("#secretPinDialog[open]");
-  if (["recipes", "wishlist", "weekend", "wardrobe", "thanks", "mood"].includes(pageName)) {
+  if (["recipes", "wishlist", "weekend", "wardrobe", "mood"].includes(pageName)) {
     await page.waitForSelector(`#${pageName}Page:not([hidden])`);
   }
   if (dark) await page.evaluate(() => document.body.classList.add("theme-dark"));
@@ -116,7 +116,6 @@ try {
     { pageName: "wishlist", authenticated: true, viewport: { width: 1440, height: 900 } },
     { pageName: "weekend", authenticated: true, viewport: { width: 844, height: 390 }, dark: true, scale: "large", reducedMotion: true },
     { pageName: "wardrobe", authenticated: true, viewport: { width: 430, height: 932 }, scale: "large" },
-    { pageName: "thanks", authenticated: true, viewport: { width: 390, height: 844 } },
     { pageName: "mood", authenticated: true, viewport: { width: 375, height: 812 } },
     { pageName: "secret", authenticated: true, viewport: { width: 375, height: 812 } },
     { pageName: "secret", authenticated: true, secretUnlocked: true, viewport: { width: 390, height: 844 }, dark: true, scale: "xlarge" },
@@ -125,6 +124,16 @@ try {
     try { await scan(result, `${options.pageName}-${options.authenticated ? "signed-in" : "guest"}`); }
     finally { await result.context.close(); }
   }
+  const thanksDialog = await openPage(browser, { authenticated: true, viewport: { width: 390, height: 844 } });
+  try {
+    await thanksDialog.page.waitForSelector("#thanksOpen:not([hidden])", { state: "visible" });
+    await thanksDialog.page.click("#thanksOpen");
+    await thanksDialog.page.waitForSelector("#thanksDialog[open]", { state: "visible" });
+    await scan(thanksDialog, "thanks-dialog");
+    await thanksDialog.page.keyboard.press("Escape");
+    await thanksDialog.page.waitForFunction(() => !document.querySelector("#thanksDialog")?.open);
+    await thanksDialog.page.waitForFunction(() => document.activeElement?.id === "thanksOpen");
+  } finally { await thanksDialog.context.close(); }
   const dialog = await openPage(browser, { authenticated: true });
   try {
     await dialog.page.click("#avatarButton");

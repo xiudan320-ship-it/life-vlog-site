@@ -115,14 +115,18 @@
           aria-haspopup="dialog"
           aria-controls="foodWheelDialog"
         >
-          <span class="food-wheel-launch-mark" aria-hidden="true"></span>
+          <span class="tool-dock-mark food-wheel-launch-mark" aria-hidden="true">
+            <img class="tool-dock-icon" src="/assets/tool-icons/today-food.svg" alt="" aria-hidden="true" width="120" height="120" decoding="async" />
+          </span>
           <span>
             <strong>今日吃什么</strong>
             <small id="foodWheelPeek">打开转盘</small>
           </span>
         </button>
         <button class="tool-dock-button recipes-tool-button" id="recipesToolOpen" type="button" data-tool-id="recipes">
-          <span class="tool-dock-mark recipes-mark" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" focusable="false"><path d="M5 4.5h5.5A2.5 2.5 0 0 1 13 7v13a2.5 2.5 0 0 0-2.5-2.5H5a2 2 0 0 1-2-2V6.5a2 2 0 0 1 2-2Z"/><path d="M19 4.5h-5.5A2.5 2.5 0 0 0 11 7v13a2.5 2.5 0 0 1 2.5-2.5H19a2 2 0 0 0 2-2V6.5a2 2 0 0 0-2-2Z"/></svg></span>
+          <span class="tool-dock-mark recipes-mark" aria-hidden="true">
+            <img class="tool-dock-icon" src="/assets/tool-icons/recipe.svg" alt="" aria-hidden="true" width="120" height="120" decoding="async" />
+          </span>
           <span>
             <strong>菜谱</strong>
             <small>打开家庭菜谱</small>
@@ -137,8 +141,8 @@
           aria-controls="anniversaryDialog"
           hidden
         >
-          <span class="anniversary-launch-mark" aria-hidden="true">
-            <img src="/assets/generated/anniversary-icon-1x.webp" alt="" />
+          <span class="tool-dock-mark anniversary-launch-mark" aria-hidden="true">
+            <img class="tool-dock-icon" src="/assets/tool-icons/time-album.svg" alt="" aria-hidden="true" width="120" height="120" decoding="async" />
           </span>
           <span>
             <strong>时间纪念册</strong>
@@ -146,28 +150,36 @@
           </span>
         </button>
         <button class="tool-dock-button memory-button" id="memoryButton" type="button" data-tool-id="memory" hidden>
-          <span class="tool-dock-mark" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" focusable="false"><path d="M20 11a8 8 0 0 0-14-4.8L4 8"/><path d="M4 4v4h4M4 13a8 8 0 0 0 14 4.8L20 16"/><path d="M20 20v-4h-4"/></svg></span>
+          <span class="tool-dock-mark" aria-hidden="true">
+            <img class="tool-dock-icon" src="/assets/tool-icons/random-memory.svg" alt="" aria-hidden="true" width="120" height="120" decoding="async" />
+          </span>
           <span>
             <strong>随机回忆</strong>
             <small>抽一篇家庭日记</small>
           </span>
         </button>
         <button class="tool-dock-button weekly-review-button" id="weeklyReviewOpen" type="button" data-tool-id="weekly" hidden>
-          <span class="tool-dock-mark weekly-review-mark" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" focusable="false"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M7 2v4M17 2v4M3 9h18M8 13h3M8 17h5"/></svg></span>
+          <span class="tool-dock-mark weekly-review-mark" aria-hidden="true">
+            <img class="tool-dock-icon" src="/assets/tool-icons/weekly-review.svg" alt="" aria-hidden="true" width="120" height="120" decoding="async" />
+          </span>
           <span>
             <strong>本周回顾</strong>
             <small>共同生活周报</small>
           </span>
         </button>
         <button class="tool-dock-button secret-button" id="secretOpen" type="button" data-tool-id="secret" hidden>
-          <span class="tool-dock-mark secret-mark" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" focusable="false"><path d="m12 3 1.5 5.5L19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5L12 3Z"/><path d="m19 15 .6 2.4L22 18l-2.4.6L19 21l-.6-2.4L16 18l2.4-.6L19 15Z"/></svg></span>
+          <span class="tool-dock-mark secret-mark" aria-hidden="true">
+            <img class="tool-dock-icon" src="/assets/tool-icons/secret-vault.svg" alt="" aria-hidden="true" width="120" height="120" decoding="async" />
+          </span>
           <span>
             <strong>秘藏</strong>
             <small>进入里世界展览</small>
           </span>
         </button>
-        <button class="tool-dock-button thanks-tool-button" id="thanksOpen" type="button" data-tool-id="thanks" hidden>
-          <span class="tool-dock-mark thanks-mark" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" focusable="false"><path d="M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-7l-4.5 3V17H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/><path d="M7 9h10M7 13h6"/></svg></span>
+        <button class="tool-dock-button thanks-tool-button" id="thanksOpen" type="button" data-tool-id="thanks" aria-haspopup="dialog" aria-controls="thanksDialog" hidden>
+          <span class="tool-dock-mark thanks-mark" aria-hidden="true">
+            <img class="tool-dock-icon" src="/assets/tool-icons/message.svg" alt="" aria-hidden="true" width="120" height="120" decoding="async" />
+          </span>
           <span>
             <strong>留言</strong>
             <small>留下生活里的话</small>
@@ -212,21 +224,75 @@
       <aside class="anniversary-section" id="anniversarySection" hidden>
       </aside>
 
-      <dialog class="weekly-review-dialog" id="weeklyReviewDialog">
-        <div class="weekly-review-shell">
-          <header class="weekly-review-head">
-            <div>
-              <p class="kicker">Together, This Week</p>
-              <h2>我们的这一周</h2>
-              <p id="weeklyReviewRange"></p>
+        <dialog class="anniversary-dialog weekly-review-dialog" id="weeklyReviewDialog">
+          <div class="weekly-review-shell">
+            <header class="anniversary-dialog-head weekly-review-head">
+              <div>
+                <p class="kicker">Together, This Week</p>
+                <h2>我们的这一周</h2>
+                <p id="weeklyReviewRange"></p>
+              </div>
+              <button class="anniversary-close" id="weeklyReviewClose" type="button" aria-label="关闭本周回顾">×</button>
+            </header>
+            <div class="anniversary-dialog-body weekly-review-dialog-body">
+              <div class="weekly-review-loading" id="weeklyReviewLoading" hidden><i></i><span>正在整理这一周…</span></div>
+              <div class="weekly-review-content" id="weeklyReviewContent"></div>
+              <p class="status-line" id="weeklyReviewStatus"></p>
             </div>
-            <button id="weeklyReviewClose" type="button" aria-label="关闭本周回顾">×</button>
-          </header>
-          <div class="weekly-review-loading" id="weeklyReviewLoading" hidden><i></i><span>正在整理这一周…</span></div>
-          <div id="weeklyReviewContent"></div>
-          <p class="status-line" id="weeklyReviewStatus"></p>
-        </div>
-      </dialog>
+          </div>
+        </dialog>
+
+        <dialog class="anniversary-dialog thanks-dialog" id="thanksDialog" aria-labelledby="thanksDialogTitle">
+          <div class="thanks-dialog-shell">
+            <header class="anniversary-dialog-head thanks-dialog-head">
+              <div>
+                <p class="kicker">Little Notes</p>
+                <h2 id="thanksDialogTitle">感谢留言板</h2>
+                <p>随时留一句想记住的话。</p>
+              </div>
+              <button class="anniversary-close" id="thanksClose" type="button" aria-label="关闭留言板">×</button>
+            </header>
+
+            <div class="anniversary-dialog-body thanks-dialog-body">
+              <form class="thanks-composer" id="thanksForm" hidden>
+                <label>
+                  留一句话
+                  <textarea id="thanksBodyInput" rows="3" maxlength="180" required></textarea>
+                </label>
+                <fieldset class="thanks-colors">
+                  <legend>字的颜色</legend>
+                  <label class="active" style="--note-color:#2f6b3b">
+                    <input type="radio" name="thanksColor" value="#2f6b3b" checked />
+                    <span>森林绿</span>
+                  </label>
+                  <label style="--note-color:#d6544d">
+                    <input type="radio" name="thanksColor" value="#d6544d" />
+                    <span>珊瑚红</span>
+                  </label>
+                  <label style="--note-color:#2e6da4">
+                    <input type="radio" name="thanksColor" value="#2e6da4" />
+                    <span>晴空蓝</span>
+                  </label>
+                  <label style="--note-color:#81559b">
+                    <input type="radio" name="thanksColor" value="#81559b" />
+                    <span>葡萄紫</span>
+                  </label>
+                  <label style="--note-color:#a66b12">
+                    <input type="radio" name="thanksColor" value="#a66b12" />
+                    <span>麦穗金</span>
+                  </label>
+                </fieldset>
+                <div class="thanks-form-actions">
+                  <p class="status-line" id="thanksStatus"></p>
+                  <button class="primary" id="thanksSubmitButton" type="submit">贴到留言板</button>
+                  <button class="ghost-button" id="thanksCancelEdit" type="button" hidden>取消编辑</button>
+                </div>
+              </form>
+
+              <section class="thanks-board" id="thanksBoard" aria-live="polite"></section>
+            </div>
+          </div>
+        </dialog>
 
       <section class="overview" id="overview" hidden>
         <div class="overview-head">
@@ -237,11 +303,33 @@
           </div>
           <button class="today-mood-calendar-button" id="overviewMoodCalendar" type="button">查看心情日历</button>
         </div>
-        <div class="today-mood-status-row" id="todayMoodStatusRow">
-          <p class="today-mood-status" id="todayMoodStatus" role="status" aria-live="polite"></p>
-          <button class="today-mood-retry" id="todayMoodRetry" type="button" hidden>重试</button>
+        <div class="overview-mood-layout">
+          <section class="today-mood-panel" aria-labelledby="todayMoodPanelHeading">
+            <div class="today-mood-panel-heading">
+              <h3 id="todayMoodPanelHeading">今日心情</h3>
+              <p>家庭成员</p>
+            </div>
+            <div class="today-mood-status-row" id="todayMoodStatusRow">
+              <p class="today-mood-status" id="todayMoodStatus" role="status" aria-live="polite"></p>
+              <button class="today-mood-retry" id="todayMoodRetry" type="button" hidden>重试</button>
+            </div>
+            <div class="today-mood-grid" id="todayMoodGrid" aria-label="今日心情"></div>
+          </section>
+          <section class="overview-mood-month" id="overviewMoodMonth" aria-labelledby="overviewMoodMonthHeading" hidden>
+            <div class="overview-mood-month-heading">
+              <div>
+                <h3 id="overviewMoodMonthHeading">本月心情</h3>
+                <p id="overviewMoodMonthLabel">本月</p>
+              </div>
+              <span class="overview-mood-month-badge">心情日历</span>
+            </div>
+            <div class="overview-mood-calendar-weekdays" aria-hidden="true">
+              <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>
+            </div>
+            <div class="overview-mood-calendar-grid" id="overviewMoodCalendarGrid" aria-label="本月心情日历"></div>
+            <p class="overview-mood-month-meta" id="overviewMoodMonthMeta">0 条记录</p>
+          </section>
         </div>
-        <div class="today-mood-grid" id="todayMoodGrid" aria-label="今日心情"></div>
         <div class="quick-actions">
           <button id="quickPhoto" type="button"><span>01</span>发布日记</button>
           <button id="quickRecipe" type="button"><span>02</span>添加菜谱</button>

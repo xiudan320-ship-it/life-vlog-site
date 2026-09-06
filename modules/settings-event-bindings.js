@@ -1,5 +1,3 @@
-import { applySettingsNavigationSemantics, hideMobileSettingsSection, showMobileSettingsSection } from "./settings-view.js";
-
 export function bindSettingsEvents({ elements, state, controllers, core }) {
   const els = elements;
   const {
@@ -20,10 +18,10 @@ export function bindSettingsEvents({ elements, state, controllers, core }) {
   } = controllers.profilePreferences;
   const { openSettings: openSecretPinSettings } = controllers.secretPin;
   const {
-    closeSettingsDialog,
-    setActiveSettingsSection,
-    openSettingsChildDialog,
-    reopenSettingsAfterChildDialog,
+    openChildDialog: openSettingsChildDialog,
+    reopenAfterChildDialog: reopenSettingsAfterChildDialog,
+  } = controllers.settingsShell;
+  const {
     renderFamilyDialog,
     createFamily,
     addFamilyMember,
@@ -41,16 +39,9 @@ export function bindSettingsEvents({ elements, state, controllers, core }) {
     saveRecoveryKey,
   } = controllers.auth;
   const {
-    clear: clearAppCache,
-    refreshInfo: refreshCacheInfo,
     schedule: scheduleOfflineMediaCache,
     shouldAutoCache: shouldAutoCacheMedia,
   } = controllers.offlineCache;
-  const {
-    changeCacheLimit,
-    saveCacheLimitFromDialog,
-    applyCacheLimitPreset,
-  } = controllers.offlineSettings;
   const { loadMobileFeedLayout, setMobileFeedLayout } = controllers.layoutSettings;
   const textScale = controllers.textScale;
   const performanceDiagnostics = performanceDiagnosticsFromCore || controllers.performanceDiagnostics;
@@ -61,41 +52,6 @@ export function bindSettingsEvents({ elements, state, controllers, core }) {
   const { processQueue: processDiaryUploadQueue } = controllers.diaryComposer;
   const { renderGallery } = controllers.diaryFeed;
 
-  els.closeSettingsDialog.addEventListener("click", closeSettingsDialog);
-  els.settingsDialog.addEventListener("click", (event) => {
-    if (event.target === els.settingsDialog) closeSettingsDialog();
-    const button = event.target.closest("[data-settings-section]");
-    if (button && els.settingsDialog.contains(button)) {
-      setActiveSettingsSection(button.dataset.settingsSection);
-      showMobileSettingsSection(els.settingsDialog, button.dataset.settingsSection);
-    }
-    if (event.target.closest("[data-settings-back]")) {
-      hideMobileSettingsSection(els.settingsDialog);
-    }
-  });
-  const syncSettingsNavigationSemantics = () => {
-    applySettingsNavigationSemantics(els.settingsDialog);
-  };
-  const settingsViewport = window.matchMedia?.("(max-width: 700px)");
-  settingsViewport?.addEventListener?.("change", syncSettingsNavigationSemantics);
-  window.addEventListener("resize", syncSettingsNavigationSemantics);
-  els.settingsDialog.addEventListener("keydown", (event) => {
-    const currentTab = event.target.closest?.("[data-settings-section][role='tab']");
-    if (!currentTab || window.matchMedia?.("(max-width: 700px)").matches) return;
-    const tabs = [...els.settingsDialog.querySelectorAll("[data-settings-section][role='tab']")];
-    const currentIndex = tabs.indexOf(currentTab);
-    if (currentIndex < 0) return;
-    let nextIndex = currentIndex;
-    if (event.key === "ArrowDown" || event.key === "ArrowRight") nextIndex = (currentIndex + 1) % tabs.length;
-    else if (event.key === "ArrowUp" || event.key === "ArrowLeft") nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
-    else if (event.key === "Home") nextIndex = 0;
-    else if (event.key === "End") nextIndex = tabs.length - 1;
-    else return;
-    event.preventDefault();
-    const nextTab = tabs[nextIndex];
-    setActiveSettingsSection(nextTab.dataset.settingsSection);
-    nextTab.focus({ preventScroll: true });
-  });
   window.addEventListener("online", () => {
     updateNetworkStatus();
     showMiniToast("网络已恢复，正在同步", { kind: "success" });
@@ -156,23 +112,6 @@ export function bindSettingsEvents({ elements, state, controllers, core }) {
     button.setAttribute("aria-pressed", String(button.dataset.textScale === activeTextScale));
   });
   els.settingsTogglePerformance?.addEventListener("click", () => performanceDiagnostics.render());
-  els.refreshCacheInfoButton?.addEventListener("click", () => {
-    void refreshCacheInfo();
-  });
-  els.cacheLimitButton?.addEventListener("click", changeCacheLimit);
-  els.closeCacheLimitDialog?.addEventListener("click", () => els.cacheLimitDialog.close());
-  els.cancelCacheLimit?.addEventListener("click", () => els.cacheLimitDialog.close());
-  els.cacheLimitDialog?.addEventListener("click", (event) => {
-    if (event.target === els.cacheLimitDialog) els.cacheLimitDialog.close();
-  });
-  els.cacheLimitDialog?.addEventListener("close", reopenSettingsAfterChildDialog);
-  els.cacheLimitForm?.addEventListener("submit", saveCacheLimitFromDialog);
-  els.cacheLimitDialog?.querySelectorAll("[data-cache-limit-preset]").forEach((button) => {
-    button.addEventListener("click", () => applyCacheLimitPreset(button.dataset.cacheLimitPreset));
-  });
-  els.clearAppCacheButton?.addEventListener("click", () => {
-    void clearAppCache();
-  });
   els.closeAvatarDialog.addEventListener("click", () => els.avatarDialog.close());
   els.avatarDialog.addEventListener("click", (event) => {
     if (event.target === els.avatarDialog) els.avatarDialog.close();

@@ -34,7 +34,6 @@ class FakeElement {
     return this.children?.[selector] || null;
   }
 }
-
 function installGlobals(values) {
   const names = Object.keys(values);
   const previous = new Map(names.map((name) => [name, Object.getOwnPropertyDescriptor(globalThis, name)]));
@@ -129,7 +128,6 @@ test("push settings bind after lazy render and close locally before remote clean
       prependPhoto: () => {},
       loadNotifications: async () => {},
       openNotificationsPanel: async () => {},
-      setActiveSettingsSection: () => {},
       switchPage: () => {},
       openPhoto: () => {},
       showToast: () => {},
@@ -170,6 +168,113 @@ test("push settings bind after lazy render and close locally before remote clean
     await controller.disable();
     assert.equal(status.textContent, "这台设备的通知已关闭。", "missing subscription should be idempotent");
     assert.equal(requestCalls.length, 1, "idempotent local close should not retry without an endpoint");
+  } finally {
+    restore();
+  }
+});
+
+test("enabling push reads the VAPID key and registers the device subscription", async () => {
+  const state = new FakeElement();
+  const detail = new FakeElement();
+  const enable = new FakeElement();
+  const disable = new FakeElement();
+  const status = new FakeElement();
+  const documentTarget = {
+    elements: new Map([
+      ["#pushNotificationState", state],
+      ["#pushNotificationDetail", detail],
+      ["#enablePushNotifications", enable],
+      ["#disablePushNotifications", disable],
+      ["#pushNotificationStatus", status],
+    ]),
+    querySelector(selector) {
+      return this.elements.get(selector) || null;
+    },
+  };
+  const storage = new Map();
+  const requestCalls = [];
+  const toastCalls = [];
+  let permission = "default";
+  let subscription = null;
+  let subscribeOptions = null;
+  const notification = {
+    get permission() {
+      return permission;
+    },
+    requestPermission: async () => {
+      permission = "granted";
+      return permission;
+    },
+  };
+  const registration = {
+    pushManager: {
+      getSubscription: async () => subscription,
+      subscribe: async (options) => {
+        subscribeOptions = options;
+        subscription = {
+          endpoint: "https://push.example/fixture-enable-endpoint",
+          toJSON: () => ({ endpoint: "https://push.example/fixture-enable-endpoint" }),
+        };
+        return subscription;
+      },
+    },
+  };
+  const navigatorTarget = {
+    serviceWorker: { ready: Promise.resolve(registration) },
+    userAgent: "Fixture Browser",
+  };
+  const windowTarget = {
+    PushManager: class PushManager {},
+    Notification: notification,
+    matchMedia: () => ({ matches: false }),
+    navigator: navigatorTarget,
+    protocol: "https:",
+  };
+  const restore = installGlobals({
+    document: documentTarget,
+    navigator: navigatorTarget,
+    window: windowTarget,
+    Notification: notification,
+    localStorage: {
+      getItem: (key) => storage.get(key) || null,
+      setItem: (key, value) => storage.set(key, String(value)),
+    },
+  });
+
+  try {
+    const controller = createPushController({
+      elements: {},
+      request: async (path, options) => {
+        requestCalls.push({ path, options });
+        if (path === "/api/push/config") return { data: { publicKey: "AQID" } };
+        return { data: { ok: true } };
+      },
+      getSession: () => ({ user: { id: "fixture-user" } }),
+      getDatabase: () => null,
+      getPhotos: () => [],
+      prependPhoto: () => {},
+      loadNotifications: async () => {},
+      openNotificationsPanel: async () => {},
+      setActiveSettingsSection: () => {},
+      switchPage: () => {},
+      openPhoto: () => {},
+      showToast: (...args) => toastCalls.push(args),
+    });
+
+    assert.equal(await controller.enable(), true);
+    assert.deepEqual(requestCalls.map(({ path }) => path), [
+      "/api/push/config",
+      "/api/push/subscribe",
+    ]);
+    assert.equal(requestCalls[1].options.method, "POST");
+    assert.equal(subscribeOptions.userVisibleOnly, true);
+    assert.deepEqual([...subscribeOptions.applicationServerKey], [1, 2, 3]);
+    assert.equal(status.textContent, "通知已开启，这台设备会收到家庭新消息。");
+    assert.equal(state.textContent, "已开启");
+    assert.equal(enable.hidden, true);
+    assert.equal(disable.hidden, false);
+    assert.equal(enable.getAttribute("aria-busy"), null);
+    assert.deepEqual(toastCalls, [["通知已开启", { kind: "success", placement: "center" }]]);
   } finally {
     restore();
   }

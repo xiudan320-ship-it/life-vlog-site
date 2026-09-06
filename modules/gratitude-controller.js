@@ -23,6 +23,7 @@ export function createGratitudeController({
   rollbackTrashItem,
 }) {
   let editingId = null;
+  let dialogReturnFocus = null;
 
   function normalizeColor(color) {
     return allowedColors.has(color) ? color : defaultColor;
@@ -67,13 +68,13 @@ export function createGratitudeController({
   }
 
   function getSelectedColor() {
-    const selected = elements.thanksForm.querySelector('input[name="thanksColor"]:checked');
+    const selected = elements.thanksForm?.querySelector('input[name="thanksColor"]:checked');
     return normalizeColor(selected?.value);
   }
 
   function setSelectedColor(color) {
     const safeColor = normalizeColor(color);
-    elements.thanksForm.querySelectorAll('input[name="thanksColor"]').forEach((input) => {
+    elements.thanksForm?.querySelectorAll('input[name="thanksColor"]').forEach((input) => {
       input.checked = input.value === safeColor;
       input.closest("label")?.classList.toggle("active", input.checked);
     });
@@ -81,11 +82,11 @@ export function createGratitudeController({
 
   function resetForm() {
     editingId = null;
-    elements.thanksForm.reset();
+    elements.thanksForm?.reset();
     setSelectedColor(getProfileColor() || loadColor());
-    elements.thanksSubmitButton.textContent = "贴到留言板";
-    elements.thanksCancelEdit.hidden = true;
-    elements.thanksStatus.textContent = "";
+    if (elements.thanksSubmitButton) elements.thanksSubmitButton.textContent = "贴到留言板";
+    if (elements.thanksCancelEdit) elements.thanksCancelEdit.hidden = true;
+    if (elements.thanksStatus) elements.thanksStatus.textContent = "";
   }
 
   function render() {
@@ -99,6 +100,39 @@ export function createGratitudeController({
       onEdit: edit,
       onDelete: remove,
     });
+  }
+
+  function openDialog(trigger = null) {
+    const dialog = elements.thanksDialog;
+    const documentTarget = dialog?.ownerDocument || globalThis.document;
+    if (!dialog || dialog.open || !getSession()) return false;
+    dialogReturnFocus = trigger?.nodeType === 1
+      ? trigger
+      : documentTarget?.activeElement || elements.thanksOpen || null;
+    resetForm();
+    render();
+    dialog.showModal();
+    dialog.ownerDocument?.defaultView?.setTimeout?.(
+      () => elements.thanksBodyInput?.focus({ preventScroll: true }),
+      0
+    );
+    return true;
+  }
+
+  function closeDialog() {
+    if (elements.thanksDialog?.open) elements.thanksDialog.close();
+  }
+
+  function handleDialogClose() {
+    const target = dialogReturnFocus;
+    dialogReturnFocus = null;
+    if (target?.isConnected && !target.hidden && !target.disabled) {
+      target.focus({ preventScroll: true });
+      return;
+    }
+    if (elements.thanksOpen?.isConnected && !elements.thanksOpen.hidden && !elements.thanksOpen.disabled) {
+      elements.thanksOpen.focus({ preventScroll: true });
+    }
   }
 
   async function submit(event) {
@@ -174,11 +208,14 @@ export function createGratitudeController({
   }
 
   return {
+    closeDialog,
     edit,
     getColorStorageKey,
+    handleDialogClose,
     getSelectedColor,
     loadColor,
     normalizeColor,
+    openDialog,
     persistColor,
     remove,
     render,

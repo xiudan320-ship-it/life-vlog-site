@@ -1,9 +1,15 @@
+import {
+  getPrimaryNavigationItem,
+  PRIMARY_NAVIGATION_MAX_ENABLED,
+} from "./primary-navigation-domain.js";
+
 function getDocument(root) {
   return root?.ownerDocument || globalThis.document;
 }
 
 function isActiveItem(item, { activePage = "gallery", activeFilter = "全部" } = {}) {
   if (item.type === "mode") return item.mode === "vlog" && activePage === "gallery" && activeFilter === "VLOG";
+  if (item.type === "dialog") return false;
   return item.route === activePage && (item.id !== "gallery" || activeFilter !== "VLOG");
 }
 
@@ -19,6 +25,10 @@ export function renderPrimaryNavigation(root, items = []) {
     button.textContent = item.label;
     button.setAttribute("aria-label", item.label);
     if (item.type === "mode") button.setAttribute("aria-pressed", "false");
+    if (item.type === "dialog") {
+      button.setAttribute("aria-haspopup", "dialog");
+      button.setAttribute("aria-controls", `${item.dialog}Dialog`);
+    }
     fragment.append(button);
   });
   root.replaceChildren(fragment);
@@ -33,18 +43,18 @@ export function syncPrimaryNavigationState(
   const buttons = [...root.querySelectorAll("[data-primary-nav-id]")];
   let activeId = "";
   buttons.forEach((button) => {
+    const item = getPrimaryNavigationItem(button.dataset.primaryNavId) || {
+      id: button.dataset.primaryNavId,
+      type: "route",
+      route: button.dataset.primaryNavId,
+    };
     const itemActive = isActiveItem(
-      {
-        id: button.dataset.primaryNavId,
-        type: button.dataset.primaryNavId === "vlog" ? "mode" : "route",
-        mode: button.dataset.primaryNavId === "vlog" ? "vlog" : "",
-        route: button.dataset.primaryNavId,
-      },
+      item,
       { activePage, activeFilter }
     );
     if (itemActive) activeId = button.dataset.primaryNavId;
     button.classList.toggle("active", itemActive);
-    if (button.dataset.primaryNavId === "vlog") {
+    if (item.type === "mode") {
       button.setAttribute("aria-pressed", String(itemActive));
       button.removeAttribute("aria-current");
     } else if (itemActive) {
@@ -81,6 +91,7 @@ export function renderPrimaryNavigationSettings(root, items = [], enabledIds = [
   if (!list) return;
   const documentTarget = getDocument(root);
   const enabled = new Set(enabledIds);
+  const enabledTotal = enabled.size;
   const fragment = documentTarget.createDocumentFragment();
   items.forEach((item, index) => {
     const enabledItem = enabled.has(item.id);
@@ -104,7 +115,8 @@ export function renderPrimaryNavigationSettings(root, items = [], enabledIds = [
     toggle.type = "checkbox";
     toggle.dataset.primaryNavToggle = item.id;
     toggle.checked = enabledItem;
-    toggle.disabled = item.id === "gallery";
+    toggle.disabled =
+      item.id === "gallery" || (!enabledItem && enabledTotal >= PRIMARY_NAVIGATION_MAX_ENABLED);
     toggle.setAttribute("aria-label", `显示${item.label}`);
     const toggleText = documentTarget.createElement("span");
     toggleText.textContent = "显示";

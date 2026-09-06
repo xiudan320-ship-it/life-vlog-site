@@ -7,7 +7,7 @@ workers_dev = true
 preview_urls = false
 
 [triggers]
-crons = ["20 18 * * *"]
+crons = ["0 11 * * *", "20 18 * * *"]
 
 [vars]
 PUBLIC_R2_URL = "https://pub-47959f26cde042c3b37bc0f8f3f441ce.r2.dev"
