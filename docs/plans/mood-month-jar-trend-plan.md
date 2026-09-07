@@ -1,5 +1,10 @@
 # 心情日记完整月历、玻璃心情罐与趋势曲线规划
 
+> Status: Implemented (not deployed)
+> Scope: 仅在当前任务直接涉及本专项时查阅
+> Default loading: No
+> Source of truth: 当前源码及对应长期系统文档
+
 > 状态：Implemented（本地已实现并完成 fixture 门禁，未部署）
 > 日期：2026-09-01
 > 范围：心情日记路由的月视图、月度汇总、保存后刷新与“全部日记”入口位置

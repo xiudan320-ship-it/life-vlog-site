@@ -1,5 +1,10 @@
 # 咻蛋之家性能、PWA 与体验完整升级规划（Luna 执行版）
 
+> Status: Planned
+> Scope: 仅在当前任务直接涉及本专项时查阅
+> Default loading: No
+> Source of truth: 当前源码及对应长期系统文档
+
 > 文档日期：2026-08-27
 >
 > 执行对象：Luna
@@ -69,7 +74,7 @@
 
 ## 3. 不可违反的执行规则
 
-1. 完整阅读根目录 AGENTS.md、docs/MODULE_MAP.md、docs/release-checklist.md、docs/ui-optimization-plan.md、design-system/life-vlog/MASTER.md 和 ui-ux-pro-max 的 SKILL.md。
+1. 完整阅读根目录 AGENTS.md、docs/MODULE_MAP.md、docs/release-checklist.md、docs/plans/ui-optimization-plan.md、design-system/life-vlog/MASTER.md 和 ui-ux-pro-max 的 SKILL.md。
 2. 发生冲突时，优先级为：用户本轮明确要求 > 当前 AGENTS.md > 本规划书 > 旧设计系统文档。旧设计系统中“浏览器缩放必须开放”和“必须使用测试账户”的内容已经过时，不得据此改回。
 3. 手机 viewport 保持现状：width=device-width、initial-scale=1.0、maximum-scale=1.0、user-scalable=no、viewport-fit=cover。不得开放双指缩放。
 4. 不要求测试账户。登录态逻辑用现有自动化 fixture、mock 或当前可用会话验证；不得向用户索要或在仓库写入测试账号、密码、Token。

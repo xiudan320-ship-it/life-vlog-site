@@ -48,6 +48,7 @@
 - `modules/route-loader.js` 与 `modules/app-navigation-controller.js` 共同维护 latest-wins 路由事务。过期的 chunk/activate 结果不得提交页面显隐、URL、焦点、滚动或 busy 状态。
 - `modules/primary-navigation-domain.js` 是顶部分页注册表和配置规范化的唯一事实来源；`primary-navigation-controller.js` 通过现有 `preferences-store.js` 按用户/设备作用域读写，`primary-navigation-view.js` 只渲染当前可见入口和设置列表。VLOG 由 mode action 接入，不能被序列化成 `?page=vlog`。
 - `modules/push-controller.js` 的设置绑定只在 `settings-route.js` 完成 DOM 渲染后执行；关闭设备通知时本机 `unsubscribe()` 与 Worker 端点清理是分离失败边界，本机状态优先。
+- `modules/offline-settings-controller.js` 是设置页缓存 UI 的唯一业务拥有者：按当前用户读取有限整数容量和 `off|wifi` 策略，生成 view model，绑定策略/容量/下载/清理事件，并在 `settings-route.js` 完成模板收集和通用设置事件后幂等初始化；`cache-management-view.js` 只渲染 DOM 和转发原生事件，`offline-cache-controller.js` 只提供缓存数据与调度动作。
 - `modules/diary-video-layout.js` 管理详情媒体生命周期：普通视频进入日记/VLOG 详情后静音自动播放并保留原生控件，Live Photo 使用静音循环预览；加载、失败、重试、切图和关闭都会清理状态与监听。
 - `modules/mood-month-summary-domain.js` 从当前月份和稳定两席派生总数、最多心情、三档趋势、缺口桥接段、确定性罐体素材元数据及真实日期趋势坐标；`modules/mood-jar-physics.js` 负责共享 `360×480` 几何、确定性出生计划、固定步长粒子碰撞、瓶壁/椭圆底约束、休眠和最终布局；`modules/mood-month-summary-view.js` 负责透明圆肚瓶资源层、内腔裁切、原生按钮重播、罐体旁月份控件、数据/视口动效状态机、隐藏路由激活后的布局复查、焦点带触发、单一 rAF 到 transform 的映射、原生 SVG 趋势图、提示、明细和动效降级。`mood-diary-controller.js` 负责请求、缓存、latest-wins、上下文迟到重读、写后 canonical 对齐以及月份 action 的触发模块视口锚点恢复，不监听滚动或操作动画 DOM；月份前后控件复用同一 controller action。
 - `modules/comment-thread-domain.js` 是评论树到扁平行的唯一转换边界：保留 root/depth/reply target 语义，稳定处理孤儿、循环和重复 id；`mobile-diary-view.js` 与 `social-controller.js` 只消费该模型并渲染同级 `.photo-comment`。

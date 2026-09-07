@@ -224,4 +224,4 @@ Cloudflare token 只能通过环境变量或脚本已有的本机 token 文件�
 - 优先复用现有依赖和模块。
 - UI 任务必须使用 `ui-ux-pro-max` 并完成响应式、触控、主题和无障碍检查。
 - 不修改或清理不属于当前任务的工作树内容。
-- 每次修改都必须按 [`CHANGE_WORKFLOW.md`](CHANGE_WORKFLOW.md) 更新 `CHANGELOG.md` 和受影响的技术文档。
+- 发生系统事实变化时，按 [`README.md`](README.md) 的同步判断更新 `CHANGELOG.md` 和受影响的技术文档；无行为的低风险修改通常无需更新长期文档。

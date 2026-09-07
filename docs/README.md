@@ -1,56 +1,78 @@
 # 项目文档入口
 
-新开发者、AI Agent 或自动化程序接手项目时，按以下顺序阅读：
+本文件是项目文档路由表，不是文档阅读清单。
 
-1. [`../AGENTS.md`](../AGENTS.md)：不可违反的实现、修改与交付规则。
-2. [`TECHNICAL_OVERVIEW.md`](TECHNICAL_OVERVIEW.md)：当前系统架构、运行时、数据流、媒体、PWA、测试、构建和部署总览。
-3. [`MODULE_MAP.md`](MODULE_MAP.md)：根据功能、页面、模块或故障快速定位对应源码。
-4. [`../CHANGELOG.md`](../CHANGELOG.md)：已交付及当前仓库中的变更记录，以及对应的用户影响。
-5. [`CHANGE_WORKFLOW.md`](CHANGE_WORKFLOW.md)：每次修改需要遵循的记录、文档同步和交付流程。
-6. [`release-checklist.md`](release-checklist.md)：发布前、发布过程和发布后的可执行验收门禁。
-7. [`../design-system/life-vlog/MASTER.md`](../design-system/life-vlog/MASTER.md)：全局 UI、视觉、组件和交互设计规范。
+> 核心原则：先定位再读取，先局部后全局；只有任务风险和实际改动需要时，才扩大上下文、测试和文档同步范围。
 
-## 文档优先级
+## 标准任务启动流程
 
-项目中的文档分为“当前系统事实”和“历史决策背景”两类。
+普通任务默认按以下顺序执行：
 
-以下内容用于描述当前系统事实：
+1. 阅读根目录 `AGENTS.md` 和本文件。
+2. 运行 `git status --short`，确认工作区现有修改。
+3. 使用文件名、模块名、UI 文案、函数名或 `rg` 搜索定位相关源码。
+4. 先读取直接相关源码，再根据任务路由决定是否补充文档上下文。
+5. 确定范围后实施最小必要修改。
+6. 运行与改动风险相称的验证。
+7. 按同步判断决定是否更新 CHANGELOG 或长期文档。
+8. 完成前运行 `git diff --check`。
+9. 未确认相关性前，不批量读取整个 `docs/`。
 
-* 当前源码和配置
-* `AGENTS.md`
-* `TECHNICAL_OVERVIEW.md`
-* `MODULE_MAP.md`
-* `CHANGELOG.md`
-* `CHANGE_WORKFLOW.md`
-* `release-checklist.md`
-* `design-system/`
+## 默认不读取
 
-专项规划书、恢复记录、审计报告和阶段性任务文档用于记录某一轮工作的背景、原因、目标、范围、过程和验收标准，不代表当前系统状态。
+以下内容不属于普通任务的默认上下文：
 
-任务完成后，应以当前源码、`TECHNICAL_OVERVIEW.md`、`MODULE_MAP.md` 和 `CHANGELOG.md` 为准。
+- `docs/plans/`
+- `docs/history/`
+- 完整 `CHANGELOG.md` 历史
+- 完整 `TECHNICAL_OVERVIEW.md`
+- 完整 `MODULE_MAP.md`
+- `release-checklist.md`
+- design system 全量内容
+- 与当前任务无关的专项规划、审计、恢复和历史记录
 
-如果专项规划、历史审计记录与当前源码或当前系统文档存在冲突，以当前已验证的实现和最新系统事实文档为准，并修正文档差异。
+只有当前任务确实需要这些信息时才读取。大型文档先搜索标题或关键词，再读取相关章节，不默认读取全文。
 
-## 历史与专项文档
+## 任务路由
 
-以下类型文档不属于默认接手必读内容，应根据具体任务按需查阅：
+| 当前任务 | 默认动作 | 额外文档 |
+| --- | --- | --- |
+| 小型 Bug、文案、局部样式 | 直接搜索并读取相关源码 | 通常不需要 |
+| 普通业务功能 | 搜索对应模块和测试 | 必要时读取 `MODULE_MAP.md` 相关章节 |
+| 新增、删除、移动模块 | 定位模块边界 | `MODULE_MAP.md` 相关章节 |
+| 模块职责发生变化 | 确认现有职责 | `MODULE_MAP.md` 相关章节 |
+| 架构变化 | 确认当前架构 | `TECHNICAL_OVERVIEW.md` 相关章节 |
+| 数据流、状态边界变化 | 定位数据路径 | `TECHNICAL_OVERVIEW.md` 相关章节 |
+| API / 长期接口契约变化 | 定位调用链 | `TECHNICAL_OVERVIEW.md`，必要时 `MODULE_MAP.md` |
+| 数据库表、字段、索引变化 | 检查 schema 和调用方 | `TECHNICAL_OVERVIEW.md` 相关章节 |
+| PWA、缓存、离线行为 | 定位 service worker / cache 逻辑 | `TECHNICAL_OVERVIEW.md` 相关章节 |
+| 构建、运行时、部署变化 | 检查相关配置 | `TECHNICAL_OVERVIEW.md`；发布时再读 `release-checklist.md` |
+| UI / UX / 响应式 / 无障碍 | 搜索对应页面和组件 | 只读取 design system 相关章节 |
+| 发布任务 | 检查当前待发布变化 | `release-checklist.md` |
+| 调查历史回归 | 先搜索代码和 CHANGELOG | 必要时进入 `plans/` 或 `history/` |
+| 某个专项继续实施 | 确认专项名称 | 只读取对应 plan |
+| 修改文档管理规则 | 定位规则来源 | `CHANGE_WORKFLOW.md` |
 
-* 专项功能规划
-* 重构规划
-* 故障调查报告
-* 数据迁移方案
-* Git 恢复记录
-* 阶段性审计报告
-* 发布事故复盘
-* 历史验收记录
+## 搜索范围
 
-例如：
+普通源码调查优先搜索：
 
-[`recovery-audit-2026-08-30.md`](recovery-audit-2026-08-30.md)：记录 2026-08-30 Git 恢复与整合过程中的保存点、差异和验收证据，仅在调查该次恢复、追溯历史变更或验证恢复结果时查阅。
+- `modules/`
+- `src/`
+- `styles/`
+- `tests/`
+- `scripts/`
+- `cloudflare-worker/`
+- 与任务直接相关的根目录源码或配置
 
-[`mood-month-visual-remediation-plan.md`](mood-month-visual-remediation-plan.md)：记录心情罐错位、滚动时未播放下落动画及趋势 SVG 不可见问题的后续修复方案和可视验收标准；在修复完成前不得把它当作当前实现事实。
+默认不要搜索：
 
-[`mood-jar-replay-large-trend-plan.md`](mood-jar-replay-large-trend-plan.md)：记录心情瓶高保真复刻、缓慢分批落入、点击/键盘重播和手机大趋势图的 V2 实施与验收方案；其目标覆盖旧规划中的瓶体外观、动画节奏和手机趋势尺寸。
+- `node_modules/`
+- `dist/`
+- `.cloudflare-pages-dist/`
+- 日志文件和构建产物
+- `docs/plans/`
+- `docs/history/`
 
 [`mobile-comment-thread-and-jar-physics-plan.md`](mobile-comment-thread-and-jar-physics-plan.md)：记录移动端深层留言不再累计缩进，以及心情表情使用确定性物理碰撞缓慢落入并可重播的 V3 实施与验收方案；其物理运动目标覆盖 V2 的固定槽位下落方案。
 
@@ -58,147 +80,42 @@
 
 ## 文档职责
 
-| 文档                      | 记录什么                       | 什么时候更新                                                  |
-| ----------------------- | -------------------------- | ------------------------------------------------------- |
-| `AGENTS.md`             | 不可违反的项目级开发、修改、测试和交付规则      | 项目级强制规则发生变化时                                            |
-| `TECHNICAL_OVERVIEW.md` | 当前整体架构、运行时、数据流、关键依赖和长期技术契约 | 架构、数据流、构建、部署、PWA、关键依赖或系统级行为发生变化时                        |
-| `MODULE_MAP.md`         | 功能、页面、职责和源码模块之间的映射         | 新增、删除、移动模块，或模块职责发生变化时                                   |
-| `CHANGELOG.md`          | 仓库修改内容、行为变化和用户影响           | 按 `AGENTS.md` 和 `CHANGE_WORKFLOW.md` 规定，在需要记录的仓库修改中同步更新 |
-| `CHANGE_WORKFLOW.md`    | 修改过程中必须遵循的文档同步、验证和交付流程     | 文档管理、修改流程或交付规则本身发生变化时                                   |
-| `release-checklist.md`  | 发布前、发布中和发布后的测试、部署和线上验收门禁   | 测试方式、部署方式、发布流程或线上验收方式发生变化时                              |
-| `design-system/`        | 全局视觉语言、组件规范、交互规则和页面特例      | UI 语言、组件规范、交互模式或页面特例发生变化时                               |
-| 专项规划 / 审计 / 恢复文档        | 单次任务的背景、目标、范围、决策、过程和验收证据   | 对应专项任务执行期间更新；任务结束后原则上转为历史记录                             |
+| 文档 | 负责回答 |
+| --- | --- |
+| `AGENTS.md` | 绝对不能违反的项目级规则 |
+| 本文件 | 这次任务应该读取什么、同步什么 |
+| `TECHNICAL_OVERVIEW.md` | 当前架构、运行时、数据流和系统契约 |
+| `MODULE_MAP.md` | 功能、页面、职责和源码模块映射 |
+| `CHANGELOG.md` | 值得追踪的重要变化及用户影响 |
+| `CHANGE_WORKFLOW.md` | 已决定修改后如何记录、测试和交付 |
+| `release-checklist.md` | 发布前后验收门禁 |
+| `design-system/` | 全局 UI、视觉和交互规范 |
+| `plans/` | 复杂专项的计划和设计决策，默认不读 |
+| `history/` | 已结束的恢复、审计和历史记录，默认不读 |
 
 ## 修改后的文档同步原则
 
-修改代码时，不应机械地修改所有文档，而应根据变更实际影响同步对应文档。
+修改代码时，根据实际影响同步对应文档，不机械更新全部文档：
 
-常见情况如下：
+| 实际变化 | 通常需要检查或更新 |
+| --- | --- |
+| 用户功能新增、删除或明显变化 | `CHANGELOG.md` |
+| 用户可见缺陷修复 | `CHANGELOG.md` |
+| 新增、删除、移动模块 | `MODULE_MAP.md`；有重要影响时加 CHANGELOG |
+| 模块职责发生实质变化 | `MODULE_MAP.md`；有重要影响时加 CHANGELOG |
+| 架构、数据流或状态契约变化 | `TECHNICAL_OVERVIEW.md` + CHANGELOG |
+| API、数据库或长期接口契约变化 | `TECHNICAL_OVERVIEW.md`，必要时 `MODULE_MAP.md` + CHANGELOG |
+| PWA、缓存或离线行为变化 | `TECHNICAL_OVERVIEW.md` + CHANGELOG |
+| 构建、部署或运行方式变化 | `TECHNICAL_OVERVIEW.md`、`release-checklist.md` + CHANGELOG |
+| 全局 UI / UX 规范变化 | design system + CHANGELOG |
+| 单页面局部视觉修复 | 通常只需 CHANGELOG；无行为的小调整可以不记 |
+| 发布门禁变化 | `release-checklist.md` |
+| 拼写、格式、注释、格式化或无行为小整理 | 默认无需同步长期文档和 CHANGELOG |
 
-| 修改类型               | 通常需要检查或更新                                                     |
-| ------------------ | ------------------------------------------------------------- |
-| 新增或修改业务功能          | `CHANGELOG.md`、`MODULE_MAP.md`                                |
-| 修改系统架构             | `TECHNICAL_OVERVIEW.md`、`MODULE_MAP.md`、`CHANGELOG.md`        |
-| 新增、删除或移动源码模块       | `MODULE_MAP.md`、`CHANGELOG.md`                                |
-| 修改数据结构或数据流         | `TECHNICAL_OVERVIEW.md`、`CHANGELOG.md`                        |
-| 修改 API、状态管理或长期接口契约 | `TECHNICAL_OVERVIEW.md`、`MODULE_MAP.md`、`CHANGELOG.md`        |
-| 修改构建、部署或运行方式       | `TECHNICAL_OVERVIEW.md`、`release-checklist.md`、`CHANGELOG.md` |
-| 修改 PWA、缓存或离线行为     | `TECHNICAL_OVERVIEW.md`、`release-checklist.md`、`CHANGELOG.md` |
-| 修改测试策略或发布门禁        | `release-checklist.md`，必要时更新 `TECHNICAL_OVERVIEW.md`          |
-| 修改全局 UI / UX 规则    | `design-system/`、`CHANGELOG.md`                               |
-| 修改单个页面但形成新的可复用设计规则 | `design-system/`、`CHANGELOG.md`                               |
-| 修改项目级开发或交付规则       | `AGENTS.md`、`CHANGE_WORKFLOW.md`                              |
-| 单纯调查、恢复或专项分析       | 新建专项记录；除非当前系统事实发生变化，否则不要改写长期文档                                |
+最终是否需要更新某个文档，默认按本表和 `AGENTS.md` 判断；存在歧义或涉及文档、测试、发布、交付流程时，再查 `CHANGE_WORKFLOW.md`。
 
-最终是否需要更新某个文档，以 `AGENTS.md` 和 `CHANGE_WORKFLOW.md` 中的强制规则为准。
+## 当前事实与历史记录
 
-## 接手项目时的基本判断原则
+当前系统状态以源码、配置和对应长期系统文档为准。`plans/` 与 `history/` 只记录专项背景、决策、审计或恢复证据，不代表当前实现；发生冲突时先确认源码和实际运行行为，再按任务路由检查相关章节。
 
-阅读文档时，应区分以下三种内容：
-
-### 1. 当前事实
-
-表示仓库现在实际如何工作。
-
-例如：
-
-* 当前架构
-* 当前模块职责
-* 当前部署流程
-* 当前测试方式
-* 当前 UI 规范
-* 当前已经存在的功能
-
-这类信息应该维护在长期系统文档中。
-
-### 2. 计划状态
-
-表示准备进行但尚未完全落地的修改。
-
-例如：
-
-* 下一阶段重构方案
-* 尚未实施的数据迁移
-* 规划中的页面改版
-* 尚未完成的技术债治理
-
-计划不应提前写成当前系统事实。
-
-如果确实需要记录，应明确标注为：
-
-* Planned
-* In Progress
-* Proposed
-* TODO
-
-或放入对应专项规划文档。
-
-### 3. 历史记录
-
-表示曾经发生过，但已经不再描述当前状态的事情。
-
-例如：
-
-* Git 恢复过程
-* 已完成的专项迁移
-* 历史故障调查
-* 已关闭问题的分析
-* 旧架构迁移方案
-
-这类文档应保留用于追溯，但不应成为新接手者默认理解当前系统的主要依据。
-
-## 冲突处理
-
-当源码、长期文档和专项文档之间存在不一致时：
-
-1. 先确认当前源码和实际运行行为。
-2. 检查 `AGENTS.md` 是否定义了相关强制规则。
-3. 检查最近的 `CHANGELOG.md` 记录。
-4. 对照 `TECHNICAL_OVERVIEW.md` 和 `MODULE_MAP.md`。
-5. 将专项规划、恢复记录或历史审计作为背景证据，而不是默认事实来源。
-6. 确认文档已经过期后，应在本次修改中同步修正，而不是继续让冲突存在。
-
-不要为了让文档与旧规划一致而修改正确的当前实现。
-
-## 文档维护目标
-
-项目文档应满足以下目标：
-
-* 新接手者可以快速建立正确的系统模型。
-* 功能或故障可以快速定位到源码。
-* 当前架构和历史决策不会混淆。
-* 计划中的内容不会被误认为已经实现。
-* 每次重要修改都可以追溯。
-* 发布前存在明确、可执行的验收标准。
-* UI 和交互规则有统一来源。
-* 专项任务完成后，不会继续污染长期系统事实。
-
-## 文档清理原则
-
-定期检查以下问题：
-
-* 是否存在多个文档重复描述同一当前事实。
-* 是否存在已经失效但仍位于默认阅读入口的专项文档。
-* 是否存在已经落地的规划仍然以“未来方案”形式存在。
-* 是否存在源码已经变化但 `MODULE_MAP.md` 未同步。
-* 是否存在架构已经变化但 `TECHNICAL_OVERVIEW.md` 未同步。
-* 是否存在发布方式已经变化但 `release-checklist.md` 仍使用旧流程。
-* 是否存在 UI 规则已经形成，但只记录在某次任务说明中而没有进入 `design-system/`。
-* 是否存在长期文档引用已经删除、移动或重命名的文件。
-
-历史记录原则上不需要删除。
-
-如果文档仍具有以下价值，应优先归档或保留：
-
-* 决策依据
-* 恢复依据
-* 审计证据
-* 故障复盘
-* 数据迁移记录
-* 重大架构变更背景
-
-只有确定文档已经完全无效、没有审计价值、没有历史参考价值，并且没有被其他文档引用时，才考虑删除。
-
----
-
-本入口文档最后核验：2026-08-30
+当长期文档过期时，应在当前修改中同步修正；不要为了让实现符合旧 plan 而修改正确的当前代码。

@@ -1,5 +1,10 @@
 # 咻蛋之家下一阶段优化与质量加固规划
 
+> Status: Planned
+> Scope: 仅在当前任务直接涉及本专项时查阅
+> Default loading: No
+> Source of truth: 当前源码及对应长期系统文档
+
 > 编写日期：2026-08-27  
 > 规划基线：正式站 `https://life-vlog-site.pages.dev`，部署版本 `629038c9.life-vlog-site.pages.dev`  
 > 代码审计基线：Luna 任务“执行性能与 PWA 完整升级”的当前工作树  

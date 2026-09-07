@@ -2,7 +2,7 @@
 
 一个给家庭成员一起用的生活日记网页软件。前端部署在 Cloudflare Pages，登录、数据库、图片上传和私密内容都走 Cloudflare Worker + D1 + R2。
 
-项目技术总览和维护入口见 [`docs/README.md`](docs/README.md)。新对话或其他程序接手前应先阅读该索引、[`docs/TECHNICAL_OVERVIEW.md`](docs/TECHNICAL_OVERVIEW.md) 与 [`CHANGELOG.md`](CHANGELOG.md)。
+项目文档路由和维护入口见 [`docs/README.md`](docs/README.md)。新对话或其他程序接手前先阅读该索引，再按任务类型查阅其中指向的文档；不要批量读取整个 `docs/`。当前未发布变更默认查看 [`CHANGELOG.md`](CHANGELOG.md) 的 `[Unreleased]`。
 
 线上地址：
 
@@ -62,4 +62,4 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\deploy-cloudflare-pages.ps
 
 ## 变更记录
 
-每次修改代码、样式、配置、数据库结构、依赖、测试或部署逻辑，都必须同步更新 [`CHANGELOG.md`](CHANGELOG.md)。完整规则见 [`docs/CHANGE_WORKFLOW.md`](docs/CHANGE_WORKFLOW.md)。
+发生用户可见行为、系统行为或重要工程影响时，按文档路由同步 [`CHANGELOG.md`](CHANGELOG.md)；纯拼写、排版、注释和无行为小整理通常无需记录。完整规则见 [`docs/README.md`](docs/README.md)。
