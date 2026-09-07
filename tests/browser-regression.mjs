@@ -264,6 +264,51 @@ async function testNavigationAndAuth(viewport, label) {
   await context.close();
 }
 
+async function testDiaryFeedLayout(viewport, label) {
+  const context = await browser.newContext({ viewport, serviceWorkers: "block" });
+  const fixture = createCloudflareApiFixture();
+  await fixture.install(context);
+  const page = await context.newPage();
+  const pageErrors = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  await installPseudoSession(page);
+  try {
+    await page.goto(`${baseUrl}/`, { waitUntil: "domcontentloaded" });
+    await page.waitForSelector("#gallery .photo-card", { state: "visible", timeout: 30000 });
+    await page.waitForFunction(() => [...document.querySelectorAll("#gallery .photo-card")].every((card) => {
+      const span = Number.parseInt(getComputedStyle(card).getPropertyValue("--masonry-span"), 10);
+      return Number.isFinite(span) && span >= 1;
+    }), null, { timeout: 30000 });
+
+    const layout = await page.evaluate(() => {
+      const gallery = document.querySelector("#gallery");
+      const cards = [...gallery.querySelectorAll(".photo-card")];
+      const style = getComputedStyle(gallery);
+      const rects = cards.map((card) => card.getBoundingClientRect());
+      return {
+        columns: style.gridTemplateColumns.split(" ").filter(Boolean).length,
+        columnPositions: new Set(rects.map((rect) => Math.round(rect.left))).size,
+        minCardWidth: Math.min(...rects.map((rect) => rect.width)),
+        cardCount: cards.length,
+        documentWidth: document.documentElement.scrollWidth,
+        viewportWidth: document.documentElement.clientWidth,
+      };
+    });
+    const expectedColumns = viewport.width > 920 ? 4 : 2;
+    assert.equal(layout.columns, expectedColumns, `${label} diary feed column count changed: ${JSON.stringify(layout)}`);
+    assert.ok(layout.columnPositions >= expectedColumns, `${label} diary feed did not populate every column: ${JSON.stringify(layout)}`);
+    assert.ok(layout.cardCount >= expectedColumns, `${label} diary fixture did not render enough cards: ${JSON.stringify(layout)}`);
+    if (expectedColumns === 4) {
+      assert.ok(layout.minCardWidth >= 200, `${label} desktop diary cards became too narrow: ${JSON.stringify(layout)}`);
+    }
+    assert.ok(layout.documentWidth <= layout.viewportWidth + 1, `${label} diary feed overflowed horizontally: ${JSON.stringify(layout)}`);
+    assert.deepEqual(pageErrors, [], `${label} diary feed runtime errors:\n${pageErrors.join("\n")}`);
+  } finally {
+    await fixture.dispose(context);
+    await context.close();
+  }
+}
+
 async function testPrimaryNavigationPreferences(viewport, label) {
   const context = await browser.newContext({ viewport, serviceWorkers: "block" });
   const fixture = createCloudflareApiFixture();
@@ -998,6 +1043,8 @@ try {
   await testHomeShell({ width: 844, height: 390 }, "mobile-landscape");
   await testNavigationAndAuth({ width: 390, height: 844 }, "mobile");
   await testNavigationAndAuth({ width: 1440, height: 900 }, "desktop");
+  await testDiaryFeedLayout({ width: 390, height: 844 }, "mobile");
+  await testDiaryFeedLayout({ width: 1440, height: 900 }, "desktop");
   await testGlobalLevelDialogEvents({ width: 390, height: 844 }, "mobile");
   await testGlobalLevelDialogEvents({ width: 1440, height: 900 }, "desktop");
   await testNotificationPanel();

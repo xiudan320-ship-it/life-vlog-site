@@ -276,6 +276,8 @@ async function testVideoDiaryPolicy(browser) {
   const desktop = await openFixturePage(browser, { viewport: { width: 1440, height: 900 }, mockFeedMotion: true });
   try {
     const page = desktop.page;
+    await page.fill("#diarySearchInput", "摄影小天才");
+    await page.waitForFunction(() => document.querySelectorAll("#gallery .photo-card").length === 1, null, { timeout: 10000 });
     const videoCard = page.locator('[data-photo-id="fixture-camera-talent-video"]');
     await videoCard.waitFor({ state: "visible" });
     await videoCard.scrollIntoViewIfNeeded();

@@ -4385,7 +4385,7 @@ body.theme-dark .favorite-chip.active {
 }
 
 .gallery {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   grid-auto-flow: dense;
   grid-auto-rows: 8px;
   gap: 24px;

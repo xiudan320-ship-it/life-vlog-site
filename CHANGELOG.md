@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+## [2026-09-07]
+
+### Changed
+
+- 发布桌面端日记流四列瀑布流到 Cloudflare Pages 正式站：桌面端改为四列瀑布流，保留 920px 以下和移动端现有两列/单列设置、卡片操作与无横向溢出约束；正式入口为 `https://life-vlog-site.pages.dev`，固定 preview 为 `https://codex-preview.life-vlog-site.pages.dev`，生产 deployment 为 `b6b217c8`，preview 与 production 均通过线上 CORS、Axe critical/serious 和确定性 fixture release smoke。
+- 发布脚本的 Pages alias 就绪探测改用根入口的一次性 cache-busting 查询参数，随本次 preview/production 发布生效，避免边缘缓存旧入口导致误判发布失败。
+
 ## [2026-09-06]
 
 ### Changed

@@ -46,6 +46,7 @@ pnpm run test:release
 
 ### V3 留言与心情瓶专项
 
+- [x] 桌面端日记流四列瀑布流及 Pages alias 探测修复已发布到正式站；正式入口为 `https://life-vlog-site.pages.dev`，固定 preview 为 `https://codex-preview.life-vlog-site.pages.dev`，生产 deployment 为 `b6b217c8`（`https://b6b217c8.life-vlog-site.pages.dev`），Worker 版本为 `6800cd07-cca4-438f-96b3-cef0f1b08320`，入口为 `index-Dh_FCRKY.js`（SHA-256 `4714623851d5aae44f719f44143dea703b29b1dcc52c9f4958f859e088ff4401`），样式为 `index-Ut_KJE20.css`（SHA-256 `c3f2e2453ab08a6dd64ee169aa59ad379d5ea69ced36ee0467943caa4b542f`），`sw.js` SHA-256 为 `808e2c2660060f760e0e719ca16caba5dec71464c063189bfed025db22defeaf`，Workbox 预缓存条目为 44；preview 与 production 均通过线上 CORS、Axe critical/serious、确定性 fixture release smoke 和线上 HTML/CSS/SW 资源 hash 核对，production HTML 状态为 200，未使用真实账户、密码、token 或真实业务数据。
 - [x] 当前通知与今日概览：首次新增心愿/购物车商品只通知其他家庭成员；每天 20:00（Asia/Tokyo）未记录当日心情时生成一次站内通知并在已订阅设备发送 Push；通知点击可进入对应功能；1440px 普通桌面概览左侧为窄栏上下排列的双人心情面板、右侧为加宽的本月心情日历缩略图并保持上下对齐，宽屏则将两个面板分别放入页面最左和最右侧栏，手机端不增加额外纵向空白。
 - [x] 超宽桌面右侧心情栏与本地 Vite 预览登录 CORS 修复已发布到正式站；今日心情位于本月心情上方，正式站、固定 preview 和独立 deployment `67b58c3a` 资源一致，Worker 版本为 `f8bf0660-c73a-4f41-93a1-1ca0c7b2ccf2`，入口为 `index-CWMxKTEB.js`（SHA-256 `9143ca7e133b2638c6c17603c33d640b349ded0cf82c92208eeb570fac7d9bbb`），样式为 `index-yUlLRiav.css`（SHA-256 `138b0780362b4c1a26b37dcea8156465c882ce26c69edc4728b2734d90c2da5b`），`sw.js` SHA-256 为 `0b8b0926f1d3f63dc0563ff1c8aff634eeb8f13eca6d08dcf427d657cf8a2d83`，Workbox 预缓存条目为 44；preview 与 production 均通过线上 CORS、Axe critical/serious 和确定性 fixture release smoke，未使用真实账户或凭证。
 - [x] `tests/comment-thread-domain.mjs`：根留言、深层链、孤儿、循环 parent 和重复 id 均稳定输出，每条合法评论最多一行。
@@ -73,6 +74,8 @@ pnpm run test:release
 ## 3. 发布后只读检查
 
 部署脚本会在本地回归通过后先部署 Worker 并执行精确 CORS 门，再发布 preview。preview 固定别名会使用 `tests/fixtures/cloudflare-api-fixture.mjs` 的确定性假后端执行公开壳、伪会话、深链接、错误矩阵和 PWA 烟雾测试；任何 preview/CORS 门失败都会停止，不会进入正式发布。发布完成后访问正式地址，确认返回状态为 200，并检查本次构建的入口文件名、入口哈希、`sw.js` 哈希和 Workbox 预缓存条目数已经记录且线上版本已更新。发布门禁止真实账户和真实凭证。
+
+部署脚本检查固定 alias 时使用一次性 cache-busting 查询参数，避免边缘缓存的旧入口 HTML 误判当前部署未就绪。
 
 Worker CORS 只允许正式站 `https://life-vlog-site.pages.dev`、固定 preview 别名 `https://codex-preview.life-vlog-site.pages.dev`，以及 `localhost` / `127.0.0.1` 的 4173、4176、5173 固定本地端口；OPTIONS、成功响应、认证失败和 5xx 错误响应都必须携带对应的精确 origin 与 `Vary: Origin`，禁止 `*`、任意 `pages.dev` 通配、其他本地端口和随机部署域名加入 allow-list。
 

@@ -216,6 +216,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\deploy-cloudflare-pages.ps
 
 部署脚本会安装锁定依赖、运行测试、构建、部署 Worker、检查正式站、固定 preview 和本地开发 origin 的 CORS，再部署固定 preview，并按参数部署 production，对别名运行 Axe 和 release smoke。若本次包含通知类型约束变更，先使用本机 token 对 `life-vlog-db` 执行一次显式 D1 结构更新，再执行 Pages/Worker 发布。
 
+部署后的 Pages alias 入口探测会为每次请求附加一次性 cache-busting 参数，避免边缘缓存返回旧 HTML 而误判当前部署未就绪。
+
 Cloudflare token 只能通过环境变量或脚本已有的本机 token 文件读取，禁止写入仓库、日志或文档。
 
 ## 12. 长期工程规则

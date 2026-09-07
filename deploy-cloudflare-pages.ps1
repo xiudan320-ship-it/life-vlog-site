@@ -73,7 +73,8 @@ function Invoke-PagesDeploy([string]$branch) {
 function Wait-ReleaseAlias([string]$url, [string]$entry) {
   for ($attempt = 1; $attempt -le 60; $attempt++) {
     try {
-      $response = Invoke-WebRequest -Uri "$url/index.html?release=$entry" -UseBasicParsing -TimeoutSec 10
+      $cacheBust = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+      $response = Invoke-WebRequest -Uri "$url/?release=$entry&probe=$cacheBust" -UseBasicParsing -TimeoutSec 10
       if ($response.StatusCode -eq 200 -and $response.Content.Contains($entry)) { return }
     } catch { }
     Start-Sleep -Seconds 2

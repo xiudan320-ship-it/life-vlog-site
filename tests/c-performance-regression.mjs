@@ -754,6 +754,8 @@ async function testOrdinaryVideoLifecycle(browser) {
   const desktop = await openFixturePage({ viewport: { width: 1440, height: 900 }, mockFeedMotion: true });
   try {
     const page = desktop.page;
+    await page.fill("#diarySearchInput", "摄影小天才");
+    await page.waitForFunction(() => document.querySelectorAll("#gallery .photo-card").length === 1, null, { timeout: 10000 });
     const card = page.locator('[data-photo-id="fixture-camera-talent-video"]');
     await card.waitFor({ state: "visible" });
     await card.scrollIntoViewIfNeeded();
@@ -807,6 +809,8 @@ async function testOrdinaryVideoLifecycle(browser) {
     });
     await page.locator("video.feed-motion-preview").first().waitFor({ state: "attached", timeout: 10000 });
 
+    await page.fill("#diarySearchInput", "Fixture long video");
+    await page.waitForFunction(() => document.querySelectorAll("#gallery .photo-card").length === 1, null, { timeout: 10000 });
     const longCard = page.locator('[data-photo-id="fixture-long-video"]');
     await longCard.scrollIntoViewIfNeeded();
     await longCard.locator("video.feed-motion-preview").waitFor({ state: "attached", timeout: 10000 });
@@ -815,6 +819,8 @@ async function testOrdinaryVideoLifecycle(browser) {
     await page.waitForTimeout(100);
     assert.equal(await longCard.locator("video.feed-motion-preview").count(), 0, "long video restarted after ended in the same mount");
 
+    await page.fill("#diarySearchInput", "");
+    await page.waitForSelector('[data-photo-id="fixture-camera-talent-video"]', { state: "visible", timeout: 10000 });
     await card.locator(".feed-media-shell > button").click();
     await page.waitForSelector("#photoDialog[open]", { state: "attached" });
     const desktopVideo = page.locator("#dialogVideo");
