@@ -47,7 +47,7 @@
 | 数据库表、字段、索引变化 | 检查 schema 和调用方 | `TECHNICAL_OVERVIEW.md` 相关章节 |
 | PWA、缓存、离线行为 | 定位 service worker / cache 逻辑 | `TECHNICAL_OVERVIEW.md` 相关章节 |
 | 构建、运行时、部署变化 | 检查相关配置 | `TECHNICAL_OVERVIEW.md`；发布时再读 `release-checklist.md` |
-| UI / UX / 响应式 / 无障碍 | 搜索对应页面和组件 | 只读取 design system 相关章节 |
+| UI / UX / 响应式 / 无障碍 | 搜索对应页面和组件 | 先读 [DESIGN.md](../DESIGN.md)，再读 design system 相关章节 |
 | 发布任务 | 检查当前待发布变化 | `release-checklist.md` |
 | 调查历史回归 | 先搜索代码和 CHANGELOG | 必要时进入 `plans/` 或 `history/` |
 | 某个专项继续实施 | 确认专项名称 | 只读取对应 plan |

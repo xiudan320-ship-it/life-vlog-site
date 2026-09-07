@@ -1,5 +1,7 @@
 # Life Vlog Design System
 
+开发入口：[DESIGN.md](../../DESIGN.md)。保留当前浅色/深色绿色系 UI 与现有资产，不实施蓝月 / P3R 改版。
+
 ## Product direction
 
 Life Vlog is a private, mobile-first life archive for photos, video, diaries, wishes, shopping ideas, weekends, and personal collections. The interface is content-first: media and readable records take priority over decoration.
@@ -8,13 +10,15 @@ This system combines the verified UI/UX Pro Max matches for Minimalism & Swiss S
 
 ## Visual language
 
-- Dark, quiet, modern, and personal rather than technical or cyberpunk.
+- Preserve both existing light and dark appearances: quiet, modern, personal, and content-first.
 - Use one lime accent for selection, prices, primary actions, completion, and focus.
 - Let photos and videos provide most of the color.
 - Prefer clear grids, restrained rounded corners, and subtle surface separation.
 - Avoid glow, decorative gradients, heavy glass effects, emoji icons, and excessive borders.
 
 ## Core tokens
+
+以下 --lv-* 为设计参考，不是当前全局 CSS 变量契约。实际使用 styles/redesign-foundation.css 中的语义变量及组件最终层叠值：浅色背景 #f2f4ef、表面 #ffffff、文字 #151816、强调色 #5b9834；深色背景 #0d100f、表面 #171b19、文字 #f0f4ef、强调色 #8bc95f。不要为匹配参考 token 改写现有 UI。
 
 ```css
 --lv-bg: #0d0f0e;
@@ -107,5 +111,5 @@ This system combines the verified UI/UX Pro Max matches for Minimalism & Swiss S
 - Push settings bind after the lazy settings DOM exists; disabling this device is busy/disabled during the operation, unsubscribes locally before remote cleanup, and clearly reports a remote cleanup failure without undoing the local result.
 - Images have meaningful alt text or are explicitly decorative.
 - Validate keyboard, pointer, and touch behavior.
-- Before commit or deployment, run the complete automated suite and the repository release test with deterministic in-memory fixture sessions on desktop and mobile.
+- Choose checks by actual change risk using `docs/README.md` and `docs/CHANGE_WORKFLOW.md`; deployment follows `docs/release-checklist.md`. Use deterministic in-memory fixtures. Documentation-only changes require document/link and diff checks, not a full browser release run.
 
