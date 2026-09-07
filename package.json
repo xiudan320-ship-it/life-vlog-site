@@ -16,6 +16,7 @@
     "test:coverage": "node tests/css-coverage.mjs",
     "test:a11y": "node tests/axe-regression.mjs",
     "test:release": "node tests/release-smoke.mjs",
+    "test:release-local": "node scripts/verify-local-release.mjs",
     "test:worker-online": "node tests/worker-cors-online.mjs",
     "test": "pnpm run check && pnpm run test:unit && pnpm run test:static && pnpm run test:structure && pnpm run assets:optimize && pnpm run build && pnpm run test:build && pnpm run test:coverage && pnpm run test:browser"
   },

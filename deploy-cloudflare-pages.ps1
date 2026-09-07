@@ -1,7 +1,6 @@
 param(
   [ValidateSet("preview", "production")]
-  [string]$Environment = "production",
-  [string]$Branch = "codex-preview"
+  [string]$Environment = "production"
 )
 
 $ErrorActionPreference = "Stop"
@@ -9,6 +8,33 @@ $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $pnpmCommand = Get-Command pnpm.cmd -ErrorAction SilentlyContinue
 if (-not $pnpmCommand) { $pnpmCommand = Get-Command pnpm -ErrorAction SilentlyContinue }
 if (-not $pnpmCommand) { throw "pnpm is required for deployment." }
+
+function Invoke-GitCapture([string[]]$Arguments) {
+  $output = & git @Arguments
+  if ($LASTEXITCODE -ne 0) { throw "Git release check failed: git $($Arguments -join ' ')" }
+  return ($output -join "`n").Trim()
+}
+
+function Assert-ReleaseSource {
+  if ((Invoke-GitCapture @("branch", "--show-current")) -ne "main") { throw "Release must run from main." }
+  if (Invoke-GitCapture @("status", "--porcelain")) { throw "Commit all intended changes before release; working tree must be clean." }
+  $head = Invoke-GitCapture @("rev-parse", "HEAD")
+  if ($head -ne (Invoke-GitCapture @("rev-parse", "origin/main"))) { throw "Push main and synchronize origin/main before release." }
+  if ($script:releaseCommit -and $head -ne $script:releaseCommit) { throw "Source changed during release." }
+  return $head
+}
+
+function Get-BuildFingerprint {
+  return ((Get-ChildItem -LiteralPath (Join-Path $root "dist") -File -Recurse | Sort-Object FullName | ForEach-Object {
+    "$($_.FullName.Substring($root.Length)):$((Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash)"
+  }) -join "`n")
+}
+
+function Assert-ReleaseUnchanged {
+  Invoke-GitCapture @("fetch", "origin") | Out-Null
+  Assert-ReleaseSource | Out-Null
+  if ((Get-BuildFingerprint) -ne $script:releaseFingerprint) { throw "Build changed during release; restart validation." }
+}
 
 function Invoke-Pnpm([string[]]$Arguments) {
   & $pnpmCommand.Source @Arguments
@@ -55,7 +81,8 @@ function Invoke-WorkerCorsSmoke {
 }
 
 function Invoke-PagesDeploy([string]$branch) {
-  $deployArgs = @("dlx", "wrangler@latest", "pages", "deploy", "dist", "--project-name", "life-vlog-site", "--branch", $branch, "--commit-dirty")
+  Assert-ReleaseUnchanged
+  $deployArgs = @("dlx", "wrangler@latest", "pages", "deploy", "dist", "--project-name", "life-vlog-site", "--branch", $branch, "--commit-hash", $script:releaseCommit)
   $previousErrorActionPreference = $ErrorActionPreference
   try {
     $ErrorActionPreference = "Continue"
@@ -105,8 +132,13 @@ function Invoke-A11ySmoke([string]$url) {
 }
 
 Push-Location $root
+$previousToken = $env:CLOUDFLARE_API_TOKEN
+$script:releaseCommit = $null
 try {
-  $tokenPath = "C:\Users\xiuda\Documents\照片\cloudfileToken.txt"
+  Invoke-GitCapture @("fetch", "origin") | Out-Null
+  $script:releaseCommit = Assert-ReleaseSource
+  Write-Output "Release source: main $script:releaseCommit"
+  $tokenPath = Join-Path $root "cloudfileToken.txt"
   $cloudflareApiToken = $env:CLOUDFLARE_API_TOKEN
   if (-not $cloudflareApiToken -and (Test-Path -LiteralPath $tokenPath)) {
     $cloudflareApiToken = (Get-Content -LiteralPath $tokenPath -Raw).Trim()
@@ -116,21 +148,21 @@ try {
 
   Invoke-Pnpm @("install", "--frozen-lockfile")
   Invoke-Pnpm @("test")
-  Invoke-Pnpm @("run", "assets:optimize")
-  Invoke-Pnpm @("run", "build")
-  Invoke-Pnpm @("run", "test:build")
 
   foreach ($required in @("dist/index.html", "dist/sw.js", "dist/_headers")) {
     if (-not (Test-Path -LiteralPath (Join-Path $root $required))) { throw "Missing build output: $required" }
   }
   $metadata = Get-ReleaseMetadata
   Write-ReleaseMetadata $metadata "Local build"
+  $script:releaseFingerprint = Get-BuildFingerprint
+  Invoke-Pnpm @("run", "test:release-local")
+  Assert-ReleaseUnchanged
 
   Invoke-WorkerDeploy
   Invoke-WorkerCorsSmoke
   Write-Output "Worker CORS gate passed: https://life-vlog-r2-upload.xiudan320-life.workers.dev"
 
-  $previewUrl = Invoke-PagesDeploy $Branch
+  $previewUrl = Invoke-PagesDeploy "codex-preview"
   Write-Output "Preview deployment: $previewUrl"
   Wait-ReleaseAlias "https://codex-preview.life-vlog-site.pages.dev" $metadata.entry
   Invoke-WorkerCorsSmoke
@@ -148,6 +180,7 @@ try {
     Write-Output "Production release gate passed: https://life-vlog-site.pages.dev"
   }
 } finally {
-  Remove-Item Env:CLOUDFLARE_API_TOKEN -ErrorAction SilentlyContinue
+  if ($null -eq $previousToken) { Remove-Item Env:CLOUDFLARE_API_TOKEN -ErrorAction SilentlyContinue }
+  else { $env:CLOUDFLARE_API_TOKEN = $previousToken }
   Pop-Location
 }

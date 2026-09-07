@@ -4,6 +4,8 @@
 
 ## 快速定位
 
+发布工具：`deploy-cloudflare-pages.ps1` 负责 Git 来源检查和预览/正式发布装配；`scripts/verify-local-release.mjs` 管理本地预览服务及 Axe/fixture 验收；`tests/deployment-flow.ps1` 用模拟命令验证发布门禁和失败停止行为。操作步骤见 `release-checklist.md`。
+
 | 现象或功能 | 首要模组 | 相关视图 / 领域模组 |
 | --- | --- | --- |
 | 应用启动、首屏加载态 | `modules/app-splash-controller.js` | `styles/app-splash.css`, `index.html` |

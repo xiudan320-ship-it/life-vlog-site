@@ -17,12 +17,11 @@ https://life-vlog-site.pages.dev/
 - Cloudflare R2：日记、心愿、菜谱封面、头像、秘藏图片。
 - Cloudflare Pages：托管静态前端。
 
-## 部署 Cloudflare
+## 数据库初始化（仅首次设置或明确的结构变更）
 
 ```powershell
 cd cloudflare-worker
 wrangler d1 execute life-vlog-db --file ./schema.d1.sql --remote
-wrangler deploy
 ```
 
 需要的绑定在 `cloudflare-worker/wrangler.toml`：
@@ -51,10 +50,9 @@ pnpm preview
 
 ## 发布前验收
 
-每次发布前必须先完成本地回归，部署脚本通过后会上传 Cloudflare Pages。完整清单见 [`docs/release-checklist.md`](docs/release-checklist.md)。
+修改提交并推送到 `main` 后，使用统一发布命令，自动完成本地检查、预览验收和正式发布。完整清单见 [`docs/release-checklist.md`](docs/release-checklist.md)。
 
 ```powershell
-pnpm test
 powershell -NoProfile -ExecutionPolicy Bypass -File .\deploy-cloudflare-pages.ps1
 ```
 

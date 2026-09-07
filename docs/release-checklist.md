@@ -2,47 +2,34 @@
 
 每次发布前都要完成本地回归，发布后检查正式地址的资源和页面行为。任意本地检查失败都不要发布。
 
-## 0. 发布来源与顺序
+## 0. 统一发布入口
 
-遵循 [AGENTS.md](../AGENTS.md) 第 12 条。默认开发与正式发布来源均为 `main`；临时分支的工作必须先合入 `main`。
+默认在 `main` 完成修改并提交、推送。用户授权发布后，只运行：
 
-1. 确认本次发布已获用户授权，核对待发布差异与当前正式站基准。
-2. 检查当前分支、工作区和远程状态；先处理未整合工作，不覆盖其他任务修改。
-3. 完成本文件要求的本地验收；提交并推送源码。上传前 `git fetch origin`，确认当前分支为 `main`、`git status --short` 为空、`git rev-parse HEAD` 与 `git rev-parse origin/main` 相同。任一不满足不得开始发布。构建若产生受跟踪文件变更，先审查、提交并重新验证受影响内容。
-4. 记录源码提交和构建哈希。先完成现有 Worker/CORS 门，再将该构建发布到固定 `codex-preview`，通过 preview 的 CORS、Axe 和确定性 fixture release smoke 后，才能将同一份构建发布到 `main` 正式环境。预览与正式发布之间若源码或构建发生变化，重新执行相应验收和预览门。
-5. 正式站验收后记录实际部署的源码提交、部署标识、资源哈希及结果；发布记录的后续纯文档提交可以晚于部署提交，不能冒称它已重新部署。检查分支与工作树收尾状态。
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\deploy-cloudflare-pages.ps1
+```
 
-Cloudflare Pages 的 `--branch` 参数指定发布环境，并不会替操作者切换 Git 分支或拉取 GitHub 代码。当前脚本包含 preview → production 门，但尚未自动强制检查上述 Git 来源条件，执行者必须完成检查；不得以 `--commit-dirty` 绕过干净源码要求。
+脚本自动执行：检查干净 `main` 与 `origin/main` 同步 → 安装锁定依赖及完整测试（包含一次构建）→ 本地 Axe/fixture 验收 → Worker/CORS → 预览站验收 → 同一构建发布正式站并验收。任一步失败即停止；预览失败不会发布正式 Pages，但先行发布的 Worker 不会自动回滚。仅需预览时加 `-Environment preview`。
 
-纯文档更新不触发网站重部署，按文档风险执行检查即可。正式网站始终使用 `https://life-vlog-site.pages.dev/`；预览网址为 `https://codex-preview.life-vlog-site.pages.dev/`。
+`codex-preview` 是 Cloudflare 的固定预览标签，不需要同名 Git 分支；`--branch main` 不会切换源码。脚本在上传前复查源码提交、工作区、远程和整个构建目录，任何变化都要求重新验收。不得拆解脚本绕过门禁。
+
+发布后记录实际源码提交、部署标识和资源核对结果；后续纯文档提交不代表网站重新部署。清理本任务已整合的临时工作，保留其他任务修改。纯文档更新无需重部署。
 
 ## 1. 本地检查
+
+统一发布命令已包含本地检查，不必提前重复运行。只做本地验收时：
 
 ```powershell
 pnpm install --frozen-lockfile
 pnpm test
-pnpm run test:a11y
-pnpm run test:release
-pnpm run test:build
+pnpm run test:release-local
 git diff --check
 ```
 
-`test:a11y` 默认访问 `http://127.0.0.1:4176`，执行前先在终端 A 保持本地预览运行：
+`test:release-local` 自动启动 127.0.0.1:4176 的构建预览，顺序执行 Axe 和确定性 fixture release smoke，成功或失败后关闭自己启动的服务。端口被占用时直接报错，不复用未知服务。`pnpm test` 包含功能、结构、构建预算和浏览器回归，但不替代本地/线上发布门。
 
-```powershell
-pnpm exec vite preview --host 127.0.0.1 --port 4176
-```
-
-然后在终端 B 执行无障碍和发布 smoke；两者都使用确定性 fixture：
-
-```powershell
-$env:A11Y_BASE_URL = "http://127.0.0.1:4176"
-pnpm run test:a11y
-$env:RELEASE_BASE_URL = "http://127.0.0.1:4176"
-pnpm run test:release
-```
-
-发布门必须同时通过完整功能测试、Axe critical/serious 扫描、确定性 fixture 发布 smoke 和差异检查；`pnpm test` 只覆盖功能/结构/构建/基础浏览器回归，不代替 `test:a11y` 或在线发布门。
+修改发布脚本时另运行 `powershell -NoProfile -ExecutionPolicy Bypass -File tests/deployment-flow.ps1`，以确定性模拟命令检查错误分支、未提交、未推送、发布中变更和各门禁失败；该测试不连接 Cloudflare。
 
 ## 2. C 批专项矩阵
 

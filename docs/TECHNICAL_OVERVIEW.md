@@ -214,7 +214,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\deploy-cloudflare-pages.ps
 powershell -NoProfile -ExecutionPolicy Bypass -File .\deploy-cloudflare-pages.ps1 -Environment production
 ```
 
-部署脚本会安装锁定依赖、运行测试、构建、部署 Worker、检查正式站、固定 preview 和本地开发 origin 的 CORS，再部署固定 preview，并按参数部署 production，对别名运行 Axe 和 release smoke。若本次包含通知类型约束变更，先使用本机 token 对 `life-vlog-db` 执行一次显式 D1 结构更新，再执行 Pages/Worker 发布。
+部署脚本强制要求干净、已推送的 `main`，安装锁定依赖并运行包含一次构建的完整测试；`scripts/verify-local-release.mjs` 自动管理本地构建预览服务，执行 Axe 和 fixture release smoke。之后部署 Worker、执行 CORS、验收固定 preview，再用同一构建发布 production。每次上传 Pages 前复查源码与完整构建指纹，源码或产物变更即停止。具体操作集中在发布清单。若本次包含通知类型约束变更，先使用本机 token 对 `life-vlog-db` 执行一次显式 D1 结构更新，再执行 Pages/Worker 发布。
 
 部署后的 Pages alias 入口探测会为每次请求附加一次性 cache-busting 参数，避免边缘缓存返回旧 HTML 而误判当前部署未就绪。
 
