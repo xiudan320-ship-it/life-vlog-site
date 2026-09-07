@@ -73,6 +73,8 @@ pnpm run test:release
 
 ## 3. 发布后只读检查
 
+最新发布（2026-09-07）：源码 `4337cb8`，生产 deployment `bf7ae9ea`，Worker `2bda3a30-a74c-4681-bb9b-662adf65e006`。保留发布前线上 UI；入口 `index-Dh_FCRKY.js`、样式 `index-Ut_KJE20.css` 和 SW 哈希均未改变。完整本地回归、本地/preview/production Axe 与确定性 fixture release smoke、线上 CORS 通过；正式站 44 个构建文件（含黑猫封面）哈希与本地一致。
+
 部署脚本会在本地回归通过后先部署 Worker 并执行精确 CORS 门，再发布 preview。preview 固定别名会使用 `tests/fixtures/cloudflare-api-fixture.mjs` 的确定性假后端执行公开壳、伪会话、深链接、错误矩阵和 PWA 烟雾测试；任何 preview/CORS 门失败都会停止，不会进入正式发布。发布完成后访问正式地址，确认返回状态为 200，并检查本次构建的入口文件名、入口哈希、`sw.js` 哈希和 Workbox 预缓存条目数已经记录且线上版本已更新。发布门禁止真实账户和真实凭证。
 
 部署脚本检查固定 alias 时使用一次性 cache-busting 查询参数，避免边缘缓存的旧入口 HTML 误判当前部署未就绪。

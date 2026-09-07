@@ -4,9 +4,13 @@
 
 ## [Unreleased]
 
+## [2026-09-07] — 现有 UI 基准同步
+
 ### Documentation
 
 - 明确取消蓝月 / P3R 改版方向，建立 `DESIGN.md` 作为现有 UI 的开发入口；保留当前浅色/深色绿色系风格、布局和黑猫原图及 Logo，按改动风险验收，不改变页面实现。
+
+- 已推送并将 `4337cb8` 发布到正式站，生产 deployment 为 `bf7ae9ea`，Worker 版本为 `2bda3a30-a74c-4681-bb9b-662adf65e006`。发布前确认入口 JS、CSS、SW 与原正式站哈希一致；完整本地回归、本地及 preview/production 的 Axe 和确定性 fixture release smoke、线上 CORS 均通过，发布后 44 个构建文件与正式站逐一核对一致。
 
 ## [2026-09-07]
 
