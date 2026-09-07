@@ -2,7 +2,13 @@
 
 本文件记录咻蛋之家所有重要修改。格式参考 Keep a Changelog；尚未发布的修改进入 `[Unreleased]`。
 
+## [Unreleased]
+
 ## [2026-09-06]
+
+### Changed
+
+- 发布超宽桌面今日概览右侧心情栏调整与本地 Vite 预览登录 CORS 修复到 Cloudflare Pages 正式站：今日心情面板位于本月心情日历上方，两个面板共享右侧栏且不撑高中央内容流；正式站和固定 preview 均允许精确的本地开发端口 origin。正式入口为 `https://life-vlog-site.pages.dev`，固定 preview 为 `https://codex-preview.life-vlog-site.pages.dev`，本次 deployment 为 `67b58c3a`，Worker 版本为 `f8bf0660-c73a-4f41-93a1-1ca0c7b2ccf2`，入口为 `index-CWMxKTEB.js`（SHA-256 `9143ca7e133b2638c6c17603c33d640b349ded0cf82c92208eeb570fac7d9bbb`），样式为 `index-yUlLRiav.css`（SHA-256 `138b0780362b4c1a26b37dcea8156465c882ce26c69edc4728b2734d90c2da5b`），`sw.js` SHA-256 为 `0b8b0926f1d3f63dc0563ff1c8aff634eeb8f13eca6d08dcf427d657cf8a2d83`，Workbox 预缓存条目为 44；preview 与 production 均通过 CORS、Axe 和确定性 release smoke，线上 HTML/CSS 已核对包含右侧栏规则。
 
 ### Fixed
 

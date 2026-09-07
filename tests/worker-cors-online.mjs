@@ -3,6 +3,14 @@ import assert from "node:assert/strict";
 const workerUrl = (process.env.RELEASE_WORKER_URL || "https://life-vlog-r2-upload.xiudan320-life.workers.dev").replace(/\/+$/, "");
 const productionOrigin = "https://life-vlog-site.pages.dev";
 const previewOrigin = "https://codex-preview.life-vlog-site.pages.dev";
+const localOrigins = [
+  "http://localhost:4173",
+  "http://127.0.0.1:4173",
+  "http://localhost:4176",
+  "http://127.0.0.1:4176",
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+];
 
 async function request(origin, path, options = {}) {
   return fetch(`${workerUrl}${path}`, {
@@ -14,7 +22,7 @@ async function request(origin, path, options = {}) {
   });
 }
 
-for (const origin of [productionOrigin, previewOrigin]) {
+for (const origin of [productionOrigin, previewOrigin, ...localOrigins]) {
   const preflight = await request(origin, "/api/auth/me", {
     method: "OPTIONS",
     headers: {
@@ -37,10 +45,12 @@ for (const origin of [productionOrigin, previewOrigin]) {
   assert.equal(notFound.headers.get("Access-Control-Allow-Origin"), origin, `${origin} auth error origin`);
 }
 
-const unknown = await request("https://unknown.example", "/health");
-assert.equal(unknown.status, 200, "unknown origin health status");
-assert.equal(unknown.headers.get("Access-Control-Allow-Origin"), "null", "unknown origin must not be allowed");
-assert.notEqual(unknown.headers.get("Access-Control-Allow-Origin"), "*", "wildcard CORS is forbidden");
-assert.equal(unknown.headers.get("Vary"), "Origin", "unknown origin Vary");
+for (const origin of ["https://unknown.example", "http://127.0.0.1:9999"]) {
+  const unknown = await request(origin, "/health");
+  assert.equal(unknown.status, 200, `${origin} health status`);
+  assert.equal(unknown.headers.get("Access-Control-Allow-Origin"), "null", `${origin} must not be allowed`);
+  assert.notEqual(unknown.headers.get("Access-Control-Allow-Origin"), "*", "wildcard CORS is forbidden");
+  assert.equal(unknown.headers.get("Vary"), "Origin", `${origin} Vary`);
+}
 
-console.log(JSON.stringify({ workerUrl, allowedOrigins: [productionOrigin, previewOrigin], unknownOrigin: "null" }));
+console.log(JSON.stringify({ workerUrl, allowedOrigins: [productionOrigin, previewOrigin, ...localOrigins], unknownOrigins: ["https://unknown.example", "http://127.0.0.1:9999"] }));

@@ -3,7 +3,8 @@ import test from "node:test";
 
 import worker from "../cloudflare-worker/src/worker.js";
 
-const allowedOrigins = "https://life-vlog-site.pages.dev,https://codex-preview.life-vlog-site.pages.dev";
+const allowedOrigins = "https://life-vlog-site.pages.dev,https://codex-preview.life-vlog-site.pages.dev,http://localhost:4173,http://127.0.0.1:4173,http://localhost:4176,http://127.0.0.1:4176,http://localhost:5173,http://127.0.0.1:5173";
+const allowedOriginList = allowedOrigins.split(",");
 
 async function corsResponse(origin, method = "GET", path = "/health", env = {}, authenticated = false) {
   const response = await worker.fetch(new Request(`https://worker.test${path}`, {
@@ -18,11 +19,8 @@ async function corsResponse(origin, method = "GET", path = "/health", env = {}, 
   return response;
 }
 
-test("CORS allows only the production and fixed preview origins", async () => {
-  for (const origin of [
-    "https://life-vlog-site.pages.dev",
-    "https://codex-preview.life-vlog-site.pages.dev",
-  ]) {
+test("CORS allows production, fixed preview, and supported local development origins", async () => {
+  for (const origin of allowedOriginList) {
     for (const method of ["GET", "OPTIONS"]) {
       const response = await corsResponse(origin, method);
       assert.equal(response.headers.get("Access-Control-Allow-Origin"), origin);
@@ -48,9 +46,11 @@ test("CORS uses the exact allow-list for success, POST, and preflight responses"
 });
 
 test("CORS rejects unknown origins without a wildcard", async () => {
-  const response = await corsResponse("https://unknown.example");
-  assert.equal(response.headers.get("Access-Control-Allow-Origin"), "null");
-  assert.equal(response.headers.get("Vary"), "Origin");
+  for (const origin of ["https://unknown.example", "http://127.0.0.1:9999"]) {
+    const response = await corsResponse(origin);
+    assert.equal(response.headers.get("Access-Control-Allow-Origin"), "null");
+    assert.equal(response.headers.get("Vary"), "Origin");
+  }
 });
 
 test("CORS headers survive authenticated, missing-binding, not-found, and worker-error responses", async () => {

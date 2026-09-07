@@ -899,6 +899,7 @@ async function runTodayMoodState(viewport, mode, label) {
           rightLeft: right?.left || 0,
           leftTop: left?.top || 0,
           leftBottom: left?.bottom || 0,
+          rightTop: right?.top || 0,
           leftWidth: left?.width || 0,
           rightWidth: right?.width || 0,
           rightBottom: right?.bottom || 0,
@@ -927,18 +928,18 @@ async function runTodayMoodState(viewport, mode, label) {
       assert.equal(desktopOverview.jarPreview, 0, `${label} desktop overview should not render the jar thumbnail`);
       assert.ok(desktopOverview.media.every((rect) => rect.width <= 64 && rect.height <= 64), `${label} desktop mood assets must stay compact: ${JSON.stringify(desktopOverview)}`);
       if (viewport.width >= 1900) {
-        assert.ok(desktopOverview.topDelta <= 2, `${label} side mood panels should share a top edge: ${JSON.stringify(desktopOverview)}`);
-        assert.ok(desktopOverview.gridTop - desktopOverview.leftTop <= 2, `${label} side mood cards should start at the aligned panel top: ${JSON.stringify(desktopOverview)}`);
+        assert.ok(Math.abs(desktopOverview.leftRight - desktopOverview.rightRight) <= 2, `${label} right mood panels should share a right edge: ${JSON.stringify(desktopOverview)}`);
+        assert.ok(desktopOverview.gridTop - desktopOverview.leftTop <= 2, `${label} right-side mood cards should start at the today panel top: ${JSON.stringify(desktopOverview)}`);
+        assert.ok(desktopOverview.rightTop - desktopOverview.leftBottom >= 12, `${label} month panel should sit below the today mood panel: ${JSON.stringify(desktopOverview)}`);
+        assert.ok(desktopOverview.rightTop - desktopOverview.leftBottom <= 24, `${label} right mood panels should keep the intended stack gap: ${JSON.stringify(desktopOverview)}`);
         assert.ok(desktopOverview.quickActionsTop - desktopOverview.headBottom >= 12, `${label} quick actions should retain the overview gap after the heading: ${JSON.stringify(desktopOverview)}`);
         assert.ok(desktopOverview.quickActionsTop - desktopOverview.headBottom <= 24, `${label} quick actions should follow the heading without a side-panel-sized gap: ${JSON.stringify(desktopOverview)}`);
         assert.ok(Math.min(desktopOverview.leftBottom, desktopOverview.rightBottom) - desktopOverview.quickActionsBottom >= 48, `${label} quick actions must appear well before the side panels end: ${JSON.stringify(desktopOverview)}`);
-        assert.ok(desktopOverview.leftRight <= desktopOverview.galleryLeft + 2, `${label} left side mood panel must not cover the centered content column: ${JSON.stringify(desktopOverview)}`);
-        assert.ok(desktopOverview.rightLeft >= desktopOverview.galleryRight - 2, `${label} right month panel must not cover the centered content column: ${JSON.stringify(desktopOverview)}`);
+        assert.ok(desktopOverview.leftLeft >= desktopOverview.galleryRight - 2, `${label} today mood panel must stay outside the centered content column: ${JSON.stringify(desktopOverview)}`);
+        assert.ok(desktopOverview.rightLeft >= desktopOverview.galleryRight - 2, `${label} month panel must stay outside the centered content column: ${JSON.stringify(desktopOverview)}`);
         assert.ok(Math.abs(desktopOverview.leftWidth - desktopOverview.rightWidth) <= 2, `${label} side mood panels should share the wide rail width: ${JSON.stringify(desktopOverview)}`);
-        assert.ok(desktopOverview.leftLeft - desktopOverview.overviewLeft <= 2, `${label} left mood panel should occupy the left page rail: ${JSON.stringify(desktopOverview)}`);
+        assert.ok(desktopOverview.overviewRight - desktopOverview.leftRight <= 2, `${label} today mood panel should occupy the right page rail: ${JSON.stringify(desktopOverview)}`);
         assert.ok(desktopOverview.overviewRight - desktopOverview.rightRight <= 2, `${label} month panel should occupy the right page rail: ${JSON.stringify(desktopOverview)}`);
-        assert.ok(desktopOverview.leftLeft < desktopOverview.mainLeft, `${label} left mood panel should sit outside the centered content column: ${JSON.stringify(desktopOverview)}`);
-        assert.ok(desktopOverview.rightRight > desktopOverview.mainRight, `${label} month panel should sit outside the centered content column: ${JSON.stringify(desktopOverview)}`);
       } else {
         assert.ok(desktopOverview.topDelta <= 2, `${label} mood panels should share a top edge: ${JSON.stringify(desktopOverview)}`);
         assert.ok(desktopOverview.bottomDelta <= 2, `${label} mood panels should share a bottom edge: ${JSON.stringify(desktopOverview)}`);

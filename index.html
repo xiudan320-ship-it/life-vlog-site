@@ -304,31 +304,33 @@
           <button class="today-mood-calendar-button" id="overviewMoodCalendar" type="button">查看心情日历</button>
         </div>
         <div class="overview-mood-layout">
-          <section class="today-mood-panel" aria-labelledby="todayMoodPanelHeading">
-            <div class="today-mood-panel-heading">
-              <h3 id="todayMoodPanelHeading">今日心情</h3>
-              <p>家庭成员</p>
-            </div>
-            <div class="today-mood-status-row" id="todayMoodStatusRow">
-              <p class="today-mood-status" id="todayMoodStatus" role="status" aria-live="polite"></p>
-              <button class="today-mood-retry" id="todayMoodRetry" type="button" hidden>重试</button>
-            </div>
-            <div class="today-mood-grid" id="todayMoodGrid" aria-label="今日心情"></div>
-          </section>
-          <section class="overview-mood-month" id="overviewMoodMonth" aria-labelledby="overviewMoodMonthHeading" hidden>
-            <div class="overview-mood-month-heading">
-              <div>
-                <h3 id="overviewMoodMonthHeading">本月心情</h3>
-                <p id="overviewMoodMonthLabel">本月</p>
+          <div class="overview-mood-rail">
+            <section class="today-mood-panel" aria-labelledby="todayMoodPanelHeading">
+              <div class="today-mood-panel-heading">
+                <h3 id="todayMoodPanelHeading">今日心情</h3>
+                <p>家庭成员</p>
               </div>
-              <span class="overview-mood-month-badge">心情日历</span>
-            </div>
-            <div class="overview-mood-calendar-weekdays" aria-hidden="true">
-              <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>
-            </div>
-            <div class="overview-mood-calendar-grid" id="overviewMoodCalendarGrid" aria-label="本月心情日历"></div>
-            <p class="overview-mood-month-meta" id="overviewMoodMonthMeta">0 条记录</p>
-          </section>
+              <div class="today-mood-status-row" id="todayMoodStatusRow">
+                <p class="today-mood-status" id="todayMoodStatus" role="status" aria-live="polite"></p>
+                <button class="today-mood-retry" id="todayMoodRetry" type="button" hidden>重试</button>
+              </div>
+              <div class="today-mood-grid" id="todayMoodGrid" aria-label="今日心情"></div>
+            </section>
+            <section class="overview-mood-month" id="overviewMoodMonth" aria-labelledby="overviewMoodMonthHeading" hidden>
+              <div class="overview-mood-month-heading">
+                <div>
+                  <h3 id="overviewMoodMonthHeading">本月心情</h3>
+                  <p id="overviewMoodMonthLabel">本月</p>
+                </div>
+                <span class="overview-mood-month-badge">心情日历</span>
+              </div>
+              <div class="overview-mood-calendar-weekdays" aria-hidden="true">
+                <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>
+              </div>
+              <div class="overview-mood-calendar-grid" id="overviewMoodCalendarGrid" aria-label="本月心情日历"></div>
+              <p class="overview-mood-month-meta" id="overviewMoodMonthMeta">0 条记录</p>
+            </section>
+          </div>
         </div>
         <div class="quick-actions">
           <button id="quickPhoto" type="button"><span>01</span>发布日记</button>

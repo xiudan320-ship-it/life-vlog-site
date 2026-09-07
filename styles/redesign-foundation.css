@@ -3482,6 +3482,10 @@ h2 {
   gap: 12px;
 }
 
+.overview-mood-rail {
+  display: contents;
+}
+
 .today-mood-panel,
 .overview-mood-month {
   min-width: 0;
@@ -3845,19 +3849,21 @@ h2 {
     margin: 0;
   }
 
-  #overview .today-mood-panel,
-  #overview .overview-mood-month {
+  #overview .overview-mood-rail {
     position: absolute;
     top: 0;
-    box-sizing: border-box;
+    inset-inline-end: 0;
+    display: grid;
+    gap: 16px;
     width: var(--overview-wide-rail);
-    margin: 0;
   }
 
-  #overview .today-mood-panel { inset-inline-start: 0; }
-
+  #overview .today-mood-panel,
   #overview .overview-mood-month {
-    inset-inline-end: 0;
+    position: static;
+    box-sizing: border-box;
+    width: 100%;
+    margin: 0;
   }
 
   #overview .quick-actions {
