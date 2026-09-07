@@ -2,6 +2,20 @@
 
 每次发布前都要完成本地回归，发布后检查正式地址的资源和页面行为。任意本地检查失败都不要发布。
 
+## 0. 发布来源与顺序
+
+遵循 [AGENTS.md](../AGENTS.md) 第 12 条。默认开发与正式发布来源均为 `main`；临时分支的工作必须先合入 `main`。
+
+1. 确认本次发布已获用户授权，核对待发布差异与当前正式站基准。
+2. 检查当前分支、工作区和远程状态；先处理未整合工作，不覆盖其他任务修改。
+3. 完成本文件要求的本地验收；提交并推送源码。上传前 `git fetch origin`，确认当前分支为 `main`、`git status --short` 为空、`git rev-parse HEAD` 与 `git rev-parse origin/main` 相同。任一不满足不得开始发布。构建若产生受跟踪文件变更，先审查、提交并重新验证受影响内容。
+4. 记录源码提交和构建哈希。先完成现有 Worker/CORS 门，再将该构建发布到固定 `codex-preview`，通过 preview 的 CORS、Axe 和确定性 fixture release smoke 后，才能将同一份构建发布到 `main` 正式环境。预览与正式发布之间若源码或构建发生变化，重新执行相应验收和预览门。
+5. 正式站验收后记录实际部署的源码提交、部署标识、资源哈希及结果；发布记录的后续纯文档提交可以晚于部署提交，不能冒称它已重新部署。检查分支与工作树收尾状态。
+
+Cloudflare Pages 的 `--branch` 参数指定发布环境，并不会替操作者切换 Git 分支或拉取 GitHub 代码。当前脚本包含 preview → production 门，但尚未自动强制检查上述 Git 来源条件，执行者必须完成检查；不得以 `--commit-dirty` 绕过干净源码要求。
+
+纯文档更新不触发网站重部署，按文档风险执行检查即可。正式网站始终使用 `https://life-vlog-site.pages.dev/`；预览网址为 `https://codex-preview.life-vlog-site.pages.dev/`。
+
 ## 1. 本地检查
 
 ```powershell
