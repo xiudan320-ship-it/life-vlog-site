@@ -56,7 +56,7 @@ flowchart LR
 
 移动端页面契约由主入口和基础样式共同维护：`index.html` 只有一个固定的 viewport（`width=device-width`、`initial-scale=1.0`、`minimum-scale=1.0`、`maximum-scale=1.0`、`user-scalable=no`、`viewport-fit=cover`）；手机与短横屏上的可见文本输入、`select` 和 `textarea` 的计算字号至少为 16px，并随动态字号根设置放大。页面保留纵向滚动和系统返回手势，不使用 `html/body` 的全局横向溢出遮罩、全局 `touch-action: none` 或全局 `touchmove` 拦截；照片查看器和下拉刷新只在各自的媒体/日记区域维护局部手势边界。
 
-通知铃铛属于应用外壳能力，由 `app-event-bindings.js` 在 shell 初始化时调用 `notification-event-bindings.js` 绑定一次，不依赖设置路由。`openNotificationsPanel()` 先同步打开 dialog，再复用共享的 `notificationsLoadPromise` 异步加载；视图区分缓存加载、空状态和错误状态，错误提供重试，加载期间关闭 dialog 不会在请求完成后重新打开，关闭事件恢复铃铛焦点。Worker 在心愿或购物车首次新增时向其他家庭成员写入 `wish` / `shopping` 通知并触发 Push；每天 20:00 Asia/Tokyo 的 Cron 会为尚未记录当日心情的用户写入一次 `mood_reminder`，通知和 Push 点击分别进入对应功能。通知读取/标记已读失败都必须被控制器吸收为可读状态，不能产生未处理 Promise rejection。
+通知铃铛属于应用外壳能力，由 `app-event-bindings.js` 在 shell 初始化时调用 `notification-event-bindings.js` 绑定一次，不依赖设置路由。`openNotificationsPanel()` 先同步打开 dialog，再复用共享的 `notificationsLoadPromise` 异步加载；视图区分缓存加载、空状态和错误状态，错误提供重试，加载期间关闭 dialog 不会在请求完成后重新打开，关闭事件恢复铃铛焦点。Worker 在心愿或购物车首次新增时向其他家庭成员写入 `wish` / `shopping` 通知并触发 Push；每天 18:00 Asia/Tokyo（UTC 09:00）的独立 Cron 会为尚未记录当日心情的用户写入一次 `mood_reminder`，通知和 Push 点击分别进入对应功能。日本时间 03:20 的备份任务仅负责备份/清理，不发送心情提醒；提醒日期以调度时间的东京日期为准。通知读取/标记已读失败都必须被控制器吸收为可读状态，不能产生未处理 Promise rejection。
 
 ## 4. 页面与路由
 

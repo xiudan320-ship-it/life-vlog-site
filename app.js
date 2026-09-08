@@ -1,3 +1,4 @@
+import "./styles/pull-refresh.css";
 import "./styles.css";
 import "./styles/app-splash.css";
 import "./styles/redesign-foundation.css";

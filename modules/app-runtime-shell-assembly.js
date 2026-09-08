@@ -180,7 +180,6 @@ export function createShellControllerAssembly({
       "filteredPhotoCount",
       "galleryRenderSignature",
       "galleryMasonryTimer",
-      "pullRefreshState",
       "mobileDiaryPhoto",
       "galleryMasonryObserver",
       "diarySearchQuery",

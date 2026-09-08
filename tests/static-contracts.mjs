@@ -162,7 +162,7 @@ assert.match(notificationView, /data-notification-state="empty"/);
 assert.doesNotMatch(foundation, /html,\s*body\s*\{[^}]*overflow-x\s*:\s*(?:hidden|clip)/);
 assert.doesNotMatch(components, /html,\s*body\s*\{[^}]*overflow-x\s*:\s*(?:hidden|clip)/);
 assert.match(foundation, /font-size: max\(16px, 1rem\) !important/);
-assert.match(diaryFeedController, /const pullRefreshTarget = els\.gallery/);
+assert.match(diaryFeedController, /bindPullRefresh\(/);
 assert.doesNotMatch(diaryFeedController, /document\.addEventListener\("touchmove"/);
 assert.match(startup, /initializeLocalSession/);
 assert.match(startup, /synchronizeRemoteSession/);

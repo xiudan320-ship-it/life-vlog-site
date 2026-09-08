@@ -14,9 +14,9 @@ const [worker, schema, wrangler] = await Promise.all([
 assert.match(worker, /table === "wishes" \|\| table === "shopping_items"/);
 assert.match(worker, /type: table === "wishes" \? "wish" : "shopping"/);
 assert.match(worker, /type: "mood_reminder"/);
-assert.match(worker, /createDailyMoodReminders\(env\)/);
+assert.match(worker, /createDailyMoodReminders\(env, controller\.scheduledTime\)/);
 assert.match(worker, /created_at>=\? and created_at<\?/);
 assert.match(schema, /'wish', 'shopping', 'mood_reminder'/);
-assert.match(wrangler, /"0 11 \* \* \*"/);
+assert.match(wrangler, /"0 9 \* \* \*"/);
 
 console.log("Notification Worker contract tests passed.");

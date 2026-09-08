@@ -967,7 +967,9 @@ async function testAuthenticatedHomeStartup() {
   await installPseudoSession(page, { corruptCaches: true });
   const startedAt = Date.now();
   await page.goto(`${baseUrl}/`, { waitUntil: "domcontentloaded" });
+  try {
   await page.waitForSelector("#appSplash[hidden]", { state: "attached", timeout: 2000 });
+  } catch (error) { console.error("Startup page errors:", pageErrors); throw error; }
   const boot = await page.evaluate(() => ({
     busy: document.body.getAttribute("aria-busy"),
     authHidden: document.querySelector("#authCard")?.hidden,
@@ -975,6 +977,7 @@ async function testAuthenticatedHomeStartup() {
     galleryDisabled: document.querySelector('[data-primary-nav-id="gallery"]')?.disabled,
   }));
   assert.ok(Date.now() - startedAt <= 2000, "authenticated home splash exceeded the 2 second budget");
+  assert.equal(await page.locator("#pullRefreshIndicator").evaluate(el => getComputedStyle(el).position), "fixed", "refresh styling must load before opening settings");
   assert.equal(boot.busy, null, "authenticated home stayed aria-busy");
   assert.equal(boot.authHidden, true, "authenticated home still shows the auth card");
   assert.equal(boot.userMenuHidden, false, "authenticated home did not expose the user menu");

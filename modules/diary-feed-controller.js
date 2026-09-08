@@ -1,3 +1,5 @@
+import { bindPullRefresh } from "./pull-refresh-controller.js";
+import { createPullRefreshView } from "./pull-refresh-view.js";
 import {
   getDiaryFilterOptions,
   filterDiaryPhotos,
@@ -112,6 +114,7 @@ export function createDiaryFeedController({
     renderFeedRefreshNotice();
     renderGallery();
     if (state.cloudSyncAvailable) updateCloudSyncStatus();
+    return !error;
   }
   
   async function loadPhotos() {
@@ -590,74 +593,22 @@ export function createDiaryFeedController({
     state.galleryMasonryTimer = window.setTimeout(layoutGalleryMasonry, 60);
   }
   
-  function ensurePullRefreshIndicator() {
-    let indicator = document.querySelector("#pullRefreshIndicator");
-    if (indicator) return indicator;
-    indicator = document.createElement("div");
-    indicator.id = "pullRefreshIndicator";
-    indicator.className = "pull-refresh-indicator";
-    indicator.innerHTML = `<i></i><span>下拉刷新</span>`;
-    document.body.append(indicator);
-    return indicator;
-  }
-  
+  let pullRefreshInitialized = false;
   function initializePullToRefresh() {
-    const indicator = ensurePullRefreshIndicator();
-    const pullRefreshTarget = els.gallery;
-    if (!pullRefreshTarget) return;
-    pullRefreshTarget.addEventListener("touchstart", (event) => {
-      if (!isMobileViewport() || state.activePage !== "gallery" || window.scrollY > 2 || state.mobileDiaryPhoto || event.touches.length !== 1) return;
-      if (event.target.closest("dialog, input, textarea, select, .photo-media, .tool-dock")) return;
-      const touch = event.touches[0];
-      state.pullRefreshState = { x: touch.clientX, y: touch.clientY, distance: 0, tracking: false };
-    }, { passive: true });
-    pullRefreshTarget.addEventListener("touchmove", (event) => {
-      if (!state.pullRefreshState || event.touches.length !== 1) return;
-      const touch = event.touches[0];
-      const dy = touch.clientY - state.pullRefreshState.y;
-      const dx = Math.abs(touch.clientX - state.pullRefreshState.x);
-      if (dy <= 0 || dx > dy * .8) {
-        state.pullRefreshState = null;
-        return;
-      }
-      if (dy < 8) return;
-      state.pullRefreshState.tracking = true;
-      state.pullRefreshState.distance = Math.min(110, dy * .55);
-      event.preventDefault();
-      const ready = state.pullRefreshState.distance >= 64;
-      indicator.classList.add("visible");
-      indicator.classList.toggle("ready", ready);
-      indicator.style.setProperty("--pull-y", `${state.pullRefreshState.distance}px`);
-      indicator.querySelector("span").textContent = ready ? "松开刷新" : "下拉刷新";
-    }, { passive: false });
-    pullRefreshTarget.addEventListener("touchend", async () => {
-      if (!state.pullRefreshState) return;
-      const shouldRefresh = state.pullRefreshState.tracking && state.pullRefreshState.distance >= 64;
-      state.pullRefreshState = null;
-      if (!shouldRefresh) {
-        indicator.classList.remove("visible", "ready");
-        indicator.style.removeProperty("--pull-y");
-        return;
-      }
-      indicator.classList.add("refreshing");
-      indicator.querySelector("span").textContent = "正在刷新";
-      try {
-        await Promise.all([loadPhotos(), loadNotifications()]);
-        indicator.querySelector("span").textContent = "已更新";
-      } finally {
-        window.setTimeout(() => {
-          indicator.classList.remove("visible", "ready", "refreshing");
-          indicator.style.removeProperty("--pull-y");
-        }, 420);
-      }
-    }, { passive: true });
-    pullRefreshTarget.addEventListener("touchcancel", () => {
-      state.pullRefreshState = null;
-      indicator.classList.remove("visible", "ready", "refreshing");
-      indicator.style.removeProperty("--pull-y");
-    }, { passive: true });
+    if (pullRefreshInitialized) return;
+    const target = document.querySelector("main");
+    if (!target) return;
+    pullRefreshInitialized = true;
+    bindPullRefresh({
+      target,
+      canStart: () => isMobileViewport() && state.activePage === "gallery" && window.scrollY <= 2 && !state.mobileDiaryPhoto,
+      refresh: async () => {
+        const [loaded] = await Promise.all([loadPhotos(), loadNotifications()]);
+        return loaded;
+      },
+      view: createPullRefreshView(),
+    });
   }
-  
   function observeGalleryMasonry() {
     state.galleryMasonryObserver?.disconnect();
     if (!("ResizeObserver" in window) || !els.gallery) return;
@@ -920,7 +871,6 @@ export function createDiaryFeedController({
     renderGallery,
     layoutGalleryMasonry,
     scheduleGalleryMasonryLayout,
-    ensurePullRefreshIndicator,
     initializePullToRefresh,
     observeGalleryMasonry,
     getPhotoSearchText,

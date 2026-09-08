@@ -48,7 +48,7 @@ git diff --check
 ### V3 留言与心情瓶专项
 
 - [x] 桌面端日记流四列瀑布流及 Pages alias 探测修复已发布到正式站；正式入口为 `https://life-vlog-site.pages.dev`，固定 preview 为 `https://codex-preview.life-vlog-site.pages.dev`，生产 deployment 为 `b6b217c8`（`https://b6b217c8.life-vlog-site.pages.dev`），Worker 版本为 `6800cd07-cca4-438f-96b3-cef0f1b08320`，入口为 `index-Dh_FCRKY.js`（SHA-256 `4714623851d5aae44f719f44143dea703b29b1dcc52c9f4958f859e088ff4401`），样式为 `index-Ut_KJE20.css`（SHA-256 `c3f2e2453ab08a6dd64ee169aa59ad379d5ea69ced36ee0467943caa4b542f`），`sw.js` SHA-256 为 `808e2c2660060f760e0e719ca16caba5dec71464c063189bfed025db22defeaf`，Workbox 预缓存条目为 44；preview 与 production 均通过线上 CORS、Axe critical/serious、确定性 fixture release smoke 和线上 HTML/CSS/SW 资源 hash 核对，production HTML 状态为 200，未使用真实账户、密码、token 或真实业务数据。
-- [x] 当前通知与今日概览：首次新增心愿/购物车商品只通知其他家庭成员；每天 20:00（Asia/Tokyo）未记录当日心情时生成一次站内通知并在已订阅设备发送 Push；通知点击可进入对应功能；1440px 普通桌面概览左侧为窄栏上下排列的双人心情面板、右侧为加宽的本月心情日历缩略图并保持上下对齐，宽屏则将两个面板分别放入页面最左和最右侧栏，手机端不增加额外纵向空白。
+- [x] 当前通知与今日概览：首次新增心愿/购物车商品只通知其他家庭成员；每天 18:00（Asia/Tokyo）未记录当日心情时生成一次站内通知并在已订阅设备发送 Push；通知点击可进入对应功能；1440px 普通桌面概览左侧为窄栏上下排列的双人心情面板、右侧为加宽的本月心情日历缩略图并保持上下对齐，宽屏则将两个面板分别放入页面最左和最右侧栏，手机端不增加额外纵向空白。
 - [x] 超宽桌面右侧心情栏与本地 Vite 预览登录 CORS 修复已发布到正式站；今日心情位于本月心情上方，正式站、固定 preview 和独立 deployment `67b58c3a` 资源一致，Worker 版本为 `f8bf0660-c73a-4f41-93a1-1ca0c7b2ccf2`，入口为 `index-CWMxKTEB.js`（SHA-256 `9143ca7e133b2638c6c17603c33d640b349ded0cf82c92208eeb570fac7d9bbb`），样式为 `index-yUlLRiav.css`（SHA-256 `138b0780362b4c1a26b37dcea8156465c882ce26c69edc4728b2734d90c2da5b`），`sw.js` SHA-256 为 `0b8b0926f1d3f63dc0563ff1c8aff634eeb8f13eca6d08dcf427d657cf8a2d83`，Workbox 预缓存条目为 44；preview 与 production 均通过线上 CORS、Axe critical/serious 和确定性 fixture release smoke，未使用真实账户或凭证。
 - [x] `tests/comment-thread-domain.mjs`：根留言、深层链、孤儿、循环 parent 和重复 id 均稳定输出，每条合法评论最多一行。
 - [x] `tests/mood-jar-physics.mjs`：固定种子、瓶壁/瓶底约束、粒子接触、轨迹变化、最终稳定态和 0/1/8/31/62 数量均通过。
@@ -96,7 +96,7 @@ Worker CORS 只允许正式站 `https://life-vlog-site.pages.dev`、固定 previ
 - 购物车：手机端紧凑卡片、图片放大、完成/编辑/删除按钮保持可触控，刷新后状态仍然存在。
 - 秘藏：密码进入、文件夹/相册、上传、Tag 添加删除、收藏、移动、排序、图片预览和桌面端单张删除（保留最后一张保护）。
 - 等级面板：点击顶部等级徽章或经验区域后立即打开面板，云端家庭排行加载完成后再刷新内容。
-- 通知：铃铛在未加载设置路由时也可点击；dialog 先开窗再加载，慢网显示 loading，空结果显示 empty，读取失败显示 error 与重试；重复点击只复用一个请求，加载中关闭后不自动重开，关闭恢复铃铛焦点；新日记、评论和回复提示打开后会消失，自己发布的内容不提醒自己；家庭成员新增心愿/购物车商品会提醒其他成员，20:00 未记录心情会出现晚间提醒，点击通知进入对应页面。
+- 通知：铃铛在未加载设置路由时也可点击；dialog 先开窗再加载，慢网显示 loading，空结果显示 empty，读取失败显示 error 与重试；重复点击只复用一个请求，加载中关闭后不自动重开，关闭恢复铃铛焦点；新日记、评论和回复提示打开后会消失，自己发布的内容不提醒自己；家庭成员新增心愿/购物车商品会提醒其他成员，18:00 未记录心情会出现晚间提醒，点击通知进入对应页面。
 - 设置 → 通知与工具：懒加载进入设置后“关闭这台设备”可点击；操作期间按钮显示 busy/disabled；本机 Push 订阅先关闭，即使 Worker 清理失败也明确反馈本机已关闭并允许后续重试，重复点击不会并发执行。
 - 手机 viewport：在 375×812、390×844、430×932 和 844×390 检查页面仍可纵向滚动、无横向溢出，文本控件聚焦不放大页面；日记/秘藏媒体查看器仍可局部缩放、拖拽，系统返回手势可用。
 - 离线与缓存：断网时能打开已缓存内容，恢复网络后不会重复上传或重复请求。

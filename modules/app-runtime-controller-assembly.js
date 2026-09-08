@@ -331,7 +331,6 @@ let filteredPhotoCount = 0;
 let showingCachedFeed = false;
 let feedObserver = null;
 let feedLoading = false;
-let pullRefreshState = null;
 let galleryMasonryObserver = null;
 let galleryMasonryTimer = null;
 let editingPhoto = null;
@@ -419,7 +418,6 @@ const runtimeState = createRuntimeStateAccessors({
   galleryMasonryObserver: { get: () => galleryMasonryObserver, set: (value) => { galleryMasonryObserver = value; } },
   feedObserver: { get: () => feedObserver, set: (value) => { feedObserver = value; } },
   feedLoading: { get: () => feedLoading, set: (value) => { feedLoading = value; } },
-  pullRefreshState: { get: () => pullRefreshState, set: (value) => { pullRefreshState = value; } },
   mobileDiaryPhoto: { get: () => mobileDiaryPhoto, set: (value) => { mobileDiaryPhoto = value; } },
   mobileDiaryPage: { get: () => mobileDiaryPage, set: (value) => { mobileDiaryPage = value; } },
   diarySearchQuery: { get: () => diarySearchQuery, set: (value) => { diarySearchQuery = value; } },
@@ -641,7 +639,6 @@ const {
   renderGallery,
   layoutGalleryMasonry,
   scheduleGalleryMasonryLayout,
-  ensurePullRefreshIndicator,
   initializePullToRefresh,
   observeGalleryMasonry,
   getPhotoSearchText,

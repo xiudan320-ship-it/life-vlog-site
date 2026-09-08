@@ -93,6 +93,8 @@ This system combines the verified UI/UX Pro Max matches for Minimalism & Swiss S
 
 ## Motion
 
+- Mobile diary pull-to-refresh follows vertical drag with a rotating indicator and distinct release/loading/result text; cancelling hides it, refreshing is single-flight, and reduced motion disables rotation. Keep controls, media gestures and open dialogs excluded.
+
 - Default feedback: 140–220ms.
 - Use motion only for state, selection, swipe, and spatial continuity.
 - Do not introduce GSAP for this application.

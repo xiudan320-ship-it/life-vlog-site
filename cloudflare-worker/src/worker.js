@@ -2032,9 +2032,9 @@ function getTokyoDayUtcRange(dateKey) {
   };
 }
 
-async function createDailyMoodReminders(env) {
+async function createDailyMoodReminders(env, scheduledTime) {
   if (!env.DB) return;
-  const dateKey = getTokyoDateKey();
+  const dateKey = getTokyoDateKey(new Date(scheduledTime));
   const { start, end } = getTokyoDayUtcRange(dateKey);
   const users = await env.DB.prepare("select id from users").all();
   for (const user of users.results || []) {
@@ -2056,7 +2056,7 @@ async function createDailyMoodReminders(env) {
     await env.DB.prepare(
       `insert into notifications (id, user_id, actor_id, type, photo_id, comment_id, body, is_read, created_at)
        values (?, ?, ?, 'mood_reminder', null, null, ?, 0, ?)`
-    ).bind(notificationId, userId, userId, body, nowIso()).run();
+    ).bind(notificationId, userId, userId, body, new Date(scheduledTime).toISOString()).run();
     await sendPushToUser(env, userId, {
       id: notificationId,
       actorId: userId,
@@ -2950,13 +2950,13 @@ export default {
       );
     }
   },
-  async scheduled(_controller, env, ctx) {
-    // 20:00 Asia/Tokyo runs through the UTC cron entry and creates one
-    // idempotent reminder per user who has not recorded today's mood.
-    ctx.waitUntil(createDailyMoodReminders(env));
-    // The backup job removes snapshots older than the seven-day retention
-    // window and keeps its existing daily schedule.
-    ctx.waitUntil(cleanupExpiredTrash(env));
-    ctx.waitUntil(createDailyBackup(env));
+  async scheduled(controller, env, ctx) {
+    // UTC 09:00 = 18:00 Asia/Tokyo. Backup must never send mood reminders.
+    if (controller.cron === "0 9 * * *") {
+      ctx.waitUntil(createDailyMoodReminders(env, controller.scheduledTime));
+    } else if (controller.cron === "20 18 * * *") {
+      ctx.waitUntil(cleanupExpiredTrash(env));
+      ctx.waitUntil(createDailyBackup(env));
+    }
   },
 };
