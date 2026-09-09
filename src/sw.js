@@ -1,18 +1,33 @@
 import { clientsClaim } from "workbox-core";
-import { cleanupOutdatedCaches, precacheAndRoute } from "workbox-precaching";
+import { cleanupOutdatedCaches, matchPrecache, precacheAndRoute } from "workbox-precaching";
 import { registerRoute } from "workbox-routing";
 import { CacheFirst, NetworkFirst, StaleWhileRevalidate } from "workbox-strategies";
 import { ExpirationPlugin } from "workbox-expiration";
 
 clientsClaim();
 cleanupOutdatedCaches();
-precacheAndRoute(self.__WB_MANIFEST);
 
-registerRoute(({ request }) => request.mode === "navigate", new NetworkFirst({
+const navigationStrategy = new NetworkFirst({
   cacheName: "life-vlog-navigation",
   networkTimeoutSeconds: 3,
-}));
-registerRoute(({ request, url }) => request.destination === "script" || request.destination === "style" || url.pathname.includes("/assets/"), new CacheFirst({
+  fetchOptions: { cache: "no-store" },
+  plugins: [new ExpirationPlugin({ maxEntries: 8, maxAgeSeconds: 86400 })],
+});
+
+// Keep navigations network-first so a newly published index is not hidden by
+// the precached shell. If the network is slow or offline, fall back to the
+// exact shell that was installed with this worker, including for deep links.
+registerRoute(({ request }) => request.mode === "navigate", async ({ event, request }) => {
+  try {
+    return await navigationStrategy.handle({ event, request });
+  } catch {
+    return matchPrecache("/index.html");
+  }
+});
+
+precacheAndRoute(self.__WB_MANIFEST);
+
+registerRoute(({ request }) => request.destination === "script" || request.destination === "style", new CacheFirst({
   cacheName: "life-vlog-static-runtime",
   plugins: [new ExpirationPlugin({ maxEntries: 120, maxAgeSeconds: 31536000 })],
 }));

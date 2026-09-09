@@ -26,7 +26,7 @@ export function createAppSessionController({
     controller.get()?.[method]?.();
   }
 
-  function updateAuthUI() {
+  function updateAuthUI({ activatePage = true } = {}) {
     const signedIn = Boolean(state.session);
     const needsAccountSync = Boolean(signedIn && state.session.user.id !== state.syncedUserId);
     if (!signedIn) vlogMode.close();
@@ -107,7 +107,7 @@ export function createAppSessionController({
     if (els.thanksBoard) actions.renderGratitudeNotes();
     actions.renderFoodWheel();
     actions.applyPrimaryNavigation?.(signedIn ? state.session.user.id : "guest");
-    actions.switchPage(state.activePage);
+    if (activatePage) actions.switchPage(state.activePage);
     actions.setHint(signedIn ? "" : "输入用户名和密码登录。注册新账号需要 xiudan320 给的邀请码。");
     actions.setGlobalStatus("");
 
@@ -167,14 +167,14 @@ export function createAppSessionController({
       const nextUserId = nextSession?.user?.id || "";
       if (previousUserId !== nextUserId) controllers.secretPin.resetSession();
       state.session = nextSession;
-      updateAuthUI();
+      updateAuthUI({ activatePage: localSessionReady });
       actions.renderCachedPhotoFeed(state.session?.user?.id || "public");
       if (localSessionReady) void synchronizeRemoteSession();
     });
 
     const { data } = await state.cloudDb.auth.getSession();
     state.session = data.session;
-    updateAuthUI();
+    updateAuthUI({ activatePage: false });
     actions.renderCachedPhotoFeed(state.session?.user?.id || "public");
     actions.syncMobileComposerPlacement();
     controllers.lifecycle.start();

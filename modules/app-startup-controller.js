@@ -9,22 +9,15 @@ export function createAppStartupController({
 } = {}) {
   let startPromise = null;
 
-  async function start({ activateInitialRoute, prepareBeforeSplash = true } = {}) {
+  async function start({ activateInitialRoute, prepareBeforeSplash = false } = {}) {
     if (startPromise) return startPromise;
     startPromise = (async () => {
       performanceMonitor?.mark("app-bootstrap-start");
       let localReady = false;
-      try {
-        await restoreCloudflareSessionBackup?.();
-        await initializeLocalSession?.();
-        localReady = true;
-        performanceMonitor?.mark("cached-ui-ready");
-      } catch (error) {
-        performanceMonitor?.mark("app-bootstrap-failed");
-        reportError?.(error);
-      }
-
+      let initialRouteAttempted = false;
       async function activateRoute() {
+        if (initialRouteAttempted) return;
+        initialRouteAttempted = true;
         try {
           await activateInitialRoute?.();
         } catch (error) {
@@ -33,12 +26,21 @@ export function createAppStartupController({
         }
       }
 
-      if (localReady && prepareBeforeSplash) await activateRoute();
-
-      await completeSplash?.();
-      performanceMonitor?.mark("splash-hidden");
+      try {
+        await restoreCloudflareSessionBackup?.();
+        await initializeLocalSession?.();
+        localReady = true;
+        performanceMonitor?.mark("cached-ui-ready");
+        if (prepareBeforeSplash) await activateRoute();
+      } catch (error) {
+        performanceMonitor?.mark("app-bootstrap-failed");
+        reportError?.(error);
+      } finally {
+        await completeSplash?.();
+        performanceMonitor?.mark("splash-hidden");
+      }
       if (!localReady) return false;
-      if (!prepareBeforeSplash) await activateRoute();
+      await activateRoute();
       void initializePerformance?.();
       performanceMonitor?.mark("remote-sync-start");
       void Promise.resolve(synchronizeRemoteSession?.()).then(

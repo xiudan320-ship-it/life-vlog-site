@@ -37,7 +37,7 @@ flowchart LR
 
 ## 3. 前端启动与装配
 
-手机首页的 gallery 路由为轻量静态模块，原 gallery 路由样式由 `app.js` 同步导入并进入 Workbox 首屏预缓存，避免网络迟到后补布局。启动先恢复本地会话与缓存，首页路由就绪后撤开屏；其他深链先撤开屏再激活路由，远端同步不作为首页显示前提。未新增全路由预载或改变 SW 的更新策略。入口 CSS 预算覆盖原入口加 gallery 的总量（256 KiB 原始、46 KiB gzip），不是新增界面样式。
+手机首页的 gallery 路由为轻量静态模块，入口依赖同步导入原 gallery 路由样式并进入 Workbox 首屏预缓存，避免网络迟到后补布局。启动先恢复本地会话与缓存，初始 gallery 路由只激活一次且在撤开屏前完成；其他深链先撤开屏再激活懒路由，远端同步不作为首页显示前提。初始化本地会话时只更新状态和缓存，不重复触发初始路由切换。未新增全路由预载或改变 SW 的更新策略。入口 CSS 预算覆盖原入口加 gallery 的总量（256 KiB 原始、46 KiB gzip），不是新增界面样式。
 
 入口链路：
 
@@ -45,7 +45,7 @@ flowchart LR
 2. `app.js` 只导入 `modules/app-runtime-startup.js` 并启动应用。
 3. `app-runtime-*` 系列模块创建状态、服务、控制器、事件绑定和路由上下文。
 4. `app-services.js` 集中创建 Cloudflare 客户端、repositories、媒体缓存、上传队列和图片服务。
-5. `app-startup-controller.js` 先释放可用 UI，再在后台同步会话与云端数据。
+5. `app-startup-controller.js` 恢复本地会话与缓存；gallery 初始路由就绪后撤开屏，深链则先撤开屏再激活路由，随后后台同步云端数据。
 6. `route-loader.js` 按页面动态导入路由模块，依次执行 `mount → collect → initialize → bind → activate`。
 
 `app.js` 不承载业务逻辑。新增功能按职责进入 `modules/`，并保持 controller、view、domain、repository/service 分离。
@@ -157,7 +157,7 @@ flowchart LR
 - `offline-records.js`：离线元数据记录。
 - `src/sw.js`：Workbox 预缓存和运行时缓存策略。
 
-Service Worker 使用 `registerType: "prompt"`，新版本就绪后由用户确认更新。路由 chunk 和大媒体不进入核心 precache，避免安装包过大。
+Service Worker 使用 `registerType: "prompt"`，新版本就绪后由用户确认更新。导航路由在 precache 路由前注册，使用带 3 秒网络超时和 `cache: "no-store"` 的 `NetworkFirst`，网络失败时回退到本次 worker 安装的 `/index.html`，因此离线深链仍能进入应用壳且新 HTML 不会被旧 precache 抢先返回。带 hash 的脚本/样式使用 `CacheFirst`，同源图片使用 `StaleWhileRevalidate`；路由 chunk、功能 chunk 和大媒体不进入核心 precache，首次需要时再由运行时缓存。
 
 心情日记的当前月份在 `localStorage` 使用 `life-vlog-mood-month:<userId>:<YYYY-MM>` 缓存；首页今日概览由 `today-mood-cache.js` 使用 `life-vlog-mood-day:<userId>:<YYYY-MM-DD>` 缓存当天两席，并在没有日缓存时从月缓存提取当天记录。两类缓存仅作为加速层，云端成功响应会替换 canonical 内容；缓存读取失败不阻断网络读取，用户、日期/月和请求 revision 均参与隔离与 latest-wins 判断。首页的今日记录先显示缓存并后台刷新，首屏心情素材使用 eager 加载；Service Worker 对同源心情 SVG 继续使用 `StaleWhileRevalidate`。`monthSummary` 不单独持久化，而是由当前月 entries、稳定两席和月份键派生；`mood-month-summary-domain.js` 生成最多 62 个确定性罐体素材元数据、成员最多心情、按日三档趋势（缺口只保留真实端点并输出虚线桥）和真实日期趋势坐标。`mood-jar-physics.js` 与透明圆肚玻璃罐 WebP 共用 `360×480` 几何，以瓶口 `(180,42)`、向内缩的曲面瓶壁和椭圆底部为边界，使用固定 `1/60s` 步长、最多 4 次逐帧补算、确定性批次出生、圆形粒子碰撞、摩擦、轻微回弹和休眠，最终稳定态仍由同一求解器收束。`mood-month-summary-view.js` 观察罐体至少 55% 可见且中心进入视口 20%～80% 焦点带后，启动当前月份/数据 key 的一次播放；月历和罐体旁的月份按钮都复用 `mood-diary-controller.js` 的月份 action。月份 action 从触发按钮所属的月历或心情罐模块读取视口锚点，在同步/缓存/canonical 多次渲染后增量恢复位置，并在完成后的两帧内避开全局平滑滚动释放锚点，因此 4～6 周月历切换不会推动当前可见模块。数据渲染后会重新读取罐体布局，覆盖隐藏路由激活时的旧视口判断；单一 rAF 只把缓存粒子状态写入内层 `transform`/`opacity`，不在帧循环中查询 DOM。重播、切月、数据刷新、路由离开和 destroy 都取消旧 rAF 并重建唯一模拟，reduced-motion 直接采用求解器最终态并播报状态。物理内腔最终使用 `wallInset=8`、`floorEdgeY=420`、`floorCenterY=434`，与可见底座留出安全间距。瓶体源图位于 `assets-source/mood-jar.png`，构建时由 `scripts/optimize-assets.mjs` 输出 720×960 的 `/assets/generated/mood-jar.webp`。手机趋势使用约 `390×360` 的高画布，记录较少时按真实有记录日期等距展开，HTML 命中按钮与 SVG 绘图共用同一坐标模型。评论由 `comment-thread-domain.js` 转为同级行模型；移动日记与桌面详情共享稳定排序、回复目标和孤儿/循环保护，正文至少 16px、长 URL 任意断行，表单保持列表后的正常文档流。首页成功态折叠空状态行；普通桌面今日心情使用窄左栏上下排列、右侧显示本月心情日历，宽屏则把今日心情面板放在右侧栏上方、把本月心情日历放在同一栏下方，手机端继续隐藏右侧月度面板。保存、编辑、删除先更新月历/历史/详情/汇总的内存快照，再强制重读受影响月份；成功响应覆盖 optimistic state，重读失败保留已写入结果并显示可重试状态；没有离线写入队列。
 
@@ -185,7 +185,7 @@ pnpm preview
 - 生成 PWA manifest；
 - 通过 Workbox `injectManifest` 生成 `dist/sw.js`。
 
-今日心情的 controller、repository 与共享域模块固定合并为单个 `today-mood-*.js` 懒加载 chunk；overlay 仍在首次打开时才加载，gallery 冷启动保持最多 28 个请求，路由 chunk 继续排除在核心 Workbox precache 之外。
+今日心情的 controller、repository 与共享域模块固定合并为单个 `today-mood-*.js` 懒加载 chunk，并保留在核心 precache 以保证首页缓存态可直接显示；overlay 仍在首次打开时才加载，gallery 冷启动保持最多 28 个请求。`vite.config.js` 通过 `globIgnores` 排除路由和非核心功能 chunk，避免安装包膨胀；这些 chunk 由脚本/样式运行时缓存策略按需缓存。
 
 `pnpm-workspace.yaml` 明确允许 `esbuild` 与 `sharp` 的安装构建脚本，使锁定依赖安装后的 Vite 构建使用完整的本地二进制依赖。
 
@@ -203,7 +203,7 @@ pnpm preview
 | `pnpm run test:release` | 确定性线上 fixture 冒烟 |
 | `pnpm run test:worker-online` | Worker CORS 与在线边界 |
 
-心情日记专项由 `tests/mood-diary-domain.mjs`、`tests/comment-thread-domain.mjs`、`tests/mood-jar-physics.mjs`、`tests/mood-month-summary-domain.mjs`、`tests/mood-diary-controller.mjs`、`tests/today-mood-controller.mjs`、`tests/mood-diary-worker.mjs`、`tests/mood-diary-assets.mjs` 和 `tests/mood-diary-browser.mjs` 覆盖；浏览器用确定性假 session / API fixture 验证首页今日概览的四种数据状态、真实昵称/形状、本人快速添加、桌面本月缩略罐、冷启动落点、gallery 滚动恢复，以及 375/390/430/768/844×390/1440/2048/3750 视口的完整月历、月度汇总、宽屏右侧上下堆叠面板、中央标题到快捷操作的连续流、侧栏不遮挡中央列和文档宽度不溢出、360×480 透明圆肚罐体与内腔 clip、0/1/8/31/62 数量、固定步长碰撞/接触/最终稳定态、离屏/进视口/回滚动动画生命周期、单一 rAF 重播/中断/键盘/减少动态效果、月份切换和路由离开清理、稠密罐体边界、趋势 SVG `getTotalLength()`/点 bbox/计算字体/线宽/颜色、真实日期横向覆盖、44×44 点位命中区、单一键盘焦点、趋势点键盘提示、暗色/130% 字号、深层扁平留言在 320/375/390/430/844×390 的宽度/换行/表单顺序、缓存错误重试、写后 canonical 重读、Picker、编辑、删除、历史和横向溢出。16 个 512×512 透明心情素材位于 Vite 静态目录 `public/assets/mood-diary/`，构建后 URL 为 `/assets/mood-diary/*`；圆肚玻璃罐源图位于 `assets-source/mood-jar.png`，由优化脚本生成 `/assets/generated/mood-jar.webp`；静态与资源门禁会验证透明心情素材和瓶体资源的格式、边界与体积，避免白底、棋盘格或缺失素材进入发布包。
+心情日记专项由 `tests/mood-diary-domain.mjs`、`tests/comment-thread-domain.mjs`、`tests/mood-jar-physics.mjs`、`tests/mood-month-summary-domain.mjs`、`tests/mood-diary-controller.mjs`、`tests/today-mood-controller.mjs`、`tests/mood-diary-worker.mjs`、`tests/mood-diary-assets.mjs` 和 `tests/mood-diary-browser.mjs` 覆盖；浏览器用确定性假 session / API fixture 验证首页今日概览的四种数据状态、真实昵称/形状、本人快速添加、桌面本月缩略罐、冷启动落点、gallery 滚动恢复，以及 375/390/430/768/844×390/1440/2048/3750 视口的完整月历、月度汇总、宽屏右侧上下堆叠面板、中央标题到快捷操作的连续流、侧栏不遮挡中央列和文档宽度不溢出、360×480 透明圆肚罐体与内腔 clip、0/1/8/31/62 数量、固定步长碰撞/接触/最终稳定态、离屏/进视口/回滚动动画生命周期、单一 rAF 重播/中断/键盘/减少动态效果、月份切换和路由离开清理、稠密罐体边界、趋势 SVG `getTotalLength()`/点 bbox/计算字体/线宽/颜色、真实日期横向覆盖、44×44 点位命中区、单一键盘焦点、趋势点键盘提示、暗色/130% 字号、深层扁平留言在 320/375/390/430/844×390 的宽度/换行/表单顺序、缓存错误重试、写后 canonical 重读、Picker、编辑、删除、历史和横向溢出；新增 `tests/mobile-cold-start.mjs` 使用内存 fixture 验证 390×844 的温缓存、断网重载和断网深链仍能在撤屏后直接显示缓存卡片与完整 gallery 样式。16 个 512×512 透明心情素材位于 Vite 静态目录 `public/assets/mood-diary/`，构建后 URL 为 `/assets/mood-diary/*`；圆肚玻璃罐源图位于 `assets-source/mood-jar.png`，由优化脚本生成 `/assets/generated/mood-jar.webp`；静态与资源门禁会验证透明心情素材和瓶体资源的格式、边界与体积，避免白底、棋盘格或缺失素材进入发布包。
 
 `pnpm test` 不包含全部发布门禁。发布必须遵循 [`release-checklist.md`](release-checklist.md)。浏览器回归和 release smoke 使用确定性通知 fixture 覆盖铃铛在设置路由未加载、慢请求、重复点击、关闭中请求、读取失败重试、已读写回、心愿/购物车/晚间心情通知文案与目标跳转、感谢留言 dialog 跳转场景下的行为；同时覆盖顶部分页默认/可选入口、最多五项上限、启用排序持久化、VLOG mode 不改 URL、留言 dialog 不改 URL、五项在导航行内完整显示、日记搜索/tag 随页面文档流滚动和 Push 本地优先关闭。a11y 回归同时检查上述 viewport、无横向溢出、留言 dialog 外框和移动端表单字号契约。
 

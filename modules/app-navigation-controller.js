@@ -24,6 +24,7 @@ export function createAppNavigationController({
   const pageScrollPositions = new Map();
   let transitionSequence = 0;
   let initialGalleryLandingPending = true;
+  let stopInitialLanding = () => {};
 
   function getScrollTop() {
     return Math.max(0, Number(windowTarget?.scrollY) || 0);
@@ -79,6 +80,19 @@ export function createAppNavigationController({
     };
     if (typeof windowTarget?.requestAnimationFrame === "function") {
       windowTarget.requestAnimationFrame(finish);
+      if (options?.landOverview && windowTarget.ResizeObserver && elements.main) {
+        const events = new AbortController();
+        const observer = new windowTarget.ResizeObserver(() => {
+          if (!isCurrent()) return stopInitialLanding();
+          finish();
+          if (elements.gallery?.querySelector(".photo-card")) stopInitialLanding();
+        });
+        stopInitialLanding = () => { observer.disconnect(); events.abort(); };
+        for (const event of ["touchstart", "pointerdown", "wheel", "keydown"]) {
+          documentTarget.addEventListener(event, stopInitialLanding, { once: true, passive: true, signal: events.signal });
+        }
+        observer.observe(elements.main);
+      }
       return;
     }
     finish();
@@ -103,6 +117,7 @@ export function createAppNavigationController({
     { skipSecretGate = false, restoreScroll = true, focusHeading = true, historyMode = "push" } = {}
   ) {
     const requestedPage = PAGE_NAMES.has(page) ? page : "gallery";
+    stopInitialLanding();
     const transitionId = ++transitionSequence;
     const isCurrent = () => transitionId === transitionSequence;
     if (requestedPage === "secret" && !skipSecretGate && !actions.isSecretUnlocked()) {

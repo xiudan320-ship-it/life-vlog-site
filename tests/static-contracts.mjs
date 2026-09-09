@@ -13,6 +13,7 @@ const [html, app, appRuntime, appRuntimeController, appRuntimeInfrastructure, ap
   read("vite.config.js"), read("public/_headers"), read("modules/routes/templates/settings.html"), read("modules/settings-view.js"), read("styles/account-dialogs.css"), read("modules/confirm-dialog.js"), read("styles/confirm-dialog.css"), read("modules/app-event-bindings.js"), read("modules/settings-event-bindings.js"),
 ]);
 const releaseSmoke = await read("tests/release-smoke.mjs");
+const appSession = await read("modules/app-session-controller.js");
 const [mediaRuntime, photoDetailRuntime, accountAssembly, secretService, routeLoader, videoLayout, galleryView, motionCoordinator, motionDomain] = await Promise.all([
   read("modules/app-runtime-media-assembly.js"),
   read("modules/photo-detail-controller.js"),
@@ -112,10 +113,16 @@ for (const iconFile of Object.values(toolIconMap)) {
 assert.match(html, /class="list-icon ui-icon"/);
 assert.doesNotMatch(sw, /CORE_ASSETS|CACHE_NAME/);
 assert.match(sw, /precacheAndRoute\(self\.__WB_MANIFEST\)/);
+assert.match(sw, /matchPrecache\("\/index\.html"\)/);
+assert.match(sw, /cache: "no-store"/);
+assert.ok(sw.indexOf('request.mode === "navigate"') < sw.indexOf("precacheAndRoute(self.__WB_MANIFEST)"), "navigation fallback must run before the precache route");
 assert.match(sw, /addEventListener\("push"/);
 assert.match(sw, /notificationclick/);
 assert.match(vite, /strategies: "injectManifest"/);
 assert.match(vite, /registerType: "prompt"/);
+for (const chunk of ["controller-options", "mood-entry-overlay-controller", "settings-event-bindings", "virtual_pwa-register", "web-vitals"]) {
+  assert.match(vite, new RegExp(`\\*\\*/${chunk.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}-\\*\\.js`), `${chunk} should stay out of the core precache`);
+}
 assert.match(app, /styles\/confirm-dialog\.css/);
 assert.match(confirmDialog, /renderListIcon\(danger \? "trash" : "alert"\)/);
 assert.match(confirmStyles, /\.action-confirm-dialog/);
@@ -147,6 +154,8 @@ assert.match(appRuntimeInfrastructure, /createAppServices/);
 assert.match(appRuntimeRoute, /createRouteLoader/);
 assert.match(appRuntimeRoute, /collectRouteElements/);
 assert.match(appRuntimeStartup, /createAppStartupController/);
+assert.match(appRuntimeStartup, /prepareBeforeSplash: initialRoute\.page === "gallery"/);
+assert.match(startup, /prepareBeforeSplash = false/);
 assert.match(appEvents, /els\.closeLevelDialog\?\.addEventListener\("click"/);
 assert.match(appEvents, /els\.levelDialog\?\.addEventListener\("click"/);
 assert.match(appEvents, /els\.vipBadge\?\.addEventListener\("click", openLevelDialog\)/);
@@ -166,6 +175,9 @@ assert.match(diaryFeedController, /bindPullRefresh\(/);
 assert.doesNotMatch(diaryFeedController, /document\.addEventListener\("touchmove"/);
 assert.match(startup, /initializeLocalSession/);
 assert.match(startup, /synchronizeRemoteSession/);
+assert.match(appSession, /function updateAuthUI\(\{ activatePage = true \} = \{\}\)/);
+assert.match(appSession, /updateAuthUI\(\{ activatePage: localSessionReady \}\)/);
+assert.match(appSession, /updateAuthUI\(\{ activatePage: false \}\)/);
 assert.match(navigation, /pushState/);
 assert.match(navigation, /popstate/);
 assert.match(appRuntimeController, /collectShellElements/);

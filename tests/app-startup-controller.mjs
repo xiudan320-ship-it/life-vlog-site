@@ -32,7 +32,7 @@ test("startup completes the splash once and reports a local-session failure", as
   assert.ok(!marks.includes("remote-sync-start"));
 });
 
-test("startup activates the initial route before removing the splash", async () => {
+test("gallery startup activates the initial route before removing the splash", async () => {
   const events = [];
   const controller = createAppStartupController({
     restoreCloudflareSessionBackup: async () => events.push("backup"),
@@ -45,26 +45,37 @@ test("startup activates the initial route before removing the splash", async () 
 
   assert.equal(await controller.start({
     activateInitialRoute: async () => events.push("route"),
+    prepareBeforeSplash: true,
   }), true);
   await new Promise((resolve) => setTimeout(resolve, 0));
 
   assert.ok(events.indexOf("route") < events.indexOf("splash"));
-  assert.ok(events.indexOf("splash") < events.indexOf("remote"));
+  assert.ok(events.indexOf("route") < events.indexOf("remote"));
 });
 
-test("slow deep route never keeps splash visible or starts duplicate activation", async () => {
+test("deep-link startup releases the splash before a slow route", async () => {
   const events = [];
   let finishRoute;
-  const route = new Promise(resolve => { finishRoute = resolve; });
+  const route = new Promise((resolve) => { finishRoute = resolve; });
   const controller = createAppStartupController({
-    initializeLocalSession: async () => {},
+    restoreCloudflareSessionBackup: async () => events.push("backup"),
+    initializeLocalSession: async () => events.push("local"),
     completeSplash: async () => events.push("splash"),
     synchronizeRemoteSession: async () => events.push("remote"),
+    performanceMonitor: { mark: (name) => events.push(name) },
   });
-  const started = controller.start({ prepareBeforeSplash: false, activateInitialRoute: () => { events.push("route"); return route; } });
-  await new Promise(resolve => setTimeout(resolve, 0));
-  assert.deepEqual(events, ["splash", "route"]);
+  const started = controller.start({
+    activateInitialRoute: async () => {
+      events.push("route");
+      await route;
+    },
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.ok(events.indexOf("splash") > -1);
+  assert.ok(events.indexOf("splash") < events.indexOf("route"));
+  assert.equal(events.includes("remote"), false);
   finishRoute();
-  await started;
-  assert.deepEqual(events, ["splash", "route", "remote"]);
+  assert.equal(await started, true);
+  assert.ok(events.indexOf("route") < events.indexOf("remote"));
 });

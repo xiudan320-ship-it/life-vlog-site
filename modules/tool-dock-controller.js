@@ -18,6 +18,7 @@ export function createToolDockController({
     toolDockMobileDefaultOrder,
     toolDockLabels,
   } = constants;
+  let lastMobileToolSignature = "";
   function getToolDockOrderStorageKey(userId = state.session?.user?.id || "guest") {
     return preferenceStore.scopedKey(toolDockOrderKey, userId);
   }
@@ -71,6 +72,7 @@ export function createToolDockController({
       ...preferredButtons,
       ...availableButtons.filter((button) => !preferredButtons.includes(button)),
     ];
+    const mobileToolSignature = mobileOrder.map((button) => button.dataset.toolId).join("|");
     const orderByButton = new Map(mobileOrder.map((button, index) => [button, index]));
 
     buttons.forEach((button) => {
@@ -85,6 +87,10 @@ export function createToolDockController({
         button.style.removeProperty("--mobile-tool-order");
       }
     });
+    if (mobileToolSignature !== lastMobileToolSignature) {
+      els.toolDock.scrollLeft = 0;
+      lastMobileToolSignature = mobileToolSignature;
+    }
   }
   
   function applyToolDockOrder(userId = state.session?.user?.id || "guest") {

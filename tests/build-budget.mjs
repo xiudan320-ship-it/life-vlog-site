@@ -25,6 +25,30 @@ try {
 assert.ok(Array.isArray(precacheEntries), "final Workbox precache manifest is not an array");
 const precacheUrls = precacheEntries.map((entry) => entry?.url).filter(Boolean);
 assert.ok(!precacheUrls.some((url) => /-route-[^/]+\.(?:js|css)$/.test(url)), `route chunks were included in the precache manifest: ${precacheUrls.join(", ")}`);
+const nonCoreChunkPrefixes = [
+  "content-form-event-bindings-",
+  "controller-options-",
+  "diary-feed-motion-coordinator-",
+  "gamification-",
+  "media-gesture-domain-",
+  "mood-entry-overlay-controller-",
+  "photo-editor-controller-",
+  "mobile-diary-controller-",
+  "photo-viewer-controller-",
+  "settings-event-bindings-",
+  "virtual_pwa-register-",
+  "web-vitals-",
+  "workbox-window",
+];
+for (const prefix of nonCoreChunkPrefixes) {
+  assert.ok(
+    !precacheUrls.some((url) => url.includes(`/assets/${prefix}`)),
+    `non-core chunk ${prefix} was included in the precache manifest`
+  );
+}
+const todayMoodChunk = files.find((name) => name.startsWith("today-mood-") && name.endsWith(".js"));
+assert.ok(todayMoodChunk, "home mood chunk is missing");
+assert.ok(precacheUrls.includes(`assets/${todayMoodChunk}`), "home mood chunk missing from precache");
 for (const feature of ["photo-editor-controller", "mobile-diary-controller", "photo-viewer-controller"]) {
   assert.ok(files.some((name) => name.startsWith(`${feature}-`) && name.endsWith(".js")), `dynamic feature chunk ${feature} is missing`);
   assert.ok(!precacheUrls.some((url) => url.includes(`/${feature}-`) && url.endsWith(".js")), `dynamic feature chunk ${feature} was included in the precache manifest`);
@@ -51,4 +75,4 @@ for (const toolIconFile of toolIconFiles) {
 }
 assert.ok((await stat(join(dist, "_headers"))).isFile(), "_headers missing from dist");
 assert.ok(!precacheUrls.some((url) => url.includes("assets-source")), "source asset directory leaked into the precache manifest");
-console.log(JSON.stringify({ htmlBytes, entryJs: js, entryJsGzip: jsGzip, entryCss: css, entryCssBytes: cssBytes, entryCssGzip: cssGzip, precacheEntries: precacheUrls.length, generatedAssets: generated.length, toolIconAssets: toolIconFiles.length }, null, 2));
+console.log(JSON.stringify({ htmlBytes, entryJs: js, entryJsGzip: jsGzip, entryCss: css, entryCssBytes: cssBytes, entryCssGzip: cssGzip, precacheEntries: precacheUrls.length, homeMoodChunk: todayMoodChunk, generatedAssets: generated.length, toolIconAssets: toolIconFiles.length }, null, 2));
