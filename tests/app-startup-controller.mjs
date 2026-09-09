@@ -32,7 +32,7 @@ test("startup completes the splash once and reports a local-session failure", as
   assert.ok(!marks.includes("remote-sync-start"));
 });
 
-test("startup activates the initial route before remote synchronization", async () => {
+test("startup activates the initial route before removing the splash", async () => {
   const events = [];
   const controller = createAppStartupController({
     restoreCloudflareSessionBackup: async () => events.push("backup"),
@@ -48,6 +48,23 @@ test("startup activates the initial route before remote synchronization", async 
   }), true);
   await new Promise((resolve) => setTimeout(resolve, 0));
 
-  assert.ok(events.indexOf("route") > events.indexOf("splash"));
-  assert.ok(events.indexOf("route") < events.indexOf("remote"));
+  assert.ok(events.indexOf("route") < events.indexOf("splash"));
+  assert.ok(events.indexOf("splash") < events.indexOf("remote"));
+});
+
+test("slow deep route never keeps splash visible or starts duplicate activation", async () => {
+  const events = [];
+  let finishRoute;
+  const route = new Promise(resolve => { finishRoute = resolve; });
+  const controller = createAppStartupController({
+    initializeLocalSession: async () => {},
+    completeSplash: async () => events.push("splash"),
+    synchronizeRemoteSession: async () => events.push("remote"),
+  });
+  const started = controller.start({ prepareBeforeSplash: false, activateInitialRoute: () => { events.push("route"); return route; } });
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.deepEqual(events, ["splash", "route"]);
+  finishRoute();
+  await started;
+  assert.deepEqual(events, ["splash", "route", "remote"]);
 });

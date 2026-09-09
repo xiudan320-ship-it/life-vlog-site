@@ -977,6 +977,7 @@ async function testAuthenticatedHomeStartup() {
     galleryDisabled: document.querySelector('[data-primary-nav-id="gallery"]')?.disabled,
   }));
   assert.ok(Date.now() - startedAt <= 2000, "authenticated home splash exceeded the 2 second budget");
+  assert.ok(!scripts.some(url => /gallery-route-/.test(url)), "home must not fetch layout after showing the shell");
   assert.equal(await page.locator("#pullRefreshIndicator").evaluate(el => getComputedStyle(el).position), "fixed", "refresh styling must load before opening settings");
   assert.equal(boot.busy, null, "authenticated home stayed aria-busy");
   assert.equal(boot.authHidden, true, "authenticated home still shows the auth card");

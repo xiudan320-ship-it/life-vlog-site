@@ -35,8 +35,12 @@ const htmlBytes = Buffer.byteLength(indexHtml);
 const cssBytes = (await stat(join(dist, "assets", css))).size;
 assert.ok(htmlBytes <= 55 * 1024, `initial HTML ${htmlBytes} exceeds 55 KiB`);
 assert.ok(jsGzip <= 121 * 1024, `entry JS gzip ${jsGzip} exceeds 121 KiB`);
-assert.ok(cssBytes <= 170 * 1024, `core CSS ${cssBytes} exceeds 170 KiB`);
-assert.ok(cssGzip <= 32 * 1024, `core CSS gzip ${cssGzip} exceeds 32 KiB`);
+// Includes the former always-loaded gallery CSS, now in the cached entry.
+assert.ok(cssBytes <= 256 * 1024, `shell plus gallery CSS ${cssBytes} exceeds 256 KiB`);
+assert.ok(cssGzip <= 46 * 1024, `shell plus gallery CSS gzip ${cssGzip} exceeds 46 KiB`);
+assert.ok(!files.some(name => /^gallery-route-/.test(name)), "home route must not require a late chunk");
+assert.ok(precacheUrls.includes(`assets/${css}`), "home styles missing from precache");
+assert.ok((await readFile(join(dist, "assets", css), "utf8")).includes(".mobile-diary-more-sheet"), "gallery styles missing from shell");
 const generated = await readdir(join(dist, "assets", "generated"));
 assert.ok(generated.includes("maskable-512.png"), "maskable icon missing from dist");
 assert.ok(generated.includes("app-icon-512.png"), "PWA icon missing from dist");

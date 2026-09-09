@@ -110,18 +110,33 @@ export function createTodayMoodController({
       familyMembers: getFamilyMembers?.(),
     });
     const nextParticipantSignature = nextParticipants.map(({ userId }) => userId).join("|");
-    const contextChanged = previousUserId !== nextUserId || previousMonthKey !== nextMonthKey;
+    const userChanged = previousUserId !== nextUserId;
+    const monthChanged = previousMonthKey !== nextMonthKey;
+    const contextChanged = userChanged || monthChanged;
     const dayChanged = Boolean(previousTodayKey) && previousTodayKey !== nextTodayKey;
     const participantsChanged = Boolean(previousParticipantSignature)
       && previousParticipantSignature !== nextParticipantSignature;
+    const visibleUserIds = new Set(nextParticipants.map((participant) => participant.userId));
     state.currentUserId = nextUserId;
     state.todayKey = nextTodayKey;
     state.monthKey = nextMonthKey;
     state.participants = nextParticipants;
     state.participantSignature = nextParticipantSignature;
     if (contextChanged || participantsChanged) {
-      state.monthEntries = [];
-      state.monthSummary = null;
+      if (userChanged || monthChanged) {
+        state.monthEntries = [];
+        state.monthSummary = null;
+      } else {
+        state.monthEntries = state.monthEntries.filter((entry) => (
+          visibleUserIds.has(entry.user_id)
+          && String(entry.diary_date || "").startsWith(`${state.monthKey}-`)
+        ));
+        state.monthSummary = buildMoodMonthSummary({
+          monthKey: state.monthKey,
+          entries: state.monthEntries,
+          participants: state.participants,
+        });
+      }
       state.monthLoadedKey = "";
       state.monthLoading = false;
       state.monthError = "";
@@ -136,18 +151,29 @@ export function createTodayMoodController({
       });
     }
     if (contextChanged || participantsChanged || dayChanged) {
-      state.entries = [];
-      state.entriesByUserId = new Map();
-      state.hasLocalResult = false;
-      state.syncing = false;
-      state.stale = false;
+      if (userChanged || monthChanged || dayChanged) {
+        state.entries = [];
+        state.entriesByUserId = new Map();
+        state.hasLocalResult = false;
+        state.syncing = false;
+        state.stale = false;
+      } else {
+        // A family member can arrive after the local session. Keep the
+        // already visible same-user cards while the wider participant set is
+        // revalidated; filtering below still removes departed members.
+        const hadLocalResult = state.hasLocalResult;
+        state.entries = state.entries.filter((entry) => visibleUserIds.has(entry.user_id));
+        state.entriesByUserId = new Map(state.entries.map((entry) => [entry.user_id, entry]));
+        state.hasLocalResult = hadLocalResult || state.entries.length > 0;
+        state.syncing = state.hasLocalResult;
+        state.stale = false;
+      }
       state.requestRevision += 1;
       requestId += 1;
       dayLoadPromise = null;
       dayLoadKey = "";
       dayContextSyncPending = participantsChanged || dayChanged || (contextChanged && Boolean(previousUserId));
     }
-    const visibleUserIds = new Set(state.participants.map((participant) => participant.userId));
     state.entries = state.entries.filter((entry) => visibleUserIds.has(entry.user_id) && entry.diary_date === state.todayKey);
     state.entriesByUserId = new Map(state.entries.map((entry) => [entry.user_id, entry]));
   }

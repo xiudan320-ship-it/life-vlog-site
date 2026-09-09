@@ -4,6 +4,8 @@
 
 ## 快速定位
 
+首页启动：`app-startup-controller.js` 编排本地准备和撤屏顺序，`app-runtime-startup.js` 区分首页与深链；`route-loader.js` 静态装配 gallery，其他路由仍懒加载，gallery 样式由根 `app.js` 导入。
+
 日记下拉刷新：`modules/pull-refresh-controller.js` 管理手势、请求互斥和取消；`modules/pull-refresh-view.js` 管理提示与动画状态，由 `diary-feed-controller.js` 装配。手机日记页主内容区顶部可触发，媒体、按钮、输入和弹窗保留自己的交互。
 
 发布工具：`deploy-cloudflare-pages.ps1` 负责 Git 来源检查和预览/正式发布装配；`scripts/verify-local-release.mjs` 管理本地预览服务及 Axe/fixture 验收；`tests/deployment-flow.ps1` 用模拟命令验证发布门禁和失败停止行为。操作步骤见 `release-checklist.md`。

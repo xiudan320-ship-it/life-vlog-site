@@ -9,7 +9,7 @@ export function createAppStartupController({
 } = {}) {
   let startPromise = null;
 
-  async function start({ activateInitialRoute } = {}) {
+  async function start({ activateInitialRoute, prepareBeforeSplash = true } = {}) {
     if (startPromise) return startPromise;
     startPromise = (async () => {
       performanceMonitor?.mark("app-bootstrap-start");
@@ -22,17 +22,23 @@ export function createAppStartupController({
       } catch (error) {
         performanceMonitor?.mark("app-bootstrap-failed");
         reportError?.(error);
-      } finally {
-        await completeSplash?.();
-        performanceMonitor?.mark("splash-hidden");
       }
+
+      async function activateRoute() {
+        try {
+          await activateInitialRoute?.();
+        } catch (error) {
+          performanceMonitor?.mark("initial-route-failed");
+          reportError?.(error);
+        }
+      }
+
+      if (localReady && prepareBeforeSplash) await activateRoute();
+
+      await completeSplash?.();
+      performanceMonitor?.mark("splash-hidden");
       if (!localReady) return false;
-      try {
-        await activateInitialRoute?.();
-      } catch (error) {
-        performanceMonitor?.mark("initial-route-failed");
-        reportError?.(error);
-      }
+      if (!prepareBeforeSplash) await activateRoute();
       void initializePerformance?.();
       performanceMonitor?.mark("remote-sync-start");
       void Promise.resolve(synchronizeRemoteSession?.()).then(

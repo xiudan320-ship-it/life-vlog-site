@@ -1,5 +1,9 @@
+import * as galleryRoute from "./routes/gallery-route.js";
+
 const routeImports = {
-  gallery: () => import("./routes/gallery-route.js"),
+  // The gallery owns the static app shell. Keep this tiny route module eager
+  // so an offline/warm start never waits for a route chunk before showing it.
+  gallery: () => Promise.resolve(galleryRoute),
   recipes: () => import("./routes/recipes-route.js"),
   wishlist: () => import("./routes/wishlist-route.js"),
   weekend: () => import("./routes/weekend-route.js"),

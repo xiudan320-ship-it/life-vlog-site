@@ -72,6 +72,7 @@ export function startAppRuntime(runtime) {
   void pwaUpdateController.initialize();
   const initialRoute = parseRoute(window.location);
   void startupController.start({
+    prepareBeforeSplash: initialRoute.page === "gallery",
     activateInitialRoute: () => switchPage(initialRoute.page, { historyMode: "replace", focusHeading: false }),
   });
 }

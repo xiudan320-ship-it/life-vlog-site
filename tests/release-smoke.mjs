@@ -700,16 +700,20 @@ async function testFailureMatrix(browser) {
   finally { await corruptSession.context.close(); }
 }
 
-async function testOfflineReload(browser) {
-  const result = await openFixturePage(browser, { authenticated: false, serviceWorkers: "allow" });
+async function testOfflineReload(browser, authenticated = false) {
+  const result = await openFixturePage(browser, { authenticated, serviceWorkers: "allow" });
   try {
-    await assertReady(result, "PWA first load", { authenticated: false });
+    await assertReady(result, "PWA first load", { authenticated });
     await result.page.waitForFunction(async () => (await navigator.serviceWorker.getRegistrations()).some((registration) => registration.active));
     await result.page.waitForFunction(() => Boolean(navigator.serviceWorker.controller), null, { timeout: 15000 });
     await result.context.setOffline(true);
     await result.page.reload({ waitUntil: "domcontentloaded", timeout: 15000 });
     await result.page.waitForSelector("#appSplash[hidden]", { state: "attached", timeout: 15000 });
     assert.equal(await result.page.locator("body").getAttribute("aria-busy"), null, "offline reload remained busy");
+    assert.equal(await result.page.locator("#authCard").evaluate(el => el.hidden), authenticated, "offline reload changed local session");
+    assert.ok(await result.page.evaluate(() => [...document.styleSheets].some(sheet => {
+      try { return [...sheet.cssRules].some(rule => rule.cssText.includes(".mobile-diary-more-sheet")); } catch { return false; }
+    })), "offline shell did not restore gallery styles");
   } finally { await result.context.close(); }
 }
 
@@ -734,5 +738,6 @@ try {
   await testDeepLink(browser, "weekend", 200);
   await testFailureMatrix(browser);
   await testOfflineReload(browser);
+  await testOfflineReload(browser, true);
   console.log(`Deterministic fixture release smoke passed: ${baseUrl}`);
 } finally { await browser.close(); }

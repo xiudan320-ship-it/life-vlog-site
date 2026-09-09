@@ -239,7 +239,10 @@ export function createAppNavigationController({
     if (!elements.overview) return;
     const signedIn = Boolean(state.session);
     elements.overview.hidden = !signedIn || state.activePage !== "gallery";
-    controllers.todayMood?.refresh();
+    // Always refresh so sign-out transitions clear the previous account's
+    // cached cards; updateContext preserves same-account cards when family
+    // context arrives late.
+    void controllers.todayMood?.refresh();
     if (signedIn) elements.memoryButton.disabled = getMemoryPhotos().length === 0;
   }
 

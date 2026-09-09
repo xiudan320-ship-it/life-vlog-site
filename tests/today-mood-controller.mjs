@@ -31,7 +31,14 @@ function createFixture({ rows = [], members = [], listDay = async () => rows, li
     storage,
     view,
   });
-  return { controller, view, setSession: (next) => { session = next; } };
+  return {
+    controller,
+    view,
+    setSession: (next) => { session = next; },
+    setMembers: (next) => {
+      members.splice(0, members.length, ...(next || []));
+    },
+  };
 }
 
 test("today mood reads one day and resolves the same two stable seats", async () => {
@@ -106,6 +113,45 @@ test("today mood renders the cached family result before the cloud response", as
   assert.equal(fixture.controller.getState().syncing, false);
   assert.deepEqual(fixture.controller.getState().entries.map(({ id }) => id), ["canonical-owner", "canonical-member"]);
   assert.match(values.get("life-vlog-mood-day:owner:2026-08-31"), /canonical-member/u);
+});
+
+test("today mood keeps visible cached seats while family context arrives", async () => {
+  const values = new Map([
+    ["life-vlog-mood-day:owner:2026-08-31", JSON.stringify([
+      { id: "cached-owner", user_id: "owner", diary_date: TODAY, mood: "calm" },
+    ])],
+  ]);
+  const resolvers = [];
+  const fixture = createFixture({
+    members: [],
+    listDay: () => new Promise((resolve) => resolvers.push(resolve)),
+    storage: {
+      getItem: (key) => values.get(key) || null,
+      setItem: (key, value) => values.set(key, String(value)),
+    },
+  });
+
+  const firstRefresh = fixture.controller.refresh();
+  assert.deepEqual(fixture.controller.getState().entries.map(({ id }) => id), ["cached-owner"]);
+
+  fixture.setMembers([
+    { user_id: "owner", role: "owner", joined_at: "2026-01-01T00:00:00.000Z" },
+    { user_id: "member", role: "member", joined_at: "2026-02-01T00:00:00.000Z" },
+  ]);
+  fixture.controller.render();
+  assert.deepEqual(fixture.controller.getState().participants.map(({ userId }) => userId), ["owner", "member"]);
+  assert.deepEqual(fixture.controller.getState().entries.map(({ id }) => id), ["cached-owner"]);
+
+  const familyRefresh = fixture.controller.refresh();
+  assert.equal(resolvers.length, 2);
+  assert.deepEqual(fixture.controller.getState().entries.map(({ id }) => id), ["cached-owner"]);
+  resolvers[0]([{ id: "stale-owner", user_id: "owner", diary_date: TODAY, mood: "sad" }]);
+  resolvers[1]([
+    { id: "canonical-owner", user_id: "owner", diary_date: TODAY, mood: "happy" },
+    { id: "canonical-member", user_id: "member", diary_date: TODAY, mood: "calm" },
+  ]);
+  await Promise.all([firstRefresh, familyRefresh]);
+  assert.deepEqual(fixture.controller.getState().entries.map(({ id }) => id), ["canonical-owner", "canonical-member"]);
 });
 
 test("today mood uses a fresh cache without waiting for the cloud", async () => {
