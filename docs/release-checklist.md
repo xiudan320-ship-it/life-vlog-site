@@ -76,7 +76,7 @@ git diff --check
 
 ## 3. 发布后只读检查
 
-最新发布（2026-09-07）：源码 `4337cb8`，生产 deployment `bf7ae9ea`，Worker `2bda3a30-a74c-4681-bb9b-662adf65e006`。保留发布前线上 UI；入口 `index-Dh_FCRKY.js`、样式 `index-Ut_KJE20.css` 和 SW 哈希均未改变。完整本地回归、本地/preview/production Axe 与确定性 fixture release smoke、线上 CORS 通过；正式站 44 个构建文件（含黑猫封面）哈希与本地一致。
+最新发布（2026-09-09）：源码 `9319019e96395ff2431b8d8f7e8a9cebdebe718e`，生产 deployment `3d69878e`（`https://3d69878e.life-vlog-site.pages.dev`），Worker `bccd3913-2763-4f72-a592-7c978f011bb6`。固定 preview 为 `https://codex-preview.life-vlog-site.pages.dev`，正式入口为 `https://life-vlog-site.pages.dev`；入口 `index-BNdSH2ov.js` SHA-256 为 `0d3e3ccc92ee75f05ce6754c8d1ebefef6eb7a31b1716f38f9ae84f841b54ff9`，样式 `index-DbTRZjiU.css` SHA-256 为 `1c818a3e21366fa28594f29baa4d1acca9246646b3415d73d61d41ba7ec8323f`，`sw.js` SHA-256 为 `90640c34133684375dd7a0c7f2fd2f6037ac1499d773a8a3afcd860e16ab4a90`，Workbox 预缓存条目为 33；preview 与 production 的 HTML、入口 JS/CSS、SW 均与本地构建哈希一致，并通过线上 CORS、Axe critical/serious 和确定性 fixture release smoke。
 
 部署脚本会在本地回归通过后先部署 Worker 并执行精确 CORS 门，再发布 preview。preview 固定别名会使用 `tests/fixtures/cloudflare-api-fixture.mjs` 的确定性假后端执行公开壳、伪会话、深链接、错误矩阵和 PWA 烟雾测试；任何 preview/CORS 门失败都会停止，不会进入正式发布。发布完成后访问正式地址，确认返回状态为 200，并检查本次构建的入口文件名、入口哈希、`sw.js` 哈希和 Workbox 预缓存条目数已经记录且线上版本已更新。发布门禁止真实账户和真实凭证。
 
