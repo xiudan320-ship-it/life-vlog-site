@@ -203,7 +203,8 @@ export function createTodayMoodView({ elements, getAuthorName } = {}) {
               : "";
       els.todayMoodStatus.dataset.kind = state.error ? "error" : state.loading ? "loading" : state.stale ? "stale" : "";
     }
-    if (els.todayMoodStatusRow) els.todayMoodStatusRow.hidden = !state.loading && !state.syncing && !state.error && !state.stale;
+    // Background refresh must not insert a row above already visible cached cards.
+    if (els.todayMoodStatusRow) els.todayMoodStatusRow.hidden = !state.loading && !state.error && !state.stale;
     if (els.todayMoodRetry) {
       els.todayMoodRetry.hidden = !state.error;
       els.todayMoodRetry.disabled = Boolean(state.loading);
