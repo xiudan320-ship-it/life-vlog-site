@@ -82,6 +82,7 @@ export function createTodayMoodController({
   let monthLoadKey = "";
   let dayLoadPromise = null;
   let dayLoadKey = "";
+  let dayContextSyncPending = false;
 
   function currentUserId() {
     return String(getSession?.()?.user?.id || "").trim();
@@ -144,6 +145,7 @@ export function createTodayMoodController({
       requestId += 1;
       dayLoadPromise = null;
       dayLoadKey = "";
+      dayContextSyncPending = participantsChanged || dayChanged || (contextChanged && Boolean(previousUserId));
     }
     const visibleUserIds = new Set(state.participants.map((participant) => participant.userId));
     state.entries = state.entries.filter((entry) => visibleUserIds.has(entry.user_id) && entry.diary_date === state.todayKey);
@@ -235,6 +237,7 @@ export function createTodayMoodController({
       requestId += 1;
       dayLoadPromise = null;
       dayLoadKey = "";
+      dayContextSyncPending = false;
       state.loading = false;
       state.syncing = false;
       state.hasLocalResult = false;
@@ -246,6 +249,8 @@ export function createTodayMoodController({
     void loadMonthPreview({ force: forceMonth });
     const dayKey = `${userId}:${dateKey}`;
     if (!forceDay && dayLoadPromise && dayLoadKey === dayKey) return dayLoadPromise;
+    const shouldForceDay = forceDay || dayContextSyncPending;
+    dayContextSyncPending = false;
     const revision = ++state.requestRevision;
     const currentRequestId = ++requestId;
     state.error = "";
@@ -270,7 +275,7 @@ export function createTodayMoodController({
       state.syncing = state.hasLocalResult;
     }
     render();
-    const freshCachedToday = !forceDay
+    const freshCachedToday = !shouldForceDay
       ? moodCache.readFresh(userId, dateKey, MOOD_CACHE_TTL_MS)
       : null;
     if (Array.isArray(freshCachedToday)) {
@@ -287,10 +292,11 @@ export function createTodayMoodController({
         if (typeof repository?.listDay !== "function") throw new Error("今日心情仓储不可用");
         const rows = await repository.listDay(dateKey);
         if (currentRequestId !== requestId || revision !== state.requestRevision) return [];
+        const normalizedRows = (Array.isArray(rows) ? rows : [])
+          .map(normalizeEntry)
+          .filter((entry) => entry && entry.diary_date === dateKey);
         state.entries = sortMoodDiaries(
-          (Array.isArray(rows) ? rows : [])
-            .map(normalizeEntry)
-            .filter((entry) => entry && entry.diary_date === dateKey && seatByUserId.has(entry.user_id)),
+          normalizedRows.filter((entry) => seatByUserId.has(entry.user_id)),
           { seatByUserId },
         );
         state.entriesByUserId = new Map(state.entries.map((entry) => [entry.user_id, entry]));
@@ -299,7 +305,7 @@ export function createTodayMoodController({
         state.hasLocalResult = true;
         state.stale = false;
         state.error = "";
-        moodCache.write(userId, dateKey, state.entries);
+        moodCache.write(userId, dateKey, normalizedRows);
         render();
         return state.entries;
       } catch (error) {

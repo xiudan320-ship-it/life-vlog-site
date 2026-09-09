@@ -143,14 +143,15 @@ export function createMoodDiaryController({ elements, repository, overlayControl
       try {
         const rows = await repository.listMonth(normalizedMonth);
         if (requestId !== monthRequestId) return false;
-        state.monthEntries = rows;
+        const normalizedRows = (Array.isArray(rows) ? rows : []).map(normalizeEntry).filter(Boolean);
+        state.monthEntries = normalizedRows;
         rebuild();
         state.loadedMonthKey = normalizedMonth;
         state.loadingMonth = false;
         state.monthSyncing = false;
         state.statusMessage = "";
         state.statusKind = "";
-        moodCache.writeMonth(state.currentUserId, normalizedMonth, state.monthEntries);
+        moodCache.writeMonth(state.currentUserId, normalizedMonth, normalizedRows);
         state.monthRenderReason = reason;
         state.changedEntryId = changedEntryId;
         render();
