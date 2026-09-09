@@ -295,7 +295,7 @@ export function createAppRouteRuntime({
         onMutation: async (payload) => {
           const [moodResult] = await Promise.allSettled([
             pageControllerMap.moodDiary?.handleMutation?.(payload),
-            pageControllerMap.todayMood?.refresh?.({ forceMonth: true }),
+            pageControllerMap.todayMood?.refresh?.({ forceMonth: true, forceDay: true }),
           ]);
           if (moodResult.status === "rejected") throw moodResult.reason;
           if (moodResult.value === false) throw new Error("本月汇总同步失败，可稍后重试");

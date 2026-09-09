@@ -1,8 +1,8 @@
 import { getMonthRange, groupMoodDiariesByDate, isFutureLocalDate, normalizeDiaryDate, normalizeMood, normalizeMoodTags, resolveMoodParticipants, sortMoodDiaries } from "./mood-diary-domain.js";
 import { createMoodDiaryView } from "./mood-diary-view.js";
 import { buildMoodMonthSummary } from "./mood-month-summary-domain.js";
+import { createTodayMoodCache, MOOD_CACHE_TTL_MS } from "./today-mood-cache.js";
 
-const MONTH_CACHE_PREFIX = "life-vlog-mood-month:";
 const HISTORY_PAGE_SIZE = 30;
 
 function getTokyoDateKey(date = new Date()) {
@@ -27,11 +27,13 @@ function shiftMonth(monthKey, amount) {
 export function createMoodDiaryController({ elements, repository, overlayController, getSession = () => null, getFamilyInfo = () => null, getFamilyMembers = () => [], getAuthorName, getAuthorAvatar, showToast = () => {}, openFamilySettings = () => {}, storage = globalThis.localStorage, now = () => new Date(), getTodayKey, windowTarget = globalThis.window, view: injectedView } = {}) {
   const state = { currentMonthKey: "", todayKey: "", todayMonthKey: "", currentUserId: "", participants: [], seatByUserId: new Map(), monthEntries: [], monthSummary: null, entriesByDate: new Map(), listEntries: [], activeView: "calendar", loadingMonth: false, monthSyncing: false, loadingList: false, listOffset: 0, listHasMore: false, listInitialized: false, loadedMonthKey: "", monthRenderReason: "initial", changedEntryId: "", statusMessage: "", statusKind: "", hasFamily: false, familyMemberCount: 0 };
   let monthRequestId = 0;
+  let monthLoadPromise = null;
+  let monthLoadKey = "";
   let listRequestId = 0;
   let calendarScrollY = 0;
   let monthScrollAnchor = null;
 
-  const cacheKey = (monthKey = state.currentMonthKey) => `${MONTH_CACHE_PREFIX}${state.currentUserId}:${monthKey}`;
+  const moodCache = createTodayMoodCache({ storage });
   const visible = (entries) => (entries || []).map(normalizeEntry).filter((entry) => entry && state.seatByUserId.has(entry.user_id));
 
   function rebuild() {
@@ -97,64 +99,87 @@ export function createMoodDiaryController({ elements, repository, overlayControl
     restoreMonthScrollAnchor();
   }
 
-  function readCache(key) {
-    try { const parsed = JSON.parse(storage?.getItem?.(key) || "null"); return Array.isArray(parsed) ? parsed : null; } catch { return null; }
-  }
-
-  function writeCache(monthKey = state.currentMonthKey, entries = state.monthEntries) {
-    try { storage?.setItem?.(cacheKey(monthKey), JSON.stringify(entries)); } catch {}
-  }
-
   async function loadMonth(monthKey, { force = false, reason = "passive", changedEntryId = "" } = {}) {
     if (!state.currentUserId || !repository?.listMonth) return false;
     const normalizedMonth = getMonthRange(monthKey).monthKey;
     if (!force && state.loadedMonthKey === normalizedMonth && !state.statusKind) return false;
+    if (!force && monthLoadPromise && monthLoadKey === normalizedMonth) return monthLoadPromise;
     state.currentMonthKey = normalizedMonth;
-    state.loadingMonth = true;
-    state.monthSyncing = true;
-    state.statusKind = "";
-    state.statusMessage = reason === "mutation" ? "正在同步本月心情…" : "正在读取本月心情…";
     state.monthRenderReason = reason;
     state.changedEntryId = changedEntryId;
-    const requestId = ++monthRequestId;
-    const cached = readCache(cacheKey(normalizedMonth));
+    const cached = moodCache.readMonth(state.currentUserId, normalizedMonth);
     if (cached) {
       state.monthEntries = cached;
       rebuild();
       state.monthRenderReason = reason === "month-change" ? reason : "passive";
       state.changedEntryId = "";
     }
-    render();
-    try {
-      const rows = await repository.listMonth(normalizedMonth);
-      if (requestId !== monthRequestId) return false;
-      state.monthEntries = rows;
-      rebuild();
+
+    const freshCached = !force
+      ? moodCache.readFreshMonth(state.currentUserId, normalizedMonth, MOOD_CACHE_TTL_MS)
+      : null;
+    if (Array.isArray(freshCached)) {
       state.loadedMonthKey = normalizedMonth;
       state.loadingMonth = false;
       state.monthSyncing = false;
       state.statusMessage = "";
       state.statusKind = "";
-      writeCache();
-      state.monthRenderReason = reason;
-      state.changedEntryId = changedEntryId;
       render();
       state.monthRenderReason = "passive";
       state.changedEntryId = "";
       return true;
-    } catch (error) {
-      if (requestId !== monthRequestId) return false;
-      state.loadingMonth = false;
-      state.monthSyncing = false;
-      const hasLocalResult = Boolean(cached) || state.monthEntries.length > 0;
-      state.statusMessage = hasLocalResult ? "云端暂时不可用，当前显示的是最近结果；可重试同步。" : "本月心情读取失败，请重试。";
-      state.statusKind = "error";
-      state.monthRenderReason = "passive";
-      state.changedEntryId = "";
-      render();
-      showToast(`心情读取失败：${error?.message || "请重试"}`, { kind: "error" });
-      return false;
     }
+
+    state.loadingMonth = true;
+    state.monthSyncing = true;
+    state.statusKind = "";
+    state.statusMessage = cached
+      ? "正在后台同步本月心情…"
+      : reason === "mutation" ? "正在同步本月心情…" : "正在读取本月心情…";
+    const requestId = ++monthRequestId;
+    render();
+
+    const request = (async () => {
+      try {
+        const rows = await repository.listMonth(normalizedMonth);
+        if (requestId !== monthRequestId) return false;
+        state.monthEntries = rows;
+        rebuild();
+        state.loadedMonthKey = normalizedMonth;
+        state.loadingMonth = false;
+        state.monthSyncing = false;
+        state.statusMessage = "";
+        state.statusKind = "";
+        moodCache.writeMonth(state.currentUserId, normalizedMonth, state.monthEntries);
+        state.monthRenderReason = reason;
+        state.changedEntryId = changedEntryId;
+        render();
+        state.monthRenderReason = "passive";
+        state.changedEntryId = "";
+        return true;
+      } catch (error) {
+        if (requestId !== monthRequestId) return false;
+        state.loadingMonth = false;
+        state.monthSyncing = false;
+        const hasLocalResult = Boolean(cached) || state.monthEntries.length > 0;
+        state.statusMessage = hasLocalResult ? "云端暂时不可用，当前显示的是最近结果；可重试同步。" : "本月心情读取失败，请重试。";
+        state.statusKind = "error";
+        state.monthRenderReason = "passive";
+        state.changedEntryId = "";
+        render();
+        showToast(`心情读取失败：${error?.message || "请重试"}`, { kind: "error" });
+        return false;
+      }
+    })();
+    const trackedRequest = request.finally(() => {
+      if (monthLoadKey === normalizedMonth && monthLoadPromise === trackedRequest) {
+        monthLoadPromise = null;
+        monthLoadKey = "";
+      }
+    });
+    monthLoadKey = normalizedMonth;
+    monthLoadPromise = trackedRequest;
+    return trackedRequest;
   }
 
   async function loadHistory({ force = false, append = false } = {}) {
@@ -265,7 +290,7 @@ export function createMoodDiaryController({ elements, repository, overlayControl
       if (state.listInitialized) state.listEntries = [normalized, ...state.listEntries.filter((item) => !matches(item))];
     }
     rebuild();
-    if (affectsCurrentMonth) writeCache();
+    if (affectsCurrentMonth) moodCache.writeMonth(state.currentUserId, state.currentMonthKey, state.monthEntries);
     state.monthRenderReason = affectsCurrentMonth ? "mutation" : "passive";
     state.changedEntryId = affectsCurrentMonth ? normalized.id : "";
     render();
@@ -277,6 +302,9 @@ export function createMoodDiaryController({ elements, repository, overlayControl
     const previousUserId = state.currentUserId;
     updateContext();
     if (previousUserId !== state.currentUserId || !state.currentMonthKey) {
+      if (previousUserId !== state.currentUserId) monthRequestId += 1;
+      monthLoadPromise = null;
+      monthLoadKey = "";
       state.currentMonthKey = state.todayMonthKey;
       state.monthEntries = [];
       state.listEntries = [];

@@ -1,5 +1,8 @@
 const TODAY_MOOD_CACHE_PREFIX = "life-vlog-mood-day:";
 const MONTH_MOOD_CACHE_PREFIX = "life-vlog-mood-month:";
+const CACHE_SAVED_AT_SUFFIX = ":saved-at";
+
+export const MOOD_CACHE_TTL_MS = 30 * 1000;
 
 function parseEntries(storage, key) {
   if (!storage || !key) return null;
@@ -17,6 +20,28 @@ function normalizeUserId(userId) {
 
 function normalizeDateKey(dateKey) {
   return String(dateKey || "").trim();
+}
+
+function savedAtKey(cacheKey) {
+  return cacheKey ? `${cacheKey}${CACHE_SAVED_AT_SUFFIX}` : "";
+}
+
+function readSavedAt(storage, cacheKey) {
+  const value = Number(storage?.getItem?.(savedAtKey(cacheKey)) || 0);
+  return Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+function writeSavedAt(storage, cacheKey) {
+  if (!storage || !cacheKey) return;
+  storage.setItem?.(savedAtKey(cacheKey), String(Date.now()));
+}
+
+function readFreshRecord(record, maxAgeMs, now = Date.now) {
+  if (!record || !Array.isArray(record.entries)) return null;
+  const age = Number(now?.()) - Number(record.savedAt);
+  return Number.isFinite(maxAgeMs) && maxAgeMs >= 0 && Number.isFinite(age) && age >= 0 && age <= maxAgeMs
+    ? record.entries
+    : null;
 }
 
 export function createTodayMoodCache({ storage = globalThis.localStorage } = {}) {
@@ -41,14 +66,35 @@ export function createTodayMoodCache({ storage = globalThis.localStorage } = {})
     return parseEntries(storage, monthKey(userId, dateKey));
   }
 
-  function read(userId, dateKey) {
+  function readRecord(userId, dateKey) {
     const normalizedDateKey = normalizeDateKey(dateKey);
     const cachedDay = parseEntries(storage, dayKey(userId, normalizedDateKey));
-    if (cachedDay) return cachedDay;
+    if (cachedDay) {
+      return {
+        entries: cachedDay,
+        savedAt: readSavedAt(storage, dayKey(userId, normalizedDateKey)),
+      };
+    }
     const cachedMonth = readMonth(userId, normalizedDateKey);
-    return cachedMonth
-      ? cachedMonth.filter((entry) => String(entry?.diary_date || "").trim() === normalizedDateKey)
-      : null;
+    if (!cachedMonth) return null;
+    return {
+      entries: cachedMonth.filter((entry) => String(entry?.diary_date || "").trim() === normalizedDateKey),
+      savedAt: readSavedAt(storage, monthKey(userId, normalizedDateKey)),
+    };
+  }
+
+  function read(userId, dateKey) {
+    return readRecord(userId, dateKey)?.entries ?? null;
+  }
+
+  function readFresh(userId, dateKey, maxAgeMs = MOOD_CACHE_TTL_MS, now = Date.now) {
+    return readFreshRecord(readRecord(userId, dateKey), maxAgeMs, now);
+  }
+
+  function readFreshMonth(userId, dateKey, maxAgeMs = MOOD_CACHE_TTL_MS, now = Date.now) {
+    const key = monthKey(userId, dateKey);
+    const entries = parseEntries(storage, key);
+    return readFreshRecord(entries ? { entries, savedAt: readSavedAt(storage, key) } : null, maxAgeMs, now);
   }
 
   function write(userId, dateKey, entries) {
@@ -56,6 +102,7 @@ export function createTodayMoodCache({ storage = globalThis.localStorage } = {})
     if (!key || !Array.isArray(entries)) return false;
     try {
       storage?.setItem?.(key, JSON.stringify(entries));
+      writeSavedAt(storage, key);
       return true;
     } catch {
       return false;
@@ -67,11 +114,12 @@ export function createTodayMoodCache({ storage = globalThis.localStorage } = {})
     if (!key || !Array.isArray(entries)) return false;
     try {
       storage?.setItem?.(key, JSON.stringify(entries));
+      writeSavedAt(storage, key);
       return true;
     } catch {
       return false;
     }
   }
 
-  return Object.freeze({ dayKey, monthKey, read, readMonth, write, writeMonth });
+  return Object.freeze({ dayKey, monthKey, read, readFresh, readFreshMonth, readMonth, write, writeMonth });
 }

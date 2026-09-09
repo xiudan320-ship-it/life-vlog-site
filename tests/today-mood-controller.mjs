@@ -108,6 +108,32 @@ test("today mood renders the cached family result before the cloud response", as
   assert.match(values.get("life-vlog-mood-day:owner:2026-08-31"), /canonical-member/u);
 });
 
+test("today mood uses a fresh cache without waiting for the cloud", async () => {
+  const cacheKey = "life-vlog-mood-day:owner:2026-08-31";
+  const values = new Map([
+    [cacheKey, JSON.stringify([{ id: "fresh", user_id: "owner", diary_date: TODAY, mood: "calm" }])],
+    [`${cacheKey}:saved-at`, String(Date.now())],
+  ]);
+  let calls = 0;
+  const fixture = createFixture({
+    listDay: async () => {
+      calls += 1;
+      return [];
+    },
+    storage: {
+      getItem: (key) => values.get(key) || null,
+      setItem: (key, value) => values.set(key, String(value)),
+    },
+  });
+
+  await fixture.controller.refresh();
+
+  assert.equal(calls, 0);
+  assert.equal(fixture.controller.getState().loading, false);
+  assert.equal(fixture.controller.getState().syncing, false);
+  assert.deepEqual(fixture.controller.getState().entries.map(({ id }) => id), ["fresh"]);
+});
+
 test("desktop today mood loads a compact current-month preview without coupling daily state", async () => {
   let monthCalls = 0;
   const fixture = createFixture({
@@ -137,7 +163,7 @@ test("desktop today mood loads a compact current-month preview without coupling 
   assert.equal(monthCalls, 2);
 });
 
-test("today mood latest request wins across refreshes and session changes", async () => {
+test("today mood deduplicates same-day refreshes and ignores stale session results", async () => {
   let resolveFirst;
   let callCount = 0;
   const first = new Promise((resolve) => { resolveFirst = resolve; });
@@ -150,10 +176,10 @@ test("today mood latest request wins across refreshes and session changes", asyn
   });
   const firstRefresh = fixture.controller.refresh();
   const secondRefresh = fixture.controller.refresh();
-  await secondRefresh;
+  assert.equal(callCount, 1);
   resolveFirst([{ id: "old", user_id: "owner", diary_date: TODAY, mood: "sad" }]);
-  await firstRefresh;
-  assert.equal(fixture.controller.getState().entries[0].id, "new");
+  await Promise.all([firstRefresh, secondRefresh]);
+  assert.equal(fixture.controller.getState().entries[0].id, "old");
 
   let resolveOwner;
   const ownerRequest = new Promise((resolve) => { resolveOwner = resolve; });

@@ -208,7 +208,7 @@ const [commentThreadDomain, moodJarPhysics, mobileDiaryView, socialController] =
   read("modules/social-controller.js"),
 ]);
 await access(join(root, "modules", "routes", "mood-diary-route.js"));
-assert.match(moodRoute, /return controllers\.moodDiary\?\.activate\?\.\(\)/);
+assert.match(moodRoute, /void controllers\.moodDiary\?\.activate\?\.\(\);/);
 assert.equal([...`${html}\n${moodTemplate}`.matchAll(/id="moodOverlay"/g)].length, 1, "there must be exactly one mood overlay");
 assert.doesNotMatch(appEvents, /moodNav/);
 assert.doesNotMatch(navigation, /elements\.moodNav/);

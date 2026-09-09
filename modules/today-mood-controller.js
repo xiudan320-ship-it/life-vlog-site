@@ -10,7 +10,7 @@ import {
 } from "./mood-diary-shared.js";
 import { createMoodDiaryRepository } from "./mood-diary-repository.js";
 import { buildMoodMonthSummary } from "./mood-month-summary-domain.js";
-import { createTodayMoodCache } from "./today-mood-cache.js";
+import { createTodayMoodCache, MOOD_CACHE_TTL_MS } from "./today-mood-cache.js";
 import { createTodayMoodView } from "./today-mood-view.js";
 
 function getTokyoDateKey(date = new Date()) {
@@ -80,6 +80,8 @@ export function createTodayMoodController({
   let monthRequestId = 0;
   let monthLoadPromise = null;
   let monthLoadKey = "";
+  let dayLoadPromise = null;
+  let dayLoadKey = "";
 
   function currentUserId() {
     return String(getSession?.()?.user?.id || "").trim();
@@ -123,6 +125,8 @@ export function createTodayMoodController({
       state.monthLoading = false;
       state.monthError = "";
       monthRequestId += 1;
+      monthLoadPromise = null;
+      monthLoadKey = "";
     } else if (state.monthEntries.length) {
       state.monthSummary = buildMoodMonthSummary({
         monthKey: state.monthKey,
@@ -136,6 +140,10 @@ export function createTodayMoodController({
       state.hasLocalResult = false;
       state.syncing = false;
       state.stale = false;
+      state.requestRevision += 1;
+      requestId += 1;
+      dayLoadPromise = null;
+      dayLoadKey = "";
     }
     const visibleUserIds = new Set(state.participants.map((participant) => participant.userId));
     state.entries = state.entries.filter((entry) => visibleUserIds.has(entry.user_id) && entry.diary_date === state.todayKey);
@@ -157,10 +165,6 @@ export function createTodayMoodController({
     const monthKey = state.monthKey;
     if (!force && state.monthLoadedKey === monthKey && !state.monthError) return true;
     if (!force && monthLoadPromise && monthLoadKey === monthKey) return monthLoadPromise;
-    const currentRequestId = ++monthRequestId;
-    monthLoadKey = monthKey;
-    state.monthLoading = true;
-    state.monthError = "";
     const cachedMonth = moodCache.readMonth(state.currentUserId, monthKey);
     if (cachedMonth) {
       state.monthEntries = cachedMonth.map(normalizeEntry).filter(Boolean);
@@ -170,6 +174,22 @@ export function createTodayMoodController({
         participants: state.participants,
       });
     }
+
+    const freshCachedMonth = !force
+      ? moodCache.readFreshMonth(state.currentUserId, monthKey, MOOD_CACHE_TTL_MS)
+      : null;
+    if (Array.isArray(freshCachedMonth)) {
+      state.monthLoadedKey = monthKey;
+      state.monthLoading = false;
+      state.monthError = "";
+      render();
+      return true;
+    }
+
+    const currentRequestId = ++monthRequestId;
+    monthLoadKey = monthKey;
+    state.monthLoading = true;
+    state.monthError = "";
     render();
     const request = (async () => {
       try {
@@ -196,24 +216,25 @@ export function createTodayMoodController({
         return false;
       }
     })();
-    monthLoadPromise = request.finally(() => {
-      if (monthLoadKey === monthKey && currentRequestId === monthRequestId) {
+    const trackedRequest = request.finally(() => {
+      if (monthLoadKey === monthKey && monthLoadPromise === trackedRequest) {
         monthLoadPromise = null;
         monthLoadKey = "";
       }
     });
-    return monthLoadPromise;
+    monthLoadPromise = trackedRequest;
+    return trackedRequest;
   }
 
-  async function refresh({ forceMonth = false } = {}) {
+  async function refresh({ forceMonth = false, forceDay = false } = {}) {
     updateContext();
     const userId = state.currentUserId;
     const dateKey = state.todayKey;
-    const revision = ++state.requestRevision;
-    const currentRequestId = ++requestId;
-    state.error = "";
-    state.stale = false;
     if (!userId) {
+      state.requestRevision += 1;
+      requestId += 1;
+      dayLoadPromise = null;
+      dayLoadKey = "";
       state.loading = false;
       state.syncing = false;
       state.hasLocalResult = false;
@@ -223,6 +244,12 @@ export function createTodayMoodController({
       return [];
     }
     void loadMonthPreview({ force: forceMonth });
+    const dayKey = `${userId}:${dateKey}`;
+    if (!forceDay && dayLoadPromise && dayLoadKey === dayKey) return dayLoadPromise;
+    const revision = ++state.requestRevision;
+    const currentRequestId = ++requestId;
+    state.error = "";
+    state.stale = false;
     const cachedToday = moodCache.read(userId, dateKey);
     const hasCachedToday = Array.isArray(cachedToday);
     const seatByUserId = new Map(state.participants.map((participant, index) => [participant.userId, index]));
@@ -243,39 +270,62 @@ export function createTodayMoodController({
       state.syncing = state.hasLocalResult;
     }
     render();
-    try {
-      if (typeof repository?.listDay !== "function") throw new Error("今日心情仓储不可用");
-      const rows = await repository.listDay(dateKey);
-      if (currentRequestId !== requestId || revision !== state.requestRevision) return [];
-      state.entries = sortMoodDiaries(
-        (Array.isArray(rows) ? rows : [])
-          .map(normalizeEntry)
-          .filter((entry) => entry && entry.diary_date === dateKey && seatByUserId.has(entry.user_id)),
-        { seatByUserId },
-      );
-      state.entriesByUserId = new Map(state.entries.map((entry) => [entry.user_id, entry]));
+    const freshCachedToday = !forceDay
+      ? moodCache.readFresh(userId, dateKey, MOOD_CACHE_TTL_MS)
+      : null;
+    if (Array.isArray(freshCachedToday)) {
       state.loading = false;
       state.syncing = false;
       state.hasLocalResult = true;
       state.stale = false;
-      state.error = "";
-      moodCache.write(userId, dateKey, state.entries);
       render();
       return state.entries;
-    } catch (error) {
-      if (currentRequestId !== requestId || revision !== state.requestRevision) return [];
-      state.loading = false;
-      state.syncing = false;
-      if (state.hasLocalResult) {
-        state.stale = true;
-        state.error = "";
-      } else {
-        state.stale = false;
-        state.error = "今日心情暂时无法同步";
-      }
-      render();
-      return [];
     }
+
+    const request = (async () => {
+      try {
+        if (typeof repository?.listDay !== "function") throw new Error("今日心情仓储不可用");
+        const rows = await repository.listDay(dateKey);
+        if (currentRequestId !== requestId || revision !== state.requestRevision) return [];
+        state.entries = sortMoodDiaries(
+          (Array.isArray(rows) ? rows : [])
+            .map(normalizeEntry)
+            .filter((entry) => entry && entry.diary_date === dateKey && seatByUserId.has(entry.user_id)),
+          { seatByUserId },
+        );
+        state.entriesByUserId = new Map(state.entries.map((entry) => [entry.user_id, entry]));
+        state.loading = false;
+        state.syncing = false;
+        state.hasLocalResult = true;
+        state.stale = false;
+        state.error = "";
+        moodCache.write(userId, dateKey, state.entries);
+        render();
+        return state.entries;
+      } catch (error) {
+        if (currentRequestId !== requestId || revision !== state.requestRevision) return [];
+        state.loading = false;
+        state.syncing = false;
+        if (state.hasLocalResult) {
+          state.stale = true;
+          state.error = "";
+        } else {
+          state.stale = false;
+          state.error = "今日心情暂时无法同步";
+        }
+        render();
+        return [];
+      }
+    })();
+    const trackedRequest = request.finally(() => {
+      if (dayLoadKey === dayKey && dayLoadPromise === trackedRequest) {
+        dayLoadPromise = null;
+        dayLoadKey = "";
+      }
+    });
+    dayLoadKey = dayKey;
+    dayLoadPromise = trackedRequest;
+    return trackedRequest;
   }
 
   async function openSeat(userId, trigger = null) {
