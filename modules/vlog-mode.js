@@ -20,7 +20,6 @@ export function createVlogMode({
       title: composer?.querySelector(".section-title h2")?.textContent || "发布新日记",
       photoLabel: root.querySelector("label[for='photoInput']")?.textContent || "选择图片或 Live Photo",
       motionLabel: root.querySelector("label[for='photoMotionInput']")?.textContent || "添加视频",
-      note: composer?.querySelector(".compression-note")?.textContent || "",
       fileName: root.querySelector("#fileName")?.textContent || "",
       photoAccept: photoInput?.accept || "",
       motionAccept: motionInput?.accept || "",
@@ -42,7 +41,6 @@ export function createVlogMode({
     setText("#composer .section-title h2", "发布新 VLOG");
     setText("label[for='photoInput']", "选择视频");
     setText("label[for='photoMotionInput']", "继续添加视频");
-    setText("#composer .compression-note", "VLOG 只保存视频；可以连续选择多个视频，它们会收录在同一条 VLOG 中。");
     setText("#fileName", "展开后选择视频文件");
     const photoInput = root.querySelector("#photoInput");
     const motionInput = root.querySelector("#photoMotionInput");
@@ -66,7 +64,6 @@ export function createVlogMode({
       setText("#composer .section-title h2", original.title);
       setText("label[for='photoInput']", original.photoLabel);
       setText("label[for='photoMotionInput']", original.motionLabel);
-      setText("#composer .compression-note", original.note);
       setText("#fileName", original.fileName);
       const photoInput = root.querySelector("#photoInput");
       const motionInput = root.querySelector("#photoMotionInput");
