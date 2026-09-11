@@ -88,7 +88,7 @@ export function createDiaryRepository({ getDatabase, getSession }) {
       const userId = getSession?.()?.user?.id;
       if (!userId) throw new Error("请先登录。");
       if (favorite) {
-        return database.from("photo_favorites").insert({ user_id: userId, photo_id: photoId });
+        return database.from("photo_favorites").upsert({ user_id: userId, photo_id: photoId });
       }
       return database
         .from("photo_favorites")

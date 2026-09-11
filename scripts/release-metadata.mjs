@@ -3,6 +3,8 @@ import { readFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { readWorkboxManifest } from "./workbox-manifest.mjs";
+
 const root = fileURLToPath(new URL("..", import.meta.url));
 const dist = join(root, "dist");
 
@@ -18,8 +20,7 @@ if (!entry) throw new Error("dist/index.html has no module entry");
 const stylesheet = html.match(/<link[^>]+rel=["']stylesheet["'][^>]+href=["']([^"']+)["']/i)?.[1]
   || html.match(/<link[^>]+href=["']([^"']+)["'][^>]+rel=["']stylesheet["']/i)?.[1];
 const swPath = join(dist, "sw.js");
-const sw = await readFile(swPath, "utf8");
-const workboxEntries = [...sw.matchAll(/"url":"([^"]+)"/g)].map((match) => match[1]);
+const workboxEntries = await readWorkboxManifest(swPath);
 
 const result = {
   entry: basename(entry),
@@ -29,6 +30,6 @@ const result = {
   sw: "sw.js",
   swSha256: await fileHash(swPath),
   workboxPrecacheEntries: workboxEntries.length,
-  workboxPrecacheUrls: workboxEntries,
+  workboxPrecacheUrls: workboxEntries.map(({ url }) => url),
 };
 console.log(JSON.stringify(result));

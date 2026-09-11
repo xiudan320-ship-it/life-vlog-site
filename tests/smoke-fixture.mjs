@@ -339,8 +339,8 @@ export const repositoryModule = await readFile(
   new URL("../modules/data-repositories.js", import.meta.url),
   "utf8"
 );
-export const wardrobeModule = await readFile(
-  new URL("../modules/wardrobe.js", import.meta.url),
+export const wardrobeControllerModule = await readFile(
+  new URL("../modules/wardrobe-controller.js", import.meta.url),
   "utf8"
 );
 export const wardrobeCss = await readFile(new URL("../wardrobe.css", import.meta.url), "utf8");

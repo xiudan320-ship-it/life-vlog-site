@@ -1,5 +1,15 @@
 import { buildPushPayload } from "@block65/webcrypto-web-push";
 import { auditR2Objects } from "./r2-audit.js";
+import { badRequest, conflict, forbidden, WorkerHttpError } from "./http-response.js";
+import {
+  buildFilterSql,
+  buildScopeSql,
+  denormalizeRow,
+  normalizeColumnValue,
+  sanitizeRowForTable,
+} from "./table-query.js";
+import { createTableApi } from "./table-api.js";
+import { TABLE_CONFIG } from "./table-config.js";
 
 const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
 const SESSION_DAYS = 3650;
@@ -26,231 +36,7 @@ const rateLimitBuckets = globalThis.__lifeVlogRateLimitBuckets || new Map();
 globalThis.__lifeVlogRateLimitBuckets = rateLimitBuckets;
 let emailSchemaPromise = null;
 
-const TABLE_CONFIG = {
-  user_profiles: {
-    columns: [
-      "user_id",
-      "username",
-      "recharge_total",
-      "vip_level",
-      "experience_total",
-      "last_login_date",
-      "login_streak",
-      "today_experience_date",
-      "today_experience_amount",
-      "theme_preference",
-      "home_name",
-      "secret_default_folder_id",
-      "food_options",
-      "preferred_thanks_color",
-      "avatar_url",
-      "avatar_path",
-      "created_at",
-      "updated_at",
-    ],
-    scope: "family",
-    writeScope: "own",
-    ownerColumn: "user_id",
-    jsonColumns: ["food_options"],
-  },
-  photos: {
-    columns: [
-      "id",
-      "user_id",
-      "title",
-      "note",
-      "category",
-      "taken_at",
-      "is_public",
-      "image_path",
-      "image_url",
-      "width",
-      "height",
-      "is_featured",
-      "is_pinned",
-      "created_at",
-      "updated_at",
-    ],
-    scope: "family",
-    writeScope: "own",
-    ownerColumn: "user_id",
-    booleanColumns: ["is_public", "is_featured", "is_pinned"],
-  },
-  mood_diaries: {
-    columns: ["id", "user_id", "diary_date", "mood", "content", "tags", "created_at", "updated_at"],
-    scope: "family",
-    writeScope: "own",
-    ownerColumn: "user_id",
-    jsonColumns: ["tags"],
-    conflictColumns: ["user_id", "diary_date"],
-  },
-  photo_favorites: {
-    columns: ["user_id", "photo_id", "created_at"],
-    scope: "own",
-    writeScope: "own",
-    ownerColumn: "user_id",
-    conflictColumns: ["user_id", "photo_id"],
-  },
-  photo_comments: {
-    columns: ["id", "photo_id", "user_id", "parent_id", "body", "created_at", "updated_at"],
-    scope: "comments",
-    writeScope: "own",
-    ownerColumn: "user_id",
-  },
-  recipes: {
-    columns: [
-      "id",
-      "user_id",
-      "name",
-      "category",
-      "cooking_time",
-      "servings",
-      "cover_image",
-      "seasonings",
-      "ingredients",
-      "steps",
-      "note",
-      "created_at",
-      "updated_at",
-    ],
-    scope: "family",
-    ownerColumn: "user_id",
-    jsonColumns: ["seasonings", "ingredients", "steps"],
-  },
-  wishes: {
-    columns: [
-      "id",
-      "user_id",
-      "title",
-      "wish_type",
-      "planned_date",
-      "priority",
-      "note",
-      "completion_note",
-      "is_done",
-      "completed_at",
-      "sort_order",
-      "created_at",
-      "updated_at",
-    ],
-    scope: "family",
-    ownerColumn: "user_id",
-    booleanColumns: ["is_done"],
-  },
-  shopping_items: {
-    columns: [
-      "id",
-      "user_id",
-      "name",
-      "image_url",
-      "image_path",
-      "price",
-      "product_link",
-      "note",
-      "is_completed",
-      "completed_at",
-      "sort_order",
-      "created_at",
-      "updated_at",
-    ],
-    scope: "family",
-    ownerColumn: "user_id",
-    booleanColumns: ["is_completed"],
-  },
-  weekend_plans: {
-    columns: [
-      "id",
-      "user_id",
-      "title",
-      "plan_date",
-      "location",
-      "plan_type",
-      "note",
-      "is_done",
-      "created_at",
-      "updated_at",
-    ],
-    scope: "family",
-    ownerColumn: "user_id",
-    booleanColumns: ["is_done"],
-  },
-  wardrobe_locations: {
-    columns: ["id", "user_id", "name", "note", "sort_order", "created_at", "updated_at"],
-    scope: "family",
-    ownerColumn: "user_id",
-  },
-  wardrobe_items: {
-    columns: [
-      "id",
-      "user_id",
-      "wearer_user_id",
-      "name",
-      "item_type",
-      "category",
-      "description",
-      "fit_note",
-      "location_id",
-      "status",
-      "seasons",
-      "occasions",
-      "style_tags",
-      "color_tags",
-      "images",
-      "is_favorite",
-      "wear_count",
-      "last_worn_at",
-      "created_at",
-      "updated_at",
-    ],
-    scope: "family",
-    ownerColumn: "user_id",
-    jsonColumns: ["seasons", "occasions", "style_tags", "color_tags", "images"],
-    booleanColumns: ["is_favorite"],
-  },
-  wardrobe_wear_logs: {
-    columns: ["id", "user_id", "wardrobe_item_id", "worn_on", "note", "created_at"],
-    scope: "family",
-    ownerColumn: "user_id",
-  },
-  anniversaries: {
-    columns: ["id", "user_id", "title", "event_type", "event_date", "note", "created_at", "updated_at"],
-    scope: "family",
-    ownerColumn: "user_id",
-  },
-  gratitude_notes: {
-    columns: ["id", "user_id", "body", "text_color", "created_at", "updated_at"],
-    scope: "family",
-    ownerColumn: "user_id",
-  },
-  notifications: {
-    columns: ["id", "user_id", "actor_id", "type", "photo_id", "comment_id", "body", "is_read", "created_at"],
-    scope: "own",
-    writeScope: "own",
-    ownerColumn: "user_id",
-    booleanColumns: ["is_read"],
-  },
-  secret_items: {
-    columns: ["id", "user_id", "folder_id", "title", "category", "note", "cover_image", "cover_path", "images", "linked_photo_id", "photo_sort_descending", "is_pinned", "sort_order", "created_at", "updated_at"],
-    scope: "own",
-    writeScope: "own",
-    ownerColumn: "user_id",
-    jsonColumns: ["images"],
-    booleanColumns: ["is_pinned"],
-  },
-  secret_folders: {
-    columns: ["id", "user_id", "name", "sort_order", "created_at", "updated_at"],
-    scope: "own",
-    writeScope: "own",
-    ownerColumn: "user_id",
-  },
-  trash_items: {
-    columns: ["id", "user_id", "item_type", "item_id", "label", "payload", "deleted_at", "expires_at"],
-    scope: "own",
-    writeScope: "own",
-    ownerColumn: "user_id",
-    jsonColumns: ["payload"],
-  },
-};
+
 
 function getCorsHeaders(request, env) {
   const origin = request.headers.get("Origin") || "";
@@ -488,7 +274,12 @@ async function requireUser(request, env) {
 
 async function readJsonRequestBody(request) {
   const text = await request.text().catch(() => "");
-  return safeJson(text, {});
+  if (!text.trim()) badRequest("Request body must be valid JSON.");
+  try {
+    return JSON.parse(text);
+  } catch {
+    badRequest("Request body must be valid JSON.");
+  }
 }
 
 function validateDiaryPhotoMedia(note) {
@@ -1038,7 +829,7 @@ async function handleD1Register(request, env) {
     ).bind(userId, username, rechargeTotal, vipLevel, "咻蛋之家"),
   ]);
 
-  return handleD1Login(request, env, { username, password });
+  return await handleD1Login(request, env, { username, password });
 }
 
 async function handleInviteVerify(request, env) {
@@ -1133,7 +924,7 @@ async function moveFamilyItemToTrash(request, env, user, payload) {
   const tableConfig = TABLE_CONFIG[recycleConfig.table];
   const filters = [{ op: "eq", column: "id", value: itemId }];
   const values = [];
-  const scope = await buildScopeSql(env, recycleConfig.table, tableConfig, user, values, true);
+  const scope = await buildScopeSql(env, recycleConfig.table, tableConfig, user, values, true, getFamilyUserIds);
   const clauses = [...scope, ...buildFilterSql(tableConfig, filters, values)];
   const row = await env.DB.prepare(
     `select * from ${recycleConfig.table} where ${clauses.join(" and ")} limit 1`
@@ -1156,7 +947,8 @@ async function moveFamilyItemToTrash(request, env, user, payload) {
     tableConfig,
     user,
     deleteValues,
-    true
+    true,
+    getFamilyUserIds
   );
   const deleteClauses = [
     ...deleteScope,
@@ -2032,6 +1824,17 @@ function getTokyoDayUtcRange(dateKey) {
   };
 }
 
+function getTokyoDateKey(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
 async function createDailyMoodReminders(env, scheduledTime) {
   if (!env.DB) return;
   const dateKey = getTokyoDateKey(new Date(scheduledTime));
@@ -2151,503 +1954,6 @@ async function handleD1Export(request, env, user) {
   });
 }
 
-function asJsonText(value, fallback = []) {
-  if (typeof value === "string") return value;
-  return JSON.stringify(value ?? fallback);
-}
-
-function normalizeColumnValue(table, column, value) {
-  const config = TABLE_CONFIG[table];
-  if ((config?.booleanColumns || []).includes(column)) {
-    return value ? 1 : 0;
-  }
-  if ((config?.jsonColumns || []).includes(column)) {
-    return asJsonText(value);
-  }
-  if (column === "theme_preference") {
-    return value === "light" || value === "dark" ? value : null;
-  }
-  if (column === "event_type") {
-    return ["pet", "together", "annual"].includes(value) ? value : "annual";
-  }
-  if (column === "role") {
-    return ["owner", "member"].includes(value) ? value : "member";
-  }
-  if (table === "family_invitations" && column === "status") {
-    return ["pending", "accepted", "declined"].includes(value) ? value : "pending";
-  }
-  if (table === "wardrobe_items" && column === "status") {
-    return ["available", "laundry", "repair", "retired"].includes(value)
-      ? value
-      : "available";
-  }
-  if (column === "type") {
-    return ["favorite", "comment", "reply", "diary", "thanks"].includes(value) ? value : "diary";
-  }
-  const nullableColumns = new Set([
-    "last_login_date",
-    "planned_date",
-    "completed_at",
-    "responded_at",
-    "parent_id",
-    "width",
-    "height",
-    "linked_photo_id",
-    "folder_id",
-    "wearer_user_id",
-    "location_id",
-    "last_worn_at",
-  ]);
-  if (table === "notifications" && ["photo_id", "comment_id"].includes(column)) {
-    return value || null;
-  }
-  if (nullableColumns.has(column) && (value === undefined || value === null || value === "")) {
-    return null;
-  }
-  return value ?? "";
-}
-
-function denormalizeRow(table, row) {
-  const config = TABLE_CONFIG[table];
-  if (!row || !config) return row;
-  const next = { ...row };
-  for (const column of config.booleanColumns || []) {
-    if (Object.prototype.hasOwnProperty.call(next, column)) next[column] = Boolean(next[column]);
-  }
-  for (const column of config.jsonColumns || []) {
-    if (Object.prototype.hasOwnProperty.call(next, column)) {
-      next[column] = safeJson(next[column], []);
-    }
-  }
-  return next;
-}
-
-function parseFiltersFromUrl(url) {
-  const filters = [];
-  for (const [key, value] of url.searchParams.entries()) {
-    if (key.startsWith("eq.")) filters.push({ op: "eq", column: key.slice(3), value });
-  }
-  const encoded = url.searchParams.get("filters");
-  if (encoded) {
-    const parsed = safeJson(encoded, []);
-    if (Array.isArray(parsed)) filters.push(...parsed);
-  }
-  return filters;
-}
-
-function isPublicPhotoListRequest(url) {
-  return parseFiltersFromUrl(url).some((filter) => {
-    if (filter?.op && filter.op !== "eq") return false;
-    if (filter?.column !== "is_public") return false;
-    const value = filter.value;
-    return value === true || value === 1 || String(value).toLowerCase() === "true" || String(value) === "1";
-  });
-}
-
-async function handlePublicPhotoList(request, env) {
-  const dbError = requireDb(request, env);
-  if (dbError) return dbError;
-
-  const url = new URL(request.url);
-  const config = TABLE_CONFIG.photos;
-  const filters = parseFiltersFromUrl(url).filter((filter) => filter?.column !== "is_public");
-  const values = [];
-  const clauses = ["is_public = 1", ...buildFilterSql(config, filters, values)];
-  const orderColumn = url.searchParams.get("order") || "created_at";
-  const orderDirection = url.searchParams.get("ascending") === "true" ? "asc" : "desc";
-  const safeOrder = config.columns.includes(orderColumn) ? orderColumn : "created_at";
-  const limit = Math.min(500, Math.max(1, Number(url.searchParams.get("limit")) || 500));
-  const rows = await env.DB.prepare(
-    `select * from photos where ${clauses.join(" and ")} order by ${safeOrder} ${orderDirection} limit ?`
-  )
-    .bind(...values, limit)
-    .all();
-  return jsonResponse(request, env, { data: (rows.results || []).map((row) => denormalizeRow("photos", row)) });
-}
-
-function buildFilterSql(config, filters, values) {
-  const clauses = [];
-  for (const filter of filters || []) {
-    const column = String(filter.column || "");
-    if (!config.columns.includes(column)) continue;
-    const op = filter.op || "eq";
-    if (op === "eq") {
-      clauses.push(`${column} = ?`);
-      values.push(normalizeColumnValue("", column, filter.value));
-    } else if (op === "neq") {
-      clauses.push(`${column} <> ?`);
-      values.push(normalizeColumnValue("", column, filter.value));
-    } else if (op === "gte") {
-      clauses.push(`${column} >= ?`);
-      values.push(normalizeColumnValue("", column, filter.value));
-    } else if (op === "lt") {
-      clauses.push(`${column} < ?`);
-      values.push(normalizeColumnValue("", column, filter.value));
-    } else if (op === "in" && Array.isArray(filter.value)) {
-      const placeholders = filter.value.map(() => "?").join(",");
-      clauses.push(`${column} in (${placeholders})`);
-      values.push(...filter.value);
-    }
-  }
-  return clauses;
-}
-
-async function buildScopeSql(env, table, config, user, values, writeMode = false) {
-  if (!config.ownerColumn) return ["1=1"];
-  if (config.scope === "own" || (writeMode && config.writeScope === "own")) {
-    values.push(user.id);
-    return [`${config.ownerColumn} = ?`];
-  }
-  if (config.scope === "comments") {
-    const familyIds = await getFamilyUserIds(env, user.id);
-    values.push(...familyIds);
-    const placeholders = familyIds.map(() => "?").join(",");
-    return [
-      `photo_id in (select id from photos where user_id in (${placeholders}))`,
-    ];
-  }
-  const userIds = await getFamilyUserIds(env, user.id);
-  values.push(...userIds);
-  const placeholders = userIds.map(() => "?").join(",");
-  return [`${config.ownerColumn} in (${placeholders})`];
-}
-
-function sanitizeRowForTable(table, row, user, { forceOwner = false } = {}) {
-  const config = TABLE_CONFIG[table];
-  const result = {};
-  for (const column of config.columns) {
-    if (Object.prototype.hasOwnProperty.call(row, column)) {
-      result[column] = normalizeColumnValue(table, column, row[column]);
-    }
-  }
-  if (config.columns.includes("id") && !result.id) result.id = randomId();
-  if (config.ownerColumn && (forceOwner || !result[config.ownerColumn])) {
-    result[config.ownerColumn] = user.id;
-  }
-  if (config.columns.includes("created_at") && !result.created_at) result.created_at = nowIso();
-  if (config.columns.includes("updated_at")) result.updated_at = nowIso();
-  return result;
-}
-
-async function assertRowsWritable(env, table, config, user, filters) {
-  if (!filters?.length) return false;
-  const values = [];
-  const scope = await buildScopeSql(env, table, config, user, values, true);
-  const clauses = [...scope, ...buildFilterSql(config, filters, values)];
-  const row = await env.DB.prepare(`select 1 from ${table} where ${clauses.join(" and ")} limit 1`)
-    .bind(...values)
-    .first();
-  return Boolean(row);
-}
-
-const MOOD_DIARY_TYPES = new Set([
-  "tired",
-  "angry",
-  "excited",
-  "annoyed",
-  "heart",
-  "calm",
-  "sad",
-  "happy",
-]);
-
-function getTokyoDateKey(date = new Date()) {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Tokyo",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(date);
-  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
-  return `${values.year}-${values.month}-${values.day}`;
-}
-
-function normalizeStrictDiaryDate(value) {
-  const raw = String(value ?? "");
-  const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) return null;
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
-  const days = month === 2
-    ? year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0) ? 29 : 28
-    : [4, 6, 9, 11].includes(month) ? 30 : 31;
-  if (month < 1 || month > 12 || day < 1 || day > days) return null;
-  return raw;
-}
-
-function normalizeMoodDiaryTags(value) {
-  const parsed = Array.isArray(value) ? value : safeJson(value, null);
-  if (!Array.isArray(parsed)) return { error: "tags 必须是数组。" };
-  const tags = [];
-  const seen = new Set();
-  for (const rawValue of parsed) {
-    const tag = String(rawValue ?? "").trim().replace(/^#+/u, "").trim();
-    if (!tag) continue;
-    if ([...tag].length > 20) return { error: "每个标签最多 20 个字符。" };
-    if (seen.has(tag)) continue;
-    seen.add(tag);
-    tags.push(tag);
-  }
-  if (tags.length > 8) return { error: "最多添加 8 个标签。" };
-  return { tags };
-}
-
-function validateMoodDiaryRow(row, { requireDate = true, requireMood = true } = {}) {
-  if (requireDate && !normalizeStrictDiaryDate(row.diary_date)) return "日期必须是有效的 YYYY-MM-DD。";
-  if (row.diary_date && !normalizeStrictDiaryDate(row.diary_date)) return "日期必须是有效的 YYYY-MM-DD。";
-  if (row.diary_date && row.diary_date > getTokyoDateKey()) return "不能记录未来的日记。";
-  if ((requireMood || Object.prototype.hasOwnProperty.call(row, "mood")) && !MOOD_DIARY_TYPES.has(String(row.mood || ""))) {
-    return "心情类型无效。";
-  }
-  if (Object.prototype.hasOwnProperty.call(row, "content") && [...String(row.content ?? "")].length > 5000) {
-    return "心情内容最多 5000 个字符。";
-  }
-  if (Object.prototype.hasOwnProperty.call(row, "tags")) {
-    const result = normalizeMoodDiaryTags(row.tags);
-    if (result.error) return result.error;
-    row.tags = JSON.stringify(result.tags);
-  }
-  return null;
-}
-
-async function handleTableApi(request, env, user, table) {
-  const dbError = requireDb(request, env);
-  if (dbError) return dbError;
-  const config = TABLE_CONFIG[table];
-  if (!config) return jsonResponse(request, env, { error: "Unknown table." }, 404);
-
-  const url = new URL(request.url);
-  if (request.method === "GET") {
-    const values = [];
-    const clauses = [
-      ...(await buildScopeSql(env, table, config, user, values)),
-      ...buildFilterSql(config, parseFiltersFromUrl(url), values),
-    ];
-    const orderColumn = url.searchParams.get("order") || "created_at";
-    const orderDirection = url.searchParams.get("ascending") === "true" ? "asc" : "desc";
-    const safeOrder = config.columns.includes(orderColumn) ? orderColumn : "created_at";
-    const limit = Math.min(500, Math.max(1, Number(url.searchParams.get("limit")) || 500));
-    const offset = Math.min(500000, Math.max(0, Number(url.searchParams.get("offset")) || 0));
-    const rows = await env.DB.prepare(
-      `select * from ${table} where ${clauses.join(" and ")} order by ${safeOrder} ${orderDirection} limit ? offset ?`
-    )
-      .bind(...values, limit, offset)
-      .all();
-    return jsonResponse(request, env, { data: (rows.results || []).map((row) => denormalizeRow(table, row)) });
-  }
-
-  const payload = await readJsonRequestBody(request);
-  const action = String(payload.action || "").toLowerCase();
-  if (action === "insert" || action === "upsert") {
-    const rows = Array.isArray(payload.values) ? payload.values : [payload.values || {}];
-    const sanitizedRows = rows.map((row) =>
-      sanitizeRowForTable(table, row, user, { forceOwner: Boolean(config.ownerColumn) })
-    );
-    if (table === "mood_diaries") {
-      for (const row of sanitizedRows) {
-        if (!Object.prototype.hasOwnProperty.call(row, "content")) row.content = "";
-        if (!Object.prototype.hasOwnProperty.call(row, "tags")) row.tags = "[]";
-        const moodError = validateMoodDiaryRow(row);
-        if (moodError) return jsonResponse(request, env, { error: moodError }, 400);
-      }
-    }
-    if (table === "photos") {
-      for (const row of sanitizedRows) {
-        const mediaError = validateDiaryPhotoMedia(row.note);
-        if (mediaError) return jsonResponse(request, env, { error: mediaError }, 400);
-      }
-    }
-    let existingActivityIds = new Set();
-    if (action === "upsert" && ["photos", "wishes", "shopping_items"].includes(table)) {
-      const ids = sanitizedRows.map((row) => row.id).filter(Boolean);
-      if (ids.length) {
-        const placeholders = ids.map(() => "?").join(",");
-        const existing = await env.DB.prepare(
-          `select id from ${table} where id in (${placeholders})`
-        ).bind(...ids).all();
-        existingActivityIds = new Set((existing.results || []).map((row) => row.id));
-      }
-    }
-    const conflict = table === "mood_diaries"
-      ? config.conflictColumns
-      : payload.onConflict
-        ? String(payload.onConflict).split(",").map((item) => item.trim()).filter(Boolean)
-        : config.conflictColumns || [config.columns.includes("id") ? "id" : config.columns[0]];
-    const count = await upsertRows(env, table, sanitizedRows, config.columns, conflict);
-    if (["photos", "gratitude_notes", "photo_favorites", "photo_comments", "wishes", "shopping_items"].includes(table)) {
-      const activityRows = ["photos", "wishes", "shopping_items"].includes(table) && action === "upsert"
-        ? sanitizedRows.filter((row) => !existingActivityIds.has(row.id))
-        : action === "insert"
-          ? sanitizedRows
-          : [];
-      if (activityRows.length) {
-        await createActivityNotifications(env, table, activityRows, user.id);
-      }
-    }
-    let responseRows = sanitizedRows;
-    if (table === "mood_diaries" && action === "upsert") {
-      responseRows = await Promise.all(sanitizedRows.map(async (row) => {
-        const canonical = await env.DB.prepare(
-          "select * from mood_diaries where user_id=? and diary_date=? limit 1"
-        ).bind(row.user_id, row.diary_date).first();
-        return canonical || row;
-      }));
-    }
-    return jsonResponse(request, env, {
-      data: responseRows.map((row) => denormalizeRow(table, row)),
-      count,
-    });
-  }
-
-  const filters = payload.filters || [];
-  if (action === "update") {
-    const rawUpdates = payload.values && typeof payload.values === "object" ? payload.values : {};
-    const adminUnpinRequest =
-      table === "photos" &&
-      rawUpdates.is_pinned === false &&
-      Object.keys(rawUpdates).length === 1 &&
-      (await isFamilyOwner(env, user.id));
-    if (!adminUnpinRequest && !(await assertRowsWritable(env, table, config, user, filters))) {
-      return jsonResponse(request, env, { error: "Not allowed." }, 403);
-    }
-    const updates = sanitizeRowForTable(table, rawUpdates, user);
-    if (table === "mood_diaries") {
-      if (Object.prototype.hasOwnProperty.call(rawUpdates, "diary_date")) {
-        return jsonResponse(request, env, { error: "心情日记日期不可修改。" }, 400);
-      }
-      const moodError = validateMoodDiaryRow(updates, { requireDate: false, requireMood: false });
-      if (moodError) return jsonResponse(request, env, { error: moodError }, 400);
-    }
-    if (table === "photos" && Object.prototype.hasOwnProperty.call(updates, "note")) {
-      const mediaError = validateDiaryPhotoMedia(updates.note);
-      if (mediaError) return jsonResponse(request, env, { error: mediaError }, 400);
-    }
-    delete updates.id;
-    delete updates.created_at;
-    if (config.ownerColumn) delete updates[config.ownerColumn];
-    const updateColumns = Object.keys(updates).filter((column) => config.columns.includes(column));
-    if (!updateColumns.length) return jsonResponse(request, env, { data: [] });
-    const whereValues = [];
-    const scope = await buildScopeSql(env, table, config, user, whereValues, !adminUnpinRequest);
-    const clauses = [...scope, ...buildFilterSql(config, filters, whereValues)];
-    if (table === "user_profiles") {
-      const current = await env.DB.prepare(
-        `select login_streak, experience_total, last_login_date
-           from user_profiles
-          where ${clauses.join(" and ")}
-          limit 1`
-      )
-        .bind(...whereValues)
-        .first();
-      if (current) {
-        if (Object.prototype.hasOwnProperty.call(updates, "login_streak")) {
-          updates.login_streak = Math.max(
-            Number(current.login_streak) || 0,
-            Number(updates.login_streak) || 0
-          );
-        }
-        if (Object.prototype.hasOwnProperty.call(updates, "experience_total")) {
-          updates.experience_total = Math.max(
-            Number(current.experience_total) || 0,
-            Number(updates.experience_total) || 0
-          );
-        }
-        if (
-          Object.prototype.hasOwnProperty.call(updates, "last_login_date") &&
-          current.last_login_date &&
-          String(current.last_login_date) > String(updates.last_login_date || "")
-        ) {
-          updates.last_login_date = current.last_login_date;
-        }
-      }
-    }
-    const setValues = updateColumns.map((column) => updates[column]);
-    await env.DB.prepare(
-      `update ${table} set ${updateColumns.map((column) => `${column}=?`).join(",")} where ${clauses.join(" and ")}`
-    )
-      .bind(...setValues, ...whereValues)
-      .run();
-    return handleTableApi(
-      new Request(
-        `${url.origin}${url.pathname}?filters=${encodeURIComponent(JSON.stringify(filters))}`,
-        { headers: request.headers }
-      ),
-      env,
-      user,
-      table
-    );
-  }
-
-  if (action === "delete") {
-    if (!(await assertRowsWritable(env, table, config, user, filters))) {
-      return jsonResponse(request, env, { error: "Not allowed." }, 403);
-    }
-    const values = [];
-    const scope = await buildScopeSql(env, table, config, user, values, true);
-    const clauses = [...scope, ...buildFilterSql(config, filters, values)];
-    const rows = await env.DB.prepare(`select * from ${table} where ${clauses.join(" and ")}`)
-      .bind(...values)
-      .all();
-    await env.DB.prepare(`delete from ${table} where ${clauses.join(" and ")}`)
-      .bind(...values)
-      .run();
-    return jsonResponse(request, env, {
-      data: (rows.results || []).map((row) => denormalizeRow(table, row)),
-      count: rows.results?.length || 0,
-    });
-  }
-
-  return jsonResponse(request, env, { error: "Unsupported table action." }, 400);
-}
-
-async function upsertRows(env, table, rows, columns, conflictColumns = null) {
-  if (!rows.length) return 0;
-  const placeholders = columns.map(() => "?").join(",");
-  const conflict = conflictColumns || [columns.includes("id") ? "id" : columns[0]];
-  const conflictSet = new Set(conflict);
-  const updates = columns
-    .filter((column) => !conflictSet.has(column))
-    .map((column) => `${column}=excluded.${column}`)
-    .join(",");
-  let count = 0;
-  for (const row of rows) {
-    let effectiveRow = row;
-    if (table === "user_profiles" && row.user_id) {
-      const current = await env.DB.prepare(
-        "select login_streak, experience_total, last_login_date from user_profiles where user_id=? limit 1"
-      )
-        .bind(row.user_id)
-        .first();
-      if (current) {
-        effectiveRow = { ...row };
-        effectiveRow.login_streak = Math.max(
-          Number(current.login_streak) || 0,
-          Number(row.login_streak) || 0
-        );
-        effectiveRow.experience_total = Math.max(
-          Number(current.experience_total) || 0,
-          Number(row.experience_total) || 0
-        );
-        if (
-          current.last_login_date &&
-          String(current.last_login_date) > String(row.last_login_date || "")
-        ) {
-          effectiveRow.last_login_date = current.last_login_date;
-        }
-      }
-    }
-    const values = columns.map((column) => normalizeColumnValue(table, column, effectiveRow[column]));
-    await env.DB.prepare(
-      `insert into ${table} (${columns.join(",")}) values (${placeholders})
-       on conflict(${conflict.join(",")}) do update set ${updates || `${conflict[0]}=excluded.${conflict[0]}`}`
-    )
-      .bind(...values)
-      .run();
-    count += 1;
-  }
-  return count;
-}
 
 function isFamilyShoppingObjectKey(key) {
   const segments = String(key || "").split("/");
@@ -2822,6 +2128,25 @@ async function handleBackupRun(request, env, user) {
   return jsonResponse(request, env, { data: { key, created_at: nowIso() } });
 }
 
+const {
+  handleD1Logout,
+  handlePublicPhotoList,
+  handleTableApi,
+  isPublicPhotoListRequest,
+} = createTableApi({
+  createActivityNotifications,
+  getBearerToken,
+  getFamilyUserIds,
+  jsonResponse,
+  nowIso,
+  readJsonRequestBody,
+  requireDb,
+  safeJson,
+  sha256Base64Url,
+  isFamilyOwner,
+  validateDiaryPhotoMedia,
+});
+
 export default {
   async fetch(request, env) {
     try {
@@ -2842,25 +2167,28 @@ export default {
       if (url.pathname.startsWith("/media/") && request.method === "GET") {
         const media = decodeMediaKey(url.pathname);
         if (!media) return jsonResponse(request, env, { error: "Invalid media path." }, 400);
-        return handleMedia(request, env, media.scope, media.key);
+        return await handleMedia(request, env, media.scope, media.key);
       }
       if (url.pathname === "/api/invite/verify" && request.method === "POST") {
-        return handleInviteVerify(request, env);
+        return await handleInviteVerify(request, env);
       }
       if (url.pathname === "/api/auth/register" && request.method === "POST") {
-        return handleD1Register(request, env);
-      }
-     if (url.pathname === "/api/auth/login" && request.method === "POST") {
-       return handleD1Login(request, env);
+        return await handleD1Register(request, env);
      }
+     if (url.pathname === "/api/auth/login" && request.method === "POST") {
+       return await handleD1Login(request, env);
+     }
+      if (url.pathname === "/api/auth/logout" && request.method === "POST") {
+        return await handleD1Logout(request, env);
+      }
       if (url.pathname === "/api/auth/password-reset/request" && request.method === "POST") {
-        return handlePasswordResetRequest(request, env);
+        return await handlePasswordResetRequest(request, env);
       }
       if (url.pathname === "/api/auth/password-reset/confirm" && request.method === "POST") {
-        return handlePasswordResetConfirm(request, env);
+        return await handlePasswordResetConfirm(request, env);
       }
       if (url.pathname === "/api/rpc/reset_password_with_recovery_key" && request.method === "POST") {
-       return handlePasswordRecoveryReset(request, env);
+       return await handlePasswordRecoveryReset(request, env);
      }
 
       if (
@@ -2868,7 +2196,7 @@ export default {
         request.method === "GET" &&
         isPublicPhotoListRequest(url)
       ) {
-        return handlePublicPhotoList(request, env);
+        return await handlePublicPhotoList(request, env);
       }
 
       let user = null;
@@ -2878,75 +2206,77 @@ export default {
       }
 
       if (url.pathname === "/api/admin/signup-invite" && request.method === "GET") {
-        return handleSignupInviteRead(request, env, user);
+        return await handleSignupInviteRead(request, env, user);
       }
       if (url.pathname === "/api/admin/r2-usage" && request.method === "GET") {
-        return handleAdminR2Usage(request, env, user);
+        return await handleAdminR2Usage(request, env, user);
       }
       if (url.pathname === "/api/admin/r2-audit" && request.method === "GET") {
-        return handleAdminR2Audit(request, env, user);
+        return await handleAdminR2Audit(request, env, user);
       }
 
       if (url.pathname === "/upload" && request.method === "POST") {
-        return handleUpload(request, env, user);
+        return await handleUpload(request, env, user);
       }
      if (url.pathname === "/api/auth/me" && request.method === "GET") {
-       return handleD1Me(request, env, user);
+       return await handleD1Me(request, env, user);
      }
       if (url.pathname === "/api/account/email/request" && request.method === "POST") {
-        return handleEmailBindRequest(request, env, user);
+        return await handleEmailBindRequest(request, env, user);
       }
       if (url.pathname === "/api/account/email/confirm" && request.method === "POST") {
-        return handleEmailBindConfirm(request, env, user);
+        return await handleEmailBindConfirm(request, env, user);
       }
      if (url.pathname === "/api/auth/password" && request.method === "POST") {
-       return handlePasswordUpdate(request, env, user);
+       return await handlePasswordUpdate(request, env, user);
      }
       if (url.pathname === "/api/push/config" && request.method === "GET") {
         return jsonResponse(request, env, { data: { publicKey: env.VAPID_PUBLIC_KEY || "" } });
       }
       if (url.pathname === "/api/push/subscribe" && request.method === "POST") {
-        return handlePushSubscribe(request, env, user);
+        return await handlePushSubscribe(request, env, user);
       }
       if (url.pathname === "/api/push/unsubscribe" && request.method === "POST") {
-        return handlePushUnsubscribe(request, env, user);
+        return await handlePushUnsubscribe(request, env, user);
       }
       if (url.pathname === "/api/export" && request.method === "GET") {
-        return handleD1Export(request, env, user);
+        return await handleD1Export(request, env, user);
       }
       if (url.pathname === "/api/backups" && request.method === "GET") {
-        return handleBackupList(request, env, user);
+        return await handleBackupList(request, env, user);
       }
       if (url.pathname === "/api/backups/run" && request.method === "POST") {
-        return handleBackupRun(request, env, user);
+        return await handleBackupRun(request, env, user);
       }
       if (url.pathname.startsWith("/api/backups/") && request.method === "GET") {
         const key = decodeURIComponent(url.pathname.replace("/api/backups/", ""));
-        return handleBackupDownload(request, env, user, key);
+        return await handleBackupDownload(request, env, user, key);
       }
       if (url.pathname.startsWith("/api/rpc/") && request.method === "POST") {
         const name = decodeURIComponent(url.pathname.replace("/api/rpc/", ""));
-        return handleRpc(request, env, user, name);
+        return await handleRpc(request, env, user, name);
       }
       if (url.pathname.startsWith("/api/table/")) {
         const table = decodeURIComponent(url.pathname.replace("/api/table/", ""));
-        return handleTableApi(request, env, user, table);
+        return await handleTableApi(request, env, user, table);
       }
       if (url.pathname === "/copy" && request.method === "POST") {
-        return handleCopy(request, env, user);
+        return await handleCopy(request, env, user);
       }
       if (url.pathname === "/object" && request.method === "DELETE") {
-        return handleDelete(request, env, user);
+        return await handleDelete(request, env, user);
       }
 
       return jsonResponse(request, env, { error: "Not found." }, 404);
     } catch (error) {
-      const detail = error?.message || String(error);
+      const isUniqueConstraint = /(?:unique|primary key) constraint failed/i.test(String(error?.message || ""));
+      const status = error instanceof WorkerHttpError ? error.status : isUniqueConstraint ? 409 : 500;
+      if (status >= 500) console.error("Worker request failed", { name: error?.name || "Error", status });
       return jsonResponse(
         request,
         env,
-        { error: detail ? `Worker error: ${detail}` : "Worker error.", detail },
-        500
+        { error: status === 500 ? "Worker error. Please try again." : error.message },
+        status
       );
     }
   },

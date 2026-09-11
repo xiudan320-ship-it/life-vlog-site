@@ -140,7 +140,7 @@ import {
   secretDomainModule,
   cloudflareClientModule,
   repositoryModule,
-  wardrobeModule,
+  wardrobeControllerModule,
   wardrobeCss,
   mediaCacheModule,
   vlogModeModule,

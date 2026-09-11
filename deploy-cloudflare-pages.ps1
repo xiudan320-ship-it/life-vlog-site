@@ -60,13 +60,11 @@ function Write-ReleaseMetadata($metadata, [string]$label) {
 }
 
 function Invoke-WorkerDeploy {
-  Push-Location (Join-Path $root "cloudflare-worker")
+  Push-Location $root
   try {
-    & $pnpmCommand.Source "dlx" "wrangler@latest" "deploy" "--config" "wrangler.toml"
+    & $pnpmCommand.Source "exec" "wrangler" "deploy" "--config" "cloudflare-worker/wrangler.toml"
     if ($LASTEXITCODE -ne 0) { throw "Cloudflare Worker deployment failed." }
-  } finally {
-    Pop-Location
-  }
+  } finally { Pop-Location }
 }
 
 function Invoke-WorkerCorsSmoke {
@@ -82,7 +80,7 @@ function Invoke-WorkerCorsSmoke {
 
 function Invoke-PagesDeploy([string]$branch) {
   Assert-ReleaseUnchanged
-  $deployArgs = @("dlx", "wrangler@latest", "pages", "deploy", "dist", "--project-name", "life-vlog-site", "--branch", $branch, "--commit-hash", $script:releaseCommit)
+  $deployArgs = @("exec", "wrangler", "pages", "deploy", "dist", "--project-name", "life-vlog-site", "--branch", $branch, "--commit-hash", $script:releaseCommit)
   $previousErrorActionPreference = $ErrorActionPreference
   try {
     $ErrorActionPreference = "Continue"
@@ -158,27 +156,27 @@ try {
   Invoke-Pnpm @("run", "test:release-local")
   Assert-ReleaseUnchanged
 
-  Invoke-WorkerDeploy
-  Invoke-WorkerCorsSmoke
-  Write-Output "Worker CORS gate passed: https://life-vlog-r2-upload.xiudan320-life.workers.dev"
-
   $previewUrl = Invoke-PagesDeploy "codex-preview"
   Write-Output "Preview deployment: $previewUrl"
   Wait-ReleaseAlias "https://codex-preview.life-vlog-site.pages.dev" $metadata.entry
-  Invoke-WorkerCorsSmoke
   Invoke-A11ySmoke "https://codex-preview.life-vlog-site.pages.dev"
   Invoke-ReleaseSmoke "https://codex-preview.life-vlog-site.pages.dev"
   Write-Output "Preview release gate passed: https://codex-preview.life-vlog-site.pages.dev"
 
-  if ($Environment -eq "production") {
-    $productionUrl = Invoke-PagesDeploy "main"
-    Write-Output "Production deployment: $productionUrl"
-    Wait-ReleaseAlias "https://life-vlog-site.pages.dev" $metadata.entry
-    Invoke-WorkerCorsSmoke
-    Invoke-A11ySmoke "https://life-vlog-site.pages.dev"
-    Invoke-ReleaseSmoke "https://life-vlog-site.pages.dev"
-    Write-Output "Production release gate passed: https://life-vlog-site.pages.dev"
-  }
+  if ($Environment -eq "preview") { return }
+
+  Assert-ReleaseUnchanged
+  Invoke-WorkerDeploy
+  Invoke-WorkerCorsSmoke
+  Write-Output "Worker CORS gate passed: https://life-vlog-r2-upload.xiudan320-life.workers.dev"
+
+  $productionUrl = Invoke-PagesDeploy "main"
+  Write-Output "Production deployment: $productionUrl"
+  Wait-ReleaseAlias "https://life-vlog-site.pages.dev" $metadata.entry
+  Invoke-WorkerCorsSmoke
+  Invoke-A11ySmoke "https://life-vlog-site.pages.dev"
+  Invoke-ReleaseSmoke "https://life-vlog-site.pages.dev"
+  Write-Output "Production release gate passed: https://life-vlog-site.pages.dev"
 } finally {
   if ($null -eq $previousToken) { Remove-Item Env:CLOUDFLARE_API_TOKEN -ErrorAction SilentlyContinue }
   else { $env:CLOUDFLARE_API_TOKEN = $previousToken }

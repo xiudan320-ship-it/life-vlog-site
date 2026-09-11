@@ -270,7 +270,7 @@ export function createWishlistController({
     const { data, error } = await repository.upsert(
       "wishes",
       wishToCloudRow(wish, wish.userId),
-      { onConflict: "id", select: "*", single: true }
+      { select: "*", single: true }
     );
     if (error) {
       if (image.imagePath && image.imagePath !== previous?.imagePath) {

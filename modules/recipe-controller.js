@@ -240,7 +240,7 @@ export function createRecipeController({
     const { data, error } = await repository.upsert(
       "recipes",
       recipeToCloudRow(recipe, recipe.userId),
-      { onConflict: "id", select: "*", single: true }
+      { select: "*", single: true }
     );
     if (error) {
       setStatus(`菜谱同步失败：${error.message}`);

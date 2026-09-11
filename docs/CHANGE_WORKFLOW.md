@@ -15,23 +15,7 @@
 
 ## 2. 文档同步判断
 
-| 实际变化 | 需要同步 |
-| --- | --- |
-| 用户功能新增、删除或明显变化 | `CHANGELOG.md` |
-| 用户可见缺陷修复 | `CHANGELOG.md` |
-| 新增、删除、移动模块 | `MODULE_MAP.md`，有重要影响时加 CHANGELOG |
-| 模块职责发生实质变化 | `MODULE_MAP.md`，有重要影响时加 CHANGELOG |
-| 架构变化 | `TECHNICAL_OVERVIEW.md` + CHANGELOG |
-| 数据流或状态契约变化 | `TECHNICAL_OVERVIEW.md` + CHANGELOG |
-| API 长期契约变化 | `TECHNICAL_OVERVIEW.md`，必要时 `MODULE_MAP.md` + CHANGELOG |
-| 数据库 schema 变化 | schema、`TECHNICAL_OVERVIEW.md` + CHANGELOG |
-| PWA、缓存或离线行为变化 | `TECHNICAL_OVERVIEW.md` + CHANGELOG |
-| 构建或部署行为变化 | `TECHNICAL_OVERVIEW.md`、`release-checklist.md` + CHANGELOG |
-| 全局 UI / UX 规范变化 | design system + CHANGELOG |
-| 单页面局部视觉修复 | 通常只需 CHANGELOG；无行为的小调整可以不记 |
-| 发布门禁变化 | `release-checklist.md` |
-| 拼写、格式、注释 | 默认无需同步长期文档和 CHANGELOG |
-| 无行为变化的小型内部整理或测试描述 | 通常无需同步长期文档和 CHANGELOG |
+同步判断表唯一维护在 [`docs/README.md`](README.md#修改后的文档同步原则)。本文件只补充记录格式、风险分级和交付检查；如果本文件与入口表出现差异，以入口表为准。
 
 ## 3. CHANGELOG 写法
 

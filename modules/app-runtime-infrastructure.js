@@ -40,7 +40,6 @@ export function createRuntimeInfrastructure({
   const appServices = createAppServices({
     cloudflare: {
       endpoint: config.r2UploadEndpoint,
-      publicUrl: config.r2PublicUrl,
       authKey: config.cloudflareAuthKey,
       backupDb: config.authBackupDb,
       backupStore: config.authBackupStore,

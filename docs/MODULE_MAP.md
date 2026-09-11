@@ -41,10 +41,11 @@
 | 秘藏文件夹、默认入口、右键菜单 | `modules/secret-folder-controller.js` | `modules/secret-gallery-view.js` |
 | 秘藏密码与解锁 | `modules/secret-pin-controller.js` | `modules/secret-entry-preference-controller.js` |
 | 评论、回复、家庭心愿/购物车通知 | `modules/social-controller.js`, `modules/comment-thread-domain.js`, `modules/notification-event-bindings.js` | `modules/notification-domain.js`, `modules/notification-view.js`；桌面详情与移动详情共用扁平留言模型，通知可跳转到心愿单/购物车 |
-| 推送通知、晚间心情提醒与点击跳转 | `modules/push-controller.js` | `modules/media-event-bindings.js`, `cloudflare-worker/src/worker.js`；20:00 Asia/Tokyo 未记录当日心情时生成一次提醒 |
+| 推送通知、晚间心情提醒与点击跳转 | `modules/push-controller.js` | `modules/media-event-bindings.js`, `cloudflare-worker/src/worker.js`；18:00 Asia/Tokyo 未记录当日心情时生成一次提醒 |
 | 菜谱、纪念日、吃什么 | 对应的 `*-controller.js` | 对应的 `*-view.js`, `modules/content-form-event-bindings.js` |
+| 衣柜记录、筛选、图片和穿着记录 | `modules/wardrobe-controller.js` | `modules/wardrobe-domain.js`, `modules/wardrobe-view.js`, `modules/data-repositories.js`, `wardrobe.css` |
 | 离线缓存与容量、自动缓存设置反馈 | `modules/offline-cache-controller.js`, `modules/offline-settings-controller.js` | `modules/cache-policy.js`, `modules/cache-management-view.js`, `modules/app-feedback-view.js` |
-| 云端数据访问 | `modules/data-repositories.js`, `modules/household-repository.js` | `modules/cloudflare-client.js`, `modules/cloud-models.js` |
+| 云端数据访问、会话与服务器注销 | `modules/data-repositories.js`, `modules/household-repository.js`, `modules/cloudflare-client.js` | `modules/cloud-models.js`, `cloudflare-worker/src/http-response.js` |
 
 ## 跨路由数据边界
 

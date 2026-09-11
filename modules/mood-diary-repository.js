@@ -87,7 +87,7 @@ export function createMoodDiaryRepository({ getDatabase, getSession }) {
       tags: normalizeMoodTags(tags),
     };
     const result = await table()
-      .upsert(payload, { onConflict: "user_id,diary_date" })
+      .upsert(payload)
       .select("*")
       .single();
     if (result?.error) throw asRepositoryError(result.error, "心情日记保存失败");

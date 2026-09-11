@@ -16,6 +16,15 @@ function isValidEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(String(value || "").trim());
 }
 
+function getSessionResultHint(result, successText) {
+  if (result?.error) return result.error.message;
+  if (result?.backup?.persisted === false) {
+    const detail = result.backup.error?.message ? `：${result.backup.error.message}` : "。";
+    return `${successText}，但本地会话备份不可用${detail}`;
+  }
+  return `${successText}。`;
+}
+
 export function createAuthController({
   elements,
   endpoint,
@@ -48,8 +57,8 @@ export function createAuthController({
     }
     setHint("正在登录...");
     try {
-      const { error } = await database.auth.signInWithPassword({ email, password });
-      setHint(error ? error.message : "登录成功。");
+      const result = await database.auth.signInWithPassword({ email, password });
+      setHint(getSessionResultHint(result, "登录成功"));
     } catch (error) {
       setHint(`登录失败：${error.message || "网络或配置错误"}`);
     }
@@ -101,7 +110,7 @@ export function createAuthController({
     try {
       await verifyInviteCode(inviteCode);
       setHint("邀请码通过，正在注册...");
-      const { error } = await database.auth.signUp({
+      const result = await database.auth.signUp({
         email,
         password,
         options: {
@@ -109,7 +118,7 @@ export function createAuthController({
           data: { username, inviteCode },
         },
       });
-      setHint(error ? error.message : "注册完成，可以直接登录。");
+      setHint(getSessionResultHint(result, "注册完成，可以直接登录"));
     } catch (error) {
       setHint(`注册失败：${error.message || "网络或配置错误"}`);
     }
@@ -121,7 +130,20 @@ export function createAuthController({
     closeMobileDiaryPage();
     clearSecretUnlockState();
     elements.secretPinDialog?.close();
-    await database.auth.signOut();
+    try {
+      const result = await database.auth.signOut();
+      if (!result?.localCleared) {
+        setHint(result?.serverRevoked === false
+          ? "已退出当前界面，但本地会话清理和服务器撤销都未完成，请刷新重试。"
+          : "服务器会话已撤销，但本地会话清理未完成，请刷新重试。");
+      } else if (result?.serverRevoked === false) {
+        setHint("已在本机退出，服务器会话撤销未确认。");
+      } else {
+        setHint("已退出登录");
+      }
+    } catch (error) {
+      setHint(`退出登录失败：${error.message || "本地会话清理未完成"}`);
+    }
   }
 
   async function changePassword(event) {

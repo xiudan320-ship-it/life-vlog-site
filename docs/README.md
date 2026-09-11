@@ -74,7 +74,7 @@
 - `docs/plans/`
 - `docs/history/`
 
-[`mobile-comment-thread-and-jar-physics-plan.md`](mobile-comment-thread-and-jar-physics-plan.md)：记录移动端深层留言不再累计缩进，以及心情表情使用确定性物理碰撞缓慢落入并可重播的 V3 实施与验收方案；其物理运动目标覆盖 V2 的固定槽位下落方案。
+已完成的移动端留言线程与心情瓶 V3 专项已归档至 [`history/mobile-comment-thread-and-jar-physics-v3-2026-09-01.md`](history/mobile-comment-thread-and-jar-physics-v3-2026-09-01.md)，不属于普通任务默认上下文。
 
 历史文档可以长期保留作为决策和审计依据，但不应继续承担当前系统说明职责。
 

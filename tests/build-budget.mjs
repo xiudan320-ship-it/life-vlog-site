@@ -2,28 +2,22 @@ import { readFile, readdir, stat } from "node:fs/promises";
 import { gzipSync } from "node:zlib";
 import { join } from "node:path";
 import assert from "node:assert/strict";
+import { readWorkboxManifest } from "../scripts/workbox-manifest.mjs";
 
 const dist = join(process.cwd(), "dist");
 const files = await readdir(join(dist, "assets"));
 const indexHtml = await readFile(join(dist, "index.html"), "utf8");
-const sw = await readFile(join(dist, "sw.js"), "utf8");
+const precacheEntries = await readWorkboxManifest(join(dist, "sw.js"));
 const js = files.find((name) => /^index-[^/]+\.js$/.test(name));
 const css = files.find((name) => /^index-[^/]+\.css$/.test(name));
 assert.ok(js, "missing hashed entry JS");
 assert.ok(css, "missing hashed entry CSS");
 assert.ok(!indexHtml.includes("?v="), "manual query version remains in built HTML");
-assert.ok(!sw.includes("CORE_ASSETS"), "legacy service worker asset list remains");
-const precacheCall = sw.match(/\bEe\((\[[\s\S]*?\])\)/)
-  || sw.match(/\.precache\(e\)\}\((\[[\s\S]*?\])\)/);
-assert.ok(precacheCall, "final Workbox precache call is missing");
-let precacheEntries;
-try {
-  precacheEntries = JSON.parse(precacheCall[1]);
-} catch (error) {
-  assert.fail(`final Workbox precache manifest is not valid JSON: ${error.message}`);
+const precacheUrls = precacheEntries.map(({ url }) => url);
+for (const url of precacheUrls) {
+  const relativeUrl = url.replace(/^\/+/, "").split(/[?#]/, 1)[0];
+  assert.ok(relativeUrl && await stat(join(dist, relativeUrl)).then(() => true, () => false), `precache resource is missing from dist: ${url}`);
 }
-assert.ok(Array.isArray(precacheEntries), "final Workbox precache manifest is not an array");
-const precacheUrls = precacheEntries.map((entry) => entry?.url).filter(Boolean);
 assert.ok(!precacheUrls.some((url) => /-route-[^/]+\.(?:js|css)$/.test(url)), `route chunks were included in the precache manifest: ${precacheUrls.join(", ")}`);
 const nonCoreChunkPrefixes = [
   "content-form-event-bindings-",

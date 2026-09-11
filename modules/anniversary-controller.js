@@ -117,7 +117,7 @@ export function createAnniversaryController({
     const { data, error } = await repository.upsert(
       "anniversaries",
       anniversaryToCloudRow(item, item.userId),
-      { onConflict: "id", select: "*", single: true }
+      { select: "*", single: true }
     );
     if (error) {
       elements.anniversaryStatus.textContent = `同步失败：${error.message}`;

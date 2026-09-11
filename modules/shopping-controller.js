@@ -273,7 +273,6 @@ export function createShoppingController({
       updatedAt: new Date().toISOString(),
     };
     const result = await repository.upsert("shopping_items", shoppingToCloudRow(item, item.userId), {
-      onConflict: "id",
       select: "*",
       single: true,
     });

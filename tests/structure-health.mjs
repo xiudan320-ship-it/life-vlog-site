@@ -22,6 +22,9 @@ const appRuntimeRoute = await read("modules/app-runtime-route-assembly.js");
 const appRuntimeStartup = await read("modules/app-runtime-startup.js");
 const appRuntimeState = await read("modules/app-runtime-state.js");
 const routeContext = await read("modules/app-route-context.js");
+const wardrobeDomain = await read("modules/wardrobe-domain.js");
+const wardrobeView = await read("modules/wardrobe-view.js");
+const wardrobeController = await read("modules/wardrobe-controller.js");
 const moduleMap = await read("docs/MODULE_MAP.md");
 const ids = [...html.matchAll(/\bid=["']([^"']+)["']/g)].map((match) => match[1]);
 assert.equal(new Set(ids).size, ids.length, "duplicate HTML id");
@@ -43,6 +46,14 @@ assert.ok(moduleMap.includes("mood-diary-controller.js"));
 assert.ok(moduleMap.includes("mood-diary-shared.js"));
 assert.ok(moduleMap.includes("comment-thread-domain.js"));
 assert.ok(moduleMap.includes("mood-jar-physics.js"));
+assert.ok(moduleMap.includes("wardrobe-domain.js"));
+assert.ok(moduleMap.includes("wardrobe-view.js"));
+assert.ok(moduleMap.includes("wardrobe-controller.js"));
+assert.match(wardrobeController, /from "\.\/wardrobe-domain\.js"/);
+assert.match(wardrobeController, /from "\.\/wardrobe-view\.js"/);
+assert.doesNotMatch(wardrobeDomain, /document|localStorage|fetch\s*\(/, "wardrobe domain owns a browser side effect");
+assert.match(wardrobeView, /renderWardrobeShell|createWardrobeDialogs/);
+assert.doesNotMatch(wardrobeController, /root\.innerHTML\s*=\s*`/, "wardrobe controller owns view markup");
 const runtimeFiles = (await readdir(modulesRoot))
   .filter((file) => /^app-runtime-.*\.js$/.test(file))
   .sort();
@@ -95,6 +106,9 @@ for (const file of [
   "modules/today-mood-view.js",
   "modules/today-mood-controller.js",
   "modules/routes/mood-diary-route.js",
+  "modules/wardrobe-domain.js",
+  "modules/wardrobe-view.js",
+  "modules/wardrobe-controller.js",
   "modules/routes/templates/mood-diary.html",
   "styles/mood-diary.css",
   "tests/mood-diary-domain.mjs",
@@ -115,6 +129,7 @@ for (const file of [
 for (const old of ["service-worker.js", "manifest.webmanifest"]) {
   assert.equal(await access(join(root, old)).then(() => true, () => false), false, `legacy ${old} remains`);
 }
+assert.equal(await access(join(root, "modules/wardrobe.js")).then(() => true, () => false), false, "legacy wardrobe controller remains");
 const trackedLegacyOutput = await run("git", ["ls-files", "--", ".cloudflare-pages-dist"]);
 assert.equal(trackedLegacyOutput.trim(), "", "legacy .cloudflare-pages-dist is tracked");
 const { size } = await stat(join(root, "app.js"));

@@ -303,6 +303,7 @@ export function createCloudflareApiFixture({
   const uploads = [];
   let generatedRowId = 0;
   let remainingNotificationFailures = Math.max(0, Number(notificationFailureCount) || 0);
+  let fixtureSessionActive = true;
 
   async function handle(route) {
     const request = route.request();
@@ -366,6 +367,7 @@ export function createCloudflareApiFixture({
       return;
     }
     if (url.pathname === "/api/auth/login") {
+      fixtureSessionActive = true;
       await route.fulfill(jsonResponse(request, {
         token: "fixture-token",
         expires_at: new Date(Date.now() + 3600000).toISOString(),
@@ -374,7 +376,16 @@ export function createCloudflareApiFixture({
       }));
       return;
     }
+    if (url.pathname === "/api/auth/logout") {
+      if (request.headers().authorization === "Bearer fixture-token") fixtureSessionActive = false;
+      await route.fulfill(jsonResponse(request, { data: true }));
+      return;
+    }
     if (url.pathname === "/api/auth/me") {
+      if (!fixtureSessionActive) {
+        await route.fulfill(jsonResponse(request, { error: "Unauthorized." }, 401));
+        return;
+      }
       await route.fulfill(jsonResponse(request, { data: { id: "fixture-user", username: "fixture-user", email: "fixture-user@life-vlog.local" } }));
       return;
     }
@@ -467,6 +478,7 @@ export function createCloudflareApiFixture({
     requests,
     writes,
     uploads,
+    isSessionActive: () => fixtureSessionActive,
     async dispose(context) {
       await context.unroute("**/*");
     },

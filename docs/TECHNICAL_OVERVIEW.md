@@ -1,6 +1,6 @@
 # 咻蛋之家技术总览
 
-> 当前系统事实的长期入口。最后核验：2026-09-02。
+> 当前系统事实的长期入口。最后核验：2026-09-12。
 >
 > 正式站：<https://life-vlog-site.pages.dev/>
 
@@ -16,6 +16,7 @@
 - 数据库：Cloudflare D1。
 - 媒体：Cloudflare R2，公开展示通过 `PUBLIC_R2_URL`，写入和删除通过 Worker。
 - 托管：Cloudflare Pages。
+- 本地测试运行时：Node `>=22.5.0`；Worker/Pages CLI 使用锁定的 `wrangler@4.131.0`。
 
 ## 2. 系统结构
 
@@ -70,7 +71,7 @@ flowchart LR
 | 菜谱 | `routes/recipes-route.js` | 家庭菜谱 |
 | 心愿 / 购物 | `routes/wishlist-route.js` | 心愿与购物共享入口 |
 | 周末 | `routes/weekend-route.js` | 周末计划和回顾 |
-| 衣柜 | `routes/wardrobe-route.js` | 衣柜记录 |
+| 衣柜 | `routes/wardrobe-route.js` | `wardrobe-controller.js` 编排衣柜交互，`wardrobe-domain.js` 提供规范化/筛选，`wardrobe-view.js` 负责 DOM 渲染 |
 | 心情 | `routes/mood-diary-route.js` | 完整月历、玻璃心情罐、最多心情、趋势、详情、编辑和历史 |
 | 秘藏 | `routes/secret-route.js` | 私密相册、文件夹、筛选和解锁 |
 | 设置 | `routes/settings-route.js` | 新版搜索设置中心、五组分类目录、桌面 tab、手机目录/详情和数据工具 |
@@ -104,19 +105,19 @@ flowchart LR
 
 ### 6.1 Worker
 
-`cloudflare-worker/src/worker.js` 负责 API、认证、限流、R2 上传/删除和服务端权限。`wrangler.toml` 声明 D1、R2 和环境绑定。
+`cloudflare-worker/src/worker.js` 负责 API 路由、认证、限流、R2 上传/删除和服务端权限装配。通用表接口拆为 `table-api.js`（HTTP 行为）、`table-query.js`（筛选、作用域、冲突和 SQL 绑定）、`table-config.js`（当前表契约）与 `http-response.js`（有限状态错误）。`wrangler.toml` 声明 D1、R2 和环境绑定；外层 dispatch 等待异步 handler，所有错误响应复用精确 CORS。
 
 前端不得绕开 Worker 执行需要权限的写操作。允许公开读取的媒体使用规范化后的 R2 公共 URL。
 
 ### 6.2 D1
 
-`cloudflare-worker/schema.d1.sql` 是当前完整数据库结构的事实来源。通知类型直接由当前 schema 定义为 `favorite`、`comment`、`reply`、`diary`、`thanks`、`wish`、`shopping` 和 `mood_reminder`，不增加旧类型的双读写或兼容层。
+`cloudflare-worker/schema.d1.sql` 是当前完整数据库结构的事实来源。通知类型直接由当前 schema 定义为 `favorite`、`comment`、`reply`、`diary`、`thanks`、`wish`、`shopping` 和 `mood_reminder`，不增加旧类型的双读写或兼容层。`user_profiles.secret_default_folder_id` 已纳入 schema；本项目不新增或自动应用 migration，目标 D1 的结构差异必须在发布前核查并按授权单独执行显式 DDL。
 
 主要数据域：账号与家庭、日记、心情日记、媒体元数据、评论、收藏、菜谱、心愿、购物、周末计划、纪念日、通知、回收站和秘藏。
 
 心情日记使用 `mood_diaries`：`(user_id, diary_date)` 唯一约束保证每位成员每天一条；读取按家庭范围授权，写入、编辑和删除按当前 session 的 `user_id` 限制。`diary_date` 是 Asia/Tokyo 的自然日，月份查询使用 `[diary_date >= monthStart, diary_date < nextMonthStart)`，Worker 同时校验真实日期、未来日期、八种枚举心情、5000 Unicode 字符正文和最多八个 20 字符标签。`TABLE_CONFIG` 记录 family read / own write / `tags` JSON / conflict columns，D1 导出和每日备份包含该表。
 
-数据库结构不会由普通 Pages 发布自动变更；需要部署结构时必须在 Worker 发布前显式执行 D1 命令更新通知类型约束，并在 `CHANGELOG.md` 记录影响和执行结果。
+数据库结构不会由普通 Pages 发布自动变更；目标 D1 缺少本轮字段时，必须在 Worker 发布前经用户授权显式执行 DDL 并在 `CHANGELOG.md` 记录影响和结果。本轮未连接远程 D1、未执行结构更新。
 
 ### 6.3 R2 媒体
 
@@ -163,6 +164,8 @@ Service Worker 使用 `registerType: "prompt"`，新版本就绪后由用户确�
 
 顶部分页配置使用现有 `preferences-store.js` 的 `life-vlog-primary-navigation` key，按现有 user/device scope 隔离；只保存启用状态与顺序，不新增数据库、云端字段或依赖。关闭本机 Push 时先执行浏览器订阅的 `unsubscribe()`，再清理 Worker 记录；远端失败只反馈“本机已关闭、云端记录清理失败”，不阻断本地状态。
 
+`cloudflare-client.js` 的 `auth.signOut()` 先隔离并清理本地 session/备份，再用捕获的 token 请求 Worker `/api/auth/logout`；请求有超时和重复点击去重，迟到的 refresh/session 响应不能重新写回当前状态。服务器撤销失败不会伪报成功，`auth-controller.js` 会分别提示本地清理和服务器撤销状态。在线登录/注册先提交 localStorage 与内存状态，IndexedDB 备份失败不会制造无事件的半登录状态，而是通过 `backup` 结果和认证提示明确告知。旧的 `cloudflareBackend.storage.from()` 已删除；媒体统一走 R2 的 `image-service.js` / `asset-controller.js` 边界。
+
 设置页的缓存容量摘要和自动缓存策略由 shell 的显式桥接读取 feature assembly 完成装配后的 `offline-cache-controller.js`；自动缓存切换先更新按钮文本，再显示成功提示。即时提示在存在原生 dialog 时跟随当前 dialog 进入 top layer，并在 dialog 关闭事件中清理，避免提示被 dialog 遮挡或在关闭后残留。
 
 ## 9. 构建与资源
@@ -191,7 +194,7 @@ pnpm preview
 
 源图片位于 `assets-source/`，`scripts/optimize-assets.mjs` 生成确定性资源到 `assets/generated/`。不要手工编辑生成文件来替代源文件和优化脚本。
 
-顶部分页和筛选样式只修改规范源码；每次构建由 Vite 重新生成带 hash 的入口资源，不能直接编辑 `dist/` 或用旧 hash 资源掩盖源码版本漂移。本地 Vite 预览使用 `localhost` / `127.0.0.1` 的 4173、4176、5173 固定端口连接 Worker，Worker 仅对这些精确 origin 开放 CORS；正式站和固定 preview 仍使用精确 allow-list。本轮修改已完成 preview 与 production 发布；固定 preview、正式地址的线上 CORS、Axe 和确定性 release smoke 均通过。部署仍通过仓库外的 `CLOUDFLARE_API_TOKEN` 或本机 token 文件授权，凭证不进入仓库、日志或文档。
+顶部分页和筛选样式只修改规范源码；每次构建由 Vite 重新生成带 hash 的入口资源，不能直接编辑 `dist/` 或用旧 hash 资源掩盖源码版本漂移。本地 Vite 预览使用 `localhost` / `127.0.0.1` 的 4173、4176、5173 固定端口连接 Worker，Worker 仅对这些精确 origin 开放 CORS；正式站和固定 preview 仍使用精确 allow-list。本轮只完成本地实现和验收，尚未发布。部署仍通过仓库外的 `CLOUDFLARE_API_TOKEN` 或本机 token 文件授权，凭证不进入仓库、日志或文档。
 
 ## 10. 测试体系
 
@@ -205,7 +208,7 @@ pnpm preview
 
 心情日记专项由 `tests/mood-diary-domain.mjs`、`tests/comment-thread-domain.mjs`、`tests/mood-jar-physics.mjs`、`tests/mood-month-summary-domain.mjs`、`tests/mood-diary-controller.mjs`、`tests/today-mood-controller.mjs`、`tests/mood-diary-worker.mjs`、`tests/mood-diary-assets.mjs` 和 `tests/mood-diary-browser.mjs` 覆盖；浏览器用确定性假 session / API fixture 验证首页今日概览的四种数据状态、真实昵称/形状、本人快速添加、桌面本月缩略罐、冷启动落点、gallery 滚动恢复，以及 375/390/430/768/844×390/1440/2048/3750 视口的完整月历、月度汇总、宽屏右侧上下堆叠面板、中央标题到快捷操作的连续流、侧栏不遮挡中央列和文档宽度不溢出、360×480 透明圆肚罐体与内腔 clip、0/1/8/31/62 数量、固定步长碰撞/接触/最终稳定态、离屏/进视口/回滚动动画生命周期、单一 rAF 重播/中断/键盘/减少动态效果、月份切换和路由离开清理、稠密罐体边界、趋势 SVG `getTotalLength()`/点 bbox/计算字体/线宽/颜色、真实日期横向覆盖、44×44 点位命中区、单一键盘焦点、趋势点键盘提示、暗色/130% 字号、深层扁平留言在 320/375/390/430/844×390 的宽度/换行/表单顺序、缓存错误重试、写后 canonical 重读、Picker、编辑、删除、历史和横向溢出；新增 `tests/mobile-cold-start.mjs` 使用内存 fixture 验证 390×844 的温缓存、断网重载和断网深链仍能在撤屏后直接显示缓存卡片与完整 gallery 样式。16 个 512×512 透明心情素材位于 Vite 静态目录 `public/assets/mood-diary/`，构建后 URL 为 `/assets/mood-diary/*`；圆肚玻璃罐源图位于 `assets-source/mood-jar.png`，由优化脚本生成 `/assets/generated/mood-jar.webp`；静态与资源门禁会验证透明心情素材和瓶体资源的格式、边界与体积，避免白底、棋盘格或缺失素材进入发布包。
 
-`pnpm test` 不包含全部发布门禁。发布必须遵循 [`release-checklist.md`](release-checklist.md)。浏览器回归和 release smoke 使用确定性通知 fixture 覆盖铃铛在设置路由未加载、慢请求、重复点击、关闭中请求、读取失败重试、已读写回、心愿/购物车/晚间心情通知文案与目标跳转、感谢留言 dialog 跳转场景下的行为；同时覆盖顶部分页默认/可选入口、最多五项上限、启用排序持久化、VLOG mode 不改 URL、留言 dialog 不改 URL、五项在导航行内完整显示、日记搜索/tag 随页面文档流滚动和 Push 本地优先关闭。a11y 回归同时检查上述 viewport、无横向溢出、留言 dialog 外框和移动端表单字号契约。
+`pnpm test` 不包含全部发布门禁。发布必须遵循 [`release-checklist.md`](release-checklist.md)。本轮新增的 `tests/worker-table-security.mjs`、`tests/worker-error-boundary.mjs`、`tests/worker-session.mjs`、`tests/cloudflare-repository-integration.mjs`、`tests/cloudflare-client-session.mjs`、`tests/wardrobe-domain.mjs` 和 `tests/workbox-manifest.mjs` 已接入 `test:unit`；Worker 行为测试使用 `tests/fixtures/memory-d1.mjs` 的 Node 内存 SQLite，不连接远程 D1。浏览器 release smoke 使用确定性假 session/API fixture，包含退出后本地清理、服务器撤销状态和刷新仍为访客的回归。
 
 ## 11. 部署
 
@@ -216,7 +219,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\deploy-cloudflare-pages.ps
 powershell -NoProfile -ExecutionPolicy Bypass -File .\deploy-cloudflare-pages.ps1 -Environment production
 ```
 
-部署脚本强制要求干净、已推送的 `main`，安装锁定依赖并运行包含一次构建的完整测试；`scripts/verify-local-release.mjs` 自动管理本地构建预览服务，执行 Axe 和 fixture release smoke。之后部署 Worker、执行 CORS、验收固定 preview，再用同一构建发布 production。每次上传 Pages 前复查源码与完整构建指纹，源码或产物变更即停止。具体操作集中在发布清单。若本次包含通知类型约束变更，先使用本机 token 对 `life-vlog-db` 执行一次显式 D1 结构更新，再执行 Pages/Worker 发布。
+部署脚本强制要求干净、已推送的 `main`，安装锁定依赖并运行包含一次构建的完整测试；`scripts/verify-local-release.mjs` 自动管理本地预览服务，执行 Axe 和 fixture release smoke。生产发布先上传并验收固定 preview，成功后才部署 Worker/CORS，再用同一构建上传并验收 production Pages；`-Environment preview` 不执行 Worker 或 production Pages。每次副作用前复查源码与完整构建指纹，源码或产物变更即停止。具体操作集中在 [`release-checklist.md`](release-checklist.md)。本轮未执行远程 D1 结构更新或任何发布。
 
 部署后的 Pages alias 入口探测会为每次请求附加一次性 cache-busting 参数，避免边缘缓存返回旧 HTML 而误判当前部署未就绪。
 

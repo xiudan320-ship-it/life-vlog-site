@@ -65,16 +65,16 @@ function Wait-ReleaseAlias { }
 function Invoke-A11ySmoke([string]$url) { Record "axe:$url" }
 function Invoke-ReleaseSmoke([string]$url) { Record "smoke:$url" }
 function Test-Path { return $true }
-$body = $source.Substring($source.IndexOf('Push-Location $root'))
+$body = $source.Substring($source.LastIndexOf('Push-Location $root'))
 $savedToken = $env:CLOUDFLARE_API_TOKEN
 try {
   $env:CLOUDFLARE_API_TOKEN = "fixture-deployment-token"
-  $expected = @("install --frozen-lockfile", "test", "run test:release-local", "worker", "cors", "upload:codex-preview", "cors", "axe:https://codex-preview.life-vlog-site.pages.dev", "smoke:https://codex-preview.life-vlog-site.pages.dev", "upload:main", "cors", "axe:https://life-vlog-site.pages.dev", "smoke:https://life-vlog-site.pages.dev")
+  $expected = @("install --frozen-lockfile", "test", "run test:release-local", "upload:codex-preview", "axe:https://codex-preview.life-vlog-site.pages.dev", "smoke:https://codex-preview.life-vlog-site.pages.dev", "worker", "cors", "upload:main", "cors", "axe:https://life-vlog-site.pages.dev", "smoke:https://life-vlog-site.pages.dev")
   $Environment = "production"
   $script:events = [Collections.Generic.List[string]]::new(); $script:failureAt = ""
   Invoke-Expression $body | Out-Null
   if (($script:events -join "|") -ne ($expected -join "|")) { throw "Unexpected release sequence: $script:events" }
-  foreach ($gate in @("test", "run test:release-local", "worker", "cors", "upload:codex-preview", "axe:https://codex-preview.life-vlog-site.pages.dev", "smoke:https://codex-preview.life-vlog-site.pages.dev")) {
+  foreach ($gate in @("test", "run test:release-local", "upload:codex-preview", "axe:https://codex-preview.life-vlog-site.pages.dev", "smoke:https://codex-preview.life-vlog-site.pages.dev", "worker", "cors")) {
     $script:events = [Collections.Generic.List[string]]::new(); $script:failureAt = $gate
     Expect-Failure { Invoke-Expression $body | Out-Null } "fixture gate failure"
     if ($script:events.Contains("upload:main")) { throw "Production ran after failed gate: $gate" }
@@ -82,7 +82,7 @@ try {
   }
   $Environment = "preview"; $script:failureAt = ""; $script:events = [Collections.Generic.List[string]]::new()
   Invoke-Expression $body | Out-Null
-  if ($script:events.Contains("upload:main")) { throw "Preview-only run published production" }
+  if ($script:events.Contains("worker") -or $script:events.Contains("upload:main")) { throw "Preview-only run published a backend or production Pages" }
 } finally {
   $env:CLOUDFLARE_API_TOKEN = $savedToken
 }

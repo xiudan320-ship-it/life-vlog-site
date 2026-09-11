@@ -177,7 +177,6 @@ export function createAccountSyncController({
         const { error: migrateError } = await householdRepository.upsert(
           "weekend_plans",
           missingLocalPlans.map((plan) => weekendToCloudRow(plan, userId)),
-          { onConflict: "id" }
         );
         if (migrateError) throw migrateError;
         const refreshed = await householdRepository.list("weekend_plans", {

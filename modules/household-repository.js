@@ -74,9 +74,8 @@ export function createHouseholdRepository({ getDatabase, getSession }) {
       return applyResultShape(table(database(), tableName).insert(payload), options);
     },
 
-    async upsert(tableName, payload, { onConflict = "", ...shape } = {}) {
-      const options = onConflict ? { onConflict } : undefined;
-      return applyResultShape(table(database(), tableName).upsert(payload, options), shape);
+    async upsert(tableName, payload, shape = {}) {
+      return applyResultShape(table(database(), tableName).upsert(payload), shape);
     },
 
     async update(tableName, payload, filters = {}, options = {}) {

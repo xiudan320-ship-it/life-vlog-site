@@ -233,7 +233,7 @@ export function createWeekendController({
       const { data, error } = await repository.upsert(
         "weekend_plans",
         weekendToCloudRow(next, next.userId || session.user.id),
-        { onConflict: "id", select: "*", single: true }
+        { select: "*", single: true }
       );
       if (error) throw error;
       const saved = weekendFromCloudRow(data);
@@ -369,7 +369,7 @@ export function createWeekendController({
       const { data, error } = await repository.upsert(
         "weekend_plans",
         weekendToCloudRow(plan, plan.userId),
-        { onConflict: "id", select: "*", single: true }
+        { select: "*", single: true }
       );
       if (error) throw error;
       if (!data) throw new Error("周末计划保存没有返回结果，请重试。");

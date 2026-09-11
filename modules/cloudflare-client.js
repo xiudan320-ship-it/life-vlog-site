@@ -1,5 +1,6 @@
 const SESSION_ROLLING_DAYS = 3650;
 const SESSION_REFRESH_WINDOW_MS = 30 * 86400 * 1000;
+const LOGOUT_TIMEOUT_MS = 8_000;
 
 export function classifyCloudflareError(error) {
   const status = Number(error?.status);
@@ -30,7 +31,6 @@ class CloudflareQueryBuilder {
     this.limitCount = 500;
     this.offsetCount = 0;
     this.singleMode = false;
-    this.onConflict = "";
   }
 
   select() {
@@ -43,10 +43,9 @@ class CloudflareQueryBuilder {
     return this;
   }
 
-  upsert(values, options = {}) {
+  upsert(values) {
     this.action = "upsert";
     this.values = values;
-    this.onConflict = options.onConflict || "";
     return this;
   }
 
@@ -78,6 +77,11 @@ class CloudflareQueryBuilder {
 
   lt(column, value) {
     this.filters.push({ op: "lt", column, value });
+    return this;
+  }
+
+  in(column, values) {
+    this.filters.push({ op: "in", column, value: values });
     return this;
   }
 
@@ -130,7 +134,6 @@ class CloudflareQueryBuilder {
               action: this.action,
               values: this.values,
               filters: this.filters,
-              onConflict: this.onConflict,
             }),
           }
         );
@@ -150,7 +153,6 @@ class CloudflareQueryBuilder {
 
 export function createCloudflareBackend({
   endpoint,
-  publicUrl,
   authKey,
   backupDb,
   backupStore,
@@ -163,6 +165,10 @@ export function createCloudflareBackend({
   onRequestError = () => {},
 }) {
   const getEndpoint = () => String(endpoint || "").replace(/\/+$/, "");
+  let sessionGeneration = 0;
+  let backupWriteChain = Promise.resolve();
+  const logoutPromises = new Map();
+  let latestLogoutOperation = null;
 
   function readSession() {
     try {
@@ -216,9 +222,9 @@ export function createCloudflareBackend({
   }
 
   async function writeSessionBackup(nextSession) {
+    const db = await openBackupDb();
+    if (!db) return { persisted: false };
     try {
-      const db = await openBackupDb();
-      if (!db) return;
       await new Promise((resolve, reject) => {
         const transaction = db.transaction(backupStore, "readwrite");
         const store = transaction.objectStore(backupStore);
@@ -226,17 +232,29 @@ export function createCloudflareBackend({
         else store.delete(authKey);
         transaction.oncomplete = () => resolve();
         transaction.onerror = () => reject(transaction.error);
+        transaction.onabort = () => reject(transaction.error || new Error("IndexedDB transaction aborted"));
       });
+      return { persisted: true };
+    } finally {
       db.close();
-    } catch {
-      // localStorage remains the fallback where IndexedDB is unavailable.
     }
+  }
+
+  function enqueueSessionBackup(nextSession) {
+    const operation = backupWriteChain.then(() => writeSessionBackup(nextSession));
+    backupWriteChain = operation.catch(() => {});
+    void operation.catch(() => {});
+    return operation;
+  }
+
+  function ignoreBackupFailure(operation) {
+    operation?.catch?.(() => {});
   }
 
   async function restoreSessionBackup() {
     const current = readSession();
     if (current) {
-      void writeSessionBackup(current);
+      try { await enqueueSessionBackup(current); } catch {}
       return current;
     }
     const backup = await readSessionBackup();
@@ -246,12 +264,39 @@ export function createCloudflareBackend({
   }
 
   function writeSession(nextSession) {
+    sessionGeneration += 1;
     if (nextSession?.access_token) {
       storage?.setItem(authKey, JSON.stringify(nextSession));
     } else {
       storage?.removeItem(authKey);
     }
-    void writeSessionBackup(nextSession);
+    return enqueueSessionBackup(nextSession);
+  }
+
+  function currentSession() {
+    return getActiveSession?.() || readSession();
+  }
+
+  function isCurrentSession(session, generation) {
+    const current = currentSession();
+    return Boolean(
+      session?.access_token &&
+      current?.access_token === session.access_token &&
+      current?.user?.id === session.user?.id &&
+      generation === sessionGeneration
+    );
+  }
+
+  function clearLocalSession() {
+    sessionGeneration += 1;
+    let localError = null;
+    try {
+      storage?.removeItem(authKey);
+    } catch (error) {
+      localError = asError(error);
+    }
+    const backupPromise = enqueueSessionBackup(null);
+    return { localError, backupPromise };
   }
 
  function createSession(data) {
@@ -273,7 +318,11 @@ export function createCloudflareBackend({
    };
  }
 
-  async function request(path, options = {}) {
+  async function request(
+    path,
+    options = {},
+    { sessionOverride = undefined, tokenOverride = undefined, refreshSession = true } = {},
+  ) {
     const headers = new Headers(options.headers || {});
     if (
       !headers.has("Content-Type") &&
@@ -282,9 +331,11 @@ export function createCloudflareBackend({
     ) {
       headers.set("Content-Type", "application/json");
     }
-    const activeSession = getActiveSession() || readSession();
-    if (activeSession?.access_token && !headers.has("Authorization")) {
-      headers.set("Authorization", `Bearer ${activeSession.access_token}`);
+    const activeSession = sessionOverride === undefined ? currentSession() : sessionOverride;
+    const token = tokenOverride === undefined ? activeSession?.access_token : tokenOverride;
+    const capturedGeneration = sessionGeneration;
+    if (token && !headers.has("Authorization")) {
+      headers.set("Authorization", `Bearer ${token}`);
     }
     let response;
     try {
@@ -309,18 +360,22 @@ export function createCloudflareBackend({
     }
     const expiresAt = new Date(activeSession?.expires_at || "").getTime();
     const shouldRefreshStoredSession =
+      refreshSession &&
       activeSession?.access_token &&
       path !== "/api/auth/login" &&
       path !== "/api/auth/register" &&
       (activeSession.offline_only ||
         !Number.isFinite(expiresAt) ||
         expiresAt <= Date.now() + SESSION_REFRESH_WINDOW_MS);
-    if (shouldRefreshStoredSession) {
-      activeSession.expires_at = new Date(
-        Date.now() + SESSION_ROLLING_DAYS * 86400 * 1000
-      ).toISOString();
-      delete activeSession.offline_only;
-      writeSession(activeSession);
+    if (shouldRefreshStoredSession && isCurrentSession(activeSession, capturedGeneration)) {
+      const nextSession = {
+        ...activeSession,
+        expires_at: new Date(Date.now() + SESSION_ROLLING_DAYS * 86400 * 1000).toISOString(),
+      };
+      delete nextSession.offline_only;
+      if (isCurrentSession(activeSession, capturedGeneration)) {
+        ignoreBackupFailure(writeSession(nextSession));
+      }
     }
     return data;
   }
@@ -330,6 +385,79 @@ export function createCloudflareBackend({
     const notify = (event, nextSession) => {
       listeners.forEach((listener) => listener(event, nextSession));
     };
+
+    async function performSignOut(token) {
+      const { localError, backupPromise } = clearLocalSession();
+      try { notify("SIGNED_OUT", null); } catch {}
+
+      let backupError = null;
+      try {
+        await backupPromise;
+      } catch (error) {
+        backupError = asError(error);
+      }
+
+      let serverRevoked = true;
+      let serverError = null;
+      let timeoutCleanup = null;
+      if (token) {
+        let signal;
+        if (globalThis.AbortSignal?.timeout) {
+          signal = globalThis.AbortSignal.timeout(LOGOUT_TIMEOUT_MS);
+        } else if (globalThis.AbortController && globalThis.setTimeout) {
+          const controller = new AbortController();
+          const timeoutId = globalThis.setTimeout(() => controller.abort(), LOGOUT_TIMEOUT_MS);
+          signal = controller.signal;
+          timeoutCleanup = () => globalThis.clearTimeout(timeoutId);
+        }
+        try {
+          await request(
+            "/api/auth/logout",
+            { method: "POST", body: JSON.stringify({}), ...(signal ? { signal } : {}) },
+            { sessionOverride: null, tokenOverride: token, refreshSession: false },
+          );
+        } catch (error) {
+          if (Number(error?.status) !== 401) {
+            serverRevoked = false;
+            serverError = asError(error);
+          }
+        } finally {
+          timeoutCleanup?.();
+        }
+      }
+
+      const localCleared = !localError && !backupError;
+      const error = localCleared
+        ? serverError
+        : localError || backupError;
+      return {
+        error: error || null,
+        localCleared,
+        serverRevoked,
+        serverStatus: serverError?.status || (serverRevoked && token ? 200 : null),
+      };
+    }
+
+    async function commitSignedInSession(nextSession) {
+      let backup;
+      let backupPromise;
+      try {
+        backupPromise = writeSession(nextSession);
+      } catch (error) {
+        throw asError(error);
+      }
+      try {
+        backup = await backupPromise;
+      } catch (error) {
+        backup = { persisted: false, error: asError(error) };
+      }
+      try { notify("SIGNED_IN", nextSession); } catch {}
+      try {
+        const persistPromise = navigatorApi?.storage?.persist?.();
+        persistPromise?.catch?.(() => {});
+      } catch {}
+      return { data: { session: nextSession }, error: null, backup };
+    }
 
     return {
       auth: {
@@ -354,11 +482,7 @@ export function createCloudflareBackend({
               body: JSON.stringify({ username, password }),
             });
             const nextSession = createSession(data);
-            writeSession(nextSession);
-            await writeSessionBackup(nextSession);
-            void navigatorApi?.storage?.persist?.();
-            notify("SIGNED_IN", nextSession);
-            return { data: { session: nextSession }, error: null };
+            return await commitSignedInSession(nextSession);
           } catch (error) {
             return { data: null, error };
           }
@@ -378,19 +502,25 @@ export function createCloudflareBackend({
               }),
             });
             const nextSession = createSession(data);
-            writeSession(nextSession);
-            await writeSessionBackup(nextSession);
-            void navigatorApi?.storage?.persist?.();
-            notify("SIGNED_IN", nextSession);
-            return { data: { session: nextSession }, error: null };
+            return await commitSignedInSession(nextSession);
           } catch (error) {
             return { data: null, error };
           }
         },
-        async signOut() {
-          writeSession(null);
-          notify("SIGNED_OUT", null);
-          return { error: null };
+        signOut() {
+          const token = currentSession()?.access_token || "";
+          const key = token || "no-session";
+          const existing = logoutPromises.get(key);
+          if (existing) return existing;
+          if (!token && latestLogoutOperation) return latestLogoutOperation;
+          const operation = performSignOut(token);
+          logoutPromises.set(key, operation);
+          latestLogoutOperation = operation;
+          void operation.finally(() => {
+            if (logoutPromises.get(key) === operation) logoutPromises.delete(key);
+            if (latestLogoutOperation === operation) latestLogoutOperation = null;
+          }).catch(() => {});
+          return operation;
         },
         async updateUser(updates) {
           try {
@@ -406,7 +536,7 @@ export function createCloudflareBackend({
                ...(activeSession.user.user_metadata || {}),
                username: updates.data.username,
              };
-             writeSession(activeSession);
+             ignoreBackupFailure(writeSession(activeSession));
            }
             if (updates.data?.bound_email && activeSession?.user) {
               activeSession.user.user_metadata = {
@@ -414,7 +544,7 @@ export function createCloudflareBackend({
                 bound_email: String(updates.data.bound_email).trim().toLowerCase(),
               };
               activeSession.user.email = String(updates.data.bound_email).trim().toLowerCase();
-              writeSession(activeSession);
+               ignoreBackupFailure(writeSession(activeSession));
             }
            return { data: { user: activeSession?.user || null }, error: null };
          } catch (error) {
@@ -481,29 +611,6 @@ export function createCloudflareBackend({
         } catch (error) {
           return { data: null, error };
         }
-      },
-      storage: {
-        from() {
-          return {
-            getPublicUrl(path) {
-              return {
-                data: {
-                  publicUrl: path
-                    ? `${publicUrl}/${String(path).replace(/^r2:/, "")}`
-                    : "",
-                },
-              };
-            },
-            async upload() {
-              return {
-                error: new Error("旧存储已停用，请使用 Cloudflare R2。"),
-              };
-            },
-            async remove() {
-              return { error: null };
-            },
-          };
-        },
       },
     };
   }

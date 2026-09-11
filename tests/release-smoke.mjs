@@ -27,6 +27,13 @@ function runtimeErrors(page) {
   return errors;
 }
 
+async function waitForFixtureSessionRevocation(fixture) {
+  for (let attempt = 0; attempt < 200; attempt += 1) {
+    if (!fixture.isSessionActive()) return;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+}
+
 async function installFeedMotionMediaFixture(page) {
   await page.addInitScript(() => {
     const sourceDescriptor = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, "src");
@@ -133,6 +140,9 @@ async function openFixturePage(browser, {
   });
   if (authenticated || corruptSession) {
     await page.addInitScript(({ session, broken, invalidSession, secretUnlocked: shouldUnlock }) => {
+      const fixtureSessionSeedKey = "life-vlog-release-fixture-session-seeded";
+      if (sessionStorage.getItem(fixtureSessionSeedKey) === "1") return;
+      sessionStorage.setItem(fixtureSessionSeedKey, "1");
       localStorage.setItem("life-vlog-cloudflare-auth", invalidSession ? "{" : JSON.stringify(session));
       localStorage.setItem("life-vlog-recipes:fixture-user", broken ? "{" : JSON.stringify([]));
       localStorage.setItem("life-vlog-weekend-plans:fixture-user", broken ? "{" : JSON.stringify([]));
@@ -258,9 +268,33 @@ async function testAuthenticatedGallery(browser) {
     await page.click("#accountSettingsButton");
     await page.waitForSelector("#settingsDialog[open]");
     await page.click("#closeSettingsDialog");
-    await page.click("#avatarButton");
-    await page.click("#logoutButton");
-    await page.waitForTimeout(500);
+    if (await page.locator("#userPopover").isHidden()) {
+      await page.click("#avatarButton");
+    }
+    await page.waitForFunction(() => document.querySelector("#userPopover")?.hidden === false);
+    await page.locator("#logoutButton").click();
+    await page.waitForFunction(async () => {
+      if (localStorage.getItem("life-vlog-cloudflare-auth") !== null) return false;
+      const databases = await indexedDB.databases();
+      if (!databases.some(({ name }) => name === "life-vlog-auth-backup")) return true;
+      return new Promise((resolve) => {
+        const request = indexedDB.open("life-vlog-auth-backup");
+        request.onerror = () => resolve(false);
+        request.onsuccess = () => {
+          const db = request.result;
+          if (!db.objectStoreNames.contains("session")) {
+            db.close();
+            resolve(true);
+            return;
+          }
+          const transaction = db.transaction("session", "readonly");
+          const read = transaction.objectStore("session").get("life-vlog-cloudflare-auth");
+          read.onsuccess = () => { db.close(); resolve(!read.result); };
+          read.onerror = () => { db.close(); resolve(false); };
+        };
+      });
+    }, null, { timeout: 10000 });
+    await waitForFixtureSessionRevocation(result.fixture);
     const logoutState = await page.evaluate(() => ({
       authHidden: document.querySelector("#authCard")?.hidden ?? true,
       signedIn: document.body.classList.contains("signed-in"),
@@ -269,6 +303,35 @@ async function testAuthenticatedGallery(browser) {
     }));
     logoutState.errors = result.errors;
     assert.equal(logoutState.authHidden, false, `logout did not restore the auth card: ${JSON.stringify(logoutState)}`);
+    assert.equal(logoutState.signedIn, false, "logout left the signed-in shell active");
+    assert.equal(logoutState.hasSession, false, "logout left a local session behind");
+    assert.equal(result.fixture.isSessionActive(), false, `logout did not revoke the fixture server session: ${JSON.stringify({ requests: result.fixture.requests.filter(({ path }) => path.includes("/api/auth")), state: logoutState })}`);
+    assert.equal(result.fixture.requests.filter(({ method, path }) => method === "POST" && path === "/api/auth/logout").length, 1, `logout did not send one server revocation request: ${JSON.stringify(result.fixture.requests.filter(({ path }) => path.includes("/api/auth")))}`);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForSelector("#appSplash[hidden]", { state: "attached", timeout: 3000 });
+    const refreshedSession = await page.evaluate(async () => {
+      const databases = await indexedDB.databases();
+      let backup = null;
+      if (databases.some(({ name }) => name === "life-vlog-auth-backup")) {
+        backup = await new Promise((resolve) => {
+          const request = indexedDB.open("life-vlog-auth-backup");
+          request.onerror = () => resolve(null);
+          request.onsuccess = () => {
+            const db = request.result;
+            if (!db.objectStoreNames.contains("session")) { db.close(); resolve(null); return; }
+            const read = db.transaction("session", "readonly").objectStore("session").get("life-vlog-cloudflare-auth");
+            read.onsuccess = () => { const value = read.result || null; db.close(); resolve(value); };
+            read.onerror = () => { db.close(); resolve(null); };
+          };
+        });
+      }
+      return {
+        authHidden: document.querySelector("#authCard")?.hidden ?? true,
+        localPresent: Boolean(localStorage.getItem("life-vlog-cloudflare-auth")),
+        backupPresent: Boolean(backup),
+      };
+    });
+    assert.equal(refreshedSession.authHidden, false, `refresh restored an authenticated shell after logout: ${JSON.stringify(refreshedSession)}`);
   } finally { await result.context.close(); }
 }
 

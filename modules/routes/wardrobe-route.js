@@ -1,5 +1,5 @@
 import "../../wardrobe.css";
-import { createWardrobeController } from "../wardrobe.js";
+import { createWardrobeController } from "../wardrobe-controller.js";
 import template from "./templates/wardrobe.html?raw";
 import { mountRouteTemplate } from "./mount-route-template.js";
 

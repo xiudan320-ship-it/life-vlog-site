@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS user_profiles (
   today_experience_amount INTEGER NOT NULL DEFAULT 0 CHECK (today_experience_amount >= 0),
   theme_preference TEXT CHECK (theme_preference IN ('light', 'dark') OR theme_preference IS NULL),
   home_name TEXT NOT NULL DEFAULT '咻蛋之家',
+  secret_default_folder_id TEXT,
   food_options TEXT NOT NULL DEFAULT '[]',
   preferred_thanks_color TEXT NOT NULL DEFAULT '#2f6b3b',
   avatar_url TEXT NOT NULL DEFAULT '',
