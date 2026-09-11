@@ -18,7 +18,7 @@ export function createVlogMode({
     original = {
       kicker: composer?.querySelector(".section-title .kicker")?.textContent || "Upload",
       title: composer?.querySelector(".section-title h2")?.textContent || "发布新日记",
-      photoLabel: root.querySelector("label[for='photoInput']")?.textContent || "选择图片或 Live Photo",
+      photoLabel: root.querySelector("label[for='photoInput']")?.textContent || "选择图片",
       motionLabel: root.querySelector("label[for='photoMotionInput']")?.textContent || "添加视频",
       fileName: root.querySelector("#fileName")?.textContent || "",
       photoAccept: photoInput?.accept || "",
