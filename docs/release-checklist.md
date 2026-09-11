@@ -76,7 +76,7 @@ git diff --check
 
 ## 3. 发布后只读检查
 
-最新发布（2026-09-11）：源码 `4cc9066f8e3388b5f8a7144e1623ae26e572cee0`，生产 deployment `6de79fdc`（`https://6de79fdc.life-vlog-site.pages.dev`），Worker `d72af45d-c7b1-4e9f-937c-77d91556eef9`。固定 preview 为 `https://codex-preview.life-vlog-site.pages.dev`，正式入口为 `https://life-vlog-site.pages.dev`；入口 `index-DqFd-2Is.js` SHA-256 为 `d083c376a06a930bbeedfe5ce5950c2aa89675b1514ca060ad6ff53db541525b`，样式 `index-DRk7EUPX.css` SHA-256 为 `1ed18037b944728ad2e8b797cc0f5d2755379afd1a26b3ec81a452b2d58c718f`，`sw.js` SHA-256 为 `b214db120483815a7363022964f74effd4886bb05e9bcdbf8c0fab839cdd433e`，Workbox 预缓存条目为 33；preview 与 production 的 HTML、入口 JS/CSS、SW 均与本地构建哈希一致，并通过线上 CORS、Axe critical/serious 和确定性 fixture release smoke。
+最新发布（2026-09-11）：源码 `be27c02f0e8b952f923ab55d690e68698fa436b5`，生产 deployment `c00accef`（`https://c00accef.life-vlog-site.pages.dev`），Worker `db53eccb-3c01-40c9-82be-7af5ac236293`。固定 preview 为 `https://codex-preview.life-vlog-site.pages.dev`，正式入口为 `https://life-vlog-site.pages.dev`；入口 `index-BBKiuM9_.js` SHA-256 为 `30f8be21e14dd134add6995fabbb5ac69600dd8f27f82d9a89c63d5a1d333da0`，样式 `index-lkdtTyVd.css` SHA-256 为 `0b8a252395adab07b41c46ea5d6d252d16f231dd3b9c42579af00c08c101c2da`，`sw.js` SHA-256 为 `46a67a188596d249ffea6e4295138e95c809912c92269f4429e56c0ec1dd5629`，Workbox 预缓存条目为 33；preview 与 production 的 HTML、入口 JS/CSS、SW 均与本地构建哈希一致，并通过线上 CORS、Axe critical/serious 和确定性 fixture release smoke。
 
 部署脚本会在本地回归通过后先部署 Worker 并执行精确 CORS 门，再发布 preview。preview 固定别名会使用 `tests/fixtures/cloudflare-api-fixture.mjs` 的确定性假后端执行公开壳、伪会话、深链接、错误矩阵和 PWA 烟雾测试；任何 preview/CORS 门失败都会停止，不会进入正式发布。发布完成后访问正式地址，确认返回状态为 200，并检查本次构建的入口文件名、入口哈希、`sw.js` 哈希和 Workbox 预缓存条目数已经记录且线上版本已更新。发布门禁止真实账户和真实凭证。
 
