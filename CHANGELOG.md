@@ -4,6 +4,15 @@
 
 ## [Unreleased]
 
+暂无未发布修改。
+
+## [2026-09-12] — 项目加固与生产发布
+
+### Release
+
+- 已从 `main` 提交 `8945fbbee878300123963d643c72d0cb189b5357` 发布到 Cloudflare Pages 正式站；正式入口为 `https://life-vlog-site.pages.dev`，生产 deployment 为 `37c7589f`（`https://37c7589f.life-vlog-site.pages.dev`），固定 preview 为 `https://codex-preview.life-vlog-site.pages.dev`。Worker `life-vlog-r2-upload` 版本为 `cfa822fa-f472-4d3f-9c09-b5532dfba9e5`；入口为 `index-Dj4W9B4v.js`（SHA-256 `656c78d6acf5265cee9482e7445f9fbbb05d0b2a58b217e8e088b05b8edc526f`），样式为 `index-lkdtTyVd.css`（SHA-256 `0b8a252395adab07b41c46ea5d6d252d16f231dd3b9c42579af00c08c101c2da`），`sw.js` SHA-256 为 `c25960e705c46304fe5a33880c9da31c1399e4524ae3b436e146455d1d5db201`，Workbox 预缓存条目为 32；本地完整测试、preview 与 production 的 Worker CORS、Axe critical/serious 和确定性 release smoke 均通过。
+- 发布前只读核查确认目标 D1 已存在 `user_profiles.secret_default_folder_id`，未执行远程 DDL；本次发布未创建额外云资源。
+
 ### Security
 
 - 通用表写入现在严格区分 `insert` / `upsert`，固定冲突目标并保持归属不可变；最终 conflict update 也受写作用域守卫保护，canonical reread 不会回传竞态中出现的私有记录；未知筛选字段、空 `in` 和跨家庭/私有记录写入不会再误改或误删数据。Worker 异步异常统一返回安全的 500 JSON 与精确 CORS。
@@ -33,7 +42,7 @@
 ### Documentation
 
 - 精简 `AGENTS.md` 的重复文档流程，统一由 `docs/README.md` 和 `docs/CHANGE_WORKFLOW.md` 负责路由与记录；发布历史和已完成移动端专项已归档至 `docs/history/`。
-- `user_profiles.secret_default_folder_id` 已纳入当前 schema；本轮未执行远程 D1 或任何发布，结构差异需在发布前核查后按授权显式处理。
+- `user_profiles.secret_default_folder_id` 已纳入当前 schema；发布前只读核查确认目标 D1 已有该列，未执行远程 DDL；结构差异仍需在发布前核查后按授权显式处理。
 - 固定 `main` 为默认开发及正式发布来源，明确干净源码与远程同步检查、同一构建先预览验收再正式发布，以及临时分支/工作树收尾规则；纯文档更新不触发网站重部署。
 
 ## [2026-09-07] — 现有 UI 基准同步

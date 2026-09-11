@@ -9,7 +9,7 @@
 - 在 `main` 上完成提交并推送，工作区干净且 `HEAD` 与 `origin/main` 一致。
 - 使用 Node `>=22.5.0`、仓库锁定的 pnpm 依赖；Worker 发布工具固定为 `wrangler@4.131.0`，从根目录用 `pnpm exec wrangler` 调用。
 - 发布凭证只从 `CLOUDFLARE_API_TOKEN` 或脚本约定的本机 token 文件读取，不写入仓库、日志或文档。
-- `user_profiles.secret_default_folder_id` 已纳入当前 schema；本项目不新增或自动应用 migration。若目标 D1 缺少该列，须在用户明确授权后按发布前结构核查结果单独执行显式 DDL，再发布依赖它的 Worker；本次任务未执行远程 DDL。
+- `user_profiles.secret_default_folder_id` 已纳入当前 schema；本项目不新增或自动应用 migration。若目标 D1 缺少该列，须在用户明确授权后按发布前结构核查结果单独执行显式 DDL，再发布依赖它的 Worker；每次核查或 DDL 结果写入 `CHANGELOG.md`。
 
 ## 2. 本地门禁
 

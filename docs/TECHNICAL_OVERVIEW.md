@@ -117,7 +117,7 @@ flowchart LR
 
 心情日记使用 `mood_diaries`：`(user_id, diary_date)` 唯一约束保证每位成员每天一条；读取按家庭范围授权，写入、编辑和删除按当前 session 的 `user_id` 限制。`diary_date` 是 Asia/Tokyo 的自然日，月份查询使用 `[diary_date >= monthStart, diary_date < nextMonthStart)`，Worker 同时校验真实日期、未来日期、八种枚举心情、5000 Unicode 字符正文和最多八个 20 字符标签。`TABLE_CONFIG` 记录 family read / own write / `tags` JSON / conflict columns，D1 导出和每日备份包含该表。
 
-数据库结构不会由普通 Pages 发布自动变更；目标 D1 缺少本轮字段时，必须在 Worker 发布前经用户授权显式执行 DDL 并在 `CHANGELOG.md` 记录影响和结果。本轮未连接远程 D1、未执行结构更新。
+数据库结构不会由普通 Pages 发布自动变更；目标 D1 缺少本轮字段时，必须在 Worker 发布前经用户授权显式执行 DDL 并在 `CHANGELOG.md` 记录影响和结果。本轮发布前只读核查确认目标 D1 已存在 `user_profiles.secret_default_folder_id`，未执行结构更新。
 
 ### 6.3 R2 媒体
 
@@ -194,7 +194,7 @@ pnpm preview
 
 源图片位于 `assets-source/`，`scripts/optimize-assets.mjs` 生成确定性资源到 `assets/generated/`。不要手工编辑生成文件来替代源文件和优化脚本。
 
-顶部分页和筛选样式只修改规范源码；每次构建由 Vite 重新生成带 hash 的入口资源，不能直接编辑 `dist/` 或用旧 hash 资源掩盖源码版本漂移。本地 Vite 预览使用 `localhost` / `127.0.0.1` 的 4173、4176、5173 固定端口连接 Worker，Worker 仅对这些精确 origin 开放 CORS；正式站和固定 preview 仍使用精确 allow-list。本轮只完成本地实现和验收，尚未发布。部署仍通过仓库外的 `CLOUDFLARE_API_TOKEN` 或本机 token 文件授权，凭证不进入仓库、日志或文档。
+顶部分页和筛选样式只修改规范源码；每次构建由 Vite 重新生成带 hash 的入口资源，不能直接编辑 `dist/` 或用旧 hash 资源掩盖源码版本漂移。本地 Vite 预览使用 `localhost` / `127.0.0.1` 的 4173、4176、5173 固定端口连接 Worker，Worker 仅对这些精确 origin 开放 CORS；正式站和固定 preview 仍使用精确 allow-list。本轮已从 `main` 提交 `8945fbbee878300123963d643c72d0cb189b5357` 发布到正式站，生产 deployment 为 `37c7589f`，Worker 版本为 `cfa822fa-f472-4d3f-9c09-b5532dfba9e5`，入口为 `index-Dj4W9B4v.js`，`sw.js` SHA-256 为 `c25960e705c46304fe5a33880c9da31c1399e4524ae3b436e146455d1d5db201`，preview 与 production 的 CORS、Axe 和确定性 release smoke 均通过。部署仍通过仓库外的 `CLOUDFLARE_API_TOKEN` 或本机 token 文件授权，凭证不进入仓库、日志或文档。
 
 ## 10. 测试体系
 
@@ -219,7 +219,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\deploy-cloudflare-pages.ps
 powershell -NoProfile -ExecutionPolicy Bypass -File .\deploy-cloudflare-pages.ps1 -Environment production
 ```
 
-部署脚本强制要求干净、已推送的 `main`，安装锁定依赖并运行包含一次构建的完整测试；`scripts/verify-local-release.mjs` 自动管理本地预览服务，执行 Axe 和 fixture release smoke。生产发布先上传并验收固定 preview，成功后才部署 Worker/CORS，再用同一构建上传并验收 production Pages；`-Environment preview` 不执行 Worker 或 production Pages。每次副作用前复查源码与完整构建指纹，源码或产物变更即停止。具体操作集中在 [`release-checklist.md`](release-checklist.md)。本轮未执行远程 D1 结构更新或任何发布。
+部署脚本强制要求干净、已推送的 `main`，安装锁定依赖并运行包含一次构建的完整测试；`scripts/verify-local-release.mjs` 自动管理本地预览服务，执行 Axe 和 fixture release smoke。生产发布先上传并验收固定 preview，成功后才部署 Worker/CORS，再用同一构建上传并验收 production Pages；`-Environment preview` 不执行 Worker 或 production Pages。每次副作用前复查源码与完整构建指纹，源码或产物变更即停止。具体操作集中在 [`release-checklist.md`](release-checklist.md)。本轮发布前只读核查确认远程 D1 结构，无需执行 DDL；Worker 与 Pages 发布均已按清单完成，实际版本和门禁记录在 `CHANGELOG.md`。
 
 部署后的 Pages alias 入口探测会为每次请求附加一次性 cache-busting 参数，避免边缘缓存返回旧 HTML 而误判当前部署未就绪。
 
