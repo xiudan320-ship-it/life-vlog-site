@@ -4069,6 +4069,10 @@ textarea:focus {
   font-weight: 850;
 }
 
+.file-drop > strong:empty {
+  display: none;
+}
+
 .upload-main-preview {
   position: relative;
   width: min(100%, 460px);

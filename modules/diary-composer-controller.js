@@ -398,7 +398,7 @@ export function createDiaryComposerController({
     els.uploadMainPreview.hidden = true;
     els.previewStrip.innerHTML = "";
     els.previewStrip.hidden = true;
-    els.fileName.textContent = "展开后直接粘贴图片，或选择图片 / Live Photo 照片";
+    els.fileName.textContent = "";
   }
 
   function updatePreview() {
@@ -510,8 +510,6 @@ export function createDiaryComposerController({
   }
 
   function bind() {
-    const hint = els.photoDrop?.querySelector("[for='photoInput']");
-    if (hint) els.fileName.textContent = "展开后直接粘贴图片，或选择图片 / Live Photo 照片";
     els.uploadToggle.addEventListener("click", () => setExpanded(els.uploadForm.hidden));
     els.uploadForm.addEventListener("submit", submit);
     els.uploadForm.addEventListener("input", saveDraft);
