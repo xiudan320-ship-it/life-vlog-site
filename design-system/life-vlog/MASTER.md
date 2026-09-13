@@ -6,7 +6,7 @@
 
 Life Vlog is a private, mobile-first life archive for photos, video, diaries, wishes, shopping ideas, weekends, and personal collections. The interface is content-first: media and readable records take priority over decoration.
 
-This system combines the verified UI/UX Pro Max matches for Minimalism & Swiss Style, OLED media interfaces, single-accent dark palettes, Inter/system typography, touch-friendly controls, and reduced motion. The automatic product-wide generator returned an unrelated warm paper-journal palette and scroll-storytelling pattern, so that result was rejected and not persisted.
+The current UI and the rules below define the project's visual baseline. Use Figma for page design and review when appropriate; UI/UX Pro Max is an optional reference for specific questions. Follow [AGENTS.md](../../AGENTS.md) for tool selection and read the relevant stage of the [Figma workflow](../../docs/FIGMA_WORKFLOW.md) only for Figma tasks. Preserve the existing typography, touch-friendly controls, and reduced motion behavior.
 
 ## Visual language
 
@@ -60,7 +60,7 @@ This system combines the verified UI/UX Pro Max matches for Minimalism & Swiss S
 
 ## Layout
 
-- Mobile-first layout with QA at 375, 390, 430, 768, 1024, and 1440px.
+- Mobile-first layout; choose representative widths for the affected layout. Run the full 375, 390, 430, 768, 1024, and 1440px matrix only for shared layout, breakpoint, or global-style changes.
 - Compact web mode ends at 700px to match the current application shell.
 - Main feature content should normally use 100% width on mobile and 960px maximum on desktop.
 - Lists use one item per row. Density comes from information hierarchy, not tiny text.

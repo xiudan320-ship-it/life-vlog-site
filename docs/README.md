@@ -48,6 +48,7 @@
 | PWA、缓存、离线行为 | 定位 service worker / cache 逻辑 | `TECHNICAL_OVERVIEW.md` 相关章节 |
 | 构建、运行时、部署变化 | 检查相关配置 | `TECHNICAL_OVERVIEW.md`；发布时再读 `release-checklist.md` |
 | UI / UX / 响应式 / 无障碍 | 搜索对应页面和组件 | 先读 [DESIGN.md](../DESIGN.md)，再读 design system 相关章节 |
+| Figma 设计、页面改版方案、设计稿实现 | 确定页面范围与设计节点 | 按上方 UI 路由读取，再读 [FIGMA_WORKFLOW.md](FIGMA_WORKFLOW.md) 对应阶段及实际操作需要的技能；纯设计交付验收设计产物，代码实现才按影响范围做浏览器验收 |
 | 发布任务 | 检查当前待发布变化 | `release-checklist.md` |
 | 调查历史回归 | 先搜索代码和 CHANGELOG | 必要时进入 `plans/` 或 `history/` |
 | 某个专项继续实施 | 确认专项名称 | 只读取对应 plan |
@@ -90,6 +91,7 @@
 | `CHANGE_WORKFLOW.md` | 已决定修改后如何记录、测试和交付 |
 | `release-checklist.md` | 发布前后验收门禁 |
 | `design-system/` | 全局 UI、视觉和交互规范 |
+| `FIGMA_WORKFLOW.md` | Figma 设计、代码实现、验收交接流程与首页试点计划，仅 Figma 任务按需读取 |
 | `plans/` | 复杂专项的计划和设计决策，默认不读 |
 | `history/` | 已结束的恢复、审计和历史记录，默认不读 |
 
@@ -108,6 +110,7 @@
 | PWA、缓存或离线行为变化 | `TECHNICAL_OVERVIEW.md` + CHANGELOG |
 | 构建、部署或运行方式变化 | `TECHNICAL_OVERVIEW.md`、`release-checklist.md` + CHANGELOG |
 | 全局 UI / UX 规范变化 | design system + CHANGELOG |
+| Figma 操作或设计交接流程变化 | `FIGMA_WORKFLOW.md`；入口变化时同步 `AGENTS.md` / `DESIGN.md` / 本文件，重要变化记 CHANGELOG |
 | 单页面局部视觉修复 | 通常只需 CHANGELOG；无行为的小调整可以不记 |
 | 发布门禁变化 | `release-checklist.md` |
 | 拼写、格式、注释、格式化或无行为小整理 | 默认无需同步长期文档和 CHANGELOG |
