@@ -239,6 +239,6 @@ M 涉及共享画廊响应式布局，最终执行一次 375、390、430、768�
 | 横排形式 | 已确定为同篇多图横向 rail：卡片内两张预览、原生横向滚动与 snap、末尾“查看全部 N 张”，不引入整页横向滚动 |
 | Figma 新节点 | 已创建 [第二阶段页面](https://www.figma.com/design/ujvOxDH3YRNUnYxc5BzqXD?node-id=9-2) 与 [M 轨道区域](https://www.figma.com/design/ujvOxDH3YRNUnYxc5BzqXD?node-id=9-3)，包含手机/桌面浅深主题画板 `9:4`、`9:5`、`9:6`、`9:7`；B/D 继续写入被 Starter 账户的 Figma MCP 调用额度阻塞，未伪造为已完成设计 |
 | M / A / B / C / D / E | 均已完成代码实现与对应状态/交互接线；M/A/C 有新增控制器或视图行为测试，B 通过断点矩阵，D/E 纳入 release smoke 与 Axe 覆盖 |
-| 正式自动化回归 | `pnpm run check`、`test:unit`（179）、`test:static`、`test:structure`、`test:build`、`test:coverage`、`test:release-local`、`test:browser` 均通过；入口 JS 预算因本阶段默认日记功能增加由 121 KiB 明确调整为 123 KiB，实测 125102 bytes gzip |
+| 正式自动化回归 | `pnpm run check`、`test:unit`（179）、`test:static`、`test:structure`、`test:build`、`test:coverage`、`test:release-local`、`test:browser` 均通过；入口 JS 预算因本阶段默认日记功能增加由 121 KiB 明确调整为 123 KiB，实测 125106 bytes gzip |
 | 浏览器验收 | 模拟视口 375/390/430/768/820/821/1024/1440 已检查衣柜；release-local 另覆盖 390/1440、浅深主题、缩放、减少动态效果、Axe 与确定性 fixture；真实软键盘和真实账户未使用 |
-| 新提交 / 推送 / 部署 | 代码提交、`main` 推送和 preview/production 发布在本轮授权范围内继续执行；实际 SHA、deployment 与入口哈希在发布完成后补入 CHANGELOG |
+| 新提交 / 推送 / 部署 | `c54955b23e74e897fda1377c0ea802eaf9c3d944` 已推送 `origin/main`；preview deployment 为 `0e5b5092-ebd9-448d-8acc-794615df30e5`（固定 alias `https://codex-preview.life-vlog-site.pages.dev`），production deployment 为 `216790bb-ed29-469b-abb8-92a89961d580`（正式入口 `https://life-vlog-site.pages.dev`）；Worker 版本为 `81c8077e-420e-4976-8c98-7ba363bdb4f5`，入口 `index-Bw38bf3c.js` / CSS `index-4xRD1Tj0.css` / `sw.js` 与 34 条 Workbox 预缓存的哈希已记录于 CHANGELOG，两个环境的 CORS、Axe 与确定性 release smoke 均通过 |

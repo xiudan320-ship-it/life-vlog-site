@@ -19,6 +19,10 @@
 
 - 修复日记草稿在清空后因空表单提前返回而复活、切换账号误恢复和本地存储写失败吞掉当前输入的问题；修复菜谱重复提交和迟到账号响应污染当前编辑状态。
 
+### Release
+
+- 已从 `main` 提交 `c54955b23e74e897fda1377c0ea802eaf9c3d944` 发布到 Cloudflare Pages；固定 preview 为 `https://codex-preview.life-vlog-site.pages.dev`，本次 preview deployment 为 `0e5b5092-ebd9-448d-8acc-794615df30e5`（`https://0e5b5092.life-vlog-site.pages.dev`）；正式入口为 `https://life-vlog-site.pages.dev`，production deployment 为 `216790bb-ed29-469b-abb8-92a89961d580`（`https://216790bb.life-vlog-site.pages.dev`）。Worker `life-vlog-r2-upload` 版本为 `81c8077e-420e-4976-8c98-7ba363bdb4f5`；入口为 `index-Bw38bf3c.js`（SHA-256 `5c39b2b326c51273313a3c3e66a0926cce4d95c3196d91a32b6441329bf3773c`），样式为 `index-4xRD1Tj0.css`（SHA-256 `afe5762fd9793c4d3a9212ad0ef2ebdab9b3bef4676149db98e4defae7d5257a`），`sw.js` SHA-256 为 `77d75accd838aeb8fd9ef763aa51920d95bbb0fc031c1165e1d7d25f18224067`，Workbox 预缓存条目为 34；`pnpm install --frozen-lockfile`、完整本地回归、preview/production 的 Worker CORS、Axe critical/serious 和确定性 release smoke 均通过。
+
 ### Documentation
 
 - 更新第二阶段 UI 与操作体验规划的实施记录、Figma 节点和真实验收边界；B/D 的 Figma 写入受 Starter MCP 调用额度限制，代码实现不受影响。

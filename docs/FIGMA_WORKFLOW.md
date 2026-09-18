@@ -160,7 +160,7 @@ Figma 负责可视化设计与评审，项目代码负责运行行为；包含�
 | --- | --- |
 | 页面与 M 节点 | [第二阶段页面](https://www.figma.com/design/ujvOxDH3YRNUnYxc5BzqXD?node-id=9-2) · [M：日记媒体轨道](https://www.figma.com/design/ujvOxDH3YRNUnYxc5BzqXD?node-id=9-3)；画板 `9:4`（390 Light）、`9:5`（390 Dark）、`9:6`（1440 Light）、`9:7`（1440 Dark） |
 | 本轮设计范围 | M 已建立手机/桌面浅深主题的可编辑局部画板；B（衣柜筛选）与 D（发布表单）代码已完成，但继续向 Figma 写入时触发 Starter 账户 MCP 调用额度限制，因此没有把未创建的 B/D 节点记录为完成 |
-| 代码对应 | 同篇多图 rail、草稿清空/恢复、衣柜 disclosure、菜谱 busy/失败保护、发布选项折叠和限定页面空态恢复均以源码与确定性 fixture 为准；Figma 只承担可视化局部交接，不替代浏览器验收 |
+| 代码对应 | 同篇多图 rail、草稿清空/恢复、衣柜 disclosure、菜谱 busy/失败保护、发布选项折叠和限定页面空态恢复均以源码与确定性 fixture 为准；本轮发布提交为 `c54955b23e74e897fda1377c0ea802eaf9c3d944`，preview/production 与 Worker 发布事实见 `CHANGELOG.md`；Figma 只承担可视化局部交接，不替代浏览器验收 |
 | 未决限制 | Figma Starter 额度恢复或升级后，下一次任务可在 `9:2` 继续补 B/D 画板；本轮不重复创建页面、不新建组件库 |
 
 日常任务只更新本次相关字段；详细历史沿用既有 CHANGELOG 与任务记录，不在此累积聊天过程、工具全文或重复测试日志。
