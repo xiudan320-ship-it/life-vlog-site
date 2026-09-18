@@ -120,7 +120,7 @@
 
 .photo-media.rail {
   display: block;
-  height: clamp(164px, 24vw, 260px);
+  height: clamp(96px, 14vw, 176px);
   overflow: hidden;
 }
 
@@ -172,9 +172,13 @@
 }
 
 .photo-media.rail :is(img,video) {
+  display: block;
+  width: 100%;
   height: 100%;
+  max-width: 100%;
   max-height: none;
-  object-fit: cover;
+  background: var(--surface);
+  object-fit: contain;
 }
 
 .empty > p {

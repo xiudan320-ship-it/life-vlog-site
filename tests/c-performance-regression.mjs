@@ -519,6 +519,67 @@ async function testFeedMediaRetryLifecycle(browser) {
   }
 }
 
+async function testMultiImageRailPreviewLayout(browser) {
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 1440, height: 900 },
+  ]) {
+    const result = await openFixturePage({ viewport });
+    try {
+      const metrics = await result.page.evaluate(() => {
+        const card = document.querySelector('[data-photo-id="fixture-photo"]');
+        const rail = document.createElement("div");
+        rail.className = "photo-media rail count-2";
+        rail.setAttribute("aria-label", "3 张日记图片");
+        rail.innerHTML = `
+          <div class="photo-media-track" tabindex="0">
+            ${[1, 2].map((index) => `
+              <div class="feed-media-rail-item">
+                <div class="feed-media-shell" data-media-state="loaded">
+                  <button type="button"><img class="feed-image is-loaded" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='480'%3E%3Crect width='640' height='480' fill='%23d9c2a3'/%3E%3C/svg%3E" alt="预览 ${index}"></button>
+                </div>
+              </div>
+            `).join("")}
+            <button class="feed-media-more" type="button">查看全部 3 张</button>
+          </div>
+        `;
+        card?.append(rail);
+        const track = rail.querySelector(".photo-media-track");
+        const item = rail.querySelector(".feed-media-rail-item");
+        const image = rail.querySelector("img");
+        const railRect = rail.getBoundingClientRect();
+        const itemRect = item.getBoundingClientRect();
+        const trackStyle = getComputedStyle(track);
+        return {
+          railHeight: railRect.height,
+          itemWidth: itemRect.width,
+          itemHeight: itemRect.height,
+          imageWidth: image.getBoundingClientRect().width,
+          imageHeight: image.getBoundingClientRect().height,
+          objectFit: getComputedStyle(image).objectFit,
+          trackClientWidth: track.clientWidth,
+          trackScrollWidth: track.scrollWidth,
+          documentWidth: document.documentElement.scrollWidth,
+          viewportWidth: window.innerWidth,
+          trackOverflowX: trackStyle.overflowX,
+        };
+      });
+      assert.ok(metrics.railHeight >= 88, `${viewport.width}px multi-image rail became too short: ${JSON.stringify(metrics)}`);
+      assert.ok(metrics.railHeight <= (viewport.width <= 700 ? 120 : 190), `${viewport.width}px multi-image rail remains oversized: ${JSON.stringify(metrics)}`);
+      assert.ok(metrics.itemHeight / metrics.itemWidth <= 1.35, `${viewport.width}px rail preview is still too tall for its width: ${JSON.stringify(metrics)}`);
+      assert.ok(metrics.imageWidth <= metrics.itemWidth + 1, `${viewport.width}px rail image escaped its preview cell: ${JSON.stringify(metrics)}`);
+      assert.ok(metrics.imageHeight <= metrics.itemHeight + 1, `${viewport.width}px rail image escaped its preview cell vertically: ${JSON.stringify(metrics)}`);
+      assert.equal(metrics.objectFit, "contain", `${viewport.width}px rail preview still crops the image: ${JSON.stringify(metrics)}`);
+      assert.equal(metrics.trackOverflowX, "auto", `${viewport.width}px rail lost horizontal scrolling: ${JSON.stringify(metrics)}`);
+      assert.ok(metrics.trackScrollWidth > metrics.trackClientWidth, `${viewport.width}px rail has no overflow content: ${JSON.stringify(metrics)}`);
+      assert.ok(metrics.documentWidth <= metrics.viewportWidth + 1, `${viewport.width}px rail caused page overflow: ${JSON.stringify(metrics)}`);
+      assert.deepEqual(result.errors, [], `${viewport.width}px multi-image rail page errors: ${result.errors.join(" | ")}`);
+    } finally {
+      await closeFixturePage(result);
+    }
+  }
+}
+
 async function openSettingsFromAccount(page) {
   await page.click("#avatarButton");
   await page.click("#accountSettingsButton");
@@ -1488,6 +1549,7 @@ try {
   await testDynamicDiaryFilters(browser);
   await testHomeUiOptimization(browser);
   await testFeedMediaRetryLifecycle(browser);
+  await testMultiImageRailPreviewLayout(browser);
   await testSettingsRegistryInteractions(browser);
   await testShoppingDeleteDialogAppearance(browser);
   await testMobileDiaryActionsAndCategoryPicker(browser);
