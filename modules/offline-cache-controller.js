@@ -214,7 +214,6 @@ export function createOfflineCacheController({
   }
 
   function renderCachedPhotoFeed(userId = getSession()?.user?.id || "public") {
-    if (getActivePage() !== "gallery") return false;
     try {
       const raw = localStorage.getItem(getPhotoFeedStorageKey(userId));
       if (!raw) return false;

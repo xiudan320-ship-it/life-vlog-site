@@ -3,6 +3,7 @@ import "../../styles/settings.css";
 import { createFamilySettingsController } from "../family-settings-controller.js";
 import { createOfflineSettingsController } from "../offline-settings-controller.js";
 import { createDataSafetyController } from "../data-safety-controller.js";
+import { createAdminStorageController } from "../admin-storage.js";
 import { createSettingsShellController } from "../settings-shell-controller.js";
 import { renderSettingsSections } from "../settings-view.js";
 import { renderSettingsShell } from "../settings-shell-view.js";
@@ -20,6 +21,24 @@ export function initialize({ controllers, controllerOptions, elements, collect, 
   actions?.ensurePushSettingsPage?.();
   actions?.renderPrimaryNavigationSettings?.();
   const options = controllerOptions.settings;
+  const storage = options.settingsShell.adminStorage || {};
+  const adminStorageController = options.settingsShell.adminStorageController || createAdminStorageController({
+    getElements: () => {
+      const root = elements.settingsDialog?.querySelector("#adminStorageMeter") || null;
+      return {
+        root,
+        used: root?.querySelector("#adminStorageUsed") || null,
+        month: root?.querySelector("#adminStorageMonth") || null,
+        status: root?.querySelector("#adminStorageStatus") || null,
+        retry: root?.querySelector("#adminStorageRetry") || null,
+      };
+    },
+    request: storage.request,
+    isAdmin: storage.isAdmin,
+    getAccountKey: storage.getAccountKey,
+  });
+  options.settingsShell.adminStorageController ||= adminStorageController;
+  adminStorageController.initialize();
   if (!controllers.familySettings) controllers.familySettings = createFamilySettingsController(options.familySettings);
   if (!controllers.offlineSettings) controllers.offlineSettings = createOfflineSettingsController(options.offlineSettings);
   if (!controllers.dataSafety) controllers.dataSafety = createDataSafetyController(options.dataSafety);

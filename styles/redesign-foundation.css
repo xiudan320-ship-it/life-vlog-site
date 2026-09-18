@@ -3756,9 +3756,13 @@ h2 {
 }
 
 @media (min-width: 768px) {
+  .overview {
+    gap: 0;
+  }
+
   .overview-mood-layout {
     grid-template-columns: minmax(240px, 0.62fr) minmax(0, 1.38fr);
-    align-items: stretch;
+    align-items: start;
   }
 
   .today-mood-panel,
@@ -3771,46 +3775,85 @@ h2 {
   }
 
   .today-mood-panel {
-    gap: 0;
-    align-self: stretch;
+    gap: 10px;
+    align-self: start;
     box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
-    padding: 0 10px 10px;
+    padding: 12px;
   }
 
   .overview-mood-month {
-    gap: 12px;
-    padding: 16px;
-    align-self: stretch;
+    gap: 8px;
+    padding: 12px;
+    align-self: start;
     box-sizing: border-box;
   }
 
   .today-mood-grid {
-    flex: 1 1 auto;
-    min-height: 0;
+    min-height: auto;
     grid-template-columns: 1fr;
-    grid-template-rows: repeat(2, minmax(0, 1fr));
-    gap: 10px;
+    grid-template-rows: none;
+    gap: 8px;
   }
 
   .today-mood-seat,
   .today-mood-skeleton {
-    min-height: 132px;
-    height: 100%;
+    min-height: 112px;
+    height: auto;
   }
 
   .today-mood-seat {
-    gap: 8px;
-    padding: 8px;
+    grid-template-columns: 56px minmax(0, 1fr);
+    align-items: center;
+    justify-items: stretch;
+    gap: 10px;
+    padding: 10px 12px;
+    text-align: left;
   }
 
   .today-mood-seat-media {
-    width: min(100%, 56px);
+    grid-column: 1;
+    grid-row: 1;
+    width: 56px;
+  }
+
+  .today-mood-seat-copy {
+    grid-column: 2;
+    grid-row: 1;
   }
 
   .overview-mood-month {
     display: grid;
+  }
+
+  .overview-mood-calendar-weekdays,
+  .overview-mood-calendar-grid {
+    gap: 4px;
+  }
+
+  .overview-mood-calendar-cell {
+    min-height: 42px;
+    gap: 3px;
+    padding: 5px 4px;
+    border-radius: 7px;
+  }
+
+  .overview-mood-calendar-day {
+    font-size: 11px;
+  }
+
+  .overview-mood-calendar-entries {
+    min-height: 18px;
+  }
+
+  .overview-mood-calendar-entry,
+  .overview-mood-calendar-asset,
+  .overview-mood-calendar-asset img {
+    width: 18px;
+    height: 18px;
+  }
+
+  .overview-mood-calendar-entry {
+    flex-basis: 18px;
   }
 }
 

@@ -83,7 +83,7 @@ export function createAppIdentityController({
       : null;
     const card = [...(els.gallery?.querySelectorAll?.("[data-photo-id]") || [])]
       .find((item) => item.dataset.photoId === String(photo?.id || ""));
-    const galleryAction = card?.querySelector("[data-admin-category-index]");
+    const galleryAction = card?.querySelector("[data-photo-menu-trigger], [data-admin-category-index]");
     const target = mobileAction || galleryAction || documentTarget.querySelector('[data-page-heading="gallery"]');
     if (!target?.isConnected || typeof target.focus !== "function") return;
     try {

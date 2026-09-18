@@ -726,10 +726,7 @@ export function createAppRouteRuntime({
       secretPin: secretPinController,
       lifecycle: appLifecycleController,
     },
-    backend: {
-      createClient: createCloudflareClient,
-      request: cloudflareRequest,
-    },
+    backend: { createClient: createCloudflareClient },
     actions: {
       applyFamilyTagline: core.applyFamilyTagline,
       applyHomeName: core.applyHomeName,
@@ -756,7 +753,7 @@ export function createAppRouteRuntime({
       loadTextScale: core.loadTextScale,
       openPushDestination,
       processDiaryUploadQueue,
-      refreshStorage: core.refreshStorage,
+      resetAdminStorage: () => callLoaded(settingsShellController, "resetAdminStorage"),
       renderAccountAvatar: core.renderAccountAvatar,
       renderAnniversaries,
       renderCachedPhotoFeed,

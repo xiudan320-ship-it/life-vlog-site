@@ -25,6 +25,7 @@ export function startAppRuntime(runtime) {
     applyMobileFeedLayout,
     applyMobileSecretLayout,
     syncMobileComposerPlacement,
+    setActivePage,
     switchPage,
     setGlobalStatus,
     showMiniToast,
@@ -71,6 +72,7 @@ export function startAppRuntime(runtime) {
   pwaInstallController.initialize();
   void pwaUpdateController.initialize();
   const initialRoute = parseRoute(window.location);
+  setActivePage?.(initialRoute.page);
   void startupController.start({
     prepareBeforeSplash: initialRoute.page === "gallery",
     activateInitialRoute: () => switchPage(initialRoute.page, { historyMode: "replace", focusHeading: false }),

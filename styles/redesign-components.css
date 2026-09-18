@@ -1129,10 +1129,10 @@ body.mobile-dialog-open {
   .tool-dock-button {
     flex: 0 0 calc((100% - 16px) / 3);
     min-width: calc((100% - 16px) / 3);
-    min-height: 56px;
+    min-height: 64px;
     width: calc((100% - 16px) / 3);
     gap: 6px;
-    padding: 8px 7px;
+    padding: 8px 6px;
     order: var(--mobile-tool-order, 0);
     scroll-snap-align: start;
   }
@@ -1152,11 +1152,13 @@ body.mobile-dialog-open {
 
   .tool-dock-button strong {
     min-width: 0;
-    overflow: hidden;
-    font-size: 12px;
-    letter-spacing: -0.02em;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow: visible;
+    font-size: 11px;
+    line-height: 1.2;
+    letter-spacing: -0.03em;
+    text-overflow: clip;
+    white-space: normal;
+    word-break: keep-all;
   }
 
   .tool-dock-button small {
@@ -1720,13 +1722,28 @@ body.mobile-dialog-open {
   
 
   .diary-search {
-    grid-template-columns: 1fr auto;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    min-height: 52px;
+    gap: 8px;
     border-radius: 16px;
-    padding: 10px 12px;
+    padding: 4px 6px 4px 12px;
   }
 
   .diary-search span {
-    grid-column: 1 / -1;
+    grid-column: auto;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+
+  .diary-search input {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .diary-search button {
+    min-height: 44px;
+    padding-inline: 10px;
   }
 
   .today-posts-notice {

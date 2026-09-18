@@ -146,6 +146,15 @@
 .settings-install-card > button { justify-self: end; border-color: var(--accent); background: var(--accent); color: var(--accent-ink, #10140f); }
 .settings-card-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; flex: 0 0 auto; }
 .settings-card-actions button, .settings-primary-navigation-row-actions button, .settings-tool-actions button { min-height: 36px; }
+.settings-admin-badge { display: inline-flex; min-height: 28px; align-items: center; border: 1px solid color-mix(in srgb, var(--accent) 48%, var(--line)); border-radius: 999px; background: color-mix(in srgb, var(--accent) 12%, var(--surface)); color: var(--accent-strong); font-size: 11px; font-weight: 900; padding: 0 10px; }
+.settings-remote-storage-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 16px 18px 0; }
+.settings-remote-storage-stats > div { display: grid; gap: 5px; min-width: 0; border: 1px solid var(--line); border-radius: 11px; background: color-mix(in srgb, var(--surface) 84%, var(--bg) 16%); padding: 12px; }
+.settings-remote-storage-stats span { color: var(--muted); font-size: 11px; font-weight: 800; }
+.settings-remote-storage-stats strong { overflow: hidden; color: var(--accent-strong); font-size: 19px; font-weight: 950; text-overflow: ellipsis; white-space: nowrap; }
+.settings-remote-storage > .status-line { min-height: 18px; margin: 12px 18px 0; }
+.settings-remote-storage-actions { align-items: center; justify-content: space-between; margin: 14px 18px 16px; }
+.settings-inline-link { display: inline-flex; min-height: 40px; align-items: center; color: var(--accent-strong); font-size: 12px; font-weight: 900; text-decoration: none; }
+.settings-inline-link:hover { text-decoration: underline; text-underline-offset: 3px; }
 
 .settings-primary-navigation-list { display: grid; gap: 8px; padding: 16px 18px 18px; }
 .settings-primary-navigation-row { display: grid; gap: 9px; min-width: 0; border: 1px solid var(--line); border-radius: 11px; background: color-mix(in srgb, var(--surface) 88%, var(--bg) 12%); padding: 11px; }

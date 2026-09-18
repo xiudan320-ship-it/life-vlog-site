@@ -4,7 +4,7 @@
 
 ## 页面结构
 
-- `settings-dialog` 是唯一的模态根，使用原生 `showModal()` / `close()`，关闭按钮始终位于可见标题栏。
+- `settings-dialog` 是唯一的模态根，使用原生 `showModal()` / `close()`，关闭按钮始终位于可见标题栏。管理员云端 R2 统计只在“存储与数据”分区懒加载，视图挂载后再绑定重试动作，普通账户不发起统计请求。
 - `settings-shell` 由标题栏、搜索区、移动详情标题和内容布局组成；设置壳的打开/关闭、分类、搜索、返回和焦点由 `settings-shell-controller.js` 负责。
 - 桌面目录由 `settings-shell-view.js` 从 `settings-section-registry.js` 渲染五类：外观与使用、账户与安全、家庭与共享、通知与工具、存储与数据。
 - 移动端默认显示目录；进入分类后隐藏目录、显示详情和返回按钮。系统 Escape/back 的顺序是关闭子弹窗、回到设置目录、关闭设置中心。

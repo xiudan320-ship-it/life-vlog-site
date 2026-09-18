@@ -18,6 +18,7 @@ export function createSettingsShellController({
   elements,
   getSession = () => true,
   renderSettingsSummary,
+  resetAdminStorage = () => {},
   onSectionActivate,
   onSettingsClose,
   windowRef = globalThis.window,
@@ -267,6 +268,7 @@ export function createSettingsShellController({
     openChildDialog,
     openSearchResult,
     reopenAfterChildDialog,
+    resetAdminStorage,
     setActiveSection: (sectionId, options) => applySection(sectionId, options),
     updateSearch,
   };

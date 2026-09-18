@@ -72,8 +72,6 @@ export function createAccountSyncController({
   loadPhotos,
   loadSecretItems,
   loadNotifications,
-  refreshStorage,
-  cloudflareRequest,
   isAdminAccount,
   setGlobalStatus,
   awardDailyExperience,
@@ -461,7 +459,6 @@ export function createAccountSyncController({
         await loadNotifications();
         updateCloudSyncStatus();
         health?.setSync("ok", 200);
-        void refreshStorage(cloudflareRequest, () => Boolean(state.session && isAdminAccount()));
       } catch (error) {
         state.cloudSyncAvailable = false;
         state.accountDataState = "error";

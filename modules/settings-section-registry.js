@@ -32,6 +32,7 @@ const itemRegistry = [
   { id: "settingsUploads", sectionId: "settingsStorage", label: "上传任务中心", description: "查看和重试等待上传的日记", keywords: ["上传", "任务", "重试", "队列"] },
   { id: "settingsDiagnostics", sectionId: "settingsStorage", label: "离线与运行诊断", description: "检查应用、网络和本机缓存状态", keywords: ["诊断", "离线", "运行", "网络"] },
   { id: "settingsPerformance", sectionId: "settingsStorage", label: "性能诊断", description: "查看和清理本机性能记录", keywords: ["性能", "卡顿", "诊断"] },
+  { id: "adminStorageMeter", sectionId: "settingsStorage", label: "云端 R2 存储", description: "查看管理员云端对象存储使用情况", keywords: ["R2", "云端", "存储", "管理员", "容量", "上传"] },
 ];
 
 export const SETTINGS_SECTION_REGISTRY = Object.freeze(

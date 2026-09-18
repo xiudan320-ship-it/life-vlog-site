@@ -109,7 +109,9 @@ Figma 负责可视化设计与评审，项目代码负责运行行为；包含�
 
 ## 8. 首轮首页试点计划
 
-状态：规划已建立，设计和代码阶段待后续 UI 任务启动。以下先跑通一页的完整流程，再根据实际需求扩展。
+首页四项优化的具体实现与验收见 [2026-09-18 首页 UI 优化执行规划](plans/2026-09-18-home-ui-optimization-plan.md)，只有执行该专项时读取。
+
+状态：本轮首页试点已完成 A–B 设计并进入 C–D 实现验收；后续只在新增页面或明确范围下继续扩展。
 
 | 阶段 | 具体执行内容 | 完成条件 |
 | --- | --- | --- |
@@ -142,12 +144,12 @@ Figma 负责可视化设计与评审，项目代码负责运行行为；包含�
 
 | 字段 | 当前记录 |
 | --- | --- |
-| 项目文件链接 / fileKey | 待首次设计任务建立或关联 |
-| 当前任务与范围 | 首页试点规划；设计尚未开始 |
-| 当前基准提交、尺寸与 fixture 状态 | 待捕获时记录 |
-| 基准与目标节点链接 | 待实际创建后记录 |
-| 方案状态及已授权的下一阶段 | 规划完成；后续 UI 任务按用户指令确定阶段 |
-| 对应代码提交与验证结果 | 待实现后记录 |
-| 已接受差异或未决问题 | 待设计或实现阶段记录 |
+| 项目文件链接 / fileKey | [生活日记-首页 UI 优化 · 2026-09-18](https://www.figma.com/design/ujvOxDH3YRNUnYxc5BzqXD) · `ujvOxDH3YRNUnYxc5BzqXD` |
+| 当前任务与范围 | 首页试点 A–D：管理员 R2 统计迁移、桌面今日心情/日历紧凑化、桌面卡片菜单、移动工具栏与搜索；同时交付浅/深主题设计稿 |
+| 当前基准提交、尺寸与 fixture 状态 | 基准源码提交 `345a669`；本地 `localhost:5173` 捕获用于结构校准；设计状态为合成文案 + 项目 `black-cat-cover-640.webp`，不含真实账户或私人日记数据 |
+| 基准与目标节点链接 | 可编辑目标：[桌面浅色](https://www.figma.com/design/ujvOxDH3YRNUnYxc5BzqXD?node-id=4-12)、[桌面深色](https://www.figma.com/design/ujvOxDH3YRNUnYxc5BzqXD?node-id=4-13)、[手机浅色](https://www.figma.com/design/ujvOxDH3YRNUnYxc5BzqXD?node-id=4-14)、[手机深色](https://www.figma.com/design/ujvOxDH3YRNUnYxc5BzqXD?node-id=4-15)、[管理员设置](https://www.figma.com/design/ujvOxDH3YRNUnYxc5BzqXD?node-id=4-16)、[桌面更多菜单](https://www.figma.com/design/ujvOxDH3YRNUnYxc5BzqXD?node-id=4-17) |
+| 方案状态及已授权的下一阶段 | A–D 设计与代码实现已完成；浏览器、可访问性、构建、部署 fixture 与本地 release 验收已完成，代码提交 `321ab00` 已推送，待正式发布信息回填 |
+| 对应代码提交与验证结果 | `321ab00`；已通过 `pnpm test`、`pnpm run test:release-local`、`pnpm run test:deployment`、`pnpm run check` 与 `pnpm run test:unit` |
+| 已接受差异或未决问题 | Figma 中的动态数据、瀑布流高度、弹窗真实焦点流转以代码为准；初始像素捕获已用于校准并在可编辑稿确认后删除，六个目标节点保留为可编辑文本/图形/状态层 |
 
 日常任务只更新本次相关字段；详细历史沿用既有 CHANGELOG 与任务记录，不在此累积聊天过程、工具全文或重复测试日志。

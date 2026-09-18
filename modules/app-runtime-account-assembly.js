@@ -27,7 +27,6 @@ export function createAccountControllerAssembly({
     householdRepository,
     photoFavorites,
     assetController,
-    cloudflareBackend,
     secretDataService,
   } = services;
   const {
@@ -195,8 +194,6 @@ export function createAccountControllerAssembly({
     loadPhotos: core.loadPhotos,
     loadSecretItems: (...args) => secretDataService.load(...args),
     loadNotifications: core.loadNotifications,
-    refreshStorage: core.refreshStorage,
-    cloudflareRequest: cloudflareBackend.request,
     isAdminAccount: shell.actions.isAdminAccount,
     setGlobalStatus: shell.actions.setGlobalStatus,
     awardDailyExperience: gamificationActions.awardDailyExperience,

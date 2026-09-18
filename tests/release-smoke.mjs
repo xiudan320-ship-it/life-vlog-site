@@ -637,9 +637,13 @@ async function testFilterSettingsAndActions(browser) {
   const adminDesktop = await openFixturePage(browser, { viewport: { width: 1440, height: 900 }, session: adminPseudoSession });
   try {
     const page = adminDesktop.page;
-    const deleteButton = page.locator('[data-photo-id="fixture-admin-photo"] [data-delete-index]');
+    await page.waitForTimeout(800);
+    const menuTrigger = page.locator('[data-photo-id="fixture-admin-photo"] [data-photo-menu-trigger]');
+    assert.equal(await menuTrigger.count(), 1);
+    await menuTrigger.click();
+    const deleteButton = page.locator('[data-photo-id="fixture-admin-photo"] [data-photo-menu-action="delete"]');
     assert.equal(await deleteButton.count(), 1);
-    await deleteButton.click();
+    await deleteButton.evaluate((button) => button.click());
     await page.locator('dialog.action-confirm-dialog button[value="confirm"]').click();
     await page.waitForFunction(() => !document.querySelector('[data-photo-id="fixture-admin-photo"]'));
     assert.equal(adminDesktop.fixture.writes.some(({ path, action }) => path === "/api/rpc/admin_delete_photo" && action === "admin_delete_photo"), true);

@@ -9,7 +9,6 @@ import {
   createMediaRuntimeState,
 } from "./app-runtime-media-assembly.js";
 import { collectShellElements } from "./app-elements.js";
-import { refreshAdminStorage as refreshStorage } from "./admin-storage.js";
 import { createRuntimeVlogMode } from "./app-runtime-vlog-mode.js";
 import { getNextWeekendDate } from "./weekend-date.js";
 import {
@@ -757,7 +756,6 @@ const accountRuntime = createAccountControllerAssembly({
     renderGallery,
     renderPhotoComments,
     loadPhotos,
-    refreshStorage,
     renderGratitudeNotes: (...args) => renderGratitudeNotes(...args),
     loadFoodOptions: (...args) => loadFoodOptions(...args),
     loadThanksColor: (...args) => loadThanksColor(...args),
@@ -1111,7 +1109,6 @@ const appRouteRuntime = createRuntimeRouteEntry({
     usernameToEmail,
     resolveRedirectUrl,
     openRandomMemory,
-    refreshStorage,
     renderOverview,
     isMissingCloudSchema,
     configureCacheManagementUi,
@@ -1146,6 +1143,7 @@ export const appRuntime = Object.freeze({
   applyMobileFeedLayout,
   applyMobileSecretLayout,
   syncMobileComposerPlacement,
+  setActivePage: (page) => { activePage = page; },
   switchPage,
   setGlobalStatus,
   showMiniToast,

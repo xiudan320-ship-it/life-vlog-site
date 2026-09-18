@@ -7,6 +7,7 @@ import {
 import { escapeHtml, formatDate } from "./ui-formatters.js";
 import { captureListFocus, pulseListItem, restoreListFocus } from "./list-render-feedback.js";
 import { renderListIcon } from "./list-icons.js";
+import { getDesktopDiaryActionModel } from "./diary-action-domain.js";
 
 const LAZY_IMAGE_PLACEHOLDER = "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=";
 const lazyObservers = new WeakMap();
@@ -250,6 +251,37 @@ function buildPhotoCard(photo, index, options) {
   const images = options.getPhotoImages(photo);
   const noteText = options.getPlainNote(photo);
   const favorite = options.isFavorite(photo);
+  const photoId = String(photo.id || "");
+  const safePhotoId = escapeHtml(photoId);
+  const desktopActionModel = getDesktopDiaryActionModel({
+    signedIn: options.signedIn,
+    isOwner: canManage,
+    isAdmin: options.admin,
+    isPinned: Boolean(photo.is_pinned),
+    isFeatured: Boolean(photo.is_featured),
+    isFavorite: favorite,
+  });
+  const desktopMoreActions = desktopActionModel.more;
+  const desktopMenuId = `photo-menu-${photoId}`;
+  const favoriteAction = options.signedIn
+    ? `<button class="favorite-photo ${favorite ? "active" : ""}" type="button" data-favorite-index="${index}" aria-pressed="${String(favorite)}">${renderListIcon("heart", "ui-icon-inline")} ${favorite ? "已收藏" : "收藏"}</button>`
+    : "";
+  const mobileActions = `${favoriteAction}
+        ${canManage ? `<button class="feature-photo ${photo.is_featured ? "active" : ""}" type="button" data-feature-index="${index}">${photo.is_featured ? "取消精选" : "设为精选"}</button>
+          <button class="pin-photo ${photo.is_pinned ? "active" : ""}" type="button" data-pin-index="${index}">${photo.is_pinned ? "取消置顶" : "置顶"}</button>
+          <button class="edit-photo" type="button" data-edit-index="${index}" title="编辑日记">编辑</button>` : ""}
+        ${options.signedIn && (canManage || options.admin) ? `<button class="delete-photo" type="button" data-delete-index="${index}" title="删除日记">删除</button>` : ""}
+        ${canAdminCategorize ? `<button class="edit-photo" type="button" data-admin-category-index="${index}" title="管理员修改分类">修改分类</button>` : ""}
+        ${canAdminUnpin ? `<button class="pin-photo active admin-unpin-photo" type="button" data-admin-unpin-index="${index}" title="管理员取消置顶">取消置顶</button>` : ""}`;
+  const desktopActions = !options.mobile && photoId
+    ? `${favoriteAction}
+      ${desktopMoreActions.length ? `<div class="photo-card-menu" data-photo-menu="${safePhotoId}">
+        <button class="photo-menu-trigger" type="button" data-photo-menu-trigger="${safePhotoId}" aria-haspopup="menu" aria-expanded="false" aria-controls="${escapeHtml(desktopMenuId)}">${renderListIcon("more", "ui-icon-inline")} <span>更多</span></button>
+        <div class="photo-menu-panel" id="${escapeHtml(desktopMenuId)}" role="menu" hidden>
+          ${desktopMoreActions.map((item) => `<button type="button" role="menuitem" class="${item.danger ? "danger" : ""}" data-photo-menu-action="${escapeHtml(item.adminUnpin ? "admin-unpin" : item.id)}" data-photo-menu-photo-id="${safePhotoId}">${escapeHtml(item.label)}</button>`).join("")}
+        </div>
+      </div>` : ""}`
+    : mobileActions;
   return `
     <article class="photo-card" data-photo-id="${escapeHtml(photo.id || "")}">
       <span class="strand-index">${String(index + 1).padStart(2, "0")}</span>
@@ -272,13 +304,7 @@ function buildPhotoCard(photo, index, options) {
         </button>
       </div>
       <div class="card-actions">
-        ${options.signedIn ? `<button class="favorite-photo ${favorite ? "active" : ""}" type="button" data-favorite-index="${index}" aria-pressed="${String(favorite)}">${renderListIcon("heart", "ui-icon-inline")} ${favorite ? "已收藏" : "收藏"}</button>` : ""}
-        ${canManage ? `<button class="feature-photo ${photo.is_featured ? "active" : ""}" type="button" data-feature-index="${index}">${photo.is_featured ? "取消精选" : "设为精选"}</button>
-          <button class="pin-photo ${photo.is_pinned ? "active" : ""}" type="button" data-pin-index="${index}">${photo.is_pinned ? "取消置顶" : "置顶"}</button>
-          <button class="edit-photo" type="button" data-edit-index="${index}" title="编辑日记">编辑</button>` : ""}
-        ${options.signedIn && (canManage || options.admin) ? `<button class="delete-photo" type="button" data-delete-index="${index}" title="删除日记">删除</button>` : ""}
-        ${canAdminCategorize ? `<button class="edit-photo" type="button" data-admin-category-index="${index}" title="管理员修改分类">修改分类</button>` : ""}
-        ${canAdminUnpin ? `<button class="pin-photo active admin-unpin-photo" type="button" data-admin-unpin-index="${index}" title="管理员取消置顶">取消置顶</button>` : ""}
+        ${desktopActions}
       </div>
       ${options.renderCommentPreview(photo.id, index)}
     </article>
@@ -313,6 +339,9 @@ function bindGalleryActions(container, photos, handlers) {
       handlers.open(getPhoto("openCommentsIndex"));
     }
   };
+  void import("./diary-gallery-menu-controller.js")
+    .then(({ bindDiaryGalleryMenu }) => bindDiaryGalleryMenu(container, photos, handlers))
+    .catch(() => undefined);
 }
 
 export function renderDiaryGalleryCards({ container, photos = [], updatedPhotoId = "", ...options }) {

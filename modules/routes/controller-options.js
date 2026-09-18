@@ -241,6 +241,11 @@ export function createRouteControllerOptions({
     renderUploadCenter,
     renderSettingsSummary,
     renderOfflineSettingsSummary,
+    adminStorage: {
+      request: cloudflareRequest,
+      isAdmin: () => Boolean(state.session && core.isAdminAccount?.()),
+      getAccountKey: () => state.session?.user?.id || "",
+    },
     configureCacheManagementUi,
     refreshCacheInfo,
     loadFamilyLevelProfiles,
@@ -394,6 +399,7 @@ function buildRouteControllerOptions({
   renderUploadCenter,
   renderSettingsSummary,
   renderOfflineSettingsSummary,
+  adminStorage,
   configureCacheManagementUi,
   refreshCacheInfo,
   loadFamilyLevelProfiles,
@@ -450,6 +456,33 @@ function buildRouteControllerOptions({
   offlineSettingsController,
   callLoaded,
 }) {
+  const settingsShellOptions = {
+    elements,
+    getSession,
+    adminStorageController: null,
+    adminStorage,
+    resetAdminStorage: () => settingsShellOptions.adminStorageController?.reset?.(),
+    renderSettingsSummary,
+    onSectionActivate: (sectionId) => {
+      if (sectionId === "settingsFamily") {
+        return callLoaded(familySettingsController, "renderSettingsFamilyPanel");
+      }
+      if (sectionId === "settingsTools") {
+        void refreshPushSettings?.();
+        return renderSettingsToolOrderPanel?.();
+      }
+      if (sectionId === "settingsStorage") {
+        renderOfflineSettingsSummary?.();
+        void settingsShellOptions.adminStorageController?.refresh?.();
+        void refreshCacheInfo?.();
+        void callLoaded(dataSafetyController, "renderCloudBackups");
+        void callLoaded(dataSafetyController, "renderTrashItems");
+        void callLoaded(dataSafetyController, "renderUploadCenter");
+      }
+      return undefined;
+    },
+  };
+
   return {
     secret: {
       elements,
@@ -640,28 +673,7 @@ function buildRouteControllerOptions({
         isMissingCloudSchema,
         loadFamilyContext,
       },
-      settingsShell: {
-        elements,
-        getSession: () => state.session,
-        renderSettingsSummary,
-        onSectionActivate: (sectionId) => {
-          if (sectionId === "settingsFamily") {
-            return callLoaded(familySettingsController, "renderSettingsFamilyPanel");
-          }
-          if (sectionId === "settingsTools") {
-            void refreshPushSettings?.();
-            return renderSettingsToolOrderPanel?.();
-          }
-          if (sectionId === "settingsStorage") {
-            renderOfflineSettingsSummary?.();
-            void refreshCacheInfo?.();
-            void callLoaded(dataSafetyController, "renderCloudBackups");
-            void callLoaded(dataSafetyController, "renderTrashItems");
-            void callLoaded(dataSafetyController, "renderUploadCenter");
-          }
-          return undefined;
-        },
-      },
+      settingsShell: settingsShellOptions,
       offlineSettings: {
         elements,
         constants: {

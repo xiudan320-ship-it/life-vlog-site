@@ -366,6 +366,121 @@ async function testDynamicDiaryFilters(browser) {
   }
 }
 
+async function testHomeUiOptimization(browser) {
+  const desktop = await openFixturePage({ viewport: { width: 1440, height: 900 } });
+  try {
+    const page = desktop.page;
+    await page.waitForTimeout(800);
+    const ownerCard = page.locator('[data-photo-id="fixture-photo"]');
+    const ownerTrigger = ownerCard.locator("[data-photo-menu-trigger]");
+    assert.equal(await ownerTrigger.count(), 1, "desktop owner diary did not expose one more-menu trigger");
+    assert.equal(await ownerCard.locator("[data-favorite-index]").count(), 1, "desktop owner diary lost the always-visible favorite action");
+
+    await ownerTrigger.click();
+    const ownerMenu = ownerCard.locator('[role="menu"]');
+    await ownerMenu.waitFor({ state: "visible" });
+    assert.deepEqual(
+      await ownerMenu.locator('[role="menuitem"]').allTextContents(),
+      ["编辑", "设为精选", "置顶", "删除"],
+      "desktop owner diary menu actions changed",
+    );
+    await page.keyboard.press("ArrowDown");
+    assert.equal(await page.evaluate(() => document.activeElement?.textContent), "编辑", "desktop diary menu did not move focus into the first item");
+    await page.keyboard.press("Escape");
+    assert.equal(await ownerMenu.isHidden(), true, "desktop diary menu stayed open after Escape");
+    await page.waitForFunction(() => document.activeElement?.matches('[data-photo-menu-trigger="fixture-photo"]'), null, { timeout: 2000 });
+
+    const secondOwnerTrigger = page.locator('[data-photo-id="fixture-offscreen-photo"] [data-photo-menu-trigger]');
+    await ownerTrigger.click();
+    await secondOwnerTrigger.click();
+    assert.equal(await ownerMenu.isHidden(), true, "opening a second desktop diary menu left the first menu open");
+    assert.equal(await page.locator('[data-photo-id="fixture-offscreen-photo"] [role="menu"]').isVisible(), true, "second desktop diary menu did not open");
+    await page.locator("header.topbar").click({ position: { x: 12, y: 12 } });
+    assert.equal(await page.locator('[data-photo-id="fixture-offscreen-photo"] [role="menu"]').isHidden(), true, "desktop diary menu did not close on outside click");
+    assert.equal(desktop.errors.length, 0, `desktop home UI optimization errors: ${desktop.errors.join(" | ")}`);
+  } finally {
+    await closeFixturePage(desktop);
+  }
+
+  const mobile = await openFixturePage({ viewport: { width: 390, height: 844 } });
+  try {
+    const page = mobile.page;
+    const mobileLayout = await page.evaluate(() => {
+      const dock = document.querySelector("#toolDock");
+      const visibleButtons = [...(dock?.querySelectorAll(".tool-dock-button") || [])]
+        .filter((button) => !button.hidden && getComputedStyle(button).display !== "none")
+        .sort((left, right) => left.getBoundingClientRect().left - right.getBoundingClientRect().left);
+      const search = document.querySelector(".diary-search");
+      const input = document.querySelector("#diarySearchInput");
+      const searchButton = document.querySelector("#clearDiarySearch");
+      const rect = (element) => {
+        const box = element?.getBoundingClientRect();
+        return box ? { width: box.width, height: box.height } : null;
+      };
+      return {
+        tools: visibleButtons.slice(0, 3).map((button) => button.querySelector("strong")?.textContent.trim() || ""),
+        toolRects: visibleButtons.slice(0, 3).map(rect),
+        menuTriggers: document.querySelectorAll("[data-photo-menu-trigger]").length,
+        searchDisplay: search ? getComputedStyle(search).display : "",
+        searchHeight: rect(search)?.height || 0,
+        inputFontSize: Number.parseFloat(getComputedStyle(input).fontSize),
+        inputRect: rect(input),
+        clearButtonMinHeight: Number.parseFloat(getComputedStyle(searchButton).minHeight),
+        documentWidth: document.documentElement.scrollWidth,
+        viewportWidth: document.documentElement.clientWidth,
+      };
+    });
+    assert.deepEqual(mobileLayout.tools, ["时间纪念册", "本周回顾", "留言"], `mobile tool order changed: ${JSON.stringify(mobileLayout)}`);
+    assert.ok(mobileLayout.toolRects.every(({ width, height }) => width > 0 && height >= 64), `mobile first tools lost their complete card targets: ${JSON.stringify(mobileLayout)}`);
+    assert.equal(mobileLayout.menuTriggers, 0, "mobile gallery unexpectedly rendered desktop more-menu triggers");
+    assert.equal(mobileLayout.searchDisplay, "grid", `mobile search lost its compact grid: ${JSON.stringify(mobileLayout)}`);
+    assert.ok(mobileLayout.searchHeight >= 52, `mobile search became too short: ${JSON.stringify(mobileLayout)}`);
+    assert.ok(mobileLayout.inputFontSize >= 16 && mobileLayout.inputRect?.height >= 44, `mobile search input missed the touch/type target: ${JSON.stringify(mobileLayout)}`);
+    assert.ok(mobileLayout.clearButtonMinHeight >= 44, `mobile search clear button missed the touch target: ${JSON.stringify(mobileLayout)}`);
+    assert.ok(mobileLayout.documentWidth <= mobileLayout.viewportWidth + 1, `mobile home UI overflowed horizontally: ${JSON.stringify(mobileLayout)}`);
+    assert.equal(mobile.errors.length, 0, `mobile home UI optimization errors: ${mobile.errors.join(" | ")}`);
+  } finally {
+    await closeFixturePage(mobile);
+  }
+
+  const ordinarySettings = await openFixturePage({ viewport: { width: 390, height: 844 } });
+  try {
+    const page = ordinarySettings.page;
+    await openSettingsFromAccount(page);
+    await page.click("#settings-tab-settingsStorage");
+    await page.waitForSelector('#settingsDialog[data-mobile-settings-section="settingsStorage"]');
+    await page.waitForTimeout(150);
+    assert.equal(ordinarySettings.fixture.requests.filter(({ path }) => path === "/api/admin/r2-usage").length, 0, "ordinary settings opened the admin R2 endpoint");
+    assert.equal(await page.locator("#adminStorageMeter").isHidden(), true, "ordinary settings exposed the admin R2 card");
+  } finally {
+    await closeFixturePage(ordinarySettings);
+  }
+
+  const adminSettings = await openFixturePage({ viewport: { width: 1440, height: 900 }, session: adminPseudoSession });
+  const adminCalls = [];
+  try {
+    const page = adminSettings.page;
+    await page.route("**/api/admin/r2-usage", async (route) => {
+      adminCalls.push(route.request().url());
+      await route.fulfill({
+        status: 200,
+        headers: { "access-control-allow-origin": "*", "content-type": "application/json" },
+        body: JSON.stringify({ data: { used_bytes: 5 * 1024 * 1024, month_uploaded_bytes: 128 * 1024, capacity_label: "10 GB", object_count: 42, generated_at: "fixture" } }),
+      });
+    });
+    await openSettingsFromAccount(page);
+    assert.equal(adminCalls.length, 0, "admin R2 usage loaded before the storage section was opened");
+    await page.locator("#settings-tab-settingsStorage").click();
+    await page.waitForFunction(() => document.querySelector("#adminStorageUsed")?.textContent.includes("5.00 MB"), null, { timeout: 5000 });
+    assert.equal(adminCalls.length, 1, `admin R2 usage was requested ${adminCalls.length} times after one section activation`);
+    assert.match(await page.locator("#adminStorageMonth").textContent(), /128 KB/);
+    assert.match(await page.locator("#adminStorageStatus").textContent(), /42 个对象/);
+    assert.equal(adminSettings.errors.length, 0, `admin settings errors: ${adminSettings.errors.join(" | ")}`);
+  } finally {
+    await closeFixturePage(adminSettings);
+  }
+}
+
 async function testFeedMediaRetryLifecycle(browser) {
   const result = await openFixturePage({ viewport: { width: 390, height: 844 } });
   try {
@@ -738,9 +853,13 @@ async function testMobileDiaryActionsAndCategoryPicker(browser) {
   const adminDesktop = await openFixturePage({ viewport: { width: 1440, height: 900 }, session: adminPseudoSession });
   try {
     const page = adminDesktop.page;
-    const deleteButton = page.locator('[data-photo-id="fixture-admin-photo"] [data-delete-index]');
-    assert.equal(await deleteButton.count(), 1, "desktop administrator cannot see the diary delete action");
-    await deleteButton.click();
+    await page.waitForTimeout(800);
+    const menuTrigger = page.locator('[data-photo-id="fixture-admin-photo"] [data-photo-menu-trigger]');
+    assert.equal(await menuTrigger.count(), 1, "desktop administrator cannot see the diary more menu");
+    await menuTrigger.click();
+    const deleteButton = page.locator('[data-photo-id="fixture-admin-photo"] [data-photo-menu-action="delete"]');
+    assert.equal(await deleteButton.count(), 1, "desktop administrator cannot see the diary delete action in more menu");
+    await deleteButton.evaluate((button) => button.click());
     await page.locator('dialog.action-confirm-dialog button[value="confirm"]').click();
     await page.waitForFunction(() => !document.querySelector('[data-photo-id="fixture-admin-photo"]'));
     assert.equal(adminDesktop.fixture.writes.some(({ path, action }) => path === "/api/rpc/admin_delete_photo" && action === "admin_delete_photo"), true, "desktop administrator deletion did not use the administrator RPC");
@@ -951,7 +1070,9 @@ async function testPhotoEditorLazyBoundary(browser) {
   const result = await openFixturePage({ viewport: { width: 1440, height: 900 } });
   try {
     const before = new Set(scriptUrls(result.page));
-    await result.page.locator('[data-photo-id="fixture-photo"] .edit-photo').first().click();
+    await result.page.waitForTimeout(800);
+    await result.page.locator('[data-photo-id="fixture-photo"] [data-photo-menu-trigger]').click();
+    await result.page.locator('[data-photo-id="fixture-photo"] [data-photo-menu-action="edit"]').evaluate((button) => button.click());
     await result.page.waitForSelector("#editDialog[open]", { state: "attached", timeout: 10000 });
     const loaded = scriptUrls(result.page).filter((url) => !before.has(url));
     assert.equal(loaded.filter((url) => /photo-editor-controller-/.test(url)).length, 1, "photo editor chunk did not load exactly once");
@@ -1365,6 +1486,7 @@ try {
   await testSecretSyncDoesNotDependOnRouteController(browser);
   await testSecretPhotoViewer(browser);
   await testDynamicDiaryFilters(browser);
+  await testHomeUiOptimization(browser);
   await testFeedMediaRetryLifecycle(browser);
   await testSettingsRegistryInteractions(browser);
   await testShoppingDeleteDialogAppearance(browser);

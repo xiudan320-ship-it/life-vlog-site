@@ -16,6 +16,7 @@ export function createAppSessionController({
 }) {
   const els = elements;
   let localSessionReady = false;
+  let lastAdminStorageIdentity = "";
 
   function ensureArray(value) {
     return Array.isArray(value) ? value : [];
@@ -28,6 +29,11 @@ export function createAppSessionController({
 
   function updateAuthUI({ activatePage = true } = {}) {
     const signedIn = Boolean(state.session);
+    const adminStorageIdentity = signedIn ? String(state.session.user.id || "") : "";
+    if (adminStorageIdentity !== lastAdminStorageIdentity) {
+      lastAdminStorageIdentity = adminStorageIdentity;
+      actions.resetAdminStorage?.();
+    }
     const needsAccountSync = Boolean(signedIn && state.session.user.id !== state.syncedUserId);
     if (!signedIn) vlogMode.close();
     const displayName = signedIn ? actions.getSessionDisplayName() : "";
@@ -112,7 +118,6 @@ export function createAppSessionController({
     actions.setGlobalStatus("");
 
     if (!signedIn) {
-      void actions.refreshStorage(backend.request, () => false);
       resetSignedOutState();
       actions.renderNotifications();
       actions.renderSettingsSummary();

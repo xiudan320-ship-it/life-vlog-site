@@ -38,7 +38,7 @@ flowchart LR
 
 ## 3. 前端启动与装配
 
-手机首页的 gallery 路由为轻量静态模块，入口依赖同步导入原 gallery 路由样式并进入 Workbox 首屏预缓存，避免网络迟到后补布局。启动先恢复本地会话与缓存，初始 gallery 路由只激活一次且在撤开屏前完成；其他深链先撤开屏再激活懒路由，远端同步不作为首页显示前提。初始化本地会话时只更新状态和缓存，不重复触发初始路由切换。未新增全路由预载或改变 SW 的更新策略。入口 CSS 预算覆盖原入口加 gallery 的总量（256 KiB 原始、46 KiB gzip），不是新增界面样式。
+手机首页的 gallery 路由为轻量静态模块，入口依赖同步导入原 gallery 路由样式并进入 Workbox 首屏预缓存，避免网络迟到后补布局；桌面日记“更多”菜单控制器在画廊挂载后按需加载。启动先恢复本地会话与缓存，初始 gallery 路由只激活一次且在撤开屏前完成；其他深链先撤开屏再激活懒路由，远端同步不作为首页显示前提。初始化本地会话时只更新状态和缓存，不重复触发初始路由切换。未新增全路由预载或改变 SW 的更新策略。入口 CSS 预算覆盖原入口加 gallery 的总量（256 KiB 原始、46 KiB gzip），不是新增界面样式。
 
 入口链路：
 
@@ -51,9 +51,9 @@ flowchart LR
 
 `app.js` 不承载业务逻辑。新增功能按职责进入 `modules/`，并保持 controller、view、domain、repository/service 分离。
 
-顶部分页由 `primary-navigation-controller.js` 在应用壳装配时接管：访客先使用默认可见入口，session 建立后按用户/设备作用域应用配置；设置路由在模板渲染完成后才绑定 Push 设置按钮和顶部分页设置。设置中心由 `settings-shell-controller.js` / `settings-shell-view.js` 负责新版搜索、五组分类目录、桌面 tab 与手机目录/详情两级布局，业务设置仍由各自懒加载 controller 负责。Push 控制器的请求依赖由 `app-runtime-feature-assembly.js` 直接接入 `services.cloudflareBackend.request`，设置页不依赖提前加载的懒路由 DOM。
+顶部分页由 `primary-navigation-controller.js` 在应用壳装配时接管：访客先使用默认可见入口，session 建立后按用户/设备作用域应用配置；设置路由在模板渲染完成后才绑定 Push 设置按钮和顶部分页设置。设置中心由 `settings-shell-controller.js` / `settings-shell-view.js` 负责新版搜索、五组分类目录、桌面 tab 与手机目录/详情两级布局，业务设置仍由各自懒加载 controller 负责。管理员 R2 统计由 `settings-route.js` 在设置 DOM 挂载后创建，只在进入“存储与数据”时读取，不再参与首页账户同步或顶部导航。Push 控制器的请求依赖由 `app-runtime-feature-assembly.js` 直接接入 `services.cloudflareBackend.request`，设置页不依赖提前加载的懒路由 DOM。
 
-首页今日概览由 `today-mood-controller.js` / `today-mood-view.js` 维护当天两席；桌面端在同一概览中使用独立的 `listMonth` 查询展示本月心情日历缩略网格，月度读取失败不会覆盖当天心情状态。宽屏使用三列布局，把双人心情面板与本月日历面板堆叠到页面最右侧栏，上方是今日心情、下方是本月心情，标题与快捷操作保留在中央内容列；右侧栏由标题后的零高度锚点独立定位，不参与中央内容流的行高，并与中央列保留安全间隔以避免覆盖后续内容。普通桌面仍使用同一网格行并对齐顶部/底部边界，左侧两张心情卡填满对齐面板的可用高度并保持固定间距。手机端隐藏右侧日历并保留原有紧凑两席；短横屏显式恢复两列自然高度。
+首页今日概览由 `today-mood-controller.js` / `today-mood-view.js` 维护当天两席；桌面端在同一概览中使用独立的 `listMonth` 查询展示本月心情日历缩略网格，月度读取失败不会覆盖当天心情状态。宽屏使用三列布局，把双人心情面板与本月日历面板堆叠到页面最右侧栏，上方是今日心情、下方是本月心情，标题与快捷操作保留在中央内容列；右侧栏由标题后的零高度锚点独立定位，不参与中央内容流的行高，并与中央列保留安全间隔以避免覆盖后续内容。普通桌面使用紧凑的自然高度：两张成员卡不再通过 `height: 100%` 填满月历面板，月历按 4～6 周完整显示；手机端隐藏右侧日历并保留原有紧凑两席；短横屏显式恢复两列自然高度。
 
 首页生活小工具栏由 `tool-dock-controller.js` 负责七个入口的排序与偏好桥接，入口在 `index.html` 中引用 `public/assets/tool-icons/*.svg`。桌面端保留七个入口；手机端由同一控制器把时间纪念册、本周回顾、留言排在首屏前三项，每项按三等分卡片宽度完整显示，其余入口保留在同一横向触摸轨道中，可继续左右滑动查看。访客状态则回退到当前可用入口。手机端工具栏只允许该区域横向触摸滚动，使用 `overscroll-behavior-x: contain` 限制滚动边界，不改变页面本身的横向宽度。图标资源是自包含的 120×120 SVG，按钮仍以可见文案提供语义，图像作为装饰内容并保留固定尺寸，避免资源加载造成布局位移；构建时通过 Workbox 的 `svg` glob 一并预缓存，保证离线壳仍能显示入口图标。本周回顾由 `family-activity-controller.js` 与 `family-activity-view.js` 独立编排，但在移动工具栏中作为默认入口展示。周回顾与留言都在应用壳中复用时间纪念册的 dialog 外框、标题栏、关闭按钮、卡片边框、圆角、背景和间距契约，内容仍分别由周回顾/感谢留言 controller 与 view 生成。
 
@@ -134,7 +134,7 @@ flowchart LR
 - `diary-feed-controller.js`：加载、筛选、分页和列表编排。
 - `diary-domain.js`：搜索、分类和筛选纯逻辑。
 - `diary-media-domain.js`：媒体 URL 规范化。
-- `diary-gallery-view.js`：卡片、poster、错误恢复和徽标。
+- `diary-gallery-view.js`：卡片、poster、错误恢复和徽标；桌面操作模型由 `diary-action-domain.js` 提供，菜单事件由按需加载的 `diary-gallery-menu-controller.js` 负责。
 - `diary-feed-motion-domain.js`：视觉中心候选与时长策略。
 - `diary-feed-motion-coordinator.js`：单实例、静音的列表动态预览生命周期。
 - `photo-detail-controller.js` / `photo-viewer-controller.js`：详情与用户控制播放。
@@ -152,7 +152,7 @@ flowchart LR
 
 - `preferences-store.js`：主题、字号、布局和顶部分页等设备偏好。
 - `upload-queue.js`：IndexedDB 上传队列与失败重试。
-- `media-cache.js` / `offline-cache-controller.js`：日记和秘藏媒体缓存。
+- `media-cache.js` / `offline-cache-controller.js`：日记和秘藏媒体缓存；`renderCachedPhotoFeed()` 可在非 gallery 深链下先填充隐藏缓存画廊，避免断网应用壳丢失已缓存内容。
 - `offline-settings-controller.js` / `cache-management-view.js`：缓存容量、自动缓存策略、离线包和清理操作；设置摘要通过 runtime 桥接读取已装配的缓存控制器，避免显示未解析值。
 - `app-feedback-view.js`：全局即时反馈；原生 dialog 打开时将提示 host 跟随当前 dialog，并在关闭事件中清理，后续页面提示会自动恢复到 body。
 - `offline-records.js`：离线元数据记录。
@@ -188,7 +188,7 @@ pnpm preview
 - 生成 PWA manifest；
 - 通过 Workbox `injectManifest` 生成 `dist/sw.js`。
 
-今日心情的 controller、repository 与共享域模块固定合并为单个 `today-mood-*.js` 懒加载 chunk，并保留在核心 precache 以保证首页缓存态可直接显示；overlay 仍在首次打开时才加载，gallery 冷启动保持最多 28 个请求。`vite.config.js` 通过 `globIgnores` 排除路由和非核心功能 chunk，避免安装包膨胀；这些 chunk 由脚本/样式运行时缓存策略按需缓存。
+今日心情的 controller、repository 与共享域模块固定合并为单个 `today-mood-*.js` 懒加载 chunk，并保留在核心 precache 以保证首页缓存态可直接显示；overlay 仍在首次打开时才加载，桌面日记菜单和设置页管理员 R2 控制器也不进入主入口，分别在画廊/设置路由需要时加载。gallery 冷启动保持最多 28 个请求。`vite.config.js` 通过 `globIgnores` 排除路由和非核心功能 chunk，避免安装包膨胀；这些 chunk 由脚本/样式运行时缓存策略按需缓存。
 
 `pnpm-workspace.yaml` 明确允许 `esbuild` 与 `sharp` 的安装构建脚本，使锁定依赖安装后的 Vite 构建使用完整的本地二进制依赖。
 

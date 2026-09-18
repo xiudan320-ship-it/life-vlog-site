@@ -54,6 +54,12 @@ function renderSettingsGroups() {
 
     <section class="settings-group" id="settingsStorage" role="tabpanel" aria-labelledby="settings-tab-settingsStorage" hidden>
       <header class="settings-group-header"><h3>存储与数据</h3><p>缓存、备份、上传任务与诊断。</p></header>
+      <section class="settings-section-card settings-remote-storage" id="adminStorageMeter" aria-labelledby="adminStorageTitle" aria-live="polite" hidden>
+        <header class="settings-card-header"><div><h4 id="adminStorageTitle">云端 R2 存储</h4><p>管理员专属统计，仅在打开本页时读取。</p></div><span class="settings-admin-badge">管理员</span></header>
+        <div class="settings-remote-storage-stats" aria-label="云端存储统计"><div><span>已用空间</span><strong id="adminStorageUsed">—</strong></div><div><span>本月上传</span><strong id="adminStorageMonth">—</strong></div></div>
+        <p class="status-line" id="adminStorageStatus" role="status" aria-live="polite">管理员专属数据，仅在本设置页读取。</p>
+        <div class="settings-card-actions settings-remote-storage-actions"><a class="settings-inline-link" id="adminStorageConsoleLink" href="https://dash.cloudflare.com/" target="_blank" rel="noopener noreferrer">打开 Cloudflare 控制台</a><button type="button" id="adminStorageRetry">重试</button></div>
+      </section>
       <section class="settings-section-card" aria-labelledby="settingsCacheTitle">
         <header class="settings-card-header"><div><h4 id="settingsCacheTitle">本地缓存</h4><p>只影响这台设备，不会删除云端原图。</p></div></header>
         <button id="refreshCacheInfoButton" type="button" class="settings-row settings-row-nav"><span>缓存占用</span><strong><em id="settingsCacheValue">计算中</em><small>点击刷新缓存大小</small></strong><svg class="icon settings-row-chevron" aria-hidden="true"><use href="#i-chevron-right"></use></svg></button>

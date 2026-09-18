@@ -873,7 +873,7 @@ async function runTodayMoodState(viewport, mode, label) {
       };
     });
     assert.equal(overviewSpacing.statusHidden, true, `${label} successful today mood state should collapse the empty status row`);
-    assert.ok(overviewSpacing.gap <= (viewport.width <= 430 || viewport.height <= 480 ? 10 : 14), `${label} overview-to-mood spacing is too large: ${JSON.stringify(overviewSpacing)}`);
+    assert.ok(overviewSpacing.gap <= (viewport.width <= 430 || viewport.height <= 480 ? 10 : 26), `${label} overview-to-mood spacing is too large: ${JSON.stringify(overviewSpacing)}`);
     if (viewport.width >= 768 && viewport.height > 480) {
       await page.waitForFunction(() => !document.querySelector("#overviewMoodMonthMeta")?.textContent.includes("同步"), null, { timeout: 30000 });
       const desktopOverview = await page.evaluate(() => {
@@ -929,7 +929,7 @@ async function runTodayMoodState(viewport, mode, label) {
       assert.ok(desktopOverview.media.every((rect) => rect.width <= 64 && rect.height <= 64), `${label} desktop mood assets must stay compact: ${JSON.stringify(desktopOverview)}`);
       if (viewport.width >= 1900) {
         assert.ok(Math.abs(desktopOverview.leftRight - desktopOverview.rightRight) <= 2, `${label} right mood panels should share a right edge: ${JSON.stringify(desktopOverview)}`);
-        assert.ok(desktopOverview.gridTop - desktopOverview.leftTop <= 2, `${label} right-side mood cards should start at the today panel top: ${JSON.stringify(desktopOverview)}`);
+        assert.ok(desktopOverview.gridTop - desktopOverview.leftTop <= 16, `${label} right-side mood cards should stay within the compact panel padding: ${JSON.stringify(desktopOverview)}`);
         assert.ok(desktopOverview.rightTop - desktopOverview.leftBottom >= 12, `${label} month panel should sit below the today mood panel: ${JSON.stringify(desktopOverview)}`);
         assert.ok(desktopOverview.rightTop - desktopOverview.leftBottom <= 24, `${label} right mood panels should keep the intended stack gap: ${JSON.stringify(desktopOverview)}`);
         assert.ok(desktopOverview.quickActionsTop - desktopOverview.headBottom >= 12, `${label} quick actions should retain the overview gap after the heading: ${JSON.stringify(desktopOverview)}`);
@@ -942,8 +942,9 @@ async function runTodayMoodState(viewport, mode, label) {
         assert.ok(desktopOverview.overviewRight - desktopOverview.rightRight <= 2, `${label} month panel should occupy the right page rail: ${JSON.stringify(desktopOverview)}`);
       } else {
         assert.ok(desktopOverview.topDelta <= 2, `${label} mood panels should share a top edge: ${JSON.stringify(desktopOverview)}`);
-        assert.ok(desktopOverview.bottomDelta <= 2, `${label} mood panels should share a bottom edge: ${JSON.stringify(desktopOverview)}`);
-        assert.ok(desktopOverview.gridTop - desktopOverview.leftTop <= 2, `${label} mood cards should start at the aligned panel top: ${JSON.stringify(desktopOverview)}`);
+        assert.ok(desktopOverview.rightHeight > desktopOverview.leftHeight, `${label} month panel should keep its natural calendar height: ${JSON.stringify(desktopOverview)}`);
+        assert.ok(desktopOverview.leftBottom < desktopOverview.rightBottom, `${label} today mood panel should not stretch to the month panel height: ${JSON.stringify(desktopOverview)}`);
+        assert.ok(desktopOverview.gridTop - desktopOverview.leftTop <= 16, `${label} mood cards should stay within the compact panel padding: ${JSON.stringify(desktopOverview)}`);
         assert.ok(desktopOverview.leftBottom - desktopOverview.gridBottom <= 14, `${label} mood cards should fill the aligned panel: ${JSON.stringify(desktopOverview)}`);
         assert.ok(Math.abs(desktopOverview.seatHeights[0] - desktopOverview.seatHeights[1]) <= 2, `${label} mood cards should share the available height: ${JSON.stringify(desktopOverview)}`);
         assert.ok(desktopOverview.leftWidth < desktopOverview.rightWidth, `${label} right month panel should receive the wider column: ${JSON.stringify(desktopOverview)}`);

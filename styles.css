@@ -945,7 +945,7 @@ body.theme-dark .chip {
   position: relative;
   z-index: 1;
   width: min(100%, 500px);
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid rgba(16, 16, 20, 0.14);
   border-radius: 0;
   background: var(--surface);
@@ -1148,10 +1148,60 @@ body.theme-dark .photo-media {
 .card-actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
   justify-content: flex-end;
+  position: relative;
   padding: 0 18px 18px;
 }
+
+.photo-card:has(.photo-menu-panel:not([hidden])) { z-index: 20; }
+.photo-card-menu { position: relative; flex: 0 0 auto; }
+.photo-menu-trigger {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--ink);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 950;
+  padding: 0 14px;
+}
+.photo-menu-trigger:hover, .photo-menu-trigger[aria-expanded="true"] { border-color: var(--accent-strong); background: color-mix(in srgb, var(--accent) 11%, var(--surface)); }
+.photo-menu-trigger .ui-icon-inline { width: 16px; height: 16px; }
+.photo-menu-panel {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 8px);
+  right: 0;
+  display: grid;
+  min-width: 176px;
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 18px 40px rgb(16 16 20 / 20%);
+  padding: 6px;
+}
+.photo-menu-panel button {
+  min-height: 44px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 850;
+  text-align: left;
+  padding: 0 11px;
+}
+.photo-menu-panel button:hover, .photo-menu-panel button:focus-visible { border-color: color-mix(in srgb, var(--accent) 48%, var(--line)); background: color-mix(in srgb, var(--accent) 11%, var(--surface)); }
+.photo-menu-panel button.danger { color: var(--coral); }
+.photo-menu-panel button.danger:hover, .photo-menu-panel button.danger:focus-visible { border-color: color-mix(in srgb, var(--coral) 58%, var(--line)); background: color-mix(in srgb, var(--coral) 10%, var(--surface)); }
 
 .edit-photo,
 .delete-photo,
@@ -1235,6 +1285,10 @@ body.theme-dark .delete-photo {
   background: rgba(255, 79, 112, 0.12);
   color: #ff9caf;
 }
+
+body.theme-dark .photo-menu-trigger { border-color: rgba(255, 255, 255, 0.28); color: #f0f4ef; }
+body.theme-dark .photo-menu-trigger:hover, body.theme-dark .photo-menu-trigger[aria-expanded="true"] { border-color: var(--accent); background: rgba(85, 214, 181, 0.14); }
+body.theme-dark .photo-menu-panel { background: #161c18; box-shadow: 0 18px 40px rgb(0 0 0 / 46%); }
 
 body.theme-dark .edit-photo:focus-visible,
 body.theme-dark .delete-photo:focus-visible {
