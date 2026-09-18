@@ -4,11 +4,11 @@
     align-items: center;
   }
 
-  #galleryHead .composer {
+  #composer {
     align-self: center;
   }
 
-  #galleryHead .composer .section-heading-button {
+  #composer .section-heading-button {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -69,6 +69,14 @@
 /* Compact cookbook: stable covers, dense editing, and mobile two-column browsing. */
 .recipe-composer {
   overflow: hidden;
+}
+
+.recipe-form-status {
+  min-height: 18px;
+  margin: 0;
+  color: var(--accent-strong);
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .recipe-form {

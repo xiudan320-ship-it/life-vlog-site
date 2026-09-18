@@ -131,6 +131,7 @@ export function renderWishlist({
   dataState = "idle",
   getAuthorName,
   canManageItem,
+  onRetrySync,
 }) {
   if (!listElement) return null;
   const focusSnapshot = captureListFocus(listElement);
@@ -151,7 +152,13 @@ export function renderWishlist({
     return finishRender(view);
   }
   if (dataState === "error") {
-    listElement.innerHTML = '<div class="wishlist-empty"><strong>心愿同步失败，请稍后刷新重试。</strong></div>';
+    const retry = `<button class="wishlist-empty-add" type="button" data-retry-wishlist>重新同步</button>`;
+    if (wishes.length) {
+      listElement.innerHTML = `<div class="wishlist-sync-error" role="alert"><strong>同步失败，下面是上次保存的内容。</strong>${retry}</div>${renderWishCards(view.visibleWishes, { getAuthorName, canManageItem })}`;
+    } else {
+      listElement.innerHTML = `<div class="wishlist-empty" role="alert"><strong>心愿同步失败，请重试。</strong>${retry}</div>`;
+    }
+    listElement.querySelector("[data-retry-wishlist]")?.addEventListener("click", () => void onRetrySync?.());
     return finishRender(view);
   }
   if (!wishes.length) {

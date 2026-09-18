@@ -306,11 +306,12 @@ export function createFeatureControllerAssembly({
     getUploadFileNameBase,
     formatFileSize,
     escapeHtml,
-    setStatus: core.setStatus,
+    setGlobalStatus: core.setStatus,
     awardExperience,
     loadPhotos,
     switchPage,
     renderUploadCenter: renderUploadCenterIfLoaded,
+    confirmAction,
   });
   const {
     getQueuedUploads: getQueuedDiaryUploads,

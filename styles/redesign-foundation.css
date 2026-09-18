@@ -588,7 +588,7 @@ body.level-guide-open { overflow: hidden; }
     justify-self: start;
   }
 
-  #galleryHead .composer {
+  #composer {
     grid-column: 2;
     grid-row: 1;
     justify-self: end;
@@ -597,7 +597,7 @@ body.level-guide-open { overflow: hidden; }
     margin: 0 !important;
   }
 
-  #galleryHead .composer.expanded {
+  #composer.expanded {
     grid-column: 1 / -1;
     grid-row: 2;
     width: 100%;
@@ -607,7 +607,7 @@ body.level-guide-open { overflow: hidden; }
     grid-column: 1 / -1;
   }
 
-  #galleryHead .composer .section-heading-button {
+  #composer .section-heading-button {
     min-width: 92px;
     min-height: 36px;
     justify-content: center;
@@ -4487,7 +4487,7 @@ body.theme-dark .photo-media {
 }
 
 .feed-media-shell,
-.feed-media-collage-item {
+.feed-media-rail-item {
   position: relative;
   width: 100%;
   height: 100%;

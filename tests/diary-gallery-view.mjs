@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { renderFeedImage, renderPhotoMedia } from "../modules/diary-gallery-view.js";
+import { getDiaryGalleryEmptyState, renderFeedImage, renderPhotoMedia } from "../modules/diary-gallery-view.js";
 
 test("diary feed renders ordinary video cards as poster plus deferred motion source", () => {
   const markup =
@@ -63,15 +63,31 @@ test("static images do not opt into the motion coordinator", () => {
   assert.doesNotMatch(markup, /data-motion-src/);
 });
 
-test("every motion item keeps its own media badge in a collage", () => {
+test("multiple diary images use a two-preview horizontal rail with an explicit end action", () => {
   const markup = renderPhotoMedia(
     [
       { image_url: "/media/photo.jpg" },
       { type: "video", image_url: "/media/diary.jpg", video_url: "/media/diary.mp4" },
+      { image_url: "/media/third.jpg" },
     ],
     "混合日记",
     0,
     { mobile: true },
   );
+  assert.match(markup, /photo-media rail/);
+  assert.match(markup, /photo-media-track/);
+  assert.equal((markup.match(/feed-media-rail-item/g) || []).length, 3);
+  assert.match(markup, /data-open-all-media/);
   assert.match(markup, /aria-label="Video">VIDEO/);
+});
+
+test("diary empty states prioritize the source and expose recovery actions", () => {
+  assert.deepEqual(
+    getDiaryGalleryEmptyState({ sourceStatus: "error", search: "猫", signedIn: true }),
+    { message: "日记读取失败，请重试。", loading: false, action: "retry", actionLabel: "重新加载" },
+  );
+  assert.deepEqual(
+    getDiaryGalleryEmptyState({ sourceStatus: "ready", search: "不存在", signedIn: true }),
+    { message: "没有找到匹配的日记。", loading: false, action: "clear-search", actionLabel: "清空搜索" },
+  );
 });

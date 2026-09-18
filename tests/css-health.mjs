@@ -19,6 +19,7 @@ const styleFiles = [
   "wishlist.css",
   "shopping.css",
   "media-upload.css",
+  "diary-phase-two.css",
   "mood-diary.css",
 ];
 

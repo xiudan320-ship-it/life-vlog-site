@@ -1,0 +1,225 @@
+/* Lazy-loaded gallery refinements: the shell does not need these rules until
+   the diary view is mounted. */
+#composer #uploadForm,
+#composer .composer-copy-fields,
+#composer .composer-options {
+  display: grid;
+  gap: 12px;
+}
+
+#composer .composer-copy-fields label,
+#composer .composer-options label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+#composer .composer-copy-fields :is(input,textarea),
+#composer .composer-options :is(input,select) {
+  min-height: 44px;
+  font-size: 16px;
+  padding: 10px 12px;
+}
+
+#composer .composer-options {
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+#composer .composer-options-summary {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+#composer :is(.composer-options-disclosure,.composer-secondary-disclosure) {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--surface) 92%, var(--accent) 8%);
+}
+
+#composer :is(.composer-options-disclosure,.composer-secondary-disclosure) > summary {
+  display: block;
+  min-height: 44px;
+  padding: 0 12px;
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 44px;
+  list-style: none;
+}
+
+#composer :is(.composer-options-disclosure,.composer-secondary-disclosure) > summary::-webkit-details-marker {
+  display: none;
+}
+
+#composer :is(.composer-options-disclosure,.composer-secondary-disclosure) > summary::after {
+  float: right;
+  color: var(--accent-strong);
+  content: "+";
+  font-size: 18px;
+}
+
+#composer :is(.composer-options-disclosure,.composer-secondary-disclosure)[open] > summary::after {
+  content: "−";
+}
+
+#composer .composer-options-disclosure > .form-grid,
+#composer .composer-secondary-disclosure > .image-link-adder {
+  padding: 0 12px 12px;
+}
+
+#composer .composer-draft-status {
+  min-height: 18px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+#composer .composer-state {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 22px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+#composer #uploadFormStatus {
+  color: var(--accent-strong);
+  font-weight: 850;
+}
+
+#composer #uploadCenterLink {
+  min-height: 40px;
+  flex: none;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--accent-strong);
+  font: inherit;
+  font-weight: 900;
+}
+
+#composer .composer-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+#composer .composer-actions .ghost-button {
+  min-height: 44px;
+}
+
+.photo-media.rail {
+  display: block;
+  height: clamp(164px, 24vw, 260px);
+  overflow: hidden;
+}
+
+.photo-media-track {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.photo-media-track::-webkit-scrollbar {
+  display: none;
+}
+
+.feed-media-rail-item,
+.feed-media-more {
+  flex: 0 0 calc((100% - 8px) / 2);
+  min-width: 0;
+  height: 100%;
+  scroll-snap-align: start;
+}
+
+.feed-media-more {
+  display: grid;
+  place-content: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  text-align: center;
+}
+
+.feed-media-more span {
+  color: var(--accent-strong);
+  font-size: 25px;
+  font-weight: 950;
+}
+
+.feed-media-more small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.photo-media.rail :is(img,video) {
+  height: 100%;
+  max-height: none;
+  object-fit: cover;
+}
+
+.empty > p {
+  margin: 0;
+}
+
+.empty-action {
+  min-height: 44px;
+  margin-top: 16px;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--accent-strong);
+  font: inherit;
+  font-weight: 900;
+}
+
+@media (max-width: 700px) {
+  #composer .composer-actions {
+    grid-template-columns: minmax(0, 1fr) minmax(92px, auto);
+  }
+
+  #composer .composer-state {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  #composer #uploadCenterLink {
+    width: 100%;
+  }
+}
+
+@media (max-width: 430px) {
+  #composer {
+    padding: 12px;
+  }
+
+  #composer #uploadForm {
+    gap: 9px;
+  }
+
+  #composer .file-drop {
+    min-height: 152px;
+    padding: 12px;
+  }
+}

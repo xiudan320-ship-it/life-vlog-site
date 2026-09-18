@@ -26,11 +26,12 @@ export function createDiaryComposerController({
   getUploadFileNameBase,
   formatFileSize,
   escapeHtml,
-  setStatus,
+  setGlobalStatus,
   awardExperience,
   loadPhotos,
   switchPage,
   renderUploadCenter,
+  confirmAction,
 }) {
   const els = elements;
   let previewUrls = [];
@@ -39,12 +40,44 @@ export function createDiaryComposerController({
   let activePreviewIndex = 0;
   let uploadInFlight = false;
   let queueProcessing = false;
+  let restoredDraftUserId = "";
+
+  function setStatus(message = "", { queued = false } = {}) {
+    setGlobalStatus(message);
+    if (els.uploadStatus) els.uploadStatus.textContent = message;
+    if (els.uploadFormStatus) els.uploadFormStatus.textContent = message;
+    if (els.uploadCenterLink) els.uploadCenterLink.hidden = !queued;
+  }
+
+  function setDraftStatus(message = "") {
+    if (els.draftStatus) els.draftStatus.textContent = message;
+  }
+
+  function syncDraftFromInput() {
+    saveDraft();
+    updateComposerSummary();
+  }
+
+  function getDefaultDate() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function updateComposerSummary() {
+    if (!els.composerOptionsSummary) return;
+    const date = els.dateInput?.value || getDefaultDate();
+    const category = els.categoryInput?.value || "日常";
+    const privacy = els.publicInput?.value === "false" ? "仅自己可见" : "公开展示";
+    els.composerOptionsSummary.textContent = `${date} · ${category} · ${privacy}`;
+  }
 
   function setExpanded(expanded) {
     els.composer.classList.toggle("expanded", expanded);
     els.uploadForm.hidden = !expanded;
     els.uploadToggle.setAttribute("aria-expanded", String(expanded));
-    if (expanded) restoreDraft();
+    if (expanded) {
+      restoreDraft();
+      updateComposerSummary();
+    }
   }
 
   function getDraftStorageKey(userId = getSession()?.user?.id || "guest") {
@@ -62,20 +95,37 @@ export function createDiaryComposerController({
     };
   }
 
-  function saveDraft() {
-    if (!getSession() || !els.uploadForm || els.uploadForm.hidden) return;
-    const draft = getDraftPayload();
+  function hasDraftContent(draft = getDraftPayload()) {
     const hasText = [draft.title, draft.note].some((value) => String(value || "").trim());
     const hasNonDefault =
       draft.category !== "日常" ||
       draft.isPublic !== "true" ||
-      draft.takenAt !== new Date().toISOString().slice(0, 10);
-    if (!hasText && !hasNonDefault) return;
-    localStorage.setItem(getDraftStorageKey(), JSON.stringify(draft));
+      draft.takenAt !== getDefaultDate();
+    return hasText || hasNonDefault || selectedFiles.length > 0 || selectedLinks.length > 0;
+  }
+
+  function saveDraft() {
+    if (!getSession() || !els.uploadForm || els.uploadForm.hidden) return;
+    const draft = getDraftPayload();
+    if (!hasDraftContent(draft)) {
+      clearDraft();
+      setDraftStatus("");
+      updateComposerSummary();
+      return;
+    }
+    try {
+      localStorage.setItem(getDraftStorageKey(), JSON.stringify(draft));
+      setDraftStatus("文字已暂存本机；刷新后需重新选择本地图片。");
+    } catch {
+      setDraftStatus("文字未暂存本机，当前输入仍保留。");
+    }
+    updateComposerSummary();
   }
 
   function restoreDraft() {
-    if (!getSession()) return;
+    const userId = getSession()?.user?.id || "";
+    if (!userId || restoredDraftUserId === userId || hasDraftContent()) return;
+    restoredDraftUserId = userId;
     try {
       const raw = localStorage.getItem(getDraftStorageKey());
       if (!raw) return;
@@ -83,16 +133,56 @@ export function createDiaryComposerController({
       els.titleInput.value = draft.title || "";
       els.noteInput.value = draft.note || "";
       els.categoryInput.value = draft.category || "日常";
-      els.dateInput.value = draft.takenAt || els.dateInput.value || new Date().toISOString().slice(0, 10);
+      els.dateInput.value = draft.takenAt || els.dateInput.value || getDefaultDate();
       els.publicInput.value = draft.isPublic || "true";
       setStatus("已恢复上次未发布的日记草稿。");
+      setDraftStatus("已恢复文字草稿；本地图片需要重新选择。");
+      updateComposerSummary();
     } catch {
-      localStorage.removeItem(getDraftStorageKey());
+      clearDraft();
+      setDraftStatus("草稿读取失败，当前输入仍可继续编辑。");
     }
   }
 
   function clearDraft() {
-    localStorage.removeItem(getDraftStorageKey());
+    try {
+      localStorage.removeItem(getDraftStorageKey());
+    } catch {
+      setDraftStatus("草稿未能从本机清除。");
+    }
+  }
+
+  async function enqueuePayload(payload, message) {
+    await queue.enqueue(payload);
+    clearDraft();
+    clearPreview();
+    setDraftStatus("已清除本机草稿；媒体已交给上传队列。");
+    setStatus(message, { queued: true });
+  }
+
+  async function clearComposerDraft() {
+    if (hasDraftContent()) {
+      const confirmed = confirmAction
+        ? await confirmAction({
+            eyebrow: "清空草稿",
+            title: "清空这篇日记草稿？",
+            message: "标题、文字和已选媒体都会被移除。",
+            confirmLabel: "清空草稿",
+            cancelLabel: "继续编辑",
+            danger: true,
+          })
+        : true;
+      if (!confirmed) return false;
+    }
+    els.uploadForm.reset();
+    els.dateInput.value = getDefaultDate();
+    clearPreview();
+    clearDraft();
+    if (els.uploadOptionsDisclosure) els.uploadOptionsDisclosure.open = false;
+    setDraftStatus("草稿已清空。");
+    setStatus("");
+    updateComposerSummary();
+    return true;
   }
 
   async function publish(payload, { queued = false } = {}) {
@@ -195,9 +285,12 @@ export function createDiaryComposerController({
 
     if (!queued) {
       els.uploadForm.reset();
-      els.dateInput.valueAsDate = new Date();
+      els.dateInput.value = getDefaultDate();
       clearDraft();
       clearPreview();
+      setDraftStatus("已发布，文字草稿已清除。");
+      if (els.uploadOptionsDisclosure) els.uploadOptionsDisclosure.open = false;
+      updateComposerSummary();
       setExpanded(false);
     }
     const localImages = images.filter((image) => Number.isFinite(image.original_size));
@@ -223,9 +316,11 @@ export function createDiaryComposerController({
     const submitButton = els.uploadForm?.querySelector('button[type="submit"]');
     if (submitButton) {
       submitButton.disabled = Boolean(isSubmitting);
-      submitButton.textContent = isSubmitting ? "上传中..." : "上传并发布";
+      submitButton.textContent = isSubmitting ? "上传中…" : "上传并发布";
     }
     els.uploadToggle.disabled = Boolean(isSubmitting);
+    if (els.clearDiaryDraft) els.clearDiaryDraft.disabled = Boolean(isSubmitting);
+    els.uploadForm?.setAttribute("aria-busy", String(Boolean(isSubmitting)));
   }
 
   async function submit(event) {
@@ -279,19 +374,13 @@ export function createDiaryComposerController({
         pairing,
       });
       if (!navigator.onLine) {
-        await queue.enqueue(payload);
-        clearDraft();
-        clearPreview();
-        setStatus("网络不稳定，已加入上传队列。恢复网络后会自动上传。");
+        await enqueuePayload(payload, "网络不稳定，已加入上传队列。恢复网络后会自动上传。");
         return;
       }
       await publish(payload);
     } catch (error) {
       if (payload && isNetworkLikeError(error)) {
-        await queue.enqueue(payload);
-        clearDraft();
-        clearPreview();
-        setStatus("上传中断，已加入上传队列。恢复网络后会自动上传。");
+        await enqueuePayload(payload, "上传中断，已加入上传队列。恢复网络后会自动上传。");
         return;
       }
       setStatus(error.message || "上传失败。");
@@ -512,8 +601,15 @@ export function createDiaryComposerController({
   function bind() {
     els.uploadToggle.addEventListener("click", () => setExpanded(els.uploadForm.hidden));
     els.uploadForm.addEventListener("submit", submit);
-    els.uploadForm.addEventListener("input", saveDraft);
-    els.uploadForm.addEventListener("change", saveDraft);
+    els.uploadForm.addEventListener("input", syncDraftFromInput);
+    els.uploadForm.addEventListener("change", syncDraftFromInput);
+    els.clearDiaryDraft?.addEventListener("click", () => { void clearComposerDraft(); });
+    els.uploadCenterLink?.addEventListener("click", () => {
+      void switchPage("settings", { restoreScroll: false, focusHeading: false }).then((opened) => {
+        if (!opened) return;
+        document.getElementById("settingsUploads")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
     els.photoDrop.addEventListener("paste", handlePaste);
     els.photoLinkAdd?.addEventListener("click", () => addImageLinks());
     els.photoLinkInput?.addEventListener("keydown", (event) => {
@@ -550,6 +646,9 @@ export function createDiaryComposerController({
     isNetworkLikeError,
     processQueue,
     removeQueuedUpload: (id) => queue.remove(id),
+    clearDraft: clearComposerDraft,
+    saveDraft,
+    restoreDraft,
     setExpanded,
   };
 }

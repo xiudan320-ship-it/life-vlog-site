@@ -1882,7 +1882,7 @@ body.mobile-dialog-open {
     min-width: 0;
   }
 
-  #galleryHead .composer {
+  #composer {
     order: 2;
     flex: 0 0 auto;
     margin: 0 0 0 auto;
@@ -1892,16 +1892,16 @@ body.mobile-dialog-open {
     padding: 0;
   }
 
-  #galleryHead .composer.expanded {
+  #composer.expanded {
     flex-basis: 100%;
     margin-top: 8px;
   }
 
-  #galleryHead .composer .section-title {
+  #composer .section-title {
     display: block;
   }
 
-  #galleryHead .composer .section-heading-button {
+  #composer .section-heading-button {
     min-height: 34px;
     border: 1px solid color-mix(in srgb, var(--accent) 52%, var(--line));
     border-radius: 999px;
@@ -1910,26 +1910,26 @@ body.mobile-dialog-open {
     padding: 0 12px;
   }
 
-  #galleryHead .composer .section-heading-button .kicker {
+  #composer .section-heading-button .kicker {
     display: none;
   }
 
-  #galleryHead .composer .section-heading-button h2 {
+  #composer .section-heading-button h2 {
     font-size: 13px;
     line-height: 1;
   }
 
-  #galleryHead .composer .section-heading-button h2::after {
+  #composer .section-heading-button h2::after {
     display: none;
   }
 
-  #galleryHead .composer .section-heading-button h2::before {
+  #composer .section-heading-button h2::before {
     content: "+";
     margin-right: 4px;
     font-weight: 950;
   }
 
-  #galleryHead .composer #uploadStatus {
+  #composer #uploadStatus {
     display: block;
     margin-top: 4px;
     max-width: 100%;
@@ -1941,7 +1941,7 @@ body.mobile-dialog-open {
     overflow-wrap: anywhere;
   }
 
-  #galleryHead .composer.expanded #uploadForm {
+  #composer.expanded #uploadForm {
     display: grid;
     margin-top: 10px;
     border: 1px solid var(--line);

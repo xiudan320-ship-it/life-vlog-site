@@ -34,6 +34,7 @@ export function createWishlistController({
   createTrashItem,
   rollbackTrashItem,
   showToast,
+  synchronizeAccountData,
 }) {
   let editingId = null;
   let existingImage = "";
@@ -310,8 +311,24 @@ export function createWishlistController({
       dataState: getDataState(),
       getAuthorName,
       canManageItem,
+      onRetrySync: retrySync,
     });
     if (updatedId) pulseListItem(elements.wishlistList, "data-wish-id", updatedId);
+  }
+
+  let syncRetryInFlight = false;
+  async function retrySync() {
+    if (syncRetryInFlight) return;
+    syncRetryInFlight = true;
+    setStatus("正在重新同步心愿…");
+    try {
+      await synchronizeAccountData?.();
+    } catch (error) {
+      setStatus(`心愿同步失败：${error.message || "请稍后重试"}`);
+    } finally {
+      syncRetryInFlight = false;
+      render();
+    }
   }
 
   function edit(id) {

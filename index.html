@@ -390,7 +390,7 @@
           <span id="uploadStatus" role="status" aria-live="polite"></span>
         </div>
 
-        <form id="uploadForm" hidden>
+        <form id="uploadForm" hidden aria-busy="false">
           <div class="file-drop" id="photoDrop" tabindex="0">
             <input class="native-file-input" id="photoInput" type="file" accept="image/*,video/*,.mov,.heic,.heif" multiple />
             <div class="upload-main-preview" id="uploadMainPreview" hidden>
@@ -404,48 +404,68 @@
             <label class="upload-native-trigger upload-pick-button" for="photoMotionInput">添加视频</label>
             <strong id="fileName"></strong>
           </div>
-          <div class="image-link-adder">
-            <input id="photoLinkInput" type="url" inputmode="url" placeholder="粘贴图片链接" aria-label="日记图片链接" />
-            <button id="photoLinkAdd" type="button">添加</button>
-          </div>
+          <details class="composer-secondary-disclosure">
+            <summary>添加图片链接</summary>
+            <div class="image-link-adder">
+              <input id="photoLinkInput" type="url" inputmode="url" placeholder="粘贴图片链接" aria-label="日记图片链接" />
+              <button id="photoLinkAdd" type="button">添加</button>
+            </div>
+          </details>
 
-          <div class="form-grid">
+          <div class="composer-copy-fields">
             <label>
               标题
               <input id="titleInput" maxlength="80" />
             </label>
             <label>
-              日期
-              <input id="dateInput" type="date" required />
+              文字记录
+              <textarea id="noteInput" rows="4"></textarea>
             </label>
-            <label>
-              分类
-              <select id="categoryInput">
-                <option>日常</option>
-                <option>旅行</option>
-                <option>食物</option>
-                <option>宠物</option>
-                <option>卢浮宫</option>
-                <option>城市</option>
-                <option>家</option>
-                <option value="VLOG" hidden>VLOG</option>
-              </select>
-            </label>
-            <label>
-              是否公开
-              <select id="publicInput">
-                <option value="true">公开展示</option>
-                <option value="false">只保存在库里</option>
-              </select>
-            </label>
+            <small class="composer-draft-status" id="draftStatus" role="status" aria-live="polite"></small>
           </div>
 
-          <label>
-            文字记录
-            <textarea id="noteInput" rows="4"></textarea>
-          </label>
+          <section class="composer-options" aria-labelledby="uploadOptionsSummary">
+            <p class="composer-options-summary" id="uploadOptionsSummary">今天 · 日常 · 公开展示</p>
+            <details id="uploadOptionsDisclosure" class="composer-options-disclosure">
+              <summary>发布选项</summary>
+              <div class="form-grid">
+                <label>
+                  日期
+                  <input id="dateInput" type="date" required />
+                </label>
+                <label>
+                  分类
+                  <select id="categoryInput">
+                    <option>日常</option>
+                    <option>旅行</option>
+                    <option>食物</option>
+                    <option>宠物</option>
+                    <option>卢浮宫</option>
+                    <option>城市</option>
+                    <option>家</option>
+                    <option value="VLOG" hidden>VLOG</option>
+                  </select>
+                </label>
+                <label>
+                  是否公开
+                  <select id="publicInput">
+                    <option value="true">公开展示</option>
+                    <option value="false">只保存在库里</option>
+                  </select>
+                </label>
+              </div>
+            </details>
+          </section>
 
-          <button class="primary" type="submit">上传并发布</button>
+          <div class="composer-state" aria-live="polite">
+            <span id="uploadFormStatus" role="status"></span>
+            <button id="uploadCenterLink" type="button" hidden>查看上传任务中心</button>
+          </div>
+
+          <div class="composer-actions">
+            <button class="primary" type="submit">上传并发布</button>
+            <button class="ghost-button" id="clearDiaryDraft" type="button">清空草稿</button>
+          </div>
         </form>
       </section>
 

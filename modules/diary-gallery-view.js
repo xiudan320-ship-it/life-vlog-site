@@ -9,6 +9,8 @@ import { captureListFocus, pulseListItem, restoreListFocus } from "./list-render
 import { renderListIcon } from "./list-icons.js";
 import { getDesktopDiaryActionModel } from "./diary-action-domain.js";
 
+void import("../styles/diary-phase-two.css").catch(() => undefined);
+
 const LAZY_IMAGE_PLACEHOLDER = "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=";
 const lazyObservers = new WeakMap();
 const motionCoordinators = new WeakMap();
@@ -21,17 +23,36 @@ export function getDiaryGalleryEmptyState({
   filter = "all",
   signedIn = false,
   favoriteStatus = "idle",
+  sourceStatus = "ready",
+  hasCachedData = false,
 } = {}) {
-  if (search) return { message: "没有找到匹配的日记。换个日期或关键词试试看。", loading: false };
+  if (sourceStatus === "loading" && !hasCachedData) {
+    return { message: "正在加载日记…", loading: true, action: "" };
+  }
+  if (sourceStatus === "error" && !hasCachedData) {
+    return { message: "日记读取失败，请重试。", loading: false, action: "retry", actionLabel: "重新加载" };
+  }
+  if (sourceStatus === "cached" && !hasCachedData) {
+    return { message: "暂时没有可用的本机缓存，请联网后重试。", loading: false, action: "retry", actionLabel: "重新加载" };
+  }
   if (filter === "featured7") return { message: "最近七天还没有精选日记。", loading: false };
   if (filter === "favorites") {
     if (!signedIn) return { message: "登录后可以收藏喜欢的日记。", loading: false };
     if (favoriteStatus === "loading") return { message: "正在同步收藏…", loading: true };
-    if (favoriteStatus === "error") return { message: "收藏同步失败，请稍后刷新重试。", loading: false };
+    if (favoriteStatus === "error") return { message: "收藏同步失败，请重试。", loading: false, action: "retry", actionLabel: "重新同步" };
     return { message: "还没有收藏日记。", loading: false };
   }
+  if (search) return { message: "没有找到匹配的日记。", loading: false, action: "clear-search", actionLabel: "清空搜索" };
   if (filter === "VLOG") return { message: "还没有 VLOG，点击顶部 VLOG 发布第一条视频。", loading: false };
-  return { message: "还没有这个分类的日记。", loading: false };
+  if (filter !== "全部" && filter !== "all") {
+    return { message: "还没有这个分类的日记。", loading: false, action: "reset-filter", actionLabel: "查看全部日记" };
+  }
+  return {
+    message: signedIn ? "还没有日记，发布第一篇吧。" : "还没有可显示的日记。",
+    loading: false,
+    action: signedIn ? "open-composer" : "",
+    actionLabel: signedIn ? "发布第一篇" : "",
+  };
 }
 
 export function getPhotoAspectRatio(image) {
@@ -99,14 +120,19 @@ export function renderPhotoMedia(images, title, photoIndex, { mobile = false } =
 
   const previewImages = images.slice(0, 9);
   return `
-      <div class="photo-media collage count-${previewImages.length}">
+      <div class="photo-media rail count-${previewImages.length}" aria-label="${escapeHtml(`${images.length} 张日记图片`)}">
+        <div class="photo-media-track" tabindex="0">
       ${previewImages.map((image, index) => `
-        <div class="feed-media-collage-item">
+        <div class="feed-media-rail-item">
           ${renderMediaShell(image, `${altText} ${index + 1}`, photoIndex, index, { mobile })}
           ${isDiaryMotionMedia(image) ? '<i class="multi-motion-dot" aria-label="动态媒体"></i>' : ""}
         </div>
       `).join("")}
-      <span class="media-count">${images.length} 张</span>
+          <button class="feed-media-more" type="button" data-open-all-media data-photo-index="${photoIndex}" aria-label="查看全部 ${images.length} 张图片">
+            <span>${images.length > previewImages.length ? `+${images.length - previewImages.length}` : "全部"}</span>
+            <small>查看全部 ${images.length} 张</small>
+          </button>
+        </div>
     </div>
   `;
 }
@@ -312,13 +338,33 @@ function buildPhotoCard(photo, index, options) {
 }
 
 function bindGalleryActions(container, photos, handlers) {
+  let pointerStart = null;
+  container.onpointerdown = (event) => {
+    const target = event.target.closest("[data-photo-index][data-image-index]");
+    if (!target || !container.contains(target)) return;
+    pointerStart = { x: event.clientX, y: event.clientY, pointerId: event.pointerId };
+  };
+  container.onpointerup = (event) => {
+    if (!pointerStart || pointerStart.pointerId !== event.pointerId) return;
+    const distance = Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y);
+    if (distance > 10) container.dataset.suppressMediaClickUntil = String(Date.now() + 450);
+    pointerStart = null;
+  };
+  container.onpointercancel = () => { pointerStart = null; };
   container.onclick = (event) => {
     const button = event.target.closest("button");
     if (!button || !container.contains(button)) return;
     const getPhoto = (key) => photos[Number(button.dataset[key])];
     if (button.matches("[data-media-retry]")) {
       handlers.retry?.(Number(button.dataset.photoIndex), Number(button.dataset.imageIndex));
+    } else if (button.matches("[data-open-all-media]")) {
+      stopMotionFeedVideos(container);
+      handlers.open(getPhoto("photoIndex"), 0);
     } else if (button.matches("[data-photo-index][data-image-index]")) {
+      if (Number(container.dataset.suppressMediaClickUntil || 0) > Date.now()) {
+        event.preventDefault();
+        return;
+      }
       stopMotionFeedVideos(container);
       handlers.open(getPhoto("photoIndex"), Number(button.dataset.imageIndex));
     } else if (button.dataset.deleteIndex != null) {

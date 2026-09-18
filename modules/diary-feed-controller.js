@@ -69,6 +69,7 @@ export function createDiaryFeedController({
 
   async function loadPhotosInternal() {
     if (!state.cloudDb) {
+      state.photoFeedStatus = "ready";
       state.photos = demoPhotos;
       renderGallery();
       return;
@@ -81,14 +82,17 @@ export function createDiaryFeedController({
     if (error) {
       if (!navigator.onLine || /failed to fetch|network/i.test(error.message || "")) {
         renderCachedPhotoFeed(state.session?.user?.id || "public");
+        state.photoFeedStatus = "cached";
         setGlobalStatus("当前离线，正在显示本机缓存。");
       } else {
+        state.photoFeedStatus = "error";
         setGlobalStatus(`读取日记失败：${error.message}`);
         if (!state.photos.length) state.photos = [];
       }
       state.photoFlagsCloudAvailable = false;
       if (state.session) photoFavorites.markError();
     } else {
+      state.photoFeedStatus = "ready";
       setGlobalStatus("");
       state.photos = data || [];
       state.pendingNewPhotos = [];
@@ -119,6 +123,7 @@ export function createDiaryFeedController({
   
   async function loadPhotos() {
     if (state.photosLoadPromise) return state.photosLoadPromise;
+    state.photoFeedStatus = "loading";
     els.gallery?.setAttribute("aria-busy", "true");
     state.photosLoadPromise = loadPhotosInternal().finally(() => {
       state.photosLoadPromise = null;
@@ -528,8 +533,33 @@ export function createDiaryFeedController({
         filter: state.activeFilter,
         signedIn: Boolean(state.session),
         favoriteStatus: photoFavorites.status,
+        sourceStatus: state.photoFeedStatus,
+        hasCachedData: Boolean(state.photos.length || state.showingCachedFeed),
       });
-      els.gallery.innerHTML = `<div class="empty"${empty.loading ? " data-favorite-sync-loading role=\"status\"" : ""}>${empty.message}</div>`;
+      const action = empty.action
+        ? `<button class="empty-action" type="button" data-diary-empty-action="${escapeHtml(empty.action)}">${escapeHtml(empty.actionLabel || "继续")}</button>`
+        : "";
+      els.gallery.innerHTML = `<div class="empty"${empty.loading ? " data-favorite-sync-loading role=\"status\"" : ""}><p>${escapeHtml(empty.message)}</p>${action}</div>`;
+      const emptyAction = els.gallery.querySelector("[data-diary-empty-action]");
+      emptyAction?.addEventListener("click", () => {
+        const actionName = emptyAction.dataset.diaryEmptyAction;
+        if (actionName === "retry") void loadPhotos();
+        if (actionName === "clear-search") {
+          state.diarySearchQuery = "";
+          updateDiarySearchUi();
+          renderGallery();
+          els.diarySearchInput?.focus();
+        }
+        if (actionName === "reset-filter") {
+          state.activeFilter = "全部";
+          updateFilterChips();
+          renderGallery();
+        }
+        if (actionName === "open-composer") {
+          els.uploadToggle?.click();
+          els.composer?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      });
       updateFeedLoader(0);
       return;
     }

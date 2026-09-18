@@ -781,7 +781,7 @@ assert.match(
     0,
     { mobile: false }
   ),
-  /media-count[\s\S]*2 张/
+  /photo-media-track[\s\S]*查看全部 2 张/
 );
 assert.match(
   diaryGalleryView.renderPhotoMedia(

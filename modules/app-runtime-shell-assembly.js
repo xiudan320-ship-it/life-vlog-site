@@ -187,6 +187,7 @@ export function createShellControllerAssembly({
       "feedObserver",
       "feedLoading",
       "cloudSyncAvailable",
+      "photoFeedStatus",
     ]),
     constants: {
       todayPostsSeenKey: config.todayPostsSeenKey,

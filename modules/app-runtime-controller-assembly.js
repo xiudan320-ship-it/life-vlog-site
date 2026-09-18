@@ -328,6 +328,7 @@ let activeShoppingFilter = "open";
 let visiblePhotoCount = PAGE_SIZE;
 let filteredPhotoCount = 0;
 let showingCachedFeed = false;
+let photoFeedStatus = "idle";
 let feedObserver = null;
 let feedLoading = false;
 let galleryMasonryObserver = null;
@@ -491,6 +492,7 @@ const runtimeState = createRuntimeStateAccessors({
   pendingNewPhotos: { get: () => pendingNewPhotos, set: (value) => { pendingNewPhotos = value; } },
   dismissedFeedRefreshIds: { get: () => dismissedFeedRefreshIds, set: (value) => { dismissedFeedRefreshIds = value; } },
   showingCachedFeed: { get: () => showingCachedFeed, set: (value) => { showingCachedFeed = value; } },
+  photoFeedStatus: { get: () => photoFeedStatus, set: (value) => { photoFeedStatus = value; } },
   visiblePhotoCount: { get: () => visiblePhotoCount, set: (value) => { visiblePhotoCount = value; } },
   filteredPhotoCount: { get: () => filteredPhotoCount, set: (value) => { filteredPhotoCount = value; } },
   activeUploadTasks: { get: () => activeUploadTasks },

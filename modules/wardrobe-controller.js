@@ -4,9 +4,9 @@ import {
   normalizeImage,
   normalizeItem,
   resultData,
+  statusName,
   uid,
 } from "./wardrobe-domain.js";
-import { renderListIcon } from "./list-icons.js";
 import {
   createWardrobeDialogs,
   renderWardrobeDetail,
@@ -38,6 +38,7 @@ export function createWardrobeController({
   let wearLogs = [];
   let loaded = false;
   let loading = false;
+  let loadState = "idle";
   let activeItem = null;
   let editorImages = [];
   let pendingFiles = [];
@@ -79,6 +80,7 @@ export function createWardrobeController({
       if (!cached) return false;
       items = (cached.items || []).map(normalizeItem);
       locations = cached.locations || [];
+      loadState = "cached";
       render();
       return true;
     } catch {
@@ -90,6 +92,7 @@ export function createWardrobeController({
     if (!getSession?.()) {
       items = [];
       locations = [];
+      loadState = "signed-out";
       render();
       setStatus("登录后使用家庭衣柜。");
       return;
@@ -97,7 +100,9 @@ export function createWardrobeController({
     if (loading || (loaded && !force)) return;
     if (!loaded) readCache();
     loading = true;
+    loadState = "loading";
     setStatus(items.length ? "正在同步衣柜…" : "正在打开衣柜…");
+    render();
     try {
       const [itemResult, locationResult, logResult] = await Promise.all([
         repository.listItems(),
@@ -108,11 +113,14 @@ export function createWardrobeController({
       locations = resultData(locationResult, []) || [];
       wearLogs = resultData(logResult, []) || [];
       loaded = true;
+      loadState = "ready";
       saveCache();
       setStatus("");
       render();
     } catch (error) {
+      loadState = items.length ? "cached" : "error";
       setStatus(items.length ? "当前离线，正在显示上次同步的衣柜。" : `衣柜读取失败：${error.message}`);
+      render();
     } finally {
       loading = false;
     }
@@ -130,13 +138,48 @@ export function createWardrobeController({
     return getFamilyMembers().find((member) => member.user_id === id) || null;
   }
 
+  function syncFilterControls() {
+    const searchInput = root.querySelector("[data-wardrobe-search]");
+    const categoryInput = root.querySelector("[data-wardrobe-category]");
+    const seasonInput = root.querySelector("[data-wardrobe-season]");
+    const statusInput = root.querySelector("[data-wardrobe-status]");
+    const favoritesInput = root.querySelector("[data-wardrobe-favorites]");
+    if (searchInput && searchInput.value !== search) searchInput.value = search;
+    if (categoryInput) categoryInput.value = category;
+    if (seasonInput) seasonInput.value = season;
+    if (statusInput) statusInput.value = status;
+    if (favoritesInput) favoritesInput.setAttribute("aria-pressed", String(favoritesOnly));
+    const summary = root.querySelector("[data-wardrobe-filter-summary]");
+    if (summary) {
+      const parts = [
+        status === "all" ? "全部状态" : statusName(status),
+        season === "all" ? "全部季节" : `${season}季`,
+      ];
+      if (category !== "all") parts.push(category);
+      if (favoritesOnly) parts.push("收藏");
+      summary.textContent = parts.join(" · ");
+    }
+  }
+
+  function clearFilters() {
+    currentLocation = "all";
+    search = "";
+    category = "all";
+    season = "all";
+    status = "all";
+    favoritesOnly = false;
+    render();
+  }
+
   function render() {
+    syncFilterControls();
     renderWardrobeOverview(root, items, locations);
     renderWardrobeLocationChips(root, items, locations, currentLocation);
     renderWardrobeGrid(root, filteredItems(), {
       totalItems: items.length,
       locationName,
       memberFor,
+      loadState,
     });
   }
 
@@ -397,6 +440,8 @@ export function createWardrobeController({
   root.addEventListener("click", (event) => {
     const add = event.target.closest("[data-wardrobe-add]");
     if (add) return openEditor();
+    if (event.target.closest("[data-wardrobe-clear-filters]")) return clearFilters();
+    if (event.target.closest("[data-wardrobe-retry]")) return void load({ force: true });
     if (event.target.closest("[data-wardrobe-random]")) return openRandom();
     if (event.target.closest("[data-wardrobe-manage-locations]")) { renderLocations(); locationDialog.showModal(); return; }
     const filter = event.target.closest("[data-location-filter]");
@@ -416,7 +461,7 @@ export function createWardrobeController({
   root.querySelector("[data-wardrobe-category]").addEventListener("change", (event) => { category = event.target.value; render(); });
   root.querySelector("[data-wardrobe-season]").addEventListener("change", (event) => { season = event.target.value; render(); });
   root.querySelector("[data-wardrobe-status]").addEventListener("change", (event) => { status = event.target.value; render(); });
-  root.querySelector("[data-wardrobe-favorites]").addEventListener("click", (event) => { favoritesOnly = !favoritesOnly; event.currentTarget.setAttribute("aria-pressed", String(favoritesOnly)); event.currentTarget.innerHTML = renderListIcon("heart"); render(); });
+  root.querySelector("[data-wardrobe-favorites]").addEventListener("click", () => { favoritesOnly = !favoritesOnly; render(); });
 
   editor.querySelector("[data-wardrobe-file-input]").addEventListener("change", (event) => { addFiles(event.target.files); event.target.value = ""; });
   editor.querySelector("[data-wardrobe-url-add]").addEventListener("click", () => addPendingUrl(editor.querySelector("[data-wardrobe-url]").value));

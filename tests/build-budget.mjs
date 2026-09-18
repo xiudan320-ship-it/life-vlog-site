@@ -52,7 +52,10 @@ const cssGzip = gzipSync(await readFile(join(dist, "assets", css))).byteLength;
 const htmlBytes = Buffer.byteLength(indexHtml);
 const cssBytes = (await stat(join(dist, "assets", css))).size;
 assert.ok(htmlBytes <= 55 * 1024, `initial HTML ${htmlBytes} exceeds 55 KiB`);
-assert.ok(jsGzip <= 121 * 1024, `entry JS gzip ${jsGzip} exceeds 121 KiB`);
+// Phase two keeps the diary rail, draft recovery, and upload controller in the
+// home entry because the gallery is the default route. Keep the increase small
+// and explicit instead of silently letting the entry grow with later features.
+assert.ok(jsGzip <= 123 * 1024, `entry JS gzip ${jsGzip} exceeds 123 KiB`);
 // Includes the former always-loaded gallery CSS, now in the cached entry.
 assert.ok(cssBytes <= 256 * 1024, `shell plus gallery CSS ${cssBytes} exceeds 256 KiB`);
 assert.ok(cssGzip <= 46 * 1024, `shell plus gallery CSS gzip ${cssGzip} exceeds 46 KiB`);

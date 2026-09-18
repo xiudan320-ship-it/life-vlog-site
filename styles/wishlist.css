@@ -675,6 +675,22 @@ font: inherit;
 font-weight: 700;
 cursor: pointer;
 }
+.wishlist-sync-error {
+display: flex;
+align-items: center;
+justify-content: space-between;
+gap: 12px;
+margin-bottom: 12px;
+padding: 12px 14px;
+border: 1px solid color-mix(in srgb, var(--lv-accent) 42%, var(--lv-border));
+border-radius: var(--lv-radius-card);
+color: var(--lv-text);
+background: color-mix(in srgb, var(--lv-surface) 90%, var(--lv-accent) 10%);
+}
+.wishlist-sync-error .wishlist-empty-add {
+min-height: 40px;
+flex: none;
+}
 @keyframes list-icon-spin {
 to { transform: rotate(360deg); }
 }

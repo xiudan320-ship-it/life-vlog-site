@@ -55,10 +55,16 @@ export function renderWardrobeShell(root) {
       <div><small>位置</small><strong data-wardrobe-locations>0</strong><span>处</span></div>
     </section>
     <section class="wardrobe-toolbar">
-      <label class="wardrobe-search"><span aria-hidden="true">${renderListIcon("search")}</span><input type="search" data-wardrobe-search placeholder="搜索衣服、颜色或风格" /></label>
+      <label class="wardrobe-search"><span class="wardrobe-search-icon" aria-hidden="true">${renderListIcon("search")}</span><span class="wardrobe-search-label">搜索衣服</span><input type="search" data-wardrobe-search aria-label="搜索衣服、颜色或风格" placeholder="颜色、风格或名称" /></label>
       <select data-wardrobe-category aria-label="按分类筛选"><option value="all">全部分类</option>${CATEGORIES.map((value) => `<option>${value}</option>`).join("")}</select>
-      <select data-wardrobe-season aria-label="按季节筛选"><option value="all">全部季节</option>${SEASONS.map((value) => `<option>${value}</option>`).join("")}</select>
-      <select data-wardrobe-status aria-label="按状态筛选">${[["all", "全部状态"], ...STATUSES].map(([value, label]) => `<option value="${value}"${value === "available" ? " selected" : ""}>${label}</option>`).join("")}</select>
+      <details class="wardrobe-filter-disclosure">
+        <summary><span>筛选</span><strong data-wardrobe-filter-summary>可穿 · 全部季节</strong></summary>
+        <div class="wardrobe-filter-fields">
+          <select data-wardrobe-season aria-label="按季节筛选"><option value="all">全部季节</option>${SEASONS.map((value) => `<option>${value}</option>`).join("")}</select>
+          <select data-wardrobe-status aria-label="按状态筛选">${[["all", "全部状态"], ...STATUSES].map(([value, label]) => `<option value="${value}"${value === "available" ? " selected" : ""}>${label}</option>`).join("")}</select>
+          <button class="wardrobe-filter-clear" type="button" data-wardrobe-clear-filters>清空筛选</button>
+        </div>
+      </details>
       <button class="wardrobe-favorite-filter" type="button" data-wardrobe-favorites aria-pressed="false" aria-label="只看收藏">${renderListIcon("heart")}</button>
     </section>
     <div class="wardrobe-location-bar">
@@ -68,6 +74,8 @@ export function renderWardrobeShell(root) {
     <p class="wardrobe-status" data-wardrobe-status-line aria-live="polite"></p>
     <section class="wardrobe-grid" data-wardrobe-grid aria-live="polite"></section>
   `;
+  const disclosure = root.querySelector(".wardrobe-filter-disclosure");
+  if (disclosure) disclosure.open = globalThis.matchMedia?.("(min-width: 821px)")?.matches ?? true;
 }
 
 function createDialog(documentTarget, className, content) {
@@ -159,10 +167,23 @@ export function renderWardrobeLocationChips(root, items, locations, currentLocat
   host.innerHTML = `<button type="button" class="${currentLocation === "all" ? "active" : ""}" data-location-filter="all">全部位置 <small>${items.length}</small></button>${locations.map((location) => `<button type="button" class="${currentLocation === location.id ? "active" : ""}" data-location-filter="${html(location.id)}">${html(location.name)} <small>${items.filter((item) => item.location_id === location.id).length}</small></button>`).join("")}`;
 }
 
-export function renderWardrobeGrid(root, visibleItems, { totalItems, locationName, memberFor }) {
+export function renderWardrobeGrid(root, visibleItems, {
+  totalItems,
+  locationName,
+  memberFor,
+  loadState = "ready",
+}) {
   const grid = root.querySelector("[data-wardrobe-grid]");
+  if (loadState === "loading" && !totalItems) {
+    grid.innerHTML = `<div class="wardrobe-empty" role="status"><span aria-hidden="true">…</span><h2>正在打开衣柜…</h2><p>正在读取已保存的衣服。</p></div>`;
+    return;
+  }
+  if (loadState === "error" && !totalItems) {
+    grid.innerHTML = `<div class="wardrobe-empty" role="alert"><span aria-hidden="true">!</span><h2>衣柜读取失败</h2><p>请检查网络后再试一次。</p><button type="button" data-wardrobe-retry>重新加载</button></div>`;
+    return;
+  }
   if (!visibleItems.length) {
-    grid.innerHTML = `<div class="wardrobe-empty"><span aria-hidden="true">${renderListIcon("plus")}</span><h2>${totalItems ? "没有符合条件的衣服" : "从第一件试穿照开始"}</h2><p>${totalItems ? "换个筛选条件看看。" : "记录试穿照、搭配和收纳位置，以后找起来会轻松很多。"}</p><button type="button" data-wardrobe-add>添加衣服</button></div>`;
+    grid.innerHTML = `<div class="wardrobe-empty"><span aria-hidden="true">${renderListIcon(totalItems ? "search" : "plus")}</span><h2>${totalItems ? "没有符合条件的衣服" : "从第一件试穿照开始"}</h2><p>${totalItems ? "清空筛选后查看全部衣物。" : "记录试穿照、搭配和收纳位置，以后找起来会轻松很多。"}</p><button type="button" data-${totalItems ? "wardrobe-clear-filters" : "wardrobe-add"}>${totalItems ? "查看全部衣物" : "添加衣服"}</button></div>`;
     return;
   }
   grid.innerHTML = visibleItems.map((item) => {

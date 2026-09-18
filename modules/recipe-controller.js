@@ -36,6 +36,9 @@ export function createRecipeController({
   let existingCover = "";
   let coverLink = "";
   let coverPreviewUrl = "";
+  let isSubmitting = false;
+  let submitSequence = 0;
+  let submitLabel = "保存菜谱";
 
   function getStorageKey() {
     const name = getSession() ? getDisplayName() : "guest";
@@ -76,7 +79,8 @@ export function createRecipeController({
   }
 
   function setStatus(message) {
-    elements.recipeStatus.textContent = message;
+    if (elements.recipeStatus) elements.recipeStatus.textContent = message;
+    if (elements.recipeFormStatus) elements.recipeFormStatus.textContent = message;
   }
 
   async function compressCover(file) {
@@ -108,12 +112,7 @@ export function createRecipeController({
       return copied.url;
     }
     if (!file) return existingCover;
-    try {
-      return await compressCover(file);
-    } catch (error) {
-      setStatus(`封面读取失败：${error.message || "请换一张图片"}`);
-      return existingCover;
-    }
+    return compressCover(file);
   }
 
   function updateCoverPreview() {
@@ -191,11 +190,17 @@ export function createRecipeController({
     clearCoverPreview();
     setSelectedSeasonings([]);
     elements.recipeFormTitle.textContent = "添加菜谱";
-    elements.recipeSubmitButton.textContent = "保存菜谱";
+    submitLabel = "保存菜谱";
+    elements.recipeSubmitButton.textContent = submitLabel;
     elements.recipeCancelEdit.hidden = true;
   }
 
   async function submit(event) {
+    if (isSubmitting) {
+      event.preventDefault();
+      setStatus("正在保存，先别重复提交。");
+      return;
+    }
     event.preventDefault();
     const session = getSession();
     if (!session) {
@@ -212,53 +217,81 @@ export function createRecipeController({
       return;
     }
 
-    let coverImage;
+    const submitUserId = String(session.user.id || "");
+    const submitEditingId = editingId;
+    const operationId = ++submitSequence;
+    const isCurrentOperation = () => operationId === submitSequence && String(getSession()?.user?.id || "") === submitUserId;
+    isSubmitting = true;
+    setSubmitting(true);
+    setStatus("正在保存菜谱…");
     try {
-      coverImage = await getCoverForSave();
+      const coverImage = await getCoverForSave();
+      if (!isCurrentOperation() || editingId !== submitEditingId) return;
+      const recipes = getRecipes();
+      const previous = recipes.find((item) => item.id === submitEditingId);
+      let recipe = {
+        id: normalizeUuid(submitEditingId),
+        userId: previous?.userId || submitUserId,
+        name,
+        category: elements.recipeCategoryInput.value,
+        time: elements.recipeTimeInput.value.trim(),
+        servings: elements.recipeServingsInput.value.trim(),
+        coverImage,
+        seasonings: getSelectedSeasonings(),
+        ingredients: splitLines(elements.recipeIngredientsInput.value),
+        steps: splitLines(elements.recipeStepsInput.value),
+        note: elements.recipeNoteInput.value.trim(),
+        createdAt: previous?.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      const wasEditing = Boolean(submitEditingId);
+      const { data, error } = await repository.upsert(
+        "recipes",
+        recipeToCloudRow(recipe, recipe.userId),
+        { select: "*", single: true }
+      );
+      if (!isCurrentOperation()) return;
+      if (error) throw new Error(`菜谱同步失败：${error.message}`);
+      recipe = recipeFromCloudRow(data);
+      setRecipes(
+        wasEditing
+          ? recipes.map((item) => (item.id === submitEditingId ? recipe : item))
+          : [recipe, ...recipes]
+      );
+      save();
+      resetForm();
+      setExpanded(false);
+      const successMessage = wasEditing ? "菜谱已更新。" : "菜谱已保存。";
+      setStatus(successMessage);
+      render(recipe.id);
+      try {
+        const gainedExp = await awardExperience(wasEditing ? "recipeEdit" : "recipe");
+        if (isCurrentOperation()) setStatus(`${successMessage}${gainedExp ? ` 修为 +${gainedExp}` : ""}`);
+      } catch {
+        if (isCurrentOperation()) setStatus(`${successMessage} 修为奖励稍后补发。`);
+      }
     } catch (error) {
-      setStatus(`封面导入失败：${error.message || "请检查图片链接"}`);
-      return;
+      if (isCurrentOperation()) setStatus(error.message || "保存菜谱失败，请重试。");
+    } finally {
+      if (operationId === submitSequence) {
+        isSubmitting = false;
+        setSubmitting(false);
+      }
     }
-    const recipes = getRecipes();
-    const previous = recipes.find((item) => item.id === editingId);
-    let recipe = {
-      id: normalizeUuid(editingId),
-      userId: previous?.userId || session.user.id,
-      name,
-      category: elements.recipeCategoryInput.value,
-      time: elements.recipeTimeInput.value.trim(),
-      servings: elements.recipeServingsInput.value.trim(),
-      coverImage,
-      seasonings: getSelectedSeasonings(),
-      ingredients: splitLines(elements.recipeIngredientsInput.value),
-      steps: splitLines(elements.recipeStepsInput.value),
-      note: elements.recipeNoteInput.value.trim(),
-      createdAt: previous?.createdAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    const wasEditing = Boolean(editingId);
-    const { data, error } = await repository.upsert(
-      "recipes",
-      recipeToCloudRow(recipe, recipe.userId),
-      { select: "*", single: true }
-    );
-    if (error) {
-      setStatus(`菜谱同步失败：${error.message}`);
-      return;
-    }
-    recipe = recipeFromCloudRow(data);
-    setRecipes(
-      editingId
-        ? recipes.map((item) => (item.id === editingId ? recipe : item))
-        : [recipe, ...recipes]
-    );
-    save();
-    resetForm();
-    setExpanded(false);
-    const gainedExp = await awardExperience(wasEditing ? "recipeEdit" : "recipe");
-    setStatus(`${wasEditing ? "菜谱已更新。" : "菜谱已保存。"}${gainedExp ? ` 修为 +${gainedExp}` : ""}`);
-    render(recipe.id);
   }
+
+  function setSubmitting(value) {
+    const submitting = Boolean(value);
+    elements.recipeForm?.setAttribute("aria-busy", String(submitting));
+    elements.recipeSubmitButton.disabled = submitting;
+    elements.recipeSubmitButton.textContent = submitting ? "保存中…" : submitLabel;
+  }
+
+  /*
+   * The submit handler above owns the complete write transaction. Keeping the
+   * cover upload inside that transaction means a failed cover never reaches
+   * the recipe upsert with a silently reused URL.
+   */
 
   function render(updatedId = "") {
     renderFoodWheel();
@@ -291,7 +324,8 @@ export function createRecipeController({
     setSelectedSeasonings(recipe.seasonings || []);
     setCoverPreview(existingCover);
     elements.recipeFormTitle.textContent = "编辑菜谱";
-    elements.recipeSubmitButton.textContent = "保存修改";
+    submitLabel = "保存修改";
+    elements.recipeSubmitButton.textContent = submitLabel;
     elements.recipeCancelEdit.hidden = false;
     setExpanded(true);
     setStatus(`正在编辑：${recipe.name}`);
@@ -350,5 +384,6 @@ export function createRecipeController({
     setStatus,
     submit,
     updateCoverPreview,
+    isSubmitting: () => isSubmitting,
   };
 }

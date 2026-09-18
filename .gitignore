@@ -20,5 +20,6 @@ worker-tail.log
 worker-tail.err.log
 
 # Local visual review captures and generated artwork
+artifacts/phase-two/
 /*.png
 /*.jpg
