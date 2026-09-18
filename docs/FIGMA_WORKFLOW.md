@@ -148,8 +148,8 @@ Figma 负责可视化设计与评审，项目代码负责运行行为；包含�
 | 当前任务与范围 | 首页试点 A–D：管理员 R2 统计迁移、桌面今日心情/日历紧凑化、桌面卡片菜单、移动工具栏与搜索；同时交付浅/深主题设计稿 |
 | 当前基准提交、尺寸与 fixture 状态 | 基准源码提交 `345a669`；本地 `localhost:5173` 捕获用于结构校准；设计状态为合成文案 + 项目 `black-cat-cover-640.webp`，不含真实账户或私人日记数据 |
 | 基准与目标节点链接 | 可编辑目标：[桌面浅色](https://www.figma.com/design/ujvOxDH3YRNUnYxc5BzqXD?node-id=4-12)、[桌面深色](https://www.figma.com/design/ujvOxDH3YRNUnYxc5BzqXD?node-id=4-13)、[手机浅色](https://www.figma.com/design/ujvOxDH3YRNUnYxc5BzqXD?node-id=4-14)、[手机深色](https://www.figma.com/design/ujvOxDH3YRNUnYxc5BzqXD?node-id=4-15)、[管理员设置](https://www.figma.com/design/ujvOxDH3YRNUnYxc5BzqXD?node-id=4-16)、[桌面更多菜单](https://www.figma.com/design/ujvOxDH3YRNUnYxc5BzqXD?node-id=4-17) |
-| 方案状态及已授权的下一阶段 | A–D 设计与代码实现已完成；浏览器、可访问性、构建、部署 fixture 与本地 release 验收已完成，代码提交 `321ab00` 已推送，待正式发布信息回填 |
-| 对应代码提交与验证结果 | `321ab00`；已通过 `pnpm test`、`pnpm run test:release-local`、`pnpm run test:deployment`、`pnpm run check` 与 `pnpm run test:unit` |
+| 方案状态及已授权的下一阶段 | A–D 设计、代码实现与正式发布已完成；preview 固定 alias、正式入口、Worker CORS、Axe critical/serious 和确定性 release smoke 均通过，后续仅按新任务推进 |
+| 对应代码提交与验证结果 | 发布源码 `160ea320a1669dfbb7420549b89c8b794c30eb74`；发布记录见 `CHANGELOG.md` 的 2026-09-18 小节，发布后的文档同步提交为 `79a26102d416db9e86f3b8f935cfcda7b1274064`；已通过 `pnpm test`、`pnpm run test:release-local`、`pnpm run test:deployment`、`pnpm run check` 与 `pnpm run test:unit` |
 | 已接受差异或未决问题 | Figma 中的动态数据、瀑布流高度、弹窗真实焦点流转以代码为准；初始像素捕获已用于校准并在可编辑稿确认后删除，六个目标节点保留为可编辑文本/图形/状态层 |
 
 日常任务只更新本次相关字段；详细历史沿用既有 CHANGELOG 与任务记录，不在此累积聊天过程、工具全文或重复测试日志。
