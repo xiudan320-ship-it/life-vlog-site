@@ -21,6 +21,12 @@
 
 - 修复显式深链在断网启动时因初始路由状态提前切换而丢失隐藏缓存日记的问题；缓存画廊现在可在非 gallery 深链下先渲染并由路由控制显隐。
 
+## [2026-09-18] — 生产发布
+
+### Release
+
+- 已从 `main` 提交 `160ea320a1669dfbb7420549b89c8b794c30eb74` 发布到 Cloudflare Pages；固定 preview 为 `https://codex-preview.life-vlog-site.pages.dev`，本次 preview deployment 为 `d5a06eb2-32df-4ccb-bd7a-eb5d60628b21`（`https://d5a06eb2.life-vlog-site.pages.dev`）；正式入口为 `https://life-vlog-site.pages.dev`，production deployment 为 `327a788c-abf4-43c9-ab94-4aabbcdfd218`（`https://327a788c.life-vlog-site.pages.dev`）。Worker `life-vlog-r2-upload` 版本为 `2065860a-019d-49a8-ad73-e4e8de4bac11`；入口为 `index-BdvawWrV.js`（SHA-256 `134c429b9f02718d50248ffbba25c5a8da55b45f6b3d1244b709666083066c97`），样式为 `index-BcZ0og1g.css`（SHA-256 `03839790b60618377736ac3588ab355e46c9abdef0052474fda212b0544de45e`），`sw.js` SHA-256 为 `ae5e9e27e4d6447dcaa1e22fd9c3e6b5bb7c6e6e8cb875927de6eaeba2864cd7`，Workbox 预缓存条目为 33；`pnpm install --frozen-lockfile`、`pnpm test`、`pnpm run test:release-local`、`pnpm run test:deployment`，以及 preview/production 的 Worker CORS、Axe critical/serious 和确定性 release smoke 均通过，固定 alias 与两个不可变 deployment 的线上入口资源哈希均与本地构建一致。
+
 ## [2026-09-12] — 项目加固与生产发布
 
 ### Release
