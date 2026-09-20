@@ -188,4 +188,4 @@
 | 设置功能矩阵 | 已填写第 6.1 节；账户/家庭/备份/回收站/队列/真实设备安装与通知送达保留未专项验证边界 |
 | Figma / 视觉对照 | 只读检查既有文件 `ujvOxDH3YRNUnYxc5BzqXD` 的设置参考节点 `4:16`；本轮未写入新节点，代码沿用现有设置设计系统 |
 | 已运行验证 | `pnpm run check`、`pnpm run test:unit`（180 项）、`pnpm run test:static`、`pnpm run test:structure`、`pnpm run build`、`pnpm run test:build`、`pnpm run test:browser`、`pnpm run test:release-local` 均通过；本地 release-local 的 Axe critical/serious 与确定性 release smoke 均通过。为恢复完整浏览器门禁，另修复桌面日记菜单在异步重绘后丢失打开状态和方向键焦点的问题。 |
-| 正式回归 / 提交 / 部署 | 本地门禁与 `pnpm run test:deployment` 已通过，待清洁 main 提交推送后按发布清单执行 preview → production；未通过远程门禁不发布 |
+| 正式回归 / 提交 / 部署 | 已从清洁且已推送的 `main` 提交 `67597a175b334bcf7bb0f38dd5afb3c53b867e2d` 完成 preview → production；preview deployment `3d7b32dd-1237-45c5-8c26-d12259ada91f`、production deployment `8ce57823-c826-474b-b4d2-559fe2aaa887`，Worker 版本 `e5cebf84-cf84-4efb-bae5-16aecf528269`；`pnpm install --frozen-lockfile`、完整本地回归、本地/远程 Axe critical/serious、确定性 release smoke 和 Worker CORS 均通过。 |
