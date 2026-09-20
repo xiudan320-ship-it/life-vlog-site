@@ -641,9 +641,10 @@ async function testFilterSettingsAndActions(browser) {
     const menuTrigger = page.locator('[data-photo-id="fixture-admin-photo"] [data-photo-menu-trigger]');
     assert.equal(await menuTrigger.count(), 1);
     await menuTrigger.click();
+    await page.waitForSelector('[data-photo-id="fixture-admin-photo"] [role="menu"]', { state: "visible" });
     const deleteButton = page.locator('[data-photo-id="fixture-admin-photo"] [data-photo-menu-action="delete"]');
     assert.equal(await deleteButton.count(), 1);
-    await deleteButton.evaluate((button) => button.click());
+    await deleteButton.click();
     await page.locator('dialog.action-confirm-dialog button[value="confirm"]').click();
     await page.waitForFunction(() => !document.querySelector('[data-photo-id="fixture-admin-photo"]'));
     assert.equal(adminDesktop.fixture.writes.some(({ path, action }) => path === "/api/rpc/admin_delete_photo" && action === "admin_delete_photo"), true);

@@ -918,9 +918,10 @@ async function testMobileDiaryActionsAndCategoryPicker(browser) {
     const menuTrigger = page.locator('[data-photo-id="fixture-admin-photo"] [data-photo-menu-trigger]');
     assert.equal(await menuTrigger.count(), 1, "desktop administrator cannot see the diary more menu");
     await menuTrigger.click();
+    await page.waitForSelector('[data-photo-id="fixture-admin-photo"] [role="menu"]', { state: "visible" });
     const deleteButton = page.locator('[data-photo-id="fixture-admin-photo"] [data-photo-menu-action="delete"]');
     assert.equal(await deleteButton.count(), 1, "desktop administrator cannot see the diary delete action in more menu");
-    await deleteButton.evaluate((button) => button.click());
+    await deleteButton.click();
     await page.locator('dialog.action-confirm-dialog button[value="confirm"]').click();
     await page.waitForFunction(() => !document.querySelector('[data-photo-id="fixture-admin-photo"]'));
     assert.equal(adminDesktop.fixture.writes.some(({ path, action }) => path === "/api/rpc/admin_delete_photo" && action === "admin_delete_photo"), true, "desktop administrator deletion did not use the administrator RPC");
@@ -1133,7 +1134,8 @@ async function testPhotoEditorLazyBoundary(browser) {
     const before = new Set(scriptUrls(result.page));
     await result.page.waitForTimeout(800);
     await result.page.locator('[data-photo-id="fixture-photo"] [data-photo-menu-trigger]').click();
-    await result.page.locator('[data-photo-id="fixture-photo"] [data-photo-menu-action="edit"]').evaluate((button) => button.click());
+    await result.page.waitForSelector('[data-photo-id="fixture-photo"] [role="menu"]', { state: "visible" });
+    await result.page.locator('[data-photo-id="fixture-photo"] [data-photo-menu-action="edit"]').click();
     await result.page.waitForSelector("#editDialog[open]", { state: "attached", timeout: 10000 });
     const loaded = scriptUrls(result.page).filter((url) => !before.has(url));
     assert.equal(loaded.filter((url) => /photo-editor-controller-/.test(url)).length, 1, "photo editor chunk did not load exactly once");
