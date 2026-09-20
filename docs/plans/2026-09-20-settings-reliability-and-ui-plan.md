@@ -1,6 +1,6 @@
 # 设置功能恢复与视觉整理执行规划
 
-日期：2026-09-20。状态：已执行，待发布验收。执行模型：Luna，max。
+日期：2026-09-20。状态：已执行，已发布完成。执行模型：Luna，max。
 
 目标：修复设置里点击无响应、状态不准确的问题，逐项验证已有功能，并改善手机设置的信息密度和触控。保持前两轮已发布的首页、图片横排和缩略图可读性成果。
 
@@ -188,4 +188,4 @@
 | 设置功能矩阵 | 已填写第 6.1 节；账户/家庭/备份/回收站/队列/真实设备安装与通知送达保留未专项验证边界 |
 | Figma / 视觉对照 | 只读检查既有文件 `ujvOxDH3YRNUnYxc5BzqXD` 的设置参考节点 `4:16`；本轮未写入新节点，代码沿用现有设置设计系统 |
 | 已运行验证 | 前一轮完整门禁已通过；本次追加先运行 `pnpm run build`、`pnpm run test:unit`（180 项）和 `pnpm exec node tests/settings-reliability-browser.mjs`，均通过；新增缓存异常/空缓存断言与设置实际操作矩阵使用确定性内存 fixture。为恢复完整浏览器门禁，另修复桌面日记菜单在异步重绘后丢失打开状态和方向键焦点的问题。 |
-| 正式回归 / 提交 / 部署 | 已从清洁且已推送的 `main` 提交 `67597a175b334bcf7bb0f38dd5afb3c53b867e2d` 完成 preview → production；preview deployment `3d7b32dd-1237-45c5-8c26-d12259ada91f`、production deployment `8ce57823-c826-474b-b4d2-559fe2aaa887`，Worker 版本 `e5cebf84-cf84-4efb-bae5-16aecf528269`；`pnpm install --frozen-lockfile`、完整本地回归、本地/远程 Axe critical/serious、确定性 release smoke 和 Worker CORS 均通过。 |
+| 正式回归 / 提交 / 部署 | 已从清洁且已推送的 `main` 提交 `73b89b663caa9bb744af59cdde1f42874b478013` 完成 preview → production；固定 preview alias、production deployment `1c299a81.life-vlog-site.pages.dev`，Worker 版本 `c902a792-e38f-4f83-9bc1-c881b2fb2144`；`pnpm install --frozen-lockfile`、完整本地回归、本地/远程 Axe critical/serious、确定性 release smoke 和 Worker CORS 均通过。 |
