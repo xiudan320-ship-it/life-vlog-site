@@ -290,6 +290,8 @@ export function createCloudflareApiFixture({
   delayMs = 0,
   seedSecretPhoto = false,
   seedMoodFamily = false,
+  seedBackups = [],
+  seedTrashItems = [],
   moodDiaries = [],
   photoComments = null,
   notifications = [],
@@ -300,7 +302,10 @@ export function createCloudflareApiFixture({
   const tables = cloneSeed({ seedSecretPhoto, seedMoodFamily, moodDiaries, photoComments, notifications });
   const requests = [];
   const writes = [];
+  const rpcCalls = [];
   const uploads = [];
+  const backups = seedBackups.map((backup) => ({ ...backup }));
+  const trashItems = seedTrashItems.map((item) => ({ ...item }));
   let generatedRowId = 0;
   let remainingNotificationFailures = Math.max(0, Number(notificationFailureCount) || 0);
   let fixtureSessionActive = true;
@@ -393,6 +398,34 @@ export function createCloudflareApiFixture({
       await route.fulfill(jsonResponse(request, { data: { publicKey: "" } }));
       return;
     }
+    if (url.pathname === "/api/backups" && request.method() === "GET") {
+      await route.fulfill(jsonResponse(request, { data: backups }));
+      return;
+    }
+    if (url.pathname === "/api/backups/run" && request.method() === "POST") {
+      const backup = {
+        key: `d1-fixture-${String(backups.length + 1).padStart(2, "0")}.backup`,
+        size: 1024,
+        uploaded: "2030-01-01T00:00:00.000Z",
+      };
+      backups.unshift(backup);
+      writes.push({ path: url.pathname, action: "create" });
+      await route.fulfill(jsonResponse(request, { data: backup }));
+      return;
+    }
+    if (url.pathname.startsWith("/api/backups/") && request.method() === "GET") {
+      await route.fulfill({
+        status: 200,
+        headers: {
+          "access-control-allow-origin": request.headers().origin || "http://127.0.0.1",
+          "content-type": "application/json; charset=utf-8",
+          "content-disposition": "attachment; filename=fixture-backup.json",
+          "cache-control": "no-store",
+        },
+        body: JSON.stringify({ fixture: true, key: decodeURIComponent(url.pathname.slice("/api/backups/".length)) }),
+      });
+      return;
+    }
     if (url.pathname === "/upload" && request.method() === "POST") {
       uploads.push({ method: request.method(), path: url.pathname });
       await route.fulfill(jsonResponse(request, {
@@ -444,8 +477,9 @@ export function createCloudflareApiFixture({
     }
     if (url.pathname.startsWith("/api/rpc/")) {
       const name = decodeURIComponent(url.pathname.replace("/api/rpc/", ""));
+      const payload = request.postDataJSON() || {};
+      rpcCalls.push({ name, payload });
       if (name === "admin_delete_photo") {
-        const payload = request.postDataJSON() || {};
         const photoId = String(payload.p_photo_id || payload.photo_id || "");
         const photos = rowsFor("photos", tables);
         const index = photos.findIndex((row) => row.id === photoId);
@@ -456,6 +490,58 @@ export function createCloudflareApiFixture({
         }
         writes.push({ path: url.pathname, action: name });
         await route.fulfill(jsonResponse(request, { data: removed ? [removed] : [] }));
+        return;
+      }
+      if (name === "list_trash_items") {
+        await route.fulfill(jsonResponse(request, { data: trashItems }));
+        return;
+      }
+      if (name === "restore_trash_item" || name === "permanently_delete_trash_item") {
+        const trashId = String(payload.p_trash_id || "");
+        const index = trashItems.findIndex((item) => String(item.id) === trashId);
+        const [removed] = index >= 0 ? trashItems.splice(index, 1) : [];
+        if (removed && name === "restore_trash_item" && removed.payload && removed.item_type) {
+          const tableForType = {
+            photo: "photos",
+            secret: "secret_items",
+            recipe: "recipes",
+            wish: "wishes",
+            weekend: "weekend_plans",
+            anniversary: "anniversaries",
+            gratitude: "gratitude_notes",
+          }[removed.item_type];
+          if (tableForType) {
+            const rows = rowsFor(tableForType, tables);
+            if (!rows.some((row) => row.id === removed.payload.id)) rows.push({ ...removed.payload });
+          }
+        }
+        await route.fulfill(jsonResponse(request, { data: removed ? [removed] : [] }));
+        return;
+      }
+      if (name === "add_family_member_by_username") {
+        const username = String(payload.p_username || "").trim();
+        const invitation = {
+          invitation_id: `fixture-invitation-${tables.get("family_invitations").length + 1}`,
+          family_id: "fixture-family",
+          family_name: "咻蛋之家",
+          inviter_username: "小秀",
+          invited_username: username,
+          is_incoming: false,
+        };
+        tables.get("family_invitations").push(invitation);
+        await route.fulfill(jsonResponse(request, { data: [invitation] }));
+        return;
+      }
+      if (name === "update_family_name") {
+        const familyName = String(payload.p_name || "").trim();
+        tables.set("family_members", rowsFor("family_members", tables).map((member) => ({ ...member, family_name: familyName })));
+        await route.fulfill(jsonResponse(request, { data: [{ family_name: familyName }] }));
+        return;
+      }
+      if (name === "update_family_tagline") {
+        const tagline = String(payload.p_tagline || "").trim();
+        tables.set("family_members", rowsFor("family_members", tables).map((member) => ({ ...member, family_tagline: tagline })));
+        await route.fulfill(jsonResponse(request, { data: [{ family_tagline: tagline }] }));
         return;
       }
       if (name === "get_my_notifications") await route.fulfill(jsonResponse(request, { data: rowsFor("notifications", tables) }));
@@ -478,6 +564,7 @@ export function createCloudflareApiFixture({
     requests,
     writes,
     uploads,
+    rpcCalls,
     isSessionActive: () => fixtureSessionActive,
     async dispose(context) {
       await context.unroute("**/*");

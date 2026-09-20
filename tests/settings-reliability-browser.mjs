@@ -56,9 +56,9 @@ const adminSession = {
 
 const browser = await chromium.launch({ headless: true });
 
-async function openFixturePage({ viewport, session = pseudoSession } = {}) {
+async function openFixturePage({ viewport, session = pseudoSession, fixtureOptions = {} } = {}) {
   const context = await browser.newContext({ viewport, serviceWorkers: "block" });
-  const fixture = createCloudflareApiFixture();
+  const fixture = createCloudflareApiFixture(fixtureOptions);
   await fixture.install(context);
   const page = await context.newPage();
   const errors = [];
@@ -81,6 +81,334 @@ async function openSettings(page) {
 
 async function closeFixturePage(result) {
   await result.context.close();
+}
+
+async function openSettingsSection(page, sectionId) {
+  await page.click(`#settings-tab-${sectionId}`);
+  await page.waitForSelector(`#settingsDialog[data-mobile-settings-section="${sectionId}"]`, { state: "attached" });
+}
+
+async function waitForFixtureReady(page) {
+  await page.waitForSelector("#appSplash[hidden]", { state: "attached", timeout: 10000 });
+  await page.waitForSelector('[data-photo-id="fixture-photo"]', { state: "visible", timeout: 10000 });
+  await page.waitForFunction(() => performance.getEntriesByName("remote-sync-complete").length > 0, null, { timeout: 10000 });
+}
+
+async function enterSecretPin(page, value) {
+  for (const digit of String(value)) {
+    await page.click(`[data-secret-pin-digit="${digit}"]`);
+  }
+}
+
+async function seedQueuedUpload(page, id) {
+  await page.evaluate(async (uploadId) => {
+    const openRequest = indexedDB.open("life-vlog-upload-queue", 1);
+    openRequest.onupgradeneeded = () => {
+      const db = openRequest.result;
+      if (!db.objectStoreNames.contains("diary-uploads")) {
+        const store = db.createObjectStore("diary-uploads", { keyPath: "id" });
+        store.createIndex("userId", "userId", { unique: false });
+        store.createIndex("createdAt", "createdAt", { unique: false });
+      }
+    };
+    const db = await new Promise((resolve, reject) => {
+      openRequest.onsuccess = () => resolve(openRequest.result);
+      openRequest.onerror = () => reject(openRequest.error);
+    });
+    const png = Uint8Array.from(atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="), (char) => char.charCodeAt(0));
+    const file = new File([png], `${uploadId}.png`, { type: "image/png", lastModified: 1893456000000 });
+    await new Promise((resolve, reject) => {
+      const transaction = db.transaction("diary-uploads", "readwrite");
+      transaction.objectStore("diary-uploads").put({
+        id: uploadId,
+        userId: "fixture-user",
+        title: `Fixture queued ${uploadId}`,
+        rawTitle: `Fixture queued ${uploadId}`,
+        note: "确定性上传队列 fixture",
+        category: "日常",
+        takenAt: "2030-01-01",
+        isPublic: true,
+        createdAt: "2030-01-01T00:00:00.000Z",
+        queuedAt: "2030-01-01T00:00:00.000Z",
+        files: [{ kind: "image", file, name: file.name, type: file.type, size: file.size, lastModified: file.lastModified, motionFile: null }],
+        linkUrls: [],
+      });
+      transaction.oncomplete = resolve;
+      transaction.onerror = () => reject(transaction.error);
+    });
+    db.close();
+  }, id);
+}
+
+async function testSettingsPersistenceAndAccountActions() {
+  const result = await openFixturePage({ viewport: { width: 390, height: 844 } });
+  try {
+    const { page, fixture } = result;
+    await openSettings(page);
+    await openSettingsSection(page, "settingsAppearance");
+    await page.click("#renameHomeButton");
+    await page.fill("#homeNameInput", "Fixture Home");
+    await page.click("#renameHomeForm button[type=submit]");
+    await page.waitForFunction(() => document.querySelector("#homeNameStatus")?.textContent.includes("名称已保存并同步"));
+    await page.waitForFunction(() => !document.querySelector("#renameHomeDialog")?.open);
+    assert.equal(await page.locator("#settingsHomeNameValue").textContent(), "Fixture Home");
+    await page.click("#settingsFeedLayoutButton");
+    await page.click('[data-text-scale="large"]');
+    assert.equal(await page.evaluate(() => document.body.classList.contains("mobile-feed-single")), true, "single-column layout was not applied");
+    assert.equal(await page.evaluate(() => document.documentElement.dataset.textScale), "large", "large text scale was not applied");
+    await page.click("#closeSettingsDialog");
+    await page.waitForFunction(() => !document.querySelector("#settingsDialog")?.open);
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await waitForFixtureReady(page);
+    assert.deepEqual(
+      await page.evaluate(() => ({
+        homeName: localStorage.getItem("life-vlog-home-name:fixture-user"),
+        layout: localStorage.getItem("life-vlog-mobile-feed-layout:fixture-user"),
+        scale: document.documentElement.dataset.textScale,
+        single: document.body.classList.contains("mobile-feed-single"),
+      })),
+      { homeName: "Fixture Home", layout: "single", scale: "large", single: true },
+      "appearance settings did not survive a page refresh",
+    );
+
+    await openSettings(page);
+    await openSettingsSection(page, "settingsAccount");
+    await page.click("#renameProfileButton");
+    await page.fill("#profileNicknameInput", "Fixture Nickname");
+    await page.click("#renameProfileForm button[type=submit]");
+    await page.waitForFunction(() => document.querySelector("#profileNicknameStatus")?.textContent.includes("昵称已保存"));
+    await page.waitForFunction(() => !document.querySelector("#renameProfileDialog")?.open);
+    assert.equal(await page.locator("#settingsNicknameValue").textContent(), "Fixture Nickname");
+    assert.equal(
+      fixture.writes.some(({ path, action }) => path === "/api/table/user_profiles" && action === "update"),
+      true,
+      "profile nickname did not persist the profile row",
+    );
+
+    await page.click("#changePasswordButton");
+    await page.fill("#newPasswordInput", "FixturePass123!");
+    await page.fill("#confirmPasswordInput", "FixturePassDifferent!");
+    await page.click("#changePasswordForm button[type=submit]");
+    await page.waitForFunction(() => document.querySelector("#changePasswordStatus")?.textContent.includes("不一致"));
+    await page.fill("#newPasswordInput", "FixturePass123!");
+    await page.fill("#confirmPasswordInput", "FixturePass123!");
+    await page.click("#changePasswordForm button[type=submit]");
+    await page.waitForFunction(() => document.querySelector("#changePasswordStatus")?.textContent.includes("密码已修改"));
+    assert.equal(fixture.requests.some(({ path }) => path === "/api/auth/password"), true, "password success did not reach the fixture endpoint");
+    await page.waitForFunction(() => document.querySelector("#settingsDialog")?.open);
+
+    await page.click("#recoveryKeyButton");
+    await page.fill("#recoveryKeyInput", "fixture-recovery-key");
+    await page.fill("#confirmRecoveryKeyInput", "fixture-recovery-other");
+    await page.click("#recoveryKeyForm button[type=submit]");
+    await page.waitForFunction(() => document.querySelector("#recoveryKeyStatus")?.textContent.includes("不一致"));
+    await page.fill("#confirmRecoveryKeyInput", "fixture-recovery-key");
+    await page.click("#recoveryKeyForm button[type=submit]");
+    await page.waitForFunction(() => document.querySelector("#recoveryKeyStatus")?.textContent.includes("已加密保存"));
+    assert.equal(fixture.rpcCalls.some(({ name }) => name === "set_password_recovery_key"), true, "recovery key success did not reach the fixture RPC");
+    await page.waitForFunction(() => document.querySelector("#settingsDialog")?.open);
+
+    await page.click("#changeSecretPinButton");
+    await page.waitForSelector("#secretPinDialog[open]");
+    await enterSecretPin(page, "1234");
+    await page.waitForFunction(() => document.querySelector("#secretPinTitle")?.textContent === "确认密码");
+    await enterSecretPin(page, "4321");
+    await page.waitForFunction(() => document.querySelector("#secretPinStatus")?.textContent.includes("不一致"));
+    await enterSecretPin(page, "1234");
+    await page.waitForFunction(() => document.querySelector("#secretPinTitle")?.textContent === "确认密码");
+    await enterSecretPin(page, "1234");
+    await page.waitForFunction(() => document.querySelector("#secretPinStatus")?.textContent.includes("已更新"));
+    await page.waitForFunction(() => document.querySelector("#settingsDialog")?.open);
+    assert.equal(
+      await page.evaluate(() => Boolean(JSON.parse(localStorage.getItem("life-vlog-secret-pin:fixture-user") || "null")?.hash)),
+      true,
+      "secret PIN success did not persist a local hash",
+    );
+
+    await page.click("#bindEmailButton");
+    await page.waitForSelector("#emailBindingDialog[open]");
+    await page.fill("#accountEmailInput", "fixture-settings@example.test");
+    await page.click("#emailBindingRequestForm button[type=submit]");
+    await page.waitForFunction(() => !document.querySelector("#emailBindingConfirmForm")?.hidden);
+    await page.fill("#accountEmailCodeInput", "12");
+    await page.click("#emailBindingConfirmForm button[type=submit]");
+    await page.waitForFunction(() => document.querySelector("#emailBindingConfirmStatus")?.textContent.includes("6 位验证码"));
+    await page.fill("#accountEmailCodeInput", "123456");
+    await page.click("#emailBindingConfirmForm button[type=submit]");
+    await page.waitForFunction(() => document.querySelector("#emailBindingConfirmStatus")?.textContent.includes("邮箱已绑定"));
+    assert.equal(fixture.requests.some(({ path }) => path === "/api/account/email/request"), true, "email request did not reach the fixture endpoint");
+    assert.equal(fixture.requests.some(({ path }) => path === "/api/account/email/confirm"), true, "email confirmation did not reach the fixture endpoint");
+    await page.waitForFunction(() => document.querySelector("#settingsDialog")?.open);
+    assert.equal(await page.locator("#settingsEmailValue").textContent(), "fixture-settings@example.test");
+    assert.deepEqual(result.errors, [], `settings account page errors: ${result.errors.join(" | ")}`);
+  } finally {
+    await closeFixturePage(result);
+  }
+}
+
+async function testFamilyRolesAndActions() {
+  const owner = await openFixturePage({
+    viewport: { width: 390, height: 844 },
+    fixtureOptions: { seedMoodFamily: true },
+  });
+  try {
+    const { page, fixture } = owner;
+    await openSettings(page);
+    await openSettingsSection(page, "settingsFamily");
+    await page.click("#familyAccountButton");
+    await page.waitForSelector("#familyDialog[open]");
+    await page.waitForSelector("#familyInviteForm:not([hidden])");
+    await page.fill("#familyUsernameInput", "fixture-invitee");
+    await page.click("#familyInviteForm button[type=submit]");
+    await page.waitForFunction(() => document.querySelector("#familyStatus")?.textContent.includes("已向 fixture-invitee 发送邀请"));
+    assert.equal(fixture.rpcCalls.some(({ name, payload }) => name === "add_family_member_by_username" && payload.p_username === "fixture-invitee"), true, "owner family invite did not submit the expected RPC");
+    await page.click("#closeFamilyDialog");
+    await page.waitForSelector("#settingsDialog[open]");
+    await page.click("#familyTaglineButton");
+    await page.fill("#familyTaglineInput", "fixture family signature");
+    await page.click("#familyTaglineForm button[type=submit]");
+    await page.waitForFunction(() => document.querySelector("#familyTaglineStatus")?.textContent.includes("家庭签名已同步"));
+    assert.equal(fixture.rpcCalls.some(({ name, payload }) => name === "update_family_tagline" && payload.p_tagline === "fixture family signature"), true, "family tagline did not submit the expected RPC");
+    await page.waitForFunction(() => document.querySelector("#settingsDialog")?.open);
+    assert.deepEqual(owner.errors, [], `family owner page errors: ${owner.errors.join(" | ")}`);
+  } finally {
+    await closeFixturePage(owner);
+  }
+
+  const memberSession = {
+    ...pseudoSession,
+    user: {
+      id: "fixture-partner",
+      user_metadata: { username: "fixture-member", login_username: "fixture-partner" },
+    },
+  };
+  const member = await openFixturePage({
+    viewport: { width: 390, height: 844 },
+    session: memberSession,
+    fixtureOptions: { seedMoodFamily: true },
+  });
+  try {
+    const { page, fixture } = member;
+    await openSettings(page);
+    await openSettingsSection(page, "settingsFamily");
+    await page.click("#familyAccountButton");
+    await page.waitForSelector("#familyDialog[open]");
+    assert.equal(await page.locator("#familyInviteForm").isHidden(), true, "a family member can see the owner-only invite form");
+    assert.match(await page.locator("#familyMembers").textContent(), /小咻（我）/);
+    assert.equal(fixture.rpcCalls.some(({ name }) => name === "add_family_member_by_username"), false, "member fixture unexpectedly submitted an owner-only invite RPC");
+    assert.deepEqual(member.errors, [], `family member page errors: ${member.errors.join(" | ")}`);
+  } finally {
+    await closeFixturePage(member);
+  }
+}
+
+async function testSettingsDataSafetyAndQueue() {
+  const result = await openFixturePage({
+    viewport: { width: 390, height: 844 },
+    fixtureOptions: {
+      seedTrashItems: [
+        {
+          id: "fixture-trash-restore",
+          user_id: "fixture-user",
+          item_type: "wish",
+          item_id: "fixture-trashed-wish",
+          label: "Fixture restore wish",
+          payload: { id: "fixture-trashed-wish", user_id: "fixture-user", title: "Fixture restored wish", is_done: false },
+          deleted_at: "2030-01-01T00:00:00.000Z",
+          expires_at: "2030-02-01T00:00:00.000Z",
+          owner_username: "fixture-user",
+          deleted_by_username: "fixture-user",
+        },
+        {
+          id: "fixture-trash-delete",
+          user_id: "fixture-user",
+          item_type: "wish",
+          item_id: "fixture-trashed-wish-delete",
+          label: "Fixture delete wish",
+          payload: { id: "fixture-trashed-wish-delete", user_id: "fixture-user", title: "Fixture deleted wish", is_done: false },
+          deleted_at: "2030-01-01T00:00:00.000Z",
+          expires_at: "2030-02-01T00:00:00.000Z",
+          owner_username: "fixture-user",
+          deleted_by_username: "fixture-user",
+        },
+      ],
+    },
+  });
+  try {
+    const { page, fixture } = result;
+    await openSettings(page);
+    await openSettingsSection(page, "settingsStorage");
+    await page.waitForSelector('[data-refresh-backups]');
+    await page.click("[data-create-backup]");
+    await page.locator(".mini-toast.visible").filter({ hasText: "加密备份已生成" }).waitFor();
+    await page.waitForSelector('[data-backup-key="d1-fixture-01.backup"]');
+    assert.equal(fixture.requests.some(({ method, path }) => method === "POST" && path === "/api/backups/run"), true, "backup creation did not reach the fixture endpoint");
+    assert.equal(fixture.requests.some(({ method, path }) => method === "GET" && path === "/api/backups"), true, "backup creation did not refresh the backup list");
+    const downloadPromise = page.waitForEvent("download");
+    await page.click('[data-backup-key="d1-fixture-01.backup"]');
+    const download = await downloadPromise;
+    assert.equal(download.suggestedFilename(), "d1-fixture-01.json");
+    await page.locator(".mini-toast.visible").filter({ hasText: "加密备份已解密下载" }).waitFor();
+    assert.equal(fixture.requests.some(({ method, path }) => method === "GET" && path === "/api/backups/d1-fixture-01.backup"), true, "backup download did not reach the fixture endpoint");
+
+    await page.click("[data-refresh-trash]");
+    await page.waitForSelector('[data-trash-id="fixture-trash-restore"]');
+    await page.locator('[data-trash-id="fixture-trash-restore"] [data-trash-restore]').click();
+    await page.locator(".mini-toast.visible").filter({ hasText: "已恢复" }).waitFor();
+    await page.waitForFunction(() => !document.querySelector('[data-trash-id="fixture-trash-restore"]'));
+    assert.equal(fixture.rpcCalls.some(({ name, payload }) => name === "restore_trash_item" && payload.p_trash_id === "fixture-trash-restore"), true, "trash restore did not submit the expected RPC or remove the restored row");
+
+    await page.click("[data-refresh-trash]");
+    await page.waitForSelector('[data-trash-id="fixture-trash-delete"]');
+    await page.locator('[data-trash-id="fixture-trash-delete"] [data-trash-delete]').click();
+    await page.waitForSelector("dialog.action-confirm-dialog[open]");
+    await page.locator('dialog.action-confirm-dialog button[value="confirm"]').click();
+    await page.locator(".mini-toast.visible").filter({ hasText: "已永久删除" }).waitFor();
+    await page.waitForFunction(() => !document.querySelector('[data-trash-id="fixture-trash-delete"]'));
+    assert.equal(fixture.rpcCalls.some(({ name, payload }) => name === "permanently_delete_trash_item" && payload.p_trash_id === "fixture-trash-delete"), true, "trash permanent delete did not submit the expected RPC or remove the deleted row");
+
+    await page.click("[data-run-diagnostics]");
+    await page.waitForFunction(() => {
+      const text = document.querySelector("#diagnosticResults")?.textContent || "";
+      return text.includes("当前网络") && text.includes("上传队列") && !text.includes("正在检查");
+    });
+    assert.ok((await page.locator("#diagnosticResults .diagnostic-row").count()) >= 8, "successful diagnostics did not render the runtime result rows");
+
+    await seedQueuedUpload(page, "fixture-upload-retry");
+    await page.click("[data-settings-back]");
+    await openSettingsSection(page, "settingsStorage");
+    await page.waitForSelector('[data-upload-id="fixture-upload-retry"]');
+    await page.click("[data-retry-uploads]");
+    await page.waitForFunction(() => !document.querySelector('[data-upload-id="fixture-upload-retry"]'), null, { timeout: 15000 });
+    assert.equal(fixture.uploads.length >= 1, true, "queue retry did not upload the synthetic fixture file");
+    assert.equal(fixture.writes.some(({ path, action }) => path === "/api/table/photos" && action === "insert"), true, "queue retry did not persist the synthetic diary row");
+
+    await seedQueuedUpload(page, "fixture-upload-remove");
+    await page.click("[data-settings-back]");
+    await openSettingsSection(page, "settingsStorage");
+    await page.waitForSelector('[data-upload-id="fixture-upload-remove"]');
+    await page.locator('[data-upload-id="fixture-upload-remove"] [data-remove-upload]').click();
+    await page.waitForFunction(() => !document.querySelector('[data-upload-id="fixture-upload-remove"]'));
+    const remainingQueueItems = await page.evaluate(async () => {
+      const openRequest = indexedDB.open("life-vlog-upload-queue", 1);
+      const db = await new Promise((resolve, reject) => {
+        openRequest.onsuccess = () => resolve(openRequest.result);
+        openRequest.onerror = () => reject(openRequest.error);
+      });
+      const items = await new Promise((resolve, reject) => {
+        const request = db.transaction("diary-uploads", "readonly").objectStore("diary-uploads").getAll();
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = () => reject(request.error);
+      });
+      db.close();
+      return items.map((item) => item.id);
+    });
+    assert.equal(remainingQueueItems.includes("fixture-upload-remove"), false, "queue remove did not delete the synthetic IndexedDB item");
+    assert.deepEqual(result.errors, [], `settings data-safety page errors: ${result.errors.join(" | ")}`);
+  } finally {
+    await closeFixturePage(result);
+  }
 }
 
 async function testSettingsActionsAndRetention() {
@@ -106,6 +434,28 @@ async function testSettingsActionsAndRetention() {
       const value = document.querySelector("#settingsCacheValue")?.textContent || "";
       const kb = Number.parseInt(value, 10);
       return /KB/.test(value) && kb >= 100;
+    });
+    await page.evaluate(() => {
+      window.__fixtureCacheKeysDescriptor = Object.getOwnPropertyDescriptor(caches, "keys");
+      Object.defineProperty(caches, "keys", {
+        configurable: true,
+        value: async () => { throw new Error("fixture cache read denied"); },
+      });
+    });
+    await page.click("#refreshCacheInfoButton");
+    await page.waitForFunction(() => document.querySelector("#settingsCacheValue")?.textContent === "读取失败");
+    assert.equal(await page.locator("#settingsCacheValue").textContent(), "读取失败", "cache read failure did not reach the settings retry state");
+    await page.evaluate(() => {
+      if (window.__fixtureCacheKeysDescriptor) {
+        Object.defineProperty(caches, "keys", window.__fixtureCacheKeysDescriptor);
+      } else {
+        delete caches.keys;
+      }
+    });
+    await page.click("#refreshCacheInfoButton");
+    await page.waitForFunction(() => {
+      const value = document.querySelector("#settingsCacheValue")?.textContent || "";
+      return /KB/.test(value) && !value.includes("读取失败");
     });
 
     await page.click("#cacheLimitButton");
@@ -171,6 +521,17 @@ async function testSettingsActionsAndRetention() {
     const unavailableToast = page.locator(".mini-toast.visible").filter({ hasText: "当前浏览器不支持复制" });
     await unavailableToast.waitFor();
     assert.match(await unavailableToast.textContent(), /不支持复制/);
+    await page.evaluate(() => {
+      window.__fixtureCopiedDiagnostic = "";
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: { writeText: async (text) => { window.__fixtureCopiedDiagnostic = text; } },
+      });
+    });
+    await page.click("[data-performance-copy]");
+    const successCopyToast = page.locator(".mini-toast.visible").filter({ hasText: "已复制脱敏诊断信息" });
+    await successCopyToast.waitFor();
+    assert.equal(await page.evaluate(() => Boolean(window.__fixtureCopiedDiagnostic)), true, "successful diagnostics copy did not write to the fixture clipboard");
     assert.deepEqual(result.errors, [], `settings action page errors: ${result.errors.join(" | ")}`);
   } finally {
     await closeFixturePage(result);
@@ -252,9 +613,12 @@ async function testSettingsTouchGeometry() {
 
 try {
   await testSettingsActionsAndRetention();
+  await testSettingsPersistenceAndAccountActions();
+  await testFamilyRolesAndActions();
+  await testSettingsDataSafetyAndQueue();
   await testEarlyInstallPromptAndRoleSearch();
   await testSettingsTouchGeometry();
-  console.log("Settings reliability browser checks passed: cache actions, retention, install timing, role search, focus, clipboard failure, and touch geometry.");
+  console.log("Settings reliability browser checks passed: cache failure/retry, persistence, account and family actions, backup/trash, diagnostics, upload queue, install timing, role search, focus, clipboard, and touch geometry.");
 } finally {
   await browser.close();
   await new Promise((resolveClose) => server.close(resolveClose));

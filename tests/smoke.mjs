@@ -436,6 +436,48 @@ assert.equal(rollingEntries.has("https://example.com/new.jpg"), true);
 assert.equal(rollingEntries.has("https://example.com/old-2.jpg"), true);
 assert.equal(rollingEntries.has("https://example.com/old-1.jpg"), false);
 
+const emptyStatsMediaCache = mediaCache.createMediaCacheService({
+  appCachePrefix: "app-",
+  diaryCacheName: "diary",
+  secretCacheName: "secret",
+  legacyCacheName: "legacy",
+  cacheStorage: { keys: async () => [] },
+  navigatorApi: {},
+});
+assert.deepEqual(
+  await emptyStatsMediaCache.getStats(1234),
+  {
+    localBytes: 1234,
+    cacheBytes: 0,
+    appShellBytes: 0,
+    diaryBytes: 0,
+    secretBytes: 0,
+    appEntries: 0,
+    diaryEntries: 0,
+    secretEntries: 0,
+    cacheEntries: 0,
+    totalBytes: 1234,
+    browserUsageBytes: 0,
+    browserQuotaBytes: 0,
+  },
+  "an empty readable CacheStorage should report a true zero breakdown",
+);
+const deniedStatsMediaCache = mediaCache.createMediaCacheService({
+  appCachePrefix: "app-",
+  diaryCacheName: "diary",
+  secretCacheName: "secret",
+  legacyCacheName: "legacy",
+  cacheStorage: {
+    keys: async () => { throw new Error("fixture cache read denied"); },
+  },
+  navigatorApi: {},
+});
+await assert.rejects(
+  () => deniedStatsMediaCache.getStats(1234),
+  /fixture cache read denied/,
+  "CacheStorage read failures must not be converted into a zero-byte success",
+);
+
 const memoryStorage = new Map();
 const preferenceStore = preferencesStoreModule.createPreferenceStore({
   storage: {

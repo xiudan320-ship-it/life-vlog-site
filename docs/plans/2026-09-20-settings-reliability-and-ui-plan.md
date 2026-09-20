@@ -127,15 +127,15 @@
 
 | 分区 | 本轮结果 | 证据与未覆盖边界 |
 | --- | --- | --- |
-| 外观与使用 | 局部通过 | 早到 `beforeinstallprompt`、安装按钮用户点击和顶部分区触控布局由 `tests/settings-reliability-browser.mjs` 通过；主页名称、字号、单/双列、刷新后持久化未在本专项重新逐项提交，真实系统安装结果未验证。 |
-| 账户与安全 | 未专项回归 | 入口装配未改动；密码、邮箱、恢复密钥和头像涉及真实账户/邮件，保留在既有 fixture 测试范围外。 |
-| 家庭与共享 | 未专项回归 | 未使用真实家庭数据；本轮只验证设置壳返回焦点与分类生命周期。 |
+| 外观与使用 | 合成账号通过 | `tests/settings-reliability-browser.mjs` 的 `testSettingsPersistenceAndAccountActions` 实际点击保存主页名称、切换单列、选择大字号，关闭设置后刷新页面并检查 localStorage、body class、`data-text-scale` 和重新打开后的摘要；早到 `beforeinstallprompt`、安装按钮点击和触控尺寸仍由同文件覆盖。真实系统安装/主屏添加结果未验证。 |
+| 账户与安全 | fixture 成功/校验失败通过 | 同一浏览器 fixture 实际检查昵称写入 `user_profiles`、修改密码请求与成功文案、恢复密钥 RPC 与成功文案、秘藏 PIN 的不一致提示和本地 hash、邮箱请求/确认请求与成功文案；密码长度/恢复密钥不一致、邮箱验证码位数等前端错误也有断言。成功响应是确定性 API fixture，不代表真实账户、邮件送达或真实密码变更；头像上传未专项回归。 |
+| 家庭与共享 | fixture 角色与提交通过 | `testFamilyRolesAndActions` 使用合成家庭成员：创建者实际提交邀请和家庭签名并检查 RPC payload/结果，成员实际打开家庭对话框并确认创建者专属邀请表单隐藏且没有越权 RPC。未使用真实家庭、邀请码、邀请接受或真实成员数据。 |
 | 通知与工具 | 局部通过 | `tests/push-controller.mjs` 通过启用、关闭并发与 Service Worker 超时可恢复状态；设置浏览器回归通过工具排序按钮至少 44px，真实通知权限/送达未验证。 |
-| 存储与数据：缓存 | 通过 | 浏览器 fixture 真实点击容量、保存双池容量、关闭重开恢复焦点、刷新 100KB 缓存、全部清理；账号索引、草稿和容量保留，受管缓存删除。 |
-| 存储与数据：云端与恢复 | 权限路径通过，其余未专项回归 | 普通成员搜索不显示 R2 且不请求 `/api/admin/r2-usage`，管理员点击结果会请求；备份、回收站、旧图优化未在本轮逐项操作。 |
-| 存储与数据：诊断与队列 | 复制失败路径通过，其余未专项回归 | 剪贴板拒绝与 API 不存在均显示失败提示且无页面异常；运行诊断成功复制、上传队列重试/移除未重新逐项操作。 |
+| 存储与数据：缓存 | 通过，新增失败语义回归 | 浏览器 fixture 真实点击容量、保存双池容量、关闭重开恢复焦点、刷新 100KB 缓存、全部清理；本轮新增注入 `CacheStorage.keys()` 拒绝后检查设置值为“读取失败”，恢复原 API 后再次刷新得到正常 KB。`tests/smoke.mjs` 同时区分可读空缓存的真实 0 与读取异常；账号索引、草稿和容量保留，受管缓存删除。 |
+| 存储与数据：云端与恢复 | fixture 结果通过，真实云端未测 | 普通成员搜索不显示 R2 且不请求 `/api/admin/r2-usage`，管理员点击结果会请求；浏览器 fixture 实际创建并刷新备份列表、触发合成下载、恢复一条回收站记录并检查列表消失、永久删除另一条记录并检查列表消失，均检查对应 RPC/HTTP 请求与 fixture 状态。旧图优化未专项操作；不执行真实云端删除。 |
+| 存储与数据：诊断与队列 | fixture 成功/失败路径通过 | 剪贴板拒绝、API 不存在和成功复制均有实际 toast/写入断言；运行诊断渲染实际结果行；合成 IndexedDB 日记队列实际重试并写入照片 fixture，再实际移除另一条队列记录并复读 IndexedDB 确认消失。上传失败保留、真实弱网/断网恢复和真实媒体服务未专项验证。 |
 
-本轮受影响浏览器回归还覆盖手机 390×844、桌面 1440×900、安装事件先于设置 DOM、普通/管理员搜索、危险操作确认和设置错误日志；没有把 fixture 的安装提示或通知桩当作真实设备能力证明。
+本轮受影响浏览器回归还覆盖手机 390×844、桌面 1440×900、安装事件先于设置 DOM、普通/管理员搜索、危险操作确认和设置错误日志；没有把 fixture 的安装提示、通知桩、账户/邮件响应或云端回收站响应当作真实设备、真实账户、邮件送达或真实数据删除证明。Push 真实权限/送达、真实系统安装和真实云端 destructive path 仍显式未验证。
 
 ## 7. V1/V2：设置视觉与交互整理
 
@@ -187,5 +187,5 @@
 | S1–S6 / V1–V2 | 已实现；S1–S3 接通缓存控制器和运行时桥接，S4 修复早到安装事件与 Push 超时，S5 修复复制误报，S6 恢复子弹窗触发项焦点并按权限过滤搜索；V1/V2 完成设置局部 CSS 与真实渲染尺寸验收 |
 | 设置功能矩阵 | 已填写第 6.1 节；账户/家庭/备份/回收站/队列/真实设备安装与通知送达保留未专项验证边界 |
 | Figma / 视觉对照 | 只读检查既有文件 `ujvOxDH3YRNUnYxc5BzqXD` 的设置参考节点 `4:16`；本轮未写入新节点，代码沿用现有设置设计系统 |
-| 已运行验证 | `pnpm run check`、`pnpm run test:unit`（180 项）、`pnpm run test:static`、`pnpm run test:structure`、`pnpm run build`、`pnpm run test:build`、`pnpm run test:browser`、`pnpm run test:release-local` 均通过；本地 release-local 的 Axe critical/serious 与确定性 release smoke 均通过。为恢复完整浏览器门禁，另修复桌面日记菜单在异步重绘后丢失打开状态和方向键焦点的问题。 |
+| 已运行验证 | 前一轮完整门禁已通过；本次追加先运行 `pnpm run build`、`pnpm run test:unit`（180 项）和 `pnpm exec node tests/settings-reliability-browser.mjs`，均通过；新增缓存异常/空缓存断言与设置实际操作矩阵使用确定性内存 fixture。为恢复完整浏览器门禁，另修复桌面日记菜单在异步重绘后丢失打开状态和方向键焦点的问题。 |
 | 正式回归 / 提交 / 部署 | 已从清洁且已推送的 `main` 提交 `67597a175b334bcf7bb0f38dd5afb3c53b867e2d` 完成 preview → production；preview deployment `3d7b32dd-1237-45c5-8c26-d12259ada91f`、production deployment `8ce57823-c826-474b-b4d2-559fe2aaa887`，Worker 版本 `e5cebf84-cf84-4efb-bae5-16aecf528269`；`pnpm install --frozen-lockfile`、完整本地回归、本地/远程 Axe critical/serious、确定性 release smoke 和 Worker CORS 均通过。 |

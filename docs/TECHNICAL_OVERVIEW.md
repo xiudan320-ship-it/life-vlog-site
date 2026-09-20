@@ -152,7 +152,7 @@ flowchart LR
 
 - `preferences-store.js`：主题、字号、布局和顶部分页等设备偏好。
 - `upload-queue.js`：IndexedDB 上传队列与失败重试。
-- `media-cache.js` / `offline-cache-controller.js`：日记和秘藏媒体缓存；`renderCachedPhotoFeed()` 可在非 gallery 深链下先填充隐藏缓存画廊，避免断网应用壳丢失已缓存内容。
+- `media-cache.js` / `offline-cache-controller.js`：日记和秘藏媒体缓存；`renderCachedPhotoFeed()` 可在非 gallery 深链下先填充隐藏缓存画廊，避免断网应用壳丢失已缓存内容。缓存统计只把可读且确实为空的 CacheStorage 报告为 0；`keys/open/match` 或 CacheStorage 不可用时保留读取异常，由设置页显示失败并允许重试，不把权限/平台故障伪装成零占用。
 - `offline-settings-controller.js` / `cache-management-view.js`：缓存容量、自动缓存策略、离线包和清理操作；容量、刷新、预设、分池/全部清理均由同一 controller 幂等绑定，全部清理只删除受管理缓存和离线索引，保留账号、个人设置、草稿、上传队列与容量偏好。
 - `app-feedback-view.js`：全局即时反馈；原生 dialog 打开时将提示 host 跟随当前 dialog，并在关闭事件中清理，后续页面提示会自动恢复到 body。
 - `offline-records.js`：离线元数据记录。

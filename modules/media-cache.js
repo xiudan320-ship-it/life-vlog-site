@@ -140,7 +140,7 @@ export function createMediaCacheService({
   }
 
   async function getBreakdown() {
-    if (!cacheStorage) return emptyBreakdown();
+    if (!cacheStorage) throw new Error("Cache Storage unavailable.");
     const result = emptyBreakdown();
     const names = await cacheStorage.keys();
     for (const name of names.filter(isManagedCache)) {
@@ -164,7 +164,7 @@ export function createMediaCacheService({
 
   async function getStats(localBytes = 0) {
     const [breakdown, storageEstimate] = await Promise.all([
-      getBreakdown().catch(emptyBreakdown),
+      getBreakdown(),
       navigatorApi?.storage?.estimate?.().catch(() => null) ||
         Promise.resolve(null),
     ]);
