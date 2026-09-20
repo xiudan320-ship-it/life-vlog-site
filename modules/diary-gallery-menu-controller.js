@@ -23,15 +23,21 @@ export function bindDiaryGalleryMenu(container, photos, handlers) {
       if (!container.contains(event.target)) closeMenu(state);
     };
     state.onDocumentKeydown = (event) => {
-      if (!state.openId) return;
+      const openTrigger = container.querySelector('[data-photo-menu-trigger][aria-expanded="true"]');
+      const openId = state.openId || openTrigger?.dataset.photoMenuTrigger || "";
+      if (!openId) return;
+      state.openId = openId;
+      const menu = [...container.querySelectorAll("[data-photo-menu]")]
+        .find((item) => item.dataset.photoMenu === openId);
       if (event.key === "Escape") {
         event.preventDefault();
         closeMenu(state, { restoreFocus: true });
         return;
       }
       if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
-      const menu = [...container.querySelectorAll("[data-photo-menu]")]
-        .find((item) => item.dataset.photoMenu === state.openId);
+      if (!menu) return;
+      menu.querySelector("[data-photo-menu-trigger]")?.setAttribute("aria-expanded", "true");
+      menu.querySelector(".photo-menu-panel")?.removeAttribute("hidden");
       const items = [...(menu?.querySelectorAll("[role=menuitem]") || [])];
       if (!items.length) return;
       const currentIndex = items.indexOf(documentTarget.activeElement);
@@ -83,5 +89,15 @@ export function bindDiaryGalleryMenu(container, photos, handlers) {
   }
   state.photos = photos;
   state.handlers = handlers;
-  closeMenu(state, { restoreFocus: Boolean(state.openId) });
+  const openId = state.openId;
+  const openTrigger = [...container.querySelectorAll("[data-photo-menu-trigger]")]
+    .find((trigger) => trigger.dataset.photoMenuTrigger === openId)
+    || container.querySelector('[data-photo-menu-trigger][aria-expanded="true"]');
+  if (openTrigger) {
+    state.openId = openTrigger.dataset.photoMenuTrigger || openId;
+    openTrigger.setAttribute("aria-expanded", "true");
+    openTrigger.closest("[data-photo-menu]")?.querySelector(".photo-menu-panel")?.removeAttribute("hidden");
+  } else {
+    closeMenu(state, { restoreFocus: Boolean(openId) });
+  }
 }

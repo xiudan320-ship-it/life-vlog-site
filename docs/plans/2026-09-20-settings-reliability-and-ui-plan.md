@@ -187,5 +187,5 @@
 | S1–S6 / V1–V2 | 已实现；S1–S3 接通缓存控制器和运行时桥接，S4 修复早到安装事件与 Push 超时，S5 修复复制误报，S6 恢复子弹窗触发项焦点并按权限过滤搜索；V1/V2 完成设置局部 CSS 与真实渲染尺寸验收 |
 | 设置功能矩阵 | 已填写第 6.1 节；账户/家庭/备份/回收站/队列/真实设备安装与通知送达保留未专项验证边界 |
 | Figma / 视觉对照 | 只读检查既有文件 `ujvOxDH3YRNUnYxc5BzqXD` 的设置参考节点 `4:16`；本轮未写入新节点，代码沿用现有设置设计系统 |
-| 已运行验证 | `pnpm run check`、`pnpm run test:unit`（180 项）、`pnpm run test:static`、`pnpm run test:structure`、`pnpm run build`、`pnpm run test:build`、`pnpm run test:browser`、`pnpm run test:release-local` 均通过；本地 release-local 的 Axe critical/serious 与确定性 release smoke 均通过。为恢复完整浏览器门禁，另修复桌面日记菜单容器级键盘监听时序。 |
+| 已运行验证 | `pnpm run check`、`pnpm run test:unit`（180 项）、`pnpm run test:static`、`pnpm run test:structure`、`pnpm run build`、`pnpm run test:build`、`pnpm run test:browser`、`pnpm run test:release-local` 均通过；本地 release-local 的 Axe critical/serious 与确定性 release smoke 均通过。为恢复完整浏览器门禁，另修复桌面日记菜单在异步重绘后丢失打开状态和方向键焦点的问题。 |
 | 正式回归 / 提交 / 部署 | 本地门禁与 `pnpm run test:deployment` 已通过，待清洁 main 提交推送后按发布清单执行 preview → production；未通过远程门禁不发布 |
