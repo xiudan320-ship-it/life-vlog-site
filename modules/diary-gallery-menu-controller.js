@@ -77,7 +77,7 @@ export function bindDiaryGalleryMenu(container, photos, handlers) {
       else if (actionId === "edit") state.handlers.edit?.(photo);
     };
     documentTarget.addEventListener?.("click", state.onDocumentClick);
-    documentTarget.addEventListener?.("keydown", state.onDocumentKeydown);
+    container.addEventListener?.("keydown", state.onDocumentKeydown);
     container.addEventListener?.("click", state.onClick);
     menuStates.set(container, state);
   }

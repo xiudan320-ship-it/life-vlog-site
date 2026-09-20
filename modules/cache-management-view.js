@@ -2,28 +2,35 @@ export function configureCacheManagementUi({
   elements,
   minMb,
   maxMb,
-  setActiveSection,
   loadPolicy,
   savePolicy,
   showToast,
   downloadPool,
   clearPool,
+  openCapacity,
+  saveCapacity,
+  applyPreset,
+  refreshInfo,
+  clearAll,
+  reopenSettings,
   documentRef = document,
 }) {
   const {
     cacheLimitDialog,
     cacheLimitInput,
     cacheLimitButton,
-    settingsDialog,
     refreshCacheInfoButton,
     clearAppCacheButton,
     cacheLimitForm,
+    closeCacheLimitDialog,
+    cancelCacheLimit,
+    clearDiaryCacheButton,
+    clearSecretCacheButton,
   } = elements;
-  if (!cacheLimitDialog || !cacheLimitInput || !cacheLimitButton) return;
   const cacheGroup = documentRef.querySelector("#settingsStorage");
   if (!cacheGroup) return;
-  cacheLimitButton.querySelector("span").textContent = "缓存容量上限";
-  const summary = cacheLimitButton.querySelector("small");
+  if (cacheLimitButton?.querySelector("span")) cacheLimitButton.querySelector("span").textContent = "缓存容量上限";
+  const summary = cacheLimitButton?.querySelector("small");
   if (summary) summary.textContent = "日记和秘藏分别按容量自动淘汰旧图片";
 
   const policyButton = documentRef.querySelector("#mediaCachePolicyButton");
@@ -61,6 +68,23 @@ export function configureCacheManagementUi({
     secretDownload.addEventListener("click", () => downloadPool("secret"));
   }
 
+  if (cacheLimitButton && cacheLimitButton.dataset.cacheUiBound !== "true") {
+    cacheLimitButton.dataset.cacheUiBound = "true";
+    cacheLimitButton.addEventListener("click", () => openCapacity?.());
+  }
+  if (refreshCacheInfoButton && refreshCacheInfoButton.dataset.cacheUiBound !== "true") {
+    refreshCacheInfoButton.dataset.cacheUiBound = "true";
+    refreshCacheInfoButton.addEventListener("click", () => {
+      void refreshInfo?.();
+    });
+  }
+  if (clearAppCacheButton && clearAppCacheButton.dataset.cacheUiBound !== "true") {
+    clearAppCacheButton.dataset.cacheUiBound = "true";
+    clearAppCacheButton.addEventListener("click", () => {
+      void clearAll?.();
+    });
+  }
+
   const heading = cacheLimitForm?.querySelector("h2");
   const intro = heading?.nextElementSibling;
   if (heading) heading.textContent = "本地缓存容量";
@@ -83,15 +107,39 @@ export function configureCacheManagementUi({
     const value = presetValues[index] || 100;
     button.dataset.cacheLimitPreset = String(value);
     button.textContent = `${value} / ${value * 3} MB`;
+    if (button.dataset.cacheUiBound !== "true") {
+      button.dataset.cacheUiBound = "true";
+      button.addEventListener("click", () => applyPreset?.(button.dataset.cacheLimitPreset));
+    }
   });
   const hint = cacheLimitForm?.querySelector(".cache-limit-hint");
   if (hint) hint.textContent = "前一个数字是日记容量，后一个是秘藏容量。Wi-Fi 下自动保留最新 20 条日记；手动离线包会缓存到容量上限。";
 
-  [documentRef.querySelector("#clearDiaryCacheButton"), documentRef.querySelector("#clearSecretCacheButton")]
+  [clearDiaryCacheButton || documentRef.querySelector("#clearDiaryCacheButton"), clearSecretCacheButton || documentRef.querySelector("#clearSecretCacheButton")]
     .filter(Boolean)
     .forEach((button) => {
       if (button.dataset.cacheUiBound === "true") return;
       button.dataset.cacheUiBound = "true";
       button.addEventListener("click", () => clearPool(button.id === "clearSecretCacheButton" ? "secret" : "diary"));
     });
+
+  if (cacheLimitForm && cacheLimitForm.dataset.cacheUiBound !== "true") {
+    cacheLimitForm.dataset.cacheUiBound = "true";
+    cacheLimitForm.addEventListener("submit", (event) => saveCapacity?.(event));
+  }
+  if (closeCacheLimitDialog && closeCacheLimitDialog.dataset.cacheUiBound !== "true") {
+    closeCacheLimitDialog.dataset.cacheUiBound = "true";
+    closeCacheLimitDialog.addEventListener("click", () => cacheLimitDialog?.close());
+  }
+  if (cancelCacheLimit && cancelCacheLimit.dataset.cacheUiBound !== "true") {
+    cancelCacheLimit.dataset.cacheUiBound = "true";
+    cancelCacheLimit.addEventListener("click", () => cacheLimitDialog?.close());
+  }
+  if (cacheLimitDialog && cacheLimitDialog.dataset.cacheUiBound !== "true") {
+    cacheLimitDialog.dataset.cacheUiBound = "true";
+    cacheLimitDialog.addEventListener("click", (event) => {
+      if (event.target === cacheLimitDialog) cacheLimitDialog.close();
+    });
+    cacheLimitDialog.addEventListener("close", () => reopenSettings?.());
+  }
 }

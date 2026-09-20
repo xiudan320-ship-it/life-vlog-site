@@ -1,5 +1,6 @@
 const SUBSCRIPTION_SYNC_KEY = "life-vlog-push-subscription-sync";
 const SUBSCRIPTION_SYNC_INTERVAL = 6 * 60 * 60 * 1000;
+const SERVICE_WORKER_READY_TIMEOUT_MS = 5000;
 
 function decodeVapidPublicKey(value) {
   const padding = "=".repeat((4 - (value.length % 4)) % 4);
@@ -30,9 +31,11 @@ export function createPushController({
   openWishlistDestination = () => {},
   openPhoto,
   showToast,
+  readyTimeoutMs = SERVICE_WORKER_READY_TIMEOUT_MS,
 }) {
   let syncPromise = null;
   let pushOperationPromise = null;
+  let settingsRefreshGeneration = 0;
 
   function registerWorker() {
     if (!("serviceWorker" in navigator)) return;
@@ -40,9 +43,28 @@ export function createPushController({
     navigator.serviceWorker.register("./sw.js", { scope: "./" }).catch(() => {});
   }
 
+  async function getServiceWorkerReady() {
+    const ready = navigator.serviceWorker?.ready;
+    if (!ready) throw new Error("Service Worker 尚未注册");
+    let timeoutId = 0;
+    const timeout = new Promise((_, reject) => {
+      timeoutId = globalThis.setTimeout(() => {
+        const error = new Error("Service Worker 尚未就绪");
+        error.code = "service-worker-timeout";
+        reject(error);
+      }, readyTimeoutMs);
+    });
+    try {
+      return await Promise.race([ready, timeout]);
+    } finally {
+      globalThis.clearTimeout(timeoutId);
+    }
+  }
+
   async function getSubscription() {
     if (!supportsWebPush()) return null;
-    const registration = await navigator.serviceWorker.ready;
+    const registration = await getServiceWorkerReady();
+    if (!registration?.pushManager?.getSubscription) throw new Error("推送管理器不可用");
     return registration.pushManager.getSubscription();
   }
 
@@ -72,23 +94,52 @@ export function createPushController({
   }
 
   async function refreshSettings() {
+    const refreshGeneration = ++settingsRefreshGeneration;
+    const sessionKey = String(getSession()?.user?.id || "");
     const state = document.querySelector("#pushNotificationState");
     const detail = document.querySelector("#pushNotificationDetail");
     const enable = document.querySelector("#enablePushNotifications");
     const disable = document.querySelector("#disablePushNotifications");
     if (!state || !enable || !disable) return;
+    const isCurrent = () => refreshGeneration === settingsRefreshGeneration
+      && sessionKey === String(getSession()?.user?.id || "");
     if (!supportsWebPush()) {
       state.textContent = "当前设备不支持";
-      detail.textContent = "请使用 iOS 16.4+ 主屏幕 Web App 或现代浏览器。";
+      if (detail) detail.textContent = "请使用 iOS 16.4+ 主屏幕 Web App 或现代浏览器。";
       enable.disabled = true;
       disable.disabled = true;
       disable.hidden = true;
       return;
     }
-    const subscription = await getSubscription().catch(() => null);
+    if (Notification.permission === "denied") {
+      state.textContent = "已被系统关闭";
+      if (detail) detail.textContent = "请在浏览器或系统设置中重新允许通知。";
+      enable.hidden = false;
+      enable.disabled = true;
+      disable.disabled = false;
+      disable.hidden = true;
+      return;
+    }
+    let subscription = null;
+    let readinessError = null;
+    try {
+      subscription = await getSubscription();
+    } catch (error) {
+      readinessError = error;
+    }
+    if (!isCurrent()) return false;
+    if (readinessError) {
+      state.textContent = readinessError.code === "service-worker-timeout" ? "检查超时" : "暂不可用";
+      if (detail) detail.textContent = "通知服务尚未就绪，请稍后重试。";
+      enable.hidden = false;
+      enable.disabled = false;
+      disable.disabled = true;
+      disable.hidden = true;
+      return false;
+    }
     const enabled = Notification.permission === "granted" && Boolean(subscription);
     state.textContent = enabled ? "已开启" : Notification.permission === "denied" ? "已被系统关闭" : "未开启";
-    detail.textContent = enabled
+    if (detail) detail.textContent = enabled
       ? "新日记、心愿、购物车商品、留言和晚间心情提醒会发送到这台设备。"
       : (/(iPhone|iPad|iPod)/i.test(navigator.userAgent) && !isStandaloneWebApp())
         ? "请先添加到主屏幕，再从桌面图标打开并开启。"
@@ -146,7 +197,10 @@ export function createPushController({
         if (status) status.textContent = "没有获得通知权限，可在系统设置中重新允许。";
         return false;
       }
-      const registration = await navigator.serviceWorker.ready;
+      const registration = await getServiceWorkerReady();
+      if (!registration?.pushManager?.getSubscription || !registration.pushManager.subscribe) {
+        throw new Error("推送管理器不可用");
+      }
       const config = await request("/api/push/config");
       const publicKey = String(config?.data?.publicKey || "");
       if (!publicKey) throw new Error("推送公钥尚未部署");

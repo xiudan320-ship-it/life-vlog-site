@@ -17,6 +17,7 @@ const SETTINGS_BREAKPOINT = 700;
 export function createSettingsShellController({
   elements,
   getSession = () => true,
+  canViewSettingsItem = () => true,
   renderSettingsSummary,
   resetAdminStorage = () => {},
   onSectionActivate,
@@ -26,6 +27,8 @@ export function createSettingsShellController({
   const root = elements?.settingsDialog;
   let activeSection = SETTINGS_SECTION_REGISTRY[0]?.id || "settingsAppearance";
   let returnFocus = null;
+  let childReturnFocus = null;
+  let childContentScrollTop = 0;
   let returnToSettings = false;
   let restoreMobileDetail = false;
   let initialized = false;
@@ -92,6 +95,8 @@ export function createSettingsShellController({
   function close() {
     returnToSettings = false;
     restoreMobileDetail = false;
+    childReturnFocus = null;
+    childContentScrollTop = 0;
     if (root?.open) root.close();
     else restoreSettingsFocus();
   }
@@ -108,6 +113,9 @@ export function createSettingsShellController({
 
   function openChildDialog(dialog, prepare = null) {
     if (!dialog) return false;
+    const activeElement = root?.ownerDocument?.activeElement;
+    childReturnFocus = activeElement && root?.contains?.(activeElement) ? activeElement : null;
+    childContentScrollTop = root?.querySelector?.("[data-settings-content]")?.scrollTop || 0;
     restoreMobileDetail = isMobile() && Boolean(root?.dataset.mobileSettingsSection);
     returnToSettings = true;
     elements?.userPopover && (elements.userPopover.hidden = true);
@@ -123,12 +131,32 @@ export function createSettingsShellController({
     if (typeof getSession === "function" && !getSession()) {
       restoreMobileDetail = false;
       returnFocus = null;
+      childReturnFocus = null;
       return false;
     }
     const section = activeSection;
     const mobileDetail = restoreMobileDetail;
+    const focusTarget = childReturnFocus;
+    const scrollTop = childContentScrollTop;
     restoreMobileDetail = false;
+    childReturnFocus = null;
+    childContentScrollTop = 0;
     windowRef?.setTimeout?.(() => open(section, { mobileDetail }), 0);
+    windowRef?.setTimeout?.(() => {
+      const content = root?.querySelector?.("[data-settings-content]");
+      if (content) content.scrollTop = scrollTop;
+      const visible = focusTarget
+        && root?.contains?.(focusTarget)
+        && !focusTarget.hidden
+        && !focusTarget.closest?.("[hidden]")
+        && windowRef?.getComputedStyle?.(focusTarget)?.display !== "none"
+        && windowRef?.getComputedStyle?.(focusTarget)?.visibility !== "hidden";
+      if (visible) {
+        focusTarget.focus?.({ preventScroll: true });
+      } else {
+        root?.querySelector?.(`#settings-tab-${CSS.escape(section)}`)?.focus?.({ preventScroll: true });
+      }
+    }, 1);
     return true;
   }
 
@@ -143,7 +171,7 @@ export function createSettingsShellController({
 
   function openSearchResult(itemId) {
     const item = getSettingsItem(itemId);
-    if (!item || !root) return false;
+    if (!item || !root || !canViewSettingsItem(item)) return false;
     const mobileDetail = isMobile();
     applySection(item.sectionId, { mobileDetail, targetId: item.id });
     return true;
@@ -151,7 +179,7 @@ export function createSettingsShellController({
 
   function updateSearch(value) {
     const query = String(value || "");
-    searchResults = querySettings(query);
+    searchResults = querySettings(query).filter((item) => canViewSettingsItem(item));
     renderSettingsSearchResults(root, searchResults, query);
     return searchResults;
   }

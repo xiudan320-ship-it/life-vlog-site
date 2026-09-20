@@ -45,6 +45,8 @@ export function createOfflineCacheController({
   formatFileSize,
 }) {
   let cacheTimer = 0;
+  let refreshPromise = null;
+  let clearPromise = null;
 
   function getPhotoFeedStorageKey(userId = getSession()?.user?.id || "public") {
     return `${keys.photoFeed}:${userId || "public"}`;
@@ -301,23 +303,47 @@ export function createOfflineCacheController({
   }
 
   async function refreshInfo() {
+    if (refreshPromise) return refreshPromise;
+    const accountKey = String(getSession()?.user?.id || "guest");
     if (elements.settingsCacheValue) elements.settingsCacheValue.textContent = "计算中...";
-    renderStats(await getStats());
+    refreshPromise = (async () => {
+      try {
+        const stats = await getStats();
+        if (accountKey === String(getSession()?.user?.id || "guest")) renderStats(stats);
+        return stats;
+      } catch (error) {
+        if (accountKey === String(getSession()?.user?.id || "guest")) {
+          if (elements.settingsCacheValue) elements.settingsCacheValue.textContent = "读取失败";
+          if (elements.settingsCacheStatus) elements.settingsCacheStatus.textContent = "缓存占用读取失败，请重试";
+        }
+        return null;
+      } finally {
+        refreshPromise = null;
+      }
+    })();
+    return refreshPromise;
   }
 
   async function clear() {
-    if (elements.settingsCacheStatus) elements.settingsCacheStatus.textContent = "正在清除...";
-    const keysToRemove = [];
-    for (let index = 0; index < localStorage.length; index += 1) {
-      const key = localStorage.key(index) || "";
-      if (key.startsWith(`${keys.photoFeed}:`) || key.startsWith(`${keys.secretItems}:`)) {
-        keysToRemove.push(key);
+    if (clearPromise) return clearPromise;
+    clearPromise = (async () => {
+      if (elements.settingsCacheStatus) elements.settingsCacheStatus.textContent = "正在清除...";
+      const keysToRemove = [];
+      for (let index = 0; index < localStorage.length; index += 1) {
+        const key = localStorage.key(index) || "";
+        if (key.startsWith(`${keys.photoFeed}:`) || key.startsWith(`${keys.secretItems}:`)) {
+          keysToRemove.push(key);
+        }
       }
-    }
-    keysToRemove.forEach((key) => localStorage.removeItem(key));
-    await mediaCacheService.deleteManagedCaches();
-    await refreshInfo();
-    if (elements.settingsCacheStatus) elements.settingsCacheStatus.textContent = "缓存已清除，账号和设置已保留";
+      keysToRemove.forEach((key) => localStorage.removeItem(key));
+      await mediaCacheService.deleteManagedCaches();
+      await refreshInfo();
+      if (elements.settingsCacheStatus) elements.settingsCacheStatus.textContent = "缓存已清除，账号和设置已保留";
+      return true;
+    })().finally(() => {
+      clearPromise = null;
+    });
+    return clearPromise;
   }
 
   return {

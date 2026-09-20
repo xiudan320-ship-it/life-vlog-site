@@ -1,17 +1,18 @@
 import { normalizeCacheMb } from "./cache-policy.js";
 
+import { configureCacheManagementUi } from "./cache-management-view.js";
+
 export function createOfflineSettingsController({
   elements,
   constants,
   mediaCacheService,
+  clearOfflineCache,
   getUserId,
   loadCacheCapacityMb,
   saveCacheCapacityMb,
   scheduleOfflineMediaCache,
   refreshCacheInfo,
   renderSettingsSummary,
-  configureCacheManagementUi,
-  setActiveSettingsSection,
   loadMediaCachePolicy,
   saveMediaCachePolicy,
   showMiniToast,
@@ -21,6 +22,8 @@ export function createOfflineSettingsController({
   cacheOfflineMedia,
   formatFileSize,
   openSettingsChildDialog,
+  reopenSettingsAfterChildDialog,
+  confirmAction,
 }) {
   const els = elements;
   const {
@@ -37,7 +40,7 @@ export function createOfflineSettingsController({
   function changeCacheLimit() {
     ensureCacheManagementUi();
     if (!els.cacheLimitDialog || !els.cacheLimitInput) return;
-    const secretInput = document.querySelector("#secretCacheLimitInput");
+    const secretInput = els.secretCacheLimitInput || document.querySelector("#secretCacheLimitInput");
     els.cacheLimitInput.value = String(loadCacheCapacityMb("diary"));
     if (secretInput) secretInput.value = String(loadCacheCapacityMb("secret"));
     if (els.cacheLimitStatus) {
@@ -54,7 +57,7 @@ export function createOfflineSettingsController({
   function saveCacheLimitFromDialog(event) {
     event.preventDefault();
     const diaryMb = saveCacheCapacityMb("diary", els.cacheLimitInput?.value);
-    const secretMb = saveCacheCapacityMb("secret", document.querySelector("#secretCacheLimitInput")?.value);
+    const secretMb = saveCacheCapacityMb("secret", (els.secretCacheLimitInput || document.querySelector("#secretCacheLimitInput"))?.value);
     scheduleOfflineMediaCache();
     renderSettingsSummary();
     void refreshCacheInfo();
@@ -74,7 +77,7 @@ export function createOfflineSettingsController({
     const diaryMb = normalizeCacheMb(value, defaultDiaryCacheMb);
     const secretMb = normalizeCacheMb(diaryMb * 3, defaultSecretCacheMb);
     els.cacheLimitInput.value = String(diaryMb);
-    const secretInput = document.querySelector("#secretCacheLimitInput");
+    const secretInput = els.secretCacheLimitInput || document.querySelector("#secretCacheLimitInput");
     if (secretInput) secretInput.value = String(secretMb);
     if (els.cacheLimitStatus) {
       els.cacheLimitStatus.textContent = `已选择：日记 ${diaryMb} MB · 秘藏 ${secretMb} MB`;
@@ -86,21 +89,59 @@ export function createOfflineSettingsController({
       elements: {
         cacheLimitDialog: els.cacheLimitDialog,
         cacheLimitInput: els.cacheLimitInput,
+        secretCacheLimitInput: els.secretCacheLimitInput,
         cacheLimitButton: els.cacheLimitButton,
-        settingsDialog: els.settingsDialog,
         refreshCacheInfoButton: els.refreshCacheInfoButton,
         clearAppCacheButton: els.clearAppCacheButton,
         cacheLimitForm: els.cacheLimitForm,
+        closeCacheLimitDialog: els.closeCacheLimitDialog,
+        cancelCacheLimit: els.cancelCacheLimit,
+        clearDiaryCacheButton: els.clearDiaryCacheButton,
+        clearSecretCacheButton: els.clearSecretCacheButton,
       },
       minMb: minCacheMb,
       maxMb: maxCacheMb,
-      setActiveSection: setActiveSettingsSection,
       loadPolicy: loadMediaCachePolicy,
       savePolicy: saveMediaCachePolicy,
       showToast: showMiniToast,
       downloadPool: downloadOfflinePool,
       clearPool: clearCachePool,
+      openCapacity: changeCacheLimit,
+      saveCapacity: saveCacheLimitFromDialog,
+      applyPreset: applyCacheLimitPreset,
+      refreshInfo: async () => {
+        try {
+          await refreshCacheInfo();
+        } catch (error) {
+          showMiniToast(`缓存占用读取失败：${error?.message || "请重试"}`, { kind: "error" });
+        }
+      },
+      clearAll: clearAllOfflineContent,
+      reopenSettings: reopenSettingsAfterChildDialog,
     });
+  }
+
+  async function clearAllOfflineContent() {
+    const confirmed = confirmAction
+      ? await confirmAction({
+        eyebrow: "清除本机缓存",
+        title: "清除全部离线内容？",
+        message: "会删除这台设备上的日记、秘藏媒体缓存和离线索引；账号、个人设置、未发布草稿与上传队列会保留。",
+        confirmLabel: "清除离线内容",
+        cancelLabel: "取消",
+        danger: true,
+      })
+      : true;
+    if (!confirmed) return false;
+    try {
+      await clearOfflineCache();
+      showMiniToast("缓存已清除，账号和设置已保留", { kind: "success" });
+      return true;
+    } catch (error) {
+      if (els.settingsCacheStatus) els.settingsCacheStatus.textContent = "清除失败，请重试";
+      showMiniToast(`清除缓存失败：${error?.message || "请重试"}`, { kind: "error" });
+      return false;
+    }
   }
 
   async function downloadOfflinePool(type) {
@@ -162,7 +203,9 @@ export function createOfflineSettingsController({
     saveCacheLimitFromDialog,
     applyCacheLimitPreset,
     ensureCacheManagementUi,
+    initialize: ensureCacheManagementUi,
     downloadOfflinePool,
     clearCachePool,
+    clearAllOfflineContent,
   };
 }

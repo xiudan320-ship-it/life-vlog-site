@@ -558,7 +558,6 @@ export function createAppRouteRuntime({
     photoFeedCacheKey: config.photoFeedCacheKey,
     mediaCacheService,
     clearOfflineCache,
-    configureCacheManagementUi: core.configureCacheManagementUi,
     getUserId: () => state.session?.user?.id,
     loadCacheCapacityMb,
     saveCacheCapacityMb,

@@ -19,8 +19,19 @@ export function createPerformanceDiagnosticsView({
   }
   async function copy() {
     const payload = JSON.stringify({ latest: monitor.latest(), sessions: monitor.history().length, health: health?.snapshot?.() || null }, null, 2);
-    await globalThis.navigator?.clipboard?.writeText?.(payload);
-    showToast("已复制脱敏诊断信息", { kind: "success" });
+    const writeText = globalThis.navigator?.clipboard?.writeText;
+    if (typeof writeText !== "function") {
+      showToast("当前浏览器不支持复制，请手动选择诊断内容", { kind: "error" });
+      return false;
+    }
+    try {
+      await writeText.call(globalThis.navigator.clipboard, payload);
+      showToast("已复制脱敏诊断信息", { kind: "success" });
+      return true;
+    } catch {
+      showToast("无法复制诊断信息，请检查剪贴板权限后重试", { kind: "error" });
+      return false;
+    }
   }
   function clear() { monitor.clear(); health?.clear?.(); render(); showToast("已清除本机诊断记录"); }
   function bind(target = getRoot()) {

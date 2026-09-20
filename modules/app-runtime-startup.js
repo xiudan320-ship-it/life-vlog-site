@@ -35,8 +35,10 @@ export function startAppRuntime(runtime) {
     windowTarget: window,
   });
   const pwaInstallController = createPwaInstallController({
-    button: elements.installAppButton,
-    hint: elements.installAppHint,
+    getElements: () => ({
+      button: document.querySelector("#installAppButton"),
+      hint: document.querySelector("#installAppHint"),
+    }),
   });
   const pwaUpdateController = createPwaUpdateController({
     showToast: (...args) => showMiniToast?.(...args),

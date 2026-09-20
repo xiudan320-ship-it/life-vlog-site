@@ -51,7 +51,7 @@ flowchart LR
 
 `app.js` 不承载业务逻辑。新增功能按职责进入 `modules/`，并保持 controller、view、domain、repository/service 分离。
 
-顶部分页由 `primary-navigation-controller.js` 在应用壳装配时接管：访客先使用默认可见入口，session 建立后按用户/设备作用域应用配置；设置路由在模板渲染完成后才绑定 Push 设置按钮和顶部分页设置。设置中心由 `settings-shell-controller.js` / `settings-shell-view.js` 负责新版搜索、五组分类目录、桌面 tab 与手机目录/详情两级布局，业务设置仍由各自懒加载 controller 负责。管理员 R2 统计由 `settings-route.js` 在设置 DOM 挂载后创建，只在进入“存储与数据”时读取，不再参与首页账户同步或顶部导航。Push 控制器的请求依赖由 `app-runtime-feature-assembly.js` 直接接入 `services.cloudflareBackend.request`，设置页不依赖提前加载的懒路由 DOM。
+顶部分页由 `primary-navigation-controller.js` 在应用壳装配时接管：访客先使用默认可见入口，session 建立后按用户/设备作用域应用配置；设置路由在模板渲染完成后才绑定 Push 设置按钮和顶部分页设置。设置中心由 `settings-shell-controller.js` / `settings-shell-view.js` 负责新版搜索、五组分类目录、桌面 tab 与手机目录/详情两级布局，业务设置仍由各自懒加载 controller 负责；设置路由在 `collect` 后显式初始化缓存设置 controller，避免可选调用掩盖缺失装配。管理员 R2 统计由 `settings-route.js` 在设置 DOM 挂载后创建，只在进入“存储与数据”时读取，不再参与首页账户同步或顶部导航。Push 控制器的请求依赖由 `app-runtime-feature-assembly.js` 直接接入 `services.cloudflareBackend.request`，设置页不依赖提前加载的懒路由 DOM。
 
 首页今日概览由 `today-mood-controller.js` / `today-mood-view.js` 维护当天两席；桌面端在同一概览中使用独立的 `listMonth` 查询展示本月心情日历缩略网格，月度读取失败不会覆盖当天心情状态。宽屏使用三列布局，把双人心情面板与本月日历面板堆叠到页面最右侧栏，上方是今日心情、下方是本月心情，标题与快捷操作保留在中央内容列；右侧栏由标题后的零高度锚点独立定位，不参与中央内容流的行高，并与中央列保留安全间隔以避免覆盖后续内容。普通桌面使用紧凑的自然高度：两张成员卡不再通过 `height: 100%` 填满月历面板，月历按 4～6 周完整显示；手机端隐藏右侧日历并保留原有紧凑两席；短横屏显式恢复两列自然高度。
 
@@ -153,7 +153,7 @@ flowchart LR
 - `preferences-store.js`：主题、字号、布局和顶部分页等设备偏好。
 - `upload-queue.js`：IndexedDB 上传队列与失败重试。
 - `media-cache.js` / `offline-cache-controller.js`：日记和秘藏媒体缓存；`renderCachedPhotoFeed()` 可在非 gallery 深链下先填充隐藏缓存画廊，避免断网应用壳丢失已缓存内容。
-- `offline-settings-controller.js` / `cache-management-view.js`：缓存容量、自动缓存策略、离线包和清理操作；设置摘要通过 runtime 桥接读取已装配的缓存控制器，避免显示未解析值。
+- `offline-settings-controller.js` / `cache-management-view.js`：缓存容量、自动缓存策略、离线包和清理操作；容量、刷新、预设、分池/全部清理均由同一 controller 幂等绑定，全部清理只删除受管理缓存和离线索引，保留账号、个人设置、草稿、上传队列与容量偏好。
 - `app-feedback-view.js`：全局即时反馈；原生 dialog 打开时将提示 host 跟随当前 dialog，并在关闭事件中清理，后续页面提示会自动恢复到 body。
 - `offline-records.js`：离线元数据记录。
 - `src/sw.js`：Workbox 预缓存和运行时缓存策略。
@@ -162,11 +162,11 @@ Service Worker 使用 `registerType: "prompt"`，新版本就绪后由用户确�
 
 心情日记的当前月份在 `localStorage` 使用 `life-vlog-mood-month:<userId>:<YYYY-MM>` 缓存；首页今日概览由 `today-mood-cache.js` 使用 `life-vlog-mood-day:<userId>:<YYYY-MM-DD>` 缓存当天两席，并在没有日缓存时从月缓存提取当天记录。两类缓存仅作为加速层，云端成功响应会替换 canonical 内容；缓存读取失败不阻断网络读取，用户、日期/月和请求 revision 均参与隔离与 latest-wins 判断。首页的今日记录先显示缓存并后台刷新，首屏心情素材使用 eager 加载；Service Worker 对同源心情 SVG 继续使用 `StaleWhileRevalidate`。`monthSummary` 不单独持久化，而是由当前月 entries、稳定两席和月份键派生；`mood-month-summary-domain.js` 生成最多 62 个确定性罐体素材元数据、成员最多心情、按日三档趋势（缺口只保留真实端点并输出虚线桥）和真实日期趋势坐标。`mood-jar-physics.js` 与透明圆肚玻璃罐 WebP 共用 `360×480` 几何，以瓶口 `(180,42)`、向内缩的曲面瓶壁和椭圆底部为边界，使用固定 `1/60s` 步长、最多 4 次逐帧补算、确定性批次出生、圆形粒子碰撞、摩擦、轻微回弹和休眠，最终稳定态仍由同一求解器收束。`mood-month-summary-view.js` 观察罐体至少 55% 可见且中心进入视口 20%～80% 焦点带后，启动当前月份/数据 key 的一次播放；月历和罐体旁的月份按钮都复用 `mood-diary-controller.js` 的月份 action。月份 action 从触发按钮所属的月历或心情罐模块读取视口锚点，在同步/缓存/canonical 多次渲染后增量恢复位置，并在完成后的两帧内避开全局平滑滚动释放锚点，因此 4～6 周月历切换不会推动当前可见模块。数据渲染后会重新读取罐体布局，覆盖隐藏路由激活时的旧视口判断；单一 rAF 只把缓存粒子状态写入内层 `transform`/`opacity`，不在帧循环中查询 DOM。重播、切月、数据刷新、路由离开和 destroy 都取消旧 rAF 并重建唯一模拟，reduced-motion 直接采用求解器最终态并播报状态。物理内腔最终使用 `wallInset=8`、`floorEdgeY=420`、`floorCenterY=434`，与可见底座留出安全间距。瓶体源图位于 `assets-source/mood-jar.png`，构建时由 `scripts/optimize-assets.mjs` 输出 720×960 的 `/assets/generated/mood-jar.webp`。手机趋势使用约 `390×360` 的高画布，记录较少时按真实有记录日期等距展开，HTML 命中按钮与 SVG 绘图共用同一坐标模型。评论由 `comment-thread-domain.js` 转为同级行模型；移动日记与桌面详情共享稳定排序、回复目标和孤儿/循环保护，正文至少 16px、长 URL 任意断行，表单保持列表后的正常文档流。首页成功态折叠空状态行；普通桌面今日心情使用窄左栏上下排列、右侧显示本月心情日历，宽屏则把今日心情面板放在右侧栏上方、把本月心情日历放在同一栏下方，手机端继续隐藏右侧月度面板。保存、编辑、删除先更新月历/历史/详情/汇总的内存快照，再强制重读受影响月份；成功响应覆盖 optimistic state，重读失败保留已写入结果并显示可重试状态；没有离线写入队列。
 
-顶部分页配置使用现有 `preferences-store.js` 的 `life-vlog-primary-navigation` key，按现有 user/device scope 隔离；只保存启用状态与顺序，不新增数据库、云端字段或依赖。关闭本机 Push 时先执行浏览器订阅的 `unsubscribe()`，再清理 Worker 记录；远端失败只反馈“本机已关闭、云端记录清理失败”，不阻断本地状态。
+顶部分页配置使用现有 `preferences-store.js` 的 `life-vlog-primary-navigation` key，按现有 user/device scope 隔离；只保存启用状态与顺序，不新增数据库、云端字段或依赖。关闭本机 Push 时先执行浏览器订阅的 `unsubscribe()`，再清理 Worker 记录；远端失败只反馈“本机已关闭、云端记录清理失败”，不阻断本地状态。读取 `navigator.serviceWorker.ready` 有明确超时，超时后显示可重试状态，不让设置永久停在检查中。
 
 `cloudflare-client.js` 的 `auth.signOut()` 先隔离并清理本地 session/备份，再用捕获的 token 请求 Worker `/api/auth/logout`；请求有超时和重复点击去重，迟到的 refresh/session 响应不能重新写回当前状态。服务器撤销失败不会伪报成功，`auth-controller.js` 会分别提示本地清理和服务器撤销状态。在线登录/注册先提交 localStorage 与内存状态，IndexedDB 备份失败不会制造无事件的半登录状态，而是通过 `backup` 结果和认证提示明确告知。旧的 `cloudflareBackend.storage.from()` 已删除；媒体统一走 R2 的 `image-service.js` / `asset-controller.js` 边界。
 
-设置页的缓存容量摘要和自动缓存策略由 shell 的显式桥接读取 feature assembly 完成装配后的 `offline-cache-controller.js`；自动缓存切换先更新按钮文本，再显示成功提示。即时提示在存在原生 dialog 时跟随当前 dialog 进入 top layer，并在 dialog 关闭事件中清理，避免提示被 dialog 遮挡或在关闭后残留。
+设置页的缓存容量摘要和自动缓存策略由 shell 的显式桥接读取 feature assembly 完成装配后的 `offline-cache-controller.js`；自动缓存切换先更新按钮文本，再显示成功提示。设置子弹窗关闭后恢复原分类、触发按钮和内容滚动位置；缓存统计请求按账号单飞，迟到结果不能写回新账号。即时提示在存在原生 dialog 时跟随当前 dialog 进入 top layer，并在 dialog 关闭事件中清理，避免提示被 dialog 遮挡或在关闭后残留。诊断复制只有 Clipboard API 成功后才提示成功，拒绝或不可用均显示可理解的失败原因。
 
 ## 9. 构建与资源
 

@@ -3,7 +3,6 @@
  * and startup concerns live in their dedicated runtime modules.
  */
 import { confirmAction } from "./confirm-dialog.js";
-import { configureCacheManagementUi } from "./cache-management-view.js";
 import {
   createMediaControllerAssembly,
   createMediaRuntimeState,
@@ -1110,10 +1109,11 @@ const appRouteRuntime = createRuntimeRouteEntry({
     confirmAction,
     usernameToEmail,
     resolveRedirectUrl,
+    openSettingsChildDialog: (...args) => openSettingsChildDialog(...args),
+    reopenSettingsAfterChildDialog: (...args) => reopenSettingsAfterChildDialog(...args),
     openRandomMemory,
     renderOverview,
     isMissingCloudSchema,
-    configureCacheManagementUi,
     applyTextScale: (...args) => textScaleController.apply(...args),
     loadTextScale: (...args) => textScaleController.load(...args),
   },

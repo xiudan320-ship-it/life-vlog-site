@@ -271,7 +271,7 @@ assert.match(offlineSettings, /ensureCacheManagementUi/);
 assert.match(offlineSettings, /changeCacheLimit/);
 assert.match(cacheManagementView, /configureCacheManagementUi/);
 assert.doesNotMatch(cacheManagementView, /renderCacheManagementUi|bindCacheManagementUi/);
-assert.match(settingsRoute, /offlineSettings\?\.initialize/);
+assert.match(settingsRoute, /controllers\.offlineSettings\.initialize\(\)/);
 
 assert.equal(parseRoute({ href: "https://example.test/?page=wishlist&pushType=thanks" }).page, "wishlist");
 assert.equal(parseRoute({ href: "https://example.test/?page=thanks" }).page, "gallery");

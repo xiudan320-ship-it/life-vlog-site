@@ -56,7 +56,7 @@
 - `modules/route-loader.js` 与 `modules/app-navigation-controller.js` 共同维护 latest-wins 路由事务。过期的 chunk/activate 结果不得提交页面显隐、URL、焦点、滚动或 busy 状态。
 - `modules/primary-navigation-domain.js` 是顶部分页注册表和配置规范化的唯一事实来源；`primary-navigation-controller.js` 通过现有 `preferences-store.js` 按用户/设备作用域读写，`primary-navigation-view.js` 只渲染当前可见入口和设置列表。VLOG 由 mode action 接入，不能被序列化成 `?page=vlog`。
 - `modules/push-controller.js` 的设置绑定只在 `settings-route.js` 完成 DOM 渲染后执行；关闭设备通知时本机 `unsubscribe()` 与 Worker 端点清理是分离失败边界，本机状态优先。
-- `modules/offline-settings-controller.js` 是设置页缓存 UI 的唯一业务拥有者：按当前用户读取有限整数容量和 `off|wifi` 策略，生成 view model，绑定策略/容量/下载/清理事件，并在 `settings-route.js` 完成模板收集和通用设置事件后幂等初始化；`cache-management-view.js` 只渲染 DOM 和转发原生事件，`offline-cache-controller.js` 只提供缓存数据与调度动作。
+- `modules/offline-settings-controller.js` 是设置页缓存 UI 的唯一业务拥有者：按当前用户读取有限整数容量和 `off|wifi` 策略，生成 view model，绑定策略/容量/预设/刷新/下载/分池与全部清理事件，并在 `settings-route.js` 完成模板收集和通用设置事件后显式幂等初始化；`cache-management-view.js` 只渲染 DOM 和转发原生事件，`offline-cache-controller.js` 只提供缓存数据与调度动作。全部清理复用受管理缓存范围，不触及账号、个人设置、草稿、上传队列或容量偏好。
 - `modules/admin-storage.js` 是设置页管理员 R2 统计的唯一状态边界：由 `settings-route.js` 在模板挂载后创建，按设置分区激活触发单飞请求；普通成员不请求，切换账号/退出后的迟到结果不得写回。
 - `modules/offline-cache-controller.js` 的 `renderCachedPhotoFeed()` 可以在显式非 gallery 深链下先填充隐藏画廊，保证断网应用壳保留缓存内容，再由导航 controller 控制页面显隐。
 - `modules/diary-video-layout.js` 管理详情媒体生命周期：普通视频进入日记/VLOG 详情后静音自动播放并保留原生控件，Live Photo 使用静音循环预览；加载、失败、重试、切图和关闭都会清理状态与监听。

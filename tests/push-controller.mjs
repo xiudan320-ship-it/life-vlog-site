@@ -279,3 +279,69 @@ test("enabling push reads the VAPID key and registers the device subscription", 
     restore();
   }
 });
+
+test("push settings expose a retryable state when service worker readiness times out", async () => {
+  const state = new FakeElement();
+  const detail = new FakeElement();
+  const enable = new FakeElement();
+  const disable = new FakeElement();
+  const status = new FakeElement();
+  const elements = new Map([
+    ["#pushNotificationState", state],
+    ["#pushNotificationDetail", detail],
+    ["#enablePushNotifications", enable],
+    ["#disablePushNotifications", disable],
+    ["#pushNotificationStatus", status],
+  ]);
+  const documentTarget = {
+    querySelector(selector) {
+      return elements.get(selector) || null;
+    },
+  };
+  const navigatorTarget = {
+    serviceWorker: { ready: new Promise(() => {}) },
+    userAgent: "Fixture Browser",
+  };
+  const notification = { permission: "granted" };
+  const windowTarget = {
+    PushManager: class PushManager {},
+    Notification: notification,
+    navigator: navigatorTarget,
+    matchMedia: () => ({ matches: false }),
+    protocol: "https:",
+  };
+  const restore = installGlobals({
+    document: documentTarget,
+    navigator: navigatorTarget,
+    window: windowTarget,
+    Notification: notification,
+    localStorage: { getItem: () => null, setItem: () => {} },
+  });
+
+  try {
+    const controller = createPushController({
+      elements: {},
+      request: async () => ({ data: {} }),
+      getSession: () => ({ user: { id: "fixture-user" } }),
+      getDatabase: () => null,
+      getPhotos: () => [],
+      prependPhoto: () => {},
+      loadNotifications: async () => {},
+      openNotificationsPanel: async () => {},
+      switchPage: () => {},
+      openPhoto: () => {},
+      showToast: () => {},
+      readyTimeoutMs: 10,
+    });
+
+    await controller.refreshSettings();
+    assert.equal(state.textContent, "检查超时");
+    assert.equal(detail.textContent, "通知服务尚未就绪，请稍后重试。");
+    assert.equal(enable.hidden, false);
+    assert.equal(enable.disabled, false);
+    assert.equal(disable.hidden, true);
+    assert.equal(disable.disabled, true);
+  } finally {
+    restore();
+  }
+});

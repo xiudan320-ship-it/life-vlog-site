@@ -44,10 +44,11 @@ export function initialize({ controllers, controllerOptions, elements, collect, 
   if (!controllers.dataSafety) controllers.dataSafety = createDataSafetyController(options.dataSafety);
   if (!controllers.settingsShell) controllers.settingsShell = createSettingsShellController(options.settingsShell);
   controllers.settingsShell.initialize();
+  document.dispatchEvent(new Event("settings:mounted"));
   actions?.performanceDiagnostics?.render?.();
 }
 export async function bind({ bindRouteEvents, controllers }) {
   await bindRouteEvents?.("settings");
-  return controllers?.offlineSettings?.initialize?.();
+  controllers.offlineSettings.initialize();
 }
 export function activate() {}
