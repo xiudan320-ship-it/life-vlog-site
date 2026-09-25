@@ -69,7 +69,23 @@ export function createMoodEntryOverlayView({ elements = {}, moodMeta, moodTypes,
     if (state.selectedMood && moodMeta[state.selectedMood]) {
       elements.moodEditorSelected.append(asset(documentTarget, state.selectedMood, "circle", getMoodAsset), text(documentTarget, "strong", moodMeta[state.selectedMood].label));
       elements.moodEditorSelected.style.setProperty("--mood-accent", moodMeta[state.selectedMood].accent);
+      const change = text(documentTarget, "button", "更换心情图片", "mood-change-button");
+      change.type = "button";
+      change.dataset.moodChange = "";
+      change.setAttribute("aria-controls", "moodEditorChoices");
+      change.setAttribute("aria-expanded", String(Boolean(state.showMoodChoices)));
+      elements.moodEditorSelected.append(change);
     }
+    elements.moodEditorChoices?.replaceChildren(...(state.showMoodChoices ? moodTypes.map((mood) => {
+      const choice = text(documentTarget, "button", moodMeta[mood].label, "mood-editor-choice");
+      choice.type = "button";
+      choice.dataset.moodChoose = mood;
+      choice.setAttribute("aria-label", `更换为${moodMeta[mood].label}`);
+      choice.setAttribute("aria-pressed", String(mood === state.selectedMood));
+      choice.prepend(asset(documentTarget, mood, "circle", getMoodAsset));
+      return choice;
+    }) : []));
+    if (elements.moodEditorChoices) elements.moodEditorChoices.hidden = !state.showMoodChoices;
     if (elements.moodEditorContent && documentTarget.activeElement !== elements.moodEditorContent) {
       elements.moodEditorContent.value = state.editorDraft.content;
     }
@@ -153,9 +169,11 @@ export function createMoodEntryOverlayView({ elements = {}, moodMeta, moodTypes,
     if (bound || !elements.moodOverlay) return;
     bound = true;
     elements.moodOverlay.addEventListener("click", (event) => {
-      const target = event.target.closest?.("[data-mood], [data-mood-close-overlay], #moodOverlayClose, [data-mood-edit], [data-mood-delete], [data-mood-detail-user], [data-mood-record-date], [data-mood-remove-tag]");
+      const target = event.target.closest?.("[data-mood], [data-mood-change], [data-mood-choose], [data-mood-close-overlay], #moodOverlayClose, [data-mood-edit], [data-mood-delete], [data-mood-detail-user], [data-mood-record-date], [data-mood-remove-tag]");
       if (!target) return;
       if (target.dataset.mood) return onAction({ type: "pick", mood: target.dataset.mood });
+      if (target.dataset.moodChange !== undefined) return onAction({ type: "change-mood" });
+      if (target.dataset.moodChoose) return onAction({ type: "choose-mood", mood: target.dataset.moodChoose });
       if (target.dataset.moodCloseOverlay !== undefined || target.id === "moodOverlayClose") return onAction({ type: "close" });
       if (target.dataset.moodEdit) return onAction({ type: "edit", id: target.dataset.moodEdit });
       if (target.dataset.moodDelete) return onAction({ type: "delete", id: target.dataset.moodDelete });

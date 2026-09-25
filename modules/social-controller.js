@@ -277,7 +277,7 @@ export function createSocialController({
     els.photoCommentsList.innerHTML = comments.map((comment) => {
       const isAuthor = comment.authorId === state.activeDialogPhoto?.user_id;
       return `
-        <article class="photo-comment" data-comment-id="${escapeHtml(comment.id)}">
+        <article class="photo-comment${comment.replyTargetId ? " is-reply" : ""}" data-comment-id="${escapeHtml(comment.id)}">
           ${renderAvatarMarkup(comment.authorId)}
           <div class="photo-comment-main">
             <header>
@@ -286,7 +286,7 @@ export function createSocialController({
                 ${isAuthor ? `<small class="photo-comment-author-badge">作者</small>` : ""}
               </span>
             </header>
-            ${comment.replyTargetId ? `<small class="reply-target">回复 ${escapeHtml(comment.replyTargetName)}</small>` : ""}
+            ${comment.replyTargetId ? `<small class="reply-target">↳ 回复 ${escapeHtml(comment.replyTargetName)}</small>` : ""}
             <p>${escapeHtml(comment.body)}</p>
             <time>${formatCommentTime(comment.createdAt)}</time>
             <div class="photo-comment-actions">

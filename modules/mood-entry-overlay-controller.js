@@ -1,5 +1,7 @@
 import { createMoodEntryOverlayView } from "./mood-entry-overlay-view.js";
 
+const overlayStylesReady = import("../styles/mood-entry-overlay.css").catch(() => undefined);
+
 function normalizeEntry(entry, { normalizeDiaryDate, normalizeMood, normalizeMoodTags }) {
   const diaryDate = normalizeDiaryDate(entry?.diary_date);
   const mood = normalizeMood(entry?.mood);
@@ -40,6 +42,7 @@ export function createMoodEntryOverlayController({
     currentUserId: "",
     activeDiary: null,
     selectedMood: null,
+    showMoodChoices: false,
     editorDraft: { content: "", tags: [] },
     editorBase: null,
     editorReturnMode: "detail",
@@ -83,6 +86,7 @@ export function createMoodEntryOverlayController({
   }
 
   async function open({ dateKey, entries = null, preferredUserId = "", participants = null, trigger = null } = {}) {
+    await overlayStylesReady;
     const normalizedDate = normalizeDiaryDate(dateKey);
     const currentUserId = String(getSession?.()?.user?.id || "").trim();
     if (!normalizedDate || !currentUserId) return false;
@@ -106,6 +110,7 @@ export function createMoodEntryOverlayController({
     returnScrollY = Number(windowTarget?.scrollY || 0);
     state.error = "";
     state.selectedMood = null;
+    state.showMoodChoices = false;
     state.editorDraft = { content: "", tags: [] };
     state.editorBase = null;
     if (targetEntry) {
@@ -125,6 +130,7 @@ export function createMoodEntryOverlayController({
     const current = diary?.user_id === state.currentUserId ? diary : ownEntry();
     state.activeDiary = current || state.activeDiary;
     state.selectedMood = normalizeMood(mood || current?.mood);
+    state.showMoodChoices = false;
     state.editorDraft = { content: current?.content || "", tags: [...(current?.tags || [])] };
     state.editorBase = current ? { mood: current.mood, content: current.content || "", tags: [...(current.tags || [])] } : null;
     state.editorReturnMode = returnMode;
@@ -156,6 +162,7 @@ export function createMoodEntryOverlayController({
     state.mode = "closed";
     state.activeDiary = null;
     state.selectedMood = null;
+    state.showMoodChoices = false;
     state.editorBase = null;
     state.error = "";
     render();
@@ -260,6 +267,21 @@ export function createMoodEntryOverlayController({
   async function dispatch(action) {
     switch (action?.type) {
       case "pick": state.selectedMood = normalizeMood(action.mood); if (state.selectedMood) beginEditor({ mood: state.selectedMood, returnMode: "picker" }); break;
+      case "change-mood": {
+        state.showMoodChoices = !state.showMoodChoices;
+        state.editorDraft.content = injectedView.readDraft().content;
+        render();
+        (state.showMoodChoices ? elements.moodEditorChoices?.querySelector?.("button") : elements.moodEditorSelected?.querySelector?.("button"))?.focus?.();
+        break;
+      }
+      case "choose-mood": {
+        state.selectedMood = normalizeMood(action.mood) || state.selectedMood;
+        state.showMoodChoices = false;
+        state.editorDraft.content = injectedView.readDraft().content;
+        render();
+        elements.moodEditorSelected?.querySelector?.("button")?.focus?.();
+        break;
+      }
       case "edit": { const entry = state.entries.find((item) => item.id === action.id); if (entry?.user_id === state.currentUserId) beginEditor({ diary: entry, returnMode: "detail" }); break; }
       case "record": beginEditor({ returnMode: "detail" }); break;
       case "detail-user": selectDiary(action.userId); render(); break;

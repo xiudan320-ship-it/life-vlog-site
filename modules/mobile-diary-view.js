@@ -96,7 +96,7 @@ export function renderMobileDiaryCommentTree({
   const flattened = flattenCommentThread(comments, { getAuthorName });
   if (!flattened.length) return `<p class="photo-comments-empty">还没有留言。</p>`;
   return flattened.map((comment) => `
-    <article class="photo-comment" data-comment-id="${escapeHtml(comment.id)}">
+    <article class="photo-comment${comment.replyTargetId ? " is-reply" : ""}" data-comment-id="${escapeHtml(comment.id)}">
       ${renderAvatar(comment.authorId)}
       <div class="photo-comment-main">
         <header>
@@ -105,7 +105,7 @@ export function renderMobileDiaryCommentTree({
             ${comment.authorId === photoOwnerId ? `<small class="photo-comment-author-badge">作者</small>` : ""}
           </span>
         </header>
-        ${comment.replyTargetId ? `<small class="reply-target">回复 ${escapeHtml(comment.replyTargetName)}</small>` : ""}
+        ${comment.replyTargetId ? `<small class="reply-target">↳ 回复 ${escapeHtml(comment.replyTargetName)}</small>` : ""}
         <p>${escapeHtml(comment.body)}</p>
         <time>${formatCommentTime(comment.createdAt)}</time>
         <div class="photo-comment-actions">

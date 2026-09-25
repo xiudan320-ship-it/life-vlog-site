@@ -73,6 +73,23 @@ test("recorded member opens read-only detail and owner keeps edit permission", a
   assert.equal(fixture.controller.getState().mode, "editor");
 });
 
+test("changing an existing mood image keeps the editor draft and the same record", async () => {
+  const mine = { id: "mine", user_id: "owner", diary_date: TODAY, mood: "calm", content: "原来的内容", tags: ["日常"] };
+  const fixture = createFixture({ entries: [mine] });
+  await fixture.controller.open({ dateKey: TODAY, entries: [mine], preferredUserId: "owner", participants });
+  await fixture.controller.dispatch({ type: "edit", id: "mine" });
+  fixture.view.setDraft({ content: "编辑中的内容" });
+  await fixture.controller.dispatch({ type: "change-mood" });
+  assert.equal(fixture.controller.getState().showMoodChoices, true);
+  await fixture.controller.dispatch({ type: "choose-mood", mood: "happy" });
+  const state = fixture.controller.getState();
+  assert.equal(state.mode, "editor");
+  assert.equal(state.selectedMood, "happy");
+  assert.equal(state.editorDraft.content, "编辑中的内容");
+  assert.deepEqual(state.editorDraft.tags, ["日常"]);
+  assert.equal(state.activeDiary.id, "mine");
+});
+
 test("picker save uses the shared repository and emits one mutation", async () => {
   const fixture = createFixture();
   await fixture.controller.open({ dateKey: TODAY, entries: [], preferredUserId: "owner", participants });

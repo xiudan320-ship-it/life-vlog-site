@@ -61,6 +61,13 @@
   border-bottom: 1px solid color-mix(in srgb, var(--line) 90%, var(--accent) 10%);
 }
 
+#photoCommentsSection .photo-comment.is-reply,
+.mobile-diary-comments .photo-comment.is-reply {
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface));
+  box-shadow: inset 3px 0 color-mix(in srgb, var(--accent) 58%, var(--line));
+}
+
 #photoCommentsSection .photo-comment-main,
 .mobile-diary-comments .photo-comment-main {
   display: grid;
@@ -129,12 +136,18 @@
 
 #photoCommentsSection .photo-comment .reply-target,
 .mobile-diary-comments .photo-comment .reply-target {
-  display: block;
+  display: inline-flex;
+  justify-self: start;
+  align-items: center;
+  gap: 5px;
   min-width: 0;
-  color: var(--muted);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 13%, var(--surface));
+  color: var(--accent-strong);
   font-size: 12px;
   font-weight: 700;
   line-height: 1.3;
+  padding: 4px 9px;
   overflow-wrap: anywhere;
 }
 

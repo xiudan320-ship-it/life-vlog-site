@@ -16,6 +16,72 @@
   font-weight: 850;
 }
 
+#composer .composer-media-choices {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+}
+
+#composer .composer-media-choices .upload-pick-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  min-width: 138px;
+}
+
+#composer .composer-media-choices svg,
+#composer .composer-clear-draft svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+#composer .composer-media-choices .composer-video-button {
+  border-color: var(--line);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+#composer .composer-media-choices .composer-video-button:hover,
+#composer .composer-media-choices .composer-video-button:focus-visible {
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+}
+
+#composer .composer-note-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+#composer .composer-clear-draft {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+#composer .composer-clear-draft:hover,
+#composer .composer-clear-draft:focus-visible {
+  border-color: var(--coral);
+  color: var(--coral);
+  outline: 2px solid color-mix(in srgb, var(--coral) 30%, transparent);
+}
+
 #composer .composer-copy-fields :is(input,textarea),
 #composer .composer-options :is(input,select) {
   min-height: 44px;
@@ -110,8 +176,7 @@
 
 #composer .composer-actions {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 #composer .composer-actions .ghost-button {
@@ -198,10 +263,6 @@
 }
 
 @media (max-width: 700px) {
-  #composer .composer-actions {
-    grid-template-columns: minmax(0, 1fr) minmax(92px, auto);
-  }
-
   #composer .composer-state {
     align-items: flex-start;
     flex-direction: column;
