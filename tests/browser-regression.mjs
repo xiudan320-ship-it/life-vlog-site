@@ -443,6 +443,20 @@ async function testGlobalLevelDialogEvents(viewport, label) {
   await page.waitForSelector("#userPopover:not([hidden])", { state: "visible" });
   await page.click("#xpPanel");
   await page.waitForSelector("#levelDialog[open]", { state: "visible" });
+  await page.waitForSelector("#levelDialog [data-level-section]", { state: "visible" });
+  const levelLayout = await page.locator("#levelDialog").evaluate((dialog) => {
+    const nav = dialog.querySelector(".level-section-nav");
+    const button = nav?.querySelector("button");
+    return {
+      navDisplay: nav ? getComputedStyle(nav).display : "",
+      buttonDisplay: button ? getComputedStyle(button).display : "",
+      buttonHeight: button?.getBoundingClientRect().height || 0,
+      overflow: dialog.scrollWidth - dialog.clientWidth,
+    };
+  });
+  assert.equal(levelLayout.navDisplay, "grid", `${label} level navigation styles did not load: ${JSON.stringify(levelLayout)}`);
+  assert.equal(levelLayout.buttonDisplay, "grid", `${label} level buttons fell back to browser defaults: ${JSON.stringify(levelLayout)}`);
+  assert.ok(levelLayout.buttonHeight >= 44 && levelLayout.overflow <= 1, `${label} level navigation is clipped or too small: ${JSON.stringify(levelLayout)}`);
   await page.click("#closeLevelDialog");
   await page.waitForFunction(() => !document.querySelector("#levelDialog")?.open);
 

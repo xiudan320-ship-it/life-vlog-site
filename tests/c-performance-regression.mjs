@@ -1294,6 +1294,8 @@ async function testMobileDeepCommentLayout(browser) {
           rowCount: rows.length,
           nestedRows: list?.querySelectorAll(".photo-comment .photo-comment").length || 0,
           depthLeftDelta: mainRects.length ? Math.max(...mainRects.map(({ left }) => left)) - Math.min(...mainRects.map(({ left }) => left)) : Infinity,
+          replyLeftDelta: mainRects.length > 1 ? Math.max(...mainRects.slice(1).map(({ left }) => left)) - Math.min(...mainRects.slice(1).map(({ left }) => left)) : Infinity,
+          rowWidths: rows.map((row) => row.getBoundingClientRect().width),
           mainWidths: mainRects.map(({ width }) => width),
           bodyFontSize: bodyStyle ? Number.parseFloat(bodyStyle.fontSize) : 0,
           bodyLineHeight: bodyStyle ? Number.parseFloat(bodyStyle.lineHeight) / Number.parseFloat(bodyStyle.fontSize) : 0,
@@ -1310,7 +1312,9 @@ async function testMobileDeepCommentLayout(browser) {
       assert.ok(metrics.documentWidth <= metrics.viewport + 1, `${viewport.width}x${viewport.height} deep comments overflowed horizontally: ${JSON.stringify(metrics)}`);
       assert.equal(metrics.rowCount, 9, `${viewport.width}x${viewport.height} deep comments lost rows`);
       assert.equal(metrics.nestedRows, 0, `${viewport.width}x${viewport.height} deep comments still render recursively`);
-      assert.ok(metrics.depthLeftDelta <= 4, `${viewport.width}x${viewport.height} reply rows drifted horizontally: ${JSON.stringify(metrics)}`);
+      assert.ok(metrics.depthLeftDelta >= 20 && metrics.depthLeftDelta <= 40, `${viewport.width}x${viewport.height} reply rows need one visible inset: ${JSON.stringify(metrics)}`);
+      assert.ok(metrics.replyLeftDelta <= 1, `${viewport.width}x${viewport.height} deep replies accumulated indentation: ${JSON.stringify(metrics)}`);
+      assert.ok(metrics.rowWidths.slice(1).every((width) => width < metrics.rowWidths[0] - 15), `${viewport.width}x${viewport.height} reply rows should be narrower than the root: ${JSON.stringify(metrics)}`);
       const minimumMainWidth = viewport.width === 320 ? 205 : viewport.width === 375 ? 260 : 0;
       if (minimumMainWidth) assert.ok(metrics.mainWidths.every((width) => width >= minimumMainWidth), `${viewport.width}px comment body became too narrow: ${JSON.stringify(metrics.mainWidths)}`);
       assert.ok(metrics.bodyFontSize >= 16 && metrics.bodyLineHeight >= 1.55 && metrics.bodyLineHeight <= 1.7, `${viewport.width}x${viewport.height} body typography regressed: ${JSON.stringify(metrics)}`);

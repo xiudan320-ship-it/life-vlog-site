@@ -49,6 +49,7 @@ export function createGamificationController({
     dialogModulesPromise = Promise.all([
       import("./gamification-archive.js"),
       import("./gamification-view.js"),
+      typeof document === "undefined" ? Promise.resolve() : import("../styles/account-dialogs.css"),
     ]).then(([archiveModule, viewModule]) => {
       buildArchive = archiveModule.buildCultivationArchive;
       dialogView = viewModule;
