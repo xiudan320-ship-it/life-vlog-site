@@ -20,7 +20,6 @@
 
 ### Fixed
 
-- 修复手机端成长等级弹窗内容被裁切、导航入口隐藏及触控区域偏小；日记发布区分图片与视频入口，把清空草稿移至文字框右上角；心情编辑可直接更换心情图片并保留草稿；心愿日期与备注分行展示；日记回复增加明确的回复标识与背景层次。
 - 修复日记草稿在清空后因空表单提前返回而复活、切换账号误恢复和本地存储写失败吞掉当前输入的问题；修复菜谱重复提交和迟到账号响应污染当前编辑状态。
 - 收紧日记多图横向预览的移动端高度并改用完整图像适配，避免缩略图被拉成窄高裁切框而无法辨认主体；保留横向滚动、snap 和“查看全部”入口。
 - 修复设置容量入口、缓存占用刷新、全部清理和容量保存因控制器/运行时桥接缺失而点击无响应的问题；修复诊断复制在 Clipboard API 拒绝或不存在时仍提示成功的问题。
@@ -52,6 +51,16 @@
 ### Fixed
 
 - 修复显式深链在断网启动时因初始路由状态提前切换而丢失隐藏缓存日记的问题；缓存画廊现在可在非 gallery 深链下先渲染并由路由控制显隐。
+
+## [2026-09-25] — 手机端修复与生产发布
+
+### Fixed
+
+- 修复手机端成长等级弹窗内容被裁切、导航入口隐藏及触控区域偏小；日记发布区分图片与视频入口，把清空草稿移至文字框右上角；心情编辑可直接更换心情图片并保留草稿；心愿日期与备注分行展示；日记回复增加明确的回复标识与背景层次。
+
+### Release
+
+- 从已推送的 `main` 提交 `c567aa078dabab3612ee0f4dd5678a41626c7b3e` 发布。固定预览入口为 `https://codex-preview.life-vlog-site.pages.dev`，预览 deployment 为 `6682f487-1cec-4866-8b9e-d6eed5f00ab9`（`https://6682f487.life-vlog-site.pages.dev`）；正式入口为 `https://life-vlog-site.pages.dev`，生产 deployment 为 `8c2ae706-d9d1-4557-a869-4c0ae08765d0`（`https://8c2ae706.life-vlog-site.pages.dev`）。Worker `life-vlog-r2-upload` 版本为 `c3026bf1-12c7-4937-b614-eafd0f4cf94d`；入口 `index-V4CShluQ.js` SHA-256 为 `60c40b1ae5ad208875d5147bf445a31dda4d4a00a3e297447f0ca918494dc797`，样式 `index-BaSSJW5D.css` SHA-256 为 `a7a4443e06c8ce2dabe2b2d96cfaa986d073cc837e4a012f761de7b00ce2636d`，`sw.js` SHA-256 为 `7f8790d72cd28b1a21201363e980a97c2657cdd1eed8ec573c744b681bf6bce1`，Workbox 预缓存 35 项。锁定依赖安装、完整本地测试、本地 release、部署模拟、预览和正式站的 Worker CORS、Axe critical/serious 与确定性 release smoke 均通过。
 
 ## [2026-09-18] — 生产发布
 
