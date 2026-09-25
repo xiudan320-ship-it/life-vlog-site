@@ -356,7 +356,6 @@
   }
   .level-atlas-intro { flex-wrap: wrap; }
   .level-rank-row { grid-template-columns: 30px 38px minmax(0, 1fr); gap: 8px; }
-  .level-rank-row em { grid-column: 3; }
   .secret-folder-dialog form { gap: 17px; padding: 22px 18px 18px; }
   .secret-folder-dialog h2 { font-size: 26px; }
   .secret-folder-dialog { width: calc(100% - 24px); }
