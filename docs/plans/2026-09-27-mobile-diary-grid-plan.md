@@ -116,4 +116,4 @@
 | 单列宫格与双列封面 | 已完成：覆盖 0/1/2/3/4/5/6/7/10 张；单列六格上限、方格比例和 +N，双列只挂载首图；桌面仍保留四列和完整横向轨道 |
 | 图片索引／失败恢复／动态媒体 | 已完成并通过真实浏览器操作：双列从第 1 张、第三格从第 3 张、+N 从第 6 张进入完整相册并继续到第 7 张；合成视频／Live Photo 标记和重试状态已覆盖 |
 | 视觉与功能回归 | 完整 `pnpm test` 通过；浏览器验收覆盖 375/390/430/768、844×390、1024/1440、130% 字号、滚动锚点及水平溢出；`pnpm run test:release-local` 的 Axe critical/serious 与确定性 release smoke、`pnpm run test:deployment` 均通过 |
-| 提交与预览／正式部署 | 待执行 |
+| 提交与预览／正式部署 | 已完成：源码提交 `95cdc355d825a688b6159e8a11cc46dca06ef259`；preview deployment `319622c6-10dc-4e1e-a8d0-c359555edd5b` 经 Axe 与确定性 smoke 验收；production deployment `ecd619ce-61dd-4fa7-b48e-1ce700ca66a2`、Worker version `96aa3dbd-042f-487b-9d09-6099dae1b86a` 经 CORS、Axe 与确定性 smoke 验收 |

@@ -4,13 +4,8 @@
 
 ## [Unreleased]
 
-### Documentation
-
-- 完成手机日记宫格与单／双列选择实施规划，并记录实际布局规则、账号偏好范围和浏览器验收方式。
-
 ### Added
 
-- 手机日记增加可选单列宫格与双列封面：单列最多预览六张并以“+N”进入完整相册，双列只加载封面并标出总张数；图片查看保留原始索引，桌面继续使用原有横向轨道。
 - 日记卡片支持同篇多图横向预览轨道、触摸滑动保护和“查看全部 N 张”入口；媒体失败仍可单项重试并保留原索引。
 - 日记发布表单改为媒体优先、文字居中、发布选项折叠的紧凑结构，增加草稿清空确认、队列状态与上传中心入口。
 
@@ -56,6 +51,20 @@
 ### Fixed
 
 - 修复显式深链在断网启动时因初始路由状态提前切换而丢失隐藏缓存日记的问题；缓存画廊现在可在非 gallery 深链下先渲染并由路由控制显隐。
+
+## [2026-09-27] — 手机日记宫格与布局选择
+
+### Added
+
+- 手机日记可选单列宫格或双列封面：单列最多预览六张并以“+N”进入完整相册，双列只挂载封面并显示总张数；图片查看保留原始索引，桌面继续使用原有横向轨道。偏好按账号保存在当前设备，不跨设备同步。
+
+### Documentation
+
+- 完成手机日记宫格与单／双列选择实施规划，并记录实际布局规则、账号偏好范围、设计规范和浏览器验收方式。
+
+### Release
+
+- 从已推送的 `main` 提交 `95cdc355d825a688b6159e8a11cc46dca06ef259` 发布。固定 preview 为 `https://codex-preview.life-vlog-site.pages.dev`，preview deployment 为 `319622c6-10dc-4e1e-a8d0-c359555edd5b`（`https://319622c6.life-vlog-site.pages.dev`）；正式入口为 `https://life-vlog-site.pages.dev`，production deployment 为 `ecd619ce-61dd-4fa7-b48e-1ce700ca66a2`（`https://ecd619ce.life-vlog-site.pages.dev`）。Worker `life-vlog-r2-upload` 版本为 `96aa3dbd-042f-487b-9d09-6099dae1b86a`；入口 `index-DSU_joiV.js` SHA-256 为 `259dcae6b34821a1e1cddf7c73ba74bfae3d4e6caeec9be612b5021adba63261`，样式 `index-D2ZE7zJE.css` SHA-256 为 `325ad540062b888b3e34b7cf72c40b99a52a3c8ad6695f557f166dcfe1042835`，`sw.js` SHA-256 为 `8e029ad25daeb6a310a67499aca0121ec6797349bd78fee25c2784a33b7e936c`，Workbox 预缓存 36 项。`pnpm install --frozen-lockfile`、`pnpm test`、`test:release-local`、`test:deployment`、preview/production Worker CORS、Axe critical/serious 和确定性 release smoke 均通过。
 
 ## [2026-09-25] — 手机端修复与生产发布
 
