@@ -24,6 +24,7 @@
 | 新版设置中心、分类导航、搜索与移动端目录/详情 | `modules/settings-shell-controller.js`, `modules/settings-shell-view.js`, `modules/settings-search-domain.js`, `modules/settings-section-registry.js` | `modules/routes/settings-route.js`, `modules/settings-view.js`, `styles/settings.css`, `modules/settings-event-bindings.js` |
 | 管理员 R2 存储统计 | `modules/admin-storage.js` | `modules/routes/settings-route.js`, `modules/settings-view.js`, `modules/settings-section-registry.js`, `styles/settings.css`；只在设置 DOM 挂载且进入“存储与数据”后请求，账号切换和迟到响应由 controller 隔离 |
 | 日记列表、搜索、筛选、瀑布流与桌面卡片操作 | `modules/diary-feed-controller.js`, `modules/diary-action-domain.js` | `modules/diary-gallery-view.js`, `modules/diary-gallery-menu-controller.js`, `modules/diary-domain.js`, `styles.css`；桌面菜单控制按需加载，移动端继续使用原有按钮路径 |
+| 手机日记单/双列偏好、单列宫格与双列封面 | `modules/layout-settings-controller.js`, `modules/diary-feed-controller.js`, `modules/diary-gallery-view.js` | `modules/settings-view.js`, `modules/settings-event-bindings.js`, `modules/media-event-bindings.js`, `styles/diary-phase-two.css`, `styles/redesign-components.css`；沿用账号偏好、当前阅读锚点和桌面四列轨道 |
 | 首页今日心情概览、两席状态、原地快捷添加/详情、桌面本月心情日历和月历 CTA | `modules/today-mood-controller.js`, `modules/today-mood-cache.js` | `modules/today-mood-view.js`, `modules/mood-diary-domain.js`, `modules/mood-entry-overlay-controller.js`, `modules/mood-diary-repository.js` |
 | 心情日记月历、月度汇总与历史 | `modules/mood-diary-controller.js`, `modules/mood-month-summary-domain.js`, `modules/mood-jar-physics.js` | `modules/mood-diary-domain.js`, `modules/mood-diary-view.js`, `modules/mood-month-summary-view.js`, `modules/mood-entry-overlay-controller.js`, `styles/mood-diary.css`；月度汇总包含 360×480 可重播圆肚玻璃瓶、罐体旁月份前后导航、确定性粒子物理和动态/稀疏趋势坐标，月份切换保留触发模块的视口锚点 |
 | 发布 / 编辑日记、上传队列 | `modules/diary-composer-controller.js`, `modules/photo-detail-controller.js` | `modules/diary-upload-domain.js`, `modules/content-form-event-bindings.js` |
@@ -102,6 +103,8 @@
 - `app-feedback-view.js`：统一即时提示、网络状态和回顶按钮；原生 dialog 打开时把提示 host 放入当前 dialog，并在关闭事件中清理，后续页面提示会自动恢复到 body。
 - `content-form-event-bindings.js`：菜谱、心愿、周末、秘藏等内容表单事件；留言 dialog 的表单、颜色和关闭事件由 `app-event-bindings.js` 在应用壳初始化时绑定。
 - `settings-event-bindings.js`：设置页账户、家庭、缓存、安全和网络状态事件；全局等级弹窗与通知事件不在设置路由绑定。
+- `layout-settings-controller.js`：保存账号作用域的手机单/双列偏好，协调画廊媒体重绘、断点切换和可见日记的滚动锚点恢复；桌面仍使用原有布局。
+- `diary-feed-controller.js` / `diary-gallery-view.js`：负责日记卡片数据渲染，以及手机双列封面、单列最多六格宫格和原索引完整相册入口；桌面多图轨道继续留在视图层。
 - `media-event-bindings.js`：日记 / VLOG / 秘藏查看器、编辑器、搜索筛选和媒体手势事件；搜索与 tag 结果仍在 gallery 当前页面内更新。
 - `modules/routes/mood-diary-route.js`：心情日记路由的懒加载、模板挂载和 controller 生命周期；心情日记自己的点击/表单事件由 `mood-diary-view.js` 委托给 `mood-diary-controller.js`，不回流到 `app.js`。
 - `modules/today-mood-controller.js`：首页今日概览的东京自然日查询、两席过滤、独立的桌面本月心情日历查询、缓存优先的后台同步和 loading/error/empty 状态；月度请求不阻塞当天状态，席位只调用共享 overlay，只有日历 CTA 调用 `switchPage("mood")`。

@@ -107,13 +107,45 @@ function renderMediaShell(image, altText, photoIndex, imageIndex, options) {
   </div>`;
 }
 
-export function renderPhotoMedia(images, title, photoIndex, { mobile = false } = {}) {
+export function renderPhotoMedia(images, title, photoIndex, { mobile = false, layout = "double" } = {}) {
   const altText = title || "日记图片";
+  if (!images.length) return "";
   if (images.length <= 1) {
     const image = images[0] || {};
     return `
       <div class="photo-media single"${getPhotoAspectStyle(image)}>
         ${renderMediaShell(image, altText, photoIndex, 0, { mobile })}
+      </div>
+    `;
+  }
+
+  if (mobile) {
+    if (layout !== "single") {
+      const image = images[0];
+      return `
+        <div class="photo-media double-cover"${getPhotoAspectStyle(image)} aria-label="${escapeHtml(`${images.length} 张日记图片`)}">
+          ${renderMediaShell(image, `${altText} 1`, photoIndex, 0, { mobile })}
+          ${images.length > 1 ? `<span class="photo-media-count" aria-hidden="true">${images.length} 张</span>` : ""}
+        </div>
+      `;
+    }
+
+    const total = images.length;
+    const previewImages = images.slice(0, 6);
+    const countClass = total > 6 ? "7-plus" : String(total);
+    return `
+      <div class="photo-media photo-media-grid count-${countClass}" aria-label="${escapeHtml(`${total} 张日记图片`)}">
+        ${previewImages.map((image, index) => `
+          <div class="feed-media-grid-item">
+            ${renderMediaShell(image, `${altText} ${index + 1}`, photoIndex, index, { mobile })}
+            ${isDiaryMotionMedia(image) ? '<i class="multi-motion-dot" aria-label="动态媒体"></i>' : ""}
+            ${index === 5 && total > 6 ? `
+              <button class="feed-media-grid-more" type="button" data-open-all-media data-photo-index="${photoIndex}" data-image-index="5" aria-label="查看全部 ${total} 张图片，从第 6 张开始">
+                <span aria-hidden="true">+${total - 6}</span>
+              </button>
+            ` : ""}
+          </div>
+        `).join("")}
       </div>
     `;
   }
@@ -134,7 +166,7 @@ export function renderPhotoMedia(images, title, photoIndex, { mobile = false } =
           </button>
         </div>
     </div>
-  `;
+    `;
 }
 
 export function prepareFeedImages(root = document) {
@@ -316,7 +348,7 @@ function buildPhotoCard(photo, index, options) {
         ${photo.is_featured ? `<span class="featured-badge">精选</span>` : ""}
       </div>
       <div class="photo-open">
-        ${renderPhotoMedia(images, displayTitle, index, { mobile: options.mobile })}
+        ${renderPhotoMedia(images, displayTitle, index, { mobile: options.mobile, layout: options.feedLayout })}
         <button class="photo-copy-open" type="button" data-photo-index="${index}" data-image-index="0">
           <p class="kicker diary-card-meta">
             <span>${formatDate(photo.taken_at || photo.created_at)}</span>
@@ -359,7 +391,7 @@ function bindGalleryActions(container, photos, handlers) {
       handlers.retry?.(Number(button.dataset.photoIndex), Number(button.dataset.imageIndex));
     } else if (button.matches("[data-open-all-media]")) {
       stopMotionFeedVideos(container);
-      handlers.open(getPhoto("photoIndex"), 0);
+      handlers.open(getPhoto("photoIndex"), Number(button.dataset.imageIndex) || 0);
     } else if (button.matches("[data-photo-index][data-image-index]")) {
       if (Number(container.dataset.suppressMediaClickUntil || 0) > Date.now()) {
         event.preventDefault();

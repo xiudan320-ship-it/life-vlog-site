@@ -338,6 +338,8 @@ export function createShellControllerAssembly({
       defaultFamilyTagline: config.defaultFamilyTagline,
     },
     scheduleGalleryMasonryLayout: diaryFeedActions.scheduleGalleryMasonryLayout,
+    renderGallery: (...args) => renderGallery(...args),
+    captureGalleryViewportAnchor: diaryFeedActions.captureGalleryViewportAnchor,
     openSettingsChildDialog: defer("openSettingsChildDialog"),
     reopenSettingsAfterChildDialog: defer("reopenSettingsAfterChildDialog"),
     loadFamilyTagline,

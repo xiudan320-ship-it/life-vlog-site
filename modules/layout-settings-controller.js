@@ -4,6 +4,8 @@ export function createLayoutSettingsController({
   preferenceStore,
   constants,
   scheduleGalleryMasonryLayout,
+  renderGallery = () => undefined,
+  captureGalleryViewportAnchor = () => null,
   openSettingsChildDialog,
   reopenSettingsAfterChildDialog,
   loadFamilyTagline,
@@ -42,12 +44,24 @@ export function createLayoutSettingsController({
   
   function applyMobileFeedLayout(layout = loadMobileFeedLayout()) {
     const nextLayout = layout === "single" ? "single" : "double";
+    const previousLayout = document.body.dataset.mobileFeedLayout;
+    const viewportAnchor = previousLayout && previousLayout !== nextLayout
+      ? captureGalleryViewportAnchor()
+      : null;
     document.body.classList.toggle("mobile-feed-single", nextLayout === "single");
     document.body.classList.toggle("mobile-feed-double", nextLayout === "double");
-    if (els.settingsFeedLayoutValue) {
-      els.settingsFeedLayoutValue.textContent = nextLayout === "single" ? "单列" : "双列";
-    }
+    document.body.dataset.mobileFeedLayout = nextLayout;
+    syncMobileFeedLayoutUi(nextLayout);
     scheduleGalleryMasonryLayout();
+    if (previousLayout && previousLayout !== nextLayout) {
+      renderGallery("", { preserveViewportAnchor: true, deferViewportAnchorRestore: true, viewportAnchor });
+    }
+  }
+
+  function syncMobileFeedLayoutUi(layout = loadMobileFeedLayout()) {
+    els.settingsAppearance?.querySelectorAll("[data-mobile-feed-layout]").forEach((input) => {
+      input.checked = input.value === layout;
+    });
   }
   
   function setMobileFeedLayout(layout) {
@@ -196,10 +210,7 @@ export function createLayoutSettingsController({
     if (els.settingsEmailValue) {
       els.settingsEmailValue.textContent = getSessionBoundEmail() || "未绑定";
     }
-    if (els.settingsFeedLayoutValue) {
-      els.settingsFeedLayoutValue.textContent =
-        loadMobileFeedLayout() === "single" ? "单列" : "双列";
-    }
+    syncMobileFeedLayoutUi(loadMobileFeedLayout());
     if (els.settingsCacheLimitValue) {
       els.settingsCacheLimitValue.textContent = `日记 ${loadCacheCapacityMb("diary")} MB · 秘藏 ${loadCacheCapacityMb("secret")} MB`;
     }

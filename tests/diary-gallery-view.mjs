@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getDiaryGalleryEmptyState, renderFeedImage, renderPhotoMedia } from "../modules/diary-gallery-view.js";
+import { getDiaryGalleryEmptyState, getPhotoAspectRatio, renderFeedImage, renderPhotoMedia } from "../modules/diary-gallery-view.js";
 
 test("diary feed renders ordinary video cards as poster plus deferred motion source", () => {
   const markup =
@@ -63,7 +63,48 @@ test("static images do not opt into the motion coordinator", () => {
   assert.doesNotMatch(markup, /data-motion-src/);
 });
 
-test("multiple diary images use a two-preview horizontal rail with an explicit end action", () => {
+test("mobile single-column diaries render adaptive grids with no more than six indexed previews", () => {
+  const cases = [
+    { total: 2, className: "count-2", previews: 2 },
+    { total: 3, className: "count-3", previews: 3 },
+    { total: 4, className: "count-4", previews: 4 },
+    { total: 5, className: "count-5", previews: 5 },
+    { total: 6, className: "count-6", previews: 6 },
+    { total: 7, className: "count-7-plus", previews: 6 },
+    { total: 10, className: "count-7-plus", previews: 6 },
+  ];
+  for (const { total, className, previews } of cases) {
+    const images = Array.from({ length: total }, (_, index) => ({ image_url: `/media/photo-${index + 1}.jpg` }));
+    const markup = renderPhotoMedia(images, "多图日记", 3, { mobile: true, layout: "single" });
+    assert.match(markup, new RegExp(`photo-media-grid ${className}`), `${total} images chose the wrong grid shape`);
+    assert.equal((markup.match(/class="feed-media-grid-item"/g) || []).length, previews);
+    for (let index = 0; index < previews; index += 1) {
+      assert.match(markup, new RegExp(`data-image-index="${index}"`), `${total} images lost preview index ${index}`);
+    }
+    if (total > 6) {
+      assert.match(markup, new RegExp(`data-open-all-media data-photo-index="3" data-image-index="5" aria-label="查看全部 ${total} 张图片，从第 6 张开始"`));
+      assert.match(markup, new RegExp(`>\\s*<span aria-hidden="true">\\+${total - 6}<\\/span>`));
+    } else {
+      assert.doesNotMatch(markup, /feed-media-grid-more/);
+    }
+  }
+});
+
+test("mobile double-column diaries load only the cover and expose the total image count", () => {
+  const markup = renderPhotoMedia(
+    Array.from({ length: 10 }, (_, index) => ({ image_url: `/media/photo-${index + 1}.jpg` })),
+    "多图日记",
+    2,
+    { mobile: true, layout: "double" },
+  );
+  assert.match(markup, /photo-media double-cover/);
+  assert.match(markup, /class="photo-media-count" aria-hidden="true">10 张/);
+  assert.equal((markup.match(/class="feed-media-shell"/g) || []).length, 1);
+  assert.match(markup, /data-photo-index="2" data-image-index="0"/);
+  assert.doesNotMatch(markup, /photo-media-grid|photo-media-track|data-image-index="1"/);
+});
+
+test("desktop multi-image diaries retain their horizontal rail and complete-album action", () => {
   const markup = renderPhotoMedia(
     [
       { image_url: "/media/photo.jpg" },
@@ -72,13 +113,21 @@ test("multiple diary images use a two-preview horizontal rail with an explicit e
     ],
     "混合日记",
     0,
-    { mobile: true },
+    { mobile: false, layout: "single" },
   );
   assert.match(markup, /photo-media rail/);
   assert.match(markup, /photo-media-track/);
   assert.equal((markup.match(/feed-media-rail-item/g) || []).length, 3);
   assert.match(markup, /data-open-all-media/);
   assert.match(markup, /aria-label="Video">VIDEO/);
+});
+
+test("photo media with no images has no placeholder and aspect ratios remain bounded", () => {
+  assert.equal(renderPhotoMedia([], "空日记", 0, { mobile: true, layout: "single" }), "");
+  assert.equal(getPhotoAspectRatio({ width: 600, height: 800 }), "0.750");
+  assert.equal(getPhotoAspectRatio({ width: 4000, height: 100 }), "1.550");
+  assert.equal(getPhotoAspectRatio({ width: 100, height: 4000 }), "0.720");
+  assert.equal(getPhotoAspectRatio({}), "0.8");
 });
 
 test("diary empty states prioritize the source and expose recovery actions", () => {

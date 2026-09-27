@@ -183,6 +183,7 @@ function cloneSeed({
   seedMoodFamily = false,
   moodDiaries = [],
   photoComments = null,
+  photos = null,
   notifications = tableSeeds.notifications,
 } = {}) {
   const tables = new Map(Object.entries(tableSeeds).map(([table, rows]) => [table, rows.map((row) => ({ ...row }))]));
@@ -244,6 +245,9 @@ function cloneSeed({
   if (Array.isArray(photoComments)) {
     tables.set("photo_comments", photoComments.map((row) => ({ ...row })));
   }
+  if (Array.isArray(photos)) {
+    tables.set("photos", photos.map((row) => ({ ...row })));
+  }
   return tables;
 }
 
@@ -294,12 +298,14 @@ export function createCloudflareApiFixture({
   seedTrashItems = [],
   moodDiaries = [],
   photoComments = null,
+  photos = null,
+  authUsers = [],
   notifications = [],
   notificationDelayMs = 0,
   notificationFailureCount = 0,
   notificationFailureMode = "server",
 } = {}) {
-  const tables = cloneSeed({ seedSecretPhoto, seedMoodFamily, moodDiaries, photoComments, notifications });
+  const tables = cloneSeed({ seedSecretPhoto, seedMoodFamily, moodDiaries, photoComments, photos, notifications });
   const requests = [];
   const writes = [];
   const rpcCalls = [];
@@ -309,6 +315,11 @@ export function createCloudflareApiFixture({
   let generatedRowId = 0;
   let remainingNotificationFailures = Math.max(0, Number(notificationFailureCount) || 0);
   let fixtureSessionActive = true;
+  const fixtureUsers = [
+    { username: "fixture-user", id: "fixture-user", email: "fixture-user@life-vlog.local", token: "fixture-token", displayName: "Fixture User" },
+    ...authUsers,
+  ];
+  let activeFixtureUser = fixtureUsers[0];
 
   async function handle(route) {
     const request = route.request();
@@ -372,17 +383,19 @@ export function createCloudflareApiFixture({
       return;
     }
     if (url.pathname === "/api/auth/login") {
+      const loginPayload = request.postDataJSON() || {};
+      activeFixtureUser = fixtureUsers.find(({ username }) => username === loginPayload.username) || fixtureUsers[0];
       fixtureSessionActive = true;
       await route.fulfill(jsonResponse(request, {
-        token: "fixture-token",
+        token: activeFixtureUser.token,
         expires_at: new Date(Date.now() + 3600000).toISOString(),
-        user: { id: "fixture-user", username: "fixture-user", email: "fixture-user@life-vlog.local" },
-        profile: { username: "Fixture User" },
+        user: { id: activeFixtureUser.id, username: activeFixtureUser.username, email: activeFixtureUser.email },
+        profile: { username: activeFixtureUser.displayName || activeFixtureUser.username },
       }));
       return;
     }
     if (url.pathname === "/api/auth/logout") {
-      if (request.headers().authorization === "Bearer fixture-token") fixtureSessionActive = false;
+      if (request.headers().authorization === `Bearer ${activeFixtureUser.token}`) fixtureSessionActive = false;
       await route.fulfill(jsonResponse(request, { data: true }));
       return;
     }
@@ -391,7 +404,7 @@ export function createCloudflareApiFixture({
         await route.fulfill(jsonResponse(request, { error: "Unauthorized." }, 401));
         return;
       }
-      await route.fulfill(jsonResponse(request, { data: { id: "fixture-user", username: "fixture-user", email: "fixture-user@life-vlog.local" } }));
+      await route.fulfill(jsonResponse(request, { data: { id: activeFixtureUser.id, username: activeFixtureUser.username, email: activeFixtureUser.email } }));
       return;
     }
     if (url.pathname === "/api/push/config") {

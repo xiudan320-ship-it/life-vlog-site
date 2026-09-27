@@ -8,7 +8,7 @@ const sectionRegistry = [
 
 const itemRegistry = [
   { id: "renameHomeButton", sectionId: "settingsAppearance", label: "主页名称", description: "修改家庭主页显示名称", keywords: ["主页", "名称", "标题", "改名"] },
-  { id: "settingsFeedLayoutButton", sectionId: "settingsAppearance", label: "手机列表布局", description: "切换日记列表单列或双列", keywords: ["手机", "列表", "布局", "单列", "双列"] },
+  { id: "settingsFeedLayoutButton", sectionId: "settingsAppearance", label: "手机列表布局", description: "选择日记列表单列或双列显示", keywords: ["手机", "列表", "布局", "单列", "双列", "照片"] },
   { id: "settingsTextScale", sectionId: "settingsAppearance", label: "文字大小", description: "调整应用内文字显示大小", keywords: ["字体", "文字", "字号", "大小"] },
   { id: "settingsInstallApp", sectionId: "settingsAppearance", label: "安装应用", description: "将咻蛋之家添加到主屏幕", keywords: ["安装", "主屏幕", "应用"] },
   { id: "settingsPrimaryNavigation", sectionId: "settingsAppearance", label: "顶部分页", description: "选择和调整首页入口顺序", keywords: ["导航", "分页", "入口", "排序"] },

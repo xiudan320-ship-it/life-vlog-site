@@ -42,7 +42,7 @@ export function bindSettingsEvents({ elements, state, controllers, core }) {
     schedule: scheduleOfflineMediaCache,
     shouldAutoCache: shouldAutoCacheMedia,
   } = controllers.offlineCache;
-  const { loadMobileFeedLayout, setMobileFeedLayout } = controllers.layoutSettings;
+  const { setMobileFeedLayout } = controllers.layoutSettings;
   const textScale = controllers.textScale;
   const performanceDiagnostics = performanceDiagnosticsFromCore || controllers.performanceDiagnostics;
   const {
@@ -50,7 +50,7 @@ export function bindSettingsEvents({ elements, state, controllers, core }) {
     renderVipCenter,
   } = controllers.gamification;
   const { processQueue: processDiaryUploadQueue } = controllers.diaryComposer;
-  const { renderGallery } = controllers.diaryFeed;
+  const { renderGallery, restorePendingGalleryViewportAnchor } = controllers.diaryFeed;
 
   window.addEventListener("online", () => {
     updateNetworkStatus();
@@ -59,6 +59,7 @@ export function bindSettingsEvents({ elements, state, controllers, core }) {
   });
   window.addEventListener("offline", updateNetworkStatus);
   updateNetworkStatus();
+  els.settingsDialog?.addEventListener("close", restorePendingGalleryViewportAnchor);
   (navigator.connection || navigator.mozConnection || navigator.webkitConnection)?.addEventListener?.("change", () => {
     if (shouldAutoCacheMedia()) scheduleOfflineMediaCache();
     if (state.activePage === "gallery") renderGallery();
@@ -98,8 +99,9 @@ export function bindSettingsEvents({ elements, state, controllers, core }) {
       setAvatarPreview(state.accountProfile.avatarUrl);
     });
   });
-  els.settingsFeedLayoutButton?.addEventListener("click", () => {
-    setMobileFeedLayout(loadMobileFeedLayout() === "single" ? "double" : "single");
+  els.settingsAppearance?.addEventListener("change", (event) => {
+    const input = event.target.closest?.("[data-mobile-feed-layout]");
+    if (input?.checked) setMobileFeedLayout(input.value);
   });
   els.settingsAppearance?.querySelectorAll("[data-text-scale]").forEach((button) => {
     button.addEventListener("click", () => {

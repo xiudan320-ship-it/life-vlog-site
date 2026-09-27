@@ -137,6 +137,14 @@
 .settings-row-static { grid-template-columns: minmax(112px, .72fr) minmax(0, 1fr); }
 .settings-row-static > div:first-child { display: grid; min-width: 0; gap: 3px; }
 .settings-row-static > div:first-child small, .settings-install-card > div small { color: var(--muted); font-size: 11px; line-height: 1.45; }
+.settings-feed-layout-row { grid-template-columns: minmax(112px, .72fr) minmax(0, 1fr); }
+.settings-feed-layout-options { display: flex; min-width: 0; margin: 0; padding: 0; gap: 8px; border: 0; }
+.settings-feed-layout-options label { position: relative; display: flex; flex: 1 1 0; min-width: 58px; min-height: 44px; cursor: pointer; }
+.settings-feed-layout-options input { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; border: 0; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+.settings-feed-layout-options label > span { display: grid; width: 100%; min-height: 44px; place-items: center; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--muted); font-size: 12px; font-weight: 850; }
+.settings-feed-layout-options input:checked + span { border-color: var(--accent-strong); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); color: var(--accent-strong); }
+.settings-feed-layout-options input:focus-visible + span { outline: 3px solid color-mix(in srgb, var(--accent) 72%, #fff 28%); outline-offset: 2px; }
+.settings-feed-layout-options label:hover > span { border-color: var(--accent-strong); }
 
 .text-scale-options { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
 .text-scale-options button, .settings-card-actions button, .settings-install-card > button, .settings-primary-navigation-row-actions button, .settings-tool-actions button, .backup-head-actions button, .upload-center-head button, .trash-item button { min-height: 40px; border: 1px solid var(--line); border-radius: 9px; background: transparent; color: var(--ink); font: inherit; font-size: 12px; font-weight: 850; padding: 0 12px; }

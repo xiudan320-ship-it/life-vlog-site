@@ -257,6 +257,7 @@ export function bindMediaEvents({ elements, state, pageSize, controllers, vlogMo
       }
       return;
     }
+    if (els.dialog?.classList.contains("mobile-diary-image-viewer")) return;
     if (state.activeDialogPhoto) {
       toggleDiaryImageFullscreen();
     }
@@ -379,7 +380,13 @@ export function bindMediaEvents({ elements, state, pageSize, controllers, vlogMo
     renderGallery();
     els.diarySearchInput?.focus();
   });
+  let lastGalleryMobileViewport = isMobileViewport();
   const scheduleViewportLayout = createFrameScheduler(() => {
+    const mobileViewport = isMobileViewport();
+    if (mobileViewport !== lastGalleryMobileViewport) {
+      lastGalleryMobileViewport = mobileViewport;
+      renderGallery("", { preserveViewportAnchor: true });
+    }
     syncMobileComposerPlacement();
     window.clearTimeout(updateReadMoreHints.resizeTimer);
     updateReadMoreHints.resizeTimer = window.setTimeout(() => updateReadMoreHints(els.gallery), 120);

@@ -146,15 +146,18 @@ async function testSettingsPersistenceAndAccountActions() {
     const { page, fixture } = result;
     await openSettings(page);
     await openSettingsSection(page, "settingsAppearance");
+    assert.equal(await page.locator('[name="mobileFeedLayout"][value="double"]').isChecked(), true, "new account did not default to double-column layout");
     await page.click("#renameHomeButton");
     await page.fill("#homeNameInput", "Fixture Home");
     await page.click("#renameHomeForm button[type=submit]");
     await page.waitForFunction(() => document.querySelector("#homeNameStatus")?.textContent.includes("名称已保存并同步"));
     await page.waitForFunction(() => !document.querySelector("#renameHomeDialog")?.open);
     assert.equal(await page.locator("#settingsHomeNameValue").textContent(), "Fixture Home");
-    await page.click("#settingsFeedLayoutButton");
+    await page.locator(".settings-feed-layout-options label").nth(0).click();
     await page.click('[data-text-scale="large"]');
     assert.equal(await page.evaluate(() => document.body.classList.contains("mobile-feed-single")), true, "single-column layout was not applied");
+    assert.equal(await page.locator('[name="mobileFeedLayout"][value="single"]').isChecked(), true, "single-column choice did not expose its checked state");
+    assert.equal(await page.evaluate(() => document.body.dataset.mobileFeedLayout), "single", "single-column layout did not update immediately");
     assert.equal(await page.evaluate(() => document.documentElement.dataset.textScale), "large", "large text scale was not applied");
     await page.click("#closeSettingsDialog");
     await page.waitForFunction(() => !document.querySelector("#settingsDialog")?.open);
@@ -242,6 +245,74 @@ async function testSettingsPersistenceAndAccountActions() {
     await page.waitForFunction(() => document.querySelector("#settingsDialog")?.open);
     assert.equal(await page.locator("#settingsEmailValue").textContent(), "fixture-settings@example.test");
     assert.deepEqual(result.errors, [], `settings account page errors: ${result.errors.join(" | ")}`);
+  } finally {
+    await closeFixturePage(result);
+  }
+}
+
+async function testFeedLayoutPreferenceScopes() {
+  const result = await openFixturePage({
+    viewport: { width: 390, height: 844 },
+    fixtureOptions: {
+      authUsers: [{
+        username: "fixture-member",
+        id: "fixture-member",
+        email: "fixture-member@life-vlog.local",
+        token: "fixture-member-token",
+        displayName: "Fixture Member",
+      }],
+    },
+  });
+  try {
+    const { page } = result;
+    await page.evaluate(() => localStorage.setItem("life-vlog-mobile-feed-layout:guest", "single"));
+    await openSettings(page);
+    await openSettingsSection(page, "settingsAppearance");
+    await page.locator(".settings-feed-layout-options label").nth(0).click();
+    await page.locator(".settings-feed-layout-options label").nth(1).click();
+    await page.click("#closeSettingsDialog");
+    await page.waitForFunction(() => !document.querySelector("#settingsDialog")?.open);
+    assert.equal(await page.evaluate(() => localStorage.getItem("life-vlog-mobile-feed-layout:fixture-user")), "double");
+
+    const logout = async () => {
+      await page.click("#avatarButton");
+      await page.click("#logoutButton");
+      await page.waitForFunction(() => !document.body.classList.contains("signed-in"));
+    };
+    const login = async (username) => {
+      await page.fill("#usernameInput", username);
+      await page.fill("#passwordInput", "fixture-password");
+      await page.click("#loginButton");
+      await page.waitForFunction(() => document.body.classList.contains("signed-in") && document.body.dataset.mobileFeedLayout === "double");
+    };
+
+    await logout();
+    assert.equal(await page.evaluate(() => document.body.dataset.mobileFeedLayout), "single", "guest did not restore its own saved layout");
+    assert.equal(await page.evaluate(() => localStorage.getItem("life-vlog-mobile-feed-layout:guest")), "single");
+
+    await login("fixture-member");
+    assert.equal(await page.evaluate(() => localStorage.getItem("life-vlog-mobile-feed-layout:fixture-member")), null);
+    await openSettings(page);
+    await openSettingsSection(page, "settingsAppearance");
+    await page.locator(".settings-feed-layout-options label").nth(0).click();
+    await page.click("#closeSettingsDialog");
+    await page.waitForFunction(() => !document.querySelector("#settingsDialog")?.open);
+    assert.equal(await page.evaluate(() => localStorage.getItem("life-vlog-mobile-feed-layout:fixture-member")), "single");
+
+    await logout();
+    assert.equal(await page.evaluate(() => document.body.dataset.mobileFeedLayout), "single", "account B overwrote the guest layout");
+    await login("fixture-user");
+    assert.equal(await page.evaluate(() => document.body.dataset.mobileFeedLayout), "double", "account A did not restore its saved layout after account B");
+    assert.deepEqual(
+      await page.evaluate(() => ({
+        accountA: localStorage.getItem("life-vlog-mobile-feed-layout:fixture-user"),
+        accountB: localStorage.getItem("life-vlog-mobile-feed-layout:fixture-member"),
+        guest: localStorage.getItem("life-vlog-mobile-feed-layout:guest"),
+      })),
+      { accountA: "double", accountB: "single", guest: "single" },
+      "mobile layout preferences were not isolated by account scope",
+    );
+    assert.deepEqual(result.errors, [], `layout preference scope page errors: ${result.errors.join(" | ")}`);
   } finally {
     await closeFixturePage(result);
   }
@@ -614,6 +685,7 @@ async function testSettingsTouchGeometry() {
 try {
   await testSettingsActionsAndRetention();
   await testSettingsPersistenceAndAccountActions();
+  await testFeedLayoutPreferenceScopes();
   await testFamilyRolesAndActions();
   await testSettingsDataSafetyAndQueue();
   await testEarlyInstallPromptAndRoleSearch();

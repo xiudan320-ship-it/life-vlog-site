@@ -66,6 +66,7 @@ export function createDiaryFeedController({
     photoCommentPreviewLimit,
     pageSize,
   } = constants;
+  let pendingGalleryViewportAnchor = null;
 
   async function loadPhotosInternal() {
     if (!state.cloudDb) {
@@ -494,7 +495,55 @@ export function createDiaryFeedController({
     state.photoFlagsCloudAvailable = !error;
   }
   
-  function renderGallery(updatedPhotoId = "") {
+  function captureGalleryViewportAnchor() {
+    if (pendingGalleryViewportAnchor) return pendingGalleryViewportAnchor;
+    const cards = [...(els.gallery?.querySelectorAll(".photo-card") || [])];
+    const card = cards.find((entry) => {
+      const rect = entry.getBoundingClientRect();
+      return rect.bottom > 0 && rect.top < window.innerHeight;
+    });
+    const anchor = card
+      ? { photoId: card.dataset.photoId || "", top: card.getBoundingClientRect().top }
+      : null;
+    return anchor;
+  }
+
+  function restoreGalleryViewportAnchor(anchor, deferUntilSettingsClose = false) {
+    if (!anchor?.photoId) return;
+    if (deferUntilSettingsClose || els.settingsDialog?.open) {
+      pendingGalleryViewportAnchor = anchor;
+      return;
+    }
+    const restore = () => {
+      const card = [...(els.gallery?.querySelectorAll(".photo-card") || [])]
+        .find((entry) => entry.dataset.photoId === anchor.photoId);
+      if (!card) return;
+      const currentScroll = window.scrollY || window.pageYOffset || 0;
+      const cardTop = card.getBoundingClientRect().top;
+      const target = Math.max(0, currentScroll + cardTop - anchor.top);
+      window.scrollTo({ top: target, behavior: "instant" });
+    };
+    window.requestAnimationFrame(() => {
+      restore();
+      window.setTimeout(restore, 80);
+    });
+  }
+
+  function restorePendingGalleryViewportAnchor() {
+    const anchor = pendingGalleryViewportAnchor;
+    pendingGalleryViewportAnchor = null;
+    restoreGalleryViewportAnchor(anchor);
+  }
+
+  function renderGallery(updatedPhotoId = "", {
+    preserveViewportAnchor = false,
+    deferViewportAnchorRestore = false,
+    viewportAnchor: suppliedViewportAnchor = null,
+  } = {}) {
+    const viewportAnchor = preserveViewportAnchor
+      ? suppliedViewportAnchor || captureGalleryViewportAnchor()
+      : null;
+    if (deferViewportAnchorRestore && viewportAnchor) pendingGalleryViewportAnchor = viewportAnchor;
     updateFilterChips();
     updateTodayPostsNotice();
     const sortedPhotos = getSortedPhotos(state.photos);
@@ -516,6 +565,7 @@ export function createDiaryFeedController({
       filter: state.activeFilter,
       search: state.diarySearchQuery,
       layout: document.body.dataset.mobileFeedLayout || "",
+      mobileViewport: isMobileViewport(),
       visible: state.visiblePhotoCount,
       favorites: photoFavorites.sortedIds(),
        photos: visible.map((photo) => [photo.id, photo.updated_at, photo.category, photo.is_featured, photo.is_pinned, getPhotoImages(photo).length]),
@@ -579,6 +629,7 @@ export function createDiaryFeedController({
       renderAvatar: renderAvatarMarkup,
       renderCommentPreview: renderPhotoCommentPreview,
       isFavorite: isFavoritePhoto,
+      feedLayout: document.body.dataset.mobileFeedLayout || "double",
       handlers: {
         open: openPhoto,
         delete: deletePhoto,
@@ -593,6 +644,7 @@ export function createDiaryFeedController({
     state.galleryRenderSignature = nextSignature;
     observeGalleryMasonry();
     layoutGalleryMasonry();
+    restoreGalleryViewportAnchor(viewportAnchor, deferViewportAnchorRestore);
     warmUpcomingFeedImages(filtered, visible.length);
     updateFeedLoader(filtered.length);
   }
@@ -899,6 +951,8 @@ export function createDiaryFeedController({
     renderPhotoCommentPreview,
     verifyPhotoFlagSchema,
     renderGallery,
+    captureGalleryViewportAnchor,
+    restorePendingGalleryViewportAnchor,
     layoutGalleryMasonry,
     scheduleGalleryMasonryLayout,
     initializePullToRefresh,

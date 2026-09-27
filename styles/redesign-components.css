@@ -2007,13 +2007,6 @@ body.mobile-dialog-open {
     grid-template-columns: 1fr;
   }
 
-  body:not(.mobile-feed-single) .gallery {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-auto-rows: 6px;
-    gap: 8px;
-    padding-top: 2px;
-  }
-
   body:not(.mobile-feed-single) .photo-card {
     min-width: 0;
     overflow: hidden;
@@ -2171,19 +2164,6 @@ body.mobile-dialog-open {
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--coral) 8%, transparent);
   }
 
-  body.mobile-feed-single .gallery,
-  body.mobile-feed-single .wishlist-list {
-    grid-template-columns: 1fr;
-    grid-auto-rows: auto;
-    gap: 16px;
-  }
-
-  body.mobile-feed-single .photo-card,
-  body.mobile-feed-single .photo-card:nth-child(odd),
-  body.mobile-feed-single .photo-card:nth-child(even) {
-    grid-row-end: auto;
-  }
-
   .settings-tool-card {
     grid-template-columns: 1fr;
     gap: 10px;
@@ -2213,6 +2193,27 @@ body.mobile-dialog-open {
 
   h2 {
     font-size: 29px;
+  }
+}
+
+@media (max-width: 920px) {
+  body:not(.mobile-feed-single) .gallery {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: 6px;
+    gap: 8px;
+    padding-top: 2px;
+  }
+
+  body.mobile-feed-single .gallery,
+  body.mobile-feed-single .wishlist-list {
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: auto;
+    gap: 16px;
+  }
+
+  body.mobile-feed-single .photo-card {
+    min-width: 0;
+    grid-row-end: auto;
   }
 }
 

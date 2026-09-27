@@ -519,64 +519,304 @@ async function testFeedMediaRetryLifecycle(browser) {
   }
 }
 
-async function testMultiImageRailPreviewLayout(browser) {
-  for (const viewport of [
-    { width: 390, height: 844 },
-    { width: 1440, height: 900 },
-  ]) {
-    const result = await openFixturePage({ viewport });
-    try {
-      const metrics = await result.page.evaluate(() => {
-        const card = document.querySelector('[data-photo-id="fixture-photo"]');
-        const rail = document.createElement("div");
-        rail.className = "photo-media rail count-2";
-        rail.setAttribute("aria-label", "3 张日记图片");
-        rail.innerHTML = `
-          <div class="photo-media-track" tabindex="0">
-            ${[1, 2].map((index) => `
-              <div class="feed-media-rail-item">
-                <div class="feed-media-shell" data-media-state="loaded">
-                  <button type="button"><img class="feed-image is-loaded" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='480'%3E%3Crect width='640' height='480' fill='%23d9c2a3'/%3E%3C/svg%3E" alt="预览 ${index}"></button>
-                </div>
-              </div>
-            `).join("")}
-            <button class="feed-media-more" type="button">查看全部 3 张</button>
-          </div>
-        `;
-        card?.append(rail);
-        const track = rail.querySelector(".photo-media-track");
-        const item = rail.querySelector(".feed-media-rail-item");
-        const image = rail.querySelector("img");
-        const railRect = rail.getBoundingClientRect();
-        const itemRect = item.getBoundingClientRect();
-        const trackStyle = getComputedStyle(track);
-        return {
-          railHeight: railRect.height,
-          itemWidth: itemRect.width,
-          itemHeight: itemRect.height,
-          imageWidth: image.getBoundingClientRect().width,
-          imageHeight: image.getBoundingClientRect().height,
-          objectFit: getComputedStyle(image).objectFit,
-          trackClientWidth: track.clientWidth,
-          trackScrollWidth: track.scrollWidth,
-          documentWidth: document.documentElement.scrollWidth,
-          viewportWidth: window.innerWidth,
-          trackOverflowX: trackStyle.overflowX,
-        };
-      });
-      assert.ok(metrics.railHeight >= 88, `${viewport.width}px multi-image rail became too short: ${JSON.stringify(metrics)}`);
-      assert.ok(metrics.railHeight <= (viewport.width <= 700 ? 120 : 190), `${viewport.width}px multi-image rail remains oversized: ${JSON.stringify(metrics)}`);
-      assert.ok(metrics.itemHeight / metrics.itemWidth <= 1.35, `${viewport.width}px rail preview is still too tall for its width: ${JSON.stringify(metrics)}`);
-      assert.ok(metrics.imageWidth <= metrics.itemWidth + 1, `${viewport.width}px rail image escaped its preview cell: ${JSON.stringify(metrics)}`);
-      assert.ok(metrics.imageHeight <= metrics.itemHeight + 1, `${viewport.width}px rail image escaped its preview cell vertically: ${JSON.stringify(metrics)}`);
-      assert.equal(metrics.objectFit, "contain", `${viewport.width}px rail preview still crops the image: ${JSON.stringify(metrics)}`);
-      assert.equal(metrics.trackOverflowX, "auto", `${viewport.width}px rail lost horizontal scrolling: ${JSON.stringify(metrics)}`);
-      assert.ok(metrics.trackScrollWidth > metrics.trackClientWidth, `${viewport.width}px rail has no overflow content: ${JSON.stringify(metrics)}`);
-      assert.ok(metrics.documentWidth <= metrics.viewportWidth + 1, `${viewport.width}px rail caused page overflow: ${JSON.stringify(metrics)}`);
-      assert.deepEqual(result.errors, [], `${viewport.width}px multi-image rail page errors: ${result.errors.join(" | ")}`);
-    } finally {
-      await closeFixturePage(result);
+function createDiaryGridFixturePhotos() {
+  const fixtureSvg = (index) => {
+    const colors = ["#d9c2a3", "#94b886", "#d7866e", "#8daec2", "#d0b3dc", "#d8ca7e"];
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480" id="fixture-${index}"><rect width="640" height="480" fill="${colors[index % colors.length]}"/></svg>`;
+    return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+  };
+  const photo = (id, count, order) => {
+    const images = Array.from({ length: count }, (_, index) => {
+      const image = {
+        type: "image",
+        image_url: fixtureSvg(index + order),
+        thumbnail_url: fixtureSvg(index + order),
+        width: index % 2 ? 600 : 640,
+        height: index % 2 ? 900 : 480,
+      };
+      if (id === "fixture-grid-count-3" && index === 1) {
+        image.type = "live";
+        image.motion_url = "/__fixture-media/fixture-grid-live.mov";
+      }
+      if (id === "fixture-grid-count-10" && index === 3) {
+        image.type = "video";
+        image.video_url = "/__fixture-media/fixture-grid-video.mp4";
+      }
+      return image;
+    });
+    const note = count
+      ? `Grid fixture ${count} ${count === 1 ? "image" : "images"}<!--life-vlog-media:${encodeURIComponent(JSON.stringify(images))}-->`
+      : "Grid fixture without photos";
+    return {
+      id,
+      user_id: "fixture-user",
+      category: "日常",
+      title: `宫格 fixture ${count} 张`,
+      note,
+      image_url: "",
+      thumbnail_url: "",
+      type: "image",
+      created_at: new Date(Date.UTC(2040, 0, 10 - order)).toISOString(),
+      taken_at: new Date(Date.UTC(2040, 0, 10 - order)).toISOString(),
+      is_public: true,
+    };
+  };
+  return [
+    {
+      id: "fixture-photo",
+      user_id: "fixture-user",
+      category: "日常",
+      title: "Fixture diary",
+      note: "Only synthetic release regression data",
+      image_url: fixtureSvg(0),
+      thumbnail_url: fixtureSvg(0),
+      type: "image",
+      created_at: "2030-01-01T00:00:00.000Z",
+      taken_at: "2030-01-01T00:00:00.000Z",
+      is_public: true,
+    },
+    ...[0, 1, 2, 3, 4, 5, 6, 7, 10].map((count, order) => photo(`fixture-grid-count-${count}`, count, order)),
+  ];
+}
+
+async function testMobileDiaryGridAndDesktopRail(browser) {
+  const result = await openFixturePage({
+    viewport: { width: 390, height: 844 },
+    fixtureOptions: { photos: createDiaryGridFixturePhotos() },
+    mockFeedMotion: true,
+  });
+  try {
+    const page = result.page;
+    await page.locator("#feedLoader").scrollIntoViewIfNeeded();
+    await page.waitForFunction(() => document.querySelectorAll("#gallery .photo-card").length >= 10, null, { timeout: 10000 });
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+    assert.equal(await page.evaluate(() => document.body.dataset.mobileFeedLayout), "double", "unset diary layout did not keep the double-column default");
+
+    const doubleCounts = await page.evaluate(() => Object.fromEntries([0, 1, 2, 3, 4, 5, 6, 7, 10].map((count) => {
+      const card = document.querySelector(`[data-photo-id="fixture-grid-count-${count}"]`);
+      return [count, {
+        media: card?.querySelectorAll(":scope > .photo-open .photo-media").length || 0,
+        cover: card?.querySelectorAll(".photo-media.double-cover .feed-media-shell").length || 0,
+        images: card?.querySelectorAll(".photo-media img.feed-image").length || 0,
+        countText: card?.querySelector(".photo-media-count")?.textContent || "",
+        motionSources: card?.querySelectorAll("img.feed-image[data-motion-src]").length || 0,
+      }];
+    })));
+    assert.deepEqual(doubleCounts[0], { media: 0, cover: 0, images: 0, countText: "", motionSources: 0 });
+    assert.deepEqual(doubleCounts[1], { media: 1, cover: 0, images: 1, countText: "", motionSources: 0 });
+    for (const count of [2, 3, 4, 5, 6, 7, 10]) {
+      assert.equal(doubleCounts[count].cover, 1, `${count}-image double layout did not render one cover`);
+      assert.equal(doubleCounts[count].images, 1, `${count}-image double layout loaded hidden album thumbnails`);
+      assert.equal(doubleCounts[count].countText, `${count} 张`, `${count}-image cover lost its total count`);
+      assert.equal(doubleCounts[count].motionSources, 0, `${count}-image double layout loaded a hidden motion source`);
     }
+    assert.equal(doubleCounts[2].media, 1);
+
+    const initialCover = page.locator('[data-photo-id="fixture-grid-count-10"] .photo-media.double-cover .feed-media-shell > button');
+    await initialCover.click();
+    await page.waitForFunction(() => !document.querySelector(".mobile-diary-page")?.hidden);
+    assert.equal(await page.locator(".mobile-diary-count").textContent(), "1 / 10", "double-column cover did not open the first image");
+    assert.equal(await page.locator(".mobile-diary-thumbs button").count(), 10, "double-column cover did not expose the full album");
+    await page.click(".mobile-diary-close");
+    await page.waitForFunction(() => document.querySelector(".mobile-diary-page")?.hidden);
+
+    await openSettingsFromAccount(page);
+    await page.click("#settings-tab-settingsAppearance");
+    await page.waitForSelector('#settingsDialog[data-mobile-settings-section="settingsAppearance"]', { state: "attached" });
+    const viewportAnchor = await page.evaluate(() => {
+      const card = [...document.querySelectorAll("#gallery .photo-card")].find((entry) => {
+        const rect = entry.getBoundingClientRect();
+        return rect.bottom > 0 && rect.top < window.innerHeight;
+      });
+      return card ? { photoId: card.dataset.photoId, top: card.getBoundingClientRect().top } : null;
+    });
+    assert.ok(viewportAnchor, "settings did not retain a visible diary position for layout switching");
+    assert.equal(await page.locator('[name="mobileFeedLayout"][value="double"]').isChecked(), true);
+    assert.equal(await page.getByRole("radio", { name: "单列" }).count(), 1, "single layout choice has no accessible name");
+    assert.equal(await page.getByRole("radio", { name: "双列" }).count(), 1, "double layout choice has no accessible name");
+    const controlMetrics = await page.locator(".settings-feed-layout-options label").evaluateAll((labels) => labels.map((label) => {
+      const rect = label.getBoundingClientRect();
+      return { width: rect.width, height: rect.height };
+    }));
+    assert.ok(controlMetrics.every(({ width, height }) => width >= 44 && height >= 44), `layout choices missed the touch target: ${JSON.stringify(controlMetrics)}`);
+    await page.locator("#settingsFeedLayoutButton").screenshot({ path: join(sourceRoot, "tests", "mobile-diary-layout-setting.png") });
+    await page.locator('[name="mobileFeedLayout"][value="double"]').focus();
+    await page.keyboard.press("ArrowLeft");
+    assert.equal(await page.evaluate(() => document.body.dataset.mobileFeedLayout), "single", "single-column selection did not apply immediately");
+    await page.click("#closeSettingsDialog");
+    await page.waitForFunction(() => !document.querySelector("#settingsDialog")?.open);
+    await page.waitForTimeout(100);
+    const anchor = page.locator(`[data-photo-id="${viewportAnchor.photoId}"]`);
+    const anchorTopAfter = await anchor.evaluate((card) => card.getBoundingClientRect().top);
+    const anchorPosition = await page.evaluate((photoId) => {
+      const card = [...document.querySelectorAll("#gallery .photo-card")].find((entry) => entry.dataset.photoId === photoId);
+      return {
+        scrollY: window.scrollY,
+        pageYOffset: window.pageYOffset,
+        bodyPosition: getComputedStyle(document.body).position,
+        bodyTop: getComputedStyle(document.body).top,
+        rootScrollTop: document.documentElement.scrollTop,
+        rootScrollHeight: document.documentElement.scrollHeight,
+        viewportHeight: document.documentElement.clientHeight,
+        cardTop: card?.getBoundingClientRect().top,
+        settingsOpen: document.querySelector("#settingsDialog")?.open,
+      };
+    }, viewportAnchor.photoId);
+    assert.ok(Math.abs(anchorTopAfter - viewportAnchor.top) < 60, `layout re-render lost the visible diary anchor: ${viewportAnchor.top} -> ${anchorTopAfter}; ${JSON.stringify(anchorPosition)}; errors=${JSON.stringify(result.errors)}`);
+
+    for (const count of [2, 3, 4, 5, 6, 7, 10]) {
+      const card = page.locator(`[data-photo-id="fixture-grid-count-${count}"]`);
+      const grid = card.locator(".photo-media-grid");
+      const expectedShape = count > 6 ? "count-7-plus" : `count-${count}`;
+      assert.equal(await grid.count(), 1, `${count}-image single layout did not render a grid`);
+      assert.equal(await grid.evaluate((element) => [...element.classList].find((name) => name.startsWith("count-"))), expectedShape);
+      assert.equal(await card.locator(".feed-media-grid-item").count(), Math.min(count, 6));
+      const mediaCount = await card.locator(".photo-media-grid .feed-media-shell").count();
+      assert.equal(mediaCount, Math.min(count, 6), `${count}-image grid created duplicate hidden media DOM`);
+      if (count > 6) {
+        assert.equal((await card.locator(".feed-media-grid-more").textContent()).trim(), `+${count - 6}`);
+        assert.equal(await card.locator(".feed-media-grid-more").getAttribute("aria-label"), `查看全部 ${count} 张图片，从第 6 张开始`);
+      }
+    }
+    assert.equal(await page.locator('[data-photo-id="fixture-grid-count-0"] .photo-media').count(), 0, "zero-image diary rendered a media placeholder");
+    assert.equal(await page.locator('[data-photo-id="fixture-grid-count-1"] .photo-media.single').count(), 1, "single image did not keep its large preview");
+    assert.equal(await page.locator('[data-photo-id="fixture-grid-count-3"] .multi-motion-dot').count(), 1, "single grid lost its Live Photo marker");
+    assert.equal(await page.locator('[data-photo-id="fixture-grid-count-3"] img.feed-image[data-motion-src]').count(), 1, "single grid lost its deferred Live Photo source");
+
+    const cellMetrics = await page.locator('[data-photo-id="fixture-grid-count-6"] .feed-media-grid-item').evaluateAll((cells) => {
+      const grid = cells[0]?.parentElement;
+      const gridStyle = grid && getComputedStyle(grid);
+      return {
+        grid: grid && {
+          width: grid.getBoundingClientRect().width,
+          height: grid.getBoundingClientRect().height,
+          columns: gridStyle.gridTemplateColumns,
+          rows: gridStyle.gridTemplateRows,
+          aspectRatio: gridStyle.aspectRatio,
+        },
+        cells: cells.map((cell) => {
+      const rect = cell.getBoundingClientRect();
+      const image = cell.querySelector("img.feed-image");
+      return {
+        width: rect.width,
+        height: rect.height,
+        left: rect.left,
+        top: rect.top,
+        fit: getComputedStyle(image).objectFit,
+        transform: getComputedStyle(image).transform,
+        imageWidth: image.getBoundingClientRect().width,
+        imageHeight: image.getBoundingClientRect().height,
+      };
+        }),
+      };
+    });
+    assert.ok(cellMetrics.cells.every(({ width, height }) => Math.abs(width - height) < 8), `single grid cells are not square: ${JSON.stringify(cellMetrics)}`);
+    assert.ok(cellMetrics.cells.every(({ fit, imageWidth, imageHeight, width, height }) => fit === "contain" && imageWidth <= width + 1 && imageHeight <= height + 1), `single grid cropped or overflowed a thumbnail: ${JSON.stringify(cellMetrics)}`);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1), true, "single grid caused horizontal page overflow at 390px");
+    const gridTen = page.locator('[data-photo-id="fixture-grid-count-10"]');
+    for (let index = 0; index < 6; index += 1) {
+      await gridTen.locator(".feed-media-grid-item").nth(index).scrollIntoViewIfNeeded();
+      await page.waitForFunction((imageIndex) => document.querySelector(`[data-photo-id="fixture-grid-count-10"] .feed-media-grid-item:nth-child(${imageIndex + 1}) .feed-media-shell`)?.dataset.mediaState === "loaded", index, { timeout: 5000 });
+    }
+    await page.locator('[data-photo-id="fixture-grid-count-10"]').screenshot({ path: join(sourceRoot, "tests", "mobile-diary-grid-single.png") });
+
+    await page.evaluate(() => document.documentElement.dataset.textScale = "xlarge");
+    for (const width of [375, 430, 768, 844]) {
+      await page.setViewportSize({ width, height: width === 844 ? 390 : width === 768 ? 900 : 844 });
+      await page.waitForFunction(() => document.querySelector('[data-photo-id="fixture-grid-count-10"] .photo-media-grid'), null, { timeout: 5000 });
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1), true, `single grid caused horizontal overflow at ${width}px`);
+      assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector("#gallery")).gridTemplateColumns.split(" ").filter(Boolean).length), 1, `single mode lost its column at ${width}px`);
+    }
+    await page.evaluate(() => document.documentElement.dataset.textScale = "standard");
+    for (const width of [1024, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.waitForFunction(() => document.querySelector('[data-photo-id="fixture-grid-count-10"] .photo-media.rail'), null, { timeout: 5000 });
+      const desktopLayout = await page.evaluate(() => ({
+        columns: getComputedStyle(document.querySelector("#gallery")).gridTemplateColumns.split(" ").filter(Boolean).length,
+        rails: document.querySelectorAll("#gallery .photo-media.rail").length,
+        grid: document.querySelectorAll("#gallery .photo-media-grid").length,
+        width: document.documentElement.scrollWidth,
+        viewport: document.documentElement.clientWidth,
+      }));
+      assert.equal(desktopLayout.columns, 4, `${width}px desktop gallery lost its four columns: ${JSON.stringify(desktopLayout)}`);
+      assert.ok(desktopLayout.rails > 0 && desktopLayout.grid === 0, `${width}px desktop media rail changed: ${JSON.stringify(desktopLayout)}`);
+      assert.ok(desktopLayout.width <= desktopLayout.viewport + 1, `${width}px desktop layout overflowed: ${JSON.stringify(desktopLayout)}`);
+    }
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForFunction(() => document.querySelector('[data-photo-id="fixture-grid-count-10"] .photo-media-grid'), null, { timeout: 5000 });
+    await gridTen.locator(".feed-media-grid-item:nth-child(3) .feed-media-shell > button").click();
+    await page.waitForFunction(() => !document.querySelector(".mobile-diary-page")?.hidden);
+    assert.equal(await page.locator(".mobile-diary-count").textContent(), "3 / 10", "third grid item opened the wrong album index");
+    await page.click(".mobile-diary-close");
+    await page.waitForFunction(() => document.querySelector(".mobile-diary-page")?.hidden);
+    await gridTen.locator(".feed-media-grid-more").click();
+    await page.waitForFunction(() => !document.querySelector(".mobile-diary-page")?.hidden);
+    assert.equal(await page.locator(".mobile-diary-count").textContent(), "6 / 10", "+N did not open the sixth original image");
+    assert.equal(await page.locator(".mobile-diary-thumbs button").count(), 10, "+N hid images after the sixth preview");
+    await page.click("[data-mobile-diary-open-image]");
+    await page.waitForSelector("#photoDialog[open].mobile-diary-image-viewer", { state: "attached" });
+    assert.equal(await page.locator("#dialogMeta").textContent(), "6 / 10", "full viewer did not retain the sixth index");
+    const viewerRect = await page.locator("#photoDialog .dialog-media").boundingBox();
+    const swipeStartX = viewerRect.x + viewerRect.width * 0.72;
+    const swipeY = viewerRect.y + viewerRect.height * 0.5;
+    await page.mouse.move(swipeStartX, swipeY);
+    await page.mouse.down();
+    await page.mouse.move(swipeStartX - 100, swipeY, { steps: 5 });
+    await page.mouse.up();
+    await page.waitForFunction(() => document.querySelector("#dialogImage")?.alt.endsWith(" 7"), null, { timeout: 3000 });
+    await page.keyboard.press("Escape");
+    await page.waitForFunction(() => !document.querySelector("#photoDialog")?.hasAttribute("open"));
+    assert.equal(await page.locator(".mobile-diary-count").textContent(), "7 / 10", "the full album could not continue past the sixth image");
+    await page.click(".mobile-diary-close");
+    await page.waitForFunction(() => document.querySelector(".mobile-diary-page")?.hidden);
+
+    const failedImage = gridTen.locator(".feed-media-grid-item:nth-child(6) img.feed-image");
+    await failedImage.evaluate((image) => {
+      image.dataset.canonicalSrc = "/__fixture-media/mobile-grid-retry-fail.jpg";
+      image.src = image.dataset.canonicalSrc;
+    });
+    const failedCell = gridTen.locator(".feed-media-grid-item:nth-child(6) .feed-media-shell");
+    await page.waitForFunction(() => document.querySelector('[data-photo-id="fixture-grid-count-10"] .feed-media-grid-item:nth-child(6) .feed-media-shell')?.dataset.mediaState === "error", null, { timeout: 10000 });
+    await failedCell.locator("[data-media-retry]").click();
+    await page.waitForFunction(() => document.querySelector('[data-photo-id="fixture-grid-count-10"] .feed-media-grid-item:nth-child(6) .feed-media-shell')?.dataset.mediaState === "error", null, { timeout: 10000 });
+    assert.equal(await page.locator(".mobile-diary-page:not([hidden])").count(), 0, "retrying a failed grid thumbnail opened the diary");
+    assert.equal(await page.locator("#photoDialog[open]").count(), 0, "retrying a failed grid thumbnail opened the image viewer");
+    await gridTen.locator(".feed-media-grid-more").click();
+    await page.waitForFunction(() => !document.querySelector(".mobile-diary-page")?.hidden);
+    assert.equal(await page.locator(".mobile-diary-count").textContent(), "6 / 10", "failed sixth preview blocked the full album entry");
+    await page.click(".mobile-diary-close");
+    await page.waitForFunction(() => document.querySelector(".mobile-diary-page")?.hidden);
+
+    await openSettingsFromAccount(page);
+    await page.click("#settings-tab-settingsAppearance");
+    await page.waitForSelector('#settingsDialog[data-mobile-settings-section="settingsAppearance"]', { state: "attached" });
+    await page.locator(".settings-feed-layout-options label").nth(1).click();
+    await page.click("#closeSettingsDialog");
+    await page.waitForFunction(() => document.body.dataset.mobileFeedLayout === "double");
+    assert.equal(await gridTen.locator(".photo-media.double-cover .feed-media-shell").count(), 1, "switching to double did not immediately restore the cover");
+    assert.equal(await gridTen.locator(".photo-media img.feed-image").count(), 1, "double layout kept grid thumbnails mounted");
+    await gridTen.locator(".photo-media.double-cover").scrollIntoViewIfNeeded();
+    await page.waitForFunction(() => document.querySelector('[data-photo-id="fixture-grid-count-10"] .photo-media.double-cover .feed-media-shell')?.dataset.mediaState === "loaded", null, { timeout: 5000 });
+    await page.waitForTimeout(350);
+    const doubleCoverState = await gridTen.locator(".photo-media.double-cover .feed-image").evaluate((image) => ({
+      className: image.className,
+      opacity: getComputedStyle(image).opacity,
+      naturalWidth: image.naturalWidth,
+      box: image.getBoundingClientRect().toJSON(),
+      containerBox: image.closest(".photo-media.double-cover")?.getBoundingClientRect().toJSON(),
+      shell: image.closest(".feed-media-shell")?.dataset.mediaState,
+    }));
+    assert.ok(doubleCoverState.className.includes("is-loaded") && doubleCoverState.naturalWidth > 0, "double layout cover image did not finish loading");
+    assert.equal(doubleCoverState.opacity, "1", "double layout cover image remained transparent");
+    assert.ok(Math.abs(doubleCoverState.box.height - doubleCoverState.containerBox.height) < 1, "double layout cover image did not fill its aspect-ratio container");
+    assert.ok(Math.abs(doubleCoverState.containerBox.width / doubleCoverState.containerBox.height - 4 / 3) < 0.02, "double layout cover did not retain its image aspect ratio");
+    await gridTen.evaluate((card) => window.scrollTo({ top: window.scrollY + card.getBoundingClientRect().top - 160, behavior: "instant" }));
+    await page.waitForTimeout(100);
+    await gridTen.screenshot({ path: join(sourceRoot, "tests", "mobile-diary-grid-double.png") });
+    assert.deepEqual(result.errors, [], `mobile diary grid browser errors: ${result.errors.join(" | ")}`);
+  } finally {
+    await closeFixturePage(result);
   }
 }
 
@@ -1555,7 +1795,7 @@ try {
   await testDynamicDiaryFilters(browser);
   await testHomeUiOptimization(browser);
   await testFeedMediaRetryLifecycle(browser);
-  await testMultiImageRailPreviewLayout(browser);
+  await testMobileDiaryGridAndDesktopRail(browser);
   await testSettingsRegistryInteractions(browser);
   await testShoppingDeleteDialogAppearance(browser);
   await testMobileDiaryActionsAndCategoryPicker(browser);

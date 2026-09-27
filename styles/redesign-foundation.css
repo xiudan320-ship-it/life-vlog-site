@@ -4552,7 +4552,12 @@ body.theme-dark .photo-media {
   white-space: nowrap;
 }
 
-.photo-media.single :is(img,video),
+.photo-media.single :is(img,video) {
+  height: 100%;
+  max-height: none;
+  object-fit: contain;
+}
+
 .photo-card>.photo-open>:is(img,video) {
   height: 100%;
   max-height: none;
