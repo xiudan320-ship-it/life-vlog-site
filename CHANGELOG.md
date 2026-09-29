@@ -4,11 +4,6 @@
 
 ## [Unreleased]
 
-### Fixed
-
-- 手机时间纪念册改为双列紧凑卡片；时计流去掉标题下常驻同步小字，缩短标题、搜索与标签间距，操作反馈改用浮动提示。
-- 心情日记弹层锁住背景滚动，保留长内容面板滚动和关闭后阅读位置，底部在编辑／删除操作及安全区后结束。
-
 ### Added
 
 - 日记卡片支持同篇多图横向预览轨道、触摸滑动保护和“查看全部 N 张”入口；媒体失败仍可单项重试并保留原索引。
@@ -58,6 +53,19 @@
 ### Fixed
 
 - 修复显式深链在断网启动时因初始路由状态提前切换而丢失隐藏缓存日记的问题；缓存画廊现在可在非 gallery 深链下先渲染并由路由控制显隐。
+
+## [2026-09-29] — 纪念册双列与心情滚动修复
+
+### Fixed
+
+- 手机时间纪念册改为双列紧凑卡片；时计流去掉标题下常驻同步小字，缩短标题、搜索与标签间距，操作反馈改用浮动提示。
+- 心情日记弹层锁住背景滚动，保留长内容面板滚动和关闭后阅读位置，底部在编辑／删除操作及安全区后结束。
+
+### Release
+
+- 从已提交推送的 `main` 提交 `e3d426bc7afd4133618633f9b4ee521070d54970` 使用统一脚本上线。preview deployment 为 `95e0427c-032a-48f8-ae33-2b6346630347`（`https://95e0427c.life-vlog-site.pages.dev`），固定预览为 `https://codex-preview.life-vlog-site.pages.dev`；production deployment 为 `23806d06-5ab6-4ce7-9264-a8b65887fd5b`（`https://23806d06.life-vlog-site.pages.dev`），正式入口为 `https://life-vlog-site.pages.dev`。Worker 版本为 `aaca425f-3ca0-4649-be65-af2b6881ef03`。
+- 入口 `index-B9xBixNm.js` SHA-256 为 `297bb8edf8de4af018c1730816e609471a2352faa2f40201f49a1088cc47cf90`；样式 `index-DIxZbYGN.css` SHA-256 为 `1c1d0635d542cae39c8c4db932e98137ceef684f5ec4de074df6cf7cba18afe0`；`sw.js` SHA-256 为 `8b1fe0a0f3a3a1eaf79123a1a948dfb0ea11a25dbe03149dea95e1e60863232b`，Workbox 预缓存条目为 36。
+- 完整 `pnpm test`、本地发布验收、部署流程模拟，以及 preview/production 的 Axe、确定性 release smoke 和 Worker CORS 均通过。375/390/430px 下验收双列纪念册、长名称、深浅主题与 125% 文字；心情长日记可滚动到底，底部操作可编辑保存，继续滚动不带动背景，关闭后恢复原位置。时计流搜索／标签操作、桌面布局回归和代表性截图复核通过。周回顾回归继续校验共享表面样式，允许纪念册采用双列所需的紧凑内边距。
 
 ## [2026-09-29] — 手机日记与心愿比例优化
 
