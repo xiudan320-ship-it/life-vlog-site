@@ -142,6 +142,7 @@ export function createTodayMoodView({ elements, getAuthorName } = {}) {
     const recorded = Boolean(entry) && !unavailable;
     const actionable = !unavailable && (recorded || isCurrentUser);
     const element = documentTarget.createElement(actionable ? "button" : "article");
+    element.dataset.moodRecorded = String(recorded);
     element.className = `today-mood-seat is-${participant.shape}${actionable ? " today-mood-seat-button" : ""}`;
     if (actionable) {
       element.type = "button";

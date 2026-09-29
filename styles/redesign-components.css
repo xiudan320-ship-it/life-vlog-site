@@ -1,110 +1,4 @@
 
-.wish-complete-dialog {
-  width: min(calc(100% - 32px), 760px);
-  max-width: none;
-  padding: 0;
-  border: 1px solid var(--line);
-  background: var(--surface);
-  color: var(--ink);
-}
-.wish-complete-dialog::backdrop {
-  background: rgba(7, 10, 8, 0.54);
-  backdrop-filter: blur(8px);
-}
-
-.wish-complete-dialog form {
-  display: grid;
-  gap: 18px;
-  padding: clamp(22px, 4vw, 34px);
-}
-
-.wish-complete-hero {
-  padding-right: 42px;
-}
-
-.wish-complete-hero h2 {
-  margin: 4px 0 6px;
-  font-size: clamp(32px, 5vw, 56px);
-  line-height: 0.98;
-}
-
-.wish-complete-hero p:last-child {
-  margin: 0;
-  color: var(--muted);
-  font-weight: 800;
-}
-
-.wish-complete-body {
-  display: grid;
-  grid-template-columns: minmax(180px, 0.82fr) minmax(0, 1.18fr);
-  gap: 18px;
-  align-items: stretch;
-}
-
-.wish-complete-preview {
-  min-height: 260px;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background:
-    linear-gradient(145deg, color-mix(in srgb, var(--accent), transparent 86%), transparent 72%),
-    color-mix(in srgb, var(--surface), var(--bg) 26%);
-}
-
-.wish-complete-preview img {
-  width: 100%;
-  height: 100%;
-  min-height: 260px;
-  display: block;
-  object-fit: cover;
-}
-
-.wish-complete-preview div {
-  height: 100%;
-  min-height: 260px;
-  display: grid;
-  place-items: center;
-  align-content: center;
-  gap: 8px;
-  padding: 22px;
-  text-align: center;
-}
-
-.wish-complete-preview span {
-  color: var(--accent-strong);
-  font-size: 14px;
-  font-weight: 950;
-}
-
-.wish-complete-preview strong {
-  font-size: clamp(26px, 4vw, 42px);
-  line-height: 1.04;
-}
-
-.wish-complete-body label {
-  display: grid;
-  gap: 8px;
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 900;
-}
-
-.wish-complete-body textarea {
-  min-height: 260px;
-  resize: vertical;
-  border-radius: 8px;
-}
-
-.wish-complete-actions {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 10px;
-}
-
-.wish-complete-actions .primary {
-  width: 100%;
-}
-
 body.theme-dark .ghost-button,
 body.theme-dark .pager button,
 body.theme-dark .link-row button {
@@ -1722,6 +1616,7 @@ body.mobile-dialog-open {
   
 
   .diary-search {
+    box-shadow: none;
     grid-template-columns: auto minmax(0, 1fr) auto;
     min-height: 52px;
     gap: 8px;
@@ -1733,15 +1628,20 @@ body.mobile-dialog-open {
     grid-column: auto;
     font-size: 11px;
     letter-spacing: 0.04em;
+    font-weight: 500;
     white-space: nowrap;
   }
 
   .diary-search input {
     min-height: 44px;
+    font-weight: 400;
     font-size: 16px;
   }
 
+  .diary-search input::placeholder { font-weight: 400; }
+
   .diary-search button {
+    font-weight: 500;
     min-height: 44px;
     padding-inline: 10px;
   }
@@ -1764,8 +1664,8 @@ body.mobile-dialog-open {
   }
 
   .hero {
-    min-height: 250px;
-    padding: 20px 22px;
+    min-height: 180px;
+    padding: 16px 18px;
   }
 
   .hero::before {
@@ -1774,12 +1674,13 @@ body.mobile-dialog-open {
   }
 
   .hero h1 {
-    font-size: 38px;
+    font-size: 1.75rem;
+    font-weight: 650;
   }
 
   .hero h1.long-home-name {
     max-width: 310px;
-    font-size: 29px;
+    font-size: 1.625rem;
     line-height: 1.08;
   }
 
@@ -1801,8 +1702,8 @@ body.mobile-dialog-open {
 
   .overview {
     gap: 8px;
-    margin: 12px 0 4px;
-    padding: 12px 0 14px;
+    margin: 8px 0 4px;
+    padding: 8px 0 10px;
   }
 
   .overview-head {
@@ -1814,7 +1715,8 @@ body.mobile-dialog-open {
   }
 
   .overview-head h2 {
-    font-size: 22px;
+    font-size: 1.125rem;
+    font-weight: 650;
   }
 
   #overview {
@@ -1831,8 +1733,13 @@ body.mobile-dialog-open {
   }
 
   .today-mood-calendar-button {
-    padding: 9px 11px;
-    font-size: 13px;
+    padding: 0 6px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--accent-strong);
+    font-size: 0.8125rem;
+    font-weight: 500;
   }
 
   .today-mood-grid {
@@ -1841,28 +1748,43 @@ body.mobile-dialog-open {
 
   .today-mood-seat,
   .today-mood-skeleton {
-    min-height: 80px;
+    min-height: 56px;
+    border: 0;
+    border-radius: 10px;
   }
 
   .today-mood-seat {
-    grid-template-columns: 56px minmax(0, 1fr);
+    grid-template-columns: 32px minmax(0, 1fr);
     align-content: center;
     align-items: center;
     justify-items: stretch;
-    gap: 10px;
+    gap: 8px;
     padding: 8px;
     text-align: left;
   }
 
   .today-mood-seat-media {
-    width: 56px;
-    max-width: 64px;
+    width: 32px;
+    max-width: 32px;
+    border: 0;
   }
 
   .today-mood-seat-mood {
-    font-size: 18px;
+    font-size: 0.875rem;
+    font-weight: 600;
   }
 
+  .today-mood-seat-copy { gap: 2px; }
+  .today-mood-seat-name { font-weight: 400; }
+  .today-mood-seat-note { font-weight: 500; }
+  .today-mood-seat-placeholder,
+  .today-mood-seat[data-mood-recorded="true"] .today-mood-seat-note,
+  .today-mood-seat[data-mood-recorded="false"] .today-mood-seat-mood { display: none; }
+  #overview .overview-head .kicker { display: none; }
+  #overview .today-mood-date { font-weight: 400; }
+  #overview .overview-head { align-items: center; }
+  #galleryHead h2 { font-size: 1.25rem; font-weight: 650; }
+  #galleryHead .kicker { font-weight: 500; }
   .today-mood-seat-name,
   .today-mood-seat-note,
   .today-mood-status {
@@ -1902,11 +1824,11 @@ body.mobile-dialog-open {
   }
 
   #composer .section-heading-button {
-    min-height: 34px;
-    border: 1px solid color-mix(in srgb, var(--accent) 52%, var(--line));
-    border-radius: 999px;
-    background: var(--accent);
-    color: #10200d;
+    min-height: 44px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--accent-strong);
     padding: 0 12px;
   }
 
@@ -1915,8 +1837,9 @@ body.mobile-dialog-open {
   }
 
   #composer .section-heading-button h2 {
-    font-size: 13px;
-    line-height: 1;
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1.2;
   }
 
   #composer .section-heading-button h2::after {
@@ -1926,7 +1849,7 @@ body.mobile-dialog-open {
   #composer .section-heading-button h2::before {
     content: "+";
     margin-right: 4px;
-    font-weight: 950;
+    font-weight: 500;
   }
 
   #composer #uploadStatus {
@@ -1935,8 +1858,8 @@ body.mobile-dialog-open {
     max-width: 100%;
     overflow: visible;
     color: var(--muted);
-    font-size: 10px;
-    font-weight: 800;
+    font-size: 12px;
+    font-weight: 400;
     white-space: normal;
     overflow-wrap: anywhere;
   }
@@ -1951,6 +1874,7 @@ body.mobile-dialog-open {
   }
 
   #galleryHead .status-line {
+    font-weight: 400;
     order: 3;
     flex-basis: 100%;
     margin-bottom: 4px;
@@ -1988,22 +1912,6 @@ body.mobile-dialog-open {
   .recipe-columns,
   .recipe-form-actions,
   .wish-form-actions {
-    grid-template-columns: 1fr;
-  }
-
-  .wish-complete-preview,
-  .wish-complete-preview img,
-  .wish-complete-preview div,
-  .wish-complete-body textarea {
-    min-height: 132px;
-  }
-
-  .wish-complete-body {
-    grid-template-columns: 1fr;
-    gap: 10px;
-  }
-
-  .wish-complete-actions {
     grid-template-columns: 1fr;
   }
 
@@ -2060,7 +1968,8 @@ body.mobile-dialog-open {
     display: -webkit-box;
     overflow: hidden;
     margin-top: 4px;
-    font-size: 16px;
+    font-size: 1rem;
+    font-weight: 650;
     line-height: 1.28;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
@@ -2069,7 +1978,8 @@ body.mobile-dialog-open {
   body:not(.mobile-feed-single) .photo-copy-open .diary-excerpt {
     margin-top: 5px;
     color: var(--muted);
-    font-size: 12px;
+    font-size: 0.875rem;
+    font-weight: 400;
     line-height: 1.45;
     -webkit-line-clamp: 2;
   }
@@ -2222,9 +2132,6 @@ body.mobile-dialog-open {
     display: none;
   }
 
-  .hero h1 {
-    font-size: 42px;
-  }
 
 }
 
@@ -2437,8 +2344,15 @@ body.mobile-dialog-open {
     min-height: 44px;
   }
 
+  #galleryFilters { margin-bottom: 12px; gap: 8px; padding-block: 6px; }
+  #galleryFilters .chip { border-color: transparent; border-radius: 8px; padding-inline: 10px; background: transparent; color: var(--muted); font-size: 0.875rem; font-weight: 500; }
+  #galleryFilters .chip.active { border-color: transparent; background: color-mix(in srgb, var(--accent) 12%, var(--surface)); color: var(--accent-strong); font-weight: 600; }
+  #gallery .photo-card :is(.kicker, .diary-card-meta, .diary-card-author) { font-weight: 400; }
+  #gallery .photo-card h3 { font-weight: 650; }
+
+
   #galleryHead {
-    margin-top: 20px;
+    margin-top: 12px;
   }
 
   .icon-button,

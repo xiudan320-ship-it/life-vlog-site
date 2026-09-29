@@ -470,6 +470,93 @@ async function testGlobalLevelDialogEvents(viewport, label) {
   await context.close();
 }
 
+async function testMobileDensity(viewport, label) {
+  const context = await browser.newContext({ viewport, serviceWorkers: "block", reducedMotion: "reduce", colorScheme: "light" });
+  const fixture = createCloudflareApiFixture({ seedMoodFamily: true });
+  await fixture.install(context);
+  const page = await context.newPage();
+  const errors = [];
+  page.on("pageerror", error => errors.push(error.message));
+  await page.addInitScript(() => localStorage.setItem("life-vlog-cloudflare-auth", JSON.stringify({
+    access_token: "fixture-token", expires_at: new Date(Date.now() + 3600000).toISOString(),
+    user: { id: "fixture-user", email: "fixture-user@life-vlog.local", user_metadata: { username: "fixture-user" } },
+  })));
+  await page.goto(`${baseUrl}/`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector("#todayMoodGrid .today-mood-seat");
+  for (const dark of [false, true]) {
+    if ((await page.locator("body").evaluate(body => body.classList.contains("theme-dark"))) !== dark) await page.click("#themeToggle");
+    for (const scale of viewport.width <= 700 ? [1, 1.25] : [1]) {
+      await page.evaluate(value => { document.documentElement.style.fontSize = `${100 * value}%`; }, scale);
+      await page.click('[data-primary-nav-id="gallery"]');
+      await page.waitForSelector("#overview:not([hidden]) .today-mood-seat");
+      await assertNoHorizontalOverflow(page, `${label} home ${dark} ${scale}`);
+      const home = await page.evaluate(() => {
+        const size = selector => parseFloat(getComputedStyle(document.querySelector(selector)).fontSize);
+        const height = selector => document.querySelector(selector).getBoundingClientRect().height;
+        return { heading: size("#galleryHead h2"), overviewHeading: size("#overview h2"), overviewHeight: height("#overview"), seatHeights: [...document.querySelectorAll("#todayMoodGrid .today-mood-seat")].map(el => el.getBoundingClientRect().height), calendarHeight: height("#overviewMoodCalendar"), addHeight: height("#uploadToggle"), columns: getComputedStyle(document.querySelector("#gallery")).gridTemplateColumns.split(" ").length, monthDisplay: getComputedStyle(document.querySelector("#overviewMoodMonth")).display };
+      });
+      if (viewport.width <= 700) {
+        assert.ok(home.heading <= 20 * scale + 1 && home.overviewHeading <= 20 * scale + 1, `${label} home headings oversized: ${JSON.stringify(home)}`);
+        assert.ok(home.seatHeights.every(height => height >= 44 && height <= 85), `${label} mood summary size: ${JSON.stringify(home)}`);
+        assert.ok(home.overviewHeight <= 170, `${label} overview not compact: ${JSON.stringify(home)}`);
+        assert.ok(home.calendarHeight >= 44 && home.addHeight >= 44, `${label} home touch target shrank`);
+        assert.equal(home.monthDisplay, "none");
+        await page.locator('[data-today-mood-user="fixture-user"]').click();
+        await page.waitForSelector("#moodOverlay:not([hidden]) #moodPickerPanel:not([hidden])");
+        await page.click("#moodOverlayClose");
+        await page.waitForSelector("#moodOverlay[hidden]", { state: "attached" });
+        await page.locator("#overviewMoodCalendar").focus();
+        await page.keyboard.press("Enter");
+        await page.waitForSelector("#moodPage:not([hidden])");
+        await page.click('[data-primary-nav-id="gallery"]');
+        const chip = page.locator("#diaryFilterChips .chip").nth(1);
+        await chip.click();
+        assert.ok(await chip.evaluate(el => el.classList.contains("active")), `${label} diary filter stopped selecting`);
+        await page.locator("#diaryFilterChips .chip").first().click();
+        await assertMobileViewportContracts(page, `${label} home controls`);
+      } else if (viewport.width >= 1024) {
+        assert.equal(home.columns, 4, `${label} desktop diary columns changed`);
+        assert.notEqual(home.monthDisplay, "none", `${label} desktop monthly mood disappeared`);
+      }
+      await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+      if (process.env.LIST_UI_SCREENSHOTS) await page.screenshot({ path: `${process.env.LIST_UI_SCREENSHOTS}/density-${label}-home-${dark ? "dark" : "light"}-${scale}.png`, fullPage: true });
+      await page.click('[data-primary-nav-id="wishlist"]');
+      await page.waitForSelector('[data-wish-id="fixture-wish"]');
+      await page.waitForFunction(() => document.activeElement?.dataset.pageHeading === "wishlist");
+      const wish = await page.evaluate(() => ({ title: parseFloat(getComputedStyle(document.querySelector("#wishlistPageTitle")).fontSize), numberDisplay: getComputedStyle(document.querySelector(".wish-seq")).display, width: document.querySelector("#wishlistContent").getBoundingClientRect().width, cardTop: document.querySelector(".wish-card").getBoundingClientRect().top, headerTop: document.querySelector(".wishlist-page-header").getBoundingClientRect().top, controls: [...document.querySelectorAll("#wishlistToggle, #wishTabs button, .wish-menu-button, .wish-check-button")].map(el => ({ height: el.getBoundingClientRect().height, outline: getComputedStyle(el).outlineStyle })) }));
+      if (viewport.width <= 700) {
+        assert.equal(wish.title, 28 * scale, `${label} wishlist title size`);
+        assert.equal(wish.numberDisplay, "none", `${label} decorative wish number still visible`);
+        assert.ok(wish.cardTop - wish.headerTop <= 210, `${label} first wish card too low: ${JSON.stringify(wish)}`);
+      }
+      assert.ok(wish.width <= 961);
+      assert.ok(wish.controls.every(control => control.height >= 44));
+      await assertNoHorizontalOverflow(page, `${label} wishes ${dark} ${scale}`);
+      await page.locator(".wish-menu-button").first().press("Enter");
+      await page.waitForSelector(".wish-action-dialog[open]");
+      await page.keyboard.press("Escape");
+      await page.waitForFunction(() => !document.querySelector(".wish-action-dialog")?.open);
+      assert.ok(await page.locator(".wish-menu-button").first().evaluate(el => el === document.activeElement), `${label} wish menu did not restore keyboard focus`);
+      await page.locator(".wish-check-button").first().click();
+      await page.waitForSelector("#wishCompleteDialog[open]");
+      assert.equal(await page.locator(".wish-complete-body").evaluate(el => getComputedStyle(el).display), "grid", `${label} lazy completion dialog styles missing`);
+      if (viewport.width <= 700) await assertMobileViewportContracts(page, `${label} completion dialog`);
+      await page.click("#wishCompleteClose");
+      await page.waitForFunction(() => !document.querySelector("#wishCompleteDialog")?.open);
+      await page.click("#wishlistToggle");
+      await page.waitForSelector("#wishlistForm:not([hidden])");
+      if (viewport.width <= 700) await assertMobileViewportContracts(page, `${label} wish input`);
+      await page.click("#wishlistToggle");
+      await page.click('[data-wish-view="done"]');
+      await page.waitForSelector("#wishlistList .wishlist-empty");
+      await page.click('[data-wish-view="open"]');
+      if (process.env.LIST_UI_SCREENSHOTS) await page.screenshot({ path: `${process.env.LIST_UI_SCREENSHOTS}/density-${label}-wish-${dark ? "dark" : "light"}-${scale}.png`, fullPage: true });
+    }
+  }
+  assert.deepEqual(errors, [], `${label} density runtime errors`);
+  await context.close();
+}
+
 async function testListThemeAndLayout(viewport, label) {
   const context = await browser.newContext({ viewport, serviceWorkers: "block", reducedMotion: "reduce", colorScheme: "light" });
   const fixture = createCloudflareApiFixture();
@@ -1118,6 +1205,7 @@ async function testOfflineShell() {
 }
 
 try {
+  for (const width of [375, 390, 430, 768, 1024, 1440]) await testMobileDensity({ width, height: width < 700 ? 844 : 900 }, `density-${width}`);
   await testListThemeAndLayout({ width: 390, height: 844 }, "list-mobile");
   await testListThemeAndLayout({ width: 1440, height: 900 }, "list-desktop");
   await testAuthenticatedHomeStartup();

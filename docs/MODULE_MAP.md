@@ -76,7 +76,7 @@
 | 手机日记、阅读器与留言 | `styles/mobile-diary.css`, `styles/diary-reader.css`, `styles/diary-comments.css` |
 | 账户与设置弹窗 | `styles/account-dialogs.css` |
 | 秘藏相册与筛选 | `styles/secret-gallery.css`, `styles/secret-filters.css` |
-| 心愿单 | `styles/wishlist.css` |
+| 心愿单与完成弹窗（随心愿路由按需加载） | `styles/wishlist.css` |
 | 心情日记 | `styles/mood-diary.css` |
 | 购物车 / 想买清单 | `styles/shopping.css` |
 | 功能检查和管理界面 | `styles/feature-inspector.css` |

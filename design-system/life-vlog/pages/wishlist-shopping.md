@@ -16,6 +16,9 @@ The shared header must not be duplicated inside the shopping module. Switching m
 
 - Desktop content max width: 960px.
 - Module switch: about 220px wide and 44px high.
+- Mobile wishlist title: 28px at standard text size; allow text scaling. Title weight 600–700, auxiliary text 400–500.
+- Mobile module/add/filter controls retain at least 44px hit height with quiet tint or text selection feedback; add and status filters share a row.
+- Mobile decorative wish sequence numbers are hidden; desktop presentation remains unchanged.
 - Mobile card media: 84–88px square.
 - Desktop card media: 96px square.
 - Card action column: 44px wide.
