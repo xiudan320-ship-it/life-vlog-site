@@ -4,10 +4,6 @@
 
 ## [Unreleased]
 
-### Changed
-
-- 时计流搜索改为标题旁图标展开下方输入框，支持自动聚焦、Escape 收起、保留搜索条件及焦点返回；手机添加日记按钮增加主题绿色底色，便于快速定位。
-
 ### Added
 
 - 日记卡片支持同篇多图横向预览轨道、触摸滑动保护和“查看全部 N 张”入口；媒体失败仍可单项重试并保留原索引。
@@ -57,6 +53,18 @@
 ### Fixed
 
 - 修复显式深链在断网启动时因初始路由状态提前切换而丢失隐藏缓存日记的问题；缓存画廊现在可在非 gallery 深链下先渲染并由路由控制显隐。
+
+## [2026-09-29] — 时计流搜索折叠与添加入口
+
+### Changed
+
+- 时计流搜索改为标题旁图标展开下方输入框，支持自动聚焦、Escape 收起、保留搜索条件及焦点返回；手机添加日记按钮增加主题绿色底色，便于快速定位。搜索展开控制器按首次点击加载，标签筛选保持可见。
+
+### Release
+
+- 从已提交推送的 `main` 提交 `690a9a6fd14b8e17c8202ffeef7061b1c27e7a3e` 使用统一发布脚本上线。preview deployment 为 `fbffc5e8-a503-47f5-9b1c-9cf3b2abcb35`（`https://fbffc5e8.life-vlog-site.pages.dev`），固定预览为 `https://codex-preview.life-vlog-site.pages.dev`；production deployment 为 `94f5523a-79ea-40c0-82ba-5f000fcccd99`（`https://94f5523a.life-vlog-site.pages.dev`），正式入口为 `https://life-vlog-site.pages.dev`。Worker 版本为 `effe2c70-af2f-4a1d-b24c-c972a6527b3e`。
+- 入口 `index-BUqIT8Th.js` SHA-256 为 `d6fc6cff222cc76c14e807ab585c233dd85d0808ca84e2137cb45a0de10259e8`；样式 `index-BorI3mHT.css` SHA-256 为 `4d6210b18dd7c019e788d3aec28d648d89b8b036fb50949a2a12f2ce77be00c1`；`sw.js` SHA-256 为 `7b6ab543dcaea0f7f0df0e211bdb5aaf1f1dd54611cf9a97df1761c0c9f34ff9`，Workbox 预缓存条目为 37。入口 JS gzip 125,805 字节、CSS 262,116 字节，既有预算通过。
+- 完整 `pnpm test`、本地发布验收、部署流程模拟，以及 preview/production 的 Axe、确定性 release smoke 和 Worker CORS 均通过。375/390/430px 深浅主题与标准／125% 文字下检查默认收起、输入聚焦、键盘展开／Escape、条件保留、无结果清除恢复、添加按钮背景和 44px 命中区；768/1024/1440px 回归及代表性截图复核通过。搜索与分类组合过滤、媒体预览和桌面四列继续通过。
 
 ## [2026-09-29] — 纪念册双列与心情滚动修复
 
