@@ -11,7 +11,6 @@
 
 ### Changed
 
-- 手机日记首页与心愿页统一收紧视觉比例：页面标题 28px、分区标题 18–20px，辅助文字与操作减轻字重及底色；心愿隐藏装饰序号，保留日期语义色与 44px 操作区。首页今日心情改为紧凑摘要，保留添加心情、详情与心情日历入口，桌面四列和心情侧栏保持原布局。心愿完成弹窗样式归入现有按需加载的心愿样式，保持首页 CSS 预算。
 
 - 手机衣柜在 820px 及以下将季节/状态筛选收进可访问的“筛选” disclosure，统一摘要、清除筛选和无匹配恢复动作；桌面继续保持展开布局。
 - 菜谱保存增加提交锁、真实 busy/aria-busy 和上传失败保护；心愿同步失败保留缓存内容并提供单飞重试，日记与衣柜空态按加载、失败、缓存和搜索结果区分恢复路径。
@@ -54,6 +53,19 @@
 ### Fixed
 
 - 修复显式深链在断网启动时因初始路由状态提前切换而丢失隐藏缓存日记的问题；缓存画廊现在可在非 gallery 深链下先渲染并由路由控制显隐。
+
+## [2026-09-29] — 手机日记与心愿比例优化
+
+### Changed
+
+- 手机日记首页与心愿页统一收紧视觉比例：页面标题 28px、分区标题 18–20px，辅助文字与操作减轻字重及底色；心愿隐藏装饰序号，保留日期语义色与 44px 操作区。首页今日心情改为紧凑摘要，保留添加心情、详情与心情日历入口，桌面四列和心情侧栏保持原布局。心愿完成弹窗样式归入现有按需加载的心愿样式，保持首页 CSS 预算。
+
+### Release
+
+- 从已提交推送的 `main` 提交 `fc47fdaacabee2c5f9daf158a0f3b1040a29a069` 使用统一发布脚本上线。preview deployment 为 `2c0a080a-2a3b-474f-9a35-c3afcfc8914b`（`https://2c0a080a.life-vlog-site.pages.dev`），固定预览入口为 `https://codex-preview.life-vlog-site.pages.dev`；production deployment 为 `346c1622-efbf-448d-b832-25f7814da26a`（`https://346c1622.life-vlog-site.pages.dev`），正式入口为 `https://life-vlog-site.pages.dev`。Worker 版本为 `0990db67-a5d7-4c26-8d50-b954d5049c8e`。
+- 入口 `index-BX-wIzaD.js` SHA-256 为 `663e043ce9f3a9f8142eaf789778f2eeddc8cec1837800f3aff15c1462efaf7b`；样式 `index-G_V-HuZQ.css` SHA-256 为 `a45a4b6831b766f4270a0d9597fc96a6c623dc64295b2c816d73baab9d4124a9`；`sw.js` SHA-256 为 `fcc70b5c4cf7ce6972d39d919ae0ce31e282ca144ccab8e672f3e9f283a20499`，Workbox 预缓存条目为 36。首页 CSS 为 261,534 字节，gzip 45,777 字节，既有预算通过。
+- `pnpm test`、本地 Axe 与确定性 release smoke、发布流程模拟、固定 preview/production Axe 与确定性 smoke、Worker/production CORS 均通过。实际应用以内存 API fixture 验收 375/390/430px 两种主题、标准／125% 文字，以及 768/1024/1440px 回归；心情添加与日历、筛选、添加、完成弹窗、键盘菜单与焦点恢复、44px 命中区、输入字号和横向溢出检查通过。代表性截图复核通过，桌面四列及心情侧栏未改版。
+- Figma 现有文件读取成功，创建本轮设计节点时因 Starter MCP 额度限制未完成；代码实现和运行验收不依赖未生成的稿件，设计规范与该限制已同步。
 
 ## [2026-09-29] — 清单主题与心愿布局修复
 
