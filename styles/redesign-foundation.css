@@ -586,6 +586,7 @@ body.level-guide-open { overflow: hidden; }
   #galleryHead > div:first-child {
     grid-column: 1;
     justify-self: start;
+    min-width: 0;
   }
 
   #composer {
@@ -4207,6 +4208,9 @@ body.theme-dark .recipe-cover-drop {
   gap: 12px;
   margin-top: 24px;
 }
+
+.feed-heading-title { display: flex; align-items: center; gap: 8px; }
+#diarySearchToggle[data-search-active="true"] { color: var(--accent-strong); }
 
 #globalStatus {
   position: absolute;

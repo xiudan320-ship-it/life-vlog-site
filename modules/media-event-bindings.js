@@ -368,6 +368,9 @@ export function bindMediaEvents({ elements, state, pageSize, controllers, vlogMo
     updateDiarySearchUi();
     renderGallery();
   });
+  els.diarySearchToggle?.addEventListener("click", () => {
+    void import("./diary-search-controller.js").then(({ toggleDiarySearch }) => toggleDiarySearch(els));
+  });
   els.secretSearchInput?.addEventListener("input", () => {
     state.secretSearchQuery = els.secretSearchInput.value;
     renderSecretGallery();

@@ -339,6 +339,7 @@ async function testVideoDiaryPolicy(browser) {
   const desktop = await openFixturePage(browser, { viewport: { width: 1440, height: 900 }, mockFeedMotion: true });
   try {
     const page = desktop.page;
+    await page.click("#diarySearchToggle");
     await page.fill("#diarySearchInput", "摄影小天才");
     await page.waitForFunction(() => document.querySelectorAll("#gallery .photo-card").length === 1, null, { timeout: 10000 });
     const videoCard = page.locator('[data-photo-id="fixture-camera-talent-video"]');
@@ -567,6 +568,7 @@ async function testFilterSettingsAndActions(browser) {
     await page.click('#diaryFilterChips [data-filter="旅行"]');
     await page.waitForFunction(() => document.querySelector('#diaryFilterChips [data-filter="旅行"]')?.getAttribute("aria-pressed") === "true");
     assert.equal(await page.locator("#gallery .photo-card").count(), 2, "release category filter result is incorrect");
+    await page.click("#diarySearchToggle");
     await page.fill("#diarySearchInput", "offscreen");
     await page.waitForFunction(() => document.querySelectorAll("#gallery .photo-card").length === 1);
     assert.equal(await page.locator("#gallery .photo-card").getAttribute("data-photo-id"), "fixture-offscreen-photo");

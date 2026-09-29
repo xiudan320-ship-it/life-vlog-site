@@ -598,7 +598,8 @@ export function createDiaryFeedController({
           state.diarySearchQuery = "";
           updateDiarySearchUi();
           renderGallery();
-          els.diarySearchInput?.focus();
+          if (els.diarySearchPanel?.hidden) els.diarySearchToggle?.click();
+          else els.diarySearchInput?.focus();
         }
         if (actionName === "reset-filter") {
           state.activeFilter = "全部";
@@ -735,6 +736,10 @@ export function createDiaryFeedController({
     }
     if (els.clearDiarySearch) {
       els.clearDiarySearch.hidden = !state.diarySearchQuery;
+    }
+    if (els.diarySearchToggle) {
+      els.diarySearchToggle.dataset.searchActive = String(Boolean(state.diarySearchQuery));
+      els.diarySearchToggle.setAttribute("aria-label", state.diarySearchQuery ? `搜索日记，当前筛选：${state.diarySearchQuery}` : "搜索日记");
     }
   }
   

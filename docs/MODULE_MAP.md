@@ -106,6 +106,7 @@
 - `layout-settings-controller.js`：保存账号作用域的手机单/双列偏好，协调画廊媒体重绘、断点切换和可见日记的滚动锚点恢复；桌面仍使用原有布局。
 - `diary-feed-controller.js` / `diary-gallery-view.js`：负责日记卡片数据渲染，以及手机双列封面、单列最多六格宫格和原索引完整相册入口；桌面多图轨道继续留在视图层。
 - `media-event-bindings.js`：日记 / VLOG / 秘藏查看器、编辑器、搜索筛选和媒体手势事件；搜索与 tag 结果仍在 gallery 当前页面内更新。
+- `diary-search-controller.js`：点击时计流搜索图标后按需加载，管理搜索框展开、输入焦点、Escape 收起及焦点返回；搜索条件及结果仍由日记 feed 管理。
 - `modules/routes/mood-diary-route.js`：心情日记路由的懒加载、模板挂载和 controller 生命周期；心情日记自己的点击/表单事件由 `mood-diary-view.js` 委托给 `mood-diary-controller.js`，不回流到 `app.js`。
 - `modules/today-mood-controller.js`：首页今日概览的东京自然日查询、两席过滤、独立的桌面本月心情日历查询、缓存优先的后台同步和 loading/error/empty 状态；月度请求不阻塞当天状态，席位只调用共享 overlay，只有日历 CTA 调用 `switchPage("mood")`。
 - `modules/today-mood-cache.js`：按用户和自然日读写首页今日心情缓存，并复用已有月度缓存预热当前日期；只提供本地加速，不替代云端 canonical 响应。

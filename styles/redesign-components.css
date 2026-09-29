@@ -1821,15 +1821,6 @@ body.mobile-dialog-open {
     display: none !important;
   }
 
-  #galleryHead {
-    flex-wrap: wrap;
-    gap: 4px 8px;
-  }
-
-  #galleryHead > div:first-child {
-    min-width: 0;
-  }
-
   #composer {
     order: 2;
     flex: 0 0 auto;
@@ -1853,8 +1844,8 @@ body.mobile-dialog-open {
     min-height: 44px;
     border: 0;
     border-radius: 8px;
-    background: transparent;
-    color: var(--accent-strong);
+    background: var(--accent-strong);
+    color: var(--surface);
     padding: 0 12px;
   }
 

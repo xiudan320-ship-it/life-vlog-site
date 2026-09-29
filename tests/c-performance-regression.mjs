@@ -357,6 +357,7 @@ async function testDynamicDiaryFilters(browser) {
     assert.equal(await page.evaluate(() => document.activeElement?.dataset.filter), "旅行", "filter redraw did not preserve chip focus");
     assert.deepEqual(await page.locator("#gallery .photo-card").evaluateAll((cards) => cards.map((card) => card.dataset.photoId)), ["fixture-offscreen-photo", "fixture-last-photo"]);
 
+    await page.click("#diarySearchToggle");
     await page.fill("#diarySearchInput", "offscreen");
     await page.waitForFunction(() => document.querySelectorAll("#gallery .photo-card").length === 1);
     assert.equal(await page.locator("#gallery .photo-card").getAttribute("data-photo-id"), "fixture-offscreen-photo", "category and search did not combine with AND semantics");
@@ -405,6 +406,8 @@ async function testHomeUiOptimization(browser) {
   const mobile = await openFixturePage({ viewport: { width: 390, height: 844 } });
   try {
     const page = mobile.page;
+    await page.click("#diarySearchToggle");
+    await page.waitForSelector("#diarySearchPanel:not([hidden])");
     const mobileLayout = await page.evaluate(() => {
       const dock = document.querySelector("#toolDock");
       const visibleButtons = [...(dock?.querySelectorAll(".tool-dock-button") || [])]
@@ -1175,6 +1178,7 @@ async function testOrdinaryVideoLifecycle(browser) {
   const desktop = await openFixturePage({ viewport: { width: 1440, height: 900 }, mockFeedMotion: true });
   try {
     const page = desktop.page;
+    await page.click("#diarySearchToggle");
     await page.fill("#diarySearchInput", "摄影小天才");
     await page.waitForFunction(() => document.querySelectorAll("#gallery .photo-card").length === 1, null, { timeout: 10000 });
     const card = page.locator('[data-photo-id="fixture-camera-talent-video"]');

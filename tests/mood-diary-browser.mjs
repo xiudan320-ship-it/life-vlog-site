@@ -1000,10 +1000,10 @@ async function runTodayMoodOverviewFlow() {
     const initialPosition = await page.evaluate(() => {
       const overview = document.querySelector("#overview").getBoundingClientRect();
       const firstDiary = document.querySelector("#gallery .photo-card")?.getBoundingClientRect();
-      return { overviewTop: overview.top, firstDiaryTop: firstDiary?.top || 0, scrollY: window.scrollY };
+      return { overviewTop: overview.top, overviewBottom: overview.bottom, firstDiaryTop: firstDiary?.top || 0, scrollY: window.scrollY };
     });
     assert.ok(initialPosition.overviewTop >= -1 && initialPosition.overviewTop < 230, `cold start did not land on overview: ${JSON.stringify(initialPosition)}`);
-    assert.ok(initialPosition.firstDiaryTop > initialPosition.overviewTop + 300, `cold start still landed on the first diary: ${JSON.stringify(initialPosition)}`);
+    assert.ok(initialPosition.firstDiaryTop > initialPosition.overviewBottom, `cold start did not preserve overview before the diary feed: ${JSON.stringify(initialPosition)}`);
 
     await page.locator("#overviewMoodCalendar").evaluate((element) => element.click());
     await page.waitForSelector("#moodPage:not([hidden])", { state: "visible", timeout: 30000 });

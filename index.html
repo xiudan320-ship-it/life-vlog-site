@@ -471,7 +471,12 @@
       <section class="feed-head" id="galleryHead">
         <div>
           <p class="kicker">Gallery</p>
-          <h2 data-page-heading="gallery">时计流</h2>
+          <div class="feed-heading-title">
+            <h2 data-page-heading="gallery">时计流</h2>
+            <button class="icon-button" id="diarySearchToggle" type="button" aria-label="搜索日记" aria-expanded="false" aria-controls="diarySearchPanel">
+              <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg>
+            </button>
+          </div>
         </div>
         <p id="globalStatus" role="status" aria-live="polite"></p>
       </section>
@@ -481,7 +486,7 @@
       <section class="today-posts-notice weekend-reminder-notice" id="weekendReminderNotice" hidden></section>
 
       <section class="filters" id="galleryFilters" aria-label="日记筛选">
-        <label class="diary-search" for="diarySearchInput">
+        <label class="diary-search" id="diarySearchPanel" for="diarySearchInput" hidden>
           <span>搜索日记</span>
           <input id="diarySearchInput" type="search" list="diarySearchSuggestions" placeholder="日期、标题、正文、分类" autocomplete="off" />
           <datalist id="diarySearchSuggestions"></datalist>
