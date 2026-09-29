@@ -20,9 +20,7 @@
 
 ### Fixed
 
-- 心愿与周末页面遵循当前浅色/深色设置，修复登录卡片标题对比度；手机心愿将添加与状态筛选并排，桌面清单恢复 960px 阅读宽度。浅色日期使用较深的蓝色、暖橙色与绿色，保留日期语义区分。
 
-- 心愿卡片用蓝色、暖橙色和绿色分别区分加入、计划和完成日期；修复缺失日期显示为 1970 年及计划日期在负时区偏移一天的问题。
 - 修复日记草稿在清空后因空表单提前返回而复活、切换账号误恢复和本地存储写失败吞掉当前输入的问题；修复菜谱重复提交和迟到账号响应污染当前编辑状态。
 - 收紧日记多图横向预览的移动端高度并改用完整图像适配，避免缩略图被拉成窄高裁切框而无法辨认主体；保留横向滚动、snap 和“查看全部”入口。
 - 修复设置容量入口、缓存占用刷新、全部清理和容量保存因控制器/运行时桥接缺失而点击无响应的问题；修复诊断复制在 Clipboard API 拒绝或不存在时仍提示成功的问题。
@@ -54,6 +52,19 @@
 ### Fixed
 
 - 修复显式深链在断网启动时因初始路由状态提前切换而丢失隐藏缓存日记的问题；缓存画廊现在可在非 gallery 深链下先渲染并由路由控制显隐。
+
+## [2026-09-29] — 清单主题与心愿布局修复
+
+### Fixed
+
+- 心愿与周末页面遵循当前浅色/深色设置，修复登录卡片标题对比度；手机心愿将添加与状态筛选并排，桌面清单恢复 960px 阅读宽度。浅色日期使用较深的蓝色、暖橙色与绿色，保留日期语义区分。
+- 心愿卡片用蓝色、暖橙色和绿色分别区分加入、计划和完成日期；修复缺失日期显示为 1970 年及计划日期在负时区偏移一天的问题。
+
+### Release
+
+- 从已提交推送的 `main` 提交 `864fd0a82c0683a09e08bc6e7125e43a57ba2e27` 使用统一发布脚本上线。preview deployment 为 `a508e449-3ea5-4dc3-a186-4dfd82de389e`（`https://a508e449.life-vlog-site.pages.dev`），固定预览入口为 `https://codex-preview.life-vlog-site.pages.dev`；production deployment 为 `a10c4943-d987-4378-afc6-e89341dc4267`（`https://a10c4943.life-vlog-site.pages.dev`），正式入口为 `https://life-vlog-site.pages.dev`。Worker 版本为 `a83214e9-f82c-49cd-b8cf-83cb52497a8c`。
+- 入口 `index-DhcaQzAd.js` SHA-256 为 `5ce53dbcae21f06426578247aeddeae924eb1fdf714eeb3a77f1ba9bd5f63775`；样式 `index-D2ZE7zJE.css` SHA-256 为 `325ad540062b888b3e34b7cf72c40b99a52a3c8ad6695f557f166dcfe1042835`；`sw.js` SHA-256 为 `2170827032824802e7ce565e9ad3d5d1c4bb79e673b911a3ed2e6633ddf219c2`，Workbox 预缓存条目为 36。
+- `pnpm install --frozen-lockfile`、`pnpm test`、`pnpm run test:release-local`、`pnpm run test:deployment`、固定 preview 与 production 的 Axe 和确定性 release smoke、Worker/production CORS 均通过；实际应用使用内存 API fixture 在 390×844 与 1440×900 检查浅色/深色、登录/未登录、标题和日期对比度、44px 触控、表单展开、状态筛选及横向溢出，截图复核通过。原有日期缺失及负时区回归一并保留。
 
 ## [2026-09-27] — 手机日记宫格与布局选择
 
