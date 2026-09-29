@@ -6,6 +6,7 @@ export function createAppFeedbackView({
   documentTarget = globalThis.document,
   windowTarget = globalThis.window,
 } = {}) {
+  let globalStatusToast = null;
   function isMobileViewport() {
     return windowTarget.innerWidth <= mobileBreakpoint;
   }
@@ -86,8 +87,13 @@ export function createAppFeedbackView({
 
   function setGlobalStatus(message) {
     if (!elements.globalStatus) return;
+    const previous = elements.globalStatus.textContent;
     elements.globalStatus.textContent = message || "";
     elements.globalStatus.hidden = !message;
+    if (message !== previous) {
+      dismissMiniToast(globalStatusToast);
+      globalStatusToast = message ? showMiniToast(message, { duration: 4000 }) : null;
+    }
   }
 
   function setSecretStatus(message) {

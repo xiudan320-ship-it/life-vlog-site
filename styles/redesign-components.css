@@ -1498,8 +1498,34 @@ body.mobile-dialog-open {
   }
 
   .anniversary-list {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
   }
+
+  .anniversary-card {
+    min-width: 0;
+    min-height: 170px;
+    padding: 10px;
+    gap: 10px;
+    overflow-wrap: anywhere;
+  }
+
+  .anniversary-card-head {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .anniversary-card-actions button {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0 6px;
+  }
+
+  .anniversary-card h3 { font-size: 18px; font-weight: 600; }
+  .anniversary-value { gap: 4px; flex-wrap: wrap; }
+  .anniversary-value strong { font-size: clamp(28px, 7vw, 36px); }
+  .anniversary-value span { font-size: 12px; }
+  .anniversary-card.pending .anniversary-value strong { font-size: 20px; }
 
   .anniversary-card:first-child {
     grid-column: auto;
@@ -1871,14 +1897,6 @@ body.mobile-dialog-open {
     border-radius: 12px;
     background: var(--surface);
     padding: 12px;
-  }
-
-  #galleryHead .status-line {
-    font-weight: 400;
-    order: 3;
-    flex-basis: 100%;
-    margin-bottom: 4px;
-    font-size: 11px;
   }
 
   .quick-actions {
@@ -2344,7 +2362,7 @@ body.mobile-dialog-open {
     min-height: 44px;
   }
 
-  #galleryFilters { margin-bottom: 12px; gap: 8px; padding-block: 6px; }
+  #galleryFilters { margin-bottom: 10px; gap: 6px; padding-block: 0; }
   #galleryFilters .chip { border-color: transparent; border-radius: 8px; padding-inline: 10px; background: transparent; color: var(--muted); font-size: 0.875rem; font-weight: 500; }
   #galleryFilters .chip.active { border-color: transparent; background: color-mix(in srgb, var(--accent) 12%, var(--surface)); color: var(--accent-strong); font-weight: 600; }
   #gallery .photo-card :is(.kicker, .diary-card-meta, .diary-card-author) { font-weight: 400; }
@@ -2352,7 +2370,7 @@ body.mobile-dialog-open {
 
 
   #galleryHead {
-    margin-top: 12px;
+    margin: 12px 0 4px;
   }
 
   .icon-button,
@@ -2426,6 +2444,6 @@ body.mobile-dialog-open {
   }
 
   #galleryHead {
-    margin-top: 20px;
+    margin-top: 12px;
   }
 }

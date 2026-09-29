@@ -603,10 +603,6 @@ body.level-guide-open { overflow: hidden; }
     width: 100%;
   }
 
-  #galleryHead > .status-line {
-    grid-column: 1 / -1;
-  }
-
   #composer .section-heading-button {
     min-width: 92px;
     min-height: 36px;
@@ -4212,11 +4208,12 @@ body.theme-dark .recipe-cover-drop {
   margin-top: 24px;
 }
 
-#galleryHead .status-line {
-  margin: 0 0 7px;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 800;
+#globalStatus {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
 }
 
 .filters {

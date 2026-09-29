@@ -470,6 +470,67 @@ async function testGlobalLevelDialogEvents(viewport, label) {
   await context.close();
 }
 
+async function testMobileAlbumAndMoodScroll(viewport) {
+  const context = await browser.newContext({ viewport, serviceWorkers: "block", reducedMotion: "reduce" });
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Tokyo" });
+  const fixture = createCloudflareApiFixture({ seedMoodFamily: true, moodDiaries: [{ id: "fixture-scroll-mood", user_id: "fixture-user", diary_date: today, mood: "happy", content: "长日记滚动验收\n".repeat(180), tags: [] }] });
+  await fixture.install(context);
+  const page = await context.newPage();
+  await page.addInitScript(() => localStorage.setItem("life-vlog-cloudflare-auth", JSON.stringify({ access_token: "fixture-token", expires_at: new Date(Date.now() + 3600000).toISOString(), user: { id: "fixture-user", email: "fixture-user@life-vlog.local", user_metadata: { username: "fixture-user" } } })));
+  await page.goto(`${baseUrl}/`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector("#todayMoodGrid .today-mood-seat");
+  await page.click("#anniversaryOpen");
+  for (const [title, type] of [["测试相伴纪念日名称需要自然换行", "together"], ["测试年度纪念日", "annual"]]) {
+    await page.click("#anniversaryAdd");
+    await page.fill("#anniversaryTitleInput", title);
+    await page.selectOption("#anniversaryTypeInput", type);
+    await page.fill("#anniversaryDateInput", "2020-01-01");
+    await page.click("#anniversarySubmit");
+    await page.waitForSelector("#anniversaryForm[hidden]", { state: "attached" });
+  }
+  for (const dark of [false, true]) {
+    if (dark) {
+      await page.click("#anniversaryClose");
+      await page.click("#themeToggle");
+      await page.click("#anniversaryOpen");
+    }
+    await page.evaluate(() => { document.documentElement.style.fontSize = "125%"; });
+    const album = await page.locator("#anniversaryList").evaluate(list => {
+      const cards = [...list.querySelectorAll(".anniversary-card")].map(card => card.getBoundingClientRect());
+      return { tops: cards.map(card => card.top), lefts: cards.map(card => card.left), overflow: list.scrollWidth - list.clientWidth, controls: [...list.querySelectorAll("button")].map(button => { const r = button.getBoundingClientRect(); return { width: r.width, height: r.height }; }) };
+    });
+    assert.equal(album.tops[0], album.tops[1], `mobile album ${viewport.width}: cards are not in two columns`);
+    assert.ok(album.lefts[1] > album.lefts[0] && album.overflow <= 1);
+    assert.ok(album.controls.every(r => r.width >= 44 && r.height >= 44));
+    if (process.env.LIST_UI_SCREENSHOTS) await page.screenshot({ path: `${process.env.LIST_UI_SCREENSHOTS}/album-${viewport.width}-${dark ? "dark" : "light"}.png` });
+  }
+  await page.click("#anniversaryClose");
+  await page.locator('[data-today-mood-user="fixture-user"]').click();
+  await page.waitForSelector("#moodDetailPanel:not([hidden])");
+  const initialY = await page.evaluate(() => window.scrollY);
+  const panel = page.locator(".mood-overlay-panel");
+  assert.ok(await panel.evaluate(el => el.scrollHeight > el.clientHeight + 100), "long mood entry must remain scrollable");
+  await panel.evaluate(el => { el.scrollTop = el.scrollHeight; });
+  const bottom = await page.evaluate(() => ({ panelBottom: document.querySelector(".mood-overlay-panel").getBoundingClientRect().bottom, actionsBottom: document.querySelector("#moodDetailActions").getBoundingClientRect().bottom, overlayOverflow: document.querySelector("#moodOverlay").scrollHeight - document.querySelector("#moodOverlay").clientHeight }));
+  assert.ok(bottom.panelBottom - bottom.actionsBottom >= 20 && bottom.panelBottom - bottom.actionsBottom <= 32, `mood detail trailing blank space: ${JSON.stringify(bottom)}`);
+  assert.equal(bottom.overlayOverflow, 0);
+  await page.mouse.move(viewport.width / 2, viewport.height - 30);
+  await page.mouse.wheel(0, 2000);
+  await page.mouse.move(viewport.width / 2, 10);
+  await page.mouse.wheel(0, 2000);
+  await page.waitForTimeout(150);
+  assert.equal(await page.evaluate(() => window.scrollY), initialY, "mood detail end must not scroll the background");
+  await page.waitForFunction(() => !document.querySelector(".mini-toast.visible"));
+  if (process.env.LIST_UI_SCREENSHOTS) await page.screenshot({ path: `${process.env.LIST_UI_SCREENSHOTS}/mood-bottom-${viewport.width}.png` });
+  await page.click("#moodDetailActions [data-mood-edit]");
+  await page.fill("#moodEditorContent", "短日记底部验收");
+  await page.click("#moodEditorSave");
+  await page.waitForSelector("#moodDetailPanel:not([hidden])");
+  await page.click("#moodOverlayClose");
+  await page.waitForFunction(y => Math.abs(window.scrollY - y) <= 2 && getComputedStyle(document.documentElement).overflow !== "hidden", initialY);
+  await context.close();
+}
+
 async function testMobileDensity(viewport, label) {
   const context = await browser.newContext({ viewport, serviceWorkers: "block", reducedMotion: "reduce", colorScheme: "light" });
   const fixture = createCloudflareApiFixture({ seedMoodFamily: true });
@@ -501,6 +562,9 @@ async function testMobileDensity(viewport, label) {
         assert.ok(home.overviewHeight <= 170, `${label} overview not compact: ${JSON.stringify(home)}`);
         assert.ok(home.calendarHeight >= 44 && home.addHeight >= 44, `${label} home touch target shrank`);
         assert.equal(home.monthDisplay, "none");
+        const feedSpacing = await page.evaluate(() => ({ heading: document.querySelector("#galleryHead").getBoundingClientRect(), search: document.querySelector(".diary-search").getBoundingClientRect(), tags: document.querySelector("#diaryFilterChips").getBoundingClientRect(), status: document.querySelector("#globalStatus").getBoundingClientRect() }));
+        assert.ok(feedSpacing.search.top - feedSpacing.heading.bottom <= 5 && feedSpacing.tags.top - feedSpacing.search.bottom <= 7, `${label} feed filters have excessive spacing`);
+        assert.ok(feedSpacing.status.height <= 1, `${label} status text still occupies the feed heading`);
         await page.locator('[data-today-mood-user="fixture-user"]').click();
         await page.waitForSelector("#moodOverlay:not([hidden]) #moodPickerPanel:not([hidden])");
         await page.click("#moodOverlayClose");
@@ -1205,6 +1269,7 @@ async function testOfflineShell() {
 }
 
 try {
+  for (const width of [375, 390, 430]) await testMobileAlbumAndMoodScroll({ width, height: 844 });
   for (const width of [375, 390, 430, 768, 1024, 1440]) await testMobileDensity({ width, height: width < 700 ? 844 : 900 }, `density-${width}`);
   await testListThemeAndLayout({ width: 390, height: 844 }, "list-mobile");
   await testListThemeAndLayout({ width: 1440, height: 900 }, "list-desktop");

@@ -206,7 +206,6 @@ export function createAccountSyncController({
     const displayName = getSessionDisplayName();
     state.cloudSyncInFlight = (async () => {
       try {
-        setGlobalStatus("正在同步账户数据…");
         await loadFamilyContext();
         const [profileResult, recipesResult, wishesResult, shoppingResult] = await Promise.all([
           householdRepository.list("user_profiles", {
@@ -504,7 +503,7 @@ export function createAccountSyncController({
     setGlobalStatus(
       missing.length
         ? `Cloudflare D1 仍缺少：${missing.join("、")}。请部署最新版数据库结构。`
-        : "全部账户数据已同步到云端"
+        : ""
     );
   }
   

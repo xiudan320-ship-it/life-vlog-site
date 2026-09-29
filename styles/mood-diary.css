@@ -1139,6 +1139,12 @@ button.mood-calendar-cell:hover {
   display: none;
 }
 
+html:has(.mood-overlay:not([hidden])),
+body:has(.mood-overlay:not([hidden])) {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 .mood-overlay {
   --mood-surface: var(--surface, #fffdf9);
   --mood-ink: var(--ink, #17201b);
@@ -1149,7 +1155,8 @@ button.mood-calendar-cell:hover {
   z-index: 200;
   inset: 0;
   display: grid;
-  overflow: auto;
+  overflow: hidden;
+  overscroll-behavior: none;
   place-items: center;
   padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
 }

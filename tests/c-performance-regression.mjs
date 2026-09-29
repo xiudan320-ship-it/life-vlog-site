@@ -1726,7 +1726,10 @@ async function testWeeklyReviewVisualAlignment(browser) {
     });
     assert.deepEqual(styles.weeklyDialog, styles.anniversaryDialog, `weekly review dialog shell is not aligned: ${JSON.stringify(styles)}`);
     assert.deepEqual(styles.weeklyHead, styles.anniversaryHead, `weekly review dialog header is not aligned: ${JSON.stringify(styles)}`);
-    assert.deepEqual(styles.weeklyStat, styles.anniversaryCard, `weekly review stat cards are not aligned with the time album cards: ${JSON.stringify(styles)}`);
+    const { padding: weeklyPadding, ...weeklySurface } = styles.weeklyStat;
+    const { padding: anniversaryPadding, ...anniversarySurface } = styles.anniversaryCard;
+    assert.deepEqual(weeklySurface, anniversarySurface, `weekly review and time album card surfaces are not aligned: ${JSON.stringify(styles)}`);
+    assert.ok(parseFloat(weeklyPadding) >= 10 && parseFloat(anniversaryPadding) >= 10, "tool cards lost their content padding");
     assert.equal(styles.weeklyIntro.border, styles.anniversaryCard.border, `weekly review intro border is inconsistent: ${JSON.stringify(styles)}`);
     assert.equal(styles.weeklyIntro.borderRadius, styles.anniversaryCard.borderRadius, `weekly review intro radius is inconsistent: ${JSON.stringify(styles)}`);
     assert.match(styles.weeklyStat.borderRadius, /8px/, `weekly review stat cards lost the shared radius: ${JSON.stringify(styles)}`);
