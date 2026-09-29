@@ -1,23 +1,24 @@
-/* Weekend planner: the same quiet dark surface system as the wishlist and buy list. */
+/* Weekend planner follows the selected application theme. */
 body:has(#weekendPage:not([hidden])) {
-  color-scheme: dark;
-  --lv-bg: #0d0f0e;
-  --lv-surface: #151816;
-  --lv-surface-raised: #1c201d;
-  --lv-text: #f4f7ef;
-  --lv-text-muted: #a6afa8;
-  --lv-text-faint: #858e87;
-  --lv-accent: #8ed653;
-  --lv-on-accent: #10200d;
-  --lv-border: #2b322d;
-  --lv-danger: #ff827d;
-  --lv-focus: #b8ee8d;
+  --lv-bg: var(--bg);
+  --lv-surface: var(--surface);
+  --lv-surface-raised: color-mix(in srgb, var(--surface), var(--ink) 5%);
+  --lv-text: var(--ink);
+  --lv-text-muted: var(--muted);
+  --lv-text-faint: var(--muted);
+  --lv-accent: var(--accent-strong);
+  --lv-on-accent: #ffffff;
+  --lv-border: var(--line);
+  --lv-danger: var(--coral);
+  --lv-focus: var(--accent-strong);
   --lv-radius-card: 18px;
   --lv-radius-control: 12px;
   --lv-motion-fast: 140ms;
   --lv-motion-base: 180ms;
-  color: var(--lv-text);
-  background: var(--lv-bg);
+}
+body.theme-dark:has(#weekendPage:not([hidden])) {
+  --lv-accent: var(--accent);
+  --lv-on-accent: #10200d;
 }
 
 body:has(#weekendPage:not([hidden])) main {
@@ -165,7 +166,7 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
 
 .weekend-composer .section-heading-button:hover,
 .weekend-composer .section-heading-button:focus-visible {
-  background: #9ae264;
+  background: color-mix(in srgb, var(--lv-accent), var(--ink) 10%);
   outline: none;
 }
 
@@ -203,7 +204,6 @@ body:has(#weekendPage:not([hidden])) .main-nav button.active {
   font-weight: 760;
   letter-spacing: .14em;
   line-height: 1;
-  opacity: .7;
 }
 
 .weekend-add-copy strong {

@@ -470,6 +470,80 @@ async function testGlobalLevelDialogEvents(viewport, label) {
   await context.close();
 }
 
+async function testListThemeAndLayout(viewport, label) {
+  const context = await browser.newContext({ viewport, serviceWorkers: "block", reducedMotion: "reduce", colorScheme: "light" });
+  const fixture = createCloudflareApiFixture();
+  await fixture.install(context);
+  const page = await context.newPage();
+  const errors = [];
+  page.on("pageerror", error => errors.push(error.message));
+  await page.goto(`${baseUrl}/`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector("#appSplash[hidden]", { state: "attached" });
+  for (const authenticated of [false, true]) {
+    if (authenticated) {
+      await page.evaluate(() => localStorage.setItem("life-vlog-cloudflare-auth", JSON.stringify({
+        access_token: "fixture-token", expires_at: new Date(Date.now() + 3600000).toISOString(),
+        user: { id: "fixture-user", email: "fixture-user@life-vlog.local", user_metadata: { username: "fixture-user" } },
+      })));
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await page.waitForSelector("#appSplash[hidden]", { state: "attached" });
+    }
+    for (const dark of [false, true]) {
+      if ((await page.locator("body").evaluate(body => body.classList.contains("theme-dark"))) !== dark) await page.click("#themeToggle");
+      for (const route of ["wishlist", "weekend"]) {
+        await page.click(`[data-primary-nav-id="${route}"]`);
+        await page.waitForSelector(`#${route}Page:not([hidden])`);
+        await page.waitForFunction(() => getComputedStyle(document.body).getPropertyValue("--lv-bg").trim() !== "");
+        if (authenticated) await page.waitForSelector(route === "wishlist" ? '[data-wish-id="fixture-wish"]' : '[data-weekend-id="fixture-weekend"]');
+        const theme = await page.evaluate(() => {
+          const css = getComputedStyle(document.body);
+          const authTitle = document.querySelector("#authCard h2, #authCard h3");
+          const luminance = color => {
+            const channels = color.match(/[\d.]+/g).slice(0, 3).map(v => Number(v) / 255).map(v => v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+            return channels.reduce((sum, v, i) => sum + v * [0.2126, 0.7152, 0.0722][i], 0);
+          };
+          const contrast = (a, b) => { const x = luminance(a), y = luminance(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+          return {
+            dark: document.body.classList.contains("theme-dark"), scheme: css.colorScheme,
+            background: css.backgroundColor, mainBackground: getComputedStyle(document.querySelector("main")).backgroundColor,
+            authContrast: authTitle ? contrast(getComputedStyle(authTitle).color, getComputedStyle(document.querySelector("#authCard")).backgroundColor) : 0,
+            dateContrast: [...document.querySelectorAll(".wish-date")].map(el => contrast(getComputedStyle(el).color, getComputedStyle(el.closest(".wish-card")).backgroundColor)),
+          };
+        });
+        assert.equal(theme.dark, dark, `${label} ${route} changed the selected theme`);
+        assert.equal(theme.scheme, dark ? "dark" : "light");
+        assert.ok(theme.mainBackground === theme.background || theme.mainBackground === "rgba(0, 0, 0, 0)", `${label} ${route} background diverged from the shell`);
+        if (!authenticated) assert.ok(theme.authContrast >= 4.5, `${label} ${route} login heading contrast: ${JSON.stringify(theme)}`);
+        assert.ok(theme.dateContrast.every(ratio => ratio >= 4.5), `${label} wish date contrast: ${JSON.stringify(theme)}`);
+        await assertNoHorizontalOverflow(page, `${label} ${route}`);
+        if (authenticated && route === "wishlist") {
+          const layout = await page.evaluate(() => {
+            const rect = selector => document.querySelector(selector).getBoundingClientRect();
+            return { width: rect("#wishlistContent").width, addTop: rect("#wishlistToggle").top, tabsTop: rect("#wishTabs").top, firstTop: rect(".wish-card").top, heights: [...document.querySelectorAll("#wishlistToggle, #wishTabs button")].map(el => el.getBoundingClientRect().height) };
+          });
+          assert.ok(layout.width <= 961, `${label} wish list exceeded reading width`);
+          assert.ok(layout.heights.every(height => height >= 44), `${label} touch targets shrank`);
+          if (viewport.width < 700) {
+            assert.ok(Math.abs(layout.addTop - layout.tabsTop) <= 1, `${label} add and filters did not share a row: ${JSON.stringify(layout)}`);
+            assert.ok(layout.firstTop - layout.addTop <= 60, `${label} first card too far below controls`);
+          }
+          await page.click("#wishlistToggle");
+          await page.waitForSelector("#wishlistForm:not([hidden])");
+          if (viewport.width < 700) await assertMobileViewportContracts(page, `${label} expanded wish form`);
+          else await assertNoHorizontalOverflow(page, `${label} expanded wish form`);
+          await page.click("#wishlistToggle");
+          await page.click('[data-wish-view="done"]');
+          await page.waitForSelector("#wishlistList .wishlist-empty");
+          await page.click('[data-wish-view="open"]');
+        }
+        if (process.env.LIST_UI_SCREENSHOTS) await page.screenshot({ path: `${process.env.LIST_UI_SCREENSHOTS}/${label}-${route}-${dark ? "dark" : "light"}-${authenticated ? "session" : "guest"}.png`, fullPage: true });
+      }
+    }
+  }
+  assert.deepEqual(errors, [], `${label} list page runtime errors`);
+  await context.close();
+}
+
 async function testDesktopPageRails(viewport, label) {
   const context = await browser.newContext({ viewport, serviceWorkers: "block" });
   const page = await context.newPage();
@@ -522,7 +596,7 @@ async function testDesktopPageRails(viewport, label) {
     "weekendList",
   ].includes(key))) {
     assert.ok(
-      Math.abs(width - rails.contentRail) <= 1,
+      Math.abs(width - (name.startsWith("weekend") ? rails.contentRail : 960)) <= 1,
       `${label} ${name} does not align to the shared desktop rail: ${JSON.stringify(rails)}`
     );
   }
@@ -1044,6 +1118,8 @@ async function testOfflineShell() {
 }
 
 try {
+  await testListThemeAndLayout({ width: 390, height: 844 }, "list-mobile");
+  await testListThemeAndLayout({ width: 1440, height: 900 }, "list-desktop");
   await testAuthenticatedHomeStartup();
   await testAuthenticatedDeepLink("recipes");
   await testAuthenticatedDeepLink("weekend");

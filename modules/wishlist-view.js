@@ -24,7 +24,11 @@ export function compareWishesByPriority(a, b) {
 }
 
 export function formatWishDate(value) {
-  const date = new Date(value);
+  if (value == null || value === "") return "";
+  // Planned dates are calendar days, while creation/completion values are timestamps.
+  const date = new Date(typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)
+    ? `${value}T00:00:00`
+    : value);
   if (Number.isNaN(date.getTime())) return "";
   return new Intl.DateTimeFormat("zh-CN", {
     year: "numeric",
@@ -86,9 +90,9 @@ function renderWishCards(wishes, { getAuthorName, canManageItem }) {
     const plannedDate = wish.date ? formatWishDate(wish.date) : "";
     const completedDate = wish.completedAt ? formatWishDate(wish.completedAt) : "";
     const meta = [
-      createdDate ? `加入 ${createdDate}` : "",
-      plannedDate ? `计划 ${plannedDate}` : "",
-      completedDate ? `完成 ${completedDate}` : "",
+      createdDate ? { kind: "created", label: "加入", date: createdDate } : null,
+      plannedDate ? { kind: "planned", label: "计划", date: plannedDate } : null,
+      completedDate ? { kind: "completed", label: "完成", date: completedDate } : null,
     ].filter(Boolean);
     return `
       <article class="wish-card${wish.done ? " completed" : ""}" data-wish-id="${escapeHtml(wish.id)}" data-wish-detail="true" aria-label="${title}，${stateText}">
@@ -105,7 +109,7 @@ function renderWishCards(wishes, { getAuthorName, canManageItem }) {
             <span class="wish-seq">Wish ${String(index + 1).padStart(2, "0")}</span>
             <h3>${title}</h3>
             <div class="wish-card-details">
-              ${meta.length ? `<div class="wish-meta">${meta.map((value) => `<span>${escapeHtml(value)}</span>`).join("")}</div>` : ""}
+              ${meta.length ? `<div class="wish-meta">${meta.map(({ kind, label, date }) => `<span class="wish-date wish-date--${kind}">${label} ${escapeHtml(date)}</span>`).join("")}</div>` : ""}
               ${wish.note ? `<p class="wish-note">${escapeHtml(wish.note)}</p>` : ""}
               ${renderCompletionNote(wish, title)}
             </div>
