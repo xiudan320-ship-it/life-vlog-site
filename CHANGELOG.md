@@ -22,7 +22,6 @@
 ### Fixed
 
 
-- 修复日记分类弹窗的单选按钮被通用输入框样式拉伸、分类名称竖排和桌面弹窗过宽的问题；保存分类后保留列表筛选、已加载范围和阅读位置，手机日记详情也保留原滚动位置。
 - 修复日记草稿在清空后因空表单提前返回而复活、切换账号误恢复和本地存储写失败吞掉当前输入的问题；修复菜谱重复提交和迟到账号响应污染当前编辑状态。
 - 收紧日记多图横向预览的移动端高度并改用完整图像适配，避免缩略图被拉成窄高裁切框而无法辨认主体；保留横向滚动、snap 和“查看全部”入口。
 - 修复设置容量入口、缓存占用刷新、全部清理和容量保存因控制器/运行时桥接缺失而点击无响应的问题；修复诊断复制在 Clipboard API 拒绝或不存在时仍提示成功的问题。
@@ -54,6 +53,16 @@
 ### Fixed
 
 - 修复显式深链在断网启动时因初始路由状态提前切换而丢失隐藏缓存日记的问题；缓存画廊现在可在非 gallery 深链下先渲染并由路由控制显隐。
+
+## [2026-10-01] — 日记分类排版与阅读位置修复
+
+### Fixed
+
+- 修复日记分类弹窗的单选按钮被通用输入框样式拉伸、分类名称竖排和桌面弹窗过宽的问题；保存分类后保留列表筛选、已加载范围和阅读位置，手机日记详情也保留原滚动位置。
+
+### Release
+
+- 从已提交推送的 `main` 提交 `31a8e1f60a3b9b90565f6e176542cf31c63646e6` 运行统一发布脚本。preview deployment 为 `3bc36216-714a-4852-8d89-8f4518c88ac4`（`https://3bc36216.life-vlog-site.pages.dev`），固定预览为 `https://codex-preview.life-vlog-site.pages.dev`；production deployment 为 `fdce245a-a4c6-4446-ac80-92b3c6a54816`（`https://fdce245a.life-vlog-site.pages.dev`），正式入口为 `https://life-vlog-site.pages.dev`。Worker 版本为 `a71fd3d8-32aa-4514-a02e-4d91d4e1e67c`。入口为 `index-Cmy5nKpP.js`（SHA-256 `f27e6ee9e12eec47f69b3cc4b3eb2b2b1ffc73331ef0c8a78bd0530073852e9d`），样式为 `index-CPA89Fqz.css`（SHA-256 `a5404bc7da5b253fb9cb455bec16d7b376b431ffd451a444dcae921dc7c0ca5a`），`sw.js` SHA-256 为 `2dd1880dfb9e71723d9e685ea9dc0efe9a3455934fc9fd4aee532cfcd1e86a7c`，Workbox 预缓存条目为 37；锁定依赖安装、完整本地回归、本地 release 验收、发布流程 fixture，以及 preview/production 的 CORS、Axe critical/serious 和确定性 release smoke 均通过。正式站另用确定性内存 fixture 验证分类排版、连续保存、筛选保留、手机阅读位置、取消与失败重试，全部通过。
 
 ## [2026-09-29] — 时计流搜索折叠与添加入口
 
