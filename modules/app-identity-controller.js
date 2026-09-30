@@ -12,6 +12,7 @@ export function createAppIdentityController({
   renderSettingsSummary,
   renderExperience,
   renderGallery,
+  captureGalleryViewportAnchor,
   renderOverview,
   renderMobileDiaryPage,
   showToast,
@@ -96,6 +97,9 @@ export function createAppIdentityController({
   async function adminUpdatePhotoCategory(photo, trigger = null) {
     if (!photo || !state.cloudDb || !state.session || !isAdminAccount()) return;
     const current = photo.category || "日常";
+    const viewportAnchor = captureGalleryViewportAnchor();
+    const diaryPage = state.mobileDiaryPhoto?.id === photo.id ? state.mobileDiaryPage : null;
+    const diaryScrollTop = diaryPage?.scrollTop || 0;
     const category = await categoryDialog.open({
       photo,
       current,
@@ -117,8 +121,9 @@ export function createAppIdentityController({
     if (state.mobileDiaryPhoto?.id === photo.id) {
       state.mobileDiaryPhoto.category = photo.category;
       renderMobileDiaryPage();
+      if (diaryPage) diaryPage.scrollTop = diaryScrollTop;
     }
-    renderGallery();
+    renderGallery(photo.id, { preserveViewportAnchor: true, viewportAnchor });
     showToast(`已改为“${photo.category}”`, { kind: "success" });
     const restore = () => restoreCategoryActionFocus(photo);
     if (typeof documentTarget.defaultView?.requestAnimationFrame === "function") {

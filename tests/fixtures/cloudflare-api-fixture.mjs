@@ -492,6 +492,13 @@ export function createCloudflareApiFixture({
       const name = decodeURIComponent(url.pathname.replace("/api/rpc/", ""));
       const payload = request.postDataJSON() || {};
       rpcCalls.push({ name, payload });
+      if (name === "admin_update_photo_category") {
+        const photo = rowsFor("photos", tables).find((row) => row.id === payload.p_photo_id);
+        if (photo) photo.category = payload.p_category;
+        writes.push({ path: url.pathname, action: name });
+        await route.fulfill(jsonResponse(request, { data: photo ? { id: photo.id, category: photo.category } : null }));
+        return;
+      }
       if (name === "admin_delete_photo") {
         const photoId = String(payload.p_photo_id || payload.photo_id || "");
         const photos = rowsFor("photos", tables);

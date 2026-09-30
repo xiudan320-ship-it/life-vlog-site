@@ -1174,6 +1174,129 @@ async function testMobileDiaryActionsAndCategoryPicker(browser) {
   }
 }
 
+async function assertCategoryPickerLayout(page, screenshotName) {
+  const layout = await page.locator("#adminCategoryDialog").evaluate((dialog) => {
+    const box = dialog.getBoundingClientRect();
+    return {
+      width: box.width,
+      viewportWidth: innerWidth,
+      overflow: dialog.scrollWidth > dialog.clientWidth,
+      options: [...dialog.querySelectorAll(".admin-category-option")].map((option) => {
+        const row = option.getBoundingClientRect();
+        const radio = option.querySelector("input").getBoundingClientRect();
+        const text = option.querySelector("span > span").getBoundingClientRect();
+        return { height: row.height, radioWidth: radio.width, radioHeight: radio.height, textLeft: text.left - row.left, textHeight: text.height };
+      }),
+    };
+  });
+  assert.ok(layout.width <= Math.min(480, layout.viewportWidth), `category dialog is too wide: ${JSON.stringify(layout)}`);
+  assert.equal(layout.overflow, false, "category dialog has horizontal overflow");
+  assert.ok(layout.options.every((option) => option.height >= 44 && option.height <= 60 && option.radioWidth >= 16 && option.radioWidth <= 24 && option.radioHeight >= 16 && option.radioHeight <= 24 && option.textLeft < 80 && option.textHeight < 30), `category options are misaligned: ${JSON.stringify(layout)}`);
+  await page.screenshot({ path: join(sourceRoot, "tests", screenshotName) });
+}
+
+async function testCategoryPickerReadingPosition(browser) {
+  const seed = createDiaryGridFixturePhotos()[0];
+  const photos = Array.from({ length: 40 }, (_, index) => ({
+    ...seed,
+    id: index === 0 ? "fixture-photo" : `fixture-category-${index}`,
+    user_id: "fixture-other-user",
+    title: `Category position fixture ${index}`,
+    note: Array.from({ length: 30 }, (_, line) => `确定性阅读位置测试 ${line}`).join("\n"),
+    taken_at: new Date(Date.UTC(2040, 0, 40 - index)).toISOString(),
+    created_at: new Date(Date.UTC(2040, 0, 40 - index)).toISOString(),
+  }));
+  for (const width of [1440, 390]) {
+    const result = await openFixturePage({ viewport: { width, height: 900 }, session: adminPseudoSession, fixtureOptions: { photos } });
+    try {
+      const { page } = result;
+      if (width === 1440) {
+        // Reach an entry beyond the initial batch before editing it twice.
+        for (let attempt = 0; attempt < 5 && !await page.locator('[data-photo-id="fixture-category-24"]').count(); attempt += 1) {
+          await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+          await page.waitForTimeout(150);
+          await page.locator("#feedLoader").scrollIntoViewIfNeeded();
+          await page.waitForTimeout(300);
+        }
+        const card = page.locator('[data-photo-id="fixture-category-24"]');
+        await card.waitFor();
+        await card.scrollIntoViewIfNeeded();
+        await page.waitForTimeout(300);
+        for (const [theme, category] of [["dark", "食物"], ["light", "旅行"]]) {
+          await page.evaluate((dark) => document.body.classList.toggle("theme-dark", dark), theme === "dark");
+          await card.locator("[data-photo-menu-trigger]").click();
+          await card.locator('[data-photo-menu-action="category"]').click();
+          await page.waitForSelector("#adminCategoryDialog[open]");
+          const before = await page.evaluate(() => ({ scrollY, count: document.querySelectorAll("#gallery .photo-card").length, top: document.querySelector('[data-photo-id="fixture-category-24"]').getBoundingClientRect().top }));
+          assert.ok(before.scrollY > 500, "category test did not start from a scrolled list");
+          await assertCategoryPickerLayout(page, `category-picker-desktop-${theme}.png`);
+          await page.locator(`[data-category-option][value="${category}"]`).check();
+          await page.click("[data-category-save]");
+          await page.waitForFunction(() => !document.querySelector("#adminCategoryDialog")?.open);
+          await page.waitForTimeout(300);
+          const after = await page.evaluate(() => ({ scrollY, count: document.querySelectorAll("#gallery .photo-card").length, top: document.querySelector('[data-photo-id="fixture-category-24"]').getBoundingClientRect().top }));
+          assert.equal(after.count, before.count, "category save reset the loaded list range");
+          assert.ok(Math.abs(after.top - before.top) < 30, `category save lost reading position: ${JSON.stringify({ before, after })}`);
+          assert.equal(await page.evaluate(() => document.activeElement?.dataset.photoMenuTrigger), "fixture-category-24", "category save did not restore the edited card focus");
+        }
+        await page.locator('.chip[data-filter="日常"]').click();
+        for (let attempt = 0; attempt < 5 && !await page.locator('[data-photo-id="fixture-category-25"]').count(); attempt += 1) {
+          await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+          await page.waitForTimeout(150);
+          await page.locator("#feedLoader").scrollIntoViewIfNeeded();
+          await page.waitForTimeout(300);
+        }
+        const filteredCard = page.locator('[data-photo-id="fixture-category-25"]');
+        await filteredCard.scrollIntoViewIfNeeded();
+        await page.waitForTimeout(300);
+        await filteredCard.locator("[data-photo-menu-trigger]").click();
+        await filteredCard.locator('[data-photo-menu-action="category"]').click();
+        const filteredScrollY = await page.evaluate(() => scrollY);
+        await page.locator('[data-category-option][value="食物"]').check();
+        await page.click("[data-category-save]");
+        await page.waitForFunction(() => !document.querySelector('#gallery [data-photo-id="fixture-category-25"]'));
+        await page.waitForTimeout(300);
+        assert.equal(await page.locator('.chip[data-filter="日常"]').getAttribute("aria-pressed"), "true", "category save reset the active filter");
+        assert.ok(Math.abs(await page.evaluate(() => scrollY) - filteredScrollY) < 60, "removing the edited diary from its category jumped to the top");
+      } else {
+        await page.locator('[data-photo-id="fixture-photo"] .feed-media-shell > button').click();
+        await page.waitForSelector("body.mobile-diary-page-open");
+        await page.locator("[data-mobile-diary-admin-category]").click();
+        await page.waitForSelector("#adminCategoryDialog[open]");
+        const before = await page.locator(".mobile-diary-page").evaluate((element) => element.scrollTop);
+        assert.ok(before > 500, "mobile category test did not start from a scrolled diary");
+        await assertCategoryPickerLayout(page, "category-picker-mobile-light.png");
+        await page.keyboard.press("Escape");
+        await page.waitForFunction(() => !document.querySelector("#adminCategoryDialog")?.open);
+        assert.equal(await page.locator(".mobile-diary-page").evaluate((element) => element.scrollTop), before, "category cancel changed the diary scroll position");
+        await page.locator("[data-mobile-diary-admin-category]").click();
+        await page.evaluate(() => document.body.classList.add("theme-dark"));
+        await assertCategoryPickerLayout(page, "category-picker-mobile-dark.png");
+        await page.locator('[data-category-option][value="日常"]').focus();
+        await page.keyboard.press("ArrowDown");
+        assert.equal(await page.locator('[data-category-option][value="旅行"]').isChecked(), true, "category radio keyboard navigation failed");
+        await page.locator('[data-category-option][value="食物"]').check();
+        await page.route("**/api/rpc/admin_update_photo_category", (route) => route.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ error: { message: "Fixture category save failed" } }) }));
+        await page.click("[data-category-save]");
+        await page.waitForFunction(() => document.querySelector("[data-category-status]")?.getAttribute("role") === "alert");
+        assert.equal(await page.locator("#adminCategoryDialog").evaluate((dialog) => dialog.open), true, "failed category save dismissed the picker");
+        assert.equal(await page.locator('[data-category-option][value="食物"]').isChecked(), true, "failed category save lost the selection");
+        await page.unroute("**/api/rpc/admin_update_photo_category");
+        await page.click("[data-category-save]");
+        await page.waitForFunction(() => document.querySelector(".mobile-diary-meta")?.textContent.includes("食物"));
+        await page.waitForTimeout(300);
+        const after = await page.locator(".mobile-diary-page").evaluate((element) => element.scrollTop);
+        assert.ok(Math.abs(after - before) < 2, `category save reset diary scroll: ${before} -> ${after}`);
+        assert.equal(await page.evaluate(() => document.activeElement?.matches("[data-mobile-diary-admin-category]")), true);
+      }
+      assert.ok(result.fixture.rpcCalls.some(({ name, payload }) => name === "admin_update_photo_category" && payload.p_category === "食物"), "category save did not persist through the admin RPC");
+      assert.deepEqual(result.errors, [], "category picker raised page errors");
+    } finally {
+      await closeFixturePage(result);
+    }
+  }
+}
+
 async function testOrdinaryVideoLifecycle(browser) {
   const desktop = await openFixturePage({ viewport: { width: 1440, height: 900 }, mockFeedMotion: true });
   try {
@@ -1806,6 +1929,7 @@ try {
   await testSettingsRegistryInteractions(browser);
   await testShoppingDeleteDialogAppearance(browser);
   await testMobileDiaryActionsAndCategoryPicker(browser);
+  await testCategoryPickerReadingPosition(browser);
   await testOrdinaryVideoLifecycle(browser);
   await testRapidNavigationLatestWins(browser);
   await testPhotoEditorLazyBoundary(browser);

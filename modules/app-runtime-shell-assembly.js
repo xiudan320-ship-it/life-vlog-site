@@ -111,6 +111,7 @@ export function createShellControllerAssembly({
     renderSettingsSummary: (...args) => renderSettingsSummary(...args),
     renderExperience: defer("renderExperience"),
     renderGallery: (...args) => renderGallery(...args),
+    captureGalleryViewportAnchor: () => diaryFeedActions.captureGalleryViewportAnchor(),
     renderOverview: core.renderOverview,
     renderMobileDiaryPage: defer("renderMobileDiaryPage"),
     showToast: showMiniToast,

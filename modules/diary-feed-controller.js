@@ -503,13 +503,13 @@ export function createDiaryFeedController({
       return rect.bottom > 0 && rect.top < window.innerHeight;
     });
     const anchor = card
-      ? { photoId: card.dataset.photoId || "", top: card.getBoundingClientRect().top }
-      : null;
+      ? { photoId: card.dataset.photoId || "", top: card.getBoundingClientRect().top, scrollY: window.scrollY }
+      : { scrollY: window.scrollY };
     return anchor;
   }
 
   function restoreGalleryViewportAnchor(anchor, deferUntilSettingsClose = false) {
-    if (!anchor?.photoId) return;
+    if (!anchor) return;
     if (deferUntilSettingsClose || els.settingsDialog?.open) {
       pendingGalleryViewportAnchor = anchor;
       return;
@@ -517,10 +517,11 @@ export function createDiaryFeedController({
     const restore = () => {
       const card = [...(els.gallery?.querySelectorAll(".photo-card") || [])]
         .find((entry) => entry.dataset.photoId === anchor.photoId);
-      if (!card) return;
       const currentScroll = window.scrollY || window.pageYOffset || 0;
-      const cardTop = card.getBoundingClientRect().top;
-      const target = Math.max(0, currentScroll + cardTop - anchor.top);
+      const target = card
+        ? Math.max(0, currentScroll + card.getBoundingClientRect().top - anchor.top)
+        : anchor.scrollY;
+      if (!Number.isFinite(target)) return;
       window.scrollTo({ top: target, behavior: "instant" });
     };
     window.requestAnimationFrame(() => {
