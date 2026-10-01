@@ -136,11 +136,12 @@ function eightMoodSummaryRows(today) {
 
 function sparseMonthEndRows(today) {
   const monthKey = shiftMonthKey(today.slice(0, 7), -1);
+  const lastDay = daysInMonth(monthKey);
   return [
-    { id: "fixture-sparse-owner-28", user_id: "fixture-user", diary_date: dateInMonth(monthKey, 28), mood: "happy", content: "月底趋势", tags: [] },
-    { id: "fixture-sparse-owner-29", user_id: "fixture-user", diary_date: dateInMonth(monthKey, 29), mood: "sad", content: "月底趋势", tags: [] },
-    { id: "fixture-sparse-partner-30", user_id: "fixture-partner", diary_date: dateInMonth(monthKey, 30), mood: "calm", content: "月底趋势", tags: [] },
-    { id: "fixture-sparse-partner-31", user_id: "fixture-partner", diary_date: dateInMonth(monthKey, 31), mood: "angry", content: "月底趋势", tags: [] },
+    { id: "fixture-sparse-owner-28", user_id: "fixture-user", diary_date: dateInMonth(monthKey, lastDay - 3), mood: "happy", content: "月底趋势", tags: [] },
+    { id: "fixture-sparse-owner-29", user_id: "fixture-user", diary_date: dateInMonth(monthKey, lastDay - 2), mood: "sad", content: "月底趋势", tags: [] },
+    { id: "fixture-sparse-partner-30", user_id: "fixture-partner", diary_date: dateInMonth(monthKey, lastDay - 1), mood: "calm", content: "月底趋势", tags: [] },
+    { id: "fixture-sparse-partner-31", user_id: "fixture-partner", diary_date: dateInMonth(monthKey, lastDay), mood: "angry", content: "月底趋势", tags: [] },
   ];
 }
 
@@ -1014,11 +1015,12 @@ async function runTodayMoodOverviewFlow() {
     await page.click('[data-primary-nav-id="gallery"]');
     await page.waitForSelector("#overview:not([hidden])", { state: "visible", timeout: 30000 });
     await page.waitForFunction(() => document.activeElement?.dataset.pageHeading === "gallery", null, { timeout: 30000 });
-    await page.evaluate(() => {
+    await page.evaluate(async () => {
       const spacer = document.createElement("div");
       spacer.style.height = "3200px";
       spacer.setAttribute("aria-hidden", "true");
       document.body.append(spacer);
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       window.scrollTo({ top: 1500, behavior: "instant" });
     });
     assert.equal(await page.evaluate(() => Math.round(window.scrollY)), 1500);
