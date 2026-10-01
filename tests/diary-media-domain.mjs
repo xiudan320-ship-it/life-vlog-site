@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { pairDiaryUploadFiles } from "../modules/diary-upload-domain.js";
 import test from "node:test";
 import {
   deriveDiaryR2Url,
@@ -51,4 +52,16 @@ test("the configured media Worker URL is never used as a diary asset", () => {
 
 test("same-origin relative fixture media stays usable without widening the CSP", () => {
   assert.equal(resolveDiaryMediaUrl("/__fixture-media/poster.jpg"), "/__fixture-media/poster.jpg");
+});
+
+test("mixed media keeps unrelated videos separate and only pairs matching Live Photo names", () => {
+  const still = { name: "IMG_1234.HEIC", type: "image/heic" };
+  const paired = { name: "IMG_1234.MOV", type: "video/quicktime" };
+  const ordinary = { name: "walk.mp4", type: "video/mp4" };
+  const unrelated = pairDiaryUploadFiles([still, ordinary]);
+  assert.equal(unrelated.entries[0].motionFile, null);
+  assert.deepEqual(unrelated.videoFiles, [ordinary]);
+  const mixed = pairDiaryUploadFiles([still, ordinary, paired]);
+  assert.equal(mixed.entries[0].motionFile, paired);
+  assert.deepEqual(mixed.videoFiles, [ordinary]);
 });

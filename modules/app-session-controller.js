@@ -180,6 +180,7 @@ export function createAppSessionController({
     const { data } = await state.cloudDb.auth.getSession();
     state.session = data.session;
     updateAuthUI({ activatePage: false });
+    await actions.renderCachedTodayMood?.();
     actions.renderCachedPhotoFeed(state.session?.user?.id || "public");
     actions.syncMobileComposerPlacement();
     controllers.lifecycle.start();

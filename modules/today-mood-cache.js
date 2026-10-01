@@ -45,6 +45,24 @@ function readFreshRecord(record, maxAgeMs, now = Date.now) {
 }
 
 export function createTodayMoodCache({ storage = globalThis.localStorage } = {}) {
+  function participantsKey(userId) {
+    const id = normalizeUserId(userId);
+    return id ? `life-vlog-mood-participants:${id}` : "";
+  }
+
+  function readParticipants(userId) {
+    return parseEntries(storage, participantsKey(userId));
+  }
+
+  function writeParticipants(userId, participants) {
+    if (!normalizeUserId(userId) || !Array.isArray(participants)) return false;
+    try {
+      storage?.setItem?.(participantsKey(userId), JSON.stringify(participants));
+      return true;
+    } catch {
+      return false;
+    }
+  }
   function dayKey(userId, dateKey) {
     const normalizedUserId = normalizeUserId(userId);
     const normalizedDateKey = normalizeDateKey(dateKey);
@@ -121,5 +139,5 @@ export function createTodayMoodCache({ storage = globalThis.localStorage } = {})
     }
   }
 
-  return Object.freeze({ dayKey, monthKey, read, readFresh, readFreshMonth, readMonth, write, writeMonth });
+  return Object.freeze({ dayKey, monthKey, read, readFresh, readFreshMonth, readMonth, write, writeMonth, readParticipants, writeParticipants });
 }

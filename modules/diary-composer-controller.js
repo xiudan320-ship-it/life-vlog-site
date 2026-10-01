@@ -74,6 +74,8 @@ export function createDiaryComposerController({
     els.composer.classList.toggle("expanded", expanded);
     els.uploadForm.hidden = !expanded;
     els.uploadToggle.setAttribute("aria-expanded", String(expanded));
+    const title = els.uploadToggle.querySelector?.("h2");
+    if (title) title.textContent = expanded ? "返回日记" : vlogMode.isActive() ? "添加 VLOG" : "添加日记";
     if (expanded) {
       restoreDraft();
       updateComposerSummary();
@@ -508,7 +510,7 @@ export function createDiaryComposerController({
     } else if (!pairing.motionFiles.length && selectedFiles.some((file) => /\.(heic|heif)$/i.test(file?.name || ""))) {
       setStatus("当前只读取到静态 HEIC；要保留 Live 动态，请再补充同一张照片的 .MOV 文件。");
     } else if (!pairing.motionFiles.length && pairing.entries.length) {
-      setStatus("当前文件列表只有照片；如果这是 Live Photo，请点击“添加视频”补充同一组 MOV，成功配对后才会动。");
+      setStatus("Live Photo 请继续添加配对的 MOV 视频。");
     } else if (count > imageLimit) setStatus(`当前 VIP 等级单篇最多 ${imageLimit} 张图。`);
     else setStatus(count > 1 ? `将发布为 1 篇合集，共 ${count} 张图。` : "");
     syncInputFiles();

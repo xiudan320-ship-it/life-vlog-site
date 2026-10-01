@@ -27,7 +27,7 @@ function createMoodAsset(documentTarget, mood, shape) {
 }
 
 function getParticipantName(participant, getAuthorName) {
-  return getAuthorName?.(participant.userId) || participant.name || "…";
+  return participant.name || getAuthorName?.(participant.userId) || "…";
 }
 
 function formatTodayLabel(todayKey) {

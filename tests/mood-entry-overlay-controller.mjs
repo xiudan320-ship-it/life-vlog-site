@@ -6,7 +6,7 @@ import * as moodDomain from "../modules/mood-diary-domain.js";
 const TODAY = "2026-08-31";
 const participants = [{ userId: "owner", shape: "square" }, { userId: "member", shape: "circle" }];
 
-function createFixture({ entries = [], repository = {}, mutationResult } = {}) {
+function createFixture({ entries = [], repository = {}, mutationResult, getTodayKey, onReturnHome, onMutation } = {}) {
   let draft = { content: "", tagInput: "" };
   const renders = [];
   const mutations = [];
@@ -16,7 +16,7 @@ function createFixture({ entries = [], repository = {}, mutationResult } = {}) {
   let scrollY = 321;
   const windowTarget = {
     location: { href: "https://example.test/?page=gallery" },
-    history: { state: {}, pushState: (...args) => historyCalls.push(["push", ...args]), back: () => historyCalls.push(["back"]) },
+    history: { state: {}, pushState: (...args) => historyCalls.push(["push", ...args]), replaceState: (...args) => historyCalls.push(["replace", ...args]), back: () => historyCalls.push(["back"]) },
     get scrollY() { return scrollY; },
     addEventListener: (type, handler) => listeners.set(type, handler),
     setTimeout: (handler) => { handler(); },
@@ -41,7 +41,9 @@ function createFixture({ entries = [], repository = {}, mutationResult } = {}) {
     },
     getSession: () => ({ user: { id: "owner" } }),
     confirmAction: async () => true,
-    onMutation: async (payload) => { mutations.push(payload); return mutationResult; },
+    onMutation: onMutation || (async (payload) => { mutations.push(payload); return mutationResult; }),
+    getTodayKey,
+    onReturnHome,
     showToast: (...args) => toasts.push(args),
     windowTarget,
     view,
@@ -109,6 +111,34 @@ test("delete stays owner-only and closes after the mutation succeeds", async () 
   await fixture.controller.dispatch({ type: "delete", id: "mine" });
   assert.equal(fixture.controller.getState().mode, "closed");
   assert.deepEqual(fixture.mutations.map(({ type }) => type), ["delete"]);
+});
+
+test("today save closes and returns home before background summary sync finishes", async () => {
+  let returnHomeCount = 0;
+  let resolveSync;
+  const fixture = createFixture({ getTodayKey: () => TODAY, onReturnHome: () => { returnHomeCount += 1; }, onMutation: () => new Promise((resolve) => { resolveSync = resolve; }) });
+  await fixture.controller.open({ dateKey: TODAY, entries: [], preferredUserId: "owner", participants });
+  await fixture.controller.dispatch({ type: "pick", mood: "happy" });
+  const save = fixture.controller.dispatch({ type: "save" });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(fixture.controller.getState().mode, "closed");
+  assert.equal(returnHomeCount, 1);
+  assert.equal(fixture.historyCalls.some(([type]) => type === "replace"), true);
+  assert.equal(fixture.historyCalls.some(([type]) => type === "back"), false);
+  resolveSync(true);
+  await save;
+});
+
+test("failed today save keeps the editor instead of returning home", async () => {
+  let returnedHome = false;
+  const fixture = createFixture({ getTodayKey: () => TODAY, onReturnHome: () => { returnedHome = true; }, repository: { upsert: async () => { throw new Error("offline"); } } });
+  await fixture.controller.open({ dateKey: TODAY, entries: [], preferredUserId: "owner", participants });
+  await fixture.controller.dispatch({ type: "pick", mood: "happy" });
+  fixture.view.setDraft({ content: "不要丢失内容" });
+  await fixture.controller.dispatch({ type: "save" });
+  assert.equal(fixture.controller.getState().mode, "editor");
+  assert.equal(fixture.controller.getState().editorDraft.content, "不要丢失内容");
+  assert.equal(returnedHome, false);
 });
 
 test("a successful write stays successful when the month sync reports a retryable failure", async () => {

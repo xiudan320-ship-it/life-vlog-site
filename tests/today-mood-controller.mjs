@@ -15,7 +15,7 @@ function createView() {
   };
 }
 
-function createFixture({ rows = [], members = [], listDay = async () => rows, listMonth = async () => [], sessionId = "owner", switchPage, overlayController, windowTarget = { innerWidth: 0 }, storage } = {}) {
+function createFixture({ rows = [], members = [], listDay = async () => rows, listMonth = async () => [], sessionId = "owner", switchPage, overlayController, windowTarget = { innerWidth: 0 }, storage, getAccountDataState } = {}) {
   let session = sessionId ? { user: { id: sessionId } } : null;
   const view = createView();
   const controller = createTodayMoodController({
@@ -23,6 +23,7 @@ function createFixture({ rows = [], members = [], listDay = async () => rows, li
     getSession: () => session,
     getFamilyInfo: () => members.length ? { id: "family-1" } : null,
     getFamilyMembers: () => members,
+    getAccountDataState,
     getAuthorName: (userId) => ({ owner: "小秀", member: "小咻" })[userId] || "…",
     getTodayKey: () => TODAY,
     switchPage: switchPage || (async () => true),
@@ -295,4 +296,39 @@ test("mood repository listDay filters one normalized date", async () => {
   await assert.rejects(() => repository.listDay("2026-02-30"), /YYYY-MM-DD/);
 });
 
-console.log("Today mood controller tests passed.");
+test("startup keeps both cached seats before family and mood responses arrive", async () => {
+  const values = new Map([
+    ["life-vlog-mood-participants:owner", JSON.stringify([{ userId: "owner", shape: "square", name: "小秀" }, { userId: "member", shape: "circle", name: "小咻" }])],
+    ["life-vlog-mood-day:owner:2026-08-31", JSON.stringify([{ id: "mine", user_id: "owner", diary_date: TODAY, mood: "calm" }, { id: "theirs", user_id: "member", diary_date: TODAY, mood: "sad" }])],
+  ]);
+  let resolveCloud;
+  const fixture = createFixture({
+    getAccountDataState: () => "loading",
+    listDay: () => new Promise((resolve) => { resolveCloud = resolve; }),
+    storage: { getItem: (key) => values.get(key) || null, setItem: (key, value) => values.set(key, value) },
+  });
+  fixture.controller.start();
+  assert.deepEqual(fixture.controller.getState().participants.map(({ userId, name }) => [userId, name]), [["owner", "小秀"], ["member", "小咻"]]);
+  assert.equal(fixture.controller.getState().entriesByUserId.get("member").mood, "sad");
+  const pending = fixture.controller.refresh();
+  resolveCloud([{ id: "updated", user_id: "member", diary_date: TODAY, mood: "happy" }]);
+  await pending;
+  assert.equal(fixture.controller.getState().entriesByUserId.get("member").mood, "happy");
+  fixture.setSession({ user: { id: "another-account" } });
+  fixture.controller.render();
+  assert.equal(fixture.controller.getState().participants.some(({ userId }) => userId === "member"), false);
+});
+
+test("own mood save updates the cached overview immediately and keeps the partner", async () => {
+  const values = new Map();
+  const fixture = createFixture({
+    members: [{ user_id: "owner", role: "owner" }, { user_id: "member", role: "member" }],
+    rows: [{ id: "theirs", user_id: "member", diary_date: TODAY, mood: "calm" }],
+    storage: { getItem: (key) => values.get(key) || null, setItem: (key, value) => values.set(key, value) },
+  });
+  await fixture.controller.refresh();
+  fixture.controller.applyMutation({ type: "save", dateKey: TODAY, entry: { id: "mine", user_id: "owner", diary_date: TODAY, mood: "happy" } });
+  assert.equal(fixture.controller.getState().entriesByUserId.get("owner").mood, "happy");
+  assert.equal(fixture.controller.getState().entriesByUserId.get("member").mood, "calm");
+  assert.equal(JSON.parse(values.get(`life-vlog-mood-day:owner:${TODAY}`)).length, 2);
+});

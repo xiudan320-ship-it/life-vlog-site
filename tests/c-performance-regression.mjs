@@ -1297,6 +1297,74 @@ async function testCategoryPickerReadingPosition(browser) {
   }
 }
 
+async function testMobileComposerAndBorderlessCovers(browser) {
+  for (const width of [375, 390, 430, 1440]) {
+    const result = await openFixturePage({ viewport: { width, height: 900 }, fixtureOptions: { photos: createDiaryGridFixturePhotos() } });
+    try {
+      const page = result.page;
+      const button = page.locator("#uploadToggle");
+      await button.scrollIntoViewIfNeeded();
+      const before = await button.boundingBox();
+      await button.click();
+      await page.waitForSelector("#uploadForm:not([hidden])", { state: "visible" });
+      const after = await button.boundingBox();
+      assert.ok(Math.abs(after.x - before.x) < 2 && Math.abs(after.y - before.y) <= 3, `composer entry moved when opened at ${width}px: ${JSON.stringify({ before, after })}`);
+      assert.match(await button.textContent(), /返回日记/);
+      assert.equal(await page.locator('label[for="noteInput"]').textContent(), "内容");
+      if (width < 700) {
+        assert.equal(await page.locator(".composer-image-links").isVisible(), false);
+        assert.equal(await page.locator('label[for="photoMotionInput"]').isVisible(), false);
+        assert.equal(await page.locator('label[for="photoInput"]').textContent(), "添加图片或视频");
+        const accept = await page.locator("#photoInput").getAttribute("accept");
+        assert.ok(accept.includes("image/*") && accept.includes("video/*"), "combined picker does not accept both media types");
+        const weight = await button.locator("h2").evaluate((element) => Number(getComputedStyle(element).fontWeight));
+        assert.ok(weight >= 700, "add diary label was not bold");
+        await page.locator("#photoInput").setInputFiles([
+          { name: "fixture-image.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==", "base64") },
+          { name: "fixture-video.mp4", mimeType: "video/mp4", buffer: Buffer.from("synthetic-video-preview") },
+        ]);
+        assert.equal(await page.locator("#previewStrip [data-preview-index]").count(), 2, "mixed image/video selection did not create both previews");
+        const header = await page.locator("#galleryHead > div:first-child").boundingBox();
+        const action = await button.boundingBox();
+        assert.ok(header.width > 100 && header.x + header.width <= action.x, "selection status displaced the diary heading");
+        const publishStyle = await page.locator('#uploadForm button[type="submit"]').evaluate((element) => ({ background: getComputedStyle(element).backgroundColor, accent: getComputedStyle(element).getPropertyValue("--accent-strong").trim() }));
+        assert.notEqual(publishStyle.background, "rgba(0, 0, 0, 0)", "publish action has no filled color");
+        await page.screenshot({ path: join(sourceRoot, "tests", `mobile-composer-${width}-light.png`) });
+        await page.evaluate(() => document.body.classList.add("theme-dark"));
+        await page.screenshot({ path: join(sourceRoot, "tests", `mobile-composer-${width}-dark.png`) });
+      }
+      await button.click();
+      assert.equal(await page.locator("#uploadForm").isVisible(), false);
+      assert.match(await button.textContent(), /添加日记/);
+      if (width < 700) {
+        await page.locator("#feedLoader").scrollIntoViewIfNeeded();
+        await page.waitForFunction(() => document.querySelector('[data-photo-id="fixture-grid-count-10"]'));
+        const cover = page.locator('[data-photo-id="fixture-grid-count-10"] .photo-media');
+        await cover.scrollIntoViewIfNeeded();
+        await page.waitForFunction(() => {
+          const image = document.querySelector('[data-photo-id="fixture-grid-count-10"] .photo-media img');
+          return image?.classList.contains("is-loaded") && getComputedStyle(image).transform === "none";
+        });
+        const media = await cover.evaluate((element) => {
+          const button = element.querySelector(".feed-media-shell > button");
+          const image = element.querySelector("img");
+          const buttonBox = button.getBoundingClientRect();
+          const imageBox = image.getBoundingClientRect();
+          const style = getComputedStyle(button);
+          return { border: style.borderWidth, padding: style.padding, fit: getComputedStyle(image).objectFit, delta: Math.abs(buttonBox.width - imageBox.width) + Math.abs(buttonBox.height - imageBox.height) };
+        });
+        assert.equal(media.border, "0px");
+        assert.equal(media.padding, "0px");
+        assert.equal(media.fit, "cover");
+        assert.ok(media.delta < 2, `thumbnail retained a white frame: ${JSON.stringify(media)}`);
+      }
+      assert.deepEqual(result.errors, [], "mobile composer raised JavaScript errors");
+    } finally {
+      await closeFixturePage(result);
+    }
+  }
+}
+
 async function testOrdinaryVideoLifecycle(browser) {
   const desktop = await openFixturePage({ viewport: { width: 1440, height: 900 }, mockFeedMotion: true });
   try {
@@ -1930,6 +1998,7 @@ try {
   await testShoppingDeleteDialogAppearance(browser);
   await testMobileDiaryActionsAndCategoryPicker(browser);
   await testCategoryPickerReadingPosition(browser);
+  await testMobileComposerAndBorderlessCovers(browser);
   await testOrdinaryVideoLifecycle(browser);
   await testRapidNavigationLatestWins(browser);
   await testPhotoEditorLazyBoundary(browser);

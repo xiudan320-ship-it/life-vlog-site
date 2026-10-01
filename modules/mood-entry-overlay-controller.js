@@ -30,6 +30,8 @@ export function createMoodEntryOverlayController({
   showToast = () => {},
   confirmAction = async () => false,
   onMutation = () => {},
+  getTodayKey = () => "",
+  onReturnHome = () => {},
   windowTarget = globalThis.window,
   view: injectedView,
 } = {}) {
@@ -158,7 +160,7 @@ export function createMoodEntryOverlayController({
     return Boolean(await confirmAction({ eyebrow: "尚未保存", title: "放弃这次编辑？", message: "已经填写的内容不会被保存。", confirmLabel: "放弃编辑", cancelLabel: "继续编辑", danger: true }));
   }
 
-  function finishClose({ fromPopstate = false } = {}) {
+  function finishClose({ fromPopstate = false, returnHome = false } = {}) {
     state.mode = "closed";
     state.activeDiary = null;
     state.selectedMood = null;
@@ -169,10 +171,15 @@ export function createMoodEntryOverlayController({
     const target = returnFocus;
     const scrollY = returnScrollY;
     returnFocus = null;
-    if (!fromPopstate && historyOpen) {
+    if (returnHome && historyOpen) {
+      const { moodEntryOverlay, ...historyState } = windowTarget.history.state || {};
+      windowTarget.history.replaceState?.(historyState, "", windowTarget.location?.href || "");
+      historyOpen = false;
+    } else if (!fromPopstate && historyOpen) {
       historyOpen = false;
       windowTarget?.history?.back?.();
     } else historyOpen = false;
+    if (returnHome) return;
     const restoreScroll = () => windowTarget?.scrollTo?.({ top: scrollY, left: 0, behavior: "instant" });
     windowTarget?.setTimeout?.(restoreScroll, 0);
     windowTarget?.setTimeout?.(restoreScroll, 100);
@@ -224,8 +231,14 @@ export function createMoodEntryOverlayController({
       state.editorBase = null;
       render();
       showToast("心情已保存", { kind: "success" });
+      const returnHome = state.dateKey === getTodayKey();
       try {
-        const mutationResult = await onMutation({ type: "save", entry: { ...state.activeDiary, tags: [...state.activeDiary.tags] }, dateKey: state.dateKey });
+        const mutation = Promise.resolve(onMutation({ type: "save", entry: { ...state.activeDiary, tags: [...state.activeDiary.tags] }, dateKey: state.dateKey }));
+        if (returnHome) {
+          finishClose({ returnHome: true });
+          await onReturnHome();
+        }
+        const mutationResult = await mutation;
         if (mutationResult === false) throw new Error("本月汇总同步失败，可稍后重试");
       } catch {
         showToast("已保存，但本月汇总同步失败，可稍后重试", { kind: "warning" });

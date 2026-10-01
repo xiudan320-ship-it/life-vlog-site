@@ -292,7 +292,10 @@ export function createAppRouteRuntime({
         getAuthorAvatar,
         showToast: showMiniToast,
         confirmAction,
+        getTodayKey: todayMoodController.getTodayKey,
+        onReturnHome: todayMoodController.returnHome,
         onMutation: async (payload) => {
+          todayMoodController.applyMutation(payload);
           const [moodResult] = await Promise.allSettled([
             pageControllerMap.moodDiary?.handleMutation?.(payload),
             pageControllerMap.todayMood?.refresh?.({ forceMonth: true, forceDay: true }),
@@ -320,11 +323,9 @@ export function createAppRouteRuntime({
       switchPage: (...args) => appNavigationController?.switchPage(...args) ?? false,
       overlayController: moodEntryOverlayController,
       windowTarget: documentTarget.defaultView,
-      controllers: pageControllerMap,
     });
     pageControllerMap.todayMood = controller;
-    if (state.session) void controller.refresh();
-    else controller.render();
+    controller.render();
     return controller;
   });
   const {
@@ -762,6 +763,7 @@ export function createAppRouteRuntime({
       closeThanksDialog,
       renderNotifications: core.renderNotifications,
       renderOverview,
+      renderCachedTodayMood: async () => (await todayMoodControllerPromise).start(),
       renderRecipes,
       renderSettingsSummary,
       renderShopping,

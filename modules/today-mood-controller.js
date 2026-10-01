@@ -46,6 +46,7 @@ export function createTodayMoodController({
   getSession = () => runtimeState?.session || null,
   getFamilyInfo = () => runtimeState?.familyInfo || null,
   getFamilyMembers = () => runtimeState?.familyMembers || [],
+  getAccountDataState = () => runtimeState?.accountDataState || "ready",
   getAuthorName,
   getTodayKey,
   switchPage = async () => false,
@@ -104,11 +105,24 @@ export function createTodayMoodController({
     const nextUserId = currentUserId();
     const nextTodayKey = currentTodayKey();
     const nextMonthKey = nextTodayKey.slice(0, 7);
-    const nextParticipants = resolveMoodParticipants({
+    let nextParticipants = resolveMoodParticipants({
       currentUserId: nextUserId,
       familyInfo: getFamilyInfo?.(),
       familyMembers: getFamilyMembers?.(),
     });
+    if (nextUserId) {
+      const familyMembers = getFamilyMembers();
+      const familyReady = familyMembers.some((member) => member.user_id === nextUserId) || getAccountDataState() === "ready";
+      if (familyReady) {
+        nextParticipants = nextParticipants.map((participant) => ({ ...participant, name: getAuthorName?.(participant.userId) || "家庭成员" }));
+        moodCache.writeParticipants(nextUserId, nextParticipants);
+      } else {
+        const cachedParticipants = moodCache.readParticipants(nextUserId);
+        if (cachedParticipants?.some((participant) => participant.userId === nextUserId)) {
+          nextParticipants = cachedParticipants.filter((participant) => participant.userId && ["circle", "square"].includes(participant.shape)).slice(0, 2);
+        }
+      }
+    }
     const nextParticipantSignature = nextParticipants.map(({ userId }) => userId).join("|");
     const userChanged = previousUserId !== nextUserId;
     const monthChanged = previousMonthKey !== nextMonthKey;
@@ -373,8 +387,34 @@ export function createTodayMoodController({
     }));
   }
 
+  function applyMutation({ type, entry, dateKey }) {
+    updateContext();
+    const cached = moodCache.read(state.currentUserId, dateKey) || [];
+    const entries = cached.filter((item) => item.user_id !== entry.user_id);
+    if (type === "save") entries.push(entry);
+    moodCache.write(state.currentUserId, dateKey, entries);
+    if (dateKey === state.todayKey) {
+      const visibleUsers = new Set(state.participants.map((participant) => participant.userId));
+      state.entries = entries.map(normalizeEntry).filter((item) => item && visibleUsers.has(item.user_id));
+      state.entriesByUserId = new Map(state.entries.map((item) => [item.user_id, item]));
+      state.hasLocalResult = true;
+      state.loading = false;
+      render();
+    }
+  }
+
   function openCalendar() {
     return switchPage("mood");
+  }
+
+  async function returnHome() {
+    await switchPage("gallery", { historyMode: "replace", restoreScroll: false, focusHeading: false });
+    const top = Math.max(0, (windowTarget.scrollY || 0) + elements.overview.getBoundingClientRect().top - 80);
+    windowTarget.scrollTo({ top, behavior: "instant" });
+  }
+
+  function start() {
+    void refresh({ forceDay: true });
   }
 
   function bindEvents() {
@@ -405,6 +445,10 @@ export function createTodayMoodController({
   });
 
   return Object.freeze({
+    applyMutation,
+    getTodayKey: currentTodayKey,
+    returnHome,
+    start,
     loadMonthPreview,
     refresh,
     retry: refresh,

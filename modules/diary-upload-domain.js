@@ -55,13 +55,6 @@ export function pairDiaryUploadFiles(files = []) {
     return { file, motionFile: motionFile || null };
   });
 
-  const unpairedEntries = entries.filter((entry) => !entry.motionFile);
-  const remainingMotionFiles = motionFiles.filter((file) => unusedMotionFiles.has(file));
-  unpairedEntries.slice(0, remainingMotionFiles.length).forEach((entry, index) => {
-    entry.motionFile = remainingMotionFiles[index];
-    unusedMotionFiles.delete(remainingMotionFiles[index]);
-  });
-
   return {
     stillFiles,
     entries,

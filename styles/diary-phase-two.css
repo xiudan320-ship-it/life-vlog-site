@@ -179,6 +179,13 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
+#composer .composer-actions .primary {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+  color: var(--surface);
+  font-weight: 750;
+}
+
 #composer .composer-actions .ghost-button {
   min-height: 44px;
 }
@@ -440,6 +447,36 @@
 }
 
 @media (max-width: 700px) {
+  #galleryHead > #composer { display: contents; }
+  #composer > .section-title { display: contents; }
+  #composer .section-heading-button {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+    margin: 0;
+  }
+  #composer #uploadStatus:not(:empty) {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+    margin: 4px 0 0;
+  }
+  #composer.expanded #uploadForm {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    width: 100%;
+  }
+  #composer .section-heading-button { width: 128px; }
+  #composer .section-heading-button h2 {
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 750;
+    letter-spacing: .02em;
+  }
+  #composer.expanded .section-heading-button h2::before { content: "←"; }
+  #composer .composer-image-links,
+  #composer #photoMotionInput,
+  #composer label[for="photoMotionInput"] { display: none !important; }
   #composer .composer-state {
     align-items: flex-start;
     flex-direction: column;
@@ -448,6 +485,19 @@
 
   #composer #uploadCenterLink {
     width: 100%;
+  }
+}
+
+@media (max-width: 920px) {
+  body[data-mobile-feed-layout="double"] #gallery .photo-media .feed-media-shell > button {
+    border: 0;
+    padding: 0;
+    background: transparent;
+  }
+  body[data-mobile-feed-layout="double"] #gallery .photo-media :is(img,video) {
+    object-fit: cover;
+    border: 0;
+    padding: 0;
   }
 }
 

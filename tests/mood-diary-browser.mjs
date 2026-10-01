@@ -1053,6 +1053,38 @@ async function runTodayMoodOverviewFlow() {
   }
 }
 
+async function runTodayMoodCachedStartup() {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block", reducedMotion: "reduce" });
+  const today = todayInTokyo();
+  const canonical = todayMoodRows(today, "both");
+  canonical[1].mood = "happy";
+  const fixture = createCloudflareApiFixture({ seedMoodFamily: true, moodDiaries: canonical });
+  await fixture.install(context);
+  const page = await context.newPage();
+  await installTodayMoodSession(page);
+  await page.addInitScript(({ today, rows }) => {
+    localStorage.setItem(`life-vlog-mood-day:fixture-user:${today}`, JSON.stringify(rows));
+    localStorage.setItem("life-vlog-mood-participants:fixture-user", JSON.stringify([{ userId: "fixture-user", shape: "square", name: "小秀" }, { userId: "fixture-partner", shape: "circle", name: "小咻" }]));
+  }, { today, rows: todayMoodRows(today, "both") });
+  let releaseCloud;
+  const cloudGate = new Promise((resolve) => { releaseCloud = resolve; });
+  await page.route("**/api/rpc/get_my_family_members", async (route) => { await cloudGate; await route.fallback(); });
+  await page.route("**/api/table/mood_diaries?**", async (route) => { await cloudGate; await route.fallback(); });
+  try {
+    await page.goto(`${baseUrl}/`, { waitUntil: "domcontentloaded" });
+    await page.waitForSelector("#appSplash[hidden]", { state: "attached" });
+    const partner = page.locator('[data-today-mood-user="fixture-partner"]');
+    assert.equal(await page.locator("#todayMoodGrid .today-mood-seat").count(), 2, "cached partner seat was missing when the splash closed");
+    assert.equal(await partner.locator(".today-mood-seat-name").textContent(), "小咻");
+    assert.equal(await partner.locator(".today-mood-seat-mood").textContent(), "平静");
+    releaseCloud();
+    await page.waitForFunction(() => document.querySelector('[data-today-mood-user="fixture-partner"] .today-mood-seat-mood')?.textContent === "开心");
+  } finally {
+    releaseCloud();
+    await context.close();
+  }
+}
+
 async function runTodayMoodQuickAdd() {
   const context = await browser.newContext({ viewport: { width: 375, height: 812 }, serviceWorkers: "block", reducedMotion: "reduce" });
   const fixture = createCloudflareApiFixture({
@@ -1076,9 +1108,9 @@ async function runTodayMoodQuickAdd() {
     assert.equal(page.url(), initialUrl);
     await page.click('[data-mood="happy"]');
     await page.click("#moodEditorSave");
-    await page.waitForSelector("#moodDetailPanel:not([hidden])", { state: "visible", timeout: 30000 });
-    await page.click("#moodOverlayClose");
     await page.waitForSelector("#moodOverlay[hidden]", { state: "attached", timeout: 30000 });
+    assert.equal(await page.locator("#overview").isVisible(), true, "today save did not return to the homepage");
+    assert.equal(await page.locator("#moodPage").isVisible(), false);
     await page.waitForFunction(
       () => document.querySelector('[data-today-mood-user="fixture-user"] .today-mood-seat-mood')?.textContent === "开心",
       null,
@@ -1160,6 +1192,9 @@ async function runMoodDiaryFlow(viewport, label) {
     await page.press("#moodEditorTagInput", "Enter");
     const readsBeforeSave = moodReadCount(fixture);
     await page.click("#moodEditorSave");
+    await page.waitForSelector("#moodOverlay[hidden]", { state: "attached" });
+    assert.equal(await page.locator("#overview").isVisible(), true, `${label} today save did not return home`);
+    await page.locator('[data-today-mood-user="fixture-user"]').click();
     await page.waitForSelector("#moodOverlay:not([hidden]) #moodDetailPanel:not([hidden])", { state: "visible" });
     await waitForMoodReads(fixture, readsBeforeSave + 1, `${label} save`);
     assert.equal(await page.locator("#moodDetailContent").textContent(), "今天把心情写下来 😊");
@@ -1172,6 +1207,8 @@ async function runMoodDiaryFlow(viewport, label) {
     await page.fill("#moodEditorContent", "已经编辑过了");
     const readsBeforeUpdate = moodReadCount(fixture);
     await page.click("#moodEditorSave");
+    await page.waitForSelector("#moodOverlay[hidden]", { state: "attached" });
+    await page.locator('[data-today-mood-user="fixture-user"]').click();
     await page.waitForSelector("#moodDetailPanel:not([hidden])", { state: "visible" });
     await waitForMoodReads(fixture, readsBeforeUpdate + 1, `${label} update`);
     assert.equal(await page.locator("#moodDetailContent").textContent(), "已经编辑过了");
@@ -1179,6 +1216,8 @@ async function runMoodDiaryFlow(viewport, label) {
 
     await page.click("#moodOverlayClose");
     await page.waitForSelector("#moodOverlay[hidden]", { state: "attached" });
+    await page.click("#overviewMoodCalendar");
+    await page.waitForSelector("#moodCalendarView:not([hidden])", { state: "visible" });
     await page.click("#moodListOpen");
     await page.waitForSelector("#moodListView:not([hidden])", { state: "visible" });
     await page.waitForSelector("#moodHistoryList .mood-history-item", { state: "visible" });
@@ -1271,6 +1310,7 @@ try {
     await runTodayMoodState(viewport, "both", label);
   }
   await runTodayMoodOverviewFlow();
+  await runTodayMoodCachedStartup();
   await runTodayMoodQuickAdd();
   await runMoodMonthFailureState();
   await runMoodJarV3Contract();
