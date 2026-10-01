@@ -525,9 +525,14 @@ async function testMobileAlbumAndMoodScroll(viewport) {
   await page.click("#moodDetailActions [data-mood-edit]");
   await page.fill("#moodEditorContent", "短日记底部验收");
   await page.click("#moodEditorSave");
+  await page.waitForSelector("#moodOverlay[hidden]", { state: "attached" });
+  assert.equal(await page.locator("#overview").isVisible(), true, "saving today's mood must return home");
+  await page.locator('[data-today-mood-user="fixture-user"]').click();
   await page.waitForSelector("#moodDetailPanel:not([hidden])");
+  const savedY = await page.evaluate(() => window.scrollY);
+  assert.match(await page.locator("#moodDetailPanel").textContent(), /短日记底部验收/);
   await page.click("#moodOverlayClose");
-  await page.waitForFunction(y => Math.abs(window.scrollY - y) <= 2 && getComputedStyle(document.documentElement).overflow !== "hidden", initialY);
+  await page.waitForFunction(y => Math.abs(window.scrollY - y) <= 2 && getComputedStyle(document.documentElement).overflow !== "hidden", savedY);
   await context.close();
 }
 
