@@ -117,7 +117,7 @@ flowchart LR
 
 心情日记使用 `mood_diaries`：`(user_id, diary_date)` 唯一约束保证每位成员每天一条；读取按家庭范围授权，写入、编辑和删除按当前 session 的 `user_id` 限制。`diary_date` 是 Asia/Tokyo 的自然日，月份查询使用 `[diary_date >= monthStart, diary_date < nextMonthStart)`，Worker 同时校验真实日期、未来日期、八种枚举心情、5000 Unicode 字符正文和最多八个 20 字符标签。`TABLE_CONFIG` 记录 family read / own write / `tags` JSON / conflict columns，D1 导出和每日备份包含该表。
 
-数据库结构不会由普通 Pages 发布自动变更；目标 D1 缺少本轮字段时，必须在 Worker 发布前经用户授权显式执行 DDL 并在 `CHANGELOG.md` 记录影响和结果。本轮发布前只读核查确认目标 D1 已存在 `user_profiles.secret_default_folder_id`，未执行结构更新。
+数据库结构不会由普通 Pages 发布自动变更；目标 D1 缺少本轮字段时，必须在 Worker 发布前经用户授权显式执行 DDL 并在 `CHANGELOG.md` 记录影响和结果。2026-10-27 发布前核查确认目标 D1 已存在 `user_profiles.secret_default_folder_id`，缺少 `secret_items.photo_sort_mode`；按发布授权显式添加后，复查确认其为非空 TEXT、默认 `time`，且约束为 `time` / `number` / `manual`，未重建表或改写相册图片。
 
 ### 6.3 R2 媒体
 
@@ -150,8 +150,13 @@ flowchart LR
 
 ## 8. 本地状态、缓存与离线
 
+- 秘藏中，文件夹分类相册，相册包含图片，“已收藏”汇总所有相册中点心的图片。照片排序由 `secret_items.photo_sort_mode`（`time` / `number` / `manual`，默认 `time`）决定，`photo_sort_descending` 只决定时间模式的方向。时间使用图片的 `uploadedAt`；缺失或无效时间按最早处理，同时间保持数组顺序。编号模式沿用纯数字标签的最大数值，按自然升序排列，无编号图片排最后；手动模式直接使用 `images` 数组顺序，前后移保存数组，筛选只影响展示范围。字段贯穿 schema、Worker 白名单、cloud model 和缓存；未添加 migration、双读写或旧排序兼容层。目标 D1 已于 2026-10-27 按发布授权显式补齐 `photo_sort_mode` 并复查字段定义。
+- 秘藏搜索按当前文件夹范围分别返回名称 / 备注匹配的相册和标签匹配的图片（含数字标签）；已收藏范围仅返回已点心图片，也可匹配来源相册名称 / 备注。结果保留来源相册和图片索引，打开图片仍绑定原相册；来源入口清除搜索后打开完整相册，空结果提供清除搜索，不显示新建空相册提示。批量跨册移动先确认目标保存，再从来源移除；来源写失败时恢复目标内容，恢复失败明确提示可能存在副本，原图保留在来源。
+
 - `preferences-store.js`：主题、字号、布局和顶部分页等设备偏好。
 - `upload-queue.js`：IndexedDB 上传队列与失败重试。
+- 秘藏新建与追加共用 `secret-upload-service.js` 的单任务内存队列，每册最多 500 张，逐张压缩上传、每 10 张保存一次相册快照。新建用固定相册 ID 的 upsert，追加写回同一快照，保存响应丢失后可幂等重试；单张失败继续处理后续图片。上传成功但相册保存未确认的资源保留在队列，重试先保存这些资源，再处理剩余项，不重新上传已成功文件。进度、失败文件名和原因由独立 view 展示；任务未完成时锁定新建表单与相册操作，切换账号后停止后续上传及写入。队列不落盘，离开/刷新前显示浏览器提醒，页面关闭后只能保留已经保存到云端的相册进度。
+- `image-service.js` 的文件上传和链接导入遇到 429 时按 `Retry-After` 等待；响应未提供该头时等待 60 秒，以覆盖 Worker 一分钟限流窗口（`/upload` 每 IP 每分钟 60 次，原图与缩略图分别计数）。等待原因传回上传进度，随后自动继续；网络错误及其他可重试服务错误保留最多三次尝试，每次请求最长 120 秒。
 - `media-cache.js` / `offline-cache-controller.js`：日记和秘藏媒体缓存；`renderCachedPhotoFeed()` 可在非 gallery 深链下先填充隐藏缓存画廊，避免断网应用壳丢失已缓存内容。缓存统计只把可读且确实为空的 CacheStorage 报告为 0；`keys/open/match` 或 CacheStorage 不可用时保留读取异常，由设置页显示失败并允许重试，不把权限/平台故障伪装成零占用。
 - `offline-settings-controller.js` / `cache-management-view.js`：缓存容量、自动缓存策略、离线包和清理操作；容量、刷新、预设、分池/全部清理均由同一 controller 幂等绑定，全部清理只删除受管理缓存和离线索引，保留账号、个人设置、草稿、上传队列与容量偏好。
 - `app-feedback-view.js`：全局即时反馈；原生 dialog 打开时将提示 host 跟随当前 dialog，并在关闭事件中清理，后续页面提示会自动恢复到 body。

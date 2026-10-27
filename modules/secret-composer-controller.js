@@ -8,6 +8,7 @@ export function createSecretComposerController({
   state,
   repository,
   assets,
+  uploadQueue,
   albumImageLimit,
   allFolderId,
   favoritesFolderId,
@@ -15,8 +16,6 @@ export function createSecretComposerController({
   getDisplayTitle,
   getPlainNote,
   setStatus,
-  showToast,
-  dismissToast,
   loadItems,
 }) {
   const els = elements;
@@ -65,11 +64,16 @@ export function createSecretComposerController({
   function updateSecretPreview() {
     const files = Array.from(els.secretImageInput?.files || []);
     revokeSecretPreviewUrls();
+    const count = files.length + selectedLinks.length;
     const entries = [
-      ...files.map((file) => ({ url: URL.createObjectURL(file), label: file.name })),
-      ...selectedLinks.map((url) => ({ url, label: "图片链接" })),
+      ...files.slice(0, 9).map((file) => {
+        const url = URL.createObjectURL(file);
+        previewObjectUrls.push(url);
+        return { url, label: file.name };
+      }),
+      ...selectedLinks.slice(0, Math.max(0, 9 - files.length)).map((url) => ({ url, label: "图片链接" })),
     ];
-    if (!entries.length) {
+    if (!count) {
       els.secretImagePreview.removeAttribute("src");
       els.secretImagePreview.hidden = true;
       els.secretPreviewStrip.innerHTML = "";
@@ -77,11 +81,11 @@ export function createSecretComposerController({
       els.secretImageName.textContent = "还没有选择图片";
       return;
     }
-    previewObjectUrls = entries.slice(0, 9).map((entry) => entry.url);
-    els.secretImagePreview.src = previewObjectUrls[0];
+    const urls = entries.map((entry) => entry.url);
+    els.secretImagePreview.src = urls[0];
     els.secretImagePreview.hidden = false;
-    els.secretImageName.textContent = entries.length > 1 ? `已选择 ${entries.length} 张图片` : entries[0].label;
-    renderSecretPreviewStrip(entries, previewObjectUrls);
+    els.secretImageName.textContent = count > 1 ? `已选择 ${count} 张图片（预览前 ${entries.length} 张）` : entries[0].label;
+    renderSecretPreviewStrip(entries, urls);
   }
 
   function addSecretImageLinks(rawLinks = els.secretImageLinkInput?.value || "") {
@@ -90,7 +94,12 @@ export function createSecretComposerController({
       if (String(rawLinks || "").trim()) setStatus("请输入完整的 http 或 https 图片链接。");
       return false;
     }
-    selectedLinks = [...new Set([...selectedLinks, ...urls])].slice(0, albumImageLimit);
+    const nextLinks = [...new Set([...selectedLinks, ...urls])];
+    if (nextLinks.length + (els.secretImageInput?.files?.length || 0) > albumImageLimit) {
+      setStatus(`一个秘藏相册最多 ${albumImageLimit} 张图，请分到多个相册上传。`);
+      return false;
+    }
+    selectedLinks = nextLinks;
     if (els.secretImageLinkInput) els.secretImageLinkInput.value = "";
     updateSecretPreview();
     setStatus(`已添加 ${urls.length} 个图片链接，保存时会复制到 R2。`);
@@ -122,6 +131,10 @@ export function createSecretComposerController({
 
   async function saveSecretItem(event) {
     event.preventDefault();
+    if (!uploadQueue.canStart()) {
+      setStatus("请先重试未完成项，或结束本次上传。");
+      return;
+    }
     if (!state.cloudDb || !state.session) {
       setStatus("请先登录。");
       return;
@@ -146,90 +159,77 @@ export function createSecretComposerController({
       setStatus(`一个秘藏相册最多 ${albumImageLimit} 张图。`);
       return;
     }
+    const userId = state.session.user.id;
+    const ensureContext = () => {
+      if (state.session?.user?.id !== userId || !state.cloudDb) throw new Error("登录状态已变化，请恢复原账号后重试。");
+    };
+    const now = new Date().toISOString();
+    const item = {
+      id: crypto.randomUUID(),
+      folderId: els.secretFolderInput?.value || (
+        ![allFolderId, favoritesFolderId].includes(state.activeSecretFolderId)
+          ? state.activeSecretFolderId
+          : ""
+      ),
+      title: els.secretTitleInput.value.trim(),
+      category: els.secretCategoryInput.value.trim() || "未分类",
+      note: els.secretNoteInput.value.trim(),
+      images: [],
+      linkedPhotoId: els.secretLinkedPhotoInput.value || "",
+      createdAt: now,
+      updatedAt: now,
+    };
+    const base = slugify(item.title || item.category || "secret");
     const coverFile = els.secretCoverInput?.files?.[0] || null;
-    els.secretSubmitButton.disabled = true;
-    const images = [];
-    let loadingToast = null;
-    try {
-      loadingToast = showToast("秘藏上传中...", { kind: "loading", persist: true, placement: "center" });
-      for (const [index, file] of files.entries()) {
-        const base = slugify(els.secretTitleInput.value || els.secretCategoryInput.value || "secret");
-        const uploaded = await assets.uploadImageFile(file, `${base}-${index + 1}`, index + 1, files.length, {
-          folder: "secrets",
-          statusSetter: setStatus,
-        });
-        if (!uploaded) throw new Error("秘藏图片上传失败。");
-        images.push({
-          ...uploaded,
-          tag: DEFAULT_SECRET_PHOTO_TAG,
-          tags: [DEFAULT_SECRET_PHOTO_TAG],
-          uploadedAt: new Date().toISOString(),
-        });
-      }
-      for (const [index, url] of links.entries()) {
-        setStatus(`正在导入第 ${index + 1}/${links.length} 个图片链接…`);
-        const base = slugify(els.secretTitleInput.value || els.secretCategoryInput.value || "secret-link");
-        const copied = await assets.copyUrlToR2(url, `${base}-link-${index + 1}`, "secrets");
-        images.push({
-          image_path: `r2:${copied.key}`,
-          image_url: copied.url,
-          thumbnail_path: "",
-          thumbnail_url: copied.url,
-          width: 0,
-          height: 0,
-          tag: DEFAULT_SECRET_PHOTO_TAG,
-          tags: [DEFAULT_SECRET_PHOTO_TAG],
-          uploadedAt: new Date().toISOString(),
-        });
-      }
-      let coverImage = images[0]?.image_url || "";
-      let coverPath = images[0]?.image_path || "";
-      if (coverFile) {
-        const coverBase = slugify(els.secretTitleInput.value || els.secretCategoryInput.value || "secret-cover");
-        const uploadedCover = await assets.uploadImageFile(coverFile, `${coverBase}-cover`, 1, 1, {
-          folder: "secret-covers",
-          statusSetter: setStatus,
-        });
-        if (!uploadedCover) throw new Error("秘藏封面上传失败。");
-        coverImage = uploadedCover.image_url;
-        coverPath = uploadedCover.image_path;
-      }
-      const now = new Date().toISOString();
-      const item = {
-        id: crypto.randomUUID(),
-        folderId: els.secretFolderInput?.value || (
-          ![allFolderId, favoritesFolderId].includes(state.activeSecretFolderId)
-            ? state.activeSecretFolderId
-            : ""
-        ),
-        title: els.secretTitleInput.value.trim(),
-        category: els.secretCategoryInput.value.trim() || "未分类",
-        note: els.secretNoteInput.value.trim(),
-        coverImage,
-        coverPath,
-        images,
-        linkedPhotoId: els.secretLinkedPhotoInput.value || "",
-        createdAt: now,
-        updatedAt: now,
-      };
-      const { error } = await repository.insertItem(secretToCloudRow(item, state.session.user.id));
-      if (error) throw error;
-      els.secretForm.reset();
-      selectedLinks = [];
-      updateSecretPreview();
-      setSecretExpanded(false);
-      setStatus("相册已保存到秘藏。");
-      dismissToast(loadingToast);
-      showToast("秘藏已保存", { kind: "success" });
-      await loadItems();
-    } catch (error) {
-      dismissToast(loadingToast);
-      showToast("上传失败", { kind: "error", duration: 2600 });
-      setStatus(error.message || "保存秘藏失败。");
-    } finally {
-      dismissToast(loadingToast);
-      els.secretSubmitButton.disabled = false;
-    }
+    const entries = [
+      ...files.map((file, index) => ({ label: file.name, source: { file, name: `${base}-${index + 1}` } })),
+      ...links.map((url, index) => ({ label: `图片链接 ${index + 1}`, source: { url, name: `${base}-link-${index + 1}` } })),
+      ...(coverFile ? [{ label: `封面：${coverFile.name}`, source: { file: coverFile, name: `${base}-cover`, cover: true } }] : []),
+    ];
+    await uploadQueue.start({
+      title: item.title || "新建秘藏相册",
+      entries,
+      ensureContext,
+      async upload(source, statusSetter) {
+        const uploaded = source.file
+          ? await assets.uploadImageFile(source.file, source.name, 1, 1, {
+              folder: source.cover ? "secret-covers" : "secrets", statusSetter, throwOnError: true,
+            })
+          : await assets.copyUrlToR2(source.url, source.name, "secrets", { onRetry: statusSetter }).then((copied) => ({
+              image_path: `r2:${copied.key}`, image_url: copied.url, thumbnail_url: copied.url, width: 0, height: 0,
+            }));
+        if (!uploaded) throw new Error("图片上传失败。");
+        return { ...uploaded, isUploadCover: Boolean(source.cover), tag: DEFAULT_SECRET_PHOTO_TAG, tags: [DEFAULT_SECRET_PHOTO_TAG], uploadedAt: new Date().toISOString() };
+      },
+      async save(uploaded) {
+        ensureContext();
+        const cover = uploaded.find((image) => image.isUploadCover);
+        const images = uploaded.filter((image) => !image.isUploadCover).map(({ isUploadCover, ...image }) => image);
+        const nextItem = { ...item, images, coverImage: cover?.image_url || images[0]?.image_url || "", coverPath: cover?.image_path || images[0]?.image_path || "", updatedAt: new Date().toISOString() };
+        const { error } = await repository.saveItem(secretToCloudRow(nextItem, userId));
+        if (error) throw error;
+      },
+      async onSettled(progress) {
+        if (state.session?.user?.id !== userId) return;
+        if (progress.complete) {
+          els.secretForm.reset();
+          selectedLinks = [];
+          updateSecretPreview();
+          setSecretExpanded(false);
+        }
+        if (progress.saved) {
+          try { await loadItems(); }
+          catch { setStatus("照片已保存，相册列表刷新失败，请稍后刷新。"); }
+        }
+      },
+      onClear(progress) {
+        if (progress.saved && state.session?.user?.id === userId) {
+          els.secretForm.reset();
+          selectedLinks = [];
+          updateSecretPreview();
+        }
+      },
+    });
   }
 
   return {

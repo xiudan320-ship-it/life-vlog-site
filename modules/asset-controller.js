@@ -12,12 +12,12 @@ export function createAssetController({
     return imageService.compressImage(file, options);
   }
 
-  async function uploadToR2(blob, safeName, folder = "photos", options = {}) {
+  function uploadToR2(blob, safeName, folder = "photos", options = {}) {
     return imageService.uploadToR2(blob, safeName, folder, options);
   }
 
-  async function copyUrlToR2(url, safeName, folder = "migrated") {
-    return imageService.copyUrlToR2(url, safeName, folder);
+  function copyUrlToR2(url, safeName, folder = "migrated", options = {}) {
+    return imageService.copyUrlToR2(url, safeName, folder, options);
   }
 
   async function uploadImageFile(file, safeName, index = 1, total = 1, options = {}) {
@@ -25,18 +25,12 @@ export function createAssetController({
     const statusSetter = options.statusSetter || setStatus;
     const prefix = total > 1 ? `${index}/${total} · ` : "";
     statusSetter(`${prefix}正在自动压缩图片...`);
-    let compressed;
     try {
-      compressed = await compressImage(file);
-    } catch (error) {
-      statusSetter(error.message || "图片压缩失败。");
-      return null;
-    }
-    statusSetter(
-      `${prefix}已压缩 ${formatFileSize(file.size)} → ${formatFileSize(compressed.blob.size)}，正在上传...`
-    );
-    try {
-      const uploaded = await uploadToR2(compressed.blob, safeName, folder);
+      const compressed = await compressImage(file);
+      statusSetter(
+        `${prefix}已压缩 ${formatFileSize(file.size)} → ${formatFileSize(compressed.blob.size)}，正在上传...`
+      );
+      const uploaded = await uploadToR2(compressed.blob, safeName, folder, { onRetry: statusSetter });
       let thumbnail = null;
       if (options.thumbnail !== false && Math.max(compressed.width, compressed.height) > 720) {
         try {
@@ -47,7 +41,7 @@ export function createAssetController({
             minJpeg: 0.5,
             rotatePortrait: false,
           });
-          thumbnail = await uploadToR2(thumbCompressed.blob, `${safeName}-thumb`, `${folder}-thumbs`);
+          thumbnail = await uploadToR2(thumbCompressed.blob, `${safeName}-thumb`, `${folder}-thumbs`, { onRetry: statusSetter });
         } catch (error) {
           console.warn("Thumbnail upload skipped:", error);
         }
@@ -63,7 +57,8 @@ export function createAssetController({
         compressed_size: compressed.compressedBytes,
       };
     } catch (error) {
-      statusSetter(`R2 上传失败：${error.message}`);
+      statusSetter(error.message || "图片上传失败。");
+      if (options.throwOnError) throw error;
       return null;
     }
   }

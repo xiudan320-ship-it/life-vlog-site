@@ -15,6 +15,7 @@ import {
 import {
   imageMatchesSecretFilter,
   sortSecretDisplayEntries,
+  getSecretPhotoSortMode,
 } from "./secret-filter-domain.js";
 import { extractImageUrls } from "./media-metadata.js";
 import { slugify } from "./ui-formatters.js";
@@ -24,11 +25,11 @@ export function createSecretAlbumActionsController({
   state,
   repository,
   assets,
+  uploadQueue,
   albumImageLimit,
   saveSecretItemsCache,
   setSecretStatus,
   showMiniToast,
-  dismissMiniToast,
   loadSecretItems,
   renderSecretGallery,
   renderDialogMedia,
@@ -123,18 +124,17 @@ export function createSecretAlbumActionsController({
     event.preventDefault();
     const form = event.currentTarget;
     const title = form.querySelector("[data-secret-edit-title]")?.value.trim() || "";
-    const sortDescending = form.querySelector("[data-secret-edit-sort]")?.value !== "asc";
     const folderId = form.querySelector("[data-secret-edit-folder]")?.value || "";
     const note = form.querySelector("[data-secret-edit-note]")?.value.trim() || "";
     const saved = await updateSecretAlbum(item, {
       title,
       note,
       folder_id: folderId || null,
-      photo_sort_descending: sortDescending ? 1 : 0,
     }, "相册资料已保存。");
     if (saved) {
       state.secretAlbumEditing = false;
       renderSecretGallery();
+      els.secretGallery.querySelector("[data-secret-album-more]")?.focus({ preventScroll: true });
     }
   }
   
@@ -144,6 +144,7 @@ export function createSecretAlbumActionsController({
   }
   
   async function moveSelectedSecretImage(item, direction) {
+    if (getSecretPhotoSortMode(item) !== "manual") return false;
     const images = normalizeSecretImages(item.images);
     const index = getSingleSelectedSecretIndex(images);
     const displayEntries = sortSecretDisplayEntries(
@@ -484,21 +485,23 @@ export function createSecretAlbumActionsController({
         };
     setSecretStatus("正在移动图片...");
     const now = new Date().toISOString();
-    const [sourceResult, targetResult] = await Promise.all([
-      secretRepository.updateOwnedItem(sourceItem.id, {
-        images: nextSourceImages,
-        ...sourceCover,
-        updated_at: now,
-      }),
-      secretRepository.updateOwnedItem(targetItem.id, {
-        images: nextTargetImages,
-        ...targetCover,
-        updated_at: now,
-      }),
-    ]);
-    const error = sourceResult.error || targetResult.error;
-    if (error) {
-      setSecretStatus(error.message || "移动图片失败。");
+    // Confirm the destination before removing anything from the source album.
+    const targetResult = await secretRepository.updateOwnedItem(targetItem.id, {
+      images: nextTargetImages, ...targetCover, updated_at: now,
+    });
+    if (targetResult.error) {
+      setSecretStatus(targetResult.error.message || "移动图片失败，原相册未改变。");
+      return;
+    }
+    const sourceResult = await secretRepository.updateOwnedItem(sourceItem.id, {
+      images: nextSourceImages, ...sourceCover, updated_at: now,
+    });
+    if (sourceResult.error) {
+      const rollback = await secretRepository.updateOwnedItem(targetItem.id, {
+        images: targetImages, cover_image: targetItem.coverImage || "", cover_path: targetItem.coverPath || "", updated_at: targetItem.updatedAt || now,
+      });
+      await loadSecretItems();
+      setSecretStatus(rollback.error ? "原图片仍在来源相册，目标相册可能保留副本，请刷新检查后再操作。" : "移动图片失败，已恢复原相册内容。");
       return;
     }
     state.selectedSecretImageIndexes = new Set();
@@ -564,6 +567,10 @@ export function createSecretAlbumActionsController({
   }
   
   async function appendSecretAlbumImages(options = {}) {
+    if (!uploadQueue.canStart()) {
+      setSecretStatus("请先重试未完成项，或结束本次上传。");
+      return;
+    }
     const item = state.secretItems.find((entry) => entry.id === state.activeSecretAlbumId);
     const files = Array.isArray(options.files)
       ? options.files
@@ -584,83 +591,55 @@ export function createSecretAlbumActionsController({
       setSecretStatus(`这个相册已经达到 ${SECRET_ALBUM_IMAGE_LIMIT} 张上限。`);
       return;
     }
-    const appendFiles = files.slice(0, remaining);
-    const appendUrls = urls.slice(0, Math.max(0, remaining - appendFiles.length));
-    const skippedCount = Math.max(0, files.length + urls.length - appendFiles.length - appendUrls.length);
-    const uploadedImages = [];
-    setSecretStatus(`正在追加 ${appendFiles.length + appendUrls.length} 张图片...`);
-    let loadingToast = showMiniToast("正在添加相片...", {
-      kind: "loading",
-      persist: true,
-      placement: "center",
-    });
-    try {
-      for (const [index, file] of appendFiles.entries()) {
-        const base = slugify(item.title || item.category || "secret");
-        const uploaded = await uploadImageFile(
-          file,
-          `${base}-append-${currentImages.length + index + 1}`,
-          index + 1,
-          appendFiles.length,
-          {
-            folder: "secrets",
-            statusSetter: setSecretStatus,
-          }
-        );
-        if (!uploaded) throw new Error("追加图片上传失败。");
-        uploadedImages.push({
-          ...uploaded,
-          tag: DEFAULT_SECRET_PHOTO_TAG,
-          tags: [DEFAULT_SECRET_PHOTO_TAG],
-          uploadedAt: new Date().toISOString(),
-        });
-      }
-      for (const [index, url] of appendUrls.entries()) {
-        const safeName = `${slugify(item.title || item.category || "secret-link")}-link-${currentImages.length + appendFiles.length + index + 1}`;
-        setSecretStatus(`正在复制第 ${index + 1}/${appendUrls.length} 个链接到 R2...`);
-        const copied = await copyUrlToR2(url, safeName, "secrets");
-        uploadedImages.push({
-          image_path: `r2:${copied.key}`,
-          image_url: copied.url,
-          width: 0,
-          height: 0,
-          tag: DEFAULT_SECRET_PHOTO_TAG,
-          tags: [DEFAULT_SECRET_PHOTO_TAG],
-          uploadedAt: new Date().toISOString(),
-        });
-      }
-      const nextImages = [...uploadedImages, ...currentImages];
-      const updates = {
-        images: nextImages,
-        updated_at: new Date().toISOString(),
-      };
-      if (!item.coverImage && nextImages[0]?.image_url) {
-        updates.cover_image = nextImages[0].image_url;
-        updates.cover_path = nextImages[0].image_path || "";
-      }
-      const { error } = await secretRepository.updateOwnedItem(item.id, updates);
-      if (error) throw error;
-      setSecretStatus(
-        skippedCount
-          ? `已追加 ${uploadedImages.length} 张，另有 ${skippedCount} 张超过相册上限未添加。`
-          : `已追加 ${uploadedImages.length} 张图片。`
-      );
-      if (options.form) options.form.reset();
-      await loadSecretItems();
-      state.activeSecretAlbumId = item.id;
-      renderSecretGallery();
-      dismissMiniToast(loadingToast);
-      showMiniToast("相片已加入相册", { kind: "success", placement: "center" });
-    } catch (error) {
-      if (uploadedImages.length) {
-        cleanupStoredImagePaths(uploadedImages.map((image) => image.image_path).filter(Boolean)).catch(() => {});
-      }
-      dismissMiniToast(loadingToast);
-      showMiniToast("追加失败", { kind: "error", duration: 2600, placement: "center" });
-      setSecretStatus(error.message || "追加图片失败。");
-    } finally {
-      dismissMiniToast(loadingToast);
+    if (files.length + urls.length > remaining) {
+      setSecretStatus(`每册最多 ${SECRET_ALBUM_IMAGE_LIMIT} 张，这个相册还可添加 ${remaining} 张，请减少选择或新建相册。`);
+      showMiniToast(`相册还可添加 ${remaining} 张图片`, { kind: "error" });
+      return;
     }
+    const userId = state.session.user.id;
+    const ensureContext = () => {
+      if (state.session?.user?.id !== userId || !state.cloudDb) throw new Error("登录状态已变化，请恢复原账号后重试。");
+    };
+    const base = slugify(item.title || item.category || "secret");
+    await uploadQueue.start({
+      title: item.title || "追加秘藏相片",
+      entries: [
+        ...files.map((file, index) => ({ label: file.name, source: { file, name: `${base}-append-${currentImages.length + index + 1}` } })),
+        ...urls.map((url, index) => ({ label: `图片链接 ${index + 1}`, source: { url, name: `${base}-link-${currentImages.length + files.length + index + 1}` } })),
+      ],
+      ensureContext,
+      async upload(source, statusSetter) {
+        const uploaded = source.file
+          ? await uploadImageFile(source.file, source.name, 1, 1, { folder: "secrets", statusSetter, throwOnError: true })
+          : await copyUrlToR2(source.url, source.name, "secrets", { onRetry: statusSetter }).then((copied) => ({
+              image_path: `r2:${copied.key}`, image_url: copied.url, thumbnail_url: copied.url, width: 0, height: 0,
+            }));
+        if (!uploaded) throw new Error("图片上传失败。");
+        return { ...uploaded, tag: DEFAULT_SECRET_PHOTO_TAG, tags: [DEFAULT_SECRET_PHOTO_TAG], uploadedAt: new Date().toISOString() };
+      },
+      async save(uploadedImages) {
+        ensureContext();
+        const nextImages = [...uploadedImages, ...currentImages];
+        const updates = { images: nextImages, updated_at: new Date().toISOString() };
+        if (!item.coverImage && nextImages[0]?.image_url) {
+          updates.cover_image = nextImages[0].image_url;
+          updates.cover_path = nextImages[0].image_path || "";
+        }
+        const { error } = await secretRepository.updateOwnedItem(item.id, updates);
+        if (error) throw error;
+      },
+      async onSettled(progress) {
+        if (state.session?.user?.id !== userId) return;
+        if (progress.complete) options.form?.reset();
+        if (progress.saved) {
+          try {
+            await loadSecretItems();
+            state.activeSecretAlbumId = item.id;
+            renderSecretGallery();
+          } catch { setSecretStatus("照片已保存，相册列表刷新失败，请稍后刷新。"); }
+        }
+      },
+    });
   }
   
   async function deleteSecretItem(item) {

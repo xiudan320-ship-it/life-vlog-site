@@ -15,8 +15,12 @@ function canvasToBlob(canvas, type, quality) {
   });
 }
 
-function isRetryableStatus(status) {
-  return status === 408 || status === 429 || status >= 500;
+function getRetryDelay(response, attempt) {
+  const value = response.headers.get("Retry-After");
+  const delay = /^\d+$/.test(value) ? value * 1000 : Date.parse(value) - Date.now();
+  // The upload Worker's IP bucket resets every minute; short exponential
+  // retries alone cannot recover a large photo batch from that limit.
+  return Number.isFinite(delay) && delay >= 0 ? delay : response.status === 429 ? 60_000 : 500 * 2 ** (attempt - 1);
 }
 
 export function getVideoFileExtension(file) {
@@ -95,6 +99,7 @@ export function createImageService({
   onTaskChanged = () => {},
   taskMap = new Map(),
   fetchApi = globalThis.fetch,
+  sleepApi = wait,
 } = {}) {
   const normalizedEndpoint = String(endpoint || "").replace(/\/+$/, "");
 
@@ -165,11 +170,41 @@ export function createImageService({
     });
   }
 
-  async function uploadToR2(blob, safeName, folder = "photos", options = {}) {
+  async function postWithRetry(path, makeBody, options = {}) {
     const accessToken = getAccessToken?.();
     if (!normalizedEndpoint || !accessToken) {
       throw new Error("R2 上传服务尚未配置。");
     }
+    let lastError;
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      options.onAttempt?.(attempt);
+      let retryDelay = 500 * 2 ** (attempt - 1);
+      let response;
+      try {
+        response = await fetchApi(`${normalizedEndpoint}/${path}`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${accessToken}`, ...(path === "copy" ? { "Content-Type": "application/json" } : {}) },
+          body: makeBody(),
+          signal: AbortSignal.timeout(120_000),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (response.ok) return data;
+        lastError = new Error(data.error || `上传服务返回 ${response.status}`);
+        if (response.status < 500 && ![408, 429].includes(response.status)) throw lastError;
+        retryDelay = getRetryDelay(response, attempt);
+      } catch (error) {
+        if (response || (error?.name !== "TimeoutError" && !isNetworkError(error))) throw error;
+        lastError = error;
+      }
+      if (attempt < 3) {
+        if (response?.status === 429) options.onRetry?.(`限流，等待 ${Math.ceil(retryDelay / 1000)} 秒后自动继续…`);
+        await sleepApi(retryDelay);
+      }
+    }
+    throw lastError;
+  }
+
+  async function uploadToR2(blob, safeName, folder = "photos", options = {}) {
     const fileName = options.fileName || `${safeName}.jpg`;
     const contentType = options.contentType || "image/jpeg";
     const taskId = crypto.randomUUID();
@@ -181,44 +216,25 @@ export function createImageService({
       state: "uploading",
       attempt: 1,
     });
-    onTaskChanged(taskMap);
-    let lastError;
     try {
-      for (let attempt = 1; attempt <= 3; attempt += 1) {
-        taskMap.set(taskId, { ...taskMap.get(taskId), attempt });
-        onTaskChanged(taskMap);
-        try {
-          const formData = new FormData();
-          formData.set("file", new File([blob], fileName, { type: contentType }));
-          formData.set("name", safeName);
-          formData.set("folder", folder);
-          const response = await fetchApi(`${normalizedEndpoint}/upload`, {
-            method: "POST",
-            headers: { Authorization: `Bearer ${accessToken}` },
-            body: formData,
-          });
-          const data = await response.json().catch(() => ({}));
-          if (response.ok) {
-            taskMap.set(taskId, { ...taskMap.get(taskId), state: "done" });
-            return data;
-          }
-          if (!isRetryableStatus(response.status)) {
-            throw new Error(data.error || `上传服务返回 ${response.status}`);
-          }
-          lastError = new Error(data.error || `上传服务暂时不可用（${response.status}）`);
-        } catch (error) {
-          lastError = error;
-          if (
-            !isNetworkError(error) &&
-            !/暂时不可用|429|5\d\d/.test(String(error?.message || ""))
-          ) {
-            throw error;
-          }
-        }
-        if (attempt < 3) await wait(500 * 2 ** (attempt - 1));
-      }
+      const data = await postWithRetry("upload", () => {
+        const formData = new FormData();
+        formData.set("file", new File([blob], fileName, { type: contentType }));
+        formData.set("name", safeName);
+        formData.set("folder", folder);
+        return formData;
+      }, {
+        ...options,
+        onAttempt(attempt) {
+          taskMap.set(taskId, { ...taskMap.get(taskId), attempt });
+          onTaskChanged(taskMap);
+        },
+      });
+      taskMap.set(taskId, { ...taskMap.get(taskId), state: "done" });
+      return data;
+    } catch (error) {
       taskMap.set(taskId, { ...taskMap.get(taskId), state: "failed" });
-      throw lastError || new Error("上传失败，请稍后重试。");
+      throw error;
     } finally {
       globalThis.setTimeout(() => {
         taskMap.delete(taskId);
@@ -227,40 +243,8 @@ export function createImageService({
     }
   }
 
-  async function copyUrlToR2(url, safeName, folder = "migrated") {
-    const accessToken = getAccessToken?.();
-    if (!normalizedEndpoint || !accessToken) {
-      throw new Error("R2 upload service is not configured.");
-    }
-    let lastError;
-    for (let attempt = 1; attempt <= 3; attempt += 1) {
-      try {
-        const response = await fetchApi(`${normalizedEndpoint}/copy`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ url, name: safeName, folder }),
-        });
-        const data = await response.json().catch(() => ({}));
-        if (response.ok) return data;
-        if (!isRetryableStatus(response.status)) {
-          throw new Error(data.error || `图片链接导入失败（${response.status}）`);
-        }
-        lastError = new Error(data.error || `图片链接导入暂时不可用（${response.status}）`);
-      } catch (error) {
-        lastError = error;
-        if (
-          !isNetworkError(error) &&
-          !/暂时不可用|429|5\d\d/.test(String(error?.message || ""))
-        ) {
-          throw error;
-        }
-      }
-      if (attempt < 3) await wait(500 * 2 ** (attempt - 1));
-    }
-    throw lastError || new Error("图片链接导入失败，请稍后重试。");
+  function copyUrlToR2(url, safeName, folder = "migrated", options = {}) {
+    return postWithRetry("copy", () => JSON.stringify({ url, name: safeName, folder }), options);
   }
 
   async function deleteR2Object(key) {

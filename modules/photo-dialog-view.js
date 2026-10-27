@@ -88,11 +88,11 @@ export function renderSecretDialogControls(image) {
       <button class="secret-dialog-favorite ${favorite ? "active" : ""}" type="button" data-secret-dialog-favorite>${renderListIcon("heart", "ui-icon-inline")} ${favorite ? "已收藏" : "收藏"}</button>
       <button class="secret-dialog-delete" type="button" data-secret-dialog-delete>删除相片</button>
       <div class="secret-dialog-current-tags">
-        <span>展品 Tag</span>
+        <span>图片标签</span>
         <div>${tags.map((tag) => `<button type="button" data-secret-dialog-remove-tag="${escapeHtml(tag)}">${escapeHtml(tag)} <b>×</b></button>`).join("")}</div>
       </div>
       <form class="secret-dialog-add-tag" data-secret-dialog-tag-form>
-        <label><span>添加 Tag</span><input name="secretDialogTag" maxlength="32" list="secretCategoryList" autocomplete="off" placeholder="输入或选择已有 Tag" /></label>
+        <label><span>添加标签</span><input name="secretDialogTag" maxlength="32" list="secretCategoryList" autocomplete="off" placeholder="输入或选择已有标签" /></label>
         <button type="submit">添加</button>
       </form>
       <p data-secret-dialog-status></p>

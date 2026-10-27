@@ -21,5 +21,7 @@ worker-tail.err.log
 
 # Local visual review captures and generated artwork
 artifacts/phase-two/
+artifacts/secret-upload/
+artifacts/secret-gallery/
 /*.png
 /*.jpg

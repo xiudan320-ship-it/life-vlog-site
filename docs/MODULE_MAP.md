@@ -35,12 +35,14 @@
 | 购物车 / 想买清单 | `modules/shopping-controller.js` | `modules/shopping-view.js`, `modules/list-icons.js`, `modules/shopping-domain.js`, `modules/shopping-interactions.js`, `modules/wishlist-hub-controller.js` |
 | 秘藏相册加载、列表与详情编排 | `modules/secret-controller.js` | `modules/secret-gallery-view.js`, `modules/secret-domain.js` |
 | 秘藏新建表单与预览 | `modules/secret-composer-controller.js` | `modules/secret-controller.js` |
+| 秘藏批量上传、分批保存与失败重试 | `modules/secret-upload-service.js`, `modules/secret-upload-controller.js` | `modules/secret-upload-view.js`, `modules/secret-composer-controller.js`, `modules/secret-album-actions-controller.js` |
 | 秘藏相册编辑、图片批量操作与删除 | `modules/secret-album-actions-controller.js` | `modules/secret-controller.js`, `modules/photo-viewer-controller.js`, `modules/photo-dialog-view.js` |
 | 日记、心愿和周末媒体详情编排 | `modules/photo-detail-controller.js` | `modules/photo-viewer-controller.js` |
 | 日记编辑、图片替换和删除 | `modules/photo-editor-controller.js` | `modules/photo-detail-controller.js` |
 | 手机日记详情、留言与返回手势 | `modules/mobile-diary-controller.js`, `modules/comment-thread-domain.js` | `modules/mobile-diary-view.js`, `styles/diary-comments.css`；留言以同级行渲染，回复关系只保留为语义元数据和目标文案 |
-| 秘藏筛选、标签计数、照片排序 | `modules/secret-filter-domain.js` | `modules/secret-domain.js` |
-| 秘藏文件夹、默认入口、右键菜单 | `modules/secret-folder-controller.js` | `modules/secret-gallery-view.js` |
+| 秘藏筛选、标签计数、照片排序与搜索匹配 | `modules/secret-filter-domain.js` | `modules/secret-domain.js`；按添加时间、数字编号或持久化数组顺序显示 |
+| 秘藏搜索结果与来源相册导航 | `modules/secret-search-view.js` | `modules/secret-controller.js`, `modules/secret-filter-domain.js`；分别展示相册和命中图片，沿用当前文件夹 / 已收藏范围 |
+| 秘藏文件夹、默认入口、相册更多菜单 | `modules/secret-folder-controller.js` | `modules/secret-gallery-view.js`；卡片按钮、长按和右键共用菜单，支持键盘和焦点恢复 |
 | 秘藏密码与解锁 | `modules/secret-pin-controller.js` | `modules/secret-entry-preference-controller.js` |
 | 评论、回复、家庭心愿/购物车通知 | `modules/social-controller.js`, `modules/comment-thread-domain.js`, `modules/notification-event-bindings.js` | `modules/notification-domain.js`, `modules/notification-view.js`；桌面详情与移动详情共用扁平留言模型，通知可跳转到心愿单/购物车 |
 | 推送通知、晚间心情提醒与点击跳转 | `modules/push-controller.js` | `modules/media-event-bindings.js`, `cloudflare-worker/src/worker.js`；18:00 Asia/Tokyo 未记录当日心情时生成一次提醒 |

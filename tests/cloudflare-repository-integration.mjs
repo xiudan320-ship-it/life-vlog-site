@@ -3,8 +3,10 @@ import test from "node:test";
 
 import worker from "../cloudflare-worker/src/worker.js";
 import { createCloudflareBackend } from "../modules/cloudflare-client.js";
-import { createDiaryRepository } from "../modules/data-repositories.js";
+import { createDiaryRepository, createSecretRepository } from "../modules/data-repositories.js";
 import { createWorkerFixture } from "./fixtures/memory-d1.mjs";
+import { secretFromCloudRow, secretToCloudRow } from "../modules/cloud-models.js";
+import { sortSecretDisplayEntries } from "../modules/secret-filter-domain.js";
 
 const AUTH_KEY = "fixture-repository-auth";
 
@@ -48,6 +50,47 @@ function createRepository(fixture, userId) {
 function seed(fixture, sql, ...values) {
   fixture.DB.database.prepare(sql).run(...values);
 }
+
+test("secret upload checkpoints upsert one owned album across retries and 500 images", async () => {
+  const fixture = createWorkerFixture();
+  try {
+    const { database } = createRepository(fixture, "owner");
+    const repository = createSecretRepository({ getDatabase: () => database, getSession: () => ({ user: { id: "owner" } }) });
+    const record = { id: "fixture-secret-batch", user_id: "owner", title: "Batch fixture", images: [] };
+    for (const count of [10, 10, 500]) {
+      record.images = Array.from({ length: count }, (_, index) => ({ image_url: `https://cdn.fixture/${index}.jpg`, image_path: `r2:owner/secrets/${index}.jpg` }));
+      const result = await repository.saveItem(record);
+      assert.equal(result.error, null, JSON.stringify(result));
+    }
+    const { data, error } = await repository.listItems();
+    assert.equal(error, null);
+    assert.equal(data.length, 1);
+    assert.equal(data[0].images.length, 500);
+  } finally { fixture.close(); }
+});
+
+test("secret sort mode and manual order persist through the client, Worker and D1", async () => {
+  const fixture = createWorkerFixture();
+  try {
+    const { database } = createRepository(fixture, "owner");
+    const repository = createSecretRepository({ getDatabase: () => database, getSession: () => ({ user: { id: "owner" } }) });
+    const images = [
+      { image_url: "https://cdn.fixture/two.jpg", tags: ["2"], uploadedAt: "2030-01-01" },
+      { image_url: "https://cdn.fixture/one.jpg", tags: ["1"], uploadedAt: "2030-01-02" },
+    ];
+    const item = { id: "00000000-0000-4000-8000-000000000011", title: "排序", images, photoSortMode: "manual" };
+    assert.equal((await repository.saveItem(secretToCloudRow(item, "owner"))).error, null);
+    for (const [mode, expected] of [["manual", [0, 1]], ["number", [1, 0]], ["time", [1, 0]]]) {
+      assert.equal((await repository.updateOwnedItem(item.id, { photo_sort_mode: mode, photo_sort_descending: 1 })).error, null);
+      const { data, error } = await repository.listItems();
+      assert.equal(error, null);
+      const loaded = secretFromCloudRow(data[0]);
+      assert.equal(loaded.photoSortMode, mode);
+      assert.deepEqual(sortSecretDisplayEntries(loaded.images.map((image, index) => ({ image, index })), loaded).map(({ index }) => index), expected);
+      assert.deepEqual(loaded.images.map(({ image_url }) => image_url), images.map(({ image_url }) => image_url));
+    }
+  } finally { fixture.close(); }
+});
 
 test("favorite repository uses the real client-worker-SQLite upsert path", async () => {
   const fixture = createWorkerFixture();

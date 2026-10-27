@@ -1,3 +1,4 @@
+import { sortSecretDisplayEntries as sortSecretEntries, isSecretNumericTag, getSecretImageNumericOrder } from "../modules/secret-filter-domain.js";
 import assert from "node:assert/strict";
 import {
   redesignStyleUrls,
@@ -227,6 +228,7 @@ assert.deepEqual(
   {
     id: "secret-1",
     userId: "",
+    folderId: "",
     title: "",
     category: "\u672a\u5206\u7c7b",
     note: "",
@@ -234,6 +236,8 @@ assert.deepEqual(
     coverPath: "",
     images: [{ image_url: "one.jpg" }],
     linkedPhotoId: "",
+    photoSortMode: "time",
+    photoSortDescending: true,
     isPinned: false,
     sortOrder: 123,
     createdAt: "2026-07-31",
@@ -679,18 +683,18 @@ const secretEntries = [
   { index: 1, image: { uploadedAt: "2026-07-01T00:00:00Z" } },
 ];
 assert.deepEqual(
-  secretDomain.sortSecretDisplayEntries(secretEntries, true).map((entry) => entry.index),
-  [1, 0]
-);
-assert.deepEqual(
-  secretDomain.sortSecretDisplayEntries(secretEntries, false).map((entry) => entry.index),
+  sortSecretEntries(secretEntries, { photoSortMode: "time", photoSortDescending: true }).map((entry) => entry.index),
   [0, 1]
 );
-assert.equal(secretDomain.isSecretNumericTag("01"), true);
-assert.equal(secretDomain.isSecretNumericTag(" 002 "), true);
-assert.equal(secretDomain.isSecretNumericTag("A02"), false);
+assert.deepEqual(
+  sortSecretEntries(secretEntries, { photoSortMode: "time", photoSortDescending: false }).map((entry) => entry.index),
+  [1, 0]
+);
+assert.equal(isSecretNumericTag("01"), true);
+assert.equal(isSecretNumericTag(" 002 "), true);
+assert.equal(isSecretNumericTag("A02"), false);
 assert.equal(
-  secretDomain.getSecretImageNumericOrder({ tags: ["旅行", "09", "02"] }),
+  getSecretImageNumericOrder({ tags: ["旅行", "09", "02"] }),
   9
 );
 const numberedSecretEntries = [
@@ -700,11 +704,11 @@ const numberedSecretEntries = [
   { index: 3, image: { tags: [secretDomain.DEFAULT_SECRET_PHOTO_TAG] } },
 ];
 assert.deepEqual(
-secretDomain.sortSecretDisplayEntries(numberedSecretEntries, false).map((entry) => entry.index),
+sortSecretEntries(numberedSecretEntries, { photoSortMode: "number" }).map((entry) => entry.index),
   [0, 2, 1, 3]
 );
 assert.deepEqual(
-  secretDomain.sortSecretDisplayEntries(numberedSecretEntries, true).map((entry) => entry.index),
+  sortSecretEntries(numberedSecretEntries, { photoSortMode: "number" }).map((entry) => entry.index),
   [0, 2, 1, 3]
 );
 
@@ -941,7 +945,7 @@ assert.match(
     activeFolder: { id: "f1" },
     visible: [{ id: "a1", title: "东京", images: [{ image_url: "photo.jpg" }] }],
   }),
-  /旅行[\s\S]*1 个相册，1 件展品[\s\S]*data-secret-folder-rename[\s\S]*东京/
+  /旅行[\s\S]*1 个相册，1 张图片[\s\S]*data-secret-folder-rename[\s\S]*东京/
 );
 const pinnedAlbumMarkup = secretGalleryView.buildSecretCollectionMarkup({
   visible: [{
@@ -953,7 +957,7 @@ const pinnedAlbumMarkup = secretGalleryView.buildSecretCollectionMarkup({
   }],
 });
 assert.equal((pinnedAlbumMarkup.match(/<img\b/g) || []).length, 1);
-assert.match(pinnedAlbumMarkup, /data-secret-album-pin="pinned-album"[\s\S]*aria-pressed="true"/);
+assert.match(pinnedAlbumMarkup, /data-secret-album-more="pinned-album"[\s\S]*secret-card-pinned">已置顶/);
 assert.match(
   secretGalleryView.buildSecretAlbumMarkup({
     item: { id: "a1", title: "东京" },

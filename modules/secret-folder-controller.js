@@ -22,6 +22,8 @@ export function createSecretFolderController({
   renderGallery,
   deleteAlbum,
   toggleAlbumPin,
+  moveAlbumToFolder,
+  editAlbum,
   documentTarget = document,
   windowTarget = window,
 }) {
@@ -38,11 +40,15 @@ export function createSecretFolderController({
 
   function closeSecretAlbumContextMenu() {
     if (!state.secretAlbumContextMenu) return;
+    const { trigger, closeOnKey } = state.secretAlbumContextMenu;
+    documentTarget.removeEventListener("keydown", closeOnKey, true);
+    trigger?.setAttribute("aria-expanded", "false");
     documentTarget.removeEventListener("pointerdown", state.secretAlbumContextMenu.closeOnOutside, true);
     windowTarget.removeEventListener("resize", closeSecretAlbumContextMenu);
     windowTarget.removeEventListener("scroll", closeSecretAlbumContextMenu, true);
     state.secretAlbumContextMenu.element.remove();
     state.secretAlbumContextMenu = null;
+    if (trigger?.isConnected) trigger.focus({ preventScroll: true });
   }
 
   function openSecretFolderContextMenu(folder, clientX, clientY) {
@@ -82,16 +88,20 @@ export function createSecretFolderController({
     });
   }
 
-  function openSecretAlbumContextMenu(item, clientX, clientY) {
-    if (!item || isMobileViewport()) return;
+  function openSecretAlbumContextMenu(item, clientX, clientY, trigger = documentTarget.activeElement) {
+    if (!item) return;
     closeSecretFolderContextMenu();
     closeSecretAlbumContextMenu();
     const menu = documentTarget.createElement("div");
     menu.className = "secret-folder-context-menu secret-album-context-menu";
     menu.setAttribute("role", "menu");
+    menu.setAttribute("aria-label", "相册更多操作");
+    menu.id = "secretAlbumMenu";
     menu.innerHTML = `
       <span>${escapeHtml(item.title || "未命名相册")}</span>
+      <button type="button" role="menuitem" data-secret-album-folder>移动到文件夹</button>
       <button type="button" role="menuitem" data-secret-album-pin>${item.isPinned ? "取消置顶" : "置顶相册"}</button>
+      <button type="button" role="menuitem" data-secret-album-rename>重命名</button>
       <button class="danger" type="button" role="menuitem">删除相册</button>
     `;
     documentTarget.body.append(menu);
@@ -101,17 +111,42 @@ export function createSecretFolderController({
     const closeOnOutside = (event) => {
       if (!menu.contains(event.target)) closeSecretAlbumContextMenu();
     };
-    state.secretAlbumContextMenu = { element: menu, closeOnOutside };
+    const closeOnKey = (event) => {
+      const buttons = [...menu.querySelectorAll("button")];
+      const index = buttons.indexOf(documentTarget.activeElement);
+      if (event.key === "Escape" || event.key === "Tab") {
+        if (event.key === "Escape") event.preventDefault();
+        closeSecretAlbumContextMenu();
+      } else if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
+        event.preventDefault();
+        const target = event.key === "Home" ? 0 : event.key === "End" ? buttons.length - 1 : (index + (event.key === "ArrowUp" ? -1 : 1) + buttons.length) % buttons.length;
+        buttons[target].focus();
+      }
+    };
+    state.secretAlbumContextMenu = { element: menu, closeOnOutside, closeOnKey, trigger };
+    trigger?.setAttribute("aria-expanded", "true");
+    documentTarget.addEventListener("keydown", closeOnKey, true);
     documentTarget.addEventListener("pointerdown", closeOnOutside, true);
     windowTarget.addEventListener("resize", closeSecretAlbumContextMenu);
     windowTarget.addEventListener("scroll", closeSecretAlbumContextMenu, true);
+    menu.querySelector("button")?.focus({ preventScroll: true });
+    menu.querySelector("[data-secret-album-folder]").addEventListener("click", () => {
+      closeSecretAlbumContextMenu();
+      void moveAlbumToFolder(item);
+    });
+    menu.querySelector("[data-secret-album-rename]").addEventListener("click", () => {
+      closeSecretAlbumContextMenu();
+      editAlbum(item);
+    });
     menu.querySelector("[data-secret-album-pin]")?.addEventListener("click", async () => {
       closeSecretAlbumContextMenu();
       await toggleAlbumPin?.(item);
+      documentTarget.querySelector(`[data-secret-album-more="${CSS.escape(item.id)}"]`)?.focus({ preventScroll: true });
     });
     menu.querySelector("button.danger")?.addEventListener("click", async () => {
       closeSecretAlbumContextMenu();
       await deleteAlbum(item);
+      (documentTarget.querySelector(`[data-secret-album-more="${CSS.escape(item.id)}"]`) || els.secretGallery?.querySelector("[data-secret-album-more], [data-secret-create-album]"))?.focus({ preventScroll: true });
     });
   }
 
@@ -124,7 +159,7 @@ export function createSecretFolderController({
     );
     const folderButtons = [
       { id: allFolderId, name: "全部相册", count: state.secretItems.length, virtual: true, isAll: true },
-      { id: favoritesFolderId, name: "收藏夹", count: favoriteCount, virtual: true, isFavorites: true },
+      { id: favoritesFolderId, name: "已收藏", count: favoriteCount, virtual: true, isFavorites: true },
       ...state.secretFolders.map((folder) => ({
         id: folder.id,
         name: folder.name,
@@ -156,7 +191,7 @@ export function createSecretFolderController({
 
   async function createSecretFolder() {
     if (!state.cloudDb || !state.session) {
-      showToast("请先登录后再创建收藏夹", { kind: "error" });
+      showToast("请先登录后再创建文件夹", { kind: "error" });
       return;
     }
     const name = await requestSecretFolderName();
@@ -172,7 +207,7 @@ export function createSecretFolderController({
       updated_at: now,
     };
     if (button) button.disabled = true;
-    setStatus("正在创建收藏夹...");
+    setStatus("正在创建文件夹...");
     try {
       const { data, error } = await repository.insertFolder(record, { select: "*", single: true });
       if (error) throw error;
@@ -185,7 +220,7 @@ export function createSecretFolderController({
     } catch (error) {
       const message = error?.message || "Cloudflare 暂时没有完成创建";
       setStatus(`新建文件夹失败：${message}`);
-      showToast("新建收藏夹失败，请稍后重试", { kind: "error" });
+      showToast("新建文件夹失败，请稍后重试", { kind: "error" });
     } finally {
       if (button) button.disabled = false;
     }
@@ -196,7 +231,7 @@ export function createSecretFolderController({
     if (!folder || !state.cloudDb || !state.session) return;
     const name = await requestSecretFolderName({
       value: folder.name,
-      title: "重命名收藏夹",
+      title: "重命名文件夹",
       confirmLabel: "保存名称",
     });
     if (!name || name === folder.name) return;
@@ -209,7 +244,7 @@ export function createSecretFolderController({
     folder.name = name;
     folder.updatedAt = updatedAt;
     renderGallery();
-    showToast("收藏夹名称已更新", { kind: "success" });
+    showToast("文件夹名称已更新", { kind: "success" });
   }
 
   async function deleteSecretFolder(folder) {
@@ -217,33 +252,33 @@ export function createSecretFolderController({
     const wasActive = state.activeSecretFolderId === folder.id;
     const albums = state.secretItems.filter((item) => item.folderId === folder.id);
     const confirmed = await confirmAction({
-      eyebrow: "整理收藏夹",
+      eyebrow: "整理文件夹",
       title: `删除「${folder.name}」？`,
       message: albums.length
         ? `其中 ${albums.length} 个相册会移回全部相册，照片不会被删除。`
-        : "这个空收藏夹会被删除，照片和相册不会受到影响。",
-      confirmLabel: "删除收藏夹",
+        : "这个空文件夹会被删除，照片和相册不会受到影响。",
+      confirmLabel: "删除文件夹",
       cancelLabel: "保留",
       danger: true,
     });
     if (!confirmed) return;
-    setStatus("正在整理收藏夹...");
+    setStatus("正在整理文件夹...");
     for (const album of albums) {
       const { error } = await repository.updateOwnedItem(album.id, {
         folder_id: null,
         updated_at: new Date().toISOString(),
       });
       if (error) {
-        setStatus(error.message || "移动相册失败，收藏夹未删除。");
-        showToast("收藏夹删除失败", { kind: "error" });
+        setStatus(error.message || "移动相册失败，文件夹未删除。");
+        showToast("文件夹删除失败", { kind: "error" });
         return;
       }
       album.folderId = "";
     }
     const { error } = await repository.removeFolder(folder.id);
     if (error) {
-      setStatus(error.message || "删除收藏夹失败。");
-      showToast("收藏夹删除失败", { kind: "error" });
+      setStatus(error.message || "删除文件夹失败。");
+      showToast("文件夹删除失败", { kind: "error" });
       return;
     }
     state.secretFolders = state.secretFolders.filter((entry) => entry.id !== folder.id);
@@ -271,8 +306,8 @@ export function createSecretFolderController({
       }
       dialog.innerHTML = `<form novalidate>
         <button class="secret-folder-dialog-close" data-action="cancel" type="button" aria-label="关闭">×</button>
-        <header><span>Collection</span><h2>${escapeHtml(title)}</h2><p>用收藏夹整理相册，不会改变里面的照片。</p></header>
-        <label><span>收藏夹名称</span><input name="folderName" maxlength="40" autocomplete="off" value="${escapeHtml(value)}" placeholder="例如：旅行、灵感、一起生活" required /></label>
+        <header><span>Collection</span><h2>${escapeHtml(title)}</h2><p>用文件夹整理相册，不会改变里面的照片。</p></header>
+        <label><span>文件夹名称</span><input name="folderName" maxlength="40" autocomplete="off" value="${escapeHtml(value)}" placeholder="例如：旅行、灵感、一起生活" required /></label>
         <p class="secret-folder-dialog-error" role="alert" hidden></p>
         <div class="secret-folder-dialog-actions"><button data-action="cancel" type="button">取消</button><button class="primary" data-action="confirm" type="submit">${escapeHtml(confirmLabel)}</button></div>
       </form>`;
@@ -297,7 +332,7 @@ export function createSecretFolderController({
         event.preventDefault();
         const folderName = String(input.value || "").trim().slice(0, 40);
         if (!folderName) {
-          errorLabel.textContent = "请先写一个收藏夹名称";
+          errorLabel.textContent = "请先写一个文件夹名称";
           errorLabel.hidden = false;
           input.setAttribute("aria-invalid", "true");
           input.focus();

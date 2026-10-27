@@ -38,6 +38,7 @@ export function sanitizeSecretRecord(
   return {
     id: item.id,
     userId: item.userId || item.user_id || "",
+    folderId: item.folderId || "",
     title: item.title || "",
     category: item.category || "\u672a\u5206\u7c7b",
     note: item.note || "",
@@ -45,6 +46,8 @@ export function sanitizeSecretRecord(
     coverPath: item.coverPath || "",
     images,
     linkedPhotoId: item.linkedPhotoId || "",
+    photoSortMode: item.photoSortMode || "time",
+    photoSortDescending: item.photoSortDescending !== false,
     isPinned: Boolean(item.isPinned),
     sortOrder: Number.isFinite(Number(item.sortOrder))
       ? Number(item.sortOrder)

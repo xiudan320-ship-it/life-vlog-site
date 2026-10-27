@@ -202,7 +202,7 @@ export const TABLE_CONFIG = {
     booleanColumns: ["is_read"],
   },
   secret_items: {
-    columns: ["id", "user_id", "folder_id", "title", "category", "note", "cover_image", "cover_path", "images", "linked_photo_id", "photo_sort_descending", "is_pinned", "sort_order", "created_at", "updated_at"],
+    columns: ["id", "user_id", "folder_id", "title", "category", "note", "cover_image", "cover_path", "images", "linked_photo_id", "photo_sort_descending", "photo_sort_mode", "is_pinned", "sort_order", "created_at", "updated_at"],
     scope: "own",
     writeScope: "own",
     ownerColumn: "user_id",

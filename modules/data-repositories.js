@@ -121,8 +121,8 @@ export function createSecretRepository({ getDatabase, getSession }) {
         .select("*")
         .order("sort_order", { ascending: true });
     },
-    async insertItem(record) {
-      return requireDatabase(getDatabase).from("secret_items").insert(record);
+    async saveItem(record) {
+      return requireDatabase(getDatabase).from("secret_items").upsert(record);
     },
     async insertFolder(record, { select = "", single = false } = {}) {
       let query = requireDatabase(getDatabase).from("secret_folders").insert(record);

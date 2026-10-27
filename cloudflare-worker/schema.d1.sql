@@ -334,6 +334,7 @@ CREATE TABLE IF NOT EXISTS secret_items (
   images TEXT NOT NULL DEFAULT '[]',
   linked_photo_id TEXT REFERENCES photos(id) ON DELETE SET NULL,
   photo_sort_descending INTEGER NOT NULL DEFAULT 1,
+  photo_sort_mode TEXT NOT NULL DEFAULT 'time' CHECK (photo_sort_mode IN ('time', 'number', 'manual')),
   is_pinned INTEGER NOT NULL DEFAULT 0,
   sort_order INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),

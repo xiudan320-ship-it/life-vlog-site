@@ -33,18 +33,6 @@ export function normalizeSecretPhotoTag(value) {
   return tag || DEFAULT_SECRET_PHOTO_TAG;
 }
 
-export function isSecretNumericTag(value) {
-  return /^\d+$/.test(String(value || "").trim());
-}
-
-export function getSecretImageNumericOrder(image) {
-  const numericTags = normalizeSecretPhotoTags(image)
-    .filter(isSecretNumericTag)
-    .map((tag) => Number.parseInt(tag, 10))
-    .filter(Number.isFinite);
-  return numericTags.length ? Math.max(...numericTags) : null;
-}
-
 export function normalizeSecretPhotoTags(imageOrTags) {
   const hasTagList =
     !Array.isArray(imageOrTags) && Array.isArray(imageOrTags?.tags);
@@ -129,27 +117,4 @@ export function normalizeSecretImages(images) {
         })
         .filter((image) => image.image_url)
     : [];
-}
-
-export function getSecretImageSortTime(image, fallbackIndex = 0) {
-  const value =
-    image?.uploadedAt ||
-    image?.uploaded_at ||
-    image?.createdAt ||
-    image?.created_at ||
-    "";
-  const time = value ? new Date(value).getTime() : Number.NaN;
-  return Number.isFinite(time) ? time : fallbackIndex;
-}
-
-export function sortSecretDisplayEntries(entries, descending = true) {
-  return [...entries].sort((a, b) => {
-    const orderA = getSecretImageNumericOrder(a.image);
-    const orderB = getSecretImageNumericOrder(b.image);
-    const hasOrderA = orderA !== null;
-    const hasOrderB = orderB !== null;
-    if (hasOrderA && hasOrderB && orderA !== orderB) return orderA - orderB;
-    if (hasOrderA !== hasOrderB) return hasOrderA ? -1 : 1;
-    return descending ? b.index - a.index : a.index - b.index;
-  });
 }

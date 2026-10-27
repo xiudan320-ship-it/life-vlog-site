@@ -7,14 +7,11 @@ import {
   buildSecretCategoryOptions,
   buildSecretCollectionMarkup,
   buildSecretFavoritesMarkup,
-  buildSecretFilterMarkup,
 } from "./secret-gallery-view.js";
 import {
   DEFAULT_SECRET_PHOTO_TAG,
   FAVORITE_SECRET_PHOTO_TAG,
   STORY_SECRET_PHOTO_TAG,
-  getSecretImageNumericOrder,
-  isSecretNumericTag,
   normalizeSecretImages,
   normalizeSecretPhotoTag,
   normalizeSecretPhotoTags,
@@ -26,12 +23,17 @@ import {
   getSecretPhotoSortDescending,
   imageMatchesSecretFilter,
   sortSecretDisplayEntries,
+  getSecretPhotoSortMode,
+  secretImageMatchesQuery,
+  getSecretSearchResults,
 } from "./secret-filter-domain.js";
+import { buildSecretSearchMarkup, bindSecretSearchActions } from "./secret-search-view.js";
 import { prepareFeedImages } from "./diary-gallery-view.js";
 import { escapeHtml } from "./ui-formatters.js";
 import { createSecretFolderController } from "./secret-folder-controller.js";
 import { createSecretComposerController } from "./secret-composer-controller.js";
 import { createSecretAlbumActionsController } from "./secret-album-actions-controller.js";
+import { createSecretUploadController } from "./secret-upload-controller.js";
 
 export function createSecretController({
   elements,
@@ -50,7 +52,6 @@ export function createSecretController({
   setGlobalStatus,
   setSecretStatus,
   showMiniToast,
-  dismissMiniToast,
   isMobileViewport,
   getSortedPhotos,
   getDisplayTitle,
@@ -74,12 +75,6 @@ export function createSecretController({
   const SECRET_ALL_FOLDER_ID = allFolderId;
   const SECRET_FAVORITES_FOLDER_ID = favoritesFolderId;
   const MOBILE_DIALOG_BREAKPOINT = mobileDialogBreakpoint;
-  const {
-    cleanupStoredImagePaths,
-    copyUrlToR2,
-    uploadImageFile,
-  } = assets;
-
   const secretFolderController = createSecretFolderController({
     elements: els,
     state,
@@ -95,6 +90,15 @@ export function createSecretController({
     renderGallery: (...args) => renderSecretGallery(...args),
     deleteAlbum: (...args) => deleteSecretItem(...args),
     toggleAlbumPin: (...args) => toggleSecretAlbumPin(...args),
+    moveAlbumToFolder: (...args) => openSecretAlbumFolderDialog(...args),
+    editAlbum: (item) => {
+      state.activeSecretAlbumId = item.id;
+      state.secretAlbumEditing = true;
+      state.secretSelectionMode = false;
+      state.selectedSecretImageIndexes = new Set();
+      renderSecretGallery();
+      els.secretGallery.querySelector("[data-secret-edit-title]")?.focus();
+    },
   });
   const {
     closeSecretAlbumContextMenu,
@@ -106,11 +110,13 @@ export function createSecretController({
     renderSecretFolderControls,
   } = secretFolderController;
 
+  const uploadQueue = createSecretUploadController({ elements: els, setStatus: setSecretStatus, showToast: showMiniToast });
   const secretComposerController = createSecretComposerController({
     elements: els,
     state,
     repository: secretRepository,
     assets,
+    uploadQueue,
     albumImageLimit: SECRET_ALBUM_IMAGE_LIMIT,
     allFolderId: SECRET_ALL_FOLDER_ID,
     favoritesFolderId: SECRET_FAVORITES_FOLDER_ID,
@@ -118,8 +124,6 @@ export function createSecretController({
     getDisplayTitle,
     getPlainNote,
     setStatus: setSecretStatus,
-    showToast: showMiniToast,
-    dismissToast: dismissMiniToast,
     loadItems: (...args) => loadSecretItems(...args),
   });
   const {
@@ -136,11 +140,11 @@ export function createSecretController({
     state,
     repository: secretRepository,
     assets,
+    uploadQueue,
     albumImageLimit: SECRET_ALBUM_IMAGE_LIMIT,
     saveSecretItemsCache,
     setSecretStatus,
     showMiniToast,
-    dismissMiniToast,
     loadSecretItems: (...args) => loadSecretItems(...args),
     renderSecretGallery: (...args) => renderSecretGallery(...args),
     renderDialogMedia,
@@ -167,9 +171,13 @@ export function createSecretController({
   } = secretAlbumActionsController;
 
   
-  async function setSecretPhotoSortDescending(item, descending) {
+  async function setSecretPhotoSort(item, value) {
     if (!item?.id || !state.cloudDb || !state.session) return false;
+    const [mode, direction] = value.split("-");
+    if (!["time", "number", "manual"].includes(mode)) return false;
+    const descending = direction !== "asc";
     const { error } = await secretRepository.updateItem(item.id, {
+      photo_sort_mode: mode,
       photo_sort_descending: descending ? 1 : 0,
       updated_at: new Date().toISOString(),
     });
@@ -179,6 +187,8 @@ export function createSecretController({
       return false;
     }
     item.photoSortDescending = Boolean(descending);
+    item.photoSortMode = mode;
+    saveSecretItemsCache(state.session.user.id);
     return true;
   }
   
@@ -189,7 +199,6 @@ export function createSecretController({
       if (item.title) suggestions.add(item.title);
       normalizeSecretImages(item.images).forEach((image) => {
         normalizeSecretPhotoTags(image)
-          .filter((tag) => !isSecretNumericTag(tag))
           .forEach((tag) => suggestions.add(tag));
       });
     });
@@ -199,24 +208,8 @@ export function createSecretController({
       .join("");
   }
   
-  function secretItemMatchesSearch(item) {
-    const query = state.secretSearchQuery.trim().toLocaleLowerCase("zh-CN");
-    if (!query) return true;
-    const albumText = `${item.title || ""} ${item.note || ""}`.toLocaleLowerCase("zh-CN");
-    if (albumText.includes(query)) return true;
-    return normalizeSecretImages(item.images).some((image) =>
-      normalizeSecretPhotoTags(image)
-        .filter((tag) => !isSecretNumericTag(tag))
-        .some((tag) => tag.toLocaleLowerCase("zh-CN").includes(query))
-    );
-  }
-  
   function secretImageMatchesSearch(image) {
-    const query = state.secretSearchQuery.trim().toLocaleLowerCase("zh-CN");
-    if (!query) return true;
-    return normalizeSecretPhotoTags(image)
-      .filter((tag) => !isSecretNumericTag(tag))
-      .some((tag) => tag.toLocaleLowerCase("zh-CN").includes(query));
+    return secretImageMatchesQuery(image, state.secretSearchQuery);
   }
   
   async function loadSecretItemsInternal() {
@@ -326,6 +319,7 @@ export function createSecretController({
   
   function renderSecretGallery() {
     if (!els.secretGallery) return;
+    closeSecretAlbumContextMenu();
     renderSecretLinkedPhotoOptions();
     renderSecretFolderControls();
     updateSecretSearchSuggestions();
@@ -354,17 +348,45 @@ export function createSecretController({
       const photoTagCounts = getSecretAlbumTagCounts(activeAlbum);
       const photoTags = photoTagCounts.map(({ tag }) => tag);
       if (!photoTags.includes(state.activeSecretFilter)) state.activeSecretFilter = "全部";
-      els.secretFilters.hidden = false;
-      els.secretFilters.innerHTML = buildSecretFilterMarkup(photoTagCounts, state.activeSecretFilter);
-      bindSecretFilterActions(els.secretFilters, (filter) => {
-        state.activeSecretFilter = filter;
-        state.selectedSecretImageIndexes = new Set();
-        renderSecretGallery();
-      });
+      els.secretFilters.hidden = true;
+      els.secretFilters.innerHTML = "";
       renderSecretAlbumView(activeAlbum);
       return;
     }
   
+    if (state.secretSearchQuery.trim()) {
+      const favorites = state.activeSecretFolderId === SECRET_FAVORITES_FOLDER_ID;
+      const folder = state.secretFolders.find((entry) => entry.id === state.activeSecretFolderId);
+      const results = getSecretSearchResults(sortSecretItems(state.secretItems), state.secretSearchQuery, { favorites, folderId: folder?.id || "" });
+      els.secretFilters.hidden = true;
+      els.secretFilters.innerHTML = "";
+      els.secretGallery.innerHTML = buildSecretSearchMarkup({ ...results, favorites, query: state.secretSearchQuery, scope: favorites ? "已收藏" : folder?.name || "全部相册" });
+      prepareFeedImages(els.secretGallery);
+      bindSecretSearchActions(els.secretGallery, results, {
+        clear: () => {
+          state.secretSearchQuery = "";
+          els.secretSearchInput.value = "";
+          renderSecretGallery();
+          els.secretSearchInput.focus();
+        },
+        openAlbum: (item) => {
+          state.secretSearchQuery = "";
+          els.secretSearchInput.value = "";
+          state.activeSecretFolderId = item.folderId || SECRET_ALL_FOLDER_ID;
+          state.activeSecretAlbumId = item.id;
+          state.activeSecretFilter = "全部";
+          state.secretSelectionMode = false;
+          state.selectedSecretImageIndexes = new Set();
+          state.secretAlbumEditing = false;
+          state.secretAppendExpanded = false;
+          renderSecretGallery();
+          els.secretGallery.querySelector("[data-secret-back]")?.focus();
+        },
+        openPhoto: (entry, button) => openSecretItem(entry.item, 0, { images: [entry.image], returnImageUrl: entry.image.image_url, triggerElement: button, returnElementTop: button.getBoundingClientRect().top }),
+      });
+      return;
+    }
+
     if (state.activeSecretFolderId === SECRET_FAVORITES_FOLDER_ID) {
       renderSecretFavoritesView();
       return;
@@ -379,7 +401,7 @@ export function createSecretController({
       const folderMatch = state.activeSecretFolderId === SECRET_ALL_FOLDER_ID
         ? true
         : item.folderId === state.activeSecretFolderId;
-      return folderMatch && secretItemMatchesSearch(item);
+      return folderMatch;
     });
     els.secretGallery.innerHTML = buildSecretCollectionMarkup({
       activeFolderName,
@@ -393,7 +415,6 @@ export function createSecretController({
     bindSecretCollectionActions({
       container: els.secretGallery,
       items: visible,
-      mobile: isMobileViewport(),
       onCreate: () => {
         if (els.secretComposer?.hidden) els.secretComposer.hidden = false;
         setSecretExpanded(true);
@@ -406,7 +427,6 @@ export function createSecretController({
       },
       onRename: renameActiveSecretFolder,
       onDelete: deleteActiveSecretFolder,
-      onMoveToFolder: (item) => void openSecretAlbumFolderDialog(item),
       onContextMenu: openSecretAlbumContextMenu,
       onOpen: (item) => {
         state.activeSecretAlbumId = item?.id || "";
@@ -419,7 +439,6 @@ export function createSecretController({
         renderSecretGallery();
       },
       onMove: moveSecretAlbum,
-      onPin: toggleSecretAlbumPin,
     });
   }
   
@@ -448,11 +467,13 @@ export function createSecretController({
       }).join("")}</div>
       <footer>长按相册，可以随时重新整理</footer>
     </form>`;
+    dialog.returnValue = "";
     dialog.showModal();
     await new Promise((resolve) => dialog.addEventListener("close", resolve, { once: true }));
     const targetFolderId = dialog.returnValue === "__default__" ? "" : dialog.returnValue;
     if (!targetFolderId && dialog.returnValue !== "__default__") return;
     await moveSecretAlbumToFolder(item, targetFolderId);
+    (els.secretGallery.querySelector(`[data-secret-album-more="${CSS.escape(item.id)}"]`) || els.secretGallery.querySelector("[data-secret-create-album]"))?.focus({ preventScroll: true });
   }
   
   async function moveSecretAlbumToFolder(item, folderId = "") {
@@ -508,9 +529,7 @@ export function createSecretController({
       item
     );
     const photoSortDescending = getSecretPhotoSortDescending(item);
-    const hasNumericPhotoOrder = images.some(
-      (image) => getSecretImageNumericOrder(image) !== null
-    );
+    const photoSortMode = getSecretPhotoSortMode(item);
     const linkedPhoto = state.photos.find((photo) => photo.id === item.linkedPhotoId);
     const linkedTitle = linkedPhoto ? getDisplayTitle(linkedPhoto) || "关联日记" : "";
     const validSelectedIndexes = [...state.selectedSecretImageIndexes].filter((index) => index >= 0 && index < images.length);
@@ -533,7 +552,8 @@ export function createSecretController({
       albumEditing: state.secretAlbumEditing,
       activeFilter: state.activeSecretFilter,
       photoSortDescending,
-      hasNumericPhotoOrder,
+      photoSortMode,
+      tagCounts: getSecretAlbumTagCounts(item),
       knownTags,
       selectedTags,
       folders: state.secretFolders,
@@ -543,6 +563,11 @@ export function createSecretController({
     updateSecretToolbarTop();
     requestAnimationFrame(updateSecretToolbarTop);
     prepareFeedImages(els.secretGallery);
+    bindSecretFilterActions(els.secretGallery, (filter) => {
+      state.activeSecretFilter = filter;
+      state.selectedSecretImageIndexes = new Set();
+      renderSecretGallery();
+    });
     bindSecretAlbumActions({
       container: els.secretGallery,
       selectionMode: state.secretSelectionMode,
@@ -560,15 +585,17 @@ export function createSecretController({
         toggleAppend: () => {
           state.secretAppendExpanded = !state.secretAppendExpanded;
           renderSecretGallery();
+          els.secretGallery.querySelector("[data-secret-toggle-append]")?.focus({ preventScroll: true });
         },
         merge: (targetId) => mergeSecretAlbumInto(item, targetId),
-        toggleEdit: () => {
-          state.secretAlbumEditing = !state.secretAlbumEditing;
-          renderSecretGallery();
+        more: (button) => {
+          const rect = button.getBoundingClientRect();
+          openSecretAlbumContextMenu(item, rect.left, rect.bottom, button);
         },
         cancelEdit: () => {
           state.secretAlbumEditing = false;
           renderSecretGallery();
+          els.secretGallery.querySelector("[data-secret-album-more]")?.focus();
         },
         saveEdit: (event) => saveSecretAlbumEdit(event, item),
         append: appendSecretAlbumImages,
@@ -578,12 +605,12 @@ export function createSecretController({
           openSecretLinkedDiary();
         },
         deleteCurrent: () => deleteSecretItem(item),
-        toggleSort: async (button) => {
+        setSort: async (button) => {
           if (button.disabled) return;
           button.disabled = true;
-          const saved = await setSecretPhotoSortDescending(item, !getSecretPhotoSortDescending(item));
-          if (saved) renderSecretGallery();
-          else button.disabled = false;
+          await setSecretPhotoSort(item, button.value);
+          renderSecretGallery();
+          els.secretGallery.querySelector("[data-secret-photo-sort]")?.focus({ preventScroll: true });
         },
         deleteTag: () => deleteCurrentSecretTag(item),
         toggleSelection: () => {
@@ -591,10 +618,12 @@ export function createSecretController({
           state.secretMobileToolsExpanded = false;
           if (!state.secretSelectionMode) state.selectedSecretImageIndexes = new Set();
           renderSecretGallery();
+          els.secretGallery.querySelector(state.secretSelectionMode ? "[data-secret-photo]" : "[data-secret-select-mode]")?.focus({ preventScroll: true });
         },
         toggleTools: () => {
           state.secretMobileToolsExpanded = !state.secretMobileToolsExpanded;
           renderSecretGallery();
+          els.secretGallery.querySelector("[data-secret-tools-toggle]")?.focus({ preventScroll: true });
         },
         toggleSelectAll: () => {
           if (!state.secretSelectionMode) return;
@@ -602,6 +631,7 @@ export function createSecretController({
           const allSelected = visibleIndexes.length > 0 && visibleIndexes.every((index) => state.selectedSecretImageIndexes.has(index));
           state.selectedSecretImageIndexes = allSelected ? new Set() : new Set(visibleIndexes);
           renderSecretGallery();
+          els.secretGallery.querySelector("[data-secret-select-all]")?.focus({ preventScroll: true });
         },
         deleteSelected: () => deleteSelectedSecretImages(item),
         setCover: () => setSelectedSecretCover(item),
@@ -613,18 +643,22 @@ export function createSecretController({
           if (button.disabled) return;
           button.disabled = true;
           await moveSelectedSecretImage(item, direction);
+          const nextButton = els.secretGallery.querySelector(`[data-secret-move="${direction}"]:not(:disabled)`);
+          (nextButton || els.secretGallery.querySelector(".secret-album-photo.selected"))?.focus({ preventScroll: true });
         },
         enterSelection: (index) => {
           state.secretSelectionMode = true;
           state.secretMobileToolsExpanded = false;
           state.selectedSecretImageIndexes = new Set([index]);
           renderSecretGallery();
+          els.secretGallery.querySelector(`[data-secret-photo="${index}"]`)?.focus({ preventScroll: true });
         },
         selectPhoto: (index, button, selected) => {
           if (state.secretSelectionMode) {
             if (selected) state.selectedSecretImageIndexes.delete(index);
             else state.selectedSecretImageIndexes.add(index);
             renderSecretGallery();
+            els.secretGallery.querySelector(`[data-secret-photo="${index}"]`)?.focus({ preventScroll: true });
             return;
           }
           const visibleIndex = displayEntries.findIndex((entry) => entry.index === index);
