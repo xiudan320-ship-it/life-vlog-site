@@ -1226,12 +1226,38 @@ body:has(.mood-overlay:not([hidden])) {
   position: absolute;
   top: 50%;
   left: 50%;
-  max-width: 125px;
+  display: grid;
+  place-content: center;
+  width: 108px;
+  height: 108px;
+  border: 2px dashed var(--mood-line);
+  border-radius: 50%;
+  background: var(--mood-surface);
   color: var(--mood-muted);
   font-size: 0.84rem;
   line-height: 1.5;
   text-align: center;
+  white-space: pre-line;
+  pointer-events: none;
   transform: translate(-50%, -50%);
+}
+
+.mood-picker-center.is-ready {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--mood-surface));
+  color: var(--mood-ink);
+}
+
+.mood-picker-center.is-ready .mood-picker-center-label {
+  position: absolute;
+  bottom: -28px;
+  left: 50%;
+  width: 180px;
+  color: var(--mood-ink);
+  font-size: 0.8rem;
+  font-weight: 800;
+  white-space: nowrap;
+  transform: translateX(-50%);
 }
 
 .mood-picker-choice {
@@ -1253,9 +1279,26 @@ body:has(.mood-overlay:not([hidden])) {
   font: inherit;
   font-size: 0.76rem;
   font-weight: 700;
-  cursor: pointer;
-  transform: translate(-50%, -50%);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  transition: none;
 }
+
+.mood-picker-choice,
+.mood-picker-choice:not(:disabled):active {
+  transform: translate(-50%, -50%) translate(var(--mood-drag-x, 0px), var(--mood-drag-y, 0px));
+}
+
+.mood-picker-choice.is-dragging {
+  z-index: 3;
+  cursor: grabbing;
+  border-color: var(--accent);
+  background: var(--mood-surface);
+  box-shadow: 0 8px 20px rgb(16 22 18 / 16%);
+}
+
+.mood-picker-choice.is-dragging:focus-visible { outline: none; }
 
 .mood-picker-choice:hover {
   border-color: var(--mood-line);

@@ -23,5 +23,6 @@ worker-tail.err.log
 artifacts/phase-two/
 artifacts/secret-upload/
 artifacts/secret-gallery/
+artifacts/mood-picker/
 /*.png
 /*.jpg

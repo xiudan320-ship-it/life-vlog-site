@@ -1185,7 +1185,15 @@ async function runMoodDiaryFlow(viewport, label) {
         assert.equal(overlaps, false, `${label} mood picker buttons overlap`);
       }
     }
-    await page.click('[data-mood="calm"]');
+    const dragChoice = page.locator('#moodPickerOrbit [data-mood="calm"]');
+    await dragChoice.scrollIntoViewIfNeeded();
+    const choiceBox = await dragChoice.boundingBox();
+    const dropBox = await page.locator(".mood-picker-center").boundingBox();
+    await page.mouse.move(choiceBox.x + choiceBox.width / 2, choiceBox.y + choiceBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(dropBox.x + dropBox.width / 2, dropBox.y + dropBox.height / 2, { steps: 12 });
+    assert.equal(await page.locator(".mood-picker-center.is-ready").count(), 1, `${label} drag must reach the center before selecting`);
+    await page.mouse.up();
     await page.waitForSelector("#moodOverlay:not([hidden]) #moodEditorPanel:not([hidden])", { state: "visible" });
     const labels = await page.locator("#moodEditorForm label").allTextContents();
     assert.deepEqual(labels.map((value) => value.trim()), ["想说的话 （可留空）", "标签 （可选）"]);

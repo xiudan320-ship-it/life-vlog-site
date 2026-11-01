@@ -54,6 +54,7 @@ export function createMoodEntryOverlayController({
   };
   let bound = false;
   let historyOpen = false;
+  let pendingHistoryBacks = 0;
   let returnFocus = null;
   let returnScrollY = 0;
 
@@ -177,13 +178,15 @@ export function createMoodEntryOverlayController({
       historyOpen = false;
     } else if (!fromPopstate && historyOpen) {
       historyOpen = false;
+      pendingHistoryBacks += 1;
       windowTarget?.history?.back?.();
     } else historyOpen = false;
     if (returnHome) return;
-    const restoreScroll = () => windowTarget?.scrollTo?.({ top: scrollY, left: 0, behavior: "instant" });
+    const restoreScroll = () => { if (state.mode === "closed") windowTarget?.scrollTo?.({ top: scrollY, left: 0, behavior: "instant" }); };
     windowTarget?.setTimeout?.(restoreScroll, 0);
     windowTarget?.setTimeout?.(restoreScroll, 100);
     windowTarget?.setTimeout?.(() => {
+      if (state.mode !== "closed") return;
       restoreScroll();
       try { target?.focus?.({ preventScroll: true }); } catch { target?.focus?.(); }
     }, 300);
@@ -312,7 +315,10 @@ export function createMoodEntryOverlayController({
     if (bound) return;
     bound = true;
     injectedView?.bind?.();
-    windowTarget?.addEventListener?.("popstate", () => { if (historyOpen) void close({ fromPopstate: true }); });
+    windowTarget?.addEventListener?.("popstate", () => {
+      if (pendingHistoryBacks) { pendingHistoryBacks -= 1; return; }
+      if (historyOpen) void close({ fromPopstate: true });
+    });
   }
 
   const view = injectedView || createMoodEntryOverlayView({ elements, moodMeta: MOOD_META, moodTypes: MOOD_TYPES, getMoodAsset, getAuthorName, getAuthorAvatar, onAction: (action) => { void dispatch(action); } });

@@ -160,10 +160,25 @@ test("close and browser Back preserve URL context, scroll, and trigger focus", a
   assert.equal(fixture.historyCalls.filter(([type]) => type === "back").length, 1);
   assert.equal(fixture.getScrollY(), 321);
   assert.equal(focused, 1);
+  fixture.listeners.get("popstate")();
 
   await fixture.controller.open({ dateKey: TODAY, entries: [], preferredUserId: "owner", participants, trigger });
   fixture.listeners.get("popstate")();
   await Promise.resolve();
   assert.equal(fixture.controller.getState().mode, "closed");
   assert.equal(focused, 2);
+});
+
+test("a pending programmatic Back cannot close a newly reopened mood picker", async () => {
+  const fixture = createFixture();
+  const options = { dateKey: TODAY, entries: [], preferredUserId: "owner", participants };
+  await fixture.controller.open(options);
+  await fixture.controller.close();
+  await fixture.controller.open(options);
+  fixture.listeners.get("popstate")();
+  await Promise.resolve();
+  assert.equal(fixture.controller.getState().mode, "picker");
+  fixture.listeners.get("popstate")();
+  await Promise.resolve();
+  assert.equal(fixture.controller.getState().mode, "closed");
 });

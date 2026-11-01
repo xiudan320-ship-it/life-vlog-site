@@ -1,3 +1,5 @@
+import { createMoodPickerDragController } from "./mood-picker-drag-controller.js";
+
 const PICKER_POSITIONS = [[50, 7], [79, 19], [89, 50], [76, 80], [50, 92], [24, 80], [11, 50], [21, 19]];
 
 function text(documentTarget, tagName, value = "", className = "") {
@@ -37,6 +39,7 @@ function tag(documentTarget, value, removable = false) {
 
 export function createMoodEntryOverlayView({ elements = {}, moodMeta, moodTypes, getMoodAsset, getAuthorName, getAuthorAvatar, onAction = () => {} } = {}) {
   let bound = false;
+  let pickerDrag = null;
 
   function participantName(state, userId) {
     return getAuthorName?.(userId)
@@ -48,7 +51,12 @@ export function createMoodEntryOverlayView({ elements = {}, moodMeta, moodTypes,
     if (!elements.moodPickerOrbit || elements.moodPickerOrbit.childElementCount) return;
     const documentTarget = elements.moodPickerOrbit.ownerDocument;
     const fragment = documentTarget.createDocumentFragment();
-    fragment.append(text(documentTarget, "span", "选一个最接近现在的词", "mood-picker-center"));
+    const center = text(documentTarget, "span", "", "mood-picker-center");
+    center.append(text(documentTarget, "span", "拖到这里\n选择心情", "mood-picker-center-label"));
+    center.setAttribute("role", "status");
+    center.setAttribute("aria-live", "polite");
+    center.setAttribute("aria-atomic", "true");
+    fragment.append(center);
     moodTypes.forEach((mood, index) => {
       const choice = documentTarget.createElement("button");
       choice.type = "button";
@@ -58,6 +66,7 @@ export function createMoodEntryOverlayView({ elements = {}, moodMeta, moodTypes,
       choice.style.setProperty("--mood-top", PICKER_POSITIONS[index][1]);
       choice.setAttribute("aria-label", `选择${moodMeta[mood].label}`);
       choice.append(asset(documentTarget, mood, "circle", getMoodAsset), text(documentTarget, "span", moodMeta[mood].label));
+      choice.querySelector("img").draggable = false;
       fragment.append(choice);
     });
     elements.moodPickerOrbit.replaceChildren(fragment);
@@ -150,6 +159,7 @@ export function createMoodEntryOverlayView({ elements = {}, moodMeta, moodTypes,
   }
 
   function render(state) {
+    if (state.mode !== "picker") pickerDrag?.cancel();
     const open = ["picker", "editor", "detail"].includes(state.mode);
     elements.moodOverlay.hidden = !open;
     elements.moodPickerPanel.hidden = state.mode !== "picker";
@@ -168,6 +178,7 @@ export function createMoodEntryOverlayView({ elements = {}, moodMeta, moodTypes,
   function bind() {
     if (bound || !elements.moodOverlay) return;
     bound = true;
+    pickerDrag = createMoodPickerDragController({ orbit: elements.moodPickerOrbit, moodMeta, onPick: (mood) => onAction({ type: "pick", mood }) });
     elements.moodOverlay.addEventListener("click", (event) => {
       const target = event.target.closest?.("[data-mood], [data-mood-change], [data-mood-choose], [data-mood-close-overlay], #moodOverlayClose, [data-mood-edit], [data-mood-delete], [data-mood-detail-user], [data-mood-record-date], [data-mood-remove-tag]");
       if (!target) return;

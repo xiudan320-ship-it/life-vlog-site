@@ -114,6 +114,7 @@
 - `modules/today-mood-cache.js`：按用户和自然日读写首页今日心情缓存，并复用已有月度缓存预热当前日期；只提供本地加速，不替代云端 canonical 响应。
 - `modules/today-mood-view.js`：只负责首页今日概览 DOM，包括真实昵称、席位形状、首屏立即加载的心情素材、空态/错误态和桌面本月日历缩略网格；首页点击入口由 `today-mood-controller.js` 在懒加载完成后绑定。
 - `modules/mood-entry-overlay-controller.js` / `mood-entry-overlay-view.js`：全局唯一的 Picker、编辑和详情边界；管理本人写权限、保存/删除、脏表单、history、滚动和焦点恢复，不依赖 gallery 或 mood 路由 DOM。
+- `modules/mood-picker-drag-controller.js`：共享 Picker 的鼠标 / 触屏拖动、圆形中央接收区命中、松手确认、取消恢复及原生点击抑制；只在成功放入中央时触发选择，不负责保存，点击与键盘继续使用原生按钮。
 - `modules/mood-diary-shared.js`：心情枚举、素材元数据、日期/标签标准化、两席解析和排序等首屏与懒加载路由共用的纯规则；不包含月历计算或 DOM。
 - `modules/app-navigation-controller.js`：只在首次成功的登录态 gallery 激活且没有显式深链参数时将首屏落到今日概览；后续路由进入、返回和滚动恢复不再由 gallery 视图注入滚动副作用。留言不进入该页面状态机，而由应用壳统一 dialog 打开。
 
