@@ -31,12 +31,10 @@ function createHarness({ stored = null, wallNow = 10_000 } = {}) {
     element,
     documentTarget,
     windowTarget: { matchMedia: () => ({ matches: false }) },
-    now: () => 0,
     wallNow: () => wallNow,
     setTimeoutApi: (callback, delay) => { timers.push({ callback, delay }); },
     storage,
     version: "entry-test-v1",
-    minVisibleMs: 520,
     exitDurationMs: 220,
   });
   return { controller, element, blocked, body, timers, getStored: () => stored };
@@ -49,12 +47,13 @@ async function flushTimers(harness) {
   }
 }
 
-test("splash keeps the first visit minimum and always releases app blocking", async () => {
+test("splash starts its exit as soon as the local UI is ready and releases app blocking", async () => {
   const harness = createHarness();
   const completion = harness.controller.complete();
   const firstTimer = harness.timers.shift();
-  assert.equal(firstTimer.delay, 520);
+  assert.equal(firstTimer.delay, 0);
   firstTimer.callback();
+  assert.equal(harness.timers[0].delay, 220);
   await flushTimers(harness);
   assert.equal(await completion, true);
   assert.equal(harness.element.hidden, true);
@@ -63,7 +62,7 @@ test("splash keeps the first visit minimum and always releases app blocking", as
   assert.match(harness.getStored(), /entry-test-v1/);
 });
 
-test("same-version short revisits skip the artificial splash delay", async () => {
+test("same-version short revisits skip the splash exit animation", async () => {
   const harness = createHarness({ stored: JSON.stringify({ version: "entry-test-v1", completedAt: 9_500 }) });
   const completion = harness.controller.complete();
   const firstTimer = harness.timers.shift();
