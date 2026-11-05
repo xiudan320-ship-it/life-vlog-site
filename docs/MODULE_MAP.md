@@ -56,7 +56,7 @@
 - `modules/secret-data-service.js` 是秘藏账户同步的数据边界：它只读取/映射 `secret_items`、`secret_folders`，合并并发读取，并更新共享 canonical state；它不依赖秘藏页面 controller，也不负责 DOM 渲染。
 - `modules/secret-controller.js` 只在 `secret` route 激活后消费共享秘藏 state、读取本地缓存并渲染页面。未访问秘藏时，账户同步不会预加载秘藏 UI chunk。
 - `modules/lazy-controller.js` 保持未加载 controller 调用即抛错的契约。跨路由后台流程只能使用显式 `isLoaded`/`callLoaded` 守卫；页面渲染由当前 route 的 `activate` 负责。
-- `modules/route-loader.js` 与 `modules/app-navigation-controller.js` 共同维护 latest-wins 路由事务。过期的 chunk/activate 结果不得提交页面显隐、URL、焦点、滚动或 busy 状态。
+- `modules/route-loader.js` 与 `modules/app-navigation-controller.js` 共同维护 latest-wins 路由事务。最新切换请求负责清理加载状态，心情页资源在目标页成功加载后释放。过期的 chunk/activate 结果不得提交页面显隐、URL、焦点、滚动或 busy 状态。
 - `modules/primary-navigation-domain.js` 是顶部分页注册表和配置规范化的唯一事实来源；`primary-navigation-controller.js` 通过现有 `preferences-store.js` 按用户/设备作用域读写，`primary-navigation-view.js` 只渲染当前可见入口和设置列表。VLOG 由 mode action 接入，不能被序列化成 `?page=vlog`。
 - `modules/push-controller.js` 的设置绑定只在 `settings-route.js` 完成 DOM 渲染后执行；关闭设备通知时本机 `unsubscribe()` 与 Worker 端点清理是分离失败边界，本机状态优先。
 - `modules/offline-settings-controller.js` 是设置页缓存 UI 的唯一业务拥有者：按当前用户读取有限整数容量和 `off|wifi` 策略，生成 view model，绑定策略/容量/预设/刷新/下载/分池与全部清理事件，并在 `settings-route.js` 完成模板收集和通用设置事件后显式幂等初始化；`cache-management-view.js` 只渲染 DOM 和转发原生事件，`offline-cache-controller.js` 只提供缓存数据与调度动作。全部清理复用受管理缓存范围，不触及账号、个人设置、草稿、上传队列或容量偏好。

@@ -343,11 +343,8 @@ export function createMoodDiaryController({ elements, repository, overlayControl
     loadMonth,
     loadHistory,
     selectDate: openEntry,
-    beforeLeave: async () => {
-      const canLeave = await (overlayController?.close?.() ?? true);
-      if (canLeave !== false) view.destroy?.();
-      return canLeave;
-    },
+    beforeLeave: () => overlayController?.close?.() ?? true,
+    afterLeave: () => view.destroy?.(),
     handleMutation,
   });
 }

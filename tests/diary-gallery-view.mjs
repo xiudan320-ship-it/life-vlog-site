@@ -139,4 +139,8 @@ test("diary empty states prioritize the source and expose recovery actions", () 
     getDiaryGalleryEmptyState({ sourceStatus: "ready", search: "不存在", signedIn: true }),
     { message: "没有找到匹配的日记。", loading: false, action: "clear-search", actionLabel: "清空搜索" },
   );
+  for (const filter of ["featured7", "favorites"]) {
+    assert.equal(getDiaryGalleryEmptyState({ filter, search: "猫", signedIn: true }).action, "clear-search");
+  }
+  assert.equal(getDiaryGalleryEmptyState({ filter: "favorites", search: "猫", signedIn: true, favoriteStatus: "error" }).action, "retry");
 });

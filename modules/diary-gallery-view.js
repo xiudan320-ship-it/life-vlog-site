@@ -35,14 +35,14 @@ export function getDiaryGalleryEmptyState({
   if (sourceStatus === "cached" && !hasCachedData) {
     return { message: "暂时没有可用的本机缓存，请联网后重试。", loading: false, action: "retry", actionLabel: "重新加载" };
   }
-  if (filter === "featured7") return { message: "最近七天还没有精选日记。", loading: false };
   if (filter === "favorites") {
     if (!signedIn) return { message: "登录后可以收藏喜欢的日记。", loading: false };
     if (favoriteStatus === "loading") return { message: "正在同步收藏…", loading: true };
     if (favoriteStatus === "error") return { message: "收藏同步失败，请重试。", loading: false, action: "retry", actionLabel: "重新同步" };
-    return { message: "还没有收藏日记。", loading: false };
   }
   if (search) return { message: "没有找到匹配的日记。", loading: false, action: "clear-search", actionLabel: "清空搜索" };
+  if (filter === "featured7") return { message: "最近七天还没有精选日记。", loading: false };
+  if (filter === "favorites") return { message: "还没有收藏日记。", loading: false };
   if (filter === "VLOG") return { message: "还没有 VLOG，点击顶部 VLOG 发布第一条视频。", loading: false };
   if (filter !== "全部" && filter !== "all") {
     return { message: "还没有这个分类的日记。", loading: false, action: "reset-filter", actionLabel: "查看全部日记" };

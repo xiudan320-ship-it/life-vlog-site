@@ -129,16 +129,39 @@ test("today save closes and returns home before background summary sync finishes
   await save;
 });
 
-test("failed today save keeps the editor instead of returning home", async () => {
+test("a failed save keeps the draft and permits a single retry", async () => {
   let returnedHome = false;
-  const fixture = createFixture({ getTodayKey: () => TODAY, onReturnHome: () => { returnedHome = true; }, repository: { upsert: async () => { throw new Error("offline"); } } });
+  let writes = 0;
+  let rejectFirstSave;
+  const fixture = createFixture({
+    getTodayKey: () => TODAY,
+    onReturnHome: () => { returnedHome = true; },
+    repository: {
+      upsert: async (payload) => {
+        writes += 1;
+        if (writes === 1) return new Promise((_, reject) => { rejectFirstSave = reject; });
+        return { ...payload, id: "saved", user_id: "owner" };
+      },
+    },
+  });
   await fixture.controller.open({ dateKey: TODAY, entries: [], preferredUserId: "owner", participants });
   await fixture.controller.dispatch({ type: "pick", mood: "happy" });
-  fixture.view.setDraft({ content: "不要丢失内容" });
+  fixture.view.setDraft({ content: "不要丢失内容", tagInput: "散步" });
+  const save = fixture.controller.dispatch({ type: "save" });
+  assert.equal(fixture.controller.getState().mode, "editor");
+  assert.equal(await fixture.controller.close(), false);
   await fixture.controller.dispatch({ type: "save" });
+  assert.equal(writes, 1);
+  rejectFirstSave(new Error("offline"));
+  await save;
   assert.equal(fixture.controller.getState().mode, "editor");
   assert.equal(fixture.controller.getState().editorDraft.content, "不要丢失内容");
+  assert.equal(fixture.view.readDraft().tagInput, "散步");
   assert.equal(returnedHome, false);
+  await fixture.controller.dispatch({ type: "save" });
+  assert.equal(writes, 2);
+  assert.deepEqual(fixture.mutations[0].entry.tags, ["散步"]);
+  assert.equal(returnedHome, true);
 });
 
 test("a successful write stays successful when the month sync reports a retryable failure", async () => {

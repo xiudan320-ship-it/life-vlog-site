@@ -80,6 +80,7 @@ export function createMoodEntryOverlayView({ elements = {}, moodMeta, moodTypes,
       elements.moodEditorSelected.style.setProperty("--mood-accent", moodMeta[state.selectedMood].accent);
       const change = text(documentTarget, "button", "更换心情图片", "mood-change-button");
       change.type = "button";
+      change.disabled = state.saving;
       change.dataset.moodChange = "";
       change.setAttribute("aria-controls", "moodEditorChoices");
       change.setAttribute("aria-expanded", String(Boolean(state.showMoodChoices)));
@@ -98,7 +99,11 @@ export function createMoodEntryOverlayView({ elements = {}, moodMeta, moodTypes,
     if (elements.moodEditorContent && documentTarget.activeElement !== elements.moodEditorContent) {
       elements.moodEditorContent.value = state.editorDraft.content;
     }
+    elements.moodEditorContent.readOnly = state.saving;
+    elements.moodEditorTagInput.readOnly = state.saving;
+    elements.moodEditorForm.setAttribute("aria-busy", String(state.saving));
     elements.moodEditorTags?.replaceChildren(...state.editorDraft.tags.map((value) => tag(documentTarget, value, true)));
+    for (const remove of elements.moodEditorTags?.querySelectorAll("button") || []) remove.disabled = state.saving;
     if (elements.moodEditorSave) {
       elements.moodEditorSave.disabled = state.saving;
       elements.moodEditorSave.textContent = state.saving ? "保存中…" : "保存心情";
@@ -162,6 +167,7 @@ export function createMoodEntryOverlayView({ elements = {}, moodMeta, moodTypes,
     if (state.mode !== "picker") pickerDrag?.cancel();
     const open = ["picker", "editor", "detail"].includes(state.mode);
     elements.moodOverlay.hidden = !open;
+    elements.moodOverlayClose.disabled = state.saving;
     elements.moodPickerPanel.hidden = state.mode !== "picker";
     elements.moodEditorPanel.hidden = state.mode !== "editor";
     elements.moodDetailPanel.hidden = state.mode !== "detail";
@@ -195,11 +201,13 @@ export function createMoodEntryOverlayView({ elements = {}, moodMeta, moodTypes,
     elements.moodEditorForm?.addEventListener("submit", (event) => { event.preventDefault(); onAction({ type: "save" }); });
     elements.moodEditorCancel?.addEventListener("click", () => onAction({ type: "cancel-editor" }));
     elements.moodEditorTagInput?.addEventListener("keydown", (event) => {
+      if (event.isComposing) return;
       if (!["Enter", ",", "，"].includes(event.key)) return;
       event.preventDefault();
       onAction({ type: "add-tag", value: event.currentTarget.value });
     });
     elements.moodOverlay.addEventListener("keydown", (event) => {
+      if (event.isComposing) return;
       if (event.key === "Escape") onAction({ type: "close" });
       if (event.key !== "Tab") return;
       const focusable = [...elements.moodOverlay.querySelectorAll("button:not([disabled]), input:not([disabled]), textarea:not([disabled])")]

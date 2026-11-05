@@ -75,8 +75,8 @@ export function createMoodEntryOverlayController({
 
   function focusStart() {
     const target = state.mode === "picker"
-      ? elements.moodPickerOrbit?.querySelector?.("button")
-      : state.mode === "editor" ? elements.moodEditorContent : elements.moodDetailPanel?.querySelector?.("button") || elements.moodOverlayClose;
+      ? elements.moodPickerOrbit?.querySelector?.(`[data-mood="${state.selectedMood}"]`) || elements.moodPickerOrbit?.querySelector?.("button")
+      : state.mode === "editor" ? elements.moodEditorContent : elements.moodOverlayClose;
     windowTarget?.setTimeout?.(() => {
       try { target?.focus?.({ preventScroll: true }); } catch { target?.focus?.(); }
     }, 0);
@@ -90,6 +90,7 @@ export function createMoodEntryOverlayController({
 
   async function open({ dateKey, entries = null, preferredUserId = "", participants = null, trigger = null } = {}) {
     await overlayStylesReady;
+    if (state.saving) return false;
     const normalizedDate = normalizeDiaryDate(dateKey);
     const currentUserId = String(getSession?.()?.user?.id || "").trim();
     if (!normalizedDate || !currentUserId) return false;
@@ -98,6 +99,7 @@ export function createMoodEntryOverlayController({
     visibleIds.add(currentUserId);
     let rows = entries;
     if (!Array.isArray(rows)) rows = await repository?.listDay?.(normalizedDate);
+    if (state.saving) return false;
     state.entries = sortMoodDiaries((rows || []).map((entry) => normalizeEntry(entry, { normalizeDiaryDate, normalizeMood, normalizeMoodTags })).filter((entry) => entry && entry.diary_date === normalizedDate && visibleIds.has(entry.user_id)));
     state.dateKey = normalizedDate;
     state.currentUserId = currentUserId;
@@ -139,6 +141,7 @@ export function createMoodEntryOverlayController({
     state.editorReturnMode = returnMode;
     state.error = "";
     state.mode = "editor";
+    injectedView.clearTagInput();
     render();
     focusStart();
   }
@@ -150,7 +153,7 @@ export function createMoodEntryOverlayController({
   }
 
   function isDirty(draft) {
-    if (!state.editorBase) return Boolean(draft.content || draft.tags.length || state.selectedMood);
+    if (!state.editorBase) return Boolean(draft.content || draft.tags.length);
     return state.editorBase.mood !== state.selectedMood || state.editorBase.content !== draft.content || JSON.stringify(state.editorBase.tags) !== JSON.stringify(draft.tags);
   }
 
@@ -194,6 +197,10 @@ export function createMoodEntryOverlayController({
 
   async function close({ fromPopstate = false } = {}) {
     if (state.mode === "closed") return true;
+    if (state.saving) {
+      if (fromPopstate) { historyOpen = false; pushHistory(); }
+      return false;
+    }
     if (!(await confirmLeave())) {
       if (fromPopstate) { historyOpen = false; pushHistory(); }
       return false;
@@ -211,27 +218,28 @@ export function createMoodEntryOverlayController({
   }
 
   async function save() {
-    if (state.saving) return;
+    if (state.mode !== "editor" || state.saving) return;
     const draft = readDraft();
-    state.editorDraft = { content: draft.content, tags: draft.tags };
+    state.editorDraft.content = draft.content;
+    state.error = "";
     if (!MOOD_TYPES.includes(state.selectedMood)) state.error = "请先选择一种心情。";
     else if (codePointLength(draft.content) > 5000) state.error = "心情内容最多 5000 个字符。";
     else if (draft.tooLong) state.error = "每个标签最多 20 个字符。";
     else if (draft.tooMany) state.error = "最多添加 8 个标签。";
     if (state.error) { render(); return; }
     const previous = ownEntry();
-    const optimistic = { ...(previous || {}), id: previous?.id || globalThis.crypto?.randomUUID?.() || `mood-${Date.now()}`, user_id: state.currentUserId, diary_date: state.dateKey, mood: state.selectedMood, content: draft.content, tags: draft.tags };
+    const payload = { mood: state.selectedMood, content: draft.content, tags: draft.tags };
     state.saving = true;
-    replaceEntry(optimistic);
-    state.mode = "detail";
+    state.showMoodChoices = false;
     render();
     try {
       const canonical = previous?.id
-        ? await repository.update(previous.id, { mood: state.selectedMood, content: draft.content, tags: draft.tags })
-        : await repository.upsert({ id: optimistic.id, diary_date: state.dateKey, mood: state.selectedMood, content: draft.content, tags: draft.tags });
+        ? await repository.update(previous.id, payload)
+        : await repository.upsert({ diary_date: state.dateKey, ...payload });
       replaceEntry(canonical);
       state.saving = false;
       state.editorBase = null;
+      state.mode = "detail";
       render();
       showToast("心情已保存", { kind: "success" });
       const returnHome = state.dateKey === getTodayKey();
@@ -240,19 +248,17 @@ export function createMoodEntryOverlayController({
         if (returnHome) {
           finishClose({ returnHome: true });
           await onReturnHome();
-        }
+        } else focusStart();
         const mutationResult = await mutation;
         if (mutationResult === false) throw new Error("本月汇总同步失败，可稍后重试");
       } catch {
         showToast("已保存，但本月汇总同步失败，可稍后重试", { kind: "warning" });
       }
     } catch (error) {
-      state.entries = previous ? [previous, ...state.entries.filter((entry) => entry.user_id !== state.currentUserId)] : state.entries.filter((entry) => entry.user_id !== state.currentUserId);
-      state.activeDiary = previous;
       state.saving = false;
-      state.mode = "editor";
       state.error = `保存失败：${error?.message || "请重试"}`;
       render();
+      elements.moodEditorSave?.focus();
     }
   }
 
@@ -281,6 +287,7 @@ export function createMoodEntryOverlayController({
   }
 
   async function dispatch(action) {
+    if (state.saving) return;
     switch (action?.type) {
       case "pick": state.selectedMood = normalizeMood(action.mood); if (state.selectedMood) beginEditor({ mood: state.selectedMood, returnMode: "picker" }); break;
       case "change-mood": {

@@ -128,17 +128,17 @@ export function createAppNavigationController({
     }
     const previousPage = state.activePage;
     const pageChanged = previousPage !== requestedPage;
-    if (pageChanged && previousPage === "mood") {
-      const canLeaveMood = await controllers?.moodDiary?.beforeLeave?.();
-      if (canLeaveMood === false) return false;
-    }
-    if (pageChanged) rememberScrollPosition(previousPage);
-    if (pageChanged && previousPage === "gallery" && requestedPage !== "gallery") {
-      actions.stopGalleryMotionPreview?.();
-    }
-    elements.main?.setAttribute("aria-busy", "true");
-    elements.main?.setAttribute("data-route-busy", "true");
     try {
+      if (pageChanged && previousPage === "mood") {
+        const canLeaveMood = await controllers?.moodDiary?.beforeLeave?.();
+        if (!isCurrent() || canLeaveMood === false) return false;
+      }
+      if (pageChanged) rememberScrollPosition(previousPage);
+      if (pageChanged && previousPage === "gallery" && requestedPage !== "gallery") {
+        actions.stopGalleryMotionPreview?.();
+      }
+      elements.main?.setAttribute("aria-busy", "true");
+      elements.main?.setAttribute("data-route-busy", "true");
       await routeLoader?.load(requestedPage, {
         ...routeContext,
         state,
@@ -147,6 +147,7 @@ export function createAppNavigationController({
         isCurrent,
       });
       if (!isCurrent()) return false;
+      if (pageChanged && previousPage === "mood") controllers?.moodDiary?.afterLeave?.();
       routeContext.health?.setRoute(requestedPage);
       routeContext.performanceMonitor?.mark(`route-loaded:${requestedPage}`);
       if (previousPage === "gallery" && requestedPage !== "gallery") actions.setUploadExpanded(false);

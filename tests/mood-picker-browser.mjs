@@ -112,6 +112,8 @@ try {
     assert.equal(await page.evaluate(() => fixture.writes.length), 0, "dropping only selects; saving remains explicit");
     assert.equal(await page.locator("#moodEditorContent").evaluate((element) => element === document.activeElement), true);
     await back(page);
+    await page.waitForFunction(() => document.activeElement?.dataset.mood === "happy");
+    assert.equal(await page.evaluate(() => fixture.confirmations || 0), 0);
 
     await page.locator('[data-mood="calm"]').click();
     assert.match(await page.locator("#moodEditorSelected").textContent(), /平静/);
@@ -158,6 +160,20 @@ try {
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await page.locator(happy).click();
     await page.fill("#moodEditorContent", "合成拖动验收");
+    if (width === 390) {
+      await page.fill("#moodEditorTagInput", "散步");
+      await page.evaluate(() => { fixture.rejectNextSave = true; });
+      await page.click("#moodEditorSave");
+      await page.waitForFunction(() => Boolean(fixture.releaseSave));
+      assert.equal(await page.locator("#moodEditorForm").getAttribute("aria-busy"), "true");
+      assert.equal(await page.locator("#moodEditorSave").isDisabled(), true);
+      await page.keyboard.press("Escape");
+      assert.equal(await page.locator("#moodEditorPanel").isVisible(), true);
+      await page.evaluate(() => fixture.releaseSave());
+      await page.waitForFunction(() => document.querySelector("#moodEditorError").textContent.includes("合成网络错误"));
+      assert.equal(await page.locator("#moodEditorContent").inputValue(), "合成拖动验收");
+      assert.equal(await page.locator("#moodEditorTagInput").inputValue(), "散步");
+    }
     await page.click("#moodEditorSave");
     await page.waitForFunction(() => fixture.writes.length === 1);
     assert.equal(await page.evaluate(() => fixture.writes[0].mood), "happy");

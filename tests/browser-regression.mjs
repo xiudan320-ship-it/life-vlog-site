@@ -577,6 +577,8 @@ async function testMobileDensity(viewport, label) {
         const feedSpacing = await page.evaluate(() => ({ heading: document.querySelector("#galleryHead").getBoundingClientRect(), search: document.querySelector(".diary-search").getBoundingClientRect(), tags: document.querySelector("#diaryFilterChips").getBoundingClientRect(), status: document.querySelector("#globalStatus").getBoundingClientRect() }));
         assert.ok(feedSpacing.search.top - feedSpacing.heading.bottom <= 5 && feedSpacing.tags.top - feedSpacing.search.bottom <= 7, `${label} feed filters have excessive spacing`);
         assert.ok(feedSpacing.status.height <= 1, `${label} status text still occupies the feed heading`);
+        const featuredChip = page.locator('#diaryFilterChips [data-filter="featured7"]');
+        await featuredChip.click();
         await page.fill("#diarySearchInput", "fixture-no-matching-diary");
         await page.waitForSelector('#gallery [data-diary-empty-action="clear-search"]');
         await page.locator("#diarySearchInput").press("Escape");
@@ -592,6 +594,8 @@ async function testMobileDensity(viewport, label) {
         await page.click('#gallery [data-diary-empty-action="clear-search"]');
         await page.waitForFunction(() => document.activeElement?.id === "diarySearchInput");
         assert.equal(await page.locator("#diarySearchInput").inputValue(), "");
+        assert.equal(await featuredChip.getAttribute("aria-pressed"), "true");
+        await page.locator("#diaryFilterChips .chip").first().click();
         await page.locator("#diarySearchInput").press("Escape");
         await page.locator('[data-today-mood-user="fixture-user"]').click();
         await page.waitForSelector("#moodOverlay:not([hidden]) #moodPickerPanel:not([hidden])");

@@ -8,6 +8,11 @@ const controller = fixture.controller = createMoodEntryOverlayController({
   repository: {
     listDay: async () => fixture.rows,
     upsert: async (record) => {
+      if (fixture.rejectNextSave) {
+        await new Promise((resolve) => { fixture.releaseSave = resolve; });
+        fixture.rejectNextSave = false;
+        throw new Error("合成网络错误");
+      }
       const saved = { ...record, id: "fixture-mood", user_id: "fixture-user" };
       fixture.writes.push(saved);
       fixture.rows = [saved];
@@ -17,7 +22,10 @@ const controller = fixture.controller = createMoodEntryOverlayController({
   getSession: () => ({ user: { id: "fixture-user" } }),
   getTodayKey: () => "2030-06-15",
   getAuthorName: () => "合成测试成员",
-  confirmAction: async () => true,
+  confirmAction: async () => {
+    fixture.confirmations = (fixture.confirmations || 0) + 1;
+    return true;
+  },
   onMutation: async () => true,
 });
 fixture.open = () => controller.open({ dateKey: "2030-06-15", entries: [], participants: [{ userId: "fixture-user" }], trigger: elements.openPicker });
