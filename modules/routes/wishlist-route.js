@@ -29,7 +29,7 @@ export function bind({ controllers, bindRouteEvents }) {
   controllers.wishlist?.bind();
   controllers.shopping?.bind();
   controllers.wishlistHub?.bind();
-  bindRouteEvents?.("wishlist");
+  return bindRouteEvents?.("wishlist");
 }
 export function activate({ controllers }) {
   controllers.wishlistHub?.show(controllers.wishlistHub.getActiveModule());

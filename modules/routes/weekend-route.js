@@ -18,7 +18,7 @@ export function initialize({ controllers, controllerOptions }) {
   controller.resetForm();
 }
 export function bind({ bindRouteEvents }) {
-  bindRouteEvents?.("weekend");
+  return bindRouteEvents?.("weekend");
 }
 export function activate({ controllers }) {
   controllers.weekend?.render?.();

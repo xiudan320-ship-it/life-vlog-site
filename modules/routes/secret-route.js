@@ -13,7 +13,7 @@ export function initialize({ controllers, controllerOptions }) {
   if (!controllers.secret) controllers.secret = createSecretController(controllerOptions.secret);
 }
 export function bind({ bindRouteEvents }) {
-  bindRouteEvents?.("secret");
+  return bindRouteEvents?.("secret");
 }
 export function activate({ controllers, actions, state }) {
   actions.applyMobileSecretLayout?.();

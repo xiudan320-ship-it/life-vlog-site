@@ -15,7 +15,7 @@ export function initialize({ controllers, controllerOptions, state }) {
   );
 }
 export function bind({ bindRouteEvents }) {
-  bindRouteEvents?.("recipes");
+  return bindRouteEvents?.("recipes");
 }
 export function activate({ controllers }) {
   controllers.recipe?.render?.();

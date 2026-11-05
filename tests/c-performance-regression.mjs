@@ -1250,6 +1250,42 @@ async function testRecycleRecovery() {
   }
 }
 
+async function testDelayedFormBinding() {
+  for (const [routeName, toggleId, formId] of [
+    ["recipes", "recipeToggle", "recipeForm"],
+    ["weekend", "weekendToggle", "weekendForm"],
+    ["wishlist", "wishlistToggle", "wishlistForm"],
+    ["secret", "secretToggle", "secretForm"],
+  ]) {
+    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
+    try {
+      const fixture = createCloudflareApiFixture();
+      await fixture.install(context);
+      await context.addInitScript((session) => {
+        localStorage.setItem("life-vlog-cloudflare-auth", JSON.stringify(session));
+        sessionStorage.setItem("life-vlog-secret-unlock:fixture-user", JSON.stringify({ unlockedAt: Date.now(), leftAt: 0 }));
+      }, pseudoSession);
+      const page = await context.newPage();
+      const errors = [];
+      page.on("pageerror", (error) => errors.push(error.message));
+      let delayed = false;
+      await page.route("**/assets/content-form-event-bindings-*.js", async (request) => {
+        delayed = true;
+        await new Promise((resolve) => setTimeout(resolve, 900));
+        await request.continue();
+      });
+      await page.goto(`${baseUrl}/?page=${routeName}`, { waitUntil: "domcontentloaded" });
+      await page.locator(`#${routeName}Page:not([hidden])`).waitFor();
+      await page.click(`#${toggleId}`);
+      await page.locator(`#${formId}:not([hidden])`).waitFor({ timeout: 3000 });
+      assert.equal(delayed, true, `${routeName} fixture did not delay form binding`);
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  }
+}
+
 async function testMobileDiaryActionsAndCategoryPicker(browser) {
   const owner = await openFixturePage({ viewport: { width: 390, height: 844 } });
   try {
@@ -2200,6 +2236,7 @@ try {
   await testListSaveRecovery();
   await testWishCompletionRecovery();
   await testRecycleRecovery();
+  await testDelayedFormBinding();
   await testMobileDiaryActionsAndCategoryPicker(browser);
   await testCategoryPickerReadingPosition(browser);
   await testMobileComposerAndBorderlessCovers(browser);
