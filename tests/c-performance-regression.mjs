@@ -1286,6 +1286,20 @@ async function testDelayedFormBinding() {
   }
 }
 
+async function testInitialFeedReadOwnership() {
+  const result = await openFixturePage({ viewport: { width: 390, height: 844 } });
+  try {
+    const reads = (path) => result.fixture.requests.filter((request) => request.path === path && request.method === "GET").length;
+    assert.equal(reads("/api/table/photos"), 2, "startup should read the diary list and flag schema once each");
+    assert.equal(reads("/api/table/photo_favorites"), 1, "account sync repeated the favorite read");
+    assert.equal(reads("/api/table/photo_comments"), 1, "account sync repeated the comment preview read");
+    assert.equal(result.fixture.rpcCalls.filter(({ name }) => name === "get_my_notifications").length, 1, "account sync repeated the notification read");
+    assert.deepEqual(result.errors, []);
+  } finally {
+    await closeFixturePage(result);
+  }
+}
+
 async function testMobileDiaryActionsAndCategoryPicker(browser) {
   const owner = await openFixturePage({ viewport: { width: 390, height: 844 } });
   try {
@@ -2237,6 +2251,7 @@ try {
   await testWishCompletionRecovery();
   await testRecycleRecovery();
   await testDelayedFormBinding();
+  await testInitialFeedReadOwnership();
   await testMobileDiaryActionsAndCategoryPicker(browser);
   await testCategoryPickerReadingPosition(browser);
   await testMobileComposerAndBorderlessCovers(browser);

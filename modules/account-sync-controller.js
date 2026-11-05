@@ -69,9 +69,8 @@ export function createAccountSyncController({
   renderShopping,
   renderFoodWheel,
   synchronizeAnniversaries,
-  loadPhotos,
+  renderGallery,
   loadSecretItems,
-  loadNotifications,
   isAdminAccount,
   setGlobalStatus,
   awardDailyExperience,
@@ -453,9 +452,9 @@ export function createAccountSyncController({
         await synchronizeWeekendPlans(userId);
         await synchronizeAnniversaries(userId);
         await loadGratitudeNotes();
-        await loadPhotos();
+        state.galleryRenderSignature = "";
+        renderGallery();
         await loadSecretItems();
-        await loadNotifications();
         updateCloudSyncStatus();
         health?.setSync("ok", 200);
       } catch (error) {
