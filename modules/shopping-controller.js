@@ -33,6 +33,7 @@ export function createShoppingController({
   let imageDialog = null;
   let actionDialog = null;
   let detailDialog = null;
+  let submitting = false;
   const deletingIds = new Set();
 
   function setStatus(message) {
@@ -103,6 +104,7 @@ export function createShoppingController({
   }
 
   async function uploadImage(file, name) {
+    const userId = getSession()?.user?.id;
     if (!file) {
       return {
         imageUrl: removeImageRequested ? "" : existingImageUrl,
@@ -111,6 +113,7 @@ export function createShoppingController({
     }
     setStatus("正在压缩商品图片…");
     const compressed = await compressImage(file);
+    if (getSession()?.user?.id !== userId) throw new Error("当前账户已切换。");
     setStatus(`已压缩 ${formatFileSize(file.size)} → ${formatFileSize(compressed.blob.size)}，正在上传…`);
     const uploaded = await uploadToR2(compressed.blob, slugify(name || "shopping-item"), "shopping");
     return { imageUrl: uploaded.url, imagePath: `r2:${uploaded.key}` };
@@ -233,6 +236,7 @@ export function createShoppingController({
 
   async function submit(event) {
     event.preventDefault();
+    if (submitting) return;
     const session = getSession();
     if (!session) return setStatus("请先登录后再保存商品。");
     if (!canSync()) return setStatus("数据库尚未连接，商品没有保存。");
@@ -247,22 +251,13 @@ export function createShoppingController({
         return setStatus("商品链接需要使用完整的 http 或 https 地址。");
       }
     }
-    const items = getItems();
-    const previous = items.find((item) => item.id === editingId);
-    let image;
-    try {
-      image = await uploadImage(elements.shoppingImageInput.files?.[0], name);
-    } catch (error) {
-      setStatus(`图片上传失败：${error.message}`);
-      return;
-    }
+    const userId = session.user.id;
+    const previous = getItems().find((item) => item.id === editingId);
     const rawPrice = elements.shoppingPriceInput.value.trim();
     let item = {
       id: normalizeUuid(editingId),
       userId: previous?.userId || session.user.id,
       name,
-      imageUrl: image.imageUrl,
-      imagePath: image.imagePath,
       price: rawPrice === "" ? null : Number(rawPrice),
       link,
       note: elements.shoppingNoteInput.value.trim(),
@@ -272,28 +267,52 @@ export function createShoppingController({
       createdAt: previous?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    const result = await repository.upsert("shopping_items", shoppingToCloudRow(item, item.userId), {
-      select: "*",
-      single: true,
-    });
-    if (result.error) {
-      if (image.imagePath && image.imagePath !== previous?.imagePath) await cleanupImagePaths([image.imagePath]);
-      setStatus(`商品同步失败：${result.error.message}`);
-      return;
-    }
-    item = shoppingFromCloudRow(result.data);
-    setItems(previous ? items.map((entry) => entry.id === item.id ? item : entry) : [item, ...items]);
-    resetForm();
-    setExpanded(false);
-    setStatus(previous ? "商品已更新。" : "商品已加入购物车。");
-    render(item.id);
-    if (previous?.imagePath && previous.imagePath !== item.imagePath) {
-      const cleanupError = await cleanupImagePaths([previous.imagePath]);
-      if (cleanupError) setStatus("商品已更新，但旧图片清理失败。");
+    let uploadedPath = "";
+    let saved = false;
+    submitting = true;
+    setSubmitting(true);
+    setStatus("正在保存商品…");
+    try {
+      const image = await uploadImage(elements.shoppingImageInput.files?.[0], name);
+      uploadedPath = image.imagePath !== previous?.imagePath ? image.imagePath : "";
+      if (getSession()?.user?.id !== userId) return;
+      Object.assign(item, image);
+      const result = await repository.upsert("shopping_items", shoppingToCloudRow(item, item.userId), {
+        select: "*",
+        single: true,
+      });
+      if (result.error) throw result.error;
+      saved = true;
+      if (getSession()?.user?.id !== userId) return;
+      item = shoppingFromCloudRow(result.data);
+      const items = getItems();
+      setItems(previous ? items.map((entry) => entry.id === item.id ? item : entry) : [item, ...items]);
+      resetForm();
+      setExpanded(false);
+      setStatus(previous ? "商品已更新。" : "商品已加入购物车。");
+      render(item.id);
+      if (previous?.imagePath && previous.imagePath !== item.imagePath) {
+        const cleanupError = await cleanupImagePaths([previous.imagePath]);
+        if (cleanupError && getSession()?.user?.id === userId) setStatus("商品已更新，但旧图片清理失败。");
+      }
+    } catch (error) {
+      if (getSession()?.user?.id === userId) setStatus(`商品保存失败：${error.message}`);
+    } finally {
+      if (!saved && uploadedPath && getSession()?.user?.id === userId) await cleanupImagePaths([uploadedPath]);
+      submitting = false;
+      setSubmitting(false);
     }
   }
 
+  function setSubmitting(value) {
+    elements.shoppingForm.setAttribute("aria-busy", String(value));
+    elements.shoppingForm.querySelectorAll("input, textarea, select, button").forEach((control) => { control.disabled = value; });
+    elements.shoppingToggle.disabled = value;
+    elements.shoppingSubmitButton.textContent = value ? "保存中…" : editingId ? "保存修改" : "保存商品";
+  }
+
   function edit(id) {
+    if (submitting) return;
     const item = getItems().find((entry) => entry.id === id);
     if (!item || !canManageItem(item)) return;
     editingId = id;
@@ -418,6 +437,7 @@ export function createShoppingController({
     createShoppingInteractions({
       listElement: elements.shoppingList,
       onAdd: () => {
+        if (submitting) return;
         resetForm();
         setExpanded(true);
         elements.shoppingComposer.scrollIntoView({ behavior: "smooth", block: "start" });

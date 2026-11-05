@@ -156,7 +156,7 @@
         </div>
       </section>
 
-      <dialog class="wish-complete-dialog" id="wishCompleteDialog">
+      <dialog class="wish-complete-dialog" id="wishCompleteDialog" aria-labelledby="wishCompleteTitle">
         <button class="dialog-close" id="wishCompleteClose" type="button" aria-label="关闭">×</button>
         <form id="wishCompleteForm">
           <div class="wish-complete-hero">
@@ -176,7 +176,7 @@
               ></textarea>
             </label>
           </div>
-          <p class="status-line" id="wishCompleteStatus"></p>
+          <p class="status-line" id="wishCompleteStatus" role="status" aria-live="polite"></p>
           <div class="wish-complete-actions">
             <button class="primary" id="wishCompleteSubmit" type="submit">保存完成感想</button>
           </div>

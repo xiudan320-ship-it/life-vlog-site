@@ -84,6 +84,8 @@ flowchart LR
 
 新增心情从 Picker 直接写入心情值，已有记录从详情进入编辑器。手机和桌面日记的留言写入共用 `social-controller.js`，服务端返回的留言按原日记 ID 合并到当前详情和首页预览。首页缓存随成功写入更新，写入前已发出的预览读取不能覆盖新回复。桌面留言视图随查看器按需加载。
 
+心愿和购物车的 controller 在上传前锁定提交并读取表单快照，保存响应按发起用户校验后合并到当前清单；失败保留输入并释放表单，修为更新和旧图片清理不会阻止已保存内容展示。心愿完成状态写入按条目防重，弹窗使用打开版本校验，迟到响应不关闭后续打开的弹窗，取消完成保留已有感想。
+
 首次登录态 gallery 激活时，`app-navigation-controller.js` 负责一次性的首页落点。概览席位不切路由：已记录席位原地打开详情，本人空席原地打开 Picker，对方空席不可编辑；overlay 用同 URL history entry 支持 Back 关闭，并恢复打开时的 scrollY 与触发焦点。顶部不再提供心情分页按钮，`?page=mood` 深链接和概览日历 CTA 继续进入月历。
 
 一级导航的注册表、默认顺序和可选入口由 `primary-navigation-domain.js` 维护。默认顺序为“日记、VLOG、心愿、周末、衣柜”，菜谱、留言、秘藏默认关闭；日记始终启用，最多同时启用 5 个入口。VLOG 是筛选 mode，不产生 `?page=vlog`，留言是 dialog action，不产生 `?page=thanks`，心情不占用一级导航但保留 mood 深链接和日历 CTA。`primary-navigation-view.js` 只渲染当前可见入口与设置列表，`primary-navigation-controller.js` 负责按作用域读写、启用/禁用、上下移动和 dialog action；手机端五项入口在导航行内完整分配宽度，日记筛选标签保持正常文档流并在自身容器内单行横向滚动。

@@ -31,6 +31,9 @@ The shared header must not be duplicated inside the shopping module. Switching m
 - Shopping: product name → price → purchase state → note/link → added date.
 - Notes may use two lines. Titles use up to two lines on mobile rather than destructive truncation.
 - Completion receipts remain visible but visually quieter than the title.
+- Reopening a completed wish retains its receipt for later editing or completion.
+- Saving a wish or product disables the form controls and shows a busy state. A failed save retains the input and restores the controls for retry.
+- Completing a wish retains the receipt draft on failure. A late save must not close a completion dialog opened after that save started.
 
 ## Actions
 

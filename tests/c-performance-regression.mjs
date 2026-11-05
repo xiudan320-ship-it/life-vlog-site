@@ -1084,6 +1084,95 @@ async function testShoppingDeleteDialogAppearance(browser) {
   }
 }
 
+async function testListSaveRecovery() {
+  for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 900 }]) {
+    const result = await openFixturePage({ viewport, path: "/?page=wishlist" });
+    try {
+      const { page } = result;
+      for (const moduleName of ["wishlist", "shopping"]) {
+        await page.click(`[data-wishlist-module="${moduleName}"]`);
+        const shopping = moduleName === "shopping";
+        const table = shopping ? "shopping_items" : "wishes";
+        const formId = shopping ? "shoppingForm" : "wishlistForm";
+        const inputId = shopping ? "shoppingNameInput" : "wishTitleInput";
+        const submitId = shopping ? "shoppingSubmitButton" : "wishSubmitButton";
+        const statusId = shopping ? "shoppingStatus" : "wishlistStatus";
+        const name = shopping ? "保存一次的商品" : "保存一次的心愿";
+        await page.click(shopping ? "#shoppingToggle" : "#wishlistToggle");
+        await page.fill(`#${inputId}`, name);
+        let attempts = 0;
+        let releaseWrite;
+        let notifyStarted;
+        const started = new Promise((resolve) => { notifyStarted = resolve; });
+        const gate = new Promise((resolve) => { releaseWrite = resolve; });
+        await page.route(`**/api/table/${table}`, async (route) => {
+          if (route.request().postDataJSON()?.action !== "upsert") return route.fallback();
+          attempts += 1;
+          if (attempts === 1) {
+            notifyStarted();
+            await gate;
+            return route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "暂时无法保存" }) });
+          }
+          return route.fallback();
+        });
+        await page.click(`#${submitId}`);
+        await started;
+        assert.equal(await page.locator(`#${submitId}`).isDisabled(), true);
+        assert.equal(await page.locator(`#${inputId}`).isDisabled(), true);
+        assert.equal(await page.locator(`#${formId}`).getAttribute("aria-busy"), "true");
+        await page.locator(`#${formId}`).evaluate((form) => {
+          form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+          form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+        });
+        assert.equal(attempts, 1);
+        releaseWrite();
+        await page.locator(`#${statusId}`).filter({ hasText: "暂时无法保存" }).waitFor();
+        assert.equal(await page.locator(`#${inputId}`).inputValue(), name);
+        assert.equal(await page.locator(`#${submitId}`).isDisabled(), false);
+        await page.click(`#${submitId}`);
+        await page.locator(shopping ? "#shoppingList" : "#wishlistList").getByText(name, { exact: true }).waitFor();
+        assert.equal(attempts, 2);
+        assert.equal(result.fixture.writes.filter(({ path, action }) => path === `/api/table/${table}` && action === "upsert").length, 1);
+      }
+      assert.deepEqual(result.errors, []);
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false);
+    } finally {
+      await closeFixturePage(result);
+    }
+  }
+}
+
+async function testWishCompletionRecovery() {
+  const result = await openFixturePage({ viewport: { width: 390, height: 844 }, path: "/?page=wishlist" });
+  try {
+    const { page } = result;
+    let failCompletion = true;
+    await page.route("**/api/table/wishes", async (route) => {
+      if (route.request().postDataJSON()?.action === "update" && failCompletion) {
+        failCompletion = false;
+        return route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "完成状态保存失败" }) });
+      }
+      return route.fallback();
+    });
+    await page.click('[data-toggle-wish="fixture-wish"]');
+    await page.fill("#wishCompleteNoteInput", "希望保留的完成感想");
+    await page.click("#wishCompleteSubmit");
+    await page.locator("#wishCompleteStatus").filter({ hasText: "完成状态保存失败" }).waitFor();
+    assert.equal(await page.locator("#wishCompleteSubmit").isDisabled(), false);
+    assert.equal(await page.locator("#wishCompleteNoteInput").inputValue(), "希望保留的完成感想");
+    await page.click("#wishCompleteSubmit");
+    await page.locator("#wishCompleteDialog").waitFor({ state: "hidden" });
+    await page.click('[data-toggle-wish="fixture-wish"]');
+    await page.locator('dialog.action-confirm-dialog button[value="confirm"]').click();
+    await page.locator('#wishTabs [data-wish-view="open"][aria-selected="true"]').waitFor();
+    await page.click('[data-toggle-wish="fixture-wish"]');
+    assert.equal(await page.locator("#wishCompleteNoteInput").inputValue(), "希望保留的完成感想");
+    assert.deepEqual(result.errors, []);
+  } finally {
+    await closeFixturePage(result);
+  }
+}
+
 async function testMobileDiaryActionsAndCategoryPicker(browser) {
   const owner = await openFixturePage({ viewport: { width: 390, height: 844 } });
   try {
@@ -2031,6 +2120,8 @@ try {
   await testMobileDiaryGridAndDesktopRail(browser);
   await testSettingsRegistryInteractions(browser);
   await testShoppingDeleteDialogAppearance(browser);
+  await testListSaveRecovery();
+  await testWishCompletionRecovery();
   await testMobileDiaryActionsAndCategoryPicker(browser);
   await testCategoryPickerReadingPosition(browser);
   await testMobileComposerAndBorderlessCovers(browser);

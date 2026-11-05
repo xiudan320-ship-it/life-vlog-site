@@ -44,6 +44,9 @@ export function createWishlistController({
   let removeImageRequested = false;
   let completingId = null;
   let actionDialog = null;
+  let submitting = false;
+  let completionDialogVersion = 0;
+  const pendingCompletions = new Set();
   const deletingIds = new Set();
 
   function setExpanded(expanded) {
@@ -146,6 +149,7 @@ export function createWishlistController({
   }
 
   function handleImagePaste(event) {
+    if (submitting) return;
     const imageItem = Array.from(event.clipboardData?.items || []).find((item) =>
       item.type.startsWith("image/")
     );
@@ -171,6 +175,7 @@ export function createWishlistController({
   }
 
   function applyImageUrl(rawUrl) {
+    if (submitting) return false;
     const urls = extractImageUrls(rawUrl);
     if (!urls.length) {
       setStatus("请输入完整的 http 或 https 图片链接。");
@@ -189,6 +194,7 @@ export function createWishlistController({
   }
 
   async function uploadImage(file, title, linkUrl = imageLink) {
+    const userId = getSession()?.user?.id;
     if (!file && linkUrl) {
       setStatus("正在把图片链接复制到 R2…");
       const copied = await copyUrlToR2(
@@ -206,6 +212,7 @@ export function createWishlistController({
     }
     setStatus("正在压缩心愿图片…");
     const compressed = await compressImage(file);
+    if (getSession()?.user?.id !== userId) throw new Error("当前账户已切换。");
     setStatus(
       `已压缩 ${formatFileSize(file.size)} → ${formatFileSize(compressed.blob.size)}，正在上传心愿图片…`
     );
@@ -228,6 +235,7 @@ export function createWishlistController({
 
   async function submit(event) {
     event.preventDefault();
+    if (submitting) return;
     const session = getSession();
     if (!session) {
       setStatus("请先登录后再保存心愿。");
@@ -242,15 +250,8 @@ export function createWishlistController({
       setStatus("先写一个心愿。");
       return;
     }
-    const wishes = getWishes();
-    const previous = wishes.find((item) => item.id === editingId);
-    let image;
-    try {
-      image = await uploadImage(elements.wishImageInput.files?.[0], title, imageLink);
-    } catch (error) {
-      setStatus(`图片上传失败：${error.message}`);
-      return;
-    }
+    const userId = session.user.id;
+    const previous = getWishes().find((item) => item.id === editingId);
     let wish = {
       id: normalizeUuid(editingId),
       userId: previous?.userId || session.user.id,
@@ -260,41 +261,70 @@ export function createWishlistController({
       priority: elements.wishPriorityInput.value,
       note: elements.wishNoteInput.value.trim(),
       completionNote: elements.wishCompletionNoteInput.value.trim(),
-      imageUrl: image.imageUrl,
-      imagePath: image.imagePath,
       done: previous?.done || false,
       completedAt: previous?.completedAt || "",
       sortOrder: previous?.sortOrder ?? 0,
       createdAt: previous?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    const { data, error } = await repository.upsert(
-      "wishes",
-      wishToCloudRow(wish, wish.userId),
-      { select: "*", single: true }
-    );
-    if (error) {
-      if (image.imagePath && image.imagePath !== previous?.imagePath) {
-        await cleanupStoredImagePaths([image.imagePath]);
+    let uploadedPath = "";
+    let saved = false;
+    submitting = true;
+    setSubmitting(true);
+    setStatus("正在保存心愿…");
+    try {
+      const image = await uploadImage(elements.wishImageInput.files?.[0], title, imageLink);
+      uploadedPath = image.imagePath !== previous?.imagePath ? image.imagePath : "";
+      if (getSession()?.user?.id !== userId) return;
+      Object.assign(wish, image);
+      const { data, error } = await repository.upsert(
+        "wishes",
+        wishToCloudRow(wish, wish.userId),
+        { select: "*", single: true }
+      );
+      if (error) throw error;
+      saved = true;
+      if (getSession()?.user?.id !== userId) return;
+      wish = wishFromCloudRow(data);
+      const wishes = getWishes();
+      setWishes(previous ? wishes.map((item) => (item.id === wish.id ? wish : item)) : [wish, ...wishes]);
+      resetForm();
+      setExpanded(false);
+      const successMessage = previous ? "心愿已更新。" : "心愿已保存。";
+      setStatus(successMessage);
+      render(wish.id);
+      void Promise.resolve().then(() => awardExperience(previous ? "wishEdit" : "wish")).then((gainedExp) => {
+        if (getSession()?.user?.id === userId && elements.wishlistStatus.textContent === successMessage && gainedExp) setStatus(`${successMessage} 修为 +${gainedExp}`);
+      }).catch(() => {
+        if (getSession()?.user?.id === userId && elements.wishlistStatus.textContent === successMessage) setStatus(`${successMessage} 修为更新失败。`);
+      });
+      if (previous?.imagePath && previous.imagePath !== wish.imagePath && getDatabase()) {
+        try {
+          await cleanupStoredImagePaths([previous.imagePath]);
+        } catch {
+          if (getSession()?.user?.id === userId) setStatus("心愿已更新，但旧图片清理失败。");
+        }
       }
-      setStatus(`心愿同步失败：${error.message}`);
-      return;
+    } catch (error) {
+      if (getSession()?.user?.id === userId) setStatus(`心愿保存失败：${error.message}`);
+    } finally {
+      if (!saved && uploadedPath && getSession()?.user?.id === userId) {
+        try {
+          await cleanupStoredImagePaths([uploadedPath]);
+        } catch {
+          setStatus(`${elements.wishlistStatus.textContent} 上传图片清理失败。`);
+        }
+      }
+      submitting = false;
+      setSubmitting(false);
     }
-    wish = wishFromCloudRow(data);
-    const wasEditing = Boolean(editingId);
-    setWishes(
-      wasEditing
-        ? wishes.map((item) => (item.id === editingId ? wish : item))
-        : [wish, ...wishes]
-    );
-    resetForm();
-    setExpanded(false);
-    const gainedExp = await awardExperience(wasEditing ? "wishEdit" : "wish");
-    setStatus(`${wasEditing ? "心愿已更新。" : "心愿已保存。"}${gainedExp ? ` 修为 +${gainedExp}` : ""}`);
-    render(wish.id);
-    if (previous?.imagePath && previous.imagePath !== wish.imagePath && getDatabase()) {
-      await cleanupStoredImagePaths([previous.imagePath]);
-    }
+  }
+
+  function setSubmitting(value) {
+    elements.wishlistForm.setAttribute("aria-busy", String(value));
+    elements.wishlistForm.querySelectorAll("input, textarea, select, button").forEach((control) => { control.disabled = value; });
+    elements.wishlistToggle.disabled = value;
+    elements.wishSubmitButton.textContent = value ? "保存中…" : editingId ? "保存修改" : "保存心愿";
   }
 
   function render(updatedId = "") {
@@ -332,6 +362,7 @@ export function createWishlistController({
   }
 
   function edit(id) {
+    if (submitting) return;
     const wish = getWishes().find((item) => item.id === id);
     if (!wish || !canManageItem(wish)) return;
     editingId = id;
@@ -357,6 +388,7 @@ export function createWishlistController({
   function openCompleteDialog(id) {
     const wish = getWishes().find((item) => item.id === id);
     if (!wish || !canManageItem(wish)) return;
+    completionDialogVersion += 1;
     completingId = id;
     elements.wishCompleteTitle.textContent = wish.title || "完成心愿";
     elements.wishCompleteMeta.textContent = `${wish.type || "心愿"} · ${wish.priority || "普通"} · ${getAuthorName(wish.userId)} 发布`;
@@ -370,64 +402,87 @@ export function createWishlistController({
   }
 
   function closeCompleteDialog() {
+    completionDialogVersion += 1;
     completingId = null;
     elements.wishCompleteForm.reset();
     elements.wishCompleteStatus.textContent = "";
     elements.wishCompleteDialog.close();
   }
 
-  function setCompletionMessage(message, target = "page") {
-    if (target === "dialog") elements.wishCompleteStatus.textContent = message;
+  function setCompletionMessage(message, target, dialogVersion) {
+    if (target === "dialog" && completionDialogVersion === dialogVersion && elements.wishCompleteDialog.open) elements.wishCompleteStatus.textContent = message;
     else setStatus(message);
   }
 
   async function saveCompletionState(current, done, completionNote = "", target = "page") {
+    if (pendingCompletions.has(current.id)) return false;
+    const userId = getSession()?.user?.id;
+    if (!userId) return false;
+    const dialogVersion = completionDialogVersion;
     if (!canSync()) {
-      setCompletionMessage("数据库尚未连接，心愿状态没有修改。", target);
+      setCompletionMessage("数据库尚未连接，心愿状态没有修改。", target, dialogVersion);
       return false;
     }
     const next = {
       ...current,
       done,
-      completionNote: done ? completionNote : "",
+      completionNote: done ? completionNote : current.completionNote,
       completedAt: done ? new Date().toISOString() : "",
       updatedAt: new Date().toISOString(),
     };
-    const result = await repository.update(
-      "wishes",
-      {
-        is_done: next.done,
-        completion_note: next.completionNote || "",
-        completed_at: next.completedAt || null,
-        updated_at: next.updatedAt,
-      },
-      { id: current.id },
-      { select: "*", single: true }
-    );
-    if (result.error) {
-      setCompletionMessage(`心愿同步失败：${result.error.message}`, target);
+    pendingCompletions.add(current.id);
+    try {
+      const result = await repository.update(
+        "wishes",
+        {
+          is_done: next.done,
+          completion_note: next.completionNote || "",
+          completed_at: next.completedAt || null,
+          updated_at: next.updatedAt,
+        },
+        { id: current.id },
+        { select: "*", single: true }
+      );
+      if (getSession()?.user?.id !== userId) return false;
+      if (result.error) throw result.error;
+      Object.assign(next, wishFromCloudRow(result.data));
+      setWishes(getWishes().map((wish) => (wish.id === current.id ? next : wish)));
+      setActiveView(done ? "done" : "open");
+      const successMessage = done ? "心愿已完成，感想已保存。" : "已取消完成状态，感想已保留。";
+      setStatus(successMessage);
+      render(current.id);
+      void Promise.resolve().then(() => awardExperience(done ? "wishDone" : "wishEdit")).then((gainedExp) => {
+        if (getSession()?.user?.id === userId && elements.wishlistStatus.textContent === successMessage && gainedExp) setStatus(`${successMessage} 修为 +${gainedExp}`);
+      }).catch(() => {
+        if (getSession()?.user?.id === userId && elements.wishlistStatus.textContent === successMessage) setStatus(`${successMessage} 修为更新失败。`);
+      });
+      return true;
+    } catch (error) {
+      if (getSession()?.user?.id === userId) setCompletionMessage(`心愿同步失败：${error.message}`, target, dialogVersion);
       return false;
+    } finally {
+      pendingCompletions.delete(current.id);
     }
-    Object.assign(next, wishFromCloudRow(result.data));
-    setWishes(getWishes().map((wish) => (wish.id === current.id ? next : wish)));
-    setActiveView(done ? "done" : "open");
-    const gainedExp = await awardExperience(done ? "wishDone" : "wishEdit");
-    setStatus(`${done ? "心愿已完成，感想已保存。" : "已取消完成状态。"}${gainedExp ? ` 修为 +${gainedExp}` : ""}`);
-    render(current.id);
-    return true;
   }
 
   async function submitCompletion(event) {
     event.preventDefault();
+    if (elements.wishCompleteSubmit.disabled) return;
     const current = getWishes().find((wish) => wish.id === completingId);
     if (!current || !canManageItem(current)) return;
     const note = elements.wishCompleteNoteInput.value.trim();
+    const dialogVersion = completionDialogVersion;
     elements.wishCompleteSubmit.disabled = true;
     elements.wishCompleteSubmit.textContent = "保存中...";
-    const saved = await saveCompletionState(current, true, note, "dialog");
-    elements.wishCompleteSubmit.disabled = false;
-    elements.wishCompleteSubmit.textContent = "保存完成感想";
-    if (saved) closeCompleteDialog();
+    elements.wishCompleteForm.setAttribute("aria-busy", "true");
+    try {
+      const saved = await saveCompletionState(current, true, note, "dialog");
+      if (saved && completionDialogVersion === dialogVersion) closeCompleteDialog();
+    } finally {
+      elements.wishCompleteSubmit.disabled = false;
+      elements.wishCompleteSubmit.textContent = "保存完成感想";
+      elements.wishCompleteForm.setAttribute("aria-busy", "false");
+    }
   }
 
   async function toggle(id) {
@@ -540,6 +595,7 @@ export function createWishlistController({
     createWishlistInteractions({
       listElement: elements.wishlistList,
       onAdd: () => {
+        if (submitting) return;
         resetForm();
         setExpanded(true);
         elements.wishlistComposer.scrollIntoView({ behavior: "smooth", block: "start" });

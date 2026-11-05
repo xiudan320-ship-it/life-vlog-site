@@ -14,15 +14,15 @@ function createElements() {
   };
 }
 
-function createController({ elements, items, repository, cleanupStoredImagePaths, activeFilter = "open", onSetActiveFilter = () => {} }) {
+function createController({ elements, items, repository, cleanupStoredImagePaths, activeFilter = "open", onSetActiveFilter = () => {}, getSession = () => ({ user: { id: "user-1" } }), onSetItems = () => {} }) {
   let currentItems = items;
   return createShoppingController({
     elements,
     repository,
-    getSession: () => ({ user: { id: "user-1" } }),
+    getSession,
     getDatabase: () => ({}),
     getItems: () => currentItems,
-    setItems: (next) => { currentItems = next; },
+    setItems: (next) => { currentItems = next; onSetItems(next); },
     getActiveFilter: () => activeFilter,
     setActiveFilter: onSetActiveFilter,
     getDataState: () => "ready",
@@ -87,6 +87,105 @@ test("shopping completion keeps the current filter for consecutive checks", asyn
   assert.match(elements.shoppingList.innerHTML, /再买面包/);
   assert.doesNotMatch(elements.shoppingList.innerHTML, /先买咖啡/);
   assert.equal(elements.shoppingStatus.textContent, "已标记为已购买。");
+});
+
+function createSaveElements() {
+  const element = (value = "") => ({
+    value,
+    hidden: false,
+    disabled: false,
+    textContent: "",
+    setAttribute(name, value) { this[name] = String(value); },
+    removeAttribute(name) { delete this[name]; },
+    classList: { toggle() {} },
+  });
+  const elements = createElements();
+  for (const name of ["shoppingNameInput", "shoppingPriceInput", "shoppingLinkInput", "shoppingNoteInput", "shoppingToggle", "shoppingSubmitButton", "shoppingComposer", "shoppingFormTitle", "shoppingCancelEdit", "shoppingImageInput", "shoppingImagePreview", "shoppingImageName", "shoppingRemoveImage"]) {
+    elements[name] = element();
+  }
+  elements.shoppingNameInput.value = "咖啡豆";
+  elements.shoppingNoteInput.value = "保留这份备注";
+  elements.shoppingForm = {
+    ...element(),
+    querySelectorAll: () => [elements.shoppingNameInput, elements.shoppingSubmitButton],
+    reset() { elements.shoppingNameInput.value = ""; elements.shoppingNoteInput.value = ""; },
+  };
+  return elements;
+}
+
+test("shopping save writes once during a slow request and preserves concurrent list changes", async () => {
+  const elements = createSaveElements();
+  const items = [];
+  let writes = 0;
+  let finishWrite;
+  let written;
+  const controller = createController({
+    elements, items,
+    repository: { upsert: async (table, row) => {
+      writes += 1;
+      written = row;
+      return new Promise((resolve) => { finishWrite = resolve; });
+    } },
+    onSetItems: (next) => { items.splice(0, items.length, ...next); },
+  });
+  const saving = controller.submit({ preventDefault() {} });
+  await new Promise(setImmediate);
+  await controller.submit({ preventDefault() {} });
+  assert.equal(writes, 1);
+  assert.equal(elements.shoppingSubmitButton.disabled, true);
+  assert.equal(elements.shoppingForm["aria-busy"], "true");
+  items.push({ id: "another-item", userId: "user-1", name: "面包" });
+  finishWrite({ data: written, error: null });
+  await saving;
+  assert.equal(items.length, 2);
+  assert.equal(elements.shoppingSubmitButton.disabled, false);
+  assert.equal(elements.shoppingNameInput.value, "");
+  assert.match(elements.shoppingList.innerHTML, /咖啡豆/);
+});
+
+test("shopping rejected save keeps the draft and allows retry", async () => {
+  const elements = createSaveElements();
+  let writes = 0;
+  const controller = createController({
+    elements, items: [],
+    repository: { upsert: async (table, row) => {
+      writes += 1;
+      if (writes === 1) throw new Error("网络断开");
+      return { data: row, error: null };
+    } },
+  });
+  await controller.submit({ preventDefault() {} });
+  assert.equal(elements.shoppingNameInput.value, "咖啡豆");
+  assert.equal(elements.shoppingNoteInput.value, "保留这份备注");
+  assert.equal(elements.shoppingSubmitButton.disabled, false);
+  assert.match(elements.shoppingStatus.textContent, /网络断开/);
+  await controller.submit({ preventDefault() {} });
+  assert.equal(writes, 2);
+  assert.match(elements.shoppingStatus.textContent, /已加入/);
+});
+
+test("shopping response from a signed-out session does not replace the next account list", async () => {
+  const elements = createSaveElements();
+  let session = { user: { id: "user-1" } };
+  let finishWrite;
+  let written;
+  const updates = [];
+  const controller = createController({
+    elements, items: [], getSession: () => session,
+    repository: { upsert: async (table, row) => {
+      written = row;
+      return new Promise((resolve) => { finishWrite = resolve; });
+    } },
+    onSetItems: (items) => updates.push(items),
+  });
+  const saving = controller.submit({ preventDefault() {} });
+  await new Promise(setImmediate);
+  session = { user: { id: "user-2" } };
+  finishWrite({ data: written, error: null });
+  await saving;
+  assert.deepEqual(updates, []);
+  assert.equal(elements.shoppingNameInput.value, "咖啡豆");
+  assert.equal(elements.shoppingSubmitButton.disabled, false);
 });
 
 test("shopping deletion renders before a failed R2 cleanup finishes", async () => {

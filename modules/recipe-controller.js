@@ -108,7 +108,6 @@ export function createRecipeController({
         `${slugify(elements.recipeNameInput.value || "recipe-cover")}-link`,
         "recipes"
       );
-      coverLink = "";
       return copied.url;
     }
     if (!file) return existingCover;
