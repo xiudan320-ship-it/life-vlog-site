@@ -29,8 +29,6 @@ export function createRecipeController({
   awardExperience,
   renderFoodWheel,
   confirmAction,
-  createTrashItem,
-  rollbackTrashItem,
 }) {
   let editingId = null;
   let existingCover = "";
@@ -39,6 +37,7 @@ export function createRecipeController({
   let isSubmitting = false;
   let submitSequence = 0;
   let submitLabel = "保存菜谱";
+  const deletingIds = new Set();
 
   function getStorageKey() {
     const name = getSession() ? getDisplayName() : "guest";
@@ -331,43 +330,51 @@ export function createRecipeController({
     elements.recipeComposer.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  async function remove(id) {
+  async function remove(id, triggerButton = null) {
+    if (deletingIds.has(id)) return;
     const session = getSession();
     const recipe = getRecipes().find((item) => item.id === id);
     if (!session || !recipe || !canManageItem(recipe)) return;
-    const confirmed = await confirmAction({
-      eyebrow: "移到回收站",
-      title: "删除这个菜谱？",
-      message: `“${recipe.name}”会保留 30 天，期间可以恢复。`,
-      confirmLabel: "删除菜谱",
-      cancelLabel: "先保留",
-      danger: true,
-    });
-    if (!confirmed) return;
-    if (!canSync()) {
-      setStatus("数据库尚未连接，不能删除菜谱。");
-      return;
+    deletingIds.add(id);
+    const originalLabel = triggerButton?.textContent;
+    try {
+      const confirmed = await confirmAction({
+        eyebrow: "移到回收站",
+        title: "删除这个菜谱？",
+        message: `“${recipe.name}”会保留 30 天，期间可以恢复。`,
+        confirmLabel: "删除菜谱",
+        cancelLabel: "先保留",
+        danger: true,
+      });
+      if (!confirmed || getSession()?.user?.id !== session.user.id) return;
+      if (!canSync()) return setStatus("数据库尚未连接，不能删除菜谱。");
+      if (triggerButton) {
+        triggerButton.disabled = true;
+        triggerButton.textContent = "处理中";
+      }
+      const { data, error } = await repository.rpc("move_family_item_to_trash", { p_item_type: "recipe", p_item_id: id });
+      if (getSession()?.user?.id !== session.user.id) return;
+      if (error) throw error;
+      if (data?.id !== id || !data.trash_id) throw new Error("云端未确认移入回收站，请重试。");
+      setRecipes(getRecipes().filter((item) => item.id !== id));
+      let cacheWarning = "";
+      try {
+        save();
+      } catch {
+        cacheWarning = " 本机缓存更新失败。";
+      }
+      setStatus(`菜谱已移到回收站，30 天内可以恢复。${cacheWarning}`);
+      render();
+    } catch (error) {
+      if (getSession()?.user?.id === session.user.id) setStatus(`删除失败：${error.message}`);
+    } finally {
+      deletingIds.delete(id);
+      if (triggerButton?.isConnected) {
+        triggerButton.disabled = false;
+        triggerButton.textContent = originalLabel;
+        triggerButton.focus({ preventScroll: true });
+      }
     }
-    const trashSaved = await createTrashItem(
-      "recipe",
-      recipe.id,
-      recipe.name,
-      recipeToCloudRow(recipe, recipe.userId || session.user.id)
-    );
-    if (!trashSaved) {
-      setStatus("无法写入回收站，已取消删除。");
-      return;
-    }
-    const { error } = await repository.remove("recipes", { id });
-    if (error) {
-      await rollbackTrashItem(trashSaved);
-      setStatus(`删除同步失败：${error.message}`);
-      return;
-    }
-    setRecipes(getRecipes().filter((item) => item.id !== id));
-    save();
-    setStatus("菜谱已移到回收站，30 天内可以恢复。");
-    render();
   }
 
   return {

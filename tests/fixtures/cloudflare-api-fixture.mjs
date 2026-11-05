@@ -516,6 +516,23 @@ export function createCloudflareApiFixture({
         await route.fulfill(jsonResponse(request, { data: removed ? [removed] : [] }));
         return;
       }
+      if (name === "move_family_item_to_trash") {
+        const itemType = payload.p_item_type;
+        const table = { wish: "wishes", recipe: "recipes", weekend: "weekend_plans", anniversary: "anniversaries", gratitude: "gratitude_notes" }[itemType];
+        const rows = table ? rowsFor(table, tables) : [];
+        const index = rows.findIndex((row) => row.id === payload.p_item_id);
+        if (index < 0) {
+          await route.fulfill(jsonResponse(request, { error: "Item not found or not writable." }, 404));
+          return;
+        }
+        const [row] = rows.splice(index, 1);
+        const trashId = `fixture-trash-${++generatedRowId}`;
+        const deletedAt = "2030-01-03T00:00:00.000Z";
+        trashItems.push({ id: trashId, user_id: "fixture-user", item_type: itemType, item_id: row.id, label: row.title || row.name || row.body, payload: { ...row }, deleted_at: deletedAt, expires_at: "2030-02-02T00:00:00.000Z" });
+        writes.push({ path: url.pathname, action: name });
+        await route.fulfill(jsonResponse(request, { data: { id: row.id, trash_id: trashId, deleted_at: deletedAt } }));
+        return;
+      }
       if (name === "list_trash_items") {
         await route.fulfill(jsonResponse(request, { data: trashItems }));
         return;

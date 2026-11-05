@@ -31,8 +31,6 @@ export function createWishlistController({
   escapeHtml,
   confirmAction,
   confirmWishDeletion,
-  createTrashItem,
-  rollbackTrashItem,
   showToast,
   synchronizeAccountData,
 }) {
@@ -507,56 +505,35 @@ export function createWishlistController({
     const session = getSession();
     const wish = getWishes().find((item) => item.id === id);
     if (!session || !wish || !canManageItem(wish)) return;
-    if (!(await confirmWishDeletion(wish))) return;
-    if (!canSync()) {
-      setStatus("数据库尚未连接，不能删除心愿。");
-      showToast("暂时无法连接云端，请稍后再试", { kind: "error" });
-      return;
-    }
     deletingIds.add(id);
     const originalLabel = triggerButton?.textContent || "删除";
-    if (triggerButton) {
-      triggerButton.disabled = true;
-      triggerButton.textContent = "处理中";
-    }
     try {
-      let result = await repository.rpc("move_family_item_to_trash", {
+      if (!(await confirmWishDeletion(wish)) || getSession()?.user?.id !== session.user.id) return;
+      if (!canSync()) {
+        setStatus("数据库尚未连接，不能删除心愿。");
+        showToast("暂时无法连接云端，请稍后再试", { kind: "error" });
+        return;
+      }
+      if (triggerButton) {
+        triggerButton.disabled = true;
+        triggerButton.textContent = "处理中";
+      }
+      const { data, error } = await repository.rpc("move_family_item_to_trash", {
         p_item_type: "wish",
         p_item_id: wish.id,
       });
-      if (result.error) {
-        const trashSaved = await createTrashItem(
-          "wish",
-          wish.id,
-          wish.title,
-          wishToCloudRow(wish, wish.userId || session.user.id)
-        );
-        if (!trashSaved) {
-          setStatus("无法写入回收站，已取消删除。");
-          showToast("删除失败，心愿仍然保留", { kind: "error" });
-          return;
-        }
-        const deleteResult = await repository.remove("wishes", { id });
-        const deletedRows = Array.isArray(deleteResult.data) ? deleteResult.data : [];
-        if (deleteResult.error || !deletedRows.length) {
-          await rollbackTrashItem(trashSaved);
-          result = deleteResult.error
-            ? deleteResult
-            : { data: null, error: new Error("数据库没有删除任何记录，请稍后重试。") };
-        } else {
-          result = { data: deletedRows, error: null };
-        }
-      }
-      if (result.error) {
-        const message = String(result.error.message || "删除请求失败");
-        setStatus(`删除同步失败：${message}`);
-        showToast("云端删除失败，心愿仍然保留", { kind: "error" });
-        return;
-      }
+      if (getSession()?.user?.id !== session.user.id) return;
+      if (error) throw error;
+      if (data?.id !== id || !data.trash_id) throw new Error("云端未确认移入回收站，请重试。");
       setWishes(getWishes().filter((item) => item.id !== id));
       setStatus("心愿已移到回收站，30 天内可以恢复。");
       showToast("已移到回收站", { kind: "success" });
       render();
+    } catch (error) {
+      if (getSession()?.user?.id === session.user.id) {
+        setStatus(`删除失败：${error.message}`);
+        showToast("删除失败，请重试", { kind: "error" });
+      }
     } finally {
       deletingIds.delete(id);
       if (triggerButton?.isConnected) {

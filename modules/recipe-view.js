@@ -102,7 +102,7 @@ export function renderRecipesView({
     button.addEventListener("click", () => onEdit(button.dataset.editRecipe));
   });
   listElement.querySelectorAll("button[data-delete-recipe]").forEach((button) => {
-    button.addEventListener("click", () => onDelete(button.dataset.deleteRecipe));
+    button.addEventListener("click", () => onDelete(button.dataset.deleteRecipe, button));
   });
   finishRender();
   if (updatedId) pulseListItem(listElement, "data-recipe-id", updatedId);

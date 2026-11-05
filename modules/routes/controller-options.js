@@ -555,8 +555,6 @@ function buildRouteControllerOptions({
       awardExperience,
       renderFoodWheel,
       confirmAction,
-      createTrashItem,
-      rollbackTrashItem,
     },
     wishlist: {
       elements,
@@ -585,8 +583,6 @@ function buildRouteControllerOptions({
       escapeHtml,
       confirmAction,
       confirmWishDeletion,
-      createTrashItem,
-      rollbackTrashItem,
       showToast,
       synchronizeAccountData,
     },
@@ -638,8 +634,6 @@ function buildRouteControllerOptions({
       renderReminder,
       openGallery: openWeekendImageGallery,
       confirmAction,
-      createTrashItem,
-      rollbackTrashItem,
     },
     moodDiary: {
       elements,

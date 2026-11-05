@@ -79,6 +79,8 @@ function createWishFixture({ repository, awardExperience = async () => 0, cleanu
     escapeHtml: (value) => String(value),
     copyUrlToR2: async () => ({ url: "https://cdn.example/wish.jpg", key: "wish.jpg" }),
     confirmAction: async () => true,
+    confirmWishDeletion: async () => true,
+    showToast: () => {},
   });
   return { controller, elements, wishes, setSession: (next) => { session = next; } };
 }
@@ -253,8 +255,6 @@ function createRecipeFixture({ repository, getSession = () => ({ user: { id: "us
     awardExperience,
     renderFoodWheel: () => {},
     confirmAction: async () => true,
-    createTrashItem: async () => null,
-    rollbackTrashItem: async () => {},
   });
   return { controller, elements, fields, recipes };
 }
@@ -373,6 +373,56 @@ test("recipe reward failure does not repeat the successful write", async () => {
     globalThis.localStorage = originalStorage;
     globalThis.document = originalDocument;
   }
+});
+
+test("recipe deletion keeps the item on an RPC failure and releases its retry lock", async () => {
+  const originalStorage = globalThis.localStorage;
+  globalThis.localStorage = makeStorage();
+  let requests = 0;
+  let finishRequest;
+  const { controller, elements, recipes } = createRecipeFixture({ repository: {
+    rpc: async (name, payload) => {
+      assert.equal(name, "move_family_item_to_trash");
+      assert.equal(payload.p_item_type, "recipe");
+      requests += 1;
+      if (requests === 1) return new Promise((resolve) => { finishRequest = resolve; });
+      return { data: { id: "recipe-new", trash_id: "trash-recipe" }, error: null };
+    },
+  } });
+  recipes.push({ id: "recipe-new", userId: "user-a", name: "番茄炒蛋" });
+  try {
+    const deleting = controller.remove("recipe-new");
+    await new Promise(setImmediate);
+    await controller.remove("recipe-new");
+    assert.equal(requests, 1);
+    finishRequest({ error: new Error("回收站暂时不可用") });
+    await deleting;
+    assert.equal(recipes.length, 1);
+    assert.match(elements.recipeStatus.textContent, /回收站暂时不可用/);
+    await controller.remove("recipe-new");
+    assert.equal(requests, 2);
+    assert.equal(recipes.length, 0);
+  } finally {
+    globalThis.localStorage = originalStorage;
+  }
+});
+
+test("wish deletion never uses the removed client fallback after an RPC failure", async () => {
+  let requests = 0;
+  const { controller, wishes, elements } = createWishFixture({ repository: {
+    rpc: async () => {
+      requests += 1;
+      if (requests === 1) throw new Error("回收站暂时不可用");
+      return { data: { id: "wish-1", trash_id: "trash-wish" }, error: null };
+    },
+  } });
+  wishes.push({ id: "wish-1", userId: "user-a", title: "看一次日出", done: false });
+  await controller.remove("wish-1");
+  assert.equal(wishes.length, 1);
+  assert.match(elements.wishlistStatus.textContent, /回收站暂时不可用/);
+  await controller.remove("wish-1");
+  assert.equal(wishes.length, 0);
+  assert.equal(requests, 2);
 });
 
 function makeComposerFixture({ storage, confirmAction = async () => true } = {}) {

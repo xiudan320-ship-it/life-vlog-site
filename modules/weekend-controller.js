@@ -28,8 +28,6 @@ export function createWeekendController({
   renderReminder,
   openGallery,
   confirmAction,
-  createTrashItem,
-  rollbackTrashItem,
 }) {
   let editingId = null;
   let selectedFiles = [];
@@ -42,6 +40,7 @@ export function createWeekendController({
   let completionExistingImages = [];
   let completionPreviewUrls = [];
   let isSubmitting = false;
+  const deletingIds = new Set();
 
   function getStorageKey() {
     const name = getSession() ? getDisplayName() : "guest";
@@ -480,57 +479,60 @@ export function createWeekendController({
   }
 
   async function remove(id, triggerButton = null) {
+    if (deletingIds.has(id)) return;
     const session = getSession();
     const plan = getPlans().find((item) => item.id === id);
     if (!session || !plan || !canManageItem(plan)) return;
-    const confirmed = await confirmAction({
-      eyebrow: "移到回收站",
-      title: "删除这个周末计划？",
-      message: `“${plan.title}”会保留 30 天，期间可以恢复。`,
-      confirmLabel: "删除计划",
-      cancelLabel: "先保留",
-      danger: true,
-    });
-    if (!confirmed) {
-      triggerButton?.focus({ preventScroll: true });
-      return;
+    deletingIds.add(id);
+    const originalLabel = triggerButton?.textContent;
+    try {
+      const confirmed = await confirmAction({
+        eyebrow: "移到回收站",
+        title: "删除这个周末计划？",
+        message: `“${plan.title}”会保留 30 天，期间可以恢复。`,
+        confirmLabel: "删除计划",
+        cancelLabel: "先保留",
+        danger: true,
+      });
+      if (!confirmed || getSession()?.user?.id !== session.user.id) return;
+      if (!canSync()) return setStatus("数据库尚未连接，不能删除周末计划。");
+      if (triggerButton) {
+        triggerButton.disabled = true;
+        triggerButton.textContent = "处理中";
+      }
+      const { data, error } = await repository.rpc("move_family_item_to_trash", { p_item_type: "weekend", p_item_id: id });
+      if (getSession()?.user?.id !== session.user.id) return;
+      if (error) throw error;
+      if (data?.id !== id || !data.trash_id) throw new Error("云端未确认移入回收站，请重试。");
+      const cards = [...(elements.weekendList?.querySelectorAll("[data-weekend-id]") || [])];
+      const removedIndex = cards.findIndex((card) => card.dataset.weekendId === id);
+      const adjacentId = cards[removedIndex + 1]?.dataset.weekendId || cards[removedIndex - 1]?.dataset.weekendId || "";
+      setPlans(getPlans().filter((item) => item.id !== id));
+      let cacheWarning = "";
+      try {
+        save();
+      } catch {
+        cacheWarning = " 本机缓存更新失败。";
+      }
+      setStatus(`周末计划已移到回收站，30 天内可以恢复。${cacheWarning}`);
+      render();
+      const adjacentCard = adjacentId
+        ? [...(elements.weekendList?.querySelectorAll("[data-weekend-id]") || [])]
+          .find((card) => card.dataset.weekendId === adjacentId)
+        : null;
+      const focusTarget = adjacentCard?.querySelector("[data-edit-weekend], [data-toggle-weekend], [data-delete-weekend]")
+        || elements.weekendPage?.querySelector('[data-page-heading="weekend"]');
+      focusTarget?.focus({ preventScroll: true });
+    } catch (error) {
+      if (getSession()?.user?.id === session.user.id) setStatus(`删除失败：${error.message}`);
+    } finally {
+      deletingIds.delete(id);
+      if (triggerButton?.isConnected) {
+        triggerButton.disabled = false;
+        triggerButton.textContent = originalLabel;
+        triggerButton.focus({ preventScroll: true });
+      }
     }
-    if (!canSync()) {
-      setStatus("数据库尚未连接，不能删除周末计划。");
-      return;
-    }
-    const trashSaved = await createTrashItem(
-      "weekend",
-      plan.id,
-      plan.title,
-      weekendToCloudRow(plan, plan.userId || session.user.id)
-    );
-    if (!trashSaved) {
-      setStatus("无法写入回收站，已取消删除。");
-      triggerButton?.focus({ preventScroll: true });
-      return;
-    }
-    const { error } = await repository.remove("weekend_plans", { id });
-    if (error) {
-      await rollbackTrashItem(trashSaved);
-      setStatus(`删除同步失败：${error.message}`);
-      triggerButton?.focus({ preventScroll: true });
-      return;
-    }
-    const cards = [...(elements.weekendList?.querySelectorAll("[data-weekend-id]") || [])];
-    const removedIndex = cards.findIndex((card) => card.dataset.weekendId === id);
-    const adjacentId = cards[removedIndex + 1]?.dataset.weekendId || cards[removedIndex - 1]?.dataset.weekendId || "";
-    setPlans(getPlans().filter((item) => item.id !== id));
-    save();
-    setStatus("周末计划已移到回收站，30 天内可以恢复。");
-    render();
-    const adjacentCard = adjacentId
-      ? [...(elements.weekendList?.querySelectorAll("[data-weekend-id]") || [])]
-        .find((card) => card.dataset.weekendId === adjacentId)
-      : null;
-    const focusTarget = adjacentCard?.querySelector("[data-edit-weekend], [data-toggle-weekend], [data-delete-weekend]")
-      || elements.weekendPage?.querySelector('[data-page-heading="weekend"]');
-    focusTarget?.focus({ preventScroll: true });
   }
 
   function removeImageEntry(type, index) {

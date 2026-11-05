@@ -119,6 +119,8 @@ flowchart LR
 
 主要数据域：账号与家庭、日记、心情日记、媒体元数据、评论、收藏、菜谱、心愿、购物、周末计划、纪念日、通知、回收站和秘藏。
 
+菜谱、周末计划和心愿的删除只调用 `move_family_item_to_trash`，由 Worker 按当前权限读取云端最新记录，并通过同一 D1 batch 写入回收站和删除原记录；客户端校验返回的原记录 ID 和回收站 ID 后才移除卡片。三个控制器在确认前按条目锁定删除，失败释放锁，响应按发起用户隔离。客户端不再执行这三个业务的分步删除或失败降级。
+
 心情日记使用 `mood_diaries`：`(user_id, diary_date)` 唯一约束保证每位成员每天一条；读取按家庭范围授权，写入、编辑和删除按当前 session 的 `user_id` 限制。`diary_date` 是 Asia/Tokyo 的自然日，月份查询使用 `[diary_date >= monthStart, diary_date < nextMonthStart)`，Worker 同时校验真实日期、未来日期、八种枚举心情、5000 Unicode 字符正文和最多八个 20 字符标签。`TABLE_CONFIG` 记录 family read / own write / `tags` JSON / conflict columns，D1 导出和每日备份包含该表。
 
 数据库结构不会由普通 Pages 发布自动变更；目标 D1 缺少本轮字段时，必须在 Worker 发布前经用户授权显式执行 DDL 并在 `CHANGELOG.md` 记录影响和结果。2026-10-27 发布前核查确认目标 D1 已存在 `user_profiles.secret_default_folder_id`，缺少 `secret_items.photo_sort_mode`；按发布授权显式添加后，复查确认其为非空 TEXT、默认 `time`，且约束为 `time` / `number` / `manual`，未重建表或改写相册图片。

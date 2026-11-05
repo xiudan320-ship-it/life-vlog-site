@@ -1173,6 +1173,83 @@ async function testWishCompletionRecovery() {
   }
 }
 
+async function testRecycleRecovery() {
+  const cases = [
+    { page: "recipes", type: "recipe", id: "fixture-recipe", card: "data-recipe-id", button: "data-delete-recipe", status: "recipeStatus", table: "recipes" },
+    { page: "weekend", type: "weekend", id: "fixture-weekend", card: "data-weekend-id", button: "data-delete-weekend", status: "weekendStatus", table: "weekend_plans" },
+    { page: "wishlist", type: "wish", id: "fixture-wish", card: "data-wish-id", status: "wishlistStatus", table: "wishes" },
+  ];
+  for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 900 }]) {
+    for (const entry of cases) {
+      const result = await openFixturePage({ viewport, path: `/?page=${entry.page}` });
+      try {
+        const { page } = result;
+        const list = entry.type === "recipe" ? "#recipesList" : entry.type === "weekend" ? "#weekendList" : "#wishlistList";
+        const card = page.locator(`${list} [${entry.card}="${entry.id}"]`);
+        await card.waitFor();
+        const openDelete = async () => {
+          if (entry.type === "wish") {
+            await page.click(`[data-wish-menu="${entry.id}"]`);
+            await page.click('[data-wish-action="delete"]');
+          } else {
+            await page.click(`[${entry.button}="${entry.id}"]`);
+          }
+        };
+        await openDelete();
+        await page.locator('dialog.action-confirm-dialog button[value="cancel"]').click();
+        assert.equal(await card.count(), 1, `${entry.type} card should remain after cancelling`);
+        let attempts = 0;
+        let releaseRequest;
+        let notifyStarted;
+        const gate = new Promise((resolve) => { releaseRequest = resolve; });
+        const started = new Promise((resolve) => { notifyStarted = resolve; });
+        await page.route("**/api/rpc/move_family_item_to_trash", async (route) => {
+          attempts += 1;
+          if (attempts === 1) {
+            notifyStarted();
+            await gate;
+            return route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "回收站暂时不可用" }) });
+          }
+          return route.fallback();
+        });
+        await openDelete();
+        await page.locator('dialog.action-confirm-dialog button[value="confirm"]').click();
+        await started;
+        if (entry.button) {
+          const button = page.locator(`[${entry.button}="${entry.id}"]`);
+          assert.equal(await button.isDisabled(), true);
+          await button.dispatchEvent("click");
+          assert.equal(attempts, 1);
+        }
+        releaseRequest();
+        await page.locator(`#${entry.status}`).filter({ hasText: "回收站暂时不可用" }).waitFor();
+        assert.equal(await card.count(), 1);
+        assert.equal(result.fixture.writes.some(({ path }) => path === "/api/table/trash_items"), false);
+        assert.equal(result.fixture.writes.some(({ path, action }) => path === `/api/table/${entry.table}` && action === "delete"), false);
+        await openDelete();
+        await page.locator('dialog.action-confirm-dialog button[value="confirm"]').click();
+        await card.waitFor({ state: "detached" });
+        assert.equal(attempts, 2);
+        const trash = await page.evaluate(async (endpoint) => {
+          const response = await fetch(`${endpoint}/api/rpc/list_trash_items`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+          return (await response.json()).data;
+        }, cloudflareFixtureWorkerUrl);
+        assert.equal(trash.length, 1);
+        assert.equal(trash[0].item_type, entry.type);
+        assert.equal(trash[0].payload.id, entry.id);
+        await page.evaluate(async ({ endpoint, trashId }) => {
+          await fetch(`${endpoint}/api/rpc/restore_trash_item`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ p_trash_id: trashId }) });
+        }, { endpoint: cloudflareFixtureWorkerUrl, trashId: trash[0].id });
+        await page.reload({ waitUntil: "domcontentloaded" });
+        await card.waitFor();
+        assert.deepEqual(result.errors, []);
+      } finally {
+        await closeFixturePage(result);
+      }
+    }
+  }
+}
+
 async function testMobileDiaryActionsAndCategoryPicker(browser) {
   const owner = await openFixturePage({ viewport: { width: 390, height: 844 } });
   try {
@@ -2122,6 +2199,7 @@ try {
   await testShoppingDeleteDialogAppearance(browser);
   await testListSaveRecovery();
   await testWishCompletionRecovery();
+  await testRecycleRecovery();
   await testMobileDiaryActionsAndCategoryPicker(browser);
   await testCategoryPickerReadingPosition(browser);
   await testMobileComposerAndBorderlessCovers(browser);

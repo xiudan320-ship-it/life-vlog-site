@@ -288,3 +288,52 @@ test("old client conflict targets are rejected", async () => {
     fixture.close();
   }
 });
+
+for (const [type, table, labelColumn] of [["recipe", "recipes", "name"], ["weekend", "weekend_plans", "title"], ["wish", "wishes", "title"]]) {
+  test(`${type} recycle RPC preserves the canonical row and rejects repeated or unauthorized moves`, async () => {
+    const fixture = createWorkerFixture();
+    const recycle = async (userId) => {
+      const response = await worker.fetch(new Request("https://worker.test/api/rpc/move_family_item_to_trash", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${fixture.tokens.get(userId)}`, Origin: "https://fixture.local", "Content-Type": "application/json" },
+        body: JSON.stringify({ p_item_type: type, p_item_id: "recycle-item" }),
+      }), fixture.env);
+      return { status: response.status, body: await response.json() };
+    };
+    try {
+      if (type === "weekend") {
+        seed(fixture, "insert into weekend_plans (id, user_id, title, note, plan_date) values (?, ?, ?, ?, ?)", "recycle-item", "member", "云端最新标题", "云端最新内容", "2030-01-06");
+      } else {
+        seed(fixture, `insert into ${table} (id, user_id, ${labelColumn}, note) values (?, ?, ?, ?)`, "recycle-item", "member", "云端最新标题", "云端最新内容");
+      }
+      assert.equal((await recycle("outsider")).status, 404);
+      fixture.DB.failNext({ method: "run", includes: `delete from ${table}` });
+      assert.equal((await recycle("owner")).status, 500);
+      assert.equal(fixture.DB.database.prepare(`select count(*) as total from ${table}`).get().total, 1);
+      assert.equal(fixture.DB.database.prepare("select count(*) as total from trash_items").get().total, 0);
+      const result = await recycle("owner");
+      assert.equal(result.status, 200, JSON.stringify(result.body));
+      assert.equal(result.body.data.id, "recycle-item");
+      const trash = fixture.DB.database.prepare("select * from trash_items where id=?").get(result.body.data.trash_id);
+      const saved = JSON.parse(trash.payload);
+      assert.equal(saved.user_id, "member");
+      assert.equal(saved.note, "云端最新内容");
+      assert.equal(saved[labelColumn], "云端最新标题");
+      assert.equal(fixture.DB.database.prepare(`select count(*) as total from ${table}`).get().total, 0);
+      assert.equal((await recycle("owner")).status, 404);
+      assert.equal(fixture.DB.database.prepare("select count(*) as total from trash_items").get().total, 1);
+      const restored = await worker.fetch(new Request("https://worker.test/api/rpc/restore_trash_item", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${fixture.tokens.get("owner")}`, Origin: "https://fixture.local", "Content-Type": "application/json" },
+        body: JSON.stringify({ p_trash_id: result.body.data.trash_id }),
+      }), fixture.env);
+      assert.equal(restored.status, 200, await restored.text());
+      const restoredRow = fixture.DB.database.prepare(`select * from ${table} where id=?`).get("recycle-item");
+      assert.equal(restoredRow.user_id, "member");
+      assert.equal(restoredRow.note, "云端最新内容");
+      assert.equal(fixture.DB.database.prepare("select count(*) as total from trash_items").get().total, 0);
+    } finally {
+      fixture.close();
+    }
+  });
+}
