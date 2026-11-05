@@ -49,10 +49,6 @@ async function inPicker(page) {
   assert.equal(await page.locator(`${target}.is-ready`).count(), 0);
   assert.equal(await page.evaluate(() => fixture.writes.length), 0);
 }
-async function back(page) {
-  await page.click("#moodEditorCancel");
-  await page.locator("#moodPickerPanel").waitFor({ state: "visible" });
-}
 try {
   for (const [width, dark] of [[375, false], [390, true], [768, false], [1440, true]]) {
     const reducedMotion = width === 1440 ? "no-preference" : "reduce";
@@ -103,50 +99,6 @@ try {
 
     await startDrag(page);
     await page.mouse.move(drop.x, drop.y, { steps: 10 });
-    assert.match(await page.locator(target).textContent(), /松开选择.*开心/s);
-    assert.equal(await page.locator("#moodEditorPanel").isVisible(), false, "entering the target must not select before release");
-    await page.screenshot({ path: resolve(output, `${width}-drag.png`) });
-    await page.mouse.up();
-    await page.locator("#moodEditorPanel").waitFor({ state: "visible" });
-    assert.match(await page.locator("#moodEditorSelected").textContent(), /开心/);
-    assert.equal(await page.evaluate(() => fixture.writes.length), 0, "dropping only selects; saving remains explicit");
-    assert.equal(await page.locator("#moodEditorContent").evaluate((element) => element === document.activeElement), true);
-    await back(page);
-    await page.waitForFunction(() => document.activeElement?.dataset.mood === "happy");
-    assert.equal(await page.evaluate(() => fixture.confirmations || 0), 0);
-
-    await page.locator('[data-mood="calm"]').click();
-    assert.match(await page.locator("#moodEditorSelected").textContent(), /平静/);
-    await back(page);
-    await page.locator(happy).focus();
-    await page.keyboard.press("Enter");
-    assert.match(await page.locator("#moodEditorSelected").textContent(), /开心/);
-    await back(page);
-
-    if (width <= 430) {
-      const cdp = await context.newCDPSession(page);
-      const point = await center(page.locator(happy));
-      await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [point] });
-      await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: point.x + 20, y: point.y + 25 }] });
-      await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
-      await inPicker(page);
-      await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [point] });
-      await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [drop] });
-      await cdp.send("Input.dispatchTouchEvent", { type: "touchCancel", touchPoints: [] });
-      await inPicker(page);
-      await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [point] });
-      for (let step = 1; step <= 8; step++) {
-        await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: point.x + (drop.x - point.x) * step / 8, y: point.y + (drop.y - point.y) * step / 8 }] });
-      }
-      assert.equal(await page.locator(`${target}.is-ready`).count(), 1, "native touch dragging reaches the target");
-      await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
-      await page.locator("#moodEditorPanel").waitFor({ state: "visible" });
-      assert.match(await page.locator("#moodEditorSelected").textContent(), /开心/);
-      await back(page);
-      await cdp.detach();
-    }
-    await startDrag(page);
-    await page.mouse.move(drop.x, drop.y, { steps: 10 });
     await page.evaluate(() => fixture.controller.close());
     await page.mouse.up();
     await page.waitForFunction(() => document.activeElement === document.querySelector("#openPicker"));
@@ -154,33 +106,51 @@ try {
     await inPicker(page);
     await page.evaluate(async () => { await fixture.controller.close(); await fixture.open(); });
     await page.waitForTimeout(350);
-    assert.equal(await page.locator("#moodOverlay").evaluate((element) => element.contains(document.activeElement)), true, "a prior close must not restore focus outside a reopened dialog");
+    assert.equal(await page.locator("#moodOverlay").evaluate((element) => element.contains(document.activeElement)), true);
     const audit = await new AxeBuilder({ page }).include("#moodOverlay").analyze();
     assert.deepEqual(audit.violations.filter(({ impact }) => ["serious", "critical"].includes(impact)).map(({ id }) => id), []);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
-    await page.locator(happy).click();
-    await page.fill("#moodEditorContent", "合成拖动验收");
-    if (width === 390) {
-      await page.fill("#moodEditorTagInput", "散步");
-      await page.evaluate(() => { fixture.rejectNextSave = true; });
-      await page.click("#moodEditorSave");
-      await page.waitForFunction(() => Boolean(fixture.releaseSave));
-      assert.equal(await page.locator("#moodEditorForm").getAttribute("aria-busy"), "true");
-      assert.equal(await page.locator("#moodEditorSave").isDisabled(), true);
-      await page.keyboard.press("Escape");
-      assert.equal(await page.locator("#moodEditorPanel").isVisible(), true);
-      await page.evaluate(() => fixture.releaseSave());
-      await page.waitForFunction(() => document.querySelector("#moodEditorError").textContent.includes("合成网络错误"));
-      assert.equal(await page.locator("#moodEditorContent").inputValue(), "合成拖动验收");
-      assert.equal(await page.locator("#moodEditorTagInput").inputValue(), "散步");
+
+    if (width <= 430) {
+      const cdp = await context.newCDPSession(page);
+      const point = await center(page.locator(happy));
+      if (width === 390) await page.evaluate(() => { fixture.rejectNextSave = true; });
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [point] });
+      for (let step = 1; step <= 8; step++) {
+        const move = { x: point.x + (drop.x - point.x) * step / 8, y: point.y + (drop.y - point.y) * step / 8 };
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [move] });
+      }
+      assert.equal(await page.locator(target + ".is-ready").count(), 1);
+      assert.equal(await page.evaluate(() => fixture.writes.length), 0);
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+      await cdp.detach();
+      if (width === 390) {
+        await page.waitForFunction(() => Boolean(fixture.releaseSave));
+        assert.equal(await page.locator("#moodPickerOrbit").getAttribute("aria-busy"), "true");
+        assert.equal(await page.locator(happy).isDisabled(), true);
+        await page.evaluate(() => fixture.releaseSave());
+        await page.waitForFunction(() => document.querySelector("[data-mood-picker-status]").textContent.includes("合成网络错误"));
+        await inPicker(page);
+        await page.locator(happy).click();
+      }
+    } else if (width === 768) {
+      await page.locator(happy).focus();
+      await page.keyboard.press("Enter");
+    } else {
+      await startDrag(page);
+      await page.mouse.move(drop.x, drop.y, { steps: 10 });
+      assert.match(await page.locator(target).textContent(), /松开记录.*开心/s);
+      assert.equal(await page.evaluate(() => fixture.writes.length), 0);
+      await page.screenshot({ path: resolve(output, "1440-drag.png") });
+      await page.mouse.up();
     }
-    await page.click("#moodEditorSave");
-    await page.waitForFunction(() => fixture.writes.length === 1);
-    assert.equal(await page.evaluate(() => fixture.writes[0].mood), "happy");
+    await page.locator("#moodOverlay").waitFor({ state: "hidden" });
+    assert.equal(await page.locator("#moodEditorPanel").isVisible(), false);
+    assert.deepEqual(await page.evaluate(() => fixture.writes.map(({ mood, content, tags }) => ({ mood, content, tags }))), [{ mood: "happy", content: "", tags: [] }]);
     await context.close();
   }
   assert.deepEqual(errors, []);
-  console.log("Mood picker checks passed: mouse and native touch dragging, circular drop boundary, outside/cancel/Escape recovery, explicit save, click/keyboard access, light/dark, reduced motion and Axe at 375/390/768/1440px.");
+  console.log("Mood picker checks passed: mouse and native touch dragging, circular drop boundary, outside/cancel/Escape recovery, direct save and retry, click/keyboard access, light/dark, reduced motion and Axe at 375/390/768/1440px.");
 } finally {
   await browser.close();
   await new Promise((done) => server.close(done));

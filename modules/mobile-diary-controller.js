@@ -10,10 +10,8 @@ import { startDiaryMotionVideo, stopDiaryMotionVideo } from "./diary-video-layou
 export function createMobileDiaryController({
   elements,
   state,
-  repository,
   acknowledgeViewedDiary,
   adminUpdatePhotoCategory,
-  awardExperience,
   deletePhoto,
   deletePhotoComment,
   getAuthorName,
@@ -24,7 +22,7 @@ export function createMobileDiaryController({
   isFavoritePhoto,
   isMissingCloudSchema,
   isMobileViewport,
-  loadPhotoCommentPreviews,
+  publishPhotoComment,
   loadPhotoComments,
   openEditPhoto,
   openMobileDiaryImageViewer,
@@ -34,7 +32,6 @@ export function createMobileDiaryController({
   togglePhotoFlag,
 }) {
   const els = elements;
-  const diaryRepository = repository;
   let commentDraft = "";
   let commentSubmitting = false;
   let moreActionsTrigger = null;
@@ -232,6 +229,7 @@ export function createMobileDiaryController({
   async function saveMobileDiaryComment(event) {
     event.preventDefault();
     if (commentSubmitting || !state.cloudDb || !state.session || !state.mobileDiaryPhoto) return;
+    const photo = state.mobileDiaryPhoto;
     const input = state.mobileDiaryPage?.querySelector("[data-mobile-diary-comment-input]");
     const form = state.mobileDiaryPage?.querySelector("[data-mobile-diary-comment-form]");
     const submitButton = form?.querySelector("[data-mobile-diary-comment-submit]");
@@ -250,12 +248,12 @@ export function createMobileDiaryController({
     }
     if (status) status.textContent = "正在发送...";
     try {
-      const { error } = await diaryRepository.addComment({
-        photo_id: state.mobileDiaryPhoto.id,
-        user_id: state.session.user.id,
+      const { error } = await publishPhotoComment({
+        photoId: photo.id,
         body,
-        parent_id: state.mobileDiaryReplyToId,
+        parentId: state.mobileDiaryReplyToId,
       });
+      if (state.mobileDiaryPhoto !== photo || !form?.isConnected) return;
       if (error) throw error;
       commentDraft = "";
       if (input) {
@@ -263,16 +261,14 @@ export function createMobileDiaryController({
         resizeMobileDiaryCommentInput(input);
       }
       state.mobileDiaryReplyToId = null;
-      await loadPhotoComments(state.mobileDiaryPhoto.id);
-      await loadPhotoCommentPreviews();
-      const gainedExp = await awardExperience("comment");
-      const nextStatus = gainedExp ? `留言已发送。修为 +${gainedExp}` : "留言已发送。";
+      renderMobileDiaryComments();
       const nextStatusElement = state.mobileDiaryPage?.querySelector("[data-mobile-diary-comment-status]");
       if (nextStatusElement) {
         nextStatusElement.setAttribute("role", "status");
-        nextStatusElement.textContent = nextStatus;
+        nextStatusElement.textContent = "留言已发送。";
       }
     } catch (error) {
+      if (state.mobileDiaryPhoto !== photo || !form?.isConnected) return;
       const nextStatusElement = state.mobileDiaryPage?.querySelector("[data-mobile-diary-comment-status]") || status;
       if (nextStatusElement) {
         nextStatusElement.setAttribute("role", "alert");

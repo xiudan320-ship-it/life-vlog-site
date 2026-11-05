@@ -313,6 +313,7 @@ export function createCloudflareApiFixture({
   const backups = seedBackups.map((backup) => ({ ...backup }));
   const trashItems = seedTrashItems.map((item) => ({ ...item }));
   let generatedRowId = 0;
+  let commentCreatedAt = Date.UTC(2030, 0, 3);
   let remainingNotificationFailures = Math.max(0, Number(notificationFailureCount) || 0);
   let fixtureSessionActive = true;
   const fixtureUsers = [
@@ -464,6 +465,9 @@ export function createCloudflareApiFixture({
       const normalizedValues = values.filter(Boolean).map((value) => ({
         ...value,
         ...(value.id ? {} : { id: `fixture-${table}-${++generatedRowId}` }),
+        ...(table === "photo_comments" && payload.action === "insert" && !value.created_at
+          ? { created_at: new Date(commentCreatedAt++).toISOString() }
+          : {}),
       }));
       let responseData = normalizedValues;
       if (payload.action === "delete") {

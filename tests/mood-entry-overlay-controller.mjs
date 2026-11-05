@@ -96,11 +96,10 @@ test("picker save uses the shared repository and emits one mutation", async () =
   const fixture = createFixture();
   await fixture.controller.open({ dateKey: TODAY, entries: [], preferredUserId: "owner", participants });
   await fixture.controller.dispatch({ type: "pick", mood: "happy" });
-  fixture.view.setDraft({ content: "今天很好", tagInput: "散步" });
-  await fixture.controller.dispatch({ type: "save" });
   assert.equal(fixture.controller.getState().mode, "detail");
   assert.equal(fixture.controller.getState().activeDiary.mood, "happy");
-  assert.deepEqual(fixture.controller.getState().activeDiary.tags, ["散步"]);
+  assert.equal(fixture.controller.getState().activeDiary.content, "");
+  assert.deepEqual(fixture.controller.getState().activeDiary.tags, []);
   assert.deepEqual(fixture.mutations.map(({ type }) => type), ["save"]);
 });
 
@@ -118,8 +117,7 @@ test("today save closes and returns home before background summary sync finishes
   let resolveSync;
   const fixture = createFixture({ getTodayKey: () => TODAY, onReturnHome: () => { returnHomeCount += 1; }, onMutation: () => new Promise((resolve) => { resolveSync = resolve; }) });
   await fixture.controller.open({ dateKey: TODAY, entries: [], preferredUserId: "owner", participants });
-  await fixture.controller.dispatch({ type: "pick", mood: "happy" });
-  const save = fixture.controller.dispatch({ type: "save" });
+  const save = fixture.controller.dispatch({ type: "pick", mood: "happy" });
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(fixture.controller.getState().mode, "closed");
   assert.equal(returnHomeCount, 1);
@@ -130,6 +128,7 @@ test("today save closes and returns home before background summary sync finishes
 });
 
 test("a failed save keeps the draft and permits a single retry", async () => {
+  const mine = { id: "saved", user_id: "owner", diary_date: TODAY, mood: "happy", tags: [] };
   let returnedHome = false;
   let writes = 0;
   let rejectFirstSave;
@@ -137,15 +136,15 @@ test("a failed save keeps the draft and permits a single retry", async () => {
     getTodayKey: () => TODAY,
     onReturnHome: () => { returnedHome = true; },
     repository: {
-      upsert: async (payload) => {
+      update: async (id, payload) => {
         writes += 1;
         if (writes === 1) return new Promise((_, reject) => { rejectFirstSave = reject; });
-        return { ...payload, id: "saved", user_id: "owner" };
+        return { ...mine, ...payload, id };
       },
     },
   });
-  await fixture.controller.open({ dateKey: TODAY, entries: [], preferredUserId: "owner", participants });
-  await fixture.controller.dispatch({ type: "pick", mood: "happy" });
+  await fixture.controller.open({ dateKey: TODAY, entries: [mine], preferredUserId: "owner", participants });
+  await fixture.controller.dispatch({ type: "edit", id: mine.id });
   fixture.view.setDraft({ content: "不要丢失内容", tagInput: "散步" });
   const save = fixture.controller.dispatch({ type: "save" });
   assert.equal(fixture.controller.getState().mode, "editor");
@@ -168,7 +167,6 @@ test("a successful write stays successful when the month sync reports a retryabl
   const fixture = createFixture({ mutationResult: false });
   await fixture.controller.open({ dateKey: TODAY, entries: [], preferredUserId: "owner", participants });
   await fixture.controller.dispatch({ type: "pick", mood: "happy" });
-  await fixture.controller.dispatch({ type: "save" });
   assert.equal(fixture.controller.getState().mode, "detail");
   assert.equal(fixture.toasts.some(([message, options]) => message === "已保存，但本月汇总同步失败，可稍后重试" && options.kind === "warning"), true);
 });

@@ -75,7 +75,7 @@ export function createDiaryRepository({ getDatabase, getSession }) {
         .limit(limit);
     },
     async addComment(record) {
-      return requireDatabase(getDatabase).from("photo_comments").insert(record);
+      return requireDatabase(getDatabase).from("photo_comments").insert(record).select("*").single();
     },
     async removeComment(id) {
       const userId = getSession?.()?.user?.id;

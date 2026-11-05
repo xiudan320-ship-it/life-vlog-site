@@ -8,7 +8,7 @@ export function createMoodPickerDragController({ orbit, moodMeta, onPick }) {
   function updateTarget(inside = false) {
     const target = orbit.querySelector(".mood-picker-center");
     target?.classList.toggle("is-ready", inside);
-    const label = inside ? `松开选择\n${moodMeta[drag.button.dataset.mood].label}` : "拖到这里\n选择心情";
+    const label = inside ? `松开记录\n${moodMeta[drag.button.dataset.mood].label}` : "拖到这里\n记录心情";
     const labelElement = target?.querySelector(".mood-picker-center-label");
     if (labelElement && labelElement.textContent !== label) labelElement.textContent = label;
   }

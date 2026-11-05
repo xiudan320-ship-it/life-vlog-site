@@ -1,5 +1,6 @@
+import { flattenCommentThread } from "./comment-thread-domain.js";
 import { normalizeSecretPhotoTags } from "./secret-domain.js";
-import { escapeHtml } from "./ui-formatters.js";
+import { escapeHtml, formatCommentTime } from "./ui-formatters.js";
 import { fitVideoToContainer } from "./diary-video-layout.js";
 import { renderListIcon } from "./list-icons.js";
 
@@ -149,5 +150,47 @@ export function renderDialogPagination({
   `).join("");
   thumbs.querySelectorAll("button[data-dialog-thumb]").forEach((button) => {
     button.addEventListener("click", () => onSelect(Number(button.dataset.dialogThumb)));
+  });
+}
+
+export function renderPhotoCommentThread({ elements: els, state, getAuthorName, renderAvatarMarkup, startCommentReply, deletePhotoComment }) {
+  if (!els.photoCommentsList) return;
+  const comments = flattenCommentThread(state.photoComments, {
+    getAuthorName,
+  });
+  const heading = els.photoCommentsSection?.querySelector(".photo-comments-head h3");
+  if (heading) heading.textContent = `共 ${comments.length} 条评论`;
+  if (!comments.length) {
+    els.photoCommentsList.innerHTML = `<p class="photo-comments-empty">还没有留言。</p>`;
+    return;
+  }
+  els.photoCommentsList.innerHTML = comments.map((comment) => {
+    const isAuthor = comment.authorId === state.activeDialogPhoto?.user_id;
+    return `
+      <article class="photo-comment${comment.replyTargetId ? " is-reply" : ""}" data-comment-id="${escapeHtml(comment.id)}">
+        ${renderAvatarMarkup(comment.authorId)}
+        <div class="photo-comment-main">
+          <header>
+            <span class="photo-comment-author-line">
+              <strong>${escapeHtml(getAuthorName(comment.authorId))}</strong>
+              ${isAuthor ? `<small class="photo-comment-author-badge">作者</small>` : ""}
+            </span>
+          </header>
+          ${comment.replyTargetId ? `<small class="reply-target">↳ 回复 ${escapeHtml(comment.replyTargetName)}</small>` : ""}
+          <p>${escapeHtml(comment.body)}</p>
+          <time>${formatCommentTime(comment.createdAt)}</time>
+          <div class="photo-comment-actions">
+            <button type="button" data-reply-comment="${escapeHtml(comment.id)}">回复</button>
+            ${comment.authorId === state.session?.user?.id ? `<button type="button" data-delete-comment="${escapeHtml(comment.id)}">删除</button>` : ""}
+          </div>
+        </div>
+      </article>
+    `;
+  }).join("");
+  els.photoCommentsList.querySelectorAll("[data-reply-comment]").forEach((button) => {
+    button.addEventListener("click", () => startCommentReply(button.dataset.replyComment));
+  });
+  els.photoCommentsList.querySelectorAll("[data-delete-comment]").forEach((button) => {
+    button.addEventListener("click", () => deletePhotoComment(button.dataset.deleteComment));
   });
 }

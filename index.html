@@ -517,14 +517,15 @@
           </div>
           <section class="mood-picker-panel" id="moodPickerPanel" aria-labelledby="moodPickerHeading" hidden>
             <h4 id="moodPickerHeading">选一个最接近现在的心情</h4>
-            <p id="moodPickerHint">把心情拖到中间，松手选择；也可以直接点击。</p>
+            <p id="moodPickerHint">拖到中间松手即可记录，也可以直接点击。</p>
             <div class="mood-picker-orbit" id="moodPickerOrbit" role="group" aria-label="八种心情" aria-describedby="moodPickerHint"></div>
+            <p class="mood-form-error" data-mood-picker-status role="status"></p>
           </section>
           <section class="mood-editor-panel" id="moodEditorPanel" aria-labelledby="moodEditorHeading" hidden>
             <div class="mood-editor-selected" id="moodEditorSelected"></div>
             <div class="mood-editor-choices" id="moodEditorChoices" role="group" aria-label="更换心情图片" hidden></div>
             <form id="moodEditorForm" novalidate>
-              <h4 id="moodEditorHeading">写下今天的心情</h4>
+              <h4 id="moodEditorHeading">编辑心情记录</h4>
               <label for="moodEditorContent">想说的话 <span class="mood-field-note">（可留空）</span></label>
               <textarea id="moodEditorContent" rows="6" maxlength="5000" placeholder="今天发生了什么？" aria-describedby="moodEditorContentHelp"></textarea>
               <p class="mood-field-help" id="moodEditorContentHelp">最多 5000 个字符。</p>

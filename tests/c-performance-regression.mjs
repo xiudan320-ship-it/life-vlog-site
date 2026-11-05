@@ -1667,7 +1667,42 @@ async function testMobileCommentComposer(browser) {
     assert.equal(await input.inputValue(), "", "successful reply did not clear the draft");
     assert.equal(result.fixture.writes.filter(({ path, action }) => path === "/api/table/photo_comments" && action === "insert").length, 1, "keyboard reply did not persist");
     assert.equal(await page.locator("[data-mobile-diary-comment-submit]").isDisabled(), false);
+    await page.click("[data-mobile-diary-close]");
+    const preview = page.locator('[data-photo-id="fixture-photo"] .photo-card-comments');
+    await preview.getByText("第二行", { exact: false }).waitFor();
+
+    let releaseReply;
+    const replyGate = new Promise((resolve) => { releaseReply = resolve; });
+    await page.route("**/api/table/photo_comments", async (route) => {
+      if (route.request().postDataJSON()?.action === "insert") await replyGate;
+      await route.fallback();
+    });
+    await page.locator('[data-photo-id="fixture-photo"] .photo-media button').first().click();
+    await page.locator('[data-mobile-diary-reply="fixture-comment"]').click();
+    await input.fill("发送后马上返回");
+    await input.press("Control+Enter");
+    await page.locator('[data-mobile-diary-comment-submit][aria-busy="true"]').waitFor();
+    await page.click("[data-mobile-diary-close]");
+    releaseReply();
+    await preview.getByText("发送后马上返回").waitFor();
     assert.equal(result.errors.length, 0, `mobile comment errors: ${result.errors.join(" | ")}`);
+  } finally {
+    await closeFixturePage(result);
+  }
+}
+
+async function testDesktopCommentPreview() {
+  const result = await openFixturePage({ viewport: { width: 1440, height: 900 } });
+  try {
+    const { page } = result;
+    await page.locator('[data-photo-id="fixture-photo"] .photo-media button').first().click();
+    await page.locator('[data-reply-comment="fixture-comment"]').click();
+    await page.fill("#photoCommentInput", "桌面回复已同步");
+    await page.click('#photoCommentForm button[type="submit"]');
+    await page.locator("#photoCommentsList").getByText("桌面回复已同步").waitFor();
+    await page.click("#closeDialog");
+    await page.locator('[data-photo-id="fixture-photo"] .photo-card-comments').getByText("桌面回复已同步").waitFor();
+    assert.deepEqual(result.errors, []);
   } finally {
     await closeFixturePage(result);
   }
@@ -2004,6 +2039,7 @@ try {
   await testPhotoEditorLazyBoundary(browser);
   await testWeekendComposerAndDelete(browser);
   await testMobileCommentComposer(browser);
+  await testDesktopCommentPreview();
   await testMobileDeepCommentLayout(browser);
   await testMobileToolDock(browser);
   await testWeeklyReviewVisualAlignment(browser);

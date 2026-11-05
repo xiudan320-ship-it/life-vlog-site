@@ -1109,7 +1109,6 @@ async function runTodayMoodQuickAdd() {
     assert.equal(await page.locator("#moodPage").isVisible(), false);
     assert.equal(page.url(), initialUrl);
     await page.click('[data-mood="happy"]');
-    await page.click("#moodEditorSave");
     await page.waitForSelector("#moodOverlay[hidden]", { state: "attached", timeout: 30000 });
     assert.equal(await page.locator("#overview").isVisible(), true, "today save did not return to the homepage");
     assert.equal(await page.locator("#moodPage").isVisible(), false);
@@ -1193,22 +1192,15 @@ async function runMoodDiaryFlow(viewport, label) {
     await page.mouse.down();
     await page.mouse.move(dropBox.x + dropBox.width / 2, dropBox.y + dropBox.height / 2, { steps: 12 });
     assert.equal(await page.locator(".mood-picker-center.is-ready").count(), 1, `${label} drag must reach the center before selecting`);
-    await page.mouse.up();
-    await page.waitForSelector("#moodOverlay:not([hidden]) #moodEditorPanel:not([hidden])", { state: "visible" });
-    const labels = await page.locator("#moodEditorForm label").allTextContents();
-    assert.deepEqual(labels.map((value) => value.trim()), ["想说的话 （可留空）", "标签 （可选）"]);
-    await page.fill("#moodEditorContent", "今天把心情写下来 😊");
-    await page.fill("#moodEditorTagInput", "#散步");
-    await page.press("#moodEditorTagInput", "Enter");
     const readsBeforeSave = moodReadCount(fixture);
-    await page.click("#moodEditorSave");
+    await page.mouse.up();
     await page.waitForSelector("#moodOverlay[hidden]", { state: "attached" });
     assert.equal(await page.locator("#overview").isVisible(), true, `${label} today save did not return home`);
     await page.locator('[data-today-mood-user="fixture-user"]').click();
     await page.waitForSelector("#moodOverlay:not([hidden]) #moodDetailPanel:not([hidden])", { state: "visible" });
     await waitForMoodReads(fixture, readsBeforeSave + 1, `${label} save`);
-    assert.equal(await page.locator("#moodDetailContent").textContent(), "今天把心情写下来 😊");
-    assert.equal(await page.locator("#moodDetailTags").textContent(), "#散步");
+    assert.equal(await page.locator("#moodDetailContent").textContent(), "");
+    assert.equal(await page.locator("#moodDetailTags").textContent(), "");
     assert.equal(await page.locator("#moodJarCount").textContent(), "1 条记录");
     assert.equal(fixture.writes.filter(({ path, action }) => path === "/api/table/mood_diaries" && action === "upsert").length, 1);
 

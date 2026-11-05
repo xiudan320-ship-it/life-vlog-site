@@ -47,7 +47,6 @@ export function createMoodEntryOverlayController({
     showMoodChoices: false,
     editorDraft: { content: "", tags: [] },
     editorBase: null,
-    editorReturnMode: "detail",
     saving: false,
     deleting: false,
     error: "",
@@ -131,14 +130,12 @@ export function createMoodEntryOverlayController({
     return true;
   }
 
-  function beginEditor({ diary = null, mood = null, returnMode = "detail" } = {}) {
-    const current = diary?.user_id === state.currentUserId ? diary : ownEntry();
-    state.activeDiary = current || state.activeDiary;
-    state.selectedMood = normalizeMood(mood || current?.mood);
+  function beginEditor(current) {
+    state.activeDiary = current;
+    state.selectedMood = current.mood;
     state.showMoodChoices = false;
-    state.editorDraft = { content: current?.content || "", tags: [...(current?.tags || [])] };
-    state.editorBase = current ? { mood: current.mood, content: current.content || "", tags: [...(current.tags || [])] } : null;
-    state.editorReturnMode = returnMode;
+    state.editorDraft = { content: current.content, tags: [...current.tags] };
+    state.editorBase = { mood: current.mood, content: current.content, tags: [...current.tags] };
     state.error = "";
     state.mode = "editor";
     injectedView.clearTagInput();
@@ -153,7 +150,6 @@ export function createMoodEntryOverlayController({
   }
 
   function isDirty(draft) {
-    if (!state.editorBase) return Boolean(draft.content || draft.tags.length);
     return state.editorBase.mood !== state.selectedMood || state.editorBase.content !== draft.content || JSON.stringify(state.editorBase.tags) !== JSON.stringify(draft.tags);
   }
 
@@ -227,9 +223,12 @@ export function createMoodEntryOverlayController({
     else if (draft.tooLong) state.error = "每个标签最多 20 个字符。";
     else if (draft.tooMany) state.error = "最多添加 8 个标签。";
     if (state.error) { render(); return; }
-    const previous = ownEntry();
-    const payload = { mood: state.selectedMood, content: draft.content, tags: draft.tags };
+    await persistMood({ mood: state.selectedMood, content: draft.content, tags: draft.tags }, ownEntry());
+  }
+
+  async function persistMood(payload, previous = null) {
     state.saving = true;
+    state.error = "";
     state.showMoodChoices = false;
     render();
     try {
@@ -258,7 +257,8 @@ export function createMoodEntryOverlayController({
       state.saving = false;
       state.error = `保存失败：${error?.message || "请重试"}`;
       render();
-      elements.moodEditorSave?.focus();
+      if (state.mode === "picker") focusStart();
+      else elements.moodEditorSave?.focus();
     }
   }
 
@@ -289,7 +289,13 @@ export function createMoodEntryOverlayController({
   async function dispatch(action) {
     if (state.saving) return;
     switch (action?.type) {
-      case "pick": state.selectedMood = normalizeMood(action.mood); if (state.selectedMood) beginEditor({ mood: state.selectedMood, returnMode: "picker" }); break;
+      case "pick": {
+        const mood = normalizeMood(action.mood);
+        if (state.mode !== "picker" || !mood || ownEntry()) break;
+        state.selectedMood = mood;
+        await persistMood({ mood, content: "", tags: [] });
+        break;
+      }
       case "change-mood": {
         state.showMoodChoices = !state.showMoodChoices;
         state.editorDraft.content = injectedView.readDraft().content;
@@ -305,14 +311,22 @@ export function createMoodEntryOverlayController({
         elements.moodEditorSelected?.querySelector?.("button")?.focus?.();
         break;
       }
-      case "edit": { const entry = state.entries.find((item) => item.id === action.id); if (entry?.user_id === state.currentUserId) beginEditor({ diary: entry, returnMode: "detail" }); break; }
-      case "record": beginEditor({ returnMode: "detail" }); break;
+      case "edit": { const entry = state.entries.find((item) => item.id === action.id); if (entry?.user_id === state.currentUserId) beginEditor(entry); break; }
+      case "record": {
+        if (state.mode !== "detail" || ownEntry()) break;
+        state.selectedMood = null;
+        state.error = "";
+        state.mode = "picker";
+        render();
+        focusStart();
+        break;
+      }
       case "detail-user": selectDiary(action.userId); render(); break;
       case "add-tag": { const live = injectedView.readDraft(); state.editorDraft.content = live.content; const next = normalizeTagDraft([...state.editorDraft.tags, action.value], normalizeMoodTags); if (next.tooLong) state.error = "每个标签最多 20 个字符。"; else if (next.tooMany) state.error = "最多添加 8 个标签。"; else { state.editorDraft.tags = next.tags; state.error = ""; injectedView.clearTagInput(); } render(); break; }
       case "remove-tag": state.editorDraft.content = injectedView.readDraft().content; state.editorDraft.tags = state.editorDraft.tags.filter((value) => value !== action.tag); render(); break;
       case "save": await save(); break;
       case "delete": await remove(action.id); break;
-      case "cancel-editor": if (await confirmLeave()) { state.mode = state.editorReturnMode; selectDiary(state.activeDiary?.user_id); state.editorBase = null; state.error = ""; render(); focusStart(); } break;
+      case "cancel-editor": if (state.mode === "editor" && await confirmLeave()) { state.mode = "detail"; state.editorBase = null; state.error = ""; render(); focusStart(); } break;
       case "close": await close(); break;
       default: break;
     }

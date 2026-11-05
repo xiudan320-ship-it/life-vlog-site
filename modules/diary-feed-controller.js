@@ -67,6 +67,7 @@ export function createDiaryFeedController({
     pageSize,
   } = constants;
   let pendingGalleryViewportAnchor = null;
+  let commentPreviewRevision = 0;
 
   async function loadPhotosInternal() {
     if (!state.cloudDb) {
@@ -134,21 +135,32 @@ export function createDiaryFeedController({
   }
   
   async function loadPhotoCommentPreviews() {
-    state.photoCommentPreviewMap = new Map();
     if (!state.cloudDb || !state.session) return;
+    const session = state.session;
+    const revision = ++commentPreviewRevision;
     const { data, error } = await diaryRepository.listCommentPreviews(300);
-    if (error) return;
+    if (error || session !== state.session || revision !== commentPreviewRevision) return;
+    const previews = new Map();
     (data || []).forEach((comment) => {
       const photoId = comment.photo_id;
       if (!photoId) return;
-      const list = state.photoCommentPreviewMap.get(photoId) || [];
+      const list = previews.get(photoId) || [];
       if (list.length >= photoCommentPreviewLimit) return;
       list.push(comment);
-      state.photoCommentPreviewMap.set(photoId, list);
+      previews.set(photoId, list);
     });
-    state.photoCommentPreviewMap.forEach((list) => {
-      list.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
-    });
+    state.photoCommentPreviewMap = previews;
+  }
+
+  function addPhotoCommentPreview(comment) {
+    commentPreviewRevision += 1;
+    const existing = state.photoCommentPreviewMap.get(comment.photo_id) || [];
+    const recent = [comment, ...existing.filter(({ id }) => id !== comment.id)]
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      .slice(0, photoCommentPreviewLimit);
+    state.photoCommentPreviewMap.set(comment.photo_id, recent);
+    savePhotoFeedCache(state.session.user.id);
+    if (state.activePage === "gallery") renderGallery("", { preserveViewportAnchor: true });
   }
   
   function getLocalDateKeyFromValue(value) {
@@ -936,6 +948,7 @@ export function createDiaryFeedController({
   return {
     loadPhotos,
     loadPhotoCommentPreviews,
+    addPhotoCommentPreview,
     getLocalDateKeyFromValue,
     isPhotoPublishedToday,
     getTodayPostsSeenStorageKey,

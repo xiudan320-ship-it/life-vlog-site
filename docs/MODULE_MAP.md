@@ -44,7 +44,7 @@
 | 秘藏搜索结果与来源相册导航 | `modules/secret-search-view.js` | `modules/secret-controller.js`, `modules/secret-filter-domain.js`；分别展示相册和命中图片，沿用当前文件夹 / 已收藏范围 |
 | 秘藏文件夹、默认入口、相册更多菜单 | `modules/secret-folder-controller.js` | `modules/secret-gallery-view.js`；卡片按钮、长按和右键共用菜单，支持键盘和焦点恢复 |
 | 秘藏密码与解锁 | `modules/secret-pin-controller.js` | `modules/secret-entry-preference-controller.js` |
-| 评论、回复、家庭心愿/购物车通知 | `modules/social-controller.js`, `modules/comment-thread-domain.js`, `modules/notification-event-bindings.js` | `modules/notification-domain.js`, `modules/notification-view.js`；桌面详情与移动详情共用扁平留言模型，通知可跳转到心愿单/购物车 |
+| 评论、回复、家庭心愿/购物车通知 | `modules/social-controller.js`, `modules/comment-thread-domain.js`, `modules/notification-event-bindings.js` | `modules/photo-dialog-view.js`, `modules/mobile-diary-view.js`, `modules/diary-feed-controller.js`；两端共用回复写入，服务端确认结果同步到详情和首页预览 |
 | 推送通知、晚间心情提醒与点击跳转 | `modules/push-controller.js` | `modules/media-event-bindings.js`, `cloudflare-worker/src/worker.js`；18:00 Asia/Tokyo 未记录当日心情时生成一次提醒 |
 | 菜谱、纪念日、吃什么 | 对应的 `*-controller.js` | 对应的 `*-view.js`, `modules/content-form-event-bindings.js` |
 | 衣柜记录、筛选、图片和穿着记录 | `modules/wardrobe-controller.js` | `modules/wardrobe-domain.js`, `modules/wardrobe-view.js`, `modules/data-repositories.js`, `wardrobe.css` |
@@ -114,7 +114,7 @@
 - `modules/today-mood-cache.js`：按用户和自然日读写首页今日心情缓存，并复用已有月度缓存预热当前日期；只提供本地加速，不替代云端 canonical 响应。
 - `modules/today-mood-view.js`：只负责首页今日概览 DOM，包括真实昵称、席位形状、首屏立即加载的心情素材、空态/错误态和桌面本月日历缩略网格；首页点击入口由 `today-mood-controller.js` 在懒加载完成后绑定。
 - `modules/mood-entry-overlay-controller.js` / `mood-entry-overlay-view.js`：全局唯一的 Picker、编辑和详情边界；管理本人写权限、保存/删除、脏表单、history、滚动和焦点恢复，不依赖 gallery 或 mood 路由 DOM。
-- `modules/mood-picker-drag-controller.js`：共享 Picker 的鼠标 / 触屏拖动、圆形中央接收区命中、松手确认、取消恢复及原生点击抑制；只在成功放入中央时触发选择，不负责保存，点击与键盘继续使用原生按钮。
+- `modules/mood-picker-drag-controller.js`：共享 Picker 的鼠标和触屏拖动、圆形中央接收区命中、松手记录、取消恢复及原生点击抑制。点击和键盘与拖入中央共用 overlay 的新增保存流程。
 - `modules/mood-diary-shared.js`：心情枚举、素材元数据、日期/标签标准化、两席解析和排序等首屏与懒加载路由共用的纯规则；不包含月历计算或 DOM。
 - `modules/app-navigation-controller.js`：只在首次成功的登录态 gallery 激活且没有显式深链参数时将首屏落到今日概览；后续路由进入、返回和滚动恢复不再由 gallery 视图注入滚动副作用。留言不进入该页面状态机，而由应用壳统一 dialog 打开。
 

@@ -52,7 +52,7 @@ export function createMoodEntryOverlayView({ elements = {}, moodMeta, moodTypes,
     const documentTarget = elements.moodPickerOrbit.ownerDocument;
     const fragment = documentTarget.createDocumentFragment();
     const center = text(documentTarget, "span", "", "mood-picker-center");
-    center.append(text(documentTarget, "span", "拖到这里\n选择心情", "mood-picker-center-label"));
+    center.append(text(documentTarget, "span", "拖到这里\n记录心情", "mood-picker-center-label"));
     center.setAttribute("role", "status");
     center.setAttribute("aria-live", "polite");
     center.setAttribute("aria-atomic", "true");
@@ -157,7 +157,7 @@ export function createMoodEntryOverlayView({ elements = {}, moodMeta, moodTypes,
     } else if (!state.entries.some((entry) => entry.user_id === state.currentUserId)) {
       const record = text(documentTarget, "button", "记录我的心情", "mood-primary-button");
       record.type = "button";
-      record.dataset.moodRecordDate = diary.diary_date;
+      record.dataset.moodRecord = "";
       elements.moodDetailActions?.append(record);
     }
     if (elements.moodDetailError) elements.moodDetailError.textContent = state.error;
@@ -173,6 +173,13 @@ export function createMoodEntryOverlayView({ elements = {}, moodMeta, moodTypes,
     elements.moodDetailPanel.hidden = state.mode !== "detail";
     if (!open) return;
     renderPicker();
+    if (state.mode === "picker") {
+      elements.moodPickerOrbit.setAttribute("aria-busy", String(state.saving));
+      for (const choice of elements.moodPickerOrbit.querySelectorAll("button")) choice.disabled = state.saving;
+      elements.moodPickerPanel.querySelector("[data-mood-picker-status]").textContent = state.saving
+        ? `正在记录${moodMeta[state.selectedMood].label}…`
+        : state.error ? `${state.error}。再次选择即可重试。` : "";
+    }
     renderEditor(state);
     renderDetail(state);
   }
@@ -186,7 +193,7 @@ export function createMoodEntryOverlayView({ elements = {}, moodMeta, moodTypes,
     bound = true;
     pickerDrag = createMoodPickerDragController({ orbit: elements.moodPickerOrbit, moodMeta, onPick: (mood) => onAction({ type: "pick", mood }) });
     elements.moodOverlay.addEventListener("click", (event) => {
-      const target = event.target.closest?.("[data-mood], [data-mood-change], [data-mood-choose], [data-mood-close-overlay], #moodOverlayClose, [data-mood-edit], [data-mood-delete], [data-mood-detail-user], [data-mood-record-date], [data-mood-remove-tag]");
+      const target = event.target.closest?.("[data-mood], [data-mood-change], [data-mood-choose], [data-mood-close-overlay], #moodOverlayClose, [data-mood-edit], [data-mood-delete], [data-mood-detail-user], [data-mood-record], [data-mood-remove-tag]");
       if (!target) return;
       if (target.dataset.mood) return onAction({ type: "pick", mood: target.dataset.mood });
       if (target.dataset.moodChange !== undefined) return onAction({ type: "change-mood" });
@@ -195,7 +202,7 @@ export function createMoodEntryOverlayView({ elements = {}, moodMeta, moodTypes,
       if (target.dataset.moodEdit) return onAction({ type: "edit", id: target.dataset.moodEdit });
       if (target.dataset.moodDelete) return onAction({ type: "delete", id: target.dataset.moodDelete });
       if (target.dataset.moodDetailUser) return onAction({ type: "detail-user", userId: target.dataset.moodDetailUser });
-      if (target.dataset.moodRecordDate) return onAction({ type: "record", dateKey: target.dataset.moodRecordDate });
+      if (target.dataset.moodRecord !== undefined) return onAction({ type: "record" });
       if (target.dataset.moodRemoveTag) return onAction({ type: "remove-tag", tag: target.dataset.moodRemoveTag });
     });
     elements.moodEditorForm?.addEventListener("submit", (event) => { event.preventDefault(); onAction({ type: "save" }); });

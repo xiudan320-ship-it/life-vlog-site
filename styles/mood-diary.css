@@ -1202,6 +1202,11 @@ body:has(.mood-overlay:not([hidden])) {
   margin: 8px 0 0;
 }
 
+.mood-picker-panel > [data-mood-picker-status]:empty {
+  min-height: 0;
+  margin: 0;
+}
+
 .mood-picker-orbit {
   position: relative;
   width: min(100%, 410px);

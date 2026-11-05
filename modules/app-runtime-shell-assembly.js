@@ -264,6 +264,7 @@ export function createShellControllerAssembly({
     getAuthorName,
     renderAvatarMarkup,
     loadPhotoCommentPreviews: diaryFeedActions.loadPhotoCommentPreviews,
+    addPhotoCommentPreview: diaryFeedActions.addPhotoCommentPreview,
     awardExperience: defer("awardExperience"),
   });
   const {

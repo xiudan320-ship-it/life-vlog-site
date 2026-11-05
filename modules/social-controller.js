@@ -1,7 +1,5 @@
 import { buildNotificationText } from "./notification-domain.js";
 import { renderNotificationsView } from "./notification-view.js";
-import { escapeHtml, formatCommentTime } from "./ui-formatters.js";
-import { flattenCommentThread } from "./comment-thread-domain.js";
 
 export function createSocialController({
   elements,
@@ -22,12 +20,15 @@ export function createSocialController({
   getAuthorName,
   renderAvatarMarkup,
   loadPhotoCommentPreviews,
+  addPhotoCommentPreview,
   awardExperience,
 }) {
   const els = elements;
   let notificationStatus = "idle";
   let notificationErrorMessage = "";
   let notificationUserId = null;
+  let commentRead = 0;
+  let desktopCommentSubmitting = false;
 
   function syncNotificationSession() {
     const nextUserId = state.session?.user?.id || "";
@@ -238,7 +239,11 @@ export function createSocialController({
   }
   
   async function loadPhotoComments(photoId) {
+    const read = ++commentRead;
+    const photo = state.activeDialogPhoto;
+    const userId = state.session?.user?.id;
     state.photoComments = [];
+    els.photoCommentsList?.replaceChildren();
     els.photoCommentStatus.textContent = "";
     const canComment = Boolean(
       state.session &&
@@ -248,63 +253,52 @@ export function createSocialController({
     );
     els.photoCommentForm.hidden = !canComment;
     if (!state.cloudDb || !state.session || !photoId) {
-      renderPhotoComments();
+      if (els.photoCommentsList) els.photoCommentsList.textContent = "还没有留言。";
       return;
     }
     const { data, error } = await diaryRepository.listComments(photoId);
+    if (read !== commentRead || state.activeDialogPhoto !== photo || state.session?.user?.id !== userId) return;
     if (error) {
       els.photoCommentStatus.textContent = isMissingCloudSchema(error)
         ? "运行最新版数据库脚本后即可留言。"
         : `留言读取失败：${error.message}`;
     } else {
-      state.photoComments = data || [];
+      const current = new Map((data || []).map((comment) => [comment.id, comment]));
+      for (const comment of state.photoComments) current.set(comment.id, comment);
+      state.photoComments = [...current.values()];
     }
     renderPhotoComments();
     renderMobileDiaryComments();
   }
-  
-  function renderPhotoComments() {
-    if (!els.photoCommentsList) return;
-    const comments = flattenCommentThread(state.photoComments, {
-      getAuthorName,
-    });
-    const heading = els.photoCommentsSection?.querySelector(".photo-comments-head h3");
-    if (heading) heading.textContent = `共 ${comments.length} 条评论`;
-    if (!comments.length) {
-      els.photoCommentsList.innerHTML = `<p class="photo-comments-empty">还没有留言。</p>`;
-      return;
+
+  async function publishPhotoComment({ photoId, body, parentId }) {
+    const userId = state.session?.user?.id;
+    if (!state.cloudDb || !userId) return { error: new Error("请先登录。") };
+    const result = await diaryRepository.addComment({ photo_id: photoId, user_id: userId, body, parent_id: parentId });
+    if (result.error || state.session?.user?.id !== userId) return result;
+    const comment = result.data;
+    addPhotoCommentPreview(comment);
+    if (state.activeDialogPhoto?.id === photoId) {
+      state.photoComments = [...state.photoComments.filter(({ id }) => id !== comment.id), comment];
+      renderPhotoComments();
+      renderMobileDiaryComments();
     }
-    els.photoCommentsList.innerHTML = comments.map((comment) => {
-      const isAuthor = comment.authorId === state.activeDialogPhoto?.user_id;
-      return `
-        <article class="photo-comment${comment.replyTargetId ? " is-reply" : ""}" data-comment-id="${escapeHtml(comment.id)}">
-          ${renderAvatarMarkup(comment.authorId)}
-          <div class="photo-comment-main">
-            <header>
-              <span class="photo-comment-author-line">
-                <strong>${escapeHtml(getAuthorName(comment.authorId))}</strong>
-                ${isAuthor ? `<small class="photo-comment-author-badge">作者</small>` : ""}
-              </span>
-            </header>
-            ${comment.replyTargetId ? `<small class="reply-target">↳ 回复 ${escapeHtml(comment.replyTargetName)}</small>` : ""}
-            <p>${escapeHtml(comment.body)}</p>
-            <time>${formatCommentTime(comment.createdAt)}</time>
-            <div class="photo-comment-actions">
-              <button type="button" data-reply-comment="${escapeHtml(comment.id)}">回复</button>
-              ${comment.authorId === state.session?.user?.id ? `<button type="button" data-delete-comment="${escapeHtml(comment.id)}">删除</button>` : ""}
-            </div>
-          </div>
-        </article>
-      `;
-    }).join("");
-    els.photoCommentsList.querySelectorAll("[data-reply-comment]").forEach((button) => {
-      button.addEventListener("click", () => startCommentReply(button.dataset.replyComment));
-    });
-    els.photoCommentsList.querySelectorAll("[data-delete-comment]").forEach((button) => {
-      button.addEventListener("click", () => deletePhotoComment(button.dataset.deleteComment));
-    });
+    void Promise.resolve().then(() => awardExperience("comment")).catch(() => {});
+    return result;
   }
   
+  async function renderPhotoComments() {
+    if (!els.dialog?.open || els.photoCommentsSection?.hidden) return;
+    const photo = state.activeDialogPhoto;
+    try {
+      const { renderPhotoCommentThread } = await import("./photo-dialog-view.js");
+      if (state.activeDialogPhoto !== photo || !els.dialog.open) return;
+      renderPhotoCommentThread({ elements: els, state, getAuthorName, renderAvatarMarkup, startCommentReply, deletePhotoComment });
+    } catch {
+      if (state.activeDialogPhoto === photo) els.photoCommentStatus.textContent = "留言暂时无法显示，请重新打开日记。";
+    }
+  }
+
   function startCommentReply(commentId) {
     const comment = state.photoComments.find((item) => item.id === commentId);
     if (!comment) return;
@@ -324,29 +318,27 @@ export function createSocialController({
   
   async function savePhotoComment(event) {
     event.preventDefault();
-    if (!state.cloudDb || !state.session || !state.activeDialogPhoto) return;
+    const photo = state.activeDialogPhoto;
+    if (desktopCommentSubmitting || !state.cloudDb || !state.session || !photo) return;
     const body = els.photoCommentInput.value.trim();
     if (!body) return;
     els.photoCommentStatus.textContent = "正在发送...";
-    const { error } = await diaryRepository.addComment({
-      photo_id: state.activeDialogPhoto.id,
-      user_id: state.session.user.id,
-      body,
-      parent_id: state.commentReplyToId,
-    });
-    if (error) {
+    desktopCommentSubmitting = true;
+    try {
+      const { error } = await publishPhotoComment({ photoId: photo.id, body, parentId: state.commentReplyToId });
+      if (state.activeDialogPhoto !== photo) return;
+      if (error) throw error;
+      els.photoCommentForm.reset();
+      cancelCommentReply();
+      els.photoCommentStatus.textContent = "留言已发送。";
+    } catch (error) {
+      if (state.activeDialogPhoto !== photo) return;
       els.photoCommentStatus.textContent = isMissingCloudSchema(error)
         ? "请先部署最新版 Cloudflare D1 结构。"
         : `发送失败：${error.message}`;
-      return;
+    } finally {
+      desktopCommentSubmitting = false;
     }
-    els.photoCommentForm.reset();
-    cancelCommentReply();
-    await loadPhotoComments(state.activeDialogPhoto.id);
-    await loadPhotoCommentPreviews();
-    const gainedExp = await awardExperience("comment");
-    els.photoCommentStatus.textContent = gainedExp ? `留言已发送。修为 +${gainedExp}` : "留言已发送。";
-    if (state.activePage === "gallery") renderGallery();
   }
   
   async function deletePhotoComment(id) {
@@ -375,6 +367,7 @@ export function createSocialController({
     closeNotificationsPanel,
     markUnreadNotificationsRead,
     loadPhotoComments,
+    publishPhotoComment,
     renderPhotoComments,
     startCommentReply,
     cancelCommentReply,
