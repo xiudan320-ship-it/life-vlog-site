@@ -634,7 +634,6 @@ const {
   updateFilterChips,
   showTodayPosts,
   renderPhotoCommentPreview,
-  verifyPhotoFlagSchema,
   renderGallery,
   layoutGalleryMasonry,
   scheduleGalleryMasonryLayout,

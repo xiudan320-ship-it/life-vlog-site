@@ -24,12 +24,6 @@ export function createDiaryRepository({ getDatabase, getSession }) {
         .order("created_at", { ascending: false })
         .limit(limit);
     },
-    async verifyFlags() {
-      return requireDatabase(getDatabase)
-        .from("photos")
-        .select("id,is_featured,is_pinned")
-        .limit(1);
-    },
     async insert(record) {
       return requireDatabase(getDatabase).from("photos").insert(record);
     },

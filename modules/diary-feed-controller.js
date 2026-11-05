@@ -101,8 +101,8 @@ export function createDiaryFeedController({
       state.dismissedFeedRefreshIds = new Set();
       state.showingCachedFeed = false;
       if (state.session) {
+        state.photoFlagsCloudAvailable = true;
         await Promise.all([
-          verifyPhotoFlagSchema(),
           photoFavorites.synchronize(),
           loadPhotoCommentPreviews(),
         ]);
@@ -498,15 +498,6 @@ export function createDiaryFeedController({
     `;
   }
   
-  async function verifyPhotoFlagSchema() {
-    if (!state.cloudDb || !state.session) {
-      state.photoFlagsCloudAvailable = false;
-      return;
-    }
-    const { error } = await diaryRepository.verifyFlags();
-    state.photoFlagsCloudAvailable = !error;
-  }
-  
   function captureGalleryViewportAnchor() {
     if (pendingGalleryViewportAnchor) return pendingGalleryViewportAnchor;
     const cards = [...(els.gallery?.querySelectorAll(".photo-card") || [])];
@@ -776,11 +767,6 @@ export function createDiaryFeedController({
       (photoOwnerId && photoOwnerId !== state.session.user.id && !canAdminUnpin)
     ) return;
     const label = field === "is_pinned" ? "置顶" : "精选";
-    if (!state.photoFlagsCloudAvailable) await verifyPhotoFlagSchema();
-    if (!state.photoFlagsCloudAvailable) {
-      setGlobalStatus(`Cloudflare D1 尚未启用${label}字段，请先部署最新版数据库结构。`);
-      return;
-    }
     const nextValue = canAdminUnpin ? false : !Boolean(photo[field]);
     setGlobalStatus(`正在更新${label}状态...`);
   
@@ -968,7 +954,6 @@ export function createDiaryFeedController({
     updateFilterChips,
     showTodayPosts,
     renderPhotoCommentPreview,
-    verifyPhotoFlagSchema,
     renderGallery,
     captureGalleryViewportAnchor,
     restorePendingGalleryViewportAnchor,
