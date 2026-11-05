@@ -42,6 +42,7 @@ for (const prefix of nonCoreChunkPrefixes) {
 }
 const todayMoodChunk = files.find((name) => name.startsWith("today-mood-") && name.endsWith(".js"));
 assert.ok(todayMoodChunk, "home mood chunk is missing");
+assert.ok(indexHtml.includes(`rel="modulepreload" crossorigin href="/assets/${todayMoodChunk}"`), "home mood chunk must preload in parallel with the shell entry");
 assert.ok(precacheUrls.includes(`assets/${todayMoodChunk}`), "home mood chunk missing from precache");
 for (const feature of ["photo-editor-controller", "mobile-diary-controller", "photo-viewer-controller"]) {
   assert.ok(files.some((name) => name.startsWith(`${feature}-`) && name.endsWith(".js")), `dynamic feature chunk ${feature} is missing`);

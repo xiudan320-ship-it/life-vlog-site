@@ -7,6 +7,7 @@ import { createAppSessionController } from "./app-session-controller.js";
 import { createPrimaryNavigationController } from "./primary-navigation-controller.js";
 import { createRouteLoader } from "./route-loader.js";
 import { createLazyControllerProxy } from "./lazy-controller.js";
+import { createTodayMoodController } from "./today-mood-controller.js";
 
 export function createPageControllerRegistry() {
   const pageControllers = {};
@@ -315,7 +316,7 @@ export function createAppRouteRuntime({
     dispatch: async (...args) => (await loadMoodEntryOverlay()).dispatch(...args),
   });
   pageControllerMap.moodEntryOverlay = moodEntryOverlayController;
-  todayMoodControllerPromise = import("./today-mood-controller.js").then(({ createTodayMoodController }) => {
+  todayMoodControllerPromise = Promise.resolve().then(() => {
     const controller = createTodayMoodController({
       elements,
       state,
