@@ -1114,6 +1114,7 @@ async function testNotificationPanel() {
 
   const success = await openNotificationFixture({ notifications: [notification] });
   try {
+    await success.page.waitForFunction(() => performance.getEntriesByName("remote-sync-complete").length > 0);
     const before = success.fixture.requests.filter(({ method, path }) => method === "POST" && path === "/api/rpc/get_my_notifications").length;
     await success.page.locator("#notificationButton").evaluate((button) => {
       button.click();
