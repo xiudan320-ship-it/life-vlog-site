@@ -33,6 +33,7 @@ export default defineConfig({
     sourcemap: false,
     minify: "terser",
     rollupOptions: {
+      input: { index: "index.html", monster: "monster.html" },
       output: {
         manualChunks(id) {
           if (/[/\\]modules[/\\](?:today-mood-controller|mood-diary-repository|mood-diary-shared)\.js$/u.test(id)) return "today-mood";
@@ -67,6 +68,10 @@ export default defineConfig({
     injectManifest: {
       globPatterns: ["**/*.{js,css,html,webmanifest,png,webp,svg}"],
       globIgnores: [
+        "monster/**",
+        "monster.html",
+        "**/monster-*.js",
+        "**/monster-*.css",
         "manifest.webmanifest",
         "**/*-route-*.js",
         "**/*-route-*.css",

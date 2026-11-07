@@ -1,0 +1,13 @@
+{
+  "game": "com.zn.monster",
+  "version": "7.1",
+  "apkSha256": "9767B9C3945D38985C07DB73D56DEC83E162B37C69A9686686BC9BDE67E35079",
+  "engine": {
+    "name": "cocos2d-html5",
+    "tag": "Cocos2d-html5-v3.4-beta0",
+    "commit": "15799395d348a0d3cd5538318e16fbce15b9d2ef",
+    "source": "https://github.com/cocos2d/cocos2d-html5/tree/15799395d348a0d3cd5538318e16fbce15b9d2ef",
+    "licenses": "engine/licenses/"
+  },
+  "scope": "Original resource subset for migration preview; Android libraries, packer, account and service configuration excluded."
+}

@@ -12,6 +12,11 @@
 
 | 现象或功能 | 首要模组 | 相关视图 / 领域模组 |
 | --- | --- | --- |
+| 黑暗传说首关试玩入口、原资源画面与控制器 | `monster.html`, `modules/monster/entry.js`, `modules/monster/game-controller.js`, `modules/monster/game-view.js` | `styles/monster.css`, `public/monster/`, `tests/monster-browser.mjs`；首页工具区进入，页面独立加载引擎 |
+| 黑暗传说攻击、属性、装备、角色生命/技能、成长、全敌人目录及调整（迁移中） | `modules/monster/combat-domain.js`, `modules/monster/attribute-domain.js`, `modules/monster/equipment-domain.js`, `modules/monster/role-domain.js`, `modules/monster/progression-domain.js`, `modules/monster/enemy-domain.js` | `tests/monster-domain.mjs`, `tests/fixtures/monster/`；恢复边界见 `docs/monster-port-status.md` |
+| 黑暗传说出手/目标选择、普通攻击自动战斗、通关进度 | `modules/monster/battle-turn-domain.js`, `modules/monster/solo-battle-domain.js`, `modules/monster/copy-progress-domain.js` | 单角色普通战斗可自行推进和换敌；技能/Buff/宠物/复活及特殊遭遇未接入 |
+| 黑暗传说初始角色、掉落、奖励和数值入账 | `modules/monster/new-game-domain.js`, `modules/monster/loot-domain.js`, `modules/monster/reward-domain.js`, `modules/monster/inventory-domain.js`, `modules/monster/settlement-domain.js` | 首关接通升级、进度和材料入账；任务/成就、宠物等后续效果未执行 |
+| 黑暗传说本地迁移版 JSON 存档 | `modules/monster/save-store.js` | 隔离存储键 `monster-save-7.1`；控制器显示读取/写入失败并支持写入重试，不兼容 Android 加密存档 |
 | 应用启动、首屏加载态 | `modules/app-splash-controller.js` | `styles/app-splash.css`, `index.html` |
 | 页面切换、返回行为 | `modules/app-navigation-controller.js` | `modules/app-event-bindings.js`, `modules/app-route-domain.js` |
 | 顶部分页启用、排序、最多 5 个入口、VLOG mode 与用户/设备偏好 | `modules/primary-navigation-controller.js`, `modules/primary-navigation-domain.js` | `modules/primary-navigation-view.js`, `modules/preferences-store.js`, `modules/app-navigation-controller.js` |

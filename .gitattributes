@@ -1,0 +1,4 @@
+# Preserve imported APK assets and the pinned upstream engine byte for byte.
+# Their original whitespace is part of the imported source, not project style.
+public/monster/assets/** -text -whitespace
+public/monster/engine/** -text -whitespace linguist-vendored

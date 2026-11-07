@@ -1,0 +1,1020 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>  
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">  
+<plist version="1.0">  
+<dict>  
+	<key>text_vercode</key> <string>35</string>  
+	<key>text_version</key> <string>Version：7.1</string>  
+	<key>text_gamename</key> <string>Name：Legend of Darkness</string>  
+	<key>text_gameqq</key> <string> </string>  
+	<key>text_gameqq2</key> <string> </string>  
+	<key>text_gameemail</key> <string>Email：loverpgs@163.com</string>  
+
+
+	<!--按钮文字-->
+
+	<key>btn_text_startgame</key> <string>Start Game</string>  
+	<key>btn_text_setting</key> <string>Settings</string>  
+	<key>btn_text_language</key> <string>English</string>  
+
+	<key>btn_text_soundon</key> <string>Sound: On</string>  
+	<key>btn_text_soundoff</key> <string>Sound: Off</string> 
+
+	
+	<key>btn_text_achievement</key> <string>Achievement</string>  
+	<key>btn_text_shop</key> <string>Shop</string>  
+
+	
+	
+	<key>btn_text_attackabyss</key> <string>Challenge Abyss</string>  
+	<key>btn_text_level</key> <string>Upgrade</string>  
+	<key>btn_text_equip</key> <string>Equip</string>  
+	<key>btn_text_equiped</key> <string>Equipped</string>  
+	
+	<key>btn_text_goods</key> <string>Goods</string>  
+	<key>btn_text_copytype1</key> <string>Common</string>  
+	<key>btn_text_copytype2</key> <string>Challenge</string>  
+	<key>btn_text_tiaozhantips</key> <string>Massive exp and gold.Low chance to obtain epic,divine(1-3 star).</string>  
+	<key>btn_text_tiaozhantipslevel</key> <string> </string>  
+	<key>btn_text_strength</key> <string>Enhance</string>
+	<key>btn_text_reset</key> <string>Reform</string>  
+	<key>btn_text_enchant</key> <string>Enchant</string>
+	<key>btn_text_sell</key> <string>Sell</string>
+	<key>btn_text_equipsell</key> <string>Decomp</string>
+	<key>btn_text_use</key> <string>Use</string>
+	<key>btn_text_true</key> <string>Confirm</string>
+	<key>btn_text_false</key> <string>Cancel</string>
+	<key>btn_text_unequip</key> <string>Unload</string>
+	<key>btn_text_exchangeswing</key> <string>Change</string>
+
+	<key>btn_text_pay</key> <string>Stones</string>
+	<key>btn_text_money</key> <string>Stones</string>
+	<key>btn_text_pricedown</key> <string>Discount</string>
+	<key>btn_text_gem</key> <string>Gem</string>
+	<key>btn_text_exchange</key> <string>Exchange</string>
+	<key>btn_text_special</key> <string>Gold</string>
+	<key>btn_text_get</key> <string>Obtained</string>
+	<key>btn_text_all</key> <string>Manual</string>
+
+	<!--ui文本文字-->
+	<key>btn_ui_back</key> <string>Back</string>
+	<key>btn_ui_true</key> <string>Confirm</string>
+	
+
+	<!--ui打造-->
+	<key>text_ui_title_makeequip</key> <string>Forge Equipment</string>
+	<key>btn_ui_all</key> <string>All</string>
+	<key>btn_ui_weapon</key> <string>Weapon</string>
+	<key>btn_ui_defequip</key> <string>Armor</string>
+	<key>btn_ui_jewelry</key> <string>Others</string>
+	<key>btn_ui_goods</key> <string>Items</string>
+	<key>btn_ui_make</key> <string>Make</string>
+	<key>text_ui_needmat</key> <string>Material</string>
+
+	<!--ui游戏开始界面-->
+	<key>text_ui_title_newgame</key> <string>Start a New Game</string>
+	<key>text_ui_whatyourname</key> <string>What’s your name?</string>
+	<key>text_ui_defaultplayername</key> <string>Hero</string>
+	<key>text_ui_inputnametips</key> <string>Tap the words to type your name</string>
+	<key>btn_ui_startgame</key> <string>Start Game</string>
+
+
+	<!--ui打造-->
+	<key>text_ui_title_quicksellequip</key> <string>Decompose</string>
+	<key>text_ui_title_quicksellgoods</key> <string>Quick Sell</string>
+	<key>btn_ui_sell10</key> <string>Sell 10</string>
+	<key>btn_ui_sell100</key> <string>Sell 100</string>
+	<key>btn_ui_sell1000</key> <string>Sell 1000</string>
+	<key>btn_ui_sell10000</key> <string>Sell 10000</string>
+
+	<key>text_ui_title_about</key> <string>About</string>
+	<key>text_ui_title_resetabyss</key> <string>Reset</string>
+	<key>text_ui_title_abyssrelive</key> <string>Resurrection</string>
+	<!--ui副本-->
+	<key>text_copy_level</key>  <string>LV</string> 
+	<key>text_level2</key>  <string>Level:</string> 
+	<key>text_copy_drop</key>  <string>Drop:</string> 
+	<key>text_copy_need</key>  <string>(Needs %d Instance Scrolls)</string> 
+	<key>text_copy_need2</key>  <string>(Needs %d Challenge Scrolls)</string> 
+	<key>btn_ui_gocopy</key> <string>Enter</string>
+	<!--ui物品显示-->
+	<key>text_item_sellget</key>  <string>Decomposition:</string> 
+	<key>text_item_goodssellget</key>  <string>Price:</string> 
+	<key>text_item_strenghjihuo</key>  <string>(+%d Active)</string> 
+	<key>text_item_needfumo</key>  <string>Penetrate the equipment?</string> 
+	<key>text_item_fumoatt</key>  <string>Enchanted Attribute</string> 
+	<key>text_item_mainatt</key>  <string>Main Attribute</string>
+	<key>text_item_resettips</key>  <string>(The appraisal grades are common, average, great and excellent. The attribute will fluctuate randomly.)</string>
+	<key>text_item_need1</key>  <string>Material</string>
+	<key>text_item_need2</key>  <string>Material</string>
+	<key>text_item_gaojitips</key>  <string>(Common enhancement stone can add success rate.)</string>
+	
+
+
+
+
+	<key>text_ui_title_help</key> <string>Help</string>
+	<key>text_ui_btn_announcement</key> <string>Notice</string>
+	<key>text_ui_btn_bug</key> <string>Report BUG</string>
+	<key>text_ui_btn_menu</key> <string>Menu</string>
+	<key>text_ui_btn_update</key> <string></string>
+	
+	<key>text_ui_title_bag</key> <string>Bag</string>
+	<key>text_ui_title_copy</key> <string>Instance</string>
+	<key>text_ui_title_main</key> <string>Main</string>
+	<key>text_ui_title_map</key> <string>Adventure</string>
+	<key>text_ui_title_other</key> <string>Others</string>
+	<key>text_ui_title_freemoney</key> <string>More</string>
+	<key>text_ui_title_freemoney2</key> <string>More</string>
+	<key>text_ui_title_role</key> <string>Role</string>
+	<key>text_ui_title_shop</key> <string>Shop</string>
+	<key>text_ui_title_bar</key> <string>Bar</string>
+	<key>text_ui_title_equipmake</key> <string>Alchemy</string>
+	<key>text_ui_title_skill</key> <string>Skills</string>
+	<key>text_ui_title_frendtips</key> <string>Tips</string>
+	<key>text_ui_title_vip</key> <string>VIP</string>
+	<key>text_ui_areadypay</key> <string>Paid:</string>
+	<key>text_ui_payproblemcontact</key> <string> </string>
+	<key>text_ui_title_abyss</key> <string>Abyss</string>
+	<key>text_ui_title_specialequipupdate</key> <string>Special Upgrade </string>
+	<key>text_ui_title_swingequipupdate</key> <string>Upgrade Wings</string>
+	<key>text_ui_title_timeactivity</key> <string>Events</string>
+	<key>text_ui_title_choujiang</key> <string>Lottery</string>
+
+<!--ui netloading-->
+	<key>text_net_loading</key>  <string>Loading, please wait…</string> 
+	<key>btn_ui_goapprise</key>  <string>Rate us</string>
+	<key>btn_ui_reliverole</key>  <string>Resurrect</string>
+	<key>btn_ui_backabyss</key>  <string>Leave</string>
+
+
+	<!--文本文字-->
+	<key>label_text_effect</key> <string>Sound Effect</string>  
+	<key>label_text_sound</key> <string>Background Music</string>  
+	<key>label_text_autowar</key> <string>Auto Fight</string>  
+	<!--角色 属性界面文字-->
+	<key>label_level</key> <string>Sound Effect</string>  
+	<key>label_hp</key> <string>HP:    %d</string>  
+	<key>label_att</key> <string>ATK:   %d</string>  
+	<key>label_def</key> <string>DEF:   %d</string>  
+	<key>label_hit</key> <string>Hit:   %d</string>  
+	<key>label_spo</key> <string>Dodge: %d</string>  
+	<key>label_crit</key> <string>Crit:  %d</string>  
+	<key>label_crithurt</key> <string>Crit Damage: %d</string>  
+	<key>label_dropitem</key> <string>Dropped Items: %d%%</string>  
+	<key>label_dropmoney</key> <string>Dropped Gold: %d%%</string>  
+	<key>label_dropexp</key> <string>Exp Gain: %d%%</string>  
+	<key>label_rehp</key> <string>HP Recover: %d</string>   
+	<key>label_absorb</key> <string>Blood Absorption: %d</string>  
+	<key>label_resistance</key> <string>Resistance: %d</string>  
+	<!--角色 战斗结束文字-->
+	<key>text_ui_warresult_backtips</key> <string>Tap the screen to go back</string>
+	<key>text_ui_warresult_btn1</key> <string>Enhance</string>
+	<key>text_ui_warresult_btn2</key> <string>Penetrate</string>
+	<key>text_ui_warresult_btn3</key> <string>Upgrade</string>
+	<key>text_ui_warresult_btn4</key> <string>Skills</string>
+	<key>text_ui_warresult_btn5</key> <string>Forge</string>
+	<key>text_ui_warresult_btn6</key> <string>Swing</string>
+	<!--深渊 -->
+	<key>text_ui_abyss_nextfloor</key> <string>Next floor</string>
+	<key>text_ui_abyss_detail</key> 
+	<string> Intro: It is pretty hard. You’re able to enter once a day.Drop materials, special equipment. Abyss above 30F drops lv60 equipment,above 38F drops lv70 equipment,above 47F drops lv80 equipment,above 60F drops Darkness equipment. (Some VIPs can reset a certain chances.)</string>
+	<key>text_ui_abyss_reset</key> <string>Reset the Abyss?</string>
+	<key>text_ui_abyss_relive</key> <string>Resurrect the character and continue challenging? Or leave the abyss and come next time?</string>
+
+	<!--特殊装备升级-->
+	<key>text_ui_speceial_descir</key> 
+	<string>Intro: Some initially low attribute have to be upgraded to a certain level before value improvement. Resurrection attribute will not increase by the equipment level.</string>
+	<key>text_ui_updatemax</key> 
+	<string> Congrats!Max level!!!</string>
+
+	<key>text_ui_inputcdkey</key> 
+	<string>Tap to type cdkey</string>
+	<key>text_ui_cannotgetcdkey</key> 
+	<string>(Unable to acquire cdkey)</string>
+
+	<key>text_equipqulity1</key> 
+	<string>Common</string>
+		<key>text_equipqulity2</key> 
+	<string>Magic</string>
+		<key>text_equipqulity3</key> 
+	<string>Excellent</string>
+		<key>text_equipqulity4</key> 
+	<string>Legendary</string>
+		<key>text_equipqulity5</key> 
+	<string>Epic</string>
+	<key>text_sellmoredesc</key> 
+	<string>Special equipment,Badge,Enhanced equipment will not be decomposed)</string>
+	
+
+    <key>boyname</key> <string>Mathew	Weller</string>  
+	<key>LV</key>  
+    <string>Level:%d</string>  
+
+	<key>mainattr1</key>  
+    <string>ATK:%d</string>  
+	<key>mainattr2</key>  
+    <string>DEF:%d</string>  
+	<key>mainattr3</key>  
+    <string>HP:%d</string>  
+	<key>mainattr4</key>  
+    <string>Hit:%d</string>  
+	<key>mainattr5</key>  
+    <string>Dodge:%d</string>  
+	<key>mainattr6</key>  
+    <string>Crit:%d</string>  
+	<key>mainattr7</key>  
+    <string>Crit DMG:%d</string>  
+	<key>mainattr8</key>  
+    <string>Resistance:%d</string>  
+
+	<key>extraattr1</key>  
+    <string>ATK +%d</string>  
+	<key>extraattr2</key>  
+    <string>DEF +%d</string>  
+	<key>extraattr3</key>  
+    <string>HP +%d</string>  
+	<key>extraattr4</key>  
+    <string>Hit +%d</string>  
+	<key>extraattr5</key>  
+    <string>Dodge +%d</string>  
+	<key>extraattr6</key>  
+    <string>Crit +%d</string>  
+	<key>extraattr7</key>  
+    <string>Crit DMG +%d</string>  
+	<key>extraattr8</key>  
+    <string>Resistance +%d</string>  
+	<key>extraattr9</key>  
+    <string>Item Drop+%d%%</string>  
+	<key>extraattr10</key>  
+    <string>Obtained Exp+%d%%</string>  
+	<key>extraattr11</key>  
+    <string>HP Recover%d</string>  
+	<key>extraattr12</key>  
+    <string>Basic ATK +%d%%</string>  
+	<key>extraattr13</key>  
+    <string>Basic DEF +%d%%</string>  
+	<key>extraattr14</key>  
+    <string>Basic HP +%d%%</string>  
+	<key>extraattr15</key>  
+    <string>Blood Absorption +%d</string>  
+	<key>extraattr16</key>  
+    <string>Damage +%d%%</string>  
+	<key>extraattr17</key>  
+    <string>Damage Reduction %d%%</string>  
+	<key>extraattr18</key>  
+    <string>Damage to Boss +%d%%</string>  
+	<key>extraattr19</key>  
+    <string>Gold Drop +%d%%</string>  
+	<key>extraattr20</key>  
+	<string> Resurrection Chance+%d</string>  
+	<key>extraattr21</key>  
+	<string>Skill Release +%d%%</string>  
+	<key>extraattr22</key>  
+	<string>Hidden Monster +%d%%</string>  
+		<key>extraattr23</key>  
+	<string>Crit Rate+%d%%</string>  
+		<key>extraattr24</key>  
+	<string>Crit DMG+%d%%</string>  
+		<key>extraattr25</key>  
+	<string>Dodge Rate+%d%%</string>  
+		<key>extraattr26</key>  
+	<string>Hit Rate+%d%%</string>  
+		<key>extraattr27</key>  
+	<string>Resistance Rate+%d%%</string>  
+	<key>extraattr28</key>  
+	<string>Ads Video Stones+%d</string>
+	<key>extraattr29</key>  
+	<string>The exchange may be double</string>
+	<key>extraattr30</key>  
+	<string>Adventure monsters +%d</string>
+	<key>extraattr31</key>  
+	<string>Lottery 20 percent discount</string>
+	
+		<key>extraattr33</key>  
+	<string>Skill effect +%d%%</string>
+	<key>extraattr34</key>  
+	<string>+%d%% find treasure PR </string>
+	<key>extraattr35</key>  
+	<string>+%d%% success rate of smelt</string>
+	<key>text_specialtitletips</key>  
+	<string>Tips:special title don't need equiped</string>
+	<key>equipattrup</key>  
+    <string>↑</string>  
+	<key>equipattrdown</key>  
+    <string>↓</string>  
+	<key>extraattr32</key>  
+    <string>Recover %d%% HP per round</string>  
+
+
+	<key>extraattr40</key>  
+	<string>Crit resist +%d%%</string>
+	<key>extraattr41</key>  
+	<string>Catch pet PR +%d%%</string>
+	<key>extraattr42</key>  
+	<string>Pet exp +%d%%</string>
+	<key>extraattr43</key>  
+	<string>Pet skill PR +%d%%</string>
+
+
+
+
+<!--装备品质-->
+	<key>qulity1</key>  
+	<string>Common</string>  
+	<key>qulity2</key>  
+	<string>Magic</string>  
+	<key>qulity3</key>  
+    <string>Excellent</string>  
+	<key>qulity4</key>  
+    <string>Legendary</string>  
+	<key>qulity5</key>  
+    <string>Epic</string>  
+	<key>qulity6</key>  
+    <string>Divine</string>  
+	<key>score1</key>  
+    <string>Common</string>  
+	<key>score2</key>  
+    <string>Standard</string>  
+	<key>score3</key>  
+    <string>Great</string>  
+	<key>score4</key>  
+    <string>Masterwork</string>  
+
+<!--装备种类-->
+	<key>equiptype0</key>  
+    <string>All</string>  
+	
+	<key>equiptype1</key>  
+    <string>Weapon</string>  
+	<key>equiptype2</key>  
+    <string>Helmet</string>  
+	<key>equiptype3</key>  
+    <string>Armor</string> 
+	<key>equiptype4</key>  
+    <string> Gauntlets</string>  
+	<key>equiptype5</key>  
+    <string>Shoes</string>  
+	<key>equiptype6</key>  
+    <string>Ring</string> 
+	<key>equiptype7</key>  
+    <string>Necklace</string> 
+	<key>equiptype8</key>  
+    <string>Trousers</string> 
+	<key>equiptype9</key>  
+    <string>Special</string> 
+	<key>equiptype10</key>  
+    <string>Wings</string> 
+
+	<key>equiptype11</key>  
+    <string>Adventure Badge</string> 
+	<key>equiptype12</key>  
+    <string>Abyss Badge</string> 
+	<key>equiptype13</key>  
+    <string>Blacksmith Badge</string> 
+	<key>equiptype14</key>  
+    <string>Paragon Badge</string> 
+	<key>equiptype15</key>  
+    <string> Badge</string> 
+	
+<!--物品-->
+	<key>goodstype1</key>  
+    <string>Potion</string>  
+	<key>goodstype2</key>  
+    <string>N/A</string>  
+	<key>goodstype3</key>  
+    <string>Material</string>  
+	<key>goodstype4</key>  
+    <string>Gem</string>  
+	<key>goodstype5</key>  
+    <string>Scroll</string>  
+	<key>goodstype6</key>  
+    <string>Sepcial</string> 
+	<key>goodstype7</key>  
+    <string>Package</string> 
+	<key>goodstype8</key>  
+    <string>Others</string> 
+
+	<key>enchant_text</key>  
+	<string>Enchant:</string>  
+
+	<key>inlay_text</key>  
+	<string>Inlay:</string>  
+	<key>baseatt1</key>  
+    <string> ATK+%d</string>  
+	<key>baseatt2</key>  
+    <string> DEF+%d</string>  
+	<key>baseatt3</key>  
+    <string> HP+%d</string>  
+	<key>baseatt4</key>  
+    <string> Hit+%d</string>  
+	<key>baseatt5</key>  
+    <string> Dodge+%d</string>  
+	<key>baseatt6</key>  
+    <string> Crit+%d</string>  
+	<key>baseatt7</key>  
+    <string> Crit DMG+%d</string>  
+	<key>baseatt8</key>  
+    <string> Resistance+%d</string> 
+
+	<key>unlock</key>  
+	<string>Still Locked</string>
+	<key>notenoughgold</key>  
+	<string>Insufficient gold. It can be obtained in Shop. </string> 
+	<key>notenoughmoney</key>  
+	<string>Insufficient Stone. </string> 
+
+	<key>notenoughgoods</key>  
+	<string>Insufficient material. </string> 
+	<key>notenoughgoods2</key>  
+	<string>Insufficient Material</string> 
+	<key>notenoughlevel</key>  
+	<string>Level is not high enough for this! </string> 
+	<key>bagfull</key>  
+	<string>Bag is full! Please arrange it asap!</string> 
+	<key>buysuccess</key>  
+	<string>Purchased Successfully</string> 
+	<key>buyornot</key>  
+	<string>Buy %s</string> 
+	<key>strengthlimit</key>  
+	<string>Enhanced to the max level</string> 
+	<key>notenoughinlaylevel</key>  
+	<string>Inlay is unlocked at lv 30</string> 
+	<key>activateequipsecondatt</key>  
+	<string>(+%d Activate)</string> 
+	<key>maxlevel</key>  
+	<string>Max Level Reached</string> 
+	<key>onlybuyone</key>  
+	<string>Only once.</string> 
+	<key>xinshoulibao</key>  
+	<string>Novice Pack</string> 
+	<key>gaoshoulibao</key>  
+	<string>Senior Pack</string> 
+	<key>chunjielibao</key>  
+	<string>Special Pack</string> 
+	<key>chaojilibao</key>  
+	<string>Super Pack</string> 
+	<key>geteverydayfree</key>  
+	<string>Received Successfully</string> 
+	<key>areadyget</key>  
+	<string>Today’s rewards are claimed. Please come here tomorrow. </string> 
+	<key>growlibaoareadyget</key>  
+	<string>Requirement unfulfilled or max reached. </string> 
+	<key>shoppricedowncount</key>  
+	<string>You can buy %s time today. (It will be reset after receiving daily rewards.)</string> 
+	<key>text_rmb</key>  
+	<string>$</string> 
+	<key>text_rmb2</key>  
+	<string>$</string> 
+	<key>text_rmb3</key>  
+	<string>$</string> 
+	<key>text_song</key>  
+	<string>Discount </string> 
+	<key>text_songchoujiang</key>  
+	<string>%d Lottery Chances Giveaway</string> 
+	<key>text_songmoshi</key>  
+	<string>%d Stone Giveaway</string> 
+	<key>text_song60equip</key>  
+	<string>Lv80 3-star Divine Equipment(Random)</string> 
+	<key>text_song50equip</key>  
+	<string>Lv70 3-star Divine Equipment(Random)</string> 
+
+	<key>tips_cdkeyerror</key>  
+	<string>cdkey not exits or been used. </string> 
+	<key>tips_sellture</key>  
+	<string>Tap decomposition again to decompose this equipment.</string> 
+	<key>tips_notfuhe</key>  
+	<string>Requirement unsatisfied. Please recharge random amount.</string> 
+	<key>tips_exchangesuccess</key>  
+	<string>Exchanged Successfully</string> 
+	<key>text_exchangesuccessdouble</key>  
+	<string>Congratulations!! double exchange</string> 
+	
+	<key>tips_notcount</key>  
+	<string>Tries Limit</string> 
+
+<!--技能-->
+
+<key>skillleveltext</key>  <string> Level %s</string> 
+<key>skillcosttext</key>  <string> Consume %d MP</string> 
+<key>skillmaxnum</key>  <string>3 skills can be equipped at most</string> 
+<key>skillunlocklevel</key>  <string>Unlocked at lv </string> 
+<!--Divine Weapon-->
+<key>text_god_att</key>  <string>Sealed Attribute:</string> 
+<key>text_god_grow</key>  <string>Growth:</string> 
+<key>text_god_left</key>  <string>[</string> 
+<key>text_god_right</key>  <string>]</string> 
+<key>text_god_finish</key>  <string>Unsealed Entirely</string> 
+<key>tips_equip_success</key>  <string>Equipped Successfully</string> 
+<key>tips_notgrowenough</key>  <string>Divine Weapon not grow completely.</string> 
+<key>tips_growenough</key>  <string>Divine Weapon has removed all seals. </string> 
+<key>tips_strengthgod</key>  <string>Remove Divine Weapon seal needs to consume</string> 
+<key>tips_strengthsuccess</key>  <string>Congratulations! Divine Weapon unsealed successfully.</string> 
+<key>tips_petnotcomplete</key>  <string>Sorry, pet system is under development. Please stay tuned! </string> 
+<key>tips_packageopen</key>  <string>Congrats! Bag unlocked! </string> 
+<key>tips_packagemax</key>  <string>Max capacity of the Bag reached! </string> 
+<key>tips_getgold1</key>  <string>Obtained 10000 gold!</string> 
+<key>tips_getgold2</key>  <string>Obtained 100000 gold!</string> 
+<key>tips_getgold</key>  <string>Obtained %d gold!</string> 
+<key>tips_getmoney</key>  <string>Obtained %d Stone!</string> 
+<key>tips_getmoney2</key>  <string>Obtained %d Stone!</string> 
+<key>tips_levelfinished</key>  <string>Level Completed</string> 
+
+
+<key>tips_unlockhidelevel</key>  <string>Unlock hidden level:</string> 
+<key>tips_unlockcopy</key>  <string>Discover new instance</string> 
+<key>tips_copynotunlock</key>  <string>Come here again when you reach lv 10.</string> 
+<key>tips_equipmake</key>  <string>Come here again when you reach lv 8. </string> 
+<key>tips_abyssopen</key>  <string>Abyss is very difficult. Enter when you reach lv 30. </string> 
+<key>tips_activityopen</key>  <string>You can take part in the events when you reach lv 10.</string> 
+<key>tips_newequipmake</key>  <string>You can forge new equipment! </string> 
+
+
+<key>tips_unlockboss</key>  <string>New Boss Unlocked</string> 
+<key>tips_copychanllege</key>  <string>Unlock at lv 40</string> 
+<key>tips_bossnotunlock</key>  <string>Unlock at lv 60</string> 
+<key>tips_barnotunlock</key>  <string>Under development</string> 
+<key>tips_unlockskill</key>  <string>Acquire new skills</string> 
+<key>tips_unlockchapter</key>  <string>Find new maps </string> 
+<key>tips_nothavecopyitem</key>  <string>Insufficient scrolls</string> 
+
+<!--Boss-->
+<key>text_boss_onlyone</key>  <string>(Only)</string> 
+
+<!--铁匠-->
+<key>tips_equipmakesuccess</key>  <string>Congrats! Forged successfully! </string> 
+<key>tips_specialequipupdatesuccess</key>  <string>Congrats! Equipment upgraded successfully! </string> 
+<key>tips_notchoiceequip</key>  <string>Haven’t selected a equipment yet</string> 
+<!--怪物-->
+<key>enemy_quality1</key>  <string>[Common]</string> 
+<key>enemy_quality2</key>  <string>[Elite]</string> 
+<key>enemy_quality3</key>  <string>[Mutated]</string> 
+<key>enemy_quality4</key>  <string>[Myth]</string> 
+<!--其它-->
+<key>text_null</key>  <string>Not Have</string> 
+<key>tips_notname</key>  <string>Name can’t be blank. </string> 
+<key>text_touchcontinue</key>  <string>Tap to continue</string> 
+<key>tips_dataerror</key>  <string> Abnormal data! You’ll be logged out!</string> 
+<key>tips_sellequipsuccess</key>  <string> Decomposed successfully.</string> 
+<key>tips_sellgoodssuccess</key>  <string>Acquire Gold</string> 
+<key>tips_finishgame</key>  <string>Congrats! You’ve passed successfully. More maps will be unlocked later. </string> 
+<key>tips_neterror</key>  <string>Network disconnected. Please try again later. </string> 
+<key>tips_getlibao</key>  <string>Obtain Gift Pack</string> 
+<!--深渊-->
+<key>tips_neterrorabsyy</key>  <string>Network disconnected. Please try abyss again. </string> 
+<key>tips_cheatdata</key>  <string>Cheating record detected. GAME OVER</string> 
+<key>tips_abyss_resetsuccess</key>  <string>Abyss is reset. Challenge now.</string> 
+<key>tips_abyss_resetcountnull</key>  <string>No usable chances.It will reset tomorrow.</string> 
+<key>tips_abyss_relivecountnull</key>  <string>Resurrection chances are run out.</string> 
+<key>text_abyss_maxfloors</key>  <string>Highest Record:</string> 
+<key>text_abyss_curfloors</key>  <string>Current Floor:</string> 
+<key>text_abyss_relivecount</key>  <string>Usable Chances:</string> 
+<key>text_abyss_nexbossadward</key>  <string>Rewards of %d F</string> 
+<key>text_abyss_start</key>  <string>Start</string> 
+<key>text_abyss_continuewar</key>  <string>Next Floor</string> 
+
+<!--vip-->
+	<key>label_vipexp</key> <string>Exp +</string>  
+	<key>label_vipdrop</key> <string>Item Drop Rate +</string>  
+	<key>label_vipwarcount</key> <string>Adventure monsters +</string>  
+	<key>label_viprelive</key> <string>Adventure Resurrect %d times</string>  
+	<key>label_vipabyssrelive</key> <string>Abyss Resurrection Chances +2</string>  
+	<key>label_vipremoveads</key> <string>Remove banner ads</string>  
+	<key>label_vipabysscount</key> <string>Abyss can be reset %d times every day</string>  
+	<key>label_viplibaorate</key> <string>%dx daily rewards</string>  
+	<key>label_vipbuydownprice</key> <string>Buy %d times of Shop discount every day</string>  
+	<key>label_vipbuydownpricefreedom</key> <string>No limit on purchasing Shop discount item. </string>  
+
+	<key>label_vipswing5</key> <string>Elemental Wings is can buy(wings->change)</string> 
+	<key>label_vipswing1</key> <string>Light Wings is can buy(wings->change)</string> 
+	<key>label_vipswing2</key> <string>Elven Wings is can buy(wings->change)</string> 
+	<key>label_vipswing3</key> <string>Demon Wings is can buy(wings->change)</string> 
+	<key>label_vipswing4</key> <string>Angel Wings is can buy(wings->change)</string> 
+	<key>label_vipswing5</key> <string>Darkness Wings is can buy(wings->change)</string> 
+	
+	<key>label_vipnotenough</key> <string>vip level is not high enough</string> 
+
+<!--采集-->
+<key>tips_notequipcollecttool</key>  <string> Haven’t equipped pickaxe.</string> 
+<key>btn_text_collect</key>  <string>Dig Mine</string> 
+<key>btn_text_pause</key>  <string>Pause</string> 
+<key>tips_nothasnaijiu</key>  <string>Duration of Pickaxe is 0. Please equip pickaxe. </string> 
+<key>text_collectget</key>  <string>Obtain</string> 
+<key>text_collectgetluck</key>  <string>Congrats! You’ve obtained </string> 
+<key>text_collectgetnull</key>  <string>You’ve dug nothing...</string> 
+<!--宝藏-->
+<key>tips_get</key>  <string>Obtain</string> 
+<!--战斗-->
+<key>text_warwin</key>  <string>Obtain Rewards</string> 
+<key>text_warlost</key>  <string> Improve your strength.</string> 
+<!--事件-->
+<key>tips_nothing</key>  <string>Nothing here! </string> 
+<!--弹窗-->
+<key>dialog_newgamewilldelete</key>  <string>Start new game will delete former data \n\n Are you sure you want to start a new game?</string> 
+
+<key>btn_text_hard1</key>  <string>Simple</string> 
+<key>btn_text_hard2</key>  <string>Hard</string> 
+<key>btn_text_hard3</key>  <string>Nightmare</string> 
+<key>btn_text_hard4</key>  <string>Paragon(100)</string> 
+<key>btn_text_hard5</key>  <string>Paragon(300)</string> 
+<key>btn_text_hard6</key>  <string>Paragon(500)</string> 
+
+<key>btn_appraise</key>  <string>Review</string> 
+<key>btn_appraise2</key>  <string>Review</string> 
+<key>btn_getfree</key>  <string>Get</string> 
+<key>btn_video</key>  <string>Video</string> 
+<key>btn_share</key>  <string>Share</string> 
+<key>btn_pay</key>  <string>Recharge</string> 
+
+
+<key>text_appraise</key>  <string>Like this game? Then go to the app store and rate us! Your encouragement means much to us. Thanks very much!</string> 
+<key>text_appraise2</key>  <string>Rate 5-star and get 30 Stones for free.</string> 
+<key>text_share</key>  <string>Daily Share.  10 free Stones (Share is needed after receiving daily rewards)</string> 
+<key>text_dailyreward</key>  <string>Daily Rewards. Stone*10, Instance Scroll*5 (vip gets more)</string> 
+<key>text_video</key>  <string>Watch videos to get 5 Stones (limited chances)</string> 
+<key>text_growreward</key>  <string>Growth Giftpack (Claimable every 10 levels)  Stone*50, Instance Scroll*20</string> 
+<key>text_pay</key>  <string>Get massive Stones quickly</string> 
+
+<key>btn_buy</key>  <string>Buy</string> 
+
+<key>tips_pay_failure</key>  <string>Pay Failure</string> 
+<key>title_pay</key>  <string>Stones</string> 
+<key>text_rename_tipsonlyonece</key>  <string>Only one chance</string> 
+
+<key>btn_swing_reset</key>  <string>Reset</string> 
+<key>btn_swing_resetdesc</key>  <string>The swing reset +0,return these materials</string> 
+<key>btn_swing_resetsuccess</key>  <string>The swing is reset,get materials</string> 
+<key>btn_swing_resetcantreset</key>  <string>The swing level too low</string> 
+
+
+<key>text_ui_title_achievement</key>  <string>Achievement</string> 
+
+
+<!--神器装备-->
+<key>text_ui_title_godlvup</key>  <string>Divine Equipment</string> 
+<key>text_ui_btn_lvup</key>  <string>UpdateStar</string> 
+<key>text_ui_btn_resetstar</key>  <string>Refresh</string> 
+<key>text_ui_btn_god</key>  <string>Divine</string> 
+<key>text_ui_godattribute</key>  <string>Divine Attribute:</string> 
+<key>tips_ui_cogratulationgodlvup</key>  <string>Congrats! Equipment upgraded star successfully!</string> 
+
+<key>tips_versioncodelow</key>  <string>version too low please update!</string> 
+<key>tips_tips</key>  <string>Tips</string> 
+<key>tips_dialog_bandesc</key>  <string>Serious cheating!!! May be join the blacklist</string> 
+
+<key>text_ui_btn_achievemet</key>  <string>Achievement</string> 
+<key>text_ui_btn_titlevt</key>  <string>Title</string> 
+
+<key>tips_namerepeat</key>  <string>Name Repeat</string> 
+<key>tips_getachievemet</key>  <string>Get Achievement:</string> 
+<key>tips_gettitlevt</key>  <string>Get Title</string> 
+<key>text_ui_achievementpoint</key>  <string>Point</string> 
+<key>text_ui_achievementjindu</key>  <string>Progress</string> 
+<key>text_ui_activepaypake</key>  <string>Activity pay pakege</string> 
+<key>text_ui_activepaypaketips</key>  <string>累计充值%d元</string> 
+<key>text_ui_activepaymoney</key>  <string>活动期间充值</string> 
+<key>text_songlibao</key>  <string>可以领取充值活动礼包</string> 
+<key>text_zhongqiulibaocounttips</key>  <string>礼包仅可以领一次,想要充值的玩家请充值过后在领取! 连续点击3次领取</string> 
+<key>text_firstpay_gp</key>  <string>Double Stones for 7.x version(eg.Super Pack can get 5400x2 Stones)</string> 
+<key>text_godupdate_tips</key>  <string>Artifact only twice Rising Star, 4，5 Star can only be obtained through the 3 star Rising Star.After Rising Star can refresh current property</string> 
+
+
+
+
+
+
+
+<key>text_account_imenull</key>  <string>Exception, please check if you have permissions to be banned, please allow access to all permissions</string> 
+<key>text_account</key>  <string>Account</string> 
+<key>text_account_name</key>  <string>Account</string> 
+<key>text_account_password</key>  <string>password</string> 
+<key>text_account_repassword</key>  <string>repeat password</string> 
+<key>text_account_tips</key>  <string>Tip: change new phone or brush machine after the recovery of the save data need to be activated(need bingding account), the current can only be activated once, do not use the same data on two mobile phones may cause data or account abnormalities</string> 
+<key>text_account_registertips</key>  <string>Tip: please keep in mind the account password, no way to get back!!!</string> 
+<key>text_account_register</key>  <string>Binding account</string> 
+<key>text_account_register_hint</key>  <string>6-12 letter or number</string> 
+<key>text_account_register_success</key>  <string>register success</string> 
+<key>text_account_register_repeat</key>  <string>Account rpeat</string> 
+<key>text_account_register_aready</key>  <string>data has aready binding account</string> 
+<key>text_account_register_false</key>  <string>register error</string> 
+<key>text_account_register_error</key>  <string>Account is not available</string> 
+<key>text_account_register_passwordnotcompare</key>  <string>Passwords are are different</string> 
+<key>text_account_login</key>  <string>Login</string> 
+<key>text_account_loginsuccess</key>  <string>Login success</string> 
+<key>text_account_loginfail</key>  <string>Login fail</string> 
+<key>text_account_loginpassworderror</key>  <string>account or password error</string> 
+<key>text_account_upload</key>  <string>Upload data</string> 
+<key>text_account_uploadtips</key>  <string>Upload save data to server,Confirm upload?</string> 
+<key>text_account_uploadsuccess</key>  <string>upload success</string> 
+<key>text_account_uploadfail</key>  <string>upload fail</string> 
+<key>text_account_download</key>  <string>Download data</string> 
+<key>text_account_downloadsuccess</key>  <string>Download success</string> 
+<key>text_account_downloadfail</key>  <string>Download fail or count limit</string> 
+<key>text_account_downloadtips</key>  <string>Download file will replace your current progress and it will be non-reversible,Confirm download?</string> 
+<key>text_account_activesuccess</key>  <string>active success</string> 
+<key>text_account_activenumlimit</key>  <string>active fail or count limit</string> 
+<key>text_account_activefalse</key>  <string>active fail.account and password error?</string> 
+
+
+
+
+
+<key>text_iosviptips</key>  <string>VIP not include the extra stones.Pay need few seconds to verify the buy.If you do not get,Click on any recharge can receive.</string> 
+<key>text_iosviptext</key>  <string>Buy</string> 
+<key>text_iosvipsong</key>  <string>Extra </string> 
+<key>text_iosvipnum_text</key>  <string>7.x version</string> 
+<key>text_iosvipnum_textnotinclude</key>  <string>(not include extra)</string> 
+<key>text_3star</key>  <string>3-star</string> 
+<key>tips_videolimit</key>  <string>Daily limit(receiving daily rewards reset.)</string> 
+
+<key>text_rolestrengh</key>  <string>Strengthen</string> 
+<key>text_rolestrenghlimit</key>  <string>attribute limit</string> 
+<key>text_rolestrenghlevellimit</key>  <string>Come here again when you reach lv 60.</string> 
+
+<key>text_ui_btn_task</key> <string>Task</string>
+<key>text_ui_title_task</key> <string>Daily Task</string>
+<key>text_ui_btn_exchange</key> <string>Exchange</string>
+<key>text_ui_point</key> <string>Points</string>
+<key>btn_give</key>  <string>Give</string> 
+<key>text_taskfinish</key>  <string>Task Finish</string> 
+<key>tips_pleaseupload</key>  <string>please login and upload your data to server backup after register success</string> 
+<key>tips_uploadlevellow</key>  <string>Level 3+ can upload</string> 
+<key>tips_geterror</key>  <string>Get fail</string> 
+<key>text_daliyreset</key>  <string>(Refresh after receiving daily rewards)</string> 
+<key>text_refreshpointerror</key>  <string>Refresh Points fail</string> 
+<key>text_exchangesuccess</key>  <string>Exchange success</string> 
+<key>text_exchangefail</key>  <string>Exchange fail</string> 
+<key>tips_abyssslwaring</key>  <string>Warning: File exception, not SL,More times will be banned</string> 
+<key>tips_abyssslerror</key>  <string>Error:File exception,Could not enter the abyss</string>  
+<key>text_ios_payactive</key>  <string>Recharge promotions: recharge can now receive an additional 30% of the stone</string> 
+<key>text_allversion</key>  <string>All version</string>
+
+<key>btn_startquickwar</key>  <string>Quick War</string>
+<key>text_godupdatedialog_tips</key>  <string>Warning:Refresh star  only can refresh the last artifact property</string> 
+<key>text_android_payactive</key>  <string>限时充值优惠:额外获得30%的魔石(例:充值超级礼包可获得6600+1980魔石)</string> 
+
+<key>tips_skillrepeat</key>  <string>Cannot equip two same skills at the same time.</string> 
+
+<key>tips_payerrortips</key>  <string>系统异常或者有延迟请稍后重试,或者通过关于中的邮箱联系作者</string>
+<key>tips_payandroidtips</key>  <string>充值过后需要几秒钟验证,如果因为网络原因没收到,请点击对应充值选项即可获得或者通过关于中的联系方式联系作者</string>  
+
+<key>tips_getlibao40</key>  <string>Congratulations!!! Get 500 Stones for the 7.x version.</string> 
+<key>tips_getpaytips</key>  <string>充值需要几分钟验证,请稍等...然后点击领取,也可以点击返回等几分钟再进入充值界面 点击任意充值选项即可获得</string> 
+<key>text_account_downloadnum</key>  <string>Can download times</string> 
+<key>text_account_activenum</key>  <string>Can activate times</string> 
+
+<key>tips_hideenemyshow</key> <string>Warning:Hide BOSS Coming!!!</string>
+<key>tips_spotips</key> <string>Miss</string>
+<key>text_acknowledgement</key> <string>Acknowledgement</string>
+
+<key>btn_luckdraw</key> <string>Daily Draw</string>
+<key>text_luckdraw</key> <string>Ten times a day</string>
+<key>text_luckdrawtips</key> <string>Daily limit(receiving daily rewards reset.)</string>
+<key>btn_start</key> <string>Start</string>
+<key>btn_text_ads</key> <string>Ads</string>
+<key>btn_text_refresh</key> <string>Reset</string>
+<key>text_tips_taskrefresh</key> <string>Reset daily tasks(once a day)</string>
+<key>tips_task_resetsuccess</key>  <string>Daily reset success</string> 
+
+<key>text_week_active1</key>  <string>Week's event: War exp +50%</string> 
+<key>text_week_active2</key>  <string>Week's event:War gold +50%</string> 
+<key>text_week_active3</key>  <string>Week's event:War drop +50%</string> 
+<key>text_week_active4</key>  <string>Week's event:Abyss reset count +1</string> 
+<key>text_week_active5</key>  <string>Week's event:Double daily reward</string> 
+<key>text_week_active6</key>  <string>Week's event:隐藏怪物</string> 
+<key>text_week_active7</key>  <string>Week's event:挑战BOSS次数双倍</string> 
+<key>text_paragonlevel</key>  <string>Paragon Level</string> 
+<key>text_paragonpoint</key>  <string>Paragon Points</string> 
+<key>text_paragon</key>  <string>Paragon</string> 
+<key>text_paragon_tips</key>  <string>Tips: every 10 paragon levels can be obtained with a paragon point can be used to upgrade the role of attributes (maximum level 10)</string> 
+<key>text_paragon_reset</key>  <string>Reset Paragon Level Points</string> 
+
+<key>text_smelt</key>  <string>Smelt</string> 
+<key>btn_smelt_equip</key>  <string>Equip Smelt</string> 
+<key>btn_smelt_goods</key>  <string>Items Smelt</string> 
+<key>text_random_level</key>  <string>Random similarity level </string> 
+<key>text_random_quality</key>  <string>Random Quality:</string> 
+<key>text_successprobability</key>  <string>Probability </string> 
+<key>tips_smeltfail</key>  <string>Smelt Fail</string> 
+<key>tips_smelttips</key>  <string>Smelting these items?</string> 
+
+<key>text_makeproduct</key>  <string>Product</string> 
+<key>text_30levellimit</key>  <string>Come here again when you reach lv 30.</string> 
+<key>text_80levellimit</key>  <string>Come here again when you reach lv 80.</string> 
+<key>text_paragonstrength</key>  <string>Paragon</string> 
+<key>btn_treasuremap</key>  <string>Map</string> 
+<key>text_map</key>  <string>Map</string> 
+<key>text_point</key>  <string>Place</string> 
+<key>text_treasuremapaready</key>  <string>A treasure map has been used</string> 
+<key>text_treasuremaptips</key>  <string>Tip:Kill monsters randomly appear treasure</string> 
+<key>text_findtreasure</key>  <string>Find The Treasure</string> 
+<key>text_warboss</key>  <string>Boss</string> 
+
+<key>text_warbosstips1</key>  <string>Drop stones</string> 
+<key>text_warbosstips2</key>  <string>Extensive experience</string> 
+<key>text_warbosstips3</key>  <string>Drop  items</string> 
+<key>text_warbosstips4</key>  <string>Drop Materials</string> 
+<key>text_warbosstips5</key>  <string>Drop gold</string> 
+
+<key>text_warbosstips</key>  <string>Tips:challenge 10 times a day,consume a Boss challenge scroll(made in Blacksmith)</string> 
+
+<key>text_gemtips11</key>  <string>Can be obtained in treasure </string> 
+<key>text_gemtips12</key>  <string>Can be obtained in Abyss</string> 
+<key>text_gemtips13</key>  <string>Can be obtained by smelt</string> 
+<key>text_gemtips14</key>  <string>Can be obtained in paragon hard and paragon instance</string> 
+<key>text_gemtips15</key>  <string>未知</string> 
+
+<key>text_paragontips</key>  <string>paragon mode after level 80, the paragon level  maximum is 800. Every 10 levels can get a paragon points for the promotion of role attributes. paragon level 100 can unlock the adventure of the paragon difficulty and paragon 100 instance. The pinnacle of difficulty has a specific hidden monster and gets a lot of experience. The paragon pattern dark equipment:adventure paragon hard, paragon instance,abyss.Lucky equipment:Instance,Abyss,Trial drop it</string> 
+<key>btn_ui_retry</key>  <string>Retry</string> 
+<key>btn_ui_netactivetips</key>  <string>Need network to get week's event</string> 
+<key>btn_ui_versionlow</key>  <string>Version too low or server error</string> 
+ <key>text_3starparagon</key>  <string>Paragon 550-800(3-star) </string> 
+  <key>text_smelttips</key>  <string>Equipment smelting:Number of equipment to improve the probability of success. Equipment   strengthen,enchantment,stars,Can improve the quality of badge. Material melting: quantity, quality effect of smelting results</string> 
+  
+   <key>text_payoffer</key>  <string>Pay offer:+30% Stones</string> 
+   
+   
+   
+   <!--6.0-->
+ <key>text_pet</key>  <string>Pet</string> 
+ <key>text_loyal</key>  <string>Loyalty</string> 
+ <key>text_pettips</key>  <string>Main pet  100% attribute effect,Extra pet 30% effect.fusion: improve pet growth value, improve the release probability of the  pet skill pro).</string> 
+ 
+ <key>btn_feed</key>  <string>Feed</string> 
+ <key>btn_war</key>  <string>War</string> 
+ <key>btn_warback</key>  <string>Recover</string> 
+ <key>btn_fuse</key>  <string>Fuse</string> 
+ <key>btn_release</key>  <string>Abandon</string> 
+ 
+ <key>text_releasepet</key>  <string>Sure you want to Abandon this pet?(warning: after the Abandon can not be back!!!)</string> 
+ <key>text_fusetips</key>  <string>The same pet can be fused, the selected pet is fused and disappeared to increase the star star experience</string> 
+ <key>text_starexp</key>  <string>Star Exp</string> 
+ <key>text_fusesuccess</key>  <string>Fusion success</string> 
+ 
+ 
+
+ 
+ <key>tips_petnotunlock</key>  <string>level 35 unlock</string> 
+ <key>text_account_register_passwordnamecompare</key>  <string>account and password can not be the same</string> 
+ <key>tips_petloyalty</key>  <string>Effect</string> 
+
+	
+	<key>btn_catch</key>  <string>Catch</string> 
+	<key>text_usesorl</key>  <string>Use Spirit</string> 
+	<key>text_usesorlup</key>  <string>improve the probability</string> 
+	<key>text_usesorllow</key>  <string>reduce the probability</string> 
+	
+	<key>text_getpet</key>  <string>gets pets!!!</string> 
+	
+	<!--宠物-->
+	<key>text_petfind1</key>  <string>Found pet</string> 
+	<key>text_continue1</key>  <string>Capture...</string> 
+	<key>text_petsuccess1</key>  <string>Capture successful </string> 
+	<key>text_petfail1</key>  <string>Capture Fail1</string> 
+	
+	<key>text_petfail11</key>  <string>Pet escape</string> 
+	<key>text_petfail12</key>  <string>Can't Be Tamed</string> 
+	<key>text_petfail13</key>  <string>Encounter too many monsters(Interruption)</string> 
+	<key>text_petfail14</key>  <string>manslaughter</string> 
+	
+	<!--怪物-->
+	<key>text_petfind2</key>  <string>A large number of monsters</string> 
+	<key>text_continue2</key>  <string>In battle...</string> 
+	<key>text_petsuccess2</key>  <string>Battle victory</string> 
+	<key>text_petfail2</key>  <string>Battle failure</string> 
+	
+	<key>text_petloyallow</key>  <string>Main pet loyalty-2</string> 
+	
+	<!--巢穴-->
+	<key>text_petfind4</key>  <string>Find the monster nest</string> 
+	<key>text_continue4</key>  <string>Searching...</string> 
+	<key>text_petsuccess4</key>  <string>Capture success</string> 
+	<key>text_petfail4</key>  <string>Capture failure</string> 
+	
+	<key>text_petfail411</key>  <string>Can't Be Tamed</string> 
+	<key>text_petfail412</key>  <string>Be defeated by too many monsters</string> 
+	<key>text_petfail413</key>  <string>Empty nest  doesn't find pet</string> 
+	
+	<key>text_petlostsorl</key>  <string>Lost Spirits</string> 
+	
+	<!--宝箱-->
+	<key>text_petfind3</key>  <string>Find a locked box</string> 
+	<key>text_continue3</key>  <string>unlocking...</string> 
+	<key>text_petsuccess3</key>  <string>Unlocking success</string> 
+	<key>text_petfail3</key>  <string>Unlock failure</string> 
+	
+	<key>text_petsuccess320</key>  <string>The treasure box is empty</string> 
+	
+	
+	<!--冒险者-->
+	<key>text_petfind5</key>  <string>发现一个冒险者</string> 
+	<key>text_continue5</key>  <string>交易中...</string> 
+	<key>text_petsuccess5</key>  <string>交易成功</string> 
+	<key>text_petfail5</key>  <string>交易失败</string> 
+	
+	<key>text_petfail530</key>  <string>没有足够的精魂 需要精魂</string> 
+	<key>text_petfail531</key>  <string>冒险者没有要出售的宠物</string> 
+	
+	<key>text_petlostsorl2</key>  <string>失去宠物精魂</string> 
+	
+	<!--什么都没发现-->
+	<key>text_petfail6</key>  <string>Nothing has been found</string> 
+	
+	
+	
+	<key>text_petsellevent</key>  <string>Discovery of a pet Hunter. Buy a random pet?(Masterwork or Great)</string> 
+	<key>text_petsellname</key>  <string>Pet Hunter</string> 
+	
+	
+	<key>text_petexchangespecial</key>  <string>Special pet</string> 
+	<key>text_type</key>  <string>Type</string> 
+	
+	<key>equiptypebadge</key> <string>Badge</string> 
+	<key>btn_paragoncopy</key> <string>Random</string> 
+	
+	<key>tips_paragoncopyunlock</key> <string>Paragon level 300 unlock</string> 
+	
+	<key>text_paragoncopydetail</key> <string>Need a random copy scroll,very low on the probability of getting some title,special equipment,pet</string> 
+	<key>label_vipswing6</key> <string>Ice and Fire Wings is can buy(wings->change)</string> 
+	
+	<key>text_enchant_null</key> <string>null</string> 
+	<key>text_enchant_reset</key> <string>Will cover the current attributes</string> 
+	
+	<key>text_ui_title_taskweek</key> <string>Weekly Tasks</string>
+	
+	
+	<key>text_weekreward</key> <string>Stone x100 weekly Award</string>
+	
+	<key>areadygetweek</key>  
+	<string>Please come here next week.</string> 
+	
+	<key>text_specialskill</key>  
+	<string>Skill</string> 
+	<key>text_specialskillpro</key>  
+	<string>Release probability</string> 
+	
+	<key>text_petmain</key>  <string>Main</string> 
+	<key>text_petextra</key>  <string>Extra</string> 
+	
+	<key>label_vippetcatch</key> <string>Catch pet times +</string>  
+	<key>text_weekreset</key> <string>(Refresh after receiving week rewards)</string>  
+	
+	
+	<!--7.0-->
+	<key>tips_equiplock</key> <string>Locked</string> 
+	<key>btn_sort</key> <string>Sort</string> 
+	<key>text_tips</key> <string>Warning</string> 
+	<key>text_enchanttrue</key> <string>Does it cover the enchantment?</string> 
+	<key>text_newplayerbuff</key> <string>Novice welfare</string> 
+	<key>text_autouse</key> <string>Automatic use</string> 
+	<key>text_newplayerlevel</key> <string>Below level %d</string> 
+	<key>text_buffusefulnum</key> <string>Available times %d</string> 
+	<key>tips_potionnull</key> <string>The bonus effect has disappeared</string> 
+	<key>tips_potionareadyuse</key> <string>Already using the same item</string> 
+	<key>tips_usesuccess</key> <string>Successful use</string> 
+	<key>btn_devour</key> <string>Devour</string> 
+	<key>text_petgrow</key> <string>Grow</string> 
+	<key>tips_devoursuccess</key> <string>Success</string> 
+	<key>text_devourtips</key>  <string>Increase pet growth value, grow 100% and evolve into myth pet</string> 
+	
+	<key>score5</key>   <string>Mythical</string>  
+	<key>text_mythicalattr</key> <string>Mythical</string> 
+	<key>btn_explored</key> <string>Explore</string> 
+	<key>text_petexplored</key> <string>Explore</string> 
+	<key>tips_isexplored</key> <string>Please try again after the expedition is over.</string> 
+	<key>tips_noexploredpet</key> <string>No Pets for Exploration</string> 
+	<key>btn_exploredstart</key> <string>Start</string> 
+	<key>btn_exploredend</key> <string>End</string>
+	<key>text_exploredtips</key> <string> Exploration attributes determine the number of items to be acquired and can be explored for up to 12 hours.</string> 	
+	
+
+	<key>text_petattrexplored</key>   <string>Exploring Power:%d</string>  
+	<key>text_petattrgold</key>   <string>Exploring Gold:%d</string>  
+	<key>text_petattrdrop</key>   <string>Exploring Drop:%d</string>  
+	<key>text_petattrmoney</key>   <string>Exploring Stones:%d</string>  
+	<key>text_exploredtime</key>   <string>Expedition time:%d minutes</string>  
+	<key>tips_70unlock</key>  <string>Role Level 70 Unlock</string>
+	
+	<key>btn_trial</key> <string>Trial</string>
+	<key>btn_trialdesc</key> <string>Description: According to the difficulty, the score can be rewarded (pet, lucky equipment, materials)</string>
+	<key>tips_80unlock</key>  <string>Role level 80 unlock</string>
+	<key>btn_trialhard1</key> <string>Bronze difficulty</string>
+	<key>btn_trialhard2</key> <string>Silver difficulty</string>
+	<key>btn_trialhard3</key> <string>Gold difficulty</string>
+	<key>text_trialattr1</key> <string>HP Recover is invalid \n Monster immune all negative effects (dizziness, burns, etc.)\n monster crit resistance rate +20%</string>
+	<key>text_trialattr2</key> <string>HP Recover is invalid \n Monster immune all negative effects (dizziness, burns, etc.)\n monster crit resistance rate +40%</string>
+	<key>text_trialattr3</key> <string>HP Recover is invalid \n Monster immune all negative effects (dizziness, burns, etc.)\n monster crit resistance rate +60%</string>
+	<key>text_score</key> <string>Score</string>
+	<key>text_trialscoremax</key> <string>Highest score</string>
+	<key>text_record</key> <string>New record!!!</string>
+	<key>text_continue</key> <string>Continue</string>
+	<key>text_defdebuff</key> <string>immune</string>
+	<key>text_wave</key> <string>%d</string>
+
+	<key>text_shoper</key> <string>Wandering businessman</string>
+	<key>text_shopertips</key> <string>Whether to buy?</string>
+	
+	<key>extraattr36</key>  	<string>Increased Trial scores</string>
+	<key>extraattr37</key>  	<string>Increased Pet Exploration Awards</string>
+	
+</dict>  
+</plist>

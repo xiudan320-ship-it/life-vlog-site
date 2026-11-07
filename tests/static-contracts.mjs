@@ -56,6 +56,7 @@ const toolIconMap = {
   weekly: "weekly-review.svg",
   secret: "secret-vault.svg",
   thanks: "message.svg",
+  monster: "monster.svg",
 };
 
 const ids = [...html.matchAll(/\bid=["']([^"']+)["']/g)].map((match) => match[1]);

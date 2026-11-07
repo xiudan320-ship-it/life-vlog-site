@@ -1,0 +1,702 @@
+<?xml version="1.0" encoding="UTF-8"?>  
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">  
+<plist version="1.0">  
+<dict>  
+	<key>text_vercode</key> <string>12</string>  
+	<key>text_version</key> <string>版本：2.6</string>  
+	<key>text_gamename</key> <string>名称：黑暗传说单机RPG</string>  
+	<key>text_gameqq</key> <string>QQ交流群:185067500</string>  
+	<key>text_gameqq2</key> <string>QQ交流群:467244861</string>  
+	<key>text_gameemail</key> <string>邮箱：loverpgs@163.com</string>  
+
+
+	<!--按钮文字-->
+
+	<key>btn_text_startgame</key> <string>开始游戏</string>  
+	<key>btn_text_setting</key> <string>设置</string>  
+	<key>btn_text_language</key> <string>中文</string>  
+
+	<key>btn_text_soundon</key> <string>声音:开</string>  
+	<key>btn_text_soundoff</key> <string>声音:关</string> 
+
+	
+	<key>btn_text_achievement</key> <string>成就</string>  
+	<key>btn_text_shop</key> <string>黑市</string>  
+
+	
+	
+	<key>btn_text_attackabyss</key> <string>挑战深渊</string>  
+	<key>btn_text_level</key> <string>升级</string>  
+	<key>btn_text_equip</key> <string>装备</string>  
+	<key>btn_text_equiped</key> <string>已装备</string>  
+	
+	<key>btn_text_goods</key> <string>道具</string>  
+	<key>btn_text_copytype1</key> <string>普通</string>  
+	<key>btn_text_copytype2</key> <string>挑战</string>  
+	<key>btn_text_tiaozhantips</key> <string>难度很大适合装备较齐全进行挑战,可获得大量经验金币有低概率掉落对应等级的史诗,神器(1-3星)</string>  
+	<key>btn_text_tiaozhantipslevel</key> <string>(挑战副本40级开放)</string>  
+	<key>btn_text_strength</key> <string>强化</string>
+	<key>btn_text_reset</key> <string>重铸</string>  
+	<key>btn_text_enchant</key> <string>附魔</string>
+	<key>btn_text_sell</key> <string>出售</string>
+	<key>btn_text_equipsell</key> <string>分解</string>
+	<key>btn_text_use</key> <string>使用</string>
+	<key>btn_text_true</key> <string>确定</string>
+	<key>btn_text_false</key> <string>取消</string>
+	<key>btn_text_unequip</key> <string>卸下</string>
+	<key>btn_text_exchangeswing</key> <string>更换</string>
+
+	
+	<key>btn_text_pay</key> <string>充值</string>
+	<key>btn_text_money</key> <string>魔石</string>
+	<key>btn_text_pricedown</key> <string>优惠</string>
+	<key>btn_text_gem</key> <string>宝石</string>
+	<key>btn_text_exchange</key> <string>兑换</string>
+	<key>btn_text_special</key> <string>金币</string>
+	<key>btn_text_get</key> <string>已获得</string>
+	<key>btn_text_all</key> <string>图鉴</string>
+
+	<!--ui文本文字-->
+	<key>btn_ui_back</key> <string>返回</string>
+	<key>btn_ui_true</key> <string>确定</string>
+	
+
+	<!--ui打造-->
+	<key>text_ui_title_makeequip</key> <string>打造装备</string>
+	<key>btn_ui_all</key> <string>全部</string>
+	<key>btn_ui_weapon</key> <string>武器</string>
+	<key>btn_ui_defequip</key> <string>防具</string>
+	<key>btn_ui_jewelry</key> <string>饰品</string>
+	<key>btn_ui_goods</key> <string>合成</string>
+	<key>btn_ui_make</key> <string>打造</string>
+	<key>text_ui_needmat</key> <string>材料</string>
+
+	<!--ui游戏开始界面-->
+	<key>text_ui_title_newgame</key> <string>新的开始</string>
+	<key>text_ui_whatyourname</key> <string>你的名字是什么?</string>
+	<key>text_ui_defaultplayername</key> <string>勇士</string>
+	<key>text_ui_inputnametips</key> <string>点击上面文字可输入</string>
+	<key>btn_ui_startgame</key> <string>开始冒险</string>
+
+
+	<!--ui打造-->
+	<key>text_ui_title_quicksellequip</key> <string>批量分解</string>
+	<key>text_ui_title_quicksellgoods</key> <string>快捷出售</string>
+	<key>btn_ui_sell10</key> <string>出售10个</string>
+	<key>btn_ui_sell100</key> <string>出售100个</string>
+	<key>btn_ui_sell1000</key> <string>出售1000个</string>
+
+	<key>text_ui_title_about</key> <string>关于</string>
+	<key>text_ui_title_resetabyss</key> <string>重置深渊</string>
+	<key>text_ui_title_abyssrelive</key> <string>复活</string>
+	<!--ui副本-->
+	<key>text_copy_level</key>  <string>等级 </string> 
+	<key>text_level2</key>  <string>等级:</string> 
+	<key>text_copy_drop</key>  <string>掉落:</string> 
+	<key>text_copy_need</key>  <string>(需要%d张副本入场卷轴)</string> 
+	<key>text_copy_need2</key>  <string>(需要%d张挑战卷轴)</string> 
+	<key>btn_ui_gocopy</key> <string>进入</string>
+	<!--ui物品显示-->
+	<key>text_item_sellget</key>  <string>分解获得:</string> 
+	<key>text_item_goodssellget</key>  <string>出售价格:</string> 
+	<key>text_item_strenghjihuo</key>  <string>(+%d 激活)</string> 
+	<key>text_item_needfumo</key>  <string>要给装备附魔么？</string> 
+	<key>text_item_fumoatt</key>  <string>附魔属性</string> 
+	<key>text_item_mainatt</key>  <string>主属性</string>
+	<key>text_item_resettips</key>  <string>（评分等级为普通,标准,优秀,极品,属性带有一定的随机波动值）</string>
+	<key>text_item_need1</key>  <string>需要材料</string>
+	<key>text_item_need2</key>  <string>辅助材料</string>
+	<key>text_item_gaojitips</key>  <string>(高级强化石深渊获得,普通强化石可提高成功几率)</string>
+	
+
+
+
+
+	<key>text_ui_title_help</key> <string>帮助</string>
+	<key>text_ui_btn_announcement</key> <string>公告</string>
+	<key>text_ui_btn_bug</key> <string>提交BUG</string>
+	<key>text_ui_btn_menu</key> <string>主菜单</string>
+	<key>text_ui_btn_update</key> <string>检测更新</string>
+	
+	<key>text_ui_title_bag</key> <string>背包</string>
+	<key>text_ui_title_copy</key> <string>副本</string>
+	<key>text_ui_title_main</key> <string>主页</string>
+	<key>text_ui_title_map</key> <string>冒险</string>
+	<key>text_ui_title_other</key> <string>其他</string>
+	<key>text_ui_title_freemoney</key> <string>更多</string>
+	<key>text_ui_title_freemoney2</key> <string>更多</string>
+	<key>text_ui_title_role</key> <string>角色</string>
+	<key>text_ui_title_shop</key> <string>黑市</string>
+	<key>text_ui_title_bar</key> <string>酒馆</string>
+	<key>text_ui_title_equipmake</key> <string>铁匠铺</string>
+	<key>text_ui_title_skill</key> <string>技能</string>
+	<key>text_ui_title_frendtips</key> <string>提示</string>
+	<key>text_ui_title_vip</key> <string>VIP</string>
+	<key>text_ui_areadypay</key> <string>已充值:</string>
+	<key>text_ui_payproblemcontact</key> <string>充值若有疑问可以联系作者</string>
+	<key>text_ui_title_abyss</key> <string>深渊</string>
+	<key>text_ui_title_specialequipupdate</key> <string>特殊装备升级</string>
+	<key>text_ui_title_swingequipupdate</key> <string>翅膀强化</string>
+	<key>text_ui_title_timeactivity</key> <string>活动</string>
+	<key>text_ui_title_choujiang</key> <string>幸运抽奖</string>
+
+<!--ui netloading-->
+	<key>text_net_loading</key>  <string>请求网络数据中,请稍等...</string> 
+	<key>btn_ui_goapprise</key>  <string>去评分</string>
+	<key>btn_ui_reliverole</key>  <string>复活角色</string>
+	<key>btn_ui_backabyss</key>  <string>退出深渊</string>
+
+
+	<!--文本文字-->
+	<key>label_text_effect</key> <string>音效</string>  
+	<key>label_text_sound</key> <string>背景音乐</string>  
+	<key>label_text_autowar</key> <string>自动战斗</string>  
+	<!--角色 属性界面文字-->
+	<key>label_level</key> <string>音效</string>  
+	<key>label_hp</key> <string>生命: %d</string>  
+	<key>label_att</key> <string>攻击: %d</string>  
+	<key>label_def</key> <string>防御: %d</string>  
+	<key>label_hit</key> <string>命中: %d</string>  
+	<key>label_spo</key> <string>闪避: %d</string>  
+	<key>label_crit</key> <string>暴击: %d</string>  
+	<key>label_crithurt</key> <string>暴击伤害: %d</string>  
+	<key>label_dropitem</key> <string>物品掉落: %d%%</string>  
+	<key>label_dropmoney</key> <string>金币掉落: %d%%</string>  
+	<key>label_dropexp</key> <string>经验获得: %d%%</string>  
+	<key>label_rehp</key> <string>生命恢复: %d</string>   
+	<key>label_absorb</key> <string>攻击吸血: %d</string>  
+	<key>label_resistance</key> <string>负面抗性: %d</string>  
+	<!--角色 战斗结束文字-->
+	<key>text_ui_warresult_backtips</key> <string>点击屏幕返回</string>
+	<key>text_ui_warresult_btn1</key> <string>装备强化</string>
+	<key>text_ui_warresult_btn2</key> <string>装备附魔</string>
+	<key>text_ui_warresult_btn3</key> <string>角色升级</string>
+	<key>text_ui_warresult_btn4</key> <string>搭配技能</string>
+	<key>text_ui_warresult_btn5</key> <string>打造装备</string>
+	<key>text_ui_warresult_btn6</key> <string>特殊装备</string>
+	<!--深渊 -->
+	<key>text_ui_abyss_nextfloor</key> <string>下层怪物</string>
+	<key>text_ui_abyss_detail</key> 
+	<string>说明:难度较大，每天进入一次，凌晨重置，进入深渊时需要网络，掉落材料,特殊装备,20层以上掉落邪龙装,30层以上掉落屠龙者装备。（部分vip每天可以重置一定次数）</string>
+	<key>text_ui_abyss_reset</key> <string>是否重置深渊?</string>
+	<key>text_ui_abyss_relive</key> <string>复活角色继续挑战? 或者退出深渊下次再来?</string>
+
+	<!--特殊装备升级-->
+	<key>text_ui_speceial_descir</key> 
+	<string>说明:部分属性初始值较低必须升到一定等级才会有数值提升,复活属性不会随着等级提升而提高</string>
+	<key>text_ui_updatemax</key> 
+	<string>恭喜 装备已经升至满级!!!</string>
+
+	<key>text_ui_inputcdkey</key> 
+	<string>点击输入cdkey</string>
+	<key>text_ui_cannotgetcdkey</key> 
+	<string>(无法主动获得cdkey)</string>
+
+	<key>text_equipqulity1</key> 
+	<string>普通装备</string>
+		<key>text_equipqulity2</key> 
+	<string>魔法装备</string>
+		<key>text_equipqulity3</key> 
+	<string>精良装备</string>
+		<key>text_equipqulity4</key> 
+	<string>传说装备</string>
+		<key>text_equipqulity5</key> 
+	<string>史诗装备</string>
+	<key>text_sellmoredesc</key> 
+	<string>(特殊装备,强化过的装备不会被批量分解)</string>
+	
+
+    <key>boyname</key> <string>束灵寒</string>  
+	<key>LV</key>  
+    <string>等级:%d</string>  
+
+	<key>mainattr1</key>  
+    <string>攻击:%d</string>  
+	<key>mainattr2</key>  
+    <string>防御:%d</string>  
+	<key>mainattr3</key>  
+    <string>生命:%d</string>  
+	<key>mainattr4</key>  
+    <string>命中:%d</string>  
+	<key>mainattr5</key>  
+    <string>闪避:%d</string>  
+	<key>mainattr6</key>  
+    <string>暴击:%d</string>  
+	<key>mainattr7</key>  
+    <string>暴伤:%d</string>  
+	<key>mainattr8</key>  
+    <string>抗性:%d</string>  
+
+	<key>extraattr1</key>  
+    <string>攻击 +%d</string>  
+	<key>extraattr2</key>  
+    <string>防御 +%d</string>  
+	<key>extraattr3</key>  
+    <string>生命 +%d</string>  
+	<key>extraattr4</key>  
+    <string>命中 +%d</string>  
+	<key>extraattr5</key>  
+    <string>闪避 +%d</string>  
+	<key>extraattr6</key>  
+    <string>暴击 +%d</string>  
+	<key>extraattr7</key>  
+    <string>暴击伤害 +%d</string>  
+	<key>extraattr8</key>  
+    <string>抗性 +%d</string>  
+	<key>extraattr9</key>  
+    <string>物品掉落 +%d%%</string>  
+	<key>extraattr10</key>  
+    <string>经验获得 +%d%%</string>  
+	<key>extraattr11</key>  
+    <string>生命回复 +%d</string>  
+	<key>extraattr12</key>  
+    <string>基础攻击+ %d%%</string>  
+	<key>extraattr13</key>  
+    <string>基础防御+ %d%%</string>  
+	<key>extraattr14</key>  
+    <string>基础生命+ %d%%</string>  
+	<key>extraattr15</key>  
+    <string>吸血%d</string>  
+	<key>extraattr16</key>  
+    <string>增加伤害%d%%</string>  
+	<key>extraattr17</key>  
+    <string>受到的伤害降低%d%%</string>  
+	<key>extraattr18</key>  
+    <string>对Boss伤害 +%d%%</string>  
+	<key>extraattr19</key>  
+    <string>金币掉落+%d%%</string>  
+	<key>extraattr20</key>  
+	<string>冒险复活次数+%d</string>  
+	<key>extraattr21</key>  
+	<string>技能释放概率+%d%%</string>  
+	<key>extraattr22</key>  
+	<string>隐藏怪物出现概率+%d%%</string>  
+		<key>extraattr23</key>  
+	<string>暴击率+%d%%</string>  
+		<key>extraattr24</key>  
+	<string>暴击伤害+%d%%</string>  
+		<key>extraattr25</key>  
+	<string>闪避率+%d%%</string>  
+		<key>extraattr26</key>  
+	<string>命中率+%d%%</string>  
+		<key>extraattr27</key>  
+	<string>抵抗率+%d%%</string>  
+
+	<key>equipattrup</key>  
+    <string>↑</string>  
+	<key>equipattrdown</key>  
+    <string>↓</string>  
+	<key>extraattr31</key>  
+    <string>每回合回复%d%%的生命</string>  
+
+
+
+
+
+
+
+<!--装备品质-->
+	<key>qulity1</key>  
+	<string>普通</string>  
+	<key>qulity2</key>  
+	<string>魔法</string>  
+	<key>qulity3</key>  
+    <string>精良</string>  
+	<key>qulity4</key>  
+    <string>传说</string>  
+	<key>qulity5</key>  
+    <string>史诗</string>  
+	<key>qulity6</key>  
+    <string>神器</string>  
+	<key>score1</key>  
+    <string>普通</string>  
+	<key>score2</key>  
+    <string>标准</string>  
+	<key>score3</key>  
+    <string>优秀</string>  
+	<key>score4</key>  
+    <string>极品</string>  
+
+<!--装备种类-->
+	<key>equiptype1</key>  
+    <string>武器</string>  
+	<key>equiptype2</key>  
+    <string>帽子</string>  
+	<key>equiptype3</key>  
+    <string>铠甲</string> 
+	<key>equiptype4</key>  
+    <string>护手</string>  
+	<key>equiptype5</key>  
+    <string>鞋子</string>  
+	<key>equiptype6</key>  
+    <string>戒指</string> 
+	<key>equiptype7</key>  
+    <string>项链</string> 
+	<key>equiptype8</key>  
+    <string>裤子</string> 
+	<key>equiptype9</key>  
+    <string>特殊</string> 
+	<key>equiptype10</key>  
+    <string>翅膀</string> 
+
+<!--物品-->
+	<key>goodstype1</key>  
+    <string>药品</string>  
+	<key>goodstype2</key>  
+    <string>无</string>  
+	<key>goodstype3</key>  
+    <string>材料</string>  
+	<key>goodstype4</key>  
+    <string>宝石</string>  
+	<key>goodstype5</key>  
+    <string>卷轴</string>  
+	<key>goodstype6</key>  
+    <string>特殊</string> 
+	<key>goodstype7</key>  
+    <string>礼包</string> 
+	<key>goodstype8</key>  
+    <string>其它</string> 
+
+	<key>enchant_text</key>  
+	<string>附魔:</string>  
+
+	<key>inlay_text</key>  
+	<string>镶嵌:</string>  
+	<key>baseatt1</key>  
+    <string> 攻击+%d</string>  
+	<key>baseatt2</key>  
+    <string> 防御+%d</string>  
+	<key>baseatt3</key>  
+    <string> 生命+%d</string>  
+	<key>baseatt4</key>  
+    <string> 命中+%d</string>  
+	<key>baseatt5</key>  
+    <string> 闪避+%d</string>  
+	<key>baseatt6</key>  
+    <string> 暴击+%d</string>  
+	<key>baseatt7</key>  
+    <string> 暴击伤害+%d</string>  
+	<key>baseatt8</key>  
+    <string> 负面抵抗+%d</string> 
+
+	<key>unlock</key>  
+	<string> 暂未解锁</string>
+	<key>notenoughgold</key>  
+	<string>金币不足,黑市中可获得</string> 
+	<key>notenoughmoney</key>  
+	<string>魔石不足，请完成免费获取魔石任务或者充值获得</string> 
+
+	<key>notenoughgoods</key>  
+	<string>材料不足，黑市中可获得部分材料</string> 
+	<key>notenoughgoods2</key>  
+	<string>材料不足</string> 
+	<key>notenoughlevel</key>  
+	<string>等级未达到!</string> 
+	<key>bagfull</key>  
+	<string>背包物品过多!请尽快清理,过多可能导致游戏异常!!!</string> 
+	<key>buysuccess</key>  
+	<string>购买成功</string> 
+	<key>buyornot</key>  
+	<string>购买 %s</string> 
+	<key>strengthlimit</key>  
+	<string>强化达到上限</string> 
+	<key>notenoughinlaylevel</key>  
+	<string>30级开启装备镶嵌</string> 
+	<key>activateequipsecondatt</key>  
+	<string>(+%d 激活)</string> 
+	<key>maxlevel</key>  
+	<string>等级已满</string> 
+	<key>onlybuyone</key>  
+	<string>限购一次</string> 
+	<key>xinshoulibao</key>  
+	<string>新手特惠包</string> 
+	<key>gaoshoulibao</key>  
+	<string>高级特惠包</string> 
+	<key>chunjielibao</key>  
+	<string>特殊优惠礼包</string> 
+	<key>chaojilibao</key>  
+	<string>超级礼包</string> 
+	<key>geteverydayfree</key>  
+	<string>领取成功</string> 
+	<key>areadyget</key>  
+	<string>今天奖励已经领取,请明天再来</string> 
+	<key>growlibaoareadyget</key>  
+	<string>条件不符合，或者已经达到上限</string> 
+	<key>shoppricedowncount</key>  
+	<string>今天还可购买%s次(每天领取每日奖励后重置)</string> 
+	<key>text_rmb</key>  
+	<string>元</string> 
+	<key>text_rmb2</key>  
+	<string>$</string> 
+	<key>text_rmb3</key>  
+	<string>$(美元)</string> 
+	<key>text_song</key>  
+	<string>优惠</string> 
+	<key>text_songchoujiang</key>  
+	<string>送%d次抽奖</string> 
+	<key>text_songmoshi</key>  
+	<string>活动赠送%d魔石</string> 
+	<key>text_song60equip</key>  
+	<string>随机一件60级3星神器</string> 
+	<key>text_song50equip</key>  
+	<string>随机一件50级3星神器</string> 
+
+	<key>tips_cdkeyerror</key>  
+	<string>cdkey不存在或者已使用</string> 
+	<key>tips_sellture</key>  
+	<string>再次点击分解,分解此装备</string> 
+	<key>tips_notfuhe</key>  
+	<string>条件不符合,请充值任意金额</string> 
+	<key>tips_exchangesuccess</key>  
+	<string>兑换成功</string> 
+	<key>tips_51activitchoujiangnotcount</key>  
+	<string>抽奖机会已用完,vip和五一期间充值可获得额外机会</string> 
+
+<!--技能-->
+
+<key>skillleveltext</key>  <string> 等级 %s</string> 
+<key>skillcosttext</key>  <string> 消耗 %d MP</string> 
+<key>skillmaxnum</key>  <string>最多只能同时装备三个技能</string> 
+<key>skillunlocklevel</key>  <string>级解锁</string> 
+<!--神器-->
+<key>text_god_att</key>  <string>封印属性:</string> 
+<key>text_god_grow</key>  <string>成长:</string> 
+<key>text_god_left</key>  <string>[</string> 
+<key>text_god_right</key>  <string>]</string> 
+<key>text_god_finish</key>  <string>完全解封</string> 
+<key>tips_equip_success</key>  <string>装备成功</string> 
+<key>tips_notgrowenough</key>  <string>神器未完全成长</string> 
+<key>tips_growenough</key>  <string>神器已解除所有封印</string> 
+<key>tips_strengthgod</key>  <string>解除神器封印需要消耗</string> 
+<key>tips_strengthsuccess</key>  <string>恭喜你 解除神器封印成功</string> 
+<key>tips_petnotcomplete</key>  <string>Sorry 宠物系统作者正在苦逼开发中，敬请期待！</string> 
+<key>tips_packageopen</key>  <string>恭喜你，背包开启!</string> 
+<key>tips_packagemax</key>  <string>背包已达上限！</string> 
+<key>tips_getgold1</key>  <string>获得10000金币！</string> 
+<key>tips_getgold2</key>  <string>获得100000金币！</string> 
+<key>tips_getgold</key>  <string>获得%d金币！</string> 
+<key>tips_getmoney</key>  <string>获得%d魔石！</string> 
+<key>tips_levelfinished</key>  <string>关卡已完成</string> 
+
+
+<key>tips_unlockhidelevel</key>  <string>解锁隐藏关卡:</string> 
+<key>tips_unlockcopy</key>  <string>发现新副本</string> 
+<key>tips_copynotunlock</key>  <string>副本险恶10级时候再来吧</string> 
+<key>tips_equipmake</key>  <string>等你到了8级，我可以免费给你打造一套装备</string> 
+<key>tips_abyssopen</key>  <string>深渊30级可进入,难度非常大哦</string> 
+<key>tips_activityopen</key>  <string>10级才可以参加活动哦</string> 
+<key>tips_newequipmake</key>  <string>有新装备可以打造!</string> 
+
+
+<key>tips_unlockboss</key>  <string>新Boss可以挑战</string> 
+<key>tips_copychanllege</key>  <string>40级解锁</string> 
+<key>tips_bossnotunlock</key>  <string>即将开放</string> 
+<key>tips_barnotunlock</key>  <string>暂未开发完成~</string> 
+<key>tips_unlockskill</key>  <string>获得新技能</string> 
+<key>tips_unlockchapter</key>  <string>发现新地图</string> 
+<key>tips_nothavecopyitem</key>  <string>卷轴不足，黑市中可以获得</string> 
+
+<!--Boss-->
+<key>text_boss_onlyone</key>  <string>(唯一)</string> 
+
+<!--铁匠-->
+<key>tips_equipmakesuccess</key>  <string>恭喜你!打造成功</string> 
+<key>tips_specialequipupdatesuccess</key>  <string>恭喜你!装备升级成功</string> 
+<key>tips_notchoiceequip</key>  <string>未选中装备</string> 
+<!--怪物-->
+<key>enemy_quality1</key>  <string>[普通]</string> 
+<key>enemy_quality2</key>  <string>[精英]</string> 
+<key>enemy_quality3</key>  <string>[变异]</string> 
+<key>enemy_quality4</key>  <string>[神话]</string> 
+<!--其它-->
+<key>text_null</key>  <string>无</string> 
+<key>tips_notname</key>  <string>名字不能为空</string> 
+<key>text_touchcontinue</key>  <string>点击继续</string> 
+<key>tips_dataerror</key>  <string>数据异常游戏即将退出!强制修改数据会造成存档损坏</string> 
+<key>tips_sellequipsuccess</key>  <string>分解成功</string> 
+<key>tips_sellgoodssuccess</key>  <string>获得金币</string> 
+<key>tips_finishgame</key>  <string>恭喜通关，更多地图后续开放</string> 
+<key>tips_neterror</key>  <string>网络连接或服务器异常,请重试</string> 
+<key>tips_getlibao</key>  <string>获得礼包</string> 
+<!--深渊-->
+<key>tips_neterrorabsyy</key>  <string>网络连接或服务器异常,请尝试重新进入深渊</string> 
+<key>tips_cheatdata</key>  <string>检测到有重大作弊记录  GAME OVER</string> 
+<key>tips_abyss_resetsuccess</key>  <string>深渊已经重置 请开始挑战</string> 
+<key>tips_abyss_resetcountnull</key>  <string>无可用次数</string> 
+<key>tips_abyss_relivecountnull</key>  <string>复活次数已用完</string> 
+<key>text_abyss_maxfloors</key>  <string>最高记录:</string> 
+<key>text_abyss_curfloors</key>  <string>当前层数:</string> 
+<key>text_abyss_relivecount</key>  <string>可用次数:</string> 
+<key>text_abyss_nexbossadward</key>  <string>第%d层奖励</string> 
+<key>text_abyss_start</key>  <string>开始挑战</string> 
+<key>text_abyss_continuewar</key>  <string>挑战下一层</string> 
+
+<!--vip-->
+	<key>label_vipexp</key> <string>战斗经验+</string>  
+	<key>label_vipdrop</key> <string>物品掉落概率+</string>  
+	<key>label_vipwarcount</key> <string>冒险怪物数量+</string>  
+	<key>label_viprelive</key> <string>冒险自动复活%d次</string>  
+	<key>label_vipabyssrelive</key> <string>深渊复活次数+2</string>  
+	<key>label_vipremoveads</key> <string>去除广告</string>  
+	<key>label_vipabysscount</key> <string>深渊每天可重置%d次</string>  
+	<key>label_viplibaorate</key> <string>%d倍每日奖励</string>  
+	<key>label_vipbuydownprice</key> <string>每天可购买%d次黑市优惠</string>  
+	<key>label_vipbuydownpricefreedom</key> <string>无限次数购买黑市优惠道具</string>  
+
+	<key>label_vipswing5</key> <string>可购买元素之翼(翅膀->更换)</string> 
+	<key>label_vipswing1</key> <string>可购买光明之翼(翅膀->更换)</string> 
+	<key>label_vipswing2</key> <string>可购买精灵之翼(翅膀->更换)</string> 
+	<key>label_vipswing3</key> <string>可购买恶魔之翼(翅膀->更换)</string> 
+	<key>label_vipswing4</key> <string>可购买天使之翼(翅膀->更换)</string> 
+
+	<key>label_vipnotenough</key> <string>vip等级没有达到</string> 
+
+<!--采集-->
+<key>tips_notequipcollecttool</key>  <string>未装备矿锄</string> 
+<key>btn_text_collect</key>  <string>挖矿</string> 
+<key>btn_text_pause</key>  <string>暂停</string> 
+<key>tips_nothasnaijiu</key>  <string>矿锄耐久为0，请装备矿锄</string> 
+<key>text_collectget</key>  <string>获得</string> 
+<key>text_collectgetluck</key>  <string>恭喜你获得</string> 
+<key>text_collectgetnull</key>  <string>什么都没挖到...</string> 
+<!--宝藏-->
+<key>tips_get</key>  <string>获得</string> 
+<!--战斗-->
+<key>text_warwin</key>  <string>获得奖励</string> 
+<key>text_warlost</key>  <string>下面方法可以提升实力哦</string> 
+<!--事件-->
+<key>tips_nothing</key>  <string>这里什么都没有!</string> 
+<!--弹窗-->
+<key>dialog_newgamewilldelete</key>  <string>开始新游戏会删除原有存档数据\n\n确定开始新游戏么?</string> 
+
+<key>btn_text_hard1</key>  <string>简单</string> 
+<key>btn_text_hard2</key>  <string>困难</string> 
+<key>btn_text_hard3</key>  <string>噩梦</string> 
+
+
+
+
+<key>btn_appraise</key>  <string>评价</string> 
+<key>btn_appraise2</key>  <string>给好评</string> 
+<key>btn_getfree</key>  <string>领取</string> 
+<key>btn_video</key>  <string>看视频</string> 
+<key>btn_share</key>  <string>分享</string> 
+<key>btn_pay</key>  <string>购买魔石</string> 
+
+
+<key>text_appraise</key>  <string>喜欢这个游戏么？ 去评个分给我们鼓励一下吧,让我们有动力更新游戏。谢谢</string> 
+<key>text_appraise2</key>  <string>五星好评送30魔石</string> 
+<key>text_share</key>  <string>每日分享 奖励10魔石(需领取每日奖励后分享)</string> 
+<key>text_dailyreward</key>  <string>每日奖励 魔石x10,副本卷轴x5(vip增加一定倍数)</string> 
+<key>text_video</key>  <string>看视频奖励5魔石(每天有次数限制 不定时更新 看完后可隔段时间再试)</string> 
+<key>text_growreward</key>  <string>成长礼包 每10级可以领取一次 魔石x50 副本卷轴x20</string> 
+<key>text_pay</key>  <string>快速获得大量魔石</string> 
+
+
+<key>btn_buy</key>  <string>购买</string> 
+
+<key>tips_pay_failure</key>  <string>充值失败</string> 
+
+<key>title_pay</key>  <string>魔石</string> 
+<key>text_rename_tipsonlyonece</key>  <string>只有一次改名机会!!!</string> 
+
+<key>btn_swing_reset</key>  <string>重置</string> 
+<key>btn_swing_resetdesc</key>  <string>翅膀等级归零,返还材料</string> 
+<key>btn_swing_resetsuccess</key>  <string>翅膀已经重置,获得材料</string> 
+<key>btn_swing_resetcantreset</key>  <string>翅膀等级太低 无法重置</string> 
+
+<key>text_ui_title_achievement</key>  <string>成就</string> 
+
+<!--神器装备-->
+<key>text_ui_title_godlvup</key>  <string>神器</string> 
+<key>text_ui_btn_lvup</key>  <string>升星</string> 
+<key>text_ui_btn_resetstar</key>  <string>洗星</string> 
+<key>text_ui_btn_god</key>  <string>神器</string> 
+<key>text_ui_godattribute</key>  <string>神器属性:</string> 
+<key>tips_ui_cogratulationgodlvup</key>  <string>恭喜你 神器升星成功!!!</string> 
+
+<key>tips_versioncodelow</key>  <string>版本太低,请更新游戏</string> 
+<key>tips_tips</key>  <string>提示</string> 
+<key>tips_dialog_bandesc</key>  <string>严重作弊!!! 有概率被列入永久黑名单</string> 
+
+<key>text_ui_btn_achievemet</key>  <string>成就</string> 
+<key>text_ui_btn_titlevt</key>  <string>称号</string> 
+
+<key>tips_namerepeat</key>  <string>名字相同</string> 
+<key>tips_getachievemet</key>  <string>获得成就:</string> 
+<key>tips_gettitlevt</key>  <string>获得称号</string> 
+<key>text_ui_achievementpoint</key>  <string>成就点数</string> 
+<key>text_ui_achievementjindu</key>  <string>进度</string> 
+<key>text_ui_activepaypake</key>  <string>活动充值礼包</string> 
+<key>text_ui_activepaypaketips</key>  <string>累计充值达到%d元</string> 
+<key>text_ui_activepaymoney</key>  <string>活动期间充值:</string> 
+<key>text_songlibao</key>  <string>活动充值礼包(活动界面领取)</string> 
+<key>text_zhongqiulibaocounttips</key>  <string>礼包仅可以领一次,想要充值的玩家请充值过后在领取! 连续点击3次领取</string> 
+<key>text_firstpay_gp</key>  <string>新版本首次充值魔石双倍(例如:购买超级礼包可以获得5400x2魔石)</string> 
+
+<key>text_godupdate_tips</key>  <string>神器只能升星一次,4星神器只能通过3星升星获得,升星过后可以洗星改变获得的属性</string> 
+
+
+
+<key>text_account_imenull</key>  <string>设备异常 请检查是否有安全软件禁止游戏获得权限 请允许获得所有权限</string> 
+<key>text_account</key>  <string>账号</string> 
+<key>text_account_name</key>  <string>账号</string> 
+<key>text_account_password</key>  <string>密码</string> 
+<key>text_account_repassword</key>  <string>重复密码</string> 
+<key>text_account_tips</key>  <string>提示:请经常登录上传存档到服务器进行备份!!!,更换手机或者刷机后恢复存档需要使用账号激活,目前只可以激活一次,请勿在两台手机上使用同一个存档可能导致数据或账号异常</string> 
+<key>text_account_registertips</key>  <string>提示:请牢记账号密码 如果忘记没办法找回!!!  注册成功后登录上传存档到服务器上进行备份(要经常备份)</string> 
+<key>text_account_register</key>  <string>绑定账号</string> 
+<key>text_account_register_hint</key>  <string>6-12位字母或数字</string> 
+<key>text_account_register_success</key>  <string>注册成功</string> 
+<key>text_account_register_repeat</key>  <string>该用户名重复</string> 
+<key>text_account_register_aready</key>  <string>存档已经绑定账号,不可重复绑定</string> 
+<key>text_account_register_false</key>  <string>注册失败</string> 
+<key>text_account_register_error</key>  <string>账号不可用或已经被使用</string> 
+<key>text_account_register_passwordnotcompare</key>  <string>输入的密码不相同</string> 
+<key>text_account_login</key>  <string>登录</string> 
+<key>text_account_loginsuccess</key>  <string>登录成功</string> 
+<key>text_account_loginfail</key>  <string>登录失败</string> 
+<key>text_account_loginpassworderror</key>  <string>账号或密码错误</string> 
+<key>text_account_upload</key>  <string>上传存档</string> 
+<key>text_account_uploadtips</key>  <string>将会覆盖该账号服务器上的存档,是否继续?</string> 
+<key>text_account_uploadsuccess</key>  <string>上传成功</string> 
+<key>text_account_uploadfail</key>  <string>备份失败</string> 
+<key>text_account_download</key>  <string>下载存档</string> 
+<key>text_account_downloadsuccess</key>  <string>恢复成功</string> 
+<key>text_account_downloadfail</key>  <string>下载失败或者次数已达上限</string> 
+<key>text_account_downloadtips</key>  <string>将会覆盖现有的存档,并且无法恢复,是否继续？(目前只可以下载两次 请慎重!!!)</string> 
+<key>text_account_activesuccess</key>  <string>激活成功</string> 
+<key>text_account_activenumlimit</key>  <string>激活失败 激活次数达到上限</string> 
+<key>text_account_activefalse</key>  <string>激活失败 请检查账号密码是否错误</string> 
+
+
+
+<key>text_iosviptips</key>  <string>vip不包括额外赠送的魔石,充值过后需要几秒钟验证,因为网络原因没收到,请点击对应充值选项即可获得.价格是美元!!! 购买弹窗会提示换算价格</string> 
+<key>text_iosviptext</key>  <string>累计充值</string> 
+<key>text_iosvipsong</key>  <string>赠送</string> 
+<key>text_iosvipnum_text</key>  <string>2.x版本</string> 
+<key>text_iosvipnum_textnotinclude</key>  <string>(不包括赠送的)</string> 
+<key>text_3star</key>  <string>三星</string> 
+<key>tips_videolimit</key>  <string>达到上限 请明天领取每日奖励后再来</string> 
+
+
+<key>text_rolestrengh</key>  <string>角色强化</string> 
+<key>text_rolestrenghlimit</key>  <string>达到上限</string> 
+<key>text_rolestrenghlevellimit</key>  <string>60级开放</string> 
+
+<key>text_ui_btn_task</key> <string>任务</string>
+<key>text_ui_title_task</key> <string>每日任务</string>
+<key>text_ui_btn_exchange</key> <string>兑换</string>
+<key>text_ui_point</key> <string>积分</string>
+<key>btn_give</key>  <string>交纳</string> 
+<key>text_taskfinish</key>  <string>任务完成</string> 
+<key>tips_pleaseupload</key>  <string>注册账号后请登录 上传存档到服务器进行备份</string> 
+
+<key>tips_uploadlevellow</key>  <string>3级以后可以上传存档</string> 
+<key>tips_geterror</key>  <string>领取失败</string> 
+<key>text_daliyreset</key>  <string>(领取每日奖励后重置,领取任务奖励需要联网)</string> 
+<key>text_refreshpointerror</key>  <string>积分获取失败</string> 
+<key>text_exchangesuccess</key>  <string>兑换成功</string> 
+<key>text_exchangefail</key>  <string>兑换失败</string> 
+</dict>  
+</plist> 

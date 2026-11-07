@@ -66,7 +66,8 @@ assert.ok((await readFile(join(dist, "assets", css), "utf8")).includes(".mobile-
 const generated = await readdir(join(dist, "assets", "generated"));
 assert.ok(generated.includes("maskable-512.png"), "maskable icon missing from dist");
 assert.ok(generated.includes("app-icon-512.png"), "PWA icon missing from dist");
-const toolIconFiles = ["today-food.svg", "recipe.svg", "time-album.svg", "random-memory.svg", "weekly-review.svg", "secret-vault.svg", "message.svg"];
+assert.ok(!precacheUrls.some((url) => /^\/?(?:monster(?:\/|\.html)|assets\/monster-)/.test(url)), "game resources leaked into home precache");
+const toolIconFiles = ["today-food.svg", "recipe.svg", "time-album.svg", "random-memory.svg", "weekly-review.svg", "secret-vault.svg", "message.svg", "monster.svg"];
 for (const toolIconFile of toolIconFiles) {
   assert.ok(await stat(join(dist, "assets", "tool-icons", toolIconFile)).then(() => true, () => false), `${toolIconFile} missing from dist`);
   assert.ok(precacheUrls.some((url) => url.replace(/^\/+/, "") === `assets/tool-icons/${toolIconFile}`), `${toolIconFile} missing from Workbox precache`);

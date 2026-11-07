@@ -11,6 +11,7 @@ import { createToolDockController } from "./tool-dock-controller.js";
 import { createLayoutSettingsController } from "./layout-settings-controller.js";
 import { createSecretEntryPreferenceController } from "./secret-entry-preference-controller.js";
 import { createRuntimeStateView } from "./app-runtime-state.js";
+import { toDateInputValue } from "./app-domain.js";
 
 const view = (state, names) => createRuntimeStateView(state, names);
 
@@ -156,7 +157,7 @@ export function createShellControllerAssembly({
     saveConfig,
   } = householdBrandingController;
 
-  elements.dateInput.valueAsDate = new Date();
+  elements.dateInput.value = toDateInputValue(new Date());
   if (elements.weekendDateInput) elements.weekendDateInput.value = config.getNextWeekendDate();
 
   const isFavoritePhoto = (photoOrId) => photoFavorites.has(photoOrId);

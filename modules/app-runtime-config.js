@@ -107,7 +107,7 @@ export const APP_RUNTIME_CONFIG = Object.freeze({
   MIN_CACHE_MB: 20,
   MAX_CACHE_MB: 2000,
   TOOL_DOCK_ORDER_KEY: "life-vlog-tool-dock-order",
-  TOOL_DOCK_DEFAULT_ORDER: ["food", "recipes", "anniversary", "memory", "weekly", "secret", "thanks"],
+  TOOL_DOCK_DEFAULT_ORDER: ["food", "recipes", "anniversary", "memory", "weekly", "secret", "thanks", "monster"],
   TOOL_DOCK_MOBILE_DEFAULT_ORDER: ["anniversary", "weekly", "thanks"],
   TOOL_DOCK_LABELS: {
     food: { title: "今日吃什么", subtitle: "转盘" },
@@ -117,6 +117,7 @@ export const APP_RUNTIME_CONFIG = Object.freeze({
     weekly: { title: "本周回顾", subtitle: "共同生活周报" },
     secret: { title: "秘藏", subtitle: "相册展览" },
     thanks: { title: "留言", subtitle: "留下生活里的话" },
+    monster: { title: "黑暗传说", subtitle: "首关迁移试玩" },
   },
   MOBILE_DIALOG_BREAKPOINT: 920,
   SECRET_ALL_FOLDER_ID: "all",
