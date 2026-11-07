@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0d100f">
+  <title>黑暗传说 · 咻蛋之家</title>
+</head>
+<body>
+  <header class="monster-host-header">
+    <a href="/">返回咻蛋之家</a>
+    <span>黑暗传说 <small>迁移测试 · 首关</small></span>
+  </header>
+  <main>
+    <div id="monsterFrame"><canvas id="monsterCanvas" width="640" height="960" aria-label="黑暗传说原版资源游戏画面"></canvas></div>
+    <nav class="monster-controls" aria-label="游戏操作">
+      <button id="monsterEnter" type="button" disabled>进入游戏</button>
+      <button id="monsterAdventure" type="button" disabled>首关冒险</button>
+      <button id="monsterRole" type="button" disabled>角色</button>
+      <button id="monsterBag" type="button" disabled>背包</button>
+    </nav>
+    <p id="monsterStatus" role="status">正在加载原版资源…</p>
+    <p class="monster-save-line"><span id="monsterSaveStatus"></span><button id="monsterSaveRetry" type="button" hidden>重试保存</button></p>
+  </main>
+  <dialog id="monsterNewGame" aria-labelledby="monsterNewGameTitle">
+    <form id="monsterNewGameForm">
+      <h1 id="monsterNewGameTitle">新建角色</h1>
+      <label for="monsterName">角色名字</label>
+      <input id="monsterName" name="name" required autocomplete="off">
+      <div class="monster-dialog-actions"><button type="button" id="monsterNewCancel">返回</button><button type="submit">开始冒险</button></div>
+    </form>
+  </dialog>
+  <dialog id="monsterDetails" aria-labelledby="monsterDetailsTitle">
+    <div class="monster-dialog-heading"><h2 id="monsterDetailsTitle"></h2><button type="button" id="monsterDetailsClose">关闭</button></div>
+    <div id="monsterDetailsContent"></div>
+  </dialog>
+  <script type="module" src="/modules/monster/entry.js"></script>
+</body>
+</html>
