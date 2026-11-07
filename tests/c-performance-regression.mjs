@@ -2058,7 +2058,7 @@ async function testMobileToolDock(browser) {
       await page.waitForFunction(
         () => [...document.querySelectorAll("#toolDock .tool-dock-button")]
           .filter((button) => !button.hidden && getComputedStyle(button).display !== "none")
-          .length === 7,
+          .length === 8,
         null,
         { timeout: 10000 },
       );
@@ -2106,7 +2106,8 @@ async function testMobileToolDock(browser) {
         };
       });
       assert.deepEqual(layout.ids.slice(0, 3), ["anniversary", "weekly", "thanks"], `${viewport.width}px mobile tool dock default order changed: ${JSON.stringify(layout)}`);
-      assert.equal(layout.ids.length, 7, `${viewport.width}px mobile tool dock did not keep swipeable entries: ${JSON.stringify(layout)}`);
+      assert.equal(layout.ids.length, 8, `${viewport.width}px mobile tool dock did not keep swipeable entries: ${JSON.stringify(layout)}`);
+      assert.equal(layout.ids.at(-1), "monster", `${viewport.width}px game preview is missing from the end of the swipe rail`);
       assert.equal(layout.display, "flex", `${viewport.width}px mobile tool dock is not a horizontal card rail: ${JSON.stringify(layout)}`);
       assert.equal(layout.gridColumns, "none", `${viewport.width}px mobile tool dock unexpectedly uses a grid: ${JSON.stringify(layout)}`);
       assert.ok(layout.columnGap >= 8, `${viewport.width}px mobile tool dock gap is below 8px: ${JSON.stringify(layout)}`);
