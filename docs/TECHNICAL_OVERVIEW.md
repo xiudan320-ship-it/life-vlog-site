@@ -209,7 +209,7 @@ pnpm preview
 - 生成 PWA manifest；
 - 通过 Workbox `injectManifest` 生成 `dist/sw.js`。
 
-`monster.html` 是独立的第二页面入口，由首页工具区进入，仅该页加载 `modules/monster/entry.js`、独立游戏样式、固定版 Cocos2d HTML5 引擎和 APK 原资源。`public/monster/` 直接复制到构建产物，不导入首页模块图；`monster.html`、游戏 JS/CSS 和原资源全部排除出首页预缓存，工具入口图标仍按普通 UI 资源缓存。当前仅接通默认单角色首关，状态存于 `monster-save-7.1`，不依赖登录、不调用业务 API；尚未提供游戏完整离线缓存或 iOS 原生安装包。各迁移边界与验收见 `monster-port-status.md`。
+`monster.html` 是独立的第二页面入口，由首页工具区进入，仅该页加载 `modules/monster/entry.js`、独立游戏样式、固定版 Cocos2d HTML5 引擎和 APK 原资源。构建保留原生 modulepreload 链接，关闭其额外 polyfill，避免多页面构建让首页新增一条共享兼容脚本请求。`public/monster/` 直接复制到构建产物，不导入首页模块图；`monster.html`、游戏 JS/CSS 和原资源全部排除出首页预缓存，工具入口图标仍按普通 UI 资源缓存。当前仅接通默认单角色首关，状态存于 `monster-save-7.1`，不依赖登录、不调用业务 API；尚未提供游戏完整离线缓存或 iOS 原生安装包。各迁移边界与验收见 `monster-port-status.md`。
 
 今日心情的 controller、repository 与共享域模块固定合并为单个 `today-mood-*.js` 懒加载 chunk，并保留在核心 precache 以保证首页缓存态可直接显示；overlay 仍在首次打开时才加载，桌面日记菜单和设置页管理员 R2 控制器也不进入主入口，分别在画廊/设置路由需要时加载。gallery 冷启动保持最多 28 个请求。`vite.config.js` 通过 `globIgnores` 排除路由和非核心功能 chunk，避免安装包膨胀；这些 chunk 由脚本/样式运行时缓存策略按需缓存。
 

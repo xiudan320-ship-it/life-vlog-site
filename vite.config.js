@@ -27,6 +27,7 @@ function compactIndexHtmlPlugin() {
 export default defineConfig({
   publicDir: "public",
   build: {
+    modulePreload: { polyfill: false },
     outDir: "dist",
     emptyOutDir: true,
     assetsDir: "assets",
