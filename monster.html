@@ -9,7 +9,7 @@
 <body>
   <header class="monster-host-header">
     <a href="/">返回咻蛋之家</a>
-    <span>黑暗传说 <small>账号云存档</small></span>
+    <span aria-label="账号云存档">云档 <b id="monsterCloudIndicator">✓</b></span>
   </header>
   <main>
     <div id="monsterFrame"><canvas id="monsterCanvas" width="640" height="960" aria-label="黑暗传说原版资源游戏画面"></canvas></div>
@@ -17,6 +17,7 @@
       <button id="monsterEnter" type="button" disabled>进入游戏</button>
       <button id="monsterAdventure" type="button" disabled>选择关卡</button>
       <button id="monsterRole" type="button" disabled>角色</button>
+      <button id="monsterSkills" type="button" disabled>技能</button>
       <button id="monsterBag" type="button" disabled>背包</button>
     </nav>
     <p id="monsterStatus" role="status">正在加载原版资源…</p>
@@ -28,12 +29,17 @@
       <h1 id="monsterNewGameTitle">新建角色</h1>
       <label for="monsterName">角色名字</label>
       <input id="monsterName" name="name" required autocomplete="off">
+      <img class="monster-new-hero" src="/monster/assets/ani/2001.png" alt="勇者">
       <div class="monster-dialog-actions"><button type="button" id="monsterNewCancel">返回</button><button type="submit">开始冒险</button></div>
     </form>
   </dialog>
   <dialog id="monsterDetails" aria-labelledby="monsterDetailsTitle">
-    <div class="monster-dialog-heading"><h2 id="monsterDetailsTitle"></h2><button type="button" id="monsterDetailsClose">关闭</button></div>
+    <div class="monster-dialog-heading"><h2 id="monsterDetailsTitle"></h2><button type="button" id="monsterDetailsClose" aria-label="关闭">返回</button></div>
     <div id="monsterDetailsContent"></div>
+  </dialog>
+  <dialog id="monsterItemDetails" aria-label="物品详情">
+    <button type="button" id="monsterItemClose" class="monster-item-close">关闭</button>
+    <div class="monster-item-information"></div>
   </dialog>
   <script type="module" src="/modules/monster/entry.js"></script>
 </body>

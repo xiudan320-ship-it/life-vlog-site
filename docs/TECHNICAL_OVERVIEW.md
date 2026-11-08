@@ -223,6 +223,8 @@ pnpm preview
 
 顶部分页和筛选样式只修改规范源码；每次构建由 Vite 重新生成带 hash 的入口资源，不能直接编辑 `dist/` 或用旧 hash 资源掩盖源码版本漂移。本地 Vite 预览使用 `localhost` / `127.0.0.1` 的 4173、4176、5173 固定端口连接 Worker，Worker 仅对这些精确 origin 开放 CORS；正式站和固定 preview 仍使用精确 allow-list。本轮已从 `main` 提交 `8945fbbee878300123963d643c72d0cb189b5357` 发布到正式站，生产 deployment 为 `37c7589f`，Worker 版本为 `cfa822fa-f472-4d3f-9c09-b5532dfba9e5`，入口为 `index-Dj4W9B4v.js`，`sw.js` SHA-256 为 `c25960e705c46304fe5a33880c9da31c1399e4524ae3b436e146455d1d5db201`，preview 与 production 的 CORS、Axe 和确定性 release smoke 均通过。部署仍通过仓库外的 `CLOUDFLARE_API_TOKEN` 或本机 token 文件授权，凭证不进入仓库、日志或文档。
 
+游戏 UI 在手机上以 `100dvh` 铺满可视区，桌面保持原竖屏宽度并延伸原图背景；宿主返回、云档标记和原图导航覆盖在画布内，不再占据画布外的工具条。角色、背包、技能和地图使用独立原图视图模块：HTML 控件复用 APK 面板、装备格、章节缩略图、怪物/物品/技能原图，保留焦点、原生 dialog 和无障碍名称；数字与说明仍为可读文字。Canvas 原菜单/主页/战斗/结算与这些面板共同读取同一控制器和账号云档，没有另一份游戏状态。安全区用于原图面板、底部导航和 Canvas 顶部 HUD；不依赖 iOS 不可用的浏览器全屏 API。
+
 ## 10. 测试体系
 
 | 命令 | 覆盖范围 |

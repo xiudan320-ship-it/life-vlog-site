@@ -34,6 +34,7 @@ const browser = await browserType.launch({ headless: true });
 const key = "life-vlog-cloudflare-auth";
 const fixtures = new Map();
 const errors = [];
+const requestFailures = [];
 const external = [];
 const contexts = [];
 const artifacts = resolve("artifacts/monster");
@@ -42,6 +43,7 @@ await mkdir(artifacts, { recursive: true });
 async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, colorScheme = "dark", reducedMotion = "no-preference" } = {}) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, colorScheme, reducedMotion });
   contexts.push(context);
+  context.on("requestfailed", (request) => requestFailures.push({ url: request.url(), error: request.failure()?.errorText }));
   const fixture = createWorkerFixture({ origin });
   if (corrupt) fixture.DB.database.prepare("insert into monster_saves values (?, ?, ?, ?)").run("owner", "{}", 1, "2030-01-01T00:00:00Z");
   let page;
@@ -107,6 +109,7 @@ try {
   await page.screenshot({ path: resolve(artifacts, "menu.png") });
   await create(page);
   assert.equal((await saved(page)).gold, 1000);
+  await page.screenshot({ path: resolve(artifacts, "home-game.png") });
   await fight(page);
   let state = await saved(page);
   assert.deepEqual([state.gold, state.player.experience, state.player.level, state.player.hp], [1117, 15, 1, 230]);
@@ -120,29 +123,33 @@ try {
   assert.deepEqual([state.gold, state.player.experience, state.player.level, state.player.attack, state.player.maxHp], [1234, 10, 2, 259, 259]);
   await page.locator("#monsterEnter").click(); await stage(page, "home");
   const levelText = await page.evaluate(() => {
-    function find(node) { if (node.getName?.() === "text_level") return node.getString(); for (const child of node.getChildren?.() || []) { const value = find(child); if (value) return value; } }
+    function find(node) { if (node.getName?.() === "text_level") return { value: node.getString(), top: (cc.winSize.height - node.convertToWorldSpaceAR(cc.p(0, 0)).y) / cc.winSize.height * innerHeight }; for (const child of node.getChildren?.() || []) { const value = find(child); if (value) return value; } }
     return find(cc.director.getRunningScene());
   });
-  assert.equal(levelText, "等级2");
+  assert.equal(levelText.value, "等级2");
+  assert.ok(levelText.top >= 0 && levelText.top < 100, `HUD moved away from the safe top: ${levelText.top}`);
   await accessible(page);
   for (const width of [375, 390, 430, 768, 1024, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     await page.waitForTimeout(200);
     await noOverflow(page);
+    if (width <= 430) {
+      const frame = await page.locator("#monsterFrame").evaluate((node) => ({ top: node.getBoundingClientRect().top, width: node.clientWidth, height: node.clientHeight, viewportHeight: innerHeight }));
+      assert.deepEqual(frame, { top: 0, width, height: frame.viewportHeight, viewportHeight: frame.viewportHeight });
+    }
   }
   await page.setViewportSize({ width: 390, height: 844 });
   await page.locator("#monsterAdventure").click();
   assert.equal(await page.locator(".monster-copy-row").count(), 6);
   assert.equal(await page.locator('[data-copy-id="1002"]').isEnabled(), true);
   assert.equal(await page.locator('[data-copy-id="1003"]').isDisabled(), true);
-  const category = page.getByLabel("冒险类型");
-  await category.selectOption("2"); assert.equal(await page.locator(".monster-copy-row").count(), 32);
-  await category.selectOption("5"); assert.equal(await page.locator(".monster-copy-row").count(), 114);
-  assert.equal(await page.locator('[data-copy-id="5001"]').textContent(), "需要等级 30");
-  await category.selectOption("6"); assert.equal(await page.locator(".monster-copy-row").count(), 1);
-  await category.selectOption("3"); assert.equal(await page.locator(".monster-copy-row").count(), 24);
-  await category.selectOption("1");
-  assert.equal(await page.getByLabel("章节", { exact: true }).locator("option").count(), 21);
+  await page.locator('[data-copy-type="2"]').click(); assert.equal(await page.locator(".monster-copy-row").count(), 32);
+  await page.locator('[data-copy-type="5"]').click(); assert.equal(await page.locator(".monster-copy-row").count(), 114);
+  assert.equal(await page.locator('[data-copy-id="5001"]').getAttribute("title"), "需要等级 30");
+  await page.locator('[data-copy-type="6"]').click(); assert.equal(await page.locator(".monster-copy-row").count(), 1);
+  await page.locator('[data-copy-type="3"]').click(); assert.equal(await page.locator(".monster-copy-row").count(), 24);
+  await page.locator('[data-copy-type="1"]').click();
+  assert.equal(await page.locator(".monster-chapter").count(), 21);
   await accessible(page);
   await page.screenshot({ path: resolve(artifacts, "copy-selection.png") });
   await page.locator("#monsterDetailsClose").click();
@@ -150,11 +157,23 @@ try {
   assert.equal(await page.locator(".monster-item img").count(), 9);
   await page.locator(".monster-item img").evaluateAll((images) => Promise.all(images.map((img) => img.decode())));
   await page.screenshot({ path: resolve(artifacts, "role.png") });
+  await page.locator(".monster-paperdoll .monster-item").first().click();
+  assert.equal(await page.locator("#monsterItemDetails").evaluate((dialog) => dialog.open), true);
+  await page.locator("#monsterItemClose").click();
   await page.keyboard.press("Escape");
   assert.equal(await page.locator("#monsterDetails").evaluate((dialog) => dialog.open), false);
+  await page.waitForFunction(() => document.activeElement === document.getElementById("monsterRole"));
   assert.equal(await page.locator("#monsterRole").evaluate((button) => document.activeElement === button), true);
   await page.locator("#monsterBag").click();
   assert.match(await page.locator("#monsterDetailsContent").textContent(), /暂时没有材料/);
+  await page.locator("#monsterDetailsClose").click();
+
+  await page.locator("#monsterSkills").click();
+  assert.equal(await page.locator(".monster-skill-card").count(), 16);
+  await page.getByRole("checkbox", { name: "重击", exact: true }).check();
+  await page.waitForFunction(() => document.getElementById("monsterSaveStatus").textContent.includes("已保存"));
+  assert.ok((await saved(page)).player.equippedSkillIds.includes(2));
+  await page.screenshot({ path: resolve(artifacts, "skills.png") });
   await page.locator("#monsterDetailsClose").click();
 
   const drops = await pageFor({ roll: 16, colorScheme: "light", reducedMotion: "reduce" });
@@ -206,6 +225,7 @@ try {
   assert.equal((await saved(auto)).progress.copies.find((row) => row.id === 1001).value, 2);
   const host = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
   contexts.push(host);
+  host.on("requestfailed", (request) => requestFailures.push({ url: request.url(), error: request.failure()?.errorText }));
   await host.route("**/*", (route) => new URL(route.request().url()).origin === origin ? route.continue() : route.abort());
   await createCloudflareApiFixture().install(host);
   const home = await host.newPage();
@@ -226,6 +246,7 @@ try {
   await home.screenshot({ path: resolve(artifacts, "home-shortcut.png") });
   await home.locator('[data-tool-id="monster"]').click();
   await stage(home, "error");
+  assert.ok(!homeRequests.some((url) => /mobile-diary-controller-/.test(url)), "shortcut navigation loaded the unrelated diary gesture controller");
   assert.match(await home.locator("#monsterStatus").textContent(), /登录/);
   assert.ok(["/monster", "/monster.html"].includes(new URL(home.url()).pathname));
   assert.deepEqual(external, []);
@@ -234,6 +255,7 @@ try {
 } catch (error) {
   for (const page of fixtures.keys()) console.error(await page.locator("#monsterStatus").textContent());
   console.error(errors);
+  console.error("Failed requests:", requestFailures);
   throw error;
 } finally {
   await Promise.all(contexts.map((context) => context.close()));

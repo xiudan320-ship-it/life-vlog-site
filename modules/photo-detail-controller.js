@@ -175,20 +175,21 @@ export function createPhotoDetailController({
     if (!isMobileViewport()) return false;
     return callMobileDiary("performGlobalMobileBack", ...args);
   }
-  function beginGlobalMobileBackSwipe(...args) {
-    if (!isMobileViewport()) return false;
-    return callMobileDiary("beginGlobalMobileBackSwipe", ...args);
+  function beginGlobalMobileBackSwipe(event) {
+    if (!isMobileViewport() || event.pointerType === "mouse"
+      || event.target.closest("button, input, textarea, select, a, .dialog-media, .mobile-diary-media, .secret-photo-grid, .diary-card-media")) return false;
+    return callMobileDiary("beginGlobalMobileBackSwipe", event);
   }
   function moveGlobalMobileBackSwipe(...args) {
-    if (!isMobileViewport()) return false;
+    if (!isMobileViewport() || !mobileDiaryController && !mobileDiaryPromise) return false;
     return callMobileDiary("moveGlobalMobileBackSwipe", ...args);
   }
   function finishGlobalMobileBackSwipe(...args) {
-    if (!isMobileViewport()) return false;
+    if (!isMobileViewport() || !mobileDiaryController && !mobileDiaryPromise) return false;
     return callMobileDiary("finishGlobalMobileBackSwipe", ...args);
   }
   function cancelGlobalMobileBackSwipe(...args) {
-    if (!isMobileViewport()) return false;
+    if (!isMobileViewport() || !mobileDiaryController && !mobileDiaryPromise) return false;
     return callMobileDiary("cancelGlobalMobileBackSwipe", ...args);
   }
 

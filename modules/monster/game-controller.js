@@ -104,10 +104,15 @@ export function createMonsterGameController({ catalog, store, view, random, wait
       await home();
     },
     continue() { if (state && !active) void home(); },
-    selectCopy() { if (state && !active) view.selectCopy(state, catalog, settings); },
+    selectCopy(type) {
+      if (!state || active) return;
+      if ([1, 2, 3, 5, 6].includes(type)) settings.type = type;
+      view.selectCopy(state, catalog, settings);
+    },
     startCopy,
     stopRepeat() { repeat = false; view.repeatStatus(false); view.notice("已关闭连续战斗，本场结算后停止。"); },
     role() { if (state && !active) view.role(state, catalog); },
+    skills() { if (state && !active) view.skills(state, catalog); },
     bag() { if (state && !active) view.bag(state, catalog); },
     async toggleSkill(id) {
       if (!state || active || unsaved) return false;
