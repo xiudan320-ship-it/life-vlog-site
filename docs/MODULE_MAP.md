@@ -14,6 +14,7 @@
 | --- | --- | --- |
 | 黑暗传说全屏试玩、原资源画面与控制器 | `monster.html`, `modules/monster/entry.js`, `modules/monster/game-controller.js`, `modules/monster/game-view.js` | `styles/monster.css`, `public/monster/`, `tests/monster-browser.mjs`；首页工具区进入，登录后独立加载引擎，手机画布铺满可视区 |
 | 黑暗传说图形角色/背包/技能及物品详情 | `modules/monster/character-view.js`, `modules/monster/visual-ui.js` | 复用原背景、面板、装备格、勇者、装备/技能图标；原图按钮和可访问的 HTML 控件，未接通玩法不创建空入口 |
+| 黑暗传说 iPhone 安全区、HUD 避让与键盘可视区 | `modules/monster/viewport-view.js`, `modules/monster/game-view.js`, `styles/monster.css` | CSS 安全区统一供 Canvas 与 HTML 使用；原生弹窗随 VisualViewport 调整；`tests/monster-browser.mjs --webkit --iphone13` |
 | 黑暗传说攻击、属性、装备、角色生命/技能、成长、全敌人目录及调整（迁移中） | `modules/monster/combat-domain.js`, `modules/monster/attribute-domain.js`, `modules/monster/equipment-domain.js`, `modules/monster/role-domain.js`, `modules/monster/progression-domain.js`, `modules/monster/enemy-domain.js` | `tests/monster-domain.mjs`, `tests/fixtures/monster/`；恢复边界见 `docs/monster-port-status.md` |
 | 黑暗传说出手、技能/Buff、回血/吸血和单角色自动战斗 | `modules/monster/battle-turn-domain.js`, `modules/monster/battle-domain.js`, `modules/monster/skill-domain.js` | 技能与完整战斗合成原生对照；宠物、复活及原动画时序未接入 |
 | 黑暗传说选关、战前准备、随机遭遇、连续战斗及结算进度 | `modules/monster/copy-selection-view.js`, `modules/monster/copy-domain.js`, `modules/monster/encounter-domain.js`, `modules/monster/adventure-domain.js`, `modules/monster/copy-progress-domain.js` | 331 条目录、章节/等级/巅峰锁定；试炼仅首层，连续战斗需要前台页面 |

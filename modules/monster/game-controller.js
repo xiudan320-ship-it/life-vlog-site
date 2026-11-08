@@ -2,7 +2,7 @@ import { createNewGame } from "./new-game-domain.js";
 import { advanceSoloBattle } from "./battle-domain.js";
 import { calculatePlayerEffects, collectEquipmentAttributes, recalculatePlayerFromEquipment } from "./attribute-domain.js";
 import { getCopyAccess, maximumCopyDifficulty, prepareCopyBattle } from "./copy-domain.js";
-import { payCopyEntry, settleCopyVictory } from "./adventure-domain.js";
+import { payCopyEntry, settleCopyVictory, settleCopyDefeat } from "./adventure-domain.js";
 import { equipBagItem, toggleEquippedSkill } from "./loadout-domain.js";
 
 export function createMonsterGameController({ catalog, store, view, random, wait }) {
@@ -63,12 +63,13 @@ export function createMonsterGameController({ catalog, store, view, random, wait
         }
         await wait(450);
         if (serial !== revision) return;
-        let reward = { gold: 0, experience: 0, honor: 0, items: [] };
         state = { ...state, player: { ...state.player, hp: battle.allies[0].hp, dead: battle.allies[0].dead } };
-        if (battle.outcome === 3) {
-          const settlement = settleCopyVictory({ state, copy, prepared, catalog, draw: random });
-          state = settlement.state; reward = settlement.reward;
-        } else repeat = false;
+        const settlement = battle.outcome === 3
+          ? settleCopyVictory({ state, copy, prepared, catalog, draw: random })
+          : settleCopyDefeat({ state, copy, prepared, battle, catalog, draw: random });
+        state = settlement.state;
+        const reward = settlement.reward;
+        if (battle.outcome !== 3) repeat = false;
         refresh();
         if (!await save()) repeat = false;
         if (serial !== revision) return;

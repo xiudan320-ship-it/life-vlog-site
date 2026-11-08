@@ -3,7 +3,7 @@ import { createReadStream } from "node:fs";
 import { readFile, stat, mkdir } from "node:fs/promises";
 import { createServer } from "node:http";
 import { extname, resolve, sep } from "node:path";
-import { chromium, webkit } from "playwright";
+import { chromium, webkit, devices } from "playwright";
 import AxeBuilder from "@axe-core/playwright";
 import { readWorkboxManifest } from "../scripts/workbox-manifest.mjs";
 import { createCloudflareApiFixture } from "./fixtures/cloudflare-api-fixture.mjs";
@@ -31,23 +31,37 @@ const origin = process.env.MONSTER_BASE_URL
   : `http://127.0.0.1:${server.address().port}`;
 const browserType = process.argv.includes("--webkit") ? webkit : chromium;
 const browser = await browserType.launch({ headless: true });
+const iphone13 = process.argv.includes("--iphone13");
 const key = "life-vlog-cloudflare-auth";
 const fixtures = new Map();
 const errors = [];
 const requestFailures = [];
 const external = [];
 const contexts = [];
+let keyboardChecked = false;
 const artifacts = resolve("artifacts/monster");
 await mkdir(artifacts, { recursive: true });
 
-async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, colorScheme = "dark", reducedMotion = "no-preference" } = {}) {
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, colorScheme, reducedMotion });
+async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, defeat = false, colorScheme = "dark", reducedMotion = "no-preference" } = {}) {
+  const context = await browser.newContext({ ...(iphone13 ? devices["iPhone 13"] : {}), viewport: { width: 390, height: 844 }, screen: { width: 390, height: 844 }, colorScheme, reducedMotion });
   contexts.push(context);
   context.on("requestfailed", (request) => requestFailures.push({ url: request.url(), error: request.failure()?.errorText }));
   const fixture = createWorkerFixture({ origin });
   if (corrupt) fixture.DB.database.prepare("insert into monster_saves values (?, ?, ?, ?)").run("owner", "{}", 1, "2030-01-01T00:00:00Z");
   let page;
   await context.route("**/*", async (route) => {
+    const pathname = new URL(route.request().url()).pathname;
+    if (defeat && ["/monster/data/copy.json", "/monster/data/enemy.json"].includes(pathname)) {
+      const response = await route.fetch(); const data = await response.json();
+      if (pathname.endsWith("/copy.json")) data.find((row) => row.id === 1001).enemyid2 = 900001;
+      else data.push({ ...data.find((row) => row.id === 4001), id: 900001, name: "测试强敌", hp: 1000000, att: 1000000, def: 100000, hit: 1000000, spo: 0, skillid1: 0, skillid2: 0 });
+      return route.fulfill({ response, json: data });
+    }
+    if (iphone13 && /\/assets\/monster-[^/]+\.css$/.test(new URL(route.request().url()).pathname)) {
+      const response = await route.fetch();
+      const css = (await response.text()).replaceAll("env(safe-area-inset-top)", "47px").replaceAll("env(safe-area-inset-bottom)", "34px").replaceAll("env(safe-area-inset-left)", "0px").replaceAll("env(safe-area-inset-right)", "0px");
+      return route.fulfill({ response, body: css });
+    }
     if (new URL(route.request().url()).pathname === "/api/monster/save") {
       const request = route.request();
       if (request.method() === "PUT" && await page.evaluate(() => window.monsterFixtureBlockSave)) return route.fulfill({ status: 503, headers: { "access-control-allow-origin": origin }, contentType: "application/json", body: JSON.stringify({ error: "fixture save failure" }) });
@@ -62,6 +76,7 @@ async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, co
     if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify({ access_token: token, user: { id: "owner" }, expires_at: "2099-01-01T00:00:00Z" }));
     window.monsterFixtureBlockSave = blocked;
   }, { key, roll, blocked, token: fixture.tokens.get("owner") });
+  if (iphone13) await context.addInitScript(() => Object.defineProperty(navigator, "standalone", { value: true }));
   page = await context.newPage();
   fixtures.set(page, fixture);
   page.on("pageerror", (error) => errors.push(error.message));
@@ -78,6 +93,15 @@ const saved = async (page, user = "owner") => {
 };
 async function create(page) {
   await page.locator("#monsterEnter").click();
+  if (iphone13 && !keyboardChecked) {
+    await page.evaluate(() => document.documentElement.style.setProperty("--monster-visible-height", "460px"));
+    await page.locator('#monsterNewGameForm button[type="submit"]').scrollIntoViewIfNeeded();
+    const box = await page.locator("#monsterNewGame").boundingBox();
+    assert.ok(box.y >= 47 && box.y + box.height <= 460 - 34, `keyboard covered the role form: ${JSON.stringify(box)}`);
+    await page.screenshot({ path: resolve(artifacts, "iphone13-keyboard.png") });
+    await page.evaluate(() => document.documentElement.style.setProperty("--monster-visible-height", `${visualViewport.height}px`));
+    keyboardChecked = true;
+  }
   await page.locator("#monsterName").fill("验证勇者");
   await page.locator('#monsterNewGameForm button[type="submit"]').click();
   await stage(page, "home");
@@ -86,6 +110,15 @@ async function fight(page, copyId = 1001) {
   await page.locator("#monsterAdventure").click();
   await page.locator(`[data-copy-id="${copyId}"]`).click();
   await stage(page, "battle");
+  if (iphone13) {
+    const top = await page.evaluate(() => {
+      const tops = []; function walk(node) { if (node.getString?.().startsWith("Lv.")) { const p = node.convertToWorldSpace(cc.p(0, node.height)); tops.push((cc.winSize.height - p.y) / cc.winSize.height * innerHeight); } for (const child of node.getChildren?.() || []) walk(child); }
+      walk(cc.director.getRunningScene()); return Math.min(...tops);
+    });
+    const back = await page.locator(".monster-host-header a").boundingBox();
+    assert.ok(Number.isFinite(top) && top >= back.y + back.height + 7, `battle HUD entered the notch/header: ${top}`);
+    await page.screenshot({ path: resolve(artifacts, "iphone13-battle.png") });
+  }
   assert.equal(await page.locator("#monsterAdventure").isDisabled(), true);
   await stage(page, "result");
   await page.waitForTimeout(300); // Native victory ScaleTo sequence completes in 230ms.
@@ -110,6 +143,22 @@ try {
   await create(page);
   assert.equal((await saved(page)).gold, 1000);
   await page.screenshot({ path: resolve(artifacts, "home-game.png") });
+  if (iphone13) {
+    const layout = await page.evaluate(() => {
+      function find(node) { if (node.getName?.() === "text_level") return node; for (const child of node.getChildren?.() || []) { const found = find(child); if (found) return found; } }
+      const level = find(cc.director.getRunningScene());
+      const p = level.convertToWorldSpace(cc.p(0, level.height));
+      const frame = document.getElementById("monsterFrame").getBoundingClientRect();
+      const back = document.querySelector(".monster-host-header a").getBoundingClientRect();
+      const nav = document.querySelector(".monster-controls").getBoundingClientRect();
+      return { levelTop: frame.top + (cc.winSize.height - p.y) / cc.winSize.height * frame.height, backBottom: back.bottom, navBottom: nav.bottom, screen: innerHeight, dpr: devicePixelRatio };
+    });
+    assert.equal(layout.dpr, 3);
+    assert.ok(layout.levelTop >= layout.backBottom + 7, JSON.stringify(layout));
+    await page.screenshot({ path: resolve(artifacts, "iphone13-standalone-home.png") });
+    const bounds = await page.locator("#monsterEnter").boundingBox();
+    assert.ok(bounds.y + bounds.height <= 844 - 34, "navigation entered the home-indicator area");
+  }
   await fight(page);
   let state = await saved(page);
   assert.deepEqual([state.gold, state.player.experience, state.player.level, state.player.hp], [1117, 15, 1, 230]);
@@ -127,7 +176,7 @@ try {
     return find(cc.director.getRunningScene());
   });
   assert.equal(levelText.value, "等级2");
-  assert.ok(levelText.top >= 0 && levelText.top < 100, `HUD moved away from the safe top: ${levelText.top}`);
+  assert.ok(levelText.top >= 0 && levelText.top < (iphone13 ? 160 : 100), `HUD moved away from the safe top: ${levelText.top}`);
   await accessible(page);
   for (const width of [375, 390, 430, 768, 1024, 1440]) {
     await page.setViewportSize({ width, height: 900 });
@@ -214,6 +263,19 @@ try {
   const rare = await pageFor({ roll: 0 }); await create(rare);
   await fight(rare);
   assert.equal(await rare.locator("body").getAttribute("data-monster-stage"), "result");
+  const defeated = await pageFor({ defeat: true }); await create(defeated);
+  await defeated.locator("#monsterAdventure").click();
+  await defeated.getByLabel("连续自动战斗").check();
+  await defeated.locator('[data-copy-id="1001"]').click();
+  await stage(defeated, "result");
+  assert.match(await defeated.locator("#monsterStatus").textContent(), /战败，已保留 1 只怪物收益/);
+  const retained = await saved(defeated);
+  assert.deepEqual([retained.gold, retained.player.experience, retained.progress.levelId], [1117, 15, 1]);
+  assert.ok(!retained.progress.copies.some((row) => row.id === 1001));
+  await defeated.locator("#monsterStop").waitFor({ state: "hidden" });
+  await defeated.screenshot({ path: resolve(artifacts, "defeat-retained.png") });
+  await defeated.reload(); await stage(defeated, "menu");
+  assert.deepEqual(await saved(defeated), retained);
   const auto = await pageFor(); await create(auto);
   await auto.locator("#monsterAdventure").click();
   await auto.getByLabel("连续自动战斗").check();

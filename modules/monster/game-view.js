@@ -1,6 +1,7 @@
 import { getPlayerExperienceRequired } from "./progression-domain.js";
 import { renderCopySelection } from "./copy-selection-view.js";
 import { renderRole, renderBag, renderSkills } from "./character-view.js";
+import { readGameInsets, nodeScreenBox, observeVisibleViewport } from "./viewport-view.js";
 
 const assets = "/monster/assets/";
 
@@ -32,8 +33,9 @@ export function createMonsterGameView({ warView }) {
   function resize() {
     const width = frame.clientWidth;
     const height = frame.clientHeight;
-    if (!width || !height || (width === size.width && height === size.height)) return;
-    size = { width, height };
+    const insets = readGameInsets();
+    if (!width || !height || (width === size.width && height === size.height && JSON.stringify(insets) === JSON.stringify(size.insets))) return;
+    size = { width, height, insets };
     cc.view.setFrameSize(width, height);
     // Original AppDelegate: 640x960, EXACT_FIT below 1.5, FIXED_WIDTH otherwise.
     cc.view.setDesignResolutionSize(640, 960, height / width < 1.5 ? cc.ResolutionPolicy.EXACT_FIT : cc.ResolutionPolicy.FIXED_WIDTH);
@@ -43,6 +45,7 @@ export function createMonsterGameView({ warView }) {
   cc.view.adjustViewPort(false);
   resize();
   new ResizeObserver(resize).observe(frame);
+  observeVisibleViewport(resize);
 
   function statusMessage(message) { status.textContent = message; }
   function notice(message) {
@@ -150,11 +153,17 @@ export function createMonsterGameView({ warView }) {
     current.addChild(background, -10);
     current.addChild(content, 0);
     current.addChild(header, 10);
-    const safeTop = Math.max(0, document.querySelector(".monster-host-header").getBoundingClientRect().top - 4) * cc.winSize.width / frame.clientWidth;
-    content.setBackGroundImageOpacity(0);
+    let safeTop = readGameInsets().top * cc.winSize.height / frame.clientHeight;
+    content.removeBackGroundImage();
     content.setBackGroundColorType(ccui.Layout.BG_COLOR_NONE);
+    const topNodes = header.getChildren().filter((child) => child.y > 650);
+    for (const child of topNodes) child.y += cc.winSize.height - 960 - safeTop;
+    const levelBox = nodeScreenBox(find(header, "text_level"), frame, cc);
+    const back = document.querySelector(".monster-host-header a").getBoundingClientRect();
+    const gap = Math.max(0, back.bottom + 8 - levelBox.top) * cc.winSize.height / frame.clientHeight;
+    for (const child of topNodes) child.y -= gap;
+    safeTop += gap;
     for (const child of content.getChildren()) child.y = child.getName() === "img_titlebg" ? cc.winSize.height - 145 - safeTop : child.y + (cc.winSize.height - 960) / 2;
-    for (const child of header.getChildren()) if (child.y > 650) child.y += cc.winSize.height - 960 - safeTop;
     cc.director.runScene(current);
     lastRender = () => home(state, catalog);
     stage("home");
@@ -183,6 +192,7 @@ export function createMonsterGameView({ warView }) {
       const node = spec.kind === "Sprite" ? new cc.Sprite(assets + spec.asset)
         : spec.kind === "Text" ? new ccui.Text(spec.text || "", "Arial", spec.fontSize || 24) : new cc.Node();
       nodes.set(spec.id, configure(node, spec));
+      if (spec.asset === "img/layer_bg7.png") node.setScale(Math.max(spec.scale || 1, cc.winSize.width / node.width, cc.winSize.height / node.height));
     }
     for (const spec of low.nodes.filter((node) => node.kind === "ProgressTimer")) {
       const timer = new cc.ProgressTimer(nodes.get(spec.sprite));
@@ -197,6 +207,10 @@ export function createMonsterGameView({ warView }) {
       nodes.get(spec.id).addChild(nodes.get(child), childSpec.z || 0);
     }
     scene(nodes.get(warView.root));
+    const enemyBox = nodeScreenBox(nodes.get(warView.bindings.enemyName), frame, cc);
+    const back = document.querySelector(".monster-host-header a").getBoundingClientRect();
+    const shift = Math.max(0, back.bottom + 8 - enemyBox.top) * cc.winSize.height / frame.clientHeight;
+    for (const spec of low.nodes) if (spec.position?.[1] >= 720) nodes.get(spec.id).y -= shift;
     stage("battle");
     battleUpdate(initial, null, state, catalog);
   }
@@ -238,15 +252,23 @@ export function createMonsterGameView({ warView }) {
     // WarFinishLayer::initUi centers the adaptive root and uses its anchor.
     widget.setAnchorPoint(0.5, 0.5);
     widget.ignoreAnchorPointForPosition(false);
-    widget.setPosition(cc.winSize.width / 2, cc.winSize.height / 2);
+    const insets = readGameInsets();
+    const top = document.querySelector(".monster-host-header a").getBoundingClientRect().bottom + 8;
+    const bottom = Math.max(document.querySelector(".monster-controls").getBoundingClientRect().height, insets.bottom) + 8;
+    const usable = Math.max(1, frame.clientHeight - top - bottom);
+    widget.setScale(Math.min(1, usable / frame.clientHeight * cc.winSize.height / 960));
+    widget.setPosition(cc.winSize.width / 2, (bottom + usable / 2) / frame.clientHeight * cc.winSize.height);
     widget.setBackGroundColorType(ccui.Layout.BG_COLOR_NONE);
     for (const name of ["img_warfail", "btn_upatt1", "btn_upatt2", "btn_upatt3", "btn_upatt4", "btn_upatt5", "btn_upatt6"]) find(widget, name)?.setVisible(false);
     const banner = find(widget, "img_result");
     banner.loadTexture(resultImage);
-    if (matchMedia("(prefers-reduced-motion: reduce)").matches) banner.setScale(1.4);
+    const finalScale = Math.min(1.4, (banner.x - 16) * 2 / banner.width);
+    const ring = find(widget, "img_resultbg");
+    if (ring) ring.x = Math.max(ring.x, ring.width / 2 + 12);
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) banner.setScale(finalScale);
     else {
       banner.setScale(0.6);
-      banner.runAction(cc.sequence(cc.scaleTo(0.2, 1.5), cc.scaleTo(0.03, 1.4)));
+      banner.runAction(cc.sequence(cc.scaleTo(0.2, Math.min(finalScale + 0.1, (banner.x - 8) * 2 / banner.width)), cc.scaleTo(0.03, finalScale)));
     }
     for (const [name, value] of [["img_coinbg", reward.gold], ["img_expbg", reward.experience], ["img_honorbg", reward.honor]]) {
       const container = find(widget, name);
@@ -255,6 +277,10 @@ export function createMonsterGameView({ warView }) {
       container.addChild(label, 20);
     }
     text(widget, "text_endresult", loot.length ? "获得物品" : "未获得物品");
+    if (reward.partial) {
+      text(widget, "text_backtips", `战败 · 已保留 ${reward.defeatedCount} 只怪物收益\n点击返回`);
+      find(widget, "text_backtips")?.setFontSize(24);
+    }
     loot.forEach(({ item, row }, index) => {
       const frame = new ccui.ImageView(`${assets}bg/package_bg.png`);
       frame.setPosition(95 + index % 6 * 90, 410 - Math.floor(index / 6) * 100);
@@ -267,7 +293,7 @@ export function createMonsterGameView({ warView }) {
     scene(widget, true);
     lastRender = () => result(outcome, reward, state, catalog);
     stage("result");
-    statusMessage(`${outcome === 3 ? "胜利" : "战斗结束"} · 金币 +${reward.gold} · 经验 +${reward.experience} · 当前 Lv.${state.player.level}`);
+    statusMessage(`${outcome === 3 ? "胜利" : `战败，已保留 ${reward.defeatedCount} 只怪物收益`} · 金币 +${reward.gold} · 经验 +${reward.experience} · 当前 Lv.${state.player.level}`);
   }
   function details(title, opener) {
     document.getElementById("monsterDetailsTitle").textContent = title;

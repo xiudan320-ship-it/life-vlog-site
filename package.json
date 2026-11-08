@@ -16,14 +16,15 @@
     "test:static": "node tests/static-contracts.mjs && node tests/ui-contracts.mjs && node tests/smoke.mjs && node tests/mood-diary-assets.mjs",
     "test:structure": "node tests/structure-health.mjs && node tests/css-health.mjs",
     "test:monster-browser": "node tests/monster-browser.mjs",
-    "test:browser": "node tests/mobile-cold-start.mjs && node tests/pull-refresh-browser.mjs && node tests/browser-regression.mjs && node tests/secret-upload-browser.mjs && node tests/secret-gallery-browser.mjs && node tests/mood-diary-browser.mjs && node tests/mood-picker-browser.mjs && node tests/settings-reliability-browser.mjs && node tests/c-performance-regression.mjs && node tests/monster-browser.mjs",
+    "test:browser": "node tests/mobile-cold-start.mjs && node tests/pull-refresh-browser.mjs && node tests/browser-regression.mjs && node tests/secret-upload-browser.mjs && node tests/secret-gallery-browser.mjs && node tests/mood-diary-browser.mjs && node tests/mood-picker-browser.mjs && node tests/settings-reliability-browser.mjs && node tests/c-performance-regression.mjs && node tests/monster-browser.mjs && pnpm run test:monster-iphone",
     "test:coverage": "node tests/css-coverage.mjs",
     "test:a11y": "node tests/axe-regression.mjs",
     "test:release": "node tests/release-smoke.mjs",
     "test:release-local": "node scripts/verify-local-release.mjs",
     "test:worker-online": "node tests/worker-cors-online.mjs",
     "test:deployment": "powershell -NoProfile -ExecutionPolicy Bypass -File tests/deployment-flow.ps1",
-    "test": "pnpm run check && pnpm run test:unit && pnpm run test:static && pnpm run test:structure && pnpm run assets:optimize && pnpm run build && pnpm run test:build && pnpm run test:coverage && pnpm run test:browser"
+    "test": "pnpm run check && pnpm run test:unit && pnpm run test:static && pnpm run test:structure && pnpm run assets:optimize && pnpm run build && pnpm run test:build && pnpm run test:coverage && pnpm run test:browser",
+    "test:monster-iphone": "node tests/monster-browser.mjs --webkit --iphone13"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.10.2",
