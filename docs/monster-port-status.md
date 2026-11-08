@@ -45,3 +45,7 @@
 ## 试玩入口
 
 打开 [咻蛋之家](https://life-vlog-site.pages.dev)，先登录，再把首页快捷条滑到末尾，点击「黑暗传说」。也可直接进入 [游戏页](https://life-vlog-site.pages.dev/monster)。各账号会创建独立新角色。
+
+## 当前部署
+
+2026-11-08 已从 `main` 提交 `ebc6a816f3ed5ee5791d1f5b9656deec6c6c41b5` 发布全屏原图试玩、扩展玩法与账号云档。预览和正式统一门禁通过，并以预览 Chromium、正式 WebKit 的隔离 fixture 验证实际线上界面和存档流程。各账号旧设备试玩档不导入；本次 UI 更新保留已经创建的账号云档。部署身份、哈希与完整验收边界见 CHANGELOG 的 2026-11-08 小节。
