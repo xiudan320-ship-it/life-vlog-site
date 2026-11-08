@@ -4,13 +4,6 @@
 
 ## [Unreleased]
 
-### Fixed
-
-- 修复黑暗传说 iPhone 13 主屏幕模式下 HUD 与返回按钮重叠、战斗标题进入刘海区域及结算画面裁切；统一安全区，原生弹窗随键盘可视区调整，并补齐独立 App 状态栏配置。
-
-### Changed
-
-- 黑暗传说战败现在保留已击杀怪物的金币、经验和常规掉落，连续战斗停止但不清空收益；未击杀部分不发奖，也不计通关、章节或深渊里程碑。保存失败可重试且不会重复入账；获胜的原版数值和随机消耗保持不变。
 
 ### Added
 
@@ -66,6 +59,24 @@
 ### Fixed
 
 - 修复显式深链在断网启动时因初始路由状态提前切换而丢失隐藏缓存日记的问题；缓存画廊现在可在非 gallery 深链下先渲染并由路由控制显隐。
+
+## [2026-11-08] — iPhone 13 主屏幕适配与战败收益保留
+
+### Fixed
+
+- 修复黑暗传说 iPhone 13 主屏幕模式下 HUD 与返回按钮重叠、战斗标题进入刘海区域及结算画面裁切；统一安全区，原生弹窗随键盘可视区调整，并补齐独立 App 状态栏配置。
+
+### Changed
+
+- 黑暗传说战败现在保留已击杀怪物的金币、经验和常规掉落，连续战斗停止但不清空收益；未击杀部分不发奖，也不计通关、章节或深渊里程碑。保存失败可重试且不会重复入账；获胜的原版数值和随机消耗保持不变。
+
+### Release
+
+- 已从 main 提交 `1ac185d0709d20947c267f8bbcb239a3bf6497e1` 发布；preview deployment 为 `cece210f-94b4-4f4f-a764-92d49f52ae65`（`https://cece210f.life-vlog-site.pages.dev`），production deployment 为 `7670e0bf-b20a-4132-9677-16fac392b08c`（`https://7670e0bf.life-vlog-site.pages.dev`），Worker 版本为 `cf9615ca-83a7-44cd-866e-95b56367435d`。正式游戏入口仍为 `https://life-vlog-site.pages.dev/monster`。
+- 本次游戏脚本为 `monster-BHXircOb.js`（SHA-256 `bb8aa8acdc4351116c2fe8ae99c564ea87315a581d4d036436f718f69840f858`），游戏样式为 `monster-BboOR145.css`（SHA-256 `3ff85e6b62862c810175eca94c3b72f247462f58ae6ebf80aea83a6dc1047b59`）。首页入口 `index-D9iGdFag.js`（SHA-256 `f8019d744acda81d039305d2c8493b0d3d09d3ae05d7fff3aa16de912cd87a81`）及 `sw.js` SHA-256 `a2d9ff79482e1f7e7d00ea9c3d30ed876e600a28040fb057f088b0bced8115fe` 未变，预缓存仍为 40 条。
+- 冻结依赖、完整 pnpm test（264 项单元测试，含 47 项游戏测试）、220 个 JS 语法、静态/结构/CSS、资源/构建预算、Chromium 游戏回归、新增 iPhone 13 WebKit 回归、本地发布门禁及 preview/production 的 CORS、Axe、release smoke 全部通过。
+- 正式站已另验证当前游戏脚本指纹，并以 `MONSTER_BASE_URL` 运行 WebKit `--iphone13` 全套：390×844、DPR 3、触摸、主屏幕标识、47/34px 安全区和 460px 键盘可见区的确定性模拟均通过；验证顶部 HUD 与返回按钮避让、底部导航、战斗与结算、弹窗、战败收益保留、不计通关、刷新云档及账号隔离。测试使用合成账号、内存 D1 和隔离目录 fixture，不写真实用户存档；不等同于连接真实 iPhone 或运行真实软键盘。
+- 本次不改变云存档格式、接口或数据库结构，已有账号进度保留；战败结算为用户明确指定的新规则，获胜仍按原版数值路径执行。
 
 ## [2026-11-08] — 黑暗传说全屏原图界面与账号云存档
 
