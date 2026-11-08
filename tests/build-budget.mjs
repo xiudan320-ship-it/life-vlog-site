@@ -40,10 +40,13 @@ for (const prefix of nonCoreChunkPrefixes) {
     `non-core chunk ${prefix} was included in the precache manifest`
   );
 }
-const todayMoodChunk = files.find((name) => name.startsWith("today-mood-") && name.endsWith(".js"));
-assert.ok(todayMoodChunk, "home mood chunk is missing");
-assert.ok(indexHtml.includes(`rel="modulepreload" crossorigin href="/assets/${todayMoodChunk}"`), "home mood chunk must preload in parallel with the shell entry");
-assert.ok(precacheUrls.includes(`assets/${todayMoodChunk}`), "home mood chunk missing from precache");
+const coreChunk = files.find((name) => name.startsWith("app-core-") && name.endsWith(".js"));
+assert.ok(coreChunk, "shared startup chunk is missing");
+assert.ok(indexHtml.includes(`rel="modulepreload" crossorigin href="/assets/${coreChunk}"`), "startup chunk must preload in parallel with the shell entry");
+assert.ok(precacheUrls.includes(`assets/${coreChunk}`), "startup chunk missing from precache");
+const gameHtml = await readFile(join(dist, "monster.html"), "utf8");
+assert.ok(gameHtml.includes(`/assets/${coreChunk}`), "game must reuse the shared authentication chunk");
+assert.ok(!gameHtml.includes(`/assets/${js}`), "game must not import the host application entry");
 for (const feature of ["photo-editor-controller", "mobile-diary-controller", "photo-viewer-controller"]) {
   assert.ok(files.some((name) => name.startsWith(`${feature}-`) && name.endsWith(".js")), `dynamic feature chunk ${feature} is missing`);
   assert.ok(!precacheUrls.some((url) => url.includes(`/${feature}-`) && url.endsWith(".js")), `dynamic feature chunk ${feature} was included in the precache manifest`);
@@ -74,4 +77,4 @@ for (const toolIconFile of toolIconFiles) {
 }
 assert.ok((await stat(join(dist, "_headers"))).isFile(), "_headers missing from dist");
 assert.ok(!precacheUrls.some((url) => url.includes("assets-source")), "source asset directory leaked into the precache manifest");
-console.log(JSON.stringify({ htmlBytes, entryJs: js, entryJsGzip: jsGzip, entryCss: css, entryCssBytes: cssBytes, entryCssGzip: cssGzip, precacheEntries: precacheUrls.length, homeMoodChunk: todayMoodChunk, generatedAssets: generated.length, toolIconAssets: toolIconFiles.length }, null, 2));
+console.log(JSON.stringify({ htmlBytes, entryJs: js, entryJsGzip: jsGzip, entryCss: css, entryCssBytes: cssBytes, entryCssGzip: cssGzip, precacheEntries: precacheUrls.length, startupChunk: coreChunk, generatedAssets: generated.length, toolIconAssets: toolIconFiles.length }, null, 2));

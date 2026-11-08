@@ -37,7 +37,9 @@ export default defineConfig({
       input: { index: "index.html", monster: "monster.html" },
       output: {
         manualChunks(id) {
-          if (/[/\\]modules[/\\](?:today-mood-controller|mood-diary-repository|mood-diary-shared)\.js$/u.test(id)) return "today-mood";
+          // Both HTML entries reuse authentication. Keep the shell's initial
+          // dependencies in one preloaded chunk instead of adding a request.
+          if (/[/\\]modules[/\\](?:today-mood-controller|mood-diary-repository|mood-diary-shared|cloudflare-client|app-config)\.js$/u.test(id)) return "app-core";
         },
       },
     },

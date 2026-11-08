@@ -215,7 +215,7 @@ pnpm preview
 
 云端是唯一游戏存档来源，各账号从新档开始；不读取或导入早期设备存档 `monster-save-7.1`。每次结算、穿戴及技能变更后保存，未保存成功阻止下一场并提供重试；409 要求重新载入。请求前后校验捕获的账号和 token，账号切换销毁当前控制器并重新载入，迟到响应不能改动新账号。浏览器和 API 测试使用隔离合成账号及内存 D1，发布验收不写真实用户存档。
 
-今日心情的 controller、repository 与共享域模块固定合并为单个 `today-mood-*.js` 懒加载 chunk，并保留在核心 precache 以保证首页缓存态可直接显示；overlay 仍在首次打开时才加载，桌面日记菜单和设置页管理员 R2 控制器也不进入主入口，分别在画廊/设置路由需要时加载。gallery 冷启动保持最多 28 个请求。`vite.config.js` 通过 `globIgnores` 排除路由和非核心功能 chunk，避免安装包膨胀；这些 chunk 由脚本/样式运行时缓存策略按需缓存。
+今日心情的 controller、repository、共享域模块与两个 HTML 入口共用的认证/配置固定合并为单个 `app-core-*.js` 启动 chunk，和首页入口并行预载并保留在核心 precache；游戏只导入该共享 chunk，不导入首页入口，也不执行宿主 UI 初始化。overlay 仍在首次打开时才加载，桌面日记菜单和设置页管理员 R2 控制器也不进入主入口，分别在画廊/设置路由需要时加载。gallery 冷启动保持最多 28 个请求，登录首页发布验收最多 35 个请求。`vite.config.js` 通过 `globIgnores` 排除路由和非核心功能 chunk，避免安装包膨胀；这些 chunk 由脚本/样式运行时缓存策略按需缓存。
 
 `pnpm-workspace.yaml` 明确允许 `esbuild` 与 `sharp` 的安装构建脚本，使锁定依赖安装后的 Vite 构建使用完整的本地二进制依赖。
 
