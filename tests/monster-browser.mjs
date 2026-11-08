@@ -7,6 +7,8 @@ import { chromium, webkit } from "playwright";
 import AxeBuilder from "@axe-core/playwright";
 import { readWorkboxManifest } from "../scripts/workbox-manifest.mjs";
 import { createCloudflareApiFixture } from "./fixtures/cloudflare-api-fixture.mjs";
+import { createWorkerFixture } from "./fixtures/memory-d1.mjs";
+import worker from "../cloudflare-worker/src/worker.js";
 
 const root = resolve("dist");
 const headers = await readFile(resolve(root, "_headers"), "utf8");
@@ -24,10 +26,13 @@ const server = createServer(async (request, response) => {
   createReadStream(path).pipe(response);
 });
 await new Promise((done) => server.listen(0, "127.0.0.1", done));
-const origin = `http://127.0.0.1:${server.address().port}`;
+const origin = process.env.MONSTER_BASE_URL
+  ? new URL(process.env.MONSTER_BASE_URL).origin
+  : `http://127.0.0.1:${server.address().port}`;
 const browserType = process.argv.includes("--webkit") ? webkit : chromium;
 const browser = await browserType.launch({ headless: true });
-const key = "monster-save-7.1";
+const key = "life-vlog-cloudflare-auth";
+const fixtures = new Map();
 const errors = [];
 const external = [];
 const contexts = [];
@@ -37,40 +42,47 @@ await mkdir(artifacts, { recursive: true });
 async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, colorScheme = "dark", reducedMotion = "no-preference" } = {}) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, colorScheme, reducedMotion });
   contexts.push(context);
-  await context.route("**/*", (route) => {
+  const fixture = createWorkerFixture({ origin });
+  if (corrupt) fixture.DB.database.prepare("insert into monster_saves values (?, ?, ?, ?)").run("owner", "{}", 1, "2030-01-01T00:00:00Z");
+  let page;
+  await context.route("**/*", async (route) => {
+    if (new URL(route.request().url()).pathname === "/api/monster/save") {
+      const request = route.request();
+      if (request.method() === "PUT" && await page.evaluate(() => window.monsterFixtureBlockSave)) return route.fulfill({ status: 503, headers: { "access-control-allow-origin": origin }, contentType: "application/json", body: JSON.stringify({ error: "fixture save failure" }) });
+      const response = await worker.fetch(new Request(request.url(), { method: request.method(), headers: request.headers(), ...(request.postData() ? { body: request.postData() } : {}) }), fixture.env);
+      return route.fulfill({ status: response.status, headers: Object.fromEntries(response.headers), body: await response.text() });
+    }
     if (new URL(route.request().url()).origin !== origin) { external.push(route.request().url()); return route.abort(); }
     return route.continue();
   });
-  await context.addInitScript(({ key, roll, corrupt, blocked }) => {
+  await context.addInitScript(({ key, roll, blocked, token }) => {
     crypto.getRandomValues = (array) => { array.fill(roll); return array; };
-    if (corrupt) localStorage.setItem(key, "{broken fixture");
-    if (blocked) {
-      window.monsterFixtureBlockSave = true;
-      const write = Storage.prototype.setItem;
-      Storage.prototype.setItem = function (name, value) {
-        if (name === key && window.monsterFixtureBlockSave) throw new DOMException("fixture quota", "QuotaExceededError");
-        return write.call(this, name, value);
-      };
-    }
-  }, { key, roll, corrupt, blocked });
-  const page = await context.newPage();
+    if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify({ access_token: token, user: { id: "owner" }, expires_at: "2099-01-01T00:00:00Z" }));
+    window.monsterFixtureBlockSave = blocked;
+  }, { key, roll, blocked, token: fixture.tokens.get("owner") });
+  page = await context.newPage();
+  fixtures.set(page, fixture);
   page.on("pageerror", (error) => errors.push(error.message));
-  page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
-  page.on("response", (response) => { if (response.status() >= 400) errors.push(`${response.status()} ${response.url()}`); });
+  page.on("console", (message) => { if (message.type() === "error" && !message.text().includes("503")) errors.push(message.text()); });
+  page.on("response", (response) => { if (response.status() >= 400 && response.status() !== 503) errors.push(`${response.status()} ${response.url()}`); });
   await page.goto(`${origin}/monster.html`);
   await page.waitForFunction(() => ["menu", "error"].includes(document.body.dataset.monsterStage));
   return page;
 }
 const stage = (page, value) => page.waitForFunction((value) => document.body.dataset.monsterStage === value, value);
-const saved = (page) => page.evaluate((key) => JSON.parse(localStorage.getItem(key))?.state, key);
+const saved = async (page, user = "owner") => {
+  const row = fixtures.get(page).DB.database.prepare("select state_json from monster_saves where user_id = ?").get(user);
+  return row ? JSON.parse(row.state_json) : undefined;
+};
 async function create(page) {
   await page.locator("#monsterEnter").click();
   await page.locator("#monsterName").fill("验证勇者");
   await page.locator('#monsterNewGameForm button[type="submit"]').click();
   await stage(page, "home");
 }
-async function fight(page) {
+async function fight(page, copyId = 1001) {
   await page.locator("#monsterAdventure").click();
+  await page.locator(`[data-copy-id="${copyId}"]`).click();
   await stage(page, "battle");
   assert.equal(await page.locator("#monsterAdventure").isDisabled(), true);
   await stage(page, "result");
@@ -119,6 +131,21 @@ try {
     await noOverflow(page);
   }
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator("#monsterAdventure").click();
+  assert.equal(await page.locator(".monster-copy-row").count(), 6);
+  assert.equal(await page.locator('[data-copy-id="1002"]').isEnabled(), true);
+  assert.equal(await page.locator('[data-copy-id="1003"]').isDisabled(), true);
+  const category = page.getByLabel("冒险类型");
+  await category.selectOption("2"); assert.equal(await page.locator(".monster-copy-row").count(), 32);
+  await category.selectOption("5"); assert.equal(await page.locator(".monster-copy-row").count(), 114);
+  assert.equal(await page.locator('[data-copy-id="5001"]').textContent(), "需要等级 30");
+  await category.selectOption("6"); assert.equal(await page.locator(".monster-copy-row").count(), 1);
+  await category.selectOption("3"); assert.equal(await page.locator(".monster-copy-row").count(), 24);
+  await category.selectOption("1");
+  assert.equal(await page.getByLabel("章节", { exact: true }).locator("option").count(), 21);
+  await accessible(page);
+  await page.screenshot({ path: resolve(artifacts, "copy-selection.png") });
+  await page.locator("#monsterDetailsClose").click();
   await page.locator("#monsterRole").click();
   assert.equal(await page.locator(".monster-item img").count(), 9);
   await page.locator(".monster-item img").evaluateAll((images) => Promise.all(images.map((img) => img.decode())));
@@ -148,18 +175,35 @@ try {
   assert.equal(await quota.locator("#monsterSaveRetry").isVisible(), true);
   await quota.evaluate(() => { window.monsterFixtureBlockSave = false; });
   await quota.locator("#monsterSaveRetry").click();
+  await quota.locator("#monsterSaveRetry").waitFor({ state: "hidden" });
   assert.equal((await saved(quota)).gold, 1000);
   assert.equal(await quota.locator("#monsterSaveRetry").isVisible(), false);
 
   const corrupt = await pageFor({ corrupt: true });
   assert.match(await corrupt.locator("#monsterStatus").textContent(), /存档读取失败/);
   assert.equal(await corrupt.locator("#monsterEnter").isDisabled(), true);
-  assert.equal(await corrupt.evaluate((key) => localStorage.getItem(key), key), "{broken fixture");
+  assert.deepEqual(await saved(corrupt), {});
   const rare = await pageFor({ roll: 0 }); await create(rare);
-  await rare.locator("#monsterAdventure").click();
-  assert.match(await rare.locator("#monsterStatus").textContent(), /特殊遭遇/);
-  assert.equal((await saved(rare)).gold, 1000);
-  assert.equal(await rare.locator("body").getAttribute("data-monster-stage"), "home");
+  await fight(rare);
+  assert.equal(await rare.locator("body").getAttribute("data-monster-stage"), "result");
+  const auto = await pageFor(); await create(auto);
+  await auto.locator("#monsterAdventure").click();
+  await auto.getByLabel("连续自动战斗").check();
+  await auto.locator('[data-copy-id="1001"]').click();
+  await stage(auto, "result");
+  await stage(auto, "battle");
+  await auto.locator("#monsterStop").click();
+  await stage(auto, "result");
+  assert.equal((await saved(auto)).progress.copies.find((row) => row.id === 1001).value, 2);
+  const other = await auto.context().newPage();
+  await other.goto(`${origin}/monster.html`); await stage(other, "menu");
+  await other.evaluate(({ key, token }) => localStorage.setItem(key, JSON.stringify({ access_token: token, user: { id: "member" }, expires_at: "2099-01-01T00:00:00Z" })), { key, token: fixtures.get(auto).tokens.get("member") });
+  await stage(auto, "menu");
+  assert.equal(await auto.locator("#monsterEnter").textContent(), "开始游戏");
+  assert.equal(await saved(auto, "member"), undefined);
+  await create(auto);
+  assert.equal((await saved(auto, "member")).gold, 1000);
+  assert.equal((await saved(auto)).progress.copies.find((row) => row.id === 1001).value, 2);
   const host = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
   contexts.push(host);
   await host.route("**/*", (route) => new URL(route.request().url()).origin === origin ? route.continue() : route.abort());
@@ -181,13 +225,19 @@ try {
   assert.deepEqual(shortcut, { visible: "true", reachable: true });
   await home.screenshot({ path: resolve(artifacts, "home-shortcut.png") });
   await home.locator('[data-tool-id="monster"]').click();
-  await stage(home, "menu");
-  assert.equal(new URL(home.url()).pathname, "/monster.html");
+  await stage(home, "error");
+  assert.match(await home.locator("#monsterStatus").textContent(), /登录/);
+  assert.ok(["/monster", "/monster.html"].includes(new URL(home.url()).pathname));
   assert.deepEqual(external, []);
   assert.deepEqual(errors, []);
-  console.log(`Monster ${browserType.name()} passed: native first win, reload, level-up, drops, dialogs, 6 widths, light/dark, reduced motion, quota retry, corrupt save, rare-encounter boundary, CSP and resource isolation.`);
+  console.log(`Monster ${browserType.name()} passed: cloud save, native win, reload, level-up, selection, drops, dialogs, 6 widths, save retry, corrupt save, CSP and resource isolation.`);
+} catch (error) {
+  for (const page of fixtures.keys()) console.error(await page.locator("#monsterStatus").textContent());
+  console.error(errors);
+  throw error;
 } finally {
   await Promise.all(contexts.map((context) => context.close()));
+  for (const fixture of fixtures.values()) fixture.close();
   await browser.close();
   await new Promise((done) => server.close(done));
 }

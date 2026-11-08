@@ -9,9 +9,7 @@ export function getBattleQualityRewardRate(qualities) {
   return Math.trunc(total / qualities.length);
 }
 
-export function calculateRegularCopyRewards({
-  copy, player, hard, globalRate, enemyCount, rareRoll, paragonOffset = null,
-}) {
+function calculateCopyRates({ copy, player, globalRate, rareRoll }) {
   if (!Number.isInteger(rareRoll) || rareRoll < 0 || rareRoll > 0x7fffffff) {
     throw new RangeError("Regular-copy rewards require an original 31-bit random draw.");
   }
@@ -23,6 +21,13 @@ export function calculateRegularCopyRewards({
   const rewardRate = float(float(rate) * levelFactor);
   const bonusDrop = copy.clearCount === 0 || float(float(rareRoll) / float(0x80000000)) < float(0.001);
   if (bonusDrop) dropRate = float(dropRate + float(50));
+  return { dropRate, rewardRate, levelFactor, bonusDrop };
+}
+
+export function calculateRegularCopyRewards({
+  copy, player, hard, globalRate, enemyCount, rareRoll, paragonOffset = null,
+}) {
+  let { dropRate, rewardRate, levelFactor, bonusDrop } = calculateCopyRates({ copy, player, globalRate, rareRoll });
   let difficultyFactor = float([1, 0.65, 0.9, 1.1, 1.2, 1.3, 1.4][hard] ?? 1);
   if (player.paragon > 100 && hard <= 2) difficultyFactor = float(difficultyFactor * float(0.9));
   if (player.paragon > 300 && hard <= 3) difficultyFactor = float(difficultyFactor * float(0.8));
@@ -44,4 +49,32 @@ export function calculateRegularCopyRewards({
     experience = Math.trunc(float(float(experience) * float(paragonOffset)));
   }
   return { gold, experience, honor, dropRate, levelFactor, difficultyFactor, bonusDrop };
+}
+
+/** Instance / abyss numeric branches, without the regular-map difficulty factor. */
+export function calculateInstanceRewards(input) {
+  const rates = calculateCopyRates(input);
+  let gold = float(float(float(input.copy.gold) * rates.rewardRate) / float(100));
+  const goldNumerator = float(gold * float(input.player.goldRate));
+  gold = Math.trunc(float(goldNumerator / float(100)));
+  let experience = float(float(float(input.copy.exp) * rates.rewardRate) / float(100));
+  const experienceValue = float(experience * float(float(input.player.experienceRate) / float(100)));
+  experience = Math.trunc(experienceValue);
+  let honor = Math.trunc(float(float(float(input.copy.honor) * rates.dropRate) / float(100)));
+  if (input.paragonOffset !== null && input.paragonOffset !== undefined && input.copy.type === 2) {
+    gold = Math.trunc(float(float(gold) * float(input.paragonOffset)));
+    experience = Math.trunc(float(float(experience) * float(input.paragonOffset)));
+  }
+  if (input.copy.type === 3 && input.paragonOffset !== null) {
+    const levelScale = input.player.level > input.copy.level ? float(float(float(input.player.level - input.copy.level) / float(input.copy.level)) + float(1)) : float(1);
+    const adjusted = (value) => Math.trunc(float(float(float(Math.imul(input.player.level, value)) * float(input.paragonOffset)) * levelScale));
+    gold = adjusted(gold); experience = adjusted(experience);
+  }
+  if (input.copy.type === 6) {
+    const factor = float(float(float(float(input.trialLevel || 1) * float(0.05)) + float(1)) + float(float(input.trialHard || 1) * float(0.2)));
+    experience = Math.trunc(float(experienceValue * factor));
+    gold = Math.trunc(goldNumerator / 100 * factor);
+    honor = 0;
+  }
+  return { gold, experience, honor, ...rates };
 }

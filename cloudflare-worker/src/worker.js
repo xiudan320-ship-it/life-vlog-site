@@ -10,6 +10,7 @@ import {
 } from "./table-query.js";
 import { createTableApi } from "./table-api.js";
 import { TABLE_CONFIG } from "./table-config.js";
+import { handleMonsterSave } from "./monster-save-api.js";
 
 const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
 const SESSION_DAYS = 3650;
@@ -2203,6 +2204,10 @@ export default {
       user = await requireUser(request, env);
       if (!user?.id) {
         return jsonResponse(request, env, { error: "Unauthorized." }, 401);
+      }
+
+      if (url.pathname === "/api/monster/save") {
+        return await handleMonsterSave(request, env, user, (body, status = 200) => jsonResponse(request, env, body, status));
       }
 
       if (url.pathname === "/api/admin/signup-invite" && request.method === "GET") {

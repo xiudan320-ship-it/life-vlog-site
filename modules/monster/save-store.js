@@ -1,32 +1,50 @@
-// Local port save format. This does not import or emulate the Android encrypted save.
-const key = "monster-save-7.1";
+import { validateMonsterSave } from "./save-state.js";
 
-function validateState(state) {
-  if (!state || !state.player || !Array.isArray(state.player.equipmentSets)
-    || !Array.isArray(state.player.skills) || !state.inventory || !state.progress
-    || !Number.isInteger(state.gold) || !Number.isInteger(state.player.level)
-    || !Number.isInteger(state.player.experience)) {
-    throw new TypeError("Invalid Monster game state.");
-  }
+function accountChanged() {
+  return Object.assign(new Error("登录账号已变更，请重新进入游戏。"), { code: "ACCOUNT_CHANGED", status: 401 });
 }
 
-export function createMonsterSaveStore({ storage }) {
+// Cloud is authoritative. No device-global save or offline write fallback.
+export function createMonsterSaveStore({ request, getSession }) {
+  let session;
+  let revision = null;
+  let writing = false;
+  function assertAccount() {
+    const current = getSession();
+    if (!session?.access_token || current?.user?.id !== session.user.id || current.access_token !== session.access_token) throw accountChanged();
+  }
+  async function send(options) {
+    assertAccount();
+    const result = await request("/api/monster/save", options, { sessionOverride: session, refreshSession: false });
+    assertAccount();
+    if (result.userId !== session.user.id) throw accountChanged();
+    return result;
+  }
   return {
-    load() {
-      const text = storage.getItem(key);
-      if (text === null) return null;
-      const saved = JSON.parse(text);
-      if (saved.game !== "com.zn.monster" || saved.version !== "7.1") {
-        throw new TypeError("Unsupported Monster save format.");
-      }
-      validateState(saved.state);
-      return saved.state;
+    async load() {
+      const current = getSession();
+      if (!current?.user?.id || !current.access_token) throw Object.assign(new Error("请先返回咻蛋之家登录，再进入游戏。"), { status: 401 });
+      session = structuredClone(current);
+      revision = null;
+      const result = await send({});
+      if (!Number.isSafeInteger(result.revision) || result.revision < 0) throw new Error("云存档版本无效，请重试。");
+      if (result.state !== null) validateMonsterSave(result.state);
+      revision = result.revision;
+      return result.state;
     },
-    save(state) {
-      validateState(state);
-      // Serialize fully before changing the stored value. Quota/write errors
-      // propagate so the controller can show failure and keep its in-memory state.
-      storage.setItem(key, JSON.stringify({ game: "com.zn.monster", version: "7.1", state }));
+    async save(state) {
+      assertAccount();
+      if (revision === null) throw new Error("请先载入云存档。");
+      if (writing) throw new Error("云存档正在保存，请稍候。");
+      validateMonsterSave(state);
+      const body = JSON.stringify({ expectedRevision: revision, state });
+      writing = true;
+      try {
+        const result = await send({ method: "PUT", body });
+        if (result.revision !== revision + 1) throw new Error("云存档版本不匹配，请重新载入。");
+        revision = result.revision;
+        return result;
+      } finally { writing = false; }
     },
   };
 }

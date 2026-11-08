@@ -69,6 +69,13 @@ CREATE TABLE IF NOT EXISTS user_profiles (
   updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
 
+CREATE TABLE IF NOT EXISTS monster_saves (
+  user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  state_json TEXT NOT NULL CHECK (json_valid(state_json)),
+  revision INTEGER NOT NULL CHECK (revision >= 1),
+  updated_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS families (
   id TEXT PRIMARY KEY,
   tagline TEXT NOT NULL DEFAULT '收藏生活里值得回看的照片、味道和还没完成的小愿望。',

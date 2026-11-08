@@ -1,4 +1,5 @@
 import { getPlayerExperienceRequired } from "./progression-domain.js";
+import { renderCopySelection } from "./copy-selection-view.js";
 
 const assets = "/monster/assets/";
 
@@ -13,6 +14,8 @@ export function createMonsterGameView({ warView }) {
   let actions;
   let hasSave = false;
   let phase = "loading";
+  let repeating = false;
+  let saveErrorStatus = null;
   let serial = 0;
   let nodes = new Map();
   let lastRender;
@@ -21,9 +24,9 @@ export function createMonsterGameView({ warView }) {
   function stage(value) {
     phase = value;
     document.body.dataset.monsterStage = value;
-    controls.Enter.disabled = value === "battle" || value === "loading" || value === "error";
+    controls.Enter.disabled = repeating || value === "battle" || value === "loading" || value === "error";
     controls.Enter.textContent = value === "menu" ? hasSave ? "继续游戏" : "开始游戏" : "返回主页";
-    for (const key of ["Adventure", "Role", "Bag"]) controls[key].disabled = value !== "home" && value !== "result";
+    for (const key of ["Adventure", "Role", "Bag"]) controls[key].disabled = repeating || value !== "home" && value !== "result";
   }
   function resize() {
     const width = frame.clientWidth;
@@ -89,7 +92,7 @@ export function createMonsterGameView({ warView }) {
     current.addChild(logo, 10);
     lastRender = () => menu(saved);
     stage("menu");
-    notice("首关迁移测试：可战斗、升级、查看初始装备和材料，自动保存在本机。");
+    notice("游戏进度随登录账号保存在云端，每场结算后自动保存。");
   }
   async function home(state, catalog) {
     const request = ++serial;
@@ -98,7 +101,7 @@ export function createMonsterGameView({ warView }) {
     walk(content, (node) => {
       if (node instanceof ccui.Button && node.getName() !== "btn_map") node.setVisible(false);
     });
-    click(find(content, "btn_map"), () => actions.startFirstCopy());
+    click(find(content, "btn_map"), () => actions.selectCopy());
     text(header, "label_name", state.player.name);
     text(header, "text_level", `等级${state.player.level}`);
     find(header, "label_level")?.setVisible(false);
@@ -125,7 +128,7 @@ export function createMonsterGameView({ warView }) {
   }
   async function battle(initial, state, catalog) {
     const request = ++serial;
-    const files = warView.layouts[0].nodes.filter((node) => node.asset).map((node) => assets + node.asset);
+    const files = [...new Set([...warView.layouts[0].nodes.filter((node) => node.asset).map((node) => assets + node.asset), ...initial.enemies.map((enemy) => `${assets}enemy/${catalog.enemies.find((row) => row.id === enemy.id).img}`)])];
     await new Promise((resolve, reject) => cc.loader.load(files, (error) => error ? reject(new Error(String(error))) : resolve()));
     if (request !== serial) return;
     const low = warView.layouts[0];
@@ -168,6 +171,7 @@ export function createMonsterGameView({ warView }) {
     const enemy = value.enemies[value.currentEnemyIndex];
     const player = value.allies[0];
     const row = catalog.enemies.find((entry) => entry.id === enemy.id);
+    bound("enemy").getChildren()[0].setTexture(`${assets}enemy/${row.img}`);
     bound("wave").setString(`${value.wave}/${value.enemies.length}`);
     bound("enemyName").setString(`Lv.${enemy.level} ${row.name}${["", "", "[精英]", "[变异]"][enemy.quality] || ""}`);
     bound("enemyName").setColor(enemy.quality === 2 ? cc.color(255, 127, 0) : enemy.quality === 3 ? cc.color(214, 14, 154) : cc.color.WHITE);
@@ -214,7 +218,7 @@ export function createMonsterGameView({ warView }) {
       label.setPosition(container.width / 2, container.height / 2);
       container.addChild(label, 20);
     }
-    text(widget, "text_endresult", reward.items.length ? reward.items.map((item) => `${catalog.items.find((row) => row.id === item.id).name} ×${item.quantity}`).join("  ") : "未获得物品");
+    text(widget, "text_endresult", reward.items.length ? reward.items.map((item) => `${catalog.items.find((row) => row.id === item.id).name} ×${item.quantity ?? 1}`).join("  ") : "未获得物品");
     click(widget, () => actions.continue());
     scene(widget);
     lastRender = () => result(outcome, reward, state, catalog);
@@ -226,8 +230,10 @@ export function createMonsterGameView({ warView }) {
     const content = document.getElementById("monsterDetailsContent");
     content.replaceChildren();
     const dialog = document.getElementById("monsterDetails");
-    dialog.addEventListener("close", () => opener.focus(), { once: true });
-    dialog.showModal();
+    if (!dialog.open) {
+      dialog.addEventListener("close", () => opener.focus(), { once: true });
+      dialog.showModal();
+    }
     return content;
   }
   function items(content, entries, catalog, quantities) {
@@ -249,26 +255,65 @@ export function createMonsterGameView({ warView }) {
     }
     content.append(stats);
     items(content, [...state.player.equipmentSets[state.player.equipmentSetIndex], ...state.inventory.wings], catalog, false);
+    const heading = document.createElement("h3"); heading.textContent = "装备技能（最多 3 个）"; content.append(heading);
+    const skills = document.createElement("div"); skills.className = "monster-skill-list";
+    for (const skill of catalog.skills.filter((row) => row.id >= 2 && row.id <= 17)) {
+      const label = document.createElement("label"); const input = document.createElement("input"); input.type = "checkbox";
+      input.checked = state.player.equippedSkillIds.includes(skill.id); input.disabled = state.player.level < skill.learnlevel;
+      const text = document.createElement("span"); text.textContent = `${skill.name} · Lv.${skill.learnlevel} · ${skill.describe}`;
+      input.onchange = async () => { const selected = input.checked; input.disabled = true; const success = await actions.toggleSkill(skill.id); input.checked = success ? selected : !selected; input.disabled = false; };
+      label.append(input, text); skills.append(label);
+    }
+    content.append(skills);
   }
   function bag(state, catalog) {
-    const content = details("背包材料", controls.Bag);
+    const content = details("背包", controls.Bag);
     if (!state.inventory.goods.length) content.textContent = "暂时没有材料，冒险中获得的材料会保存在这里。";
     else items(content, state.inventory.goods, catalog, true);
+    if (state.inventory.equipment.length) {
+      const heading = document.createElement("h3"); heading.textContent = "获得的装备"; content.append(heading);
+      for (const [index, item] of state.inventory.equipment.entries()) {
+        const row = catalog.items.find((row) => row.id === item.id);
+        const line = document.createElement("div"); line.className = "monster-copy-row";
+        const text = document.createElement("span"); text.textContent = `${row.name} · Lv.${item.level} · 评分 ${item.scoreTier}/${item.scoreValue}${item.godLevel ? ` · ${item.godLevel} 星` : ""}`;
+        line.append(text);
+        if (item.subtype <= 9) {
+          const button = document.createElement("button"); button.type = "button"; button.textContent = "穿戴";
+          button.onclick = () => actions.equip(index); line.append(button);
+        }
+        content.append(line);
+      }
+    }
+  }
+  function selectCopy(state, catalog, settings) {
+    const content = details("选择关卡", controls.Adventure);
+    renderCopySelection({ content, state, catalog, settings, onStart(copyId, selected) {
+      document.getElementById("monsterDetails").close();
+      actions.startCopy(copyId, selected);
+    } });
   }
   return {
-    menu, home, battle, battleUpdate, result, role, bag, notice,
+    menu, home, battle, battleUpdate, result, role, bag, selectCopy, notice,
+    repeatStatus(enabled) { repeating = enabled; document.getElementById("monsterStop").hidden = !enabled; stage(phase); },
     loadError(message) { stage("error"); notice(message); },
-    saveStatus(message, error = false) {
+    saveStatus(message, error = false, status = null) {
+      saveErrorStatus = status;
       document.getElementById("monsterSaveStatus").textContent = message;
       document.querySelector(".monster-save-line").dataset.error = String(error);
       document.getElementById("monsterSaveRetry").hidden = !error;
+      document.getElementById("monsterSaveRetry").textContent = status === 409 ? "重载云存档" : status === 401 ? "返回登录" : "重试保存";
     },
     bind(controller) {
       actions = controller;
       controls.Enter.onclick = enter;
-      controls.Adventure.onclick = () => actions.startFirstCopy();
+      controls.Adventure.onclick = () => actions.selectCopy();
+      document.getElementById("monsterStop").onclick = () => actions.stopRepeat();
       controls.Role.onclick = () => actions.role(); controls.Bag.onclick = () => actions.bag();
-      document.getElementById("monsterSaveRetry").onclick = () => actions.save();
+      document.getElementById("monsterSaveRetry").onclick = () => {
+        if (saveErrorStatus === 409) location.reload();
+        else if (saveErrorStatus === 401) location.href = "/";
+        else actions.save();
+      };
       document.getElementById("monsterNewCancel").onclick = () => document.getElementById("monsterNewGame").close();
       document.getElementById("monsterNewGame").addEventListener("close", () => controls.Enter.focus());
       document.getElementById("monsterNewGameForm").onsubmit = (event) => { event.preventDefault(); const name = document.getElementById("monsterName").value.trim(); if (!name) return; hasSave = true; document.getElementById("monsterNewGame").close(); actions.create(name); };

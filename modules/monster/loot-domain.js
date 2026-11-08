@@ -26,7 +26,7 @@ function readIds(raw) {
 /** Prepare the original six drop groups, including generated material entries. */
 export function prepareCopyDropGroups({ copy, roll }) {
   const groups = Object.fromEntries([...ordinaryGroups.map(([key]) => key), "paragondrop10"]
-    .map((key) => [key, readIds(copy[key])]));
+    .map((key) => [key, readIds(copy.dropGroups ? copy.dropGroups[key] : copy[key])]));
   let count = 0;
   if (copy.type === 1) count = Math.trunc(copy.level / 10) + 3 + requireRoll(roll) % 3;
   if (copy.type === 2) count = Math.trunc(copy.level / 5) + 5 + requireRoll(roll) % 4;
@@ -73,5 +73,14 @@ export function createMaterialDrops({ itemIds, items }) {
     if (existing) existing.quantity = (existing.quantity + 1) | 0;
     else drops.push({ id, type: 1, quantity: 1 });
   }
+  return drops;
+}
+
+/** Copy::getDropSpecial: every third abyss floor adds floor-count abyss marks. */
+export function createAbyssMilestoneDrops({ copy, items }) {
+  if (copy.type !== 5) return [];
+  const drops = createMaterialDrops({ itemIds: readIds(copy.specialdrop), items });
+  const floor = copy.id - 5000;
+  if (floor > 0 && floor % 3 === 0) drops.unshift({ id: 5086, type: 1, quantity: floor });
   return drops;
 }

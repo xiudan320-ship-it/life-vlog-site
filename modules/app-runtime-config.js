@@ -95,7 +95,7 @@ export const APP_RUNTIME_CONFIG = Object.freeze({
   PHOTO_CATEGORIES: ["日常", "旅行", "食物", "宠物", "卢浮宫", "城市"],
   BUCKET: "life-photos",
   PRODUCTION_URL: "https://life-vlog-site.pages.dev/",
-  R2_UPLOAD_ENDPOINT: "https://life-vlog-r2-upload.xiudan320-life.workers.dev",
+  R2_UPLOAD_ENDPOINT: APP_CONFIG.apiEndpoint,
   R2_PUBLIC_URL: "https://pub-47959f26cde042c3b37bc0f8f3f441ce.r2.dev",
   PAGE_SIZE: 6,
   VIP_USERS: new Set(["xiao980320", "xiudan320"]),

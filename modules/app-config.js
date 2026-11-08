@@ -1,4 +1,5 @@
 export const APP_CONFIG = Object.freeze({
+  apiEndpoint: "https://life-vlog-r2-upload.xiudan320-life.workers.dev",
   authKey: "life-vlog-cloudflare-auth",
   authBackupDb: "life-vlog-auth-backup",
   authBackupStore: "session",

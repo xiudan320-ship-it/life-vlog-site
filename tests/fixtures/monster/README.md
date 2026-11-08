@@ -44,7 +44,7 @@ SHA-256：`9767B9C3945D38985C07DB73D56DEC83E162B37C69A9686686BC9BDE67E35079`。
 
 原生奖励片段在复用已翻译代码块时，用指令 hook 明确停止在片段边界，并核验最终 PC，避免片段外代码混入结果。全局奖励倍率实际对应 `WarLayer::dropQuality`，首战样本为 120；不能把原表金币 150 或该次所得 117 当作全局固定奖励。
 
-本地保存单元测试使用确定性内存 storage fixture，重建存储实例再读取，另验证损坏 JSON、格式不符和写入失败时原值保留。浏览器测试另在隔离的 Chromium/WebKit context 中，用合成角色验证真实 localStorage 续玩、材料重载和失败重试，未做真实 iPhone 验收。早期组合测试使用原生 trace 作为行动输入；现已替换为由生产领域代码自行调度的组合测试。
+云存档测试使用确定性内存 D1 与合成认证会话，覆盖账号隔离、原子版本冲突、切换账号、损坏格式与请求失败。浏览器测试在隔离的 Chromium/WebKit context 中调用真实 Worker 代码和内存 D1，验证云端续玩、材料重载和失败重试，不使用真实业务数据，未做真实 iPhone 验收。早期组合测试使用原生 trace 作为行动输入；现已替换为由生产领域代码自行调度的组合测试。
 
 ## 自动调度、目录生成与进度
 
@@ -58,6 +58,27 @@ SHA-256：`9767B9C3945D38985C07DB73D56DEC83E162B37C69A9686686BC9BDE67E35079`。
 | `native-equipped-core-fixtures.json` | 36 | 原 `refreshPlayerAttribute` 收集真实初始装备和翅膀，覆盖等级、巅峰及部分/零 HP；不是聚合标签注入。证实重算保持当前 HP |
 | `native-battle-reward-rate-fixtures.json` | 87 | 原 `initWarData` 尾部按品质 100/120/150/200 求整数平均，比较不同混合队列及原默认分支 |
 
-当前总量：6039 个规则/数值/物品/进度样本、15 次完整普通战斗、两组基础状态（合计 6056 组）。复现脚本分别为 `recover-enemy-factory.py`、`recover-turn-selection.py`、`recover-battle-random-choices.py`、`recover-solo-normal-battles.py`、`recover-copy-progress.py`、`recover-equipped-core.py` 和 `recover-battle-reward-rate.py`。
+首关阶段总量为 6039 个规则/数值/物品/进度样本、15 次完整普通战斗、两组基础状态（合计 6056 组）。复现脚本分别为 `recover-enemy-factory.py`、`recover-turn-selection.py`、`recover-battle-random-choices.py`、`recover-solo-normal-battles.py`、`recover-copy-progress.py`、`recover-equipped-core.py` 和 `recover-battle-reward-rate.py`。
 
-`solo-battle-domain.js` 当前明确拒绝宠物、技能、Buff、回血和复活，避免把普通攻击路径冒充完整战斗。组合测试已自行生成首关敌人、调度至胜利、从实际品质计算奖励、决定材料、入账、推进关卡、重算装备核心属性再保存重读；原生 trace 仅作期望值。独立首关页面现已接通；完整准备阶段、其他玩法与 iPhone 真机尚未验收。
+旧 `solo-battle-domain.js` 已由 `battle-domain.js` 与 `skill-domain.js` 替换，支持单角色技能、Buff、回血和吸血；宠物与复活仍未接通。原生 trace 仅作期望值，不作为调度输入。
+
+## 选关、技能与随机物品扩展
+
+下列 fixture 同样来自原始 ARM 指令与确定性合成输入；恢复脚本在解析目录。数量是样本组数，不代表完整 APK 已运行。
+
+| fixture | 数量 | 来源 / 边界 |
+| --- | --- | --- |
+| `native-skill-effect-fixtures.json` | 256 | `recover-skill-effects.py`；技能伤害、治疗、Buff 及随机消耗 |
+| `native-skill-battle-fixtures.json` | 64 次战斗 | `recover-skill-battles.py`；2329 次命中，技能/Buff 生命周期、胜负、状态和核心随机；不含宠物/复活/动画时序 |
+| `native-copy-preparation-fixtures.json` | 576 | `recover-copy-preparation.py`；地图与普通副本准备、品质、难度和巅峰调整 |
+| `native-special-copy-preparation-fixtures.json` | 139 | `recover-special-copy-preparation.py`；深渊、特殊首领、随机多波副本和试炼初始敌人；不含试炼积分推进 |
+| `native-rare-preparation-fixtures.json` | 30 | `recover-rare-preparation.py`；随机遭遇类型、宝箱怪/海盗船长等实际构造 |
+| `native-item-construction-fixtures.json` | 3195 | `recover-item-construction.py`；原物品工厂、普通装备评分与构造 |
+| `native-dropped-equipment-collection.json` | 608 | `recover-dropped-equipment-collection.py`；实际掉落装备的属性收集，区分普通/神器/巅峰来源 |
+| `native-god-equipment-fixtures.json` | 224 | `recover-god-equipment.py`；神器星级、偏移及唯一标签 |
+| `native-gem-equipment-fixtures.json` | 256 | `recover-gem-equipment.py`；宝石等级/巅峰成长、品质、词条及随机消耗 |
+| `native-paragon-equipment-fixtures.json` | 384 | `recover-paragon-equipment.py`；五个不同属性及固定模板词条、主属性成长 |
+| `native-instance-reward-fixtures.json` | 96 | `recover-instance-rewards.py`；副本/特殊首领/深渊/试炼数字奖励，不代表试炼最终积分领奖已接通 |
+| `native-abyss-milestone-fixtures.json` | 114 | `recover-abyss-milestones.py`；全深渊层数的固定里程碑材料，不含每日重置/扫荡 |
+
+`public/monster/data/drop-groups.json` 由 `recover-catalog-drop-groups.py` 使用原生宽松 CSJson 解析全 331 条关卡，保留原目录中严格 JSON 无法解析的掉落字段；`equipment-templates.json` 保留原工厂固定属性。界面仅开放已装配路径，尚未恢复的任务、宠物等效果不因数据表存在而视为完成。

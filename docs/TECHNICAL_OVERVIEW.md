@@ -209,7 +209,11 @@ pnpm preview
 - 生成 PWA manifest；
 - 通过 Workbox `injectManifest` 生成 `dist/sw.js`。
 
-`monster.html` 是独立的第二页面入口，由首页工具区进入，仅该页加载 `modules/monster/entry.js`、独立游戏样式、固定版 Cocos2d HTML5 引擎和 APK 原资源。构建保留原生 modulepreload 链接，关闭其额外 polyfill，避免多页面构建让首页新增一条共享兼容脚本请求。`public/monster/` 直接复制到构建产物，不导入首页模块图；`monster.html`、游戏 JS/CSS 和原资源全部排除出首页预缓存，工具入口图标仍按普通 UI 资源缓存。当前仅接通默认单角色首关，状态存于 `monster-save-7.1`，不依赖登录、不调用业务 API；尚未提供游戏完整离线缓存或 iOS 原生安装包。各迁移边界与验收见 `monster-port-status.md`。
+`monster.html` 是独立的第二页面入口，由首页工具区进入，仅该页加载 `modules/monster/entry.js`、独立游戏样式、固定版 Cocos2d HTML5 引擎和 APK 原资源。构建保留原生 modulepreload 链接，关闭其额外 polyfill，避免多页面构建让首页新增一条共享兼容脚本请求。`public/monster/` 直接复制到构建产物，不导入首页模块图；`monster.html`、游戏 JS/CSS 和原资源全部排除出首页预缓存，工具入口图标仍按普通 UI 资源缓存。登录后开放全目录选关、单角色技能战斗、掉落及前台连续战斗；试炼暂仅首层。尚未提供游戏完整离线缓存或 iOS 原生安装包，各迁移边界与验收见 `monster-port-status.md`。
+
+游戏入口复用宿主认证键与会话备份，API 地址统一取 `APP_CONFIG.apiEndpoint`。`GET /api/monster/save` 返回当前用户的 `{userId, revision, updatedAt, state}`，无档时为 revision 0、state null；`PUT` 提交 `{expectedRevision, state}`，响应递增后的版本。Worker 在认证后以服务器 user.id 读写 D1 `monster_saves(user_id PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, state_json CHECK(json_valid), revision CHECK(revision >= 1), updated_at)`，不接受客户端指定归属，也不授予同家庭成员访问。写入上限 1 MiB；首次 INSERT 和后续 UPDATE 使用原子 revision 条件，冲突为 409。
+
+云端是唯一游戏存档来源，各账号从新档开始；不读取或导入早期设备存档 `monster-save-7.1`。每次结算、穿戴及技能变更后保存，未保存成功阻止下一场并提供重试；409 要求重新载入。请求前后校验捕获的账号和 token，账号切换销毁当前控制器并重新载入，迟到响应不能改动新账号。浏览器和 API 测试使用隔离合成账号及内存 D1，发布验收不写真实用户存档。
 
 今日心情的 controller、repository 与共享域模块固定合并为单个 `today-mood-*.js` 懒加载 chunk，并保留在核心 precache 以保证首页缓存态可直接显示；overlay 仍在首次打开时才加载，桌面日记菜单和设置页管理员 R2 控制器也不进入主入口，分别在画廊/设置路由需要时加载。gallery 冷启动保持最多 28 个请求。`vite.config.js` 通过 `globIgnores` 排除路由和非核心功能 chunk，避免安装包膨胀；这些 chunk 由脚本/样式运行时缓存策略按需缓存。
 

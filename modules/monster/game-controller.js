@@ -1,109 +1,131 @@
 import { createNewGame } from "./new-game-domain.js";
-import { applyEnemyDifficulty, applyEnemyQuality, createEnemyFromCatalog, selectRegularEnemyQuality } from "./enemy-domain.js";
-import { advanceSoloNormalBattle } from "./solo-battle-domain.js";
-import { calculateRegularCopyRewards, getBattleQualityRewardRate } from "./reward-domain.js";
-import { createMaterialDrops, prepareCopyDropGroups, selectCopyDropIds } from "./loot-domain.js";
-import { creditBattleLoot } from "./settlement-domain.js";
-import { recordRegularCopyVictory } from "./copy-progress-domain.js";
-import { recalculatePlayerFromEquipment } from "./attribute-domain.js";
+import { advanceSoloBattle } from "./battle-domain.js";
+import { calculatePlayerEffects, collectEquipmentAttributes, recalculatePlayerFromEquipment } from "./attribute-domain.js";
+import { getCopyAccess, maximumCopyDifficulty, prepareCopyBattle } from "./copy-domain.js";
+import { payCopyEntry, settleCopyVictory } from "./adventure-domain.js";
+import { equipBagItem, toggleEquippedSkill } from "./loadout-domain.js";
 
-// First regular-copy preview controller. Unsupported paths stop explicitly;
-// the original rare encounter is never silently replaced with a normal wolf.
 export function createMonsterGameController({ catalog, store, view, random, wait }) {
   let state = null;
   let active = false;
   let revision = 0;
-  function save() {
-    try { store.save(state); view.saveStatus("已保存到本机"); return true; }
-    catch { view.saveStatus("保存失败，请保持本页并点击重试保存", true); return false; }
+  let unsaved = false;
+  let repeat = false;
+  const settings = { type: 1, chapterId: null, hard: 1, waves: 1, repeat: false };
+  async function save() {
+    const request = revision;
+    unsaved = true;
+    view.saveStatus("正在保存到当前账号…");
+    try { await store.save(state); if (request !== revision) return false; unsaved = false; view.saveStatus("已保存到当前账号的云存档"); return true; }
+    catch (error) { if (request === revision) view.saveStatus(`云端保存失败：${error.message}`, true, error.status); return false; }
   }
   function home() { return view.home(state, catalog).catch((error) => view.notice(`界面加载失败：${error.message}`)); }
-  function refresh(player, inventory) {
-    const wing = inventory.wings.find((item) => item.id === player.wingId);
-    return recalculatePlayerFromEquipment(player, [
-      ...player.equipmentSets[player.equipmentSetIndex], ...(wing ? [wing] : []),
-    ]);
+  function refresh() {
+    const wing = state.inventory.wings.find((item) => item.id === state.player.wingId);
+    const equipment = [...state.player.equipmentSets[state.player.equipmentSetIndex], ...(wing ? [wing] : [])];
+    state = { ...state, player: { ...recalculatePlayerFromEquipment(state.player, equipment), ...calculatePlayerEffects(collectEquipmentAttributes(equipment)) } };
   }
-  async function startFirstCopy() {
+  async function startCopy(copyId, selected) {
     if (!state || active) return;
-    const copy = catalog.copies.find((item) => item.id === 1001);
-    const groups = prepareCopyDropGroups({ copy, roll: random() });
-    // Native default settings: hard=1, one wave; floor((1+.5)*3*(4/5+.8))=7.
-    const encounterRoll = random();
-    if (encounterRoll % 1001 < 7 && state.player.level - copy.level <= 10) {
-      view.notice("本次触发了特殊遭遇，这条分支仍在迁移，尚未开始战斗或结算。");
-      return;
-    }
-    if (state.player.paragon !== 1 || state.inventory.pets.length) {
-      view.notice("巅峰和宠物战斗仍在迁移。当前版本开放单角色首关试玩。");
-      return;
-    }
-    const quality = selectRegularEnemyQuality(random());
-    const baseEnemy = createEnemyFromCatalog(catalog.enemies.find((item) => item.id === copy.enemyid1), catalog.skills);
-    const enemy = applyEnemyDifficulty(applyEnemyQuality({ ...baseEnemy, quality }, quality), 1);
-    let battle = {
-      allies: [{ ...state.player, hp: state.player.maxHp, dead: false, acted: false, roleType: 1, buffs: [] }],
-      enemies: [enemy], currentEnemyIndex: 0, phase: 1, wave: 1, outcome: 0, revives: 0,
-    };
+    if (unsaved) { view.notice("请先重试保存当前进度，再继续战斗。"); return; }
+    let copy = catalog.copies.find((item) => item.id === copyId);
+    if (!copy) { view.notice("关卡不存在"); return; }
+    const locked = getCopyAccess(copy, state, catalog.chapters);
+    if (locked) { view.notice(locked); return; }
+    Object.assign(settings, selected);
+    settings.hard = Math.max(1, Math.min(maximumCopyDifficulty(state.player), Math.trunc(settings.hard)));
+    settings.waves = Math.max(1, Math.min(10 + (state.player.extraWaves || 0), Math.trunc(settings.waves)));
     const serial = ++revision;
     active = true;
+    repeat = settings.repeat;
+    view.repeatStatus(repeat);
     try {
-      await view.battle(battle, state, catalog);
-      while (serial === revision && battle.outcome !== 1 && battle.outcome !== 3) {
-        await wait(550);
+      do {
+        refresh();
+        const prepared = prepareCopyBattle({ copy, player: state.player,
+          clearCount: state.progress.copies.find((entry) => entry.id === copy.id)?.value || 0,
+          hard: settings.hard, waves: settings.waves, catalog, draw: random });
+        let battle = { ...prepared.battle, bonuses: state.player.bonuses };
+        await view.battle(battle, state, catalog);
         if (serial !== revision) return;
-        const action = advanceSoloNormalBattle(battle, random);
-        battle = action.battle;
-        view.battleUpdate(battle, action.hit, state, catalog);
-      }
-      if (serial !== revision) return;
-      await wait(450);
-      if (serial !== revision) return;
-      let reward = { gold: 0, experience: 0, honor: 0, items: [] };
-      state = { ...state, player: { ...state.player, hp: battle.allies[0].hp, dead: battle.allies[0].dead } };
-      if (battle.outcome === 3) {
-        reward = calculateRegularCopyRewards({
-          copy: { ...copy, clearCount: state.progress.copies.find((entry) => entry.id === copy.id)?.value || 0 },
-          player: { ...state.player, goldRate: 100, dropRate: 100, experienceRate: 100 },
-          hard: 1, globalRate: getBattleQualityRewardRate([quality]), enemyCount: 1, rareRoll: random(),
-        });
-        // Exactly these six original first-copy groups; no equipment factory is substituted.
-        const rolls = Array.from({ length: Object.values(groups).reduce((sum, ids) => sum + ids.length, 0) }, random);
-        const selected = selectCopyDropIds({ groups, copyType: copy.type, hard: 1, activityEnabled: false, dropRate: reward.dropRate, rolls });
-        reward.items = createMaterialDrops({ itemIds: selected.itemIds, items: catalog.items });
-        state = creditBattleLoot(state, reward).state;
-        const progress = recordRegularCopyVictory({
-          progress: state.progress, money: state.money, copy,
-          chapter: catalog.chapters.find((chapter) => chapter.id === 1), enemyCount: 1,
-        });
-        state = { ...state, progress: progress.progress, money: progress.money };
-      }
-      state = { ...state, player: refresh(state.player, state.inventory) };
-      save();
-      await view.result(battle.outcome, reward, state, catalog);
+        const paid = payCopyEntry(state, copy);
+        if (paid !== state) {
+          state = paid;
+          if (!await save() || serial !== revision) return;
+        }
+        while (serial === revision && ![1, 3].includes(battle.outcome)) {
+          await wait(550);
+          if (serial !== revision) return;
+          const action = advanceSoloBattle(battle, { draw: random, skills: catalog.skills });
+          battle = action.battle;
+          view.battleUpdate(battle, null, state, catalog);
+          for (const hit of action.hits) view.battleUpdate(battle, hit, state, catalog);
+        }
+        await wait(450);
+        if (serial !== revision) return;
+        let reward = { gold: 0, experience: 0, honor: 0, items: [] };
+        state = { ...state, player: { ...state.player, hp: battle.allies[0].hp, dead: battle.allies[0].dead } };
+        if (battle.outcome === 3) {
+          const settlement = settleCopyVictory({ state, copy, prepared, catalog, draw: random });
+          state = settlement.state; reward = settlement.reward;
+        } else repeat = false;
+        refresh();
+        if (!await save()) repeat = false;
+        if (serial !== revision) return;
+        await view.result(battle.outcome, reward, state, catalog);
+        if (repeat) {
+          if (copy.type === 5) {
+            const next = catalog.copies.find((item) => item.id === copy.id + 1 && item.type === 5);
+            if (next) copy = next;
+            else repeat = false;
+          }
+          if (repeat) await wait(1800);
+        }
+      } while (repeat && serial === revision);
     } catch (error) {
-      view.notice(`战斗暂时无法继续：${error.message}`);
-      home();
-    } finally { active = false; }
+      repeat = false;
+      if (serial === revision) { await home(); view.notice(`战斗未能继续：${error.message}`); }
+    } finally { if (serial === revision) { active = false; view.repeatStatus(false); } }
   }
   return {
     async initialize() {
-      try { state = store.load(); }
-      catch { view.loadError("本地存档读取失败。请保留现有数据，刷新重试。"); return; }
+      const request = ++revision;
+      try { const loaded = await store.load(); if (request !== revision) return; state = loaded; unsaved = false; if (state) refresh(); }
+      catch (error) { if (request === revision) view.loadError(`云存档读取失败：${error.message}`); return; }
       await view.menu(Boolean(state));
     },
-    create(name) {
+    async create(name) {
       if (state || active) return;
+      const request = revision;
       state = createNewGame({ items: catalog.items, skills: catalog.skills });
-      state.player.name = name.trim();
-      save();
-      home();
+      state.player.name = name.trim(); refresh();
+      active = true;
+      await save(); if (request !== revision) return; active = false;
+      await home();
     },
-    continue() { if (state && !active) home(); },
-    startFirstCopy,
+    continue() { if (state && !active) void home(); },
+    selectCopy() { if (state && !active) view.selectCopy(state, catalog, settings); },
+    startCopy,
+    stopRepeat() { repeat = false; view.repeatStatus(false); view.notice("已关闭连续战斗，本场结算后停止。"); },
     role() { if (state && !active) view.role(state, catalog); },
     bag() { if (state && !active) view.bag(state, catalog); },
-    save() { if (state && !active) save(); },
-    destroy() { revision += 1; active = false; },
+    async toggleSkill(id) {
+      if (!state || active || unsaved) return false;
+      const request = revision;
+      try {
+        state = toggleEquippedSkill(state, id, catalog.skills); active = true;
+        await save(); return true;
+      } catch (error) { view.notice(error.message); return false; }
+      finally { if (request === revision) active = false; }
+    },
+    async equip(index) {
+      if (!state || active || unsaved) return;
+      const request = revision;
+      try { state = equipBagItem(state, index); refresh(); active = true; await save(); if (request === revision) view.bag(state, catalog); }
+      catch (error) { view.notice(error.message); }
+      finally { if (request === revision) active = false; }
+    },
+    save() { if (state && !active) return save(); },
+    destroy() { revision += 1; active = false; repeat = false; view.repeatStatus(false); },
   };
 }

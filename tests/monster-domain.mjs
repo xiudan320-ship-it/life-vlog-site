@@ -13,7 +13,7 @@ import { creditBattleLoot } from "../modules/monster/settlement-domain.js";
 import { createMonsterSaveStore } from "../modules/monster/save-store.js";
 import { applyEnemyDifficulty, applyEnemyQuality, createEnemyFromCatalog, selectRegularEnemyQuality } from "../modules/monster/enemy-domain.js";
 import { selectBattleActor, selectBattleTargets, selectRandomLivingAlly } from "../modules/monster/battle-turn-domain.js";
-import { advanceSoloNormalBattle } from "../modules/monster/solo-battle-domain.js";
+import { advanceSoloBattle } from "../modules/monster/battle-domain.js";
 import { incrementCopyClear, recordRegularCopyVictory } from "../modules/monster/copy-progress-domain.js";
 import {
   creditPlayerExperience,
@@ -83,10 +83,10 @@ test("monster solo normal battles autonomously match 15 complete original ARM lo
     const trace = [];
     while (battle.outcome !== 1 && battle.outcome !== 3) {
       let cursor = 0;
-      const action = advanceSoloNormalBattle(battle, () => item.coreRolls[used + cursor++]);
+      const action = advanceSoloBattle(battle, { draw: () => item.coreRolls[used + cursor++], skills: enemyFactoryCases.skills });
       battle = action.battle;
       used += action.rollsUsed;
-      trace.push(action.hit);
+      trace.push(...action.hits);
       assert.ok(trace.length < 100);
     }
     assert.deepEqual({
@@ -97,9 +97,9 @@ test("monster solo normal battles autonomously match 15 complete original ARM lo
     assert.deepEqual(item.input, original);
   }
   const input = soloBattleCases.cases[0].input;
-  assert.throws(() => advanceSoloNormalBattle({ ...input, revives: 1 }, () => 0), /revives/);
-  assert.throws(() => advanceSoloNormalBattle({ ...input, outcome: 3 }, () => 0), /already ended/);
-  assert.throws(() => advanceSoloNormalBattle(input, () => undefined), /random draw/);
+  assert.throws(() => advanceSoloBattle({ ...input, revives: 1 }, { draw: () => 0, skills: enemyFactoryCases.skills }), /revival/);
+  assert.throws(() => advanceSoloBattle({ ...input, outcome: 3 }, { draw: () => 0, skills: enemyFactoryCases.skills }), /already ended/);
+  assert.throws(() => advanceSoloBattle(input, { draw: () => undefined, skills: enemyFactoryCases.skills }), /random draw/);
 });
 
 test("monster quality and living-target rejection match 169 original ARM choices", () => {
@@ -154,14 +154,18 @@ test("monster enemy quality and difficulty preserve 168 original ARM result pair
   }
 });
 
-test("monster catalog, autonomous first battle, rewards, progress and save reload compose against native state", () => {
-  const savedValues = new Map();
-  const storage = {
-    getItem: (key) => savedValues.get(key) ?? null,
-    setItem: (key, value) => savedValues.set(key, value),
+test("monster catalog, autonomous first battle, rewards, progress and cloud reload compose against native state", async () => {
+  let saved = null;
+  let revision = 0;
+  const transport = {
+    getSession: () => ({ access_token: "fixture-token", user: { id: "fixture-user" } }),
+    request: async (_, options) => {
+      if (options.method === "PUT") { const payload = JSON.parse(options.body); assert.equal(payload.expectedRevision, revision); saved = JSON.stringify(payload.state); revision += 1; }
+      return { userId: "fixture-user", revision, state: saved ? JSON.parse(saved) : null };
+    },
   };
-  const save = createMonsterSaveStore({ storage });
-  assert.equal(save.load(), null);
+  const save = createMonsterSaveStore(transport);
+  assert.equal(await save.load(), null);
   const state = createNewGame(newGameCase.input);
   const quality = selectRegularEnemyQuality(firstCreditCase.roll);
   const row = enemyFactoryCases.cases.find((item) => item.input.id === 4001).input;
@@ -174,9 +178,9 @@ test("monster catalog, autonomous first battle, rewards, progress and save reloa
   };
   const trace = [];
   while (battle.outcome !== 1 && battle.outcome !== 3) {
-    const action = advanceSoloNormalBattle(battle, () => firstCreditCase.roll);
+    const action = advanceSoloBattle(battle, { draw: () => firstCreditCase.roll, skills: enemyFactoryCases.skills });
     battle = action.battle;
-    trace.push(action.hit);
+    trace.push(...action.hits);
     assert.ok(trace.length < 100);
   }
   assert.equal(battle.outcome, 3);
@@ -213,32 +217,40 @@ test("monster catalog, autonomous first battle, rewards, progress and save reloa
   final.player = recalculatePlayerFromEquipment(final.player, [
     ...final.player.equipmentSets[final.player.equipmentSetIndex], ...final.inventory.wings,
   ]);
-  save.save(final);
-  const reloaded = createMonsterSaveStore({ storage }).load();
+  await save.save(final);
+  const reloaded = await createMonsterSaveStore(transport).load();
   assert.deepEqual(reloaded, final);
   reloaded.player.experience = -1;
-  assert.equal(save.load().player.experience, 15);
+  assert.equal((await save.load()).player.experience, 15);
 });
 
-test("monster local saves report invalid content and write failures without replacing prior data", () => {
+test("monster cloud saves report invalid content and write failures without replacing prior data", async () => {
   let value = null;
   let fail = false;
-  const storage = {
-    getItem: () => value,
-    setItem: (_, text) => { if (fail) throw new Error("Synthetic quota failure"); value = text; },
+  let revision = 0;
+  const transport = {
+    getSession: () => ({ access_token: "fixture-token", user: { id: "fixture-user" } }),
+    request: async (_, options) => {
+      if (options.method === "PUT") {
+        if (fail) throw new Error("Synthetic cloud failure");
+        value = JSON.stringify(JSON.parse(options.body).state); revision += 1;
+      }
+      return { userId: "fixture-user", revision, state: value ? JSON.parse(value) : null };
+    },
   };
-  const save = createMonsterSaveStore({ storage });
+  const save = createMonsterSaveStore(transport);
   const state = createNewGame(newGameCase.input);
-  save.save(state);
+  await save.load();
+  await save.save(state);
   const before = value;
   fail = true;
-  assert.throws(() => save.save({ ...state, gold: 1117 }), /quota failure/);
+  await assert.rejects(save.save({ ...state, gold: 1117 }), /cloud failure/);
   assert.equal(value, before);
-  assert.throws(() => save.save({}), /Invalid Monster game state/);
+  await assert.rejects(save.save({}), /存档数据/);
   value = "{";
-  assert.throws(() => save.load(), SyntaxError);
-  value = JSON.stringify({ game: "other", version: "7.1", state });
-  assert.throws(() => save.load(), /Unsupported Monster save format/);
+  await assert.rejects(save.load(), SyntaxError);
+  value = JSON.stringify({});
+  await assert.rejects(save.load(), /存档数据/);
 });
 
 test("monster regular rewards preserve 1192 original ARM outputs and float boundaries", () => {
