@@ -15,6 +15,14 @@ export function picture(path, alt = "", className) {
   return image;
 }
 
+export function petTile(pet, catalog) {
+  const row = catalog.pets.find((row) => row.id === pet.id);
+  const tile = element("div", undefined, "monster-item monster-pet");
+  tile.dataset.quality = pet.quality;
+  tile.append(picture(`pet/${row.img}`, row.name), element("span", row.name, "monster-item-name"));
+  return tile;
+}
+
 export function itemTile(item, catalog, { onClick, quantity = false } = {}) {
   const row = catalog.items.find((entry) => entry.id === item.id);
   const tile = element(onClick ? "button" : "div", undefined, "monster-item");

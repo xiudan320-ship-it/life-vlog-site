@@ -9,6 +9,7 @@ import { readWorkboxManifest } from "../scripts/workbox-manifest.mjs";
 import { createCloudflareApiFixture } from "./fixtures/cloudflare-api-fixture.mjs";
 import { createWorkerFixture } from "./fixtures/memory-d1.mjs";
 import worker from "../cloudflare-worker/src/worker.js";
+import { createNewGame } from "../modules/monster/new-game-domain.js";
 
 const root = resolve("dist");
 const headers = await readFile(resolve(root, "_headers"), "utf8");
@@ -42,11 +43,22 @@ let keyboardChecked = false;
 const artifacts = resolve("artifacts/monster");
 await mkdir(artifacts, { recursive: true });
 
-async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, defeat = false, colorScheme = "dark", reducedMotion = "no-preference" } = {}) {
+async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, defeat = false, trial = false, trialRewards = false, colorScheme = "dark", reducedMotion = "no-preference" } = {}) {
   const context = await browser.newContext({ ...(iphone13 ? devices["iPhone 13"] : {}), viewport: { width: 390, height: 844 }, screen: { width: 390, height: 844 }, colorScheme, reducedMotion });
   contexts.push(context);
   context.on("requestfailed", (request) => requestFailures.push({ url: request.url(), error: request.failure()?.errorText }));
   const fixture = createWorkerFixture({ origin });
+  if (trial) {
+    const [items, skills] = await Promise.all(["item", "skill"].map(async (name) => JSON.parse(await readFile(resolve(root, `monster/data/${name}.json`), "utf8"))));
+    const seed = createNewGame({ items, skills }); seed.player.name = "试炼测试勇者"; seed.player.level = 80;
+    seed.player.equipmentSets[0][0].attributes.push(...[1, 2, 3, 4].map((type) => ({ type, value: 10000000 })));
+    if (trialRewards) seed.trial = { hard: 3, level: 14, score: 4000, status: "ended", bestScores: { 3: 4000 }, rewards: [] };
+    fixture.DB.database.prepare("insert into monster_saves values (?, ?, ?, ?)").run("owner", JSON.stringify(seed), 1, "2030-01-01T00:00:00Z");
+    await context.addInitScript(() => {
+      const schedule = window.setTimeout;
+      window.setTimeout = (callback, delay, ...args) => schedule(callback, [550, 450].includes(delay) ? 0 : delay, ...args);
+    });
+  }
   if (corrupt) fixture.DB.database.prepare("insert into monster_saves values (?, ?, ?, ?)").run("owner", "{}", 1, "2030-01-01T00:00:00Z");
   let page;
   await context.route("**/*", async (route) => {
@@ -195,7 +207,9 @@ try {
   await page.locator('[data-copy-type="2"]').click(); assert.equal(await page.locator(".monster-copy-row").count(), 32);
   await page.locator('[data-copy-type="5"]').click(); assert.equal(await page.locator(".monster-copy-row").count(), 114);
   assert.equal(await page.locator('[data-copy-id="5001"]').getAttribute("title"), "需要等级 30");
-  await page.locator('[data-copy-type="6"]').click(); assert.equal(await page.locator(".monster-copy-row").count(), 1);
+  await page.locator('[data-copy-type="6"]').click();
+  assert.equal(await page.locator(".monster-trial-panel").count(), 1);
+  assert.equal(await page.locator('[data-copy-id="3101"]').isDisabled(), true);
   await page.locator('[data-copy-type="3"]').click(); assert.equal(await page.locator(".monster-copy-row").count(), 24);
   await page.locator('[data-copy-type="1"]').click();
   assert.equal(await page.locator(".monster-chapter").count(), 21);
@@ -285,6 +299,57 @@ try {
   await auto.locator("#monsterStop").click();
   await stage(auto, "result");
   assert.equal((await saved(auto)).progress.copies.find((row) => row.id === 1001).value, 2);
+  const trialPage = await pageFor({ trial: true, roll: 4, reducedMotion: "reduce" });
+  await trialPage.locator("#monsterEnter").click(); await stage(trialPage, "home");
+  async function openTrial() {
+    await trialPage.locator("#monsterAdventure").click();
+    await trialPage.locator('[data-copy-type="6"]').click();
+  }
+  await openTrial();
+  await trialPage.locator('[data-trial-hard="2"]').click();
+  await noOverflow(trialPage); await accessible(trialPage);
+  await trialPage.locator('[data-copy-id="3101"]').click();
+  await trialPage.locator(".monster-trial-panel h2").filter({ hasText: "第 2 层" }).waitFor();
+  assert.deepEqual([(await saved(trialPage)).trial.level, (await saved(trialPage)).trial.score, (await saved(trialPage)).trial.hard], [2, 86, 2]);
+  await trialPage.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-trial-next.png" : "trial-next.png") });
+  await trialPage.reload(); await stage(trialPage, "menu");
+  await trialPage.locator("#monsterEnter").click(); await stage(trialPage, "home"); await openTrial();
+  assert.match(await trialPage.locator(".monster-trial-panel h2").textContent(), /第 2 层/);
+  assert.equal(await trialPage.locator('[data-trial-hard="1"]').isDisabled(), true);
+  await trialPage.locator('[data-copy-id="3101"]').click();
+  await trialPage.locator(".monster-trial-panel h2").filter({ hasText: "第 3 层" }).waitFor();
+  assert.equal((await saved(trialPage)).trial.score, 184);
+  await trialPage.evaluate(() => { window.monsterFixtureBlockSave = true; });
+  await trialPage.locator("[data-trial-claim]").click();
+  await trialPage.locator(".monster-trial-receipt").waitFor();
+  assert.equal((await saved(trialPage)).trial.status, "ready");
+  assert.match(await trialPage.locator("#monsterSaveStatus").textContent(), /保存失败/);
+  await trialPage.locator("#monsterDetailsClose").click();
+  await trialPage.evaluate(() => { window.monsterFixtureBlockSave = false; });
+  await trialPage.locator("#monsterSaveRetry").click(); await trialPage.locator("#monsterSaveRetry").waitFor({ state: "hidden" });
+  const trialClaimed = await saved(trialPage);
+  assert.equal(trialClaimed.trial.status, "claimed");
+  assert.ok(trialClaimed.inventory.goods.some((item) => item.id === 5116 && item.quantity === 2));
+  await trialPage.reload(); await stage(trialPage, "menu");
+  await trialPage.locator("#monsterEnter").click(); await stage(trialPage, "home"); await openTrial();
+  assert.equal(await trialPage.locator("[data-trial-claim]").count(), 0);
+  assert.match(await trialPage.locator(".monster-trial-receipt").textContent(), /已入背包/);
+  assert.deepEqual(await saved(trialPage), trialClaimed);
+  await accessible(trialPage); await noOverflow(trialPage);
+  await trialPage.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-trial-rewards.png" : "trial-rewards.png") });
+  const prizePage = await pageFor({ trial: true, trialRewards: true, roll: 0, reducedMotion: "reduce" });
+  await prizePage.locator("#monsterEnter").click(); await stage(prizePage, "home");
+  await prizePage.locator("#monsterAdventure").click(); await prizePage.locator('[data-copy-type="6"]').click();
+  assert.equal(await prizePage.locator('[data-copy-id="3101"]').count(), 0);
+  await prizePage.locator("[data-trial-claim]").click(); await prizePage.locator(".monster-trial-receipt").waitFor();
+  assert.equal((await saved(prizePage)).inventory.pets.length, 2);
+  assert.equal(await prizePage.locator(".monster-trial-receipt .monster-pet").count(), 2);
+  await prizePage.locator(".monster-trial-receipt img").evaluateAll((images) => Promise.all(images.map((img) => img.decode())));
+  await accessible(prizePage); await noOverflow(prizePage);
+  await prizePage.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-trial-all-prizes.png" : "trial-all-prizes.png"), fullPage: true });
+  await prizePage.locator("#monsterDetailsClose").click(); await prizePage.locator("#monsterBag").click();
+  await prizePage.getByRole("button", { name: "宠物", exact: true }).click();
+  assert.equal(await prizePage.locator("#monsterDetailsContent .monster-pet").count(), 2);
   const other = await auto.context().newPage();
   await other.goto(`${origin}/monster.html`); await stage(other, "menu");
   await other.evaluate(({ key, token }) => localStorage.setItem(key, JSON.stringify({ access_token: token, user: { id: "member" }, expires_at: "2099-01-01T00:00:00Z" })), { key, token: fixtures.get(auto).tokens.get("member") });
@@ -322,7 +387,7 @@ try {
   assert.ok(["/monster", "/monster.html"].includes(new URL(home.url()).pathname));
   assert.deepEqual(external, []);
   assert.deepEqual(errors, []);
-  console.log(`Monster ${browserType.name()} passed: cloud save, native win, reload, level-up, selection, drops, dialogs, 6 widths, save retry, corrupt save, CSP and resource isolation.`);
+  console.log(`Monster ${browserType.name()} passed: trial continuation/score/claim/retry, cloud save, native win, reload, level-up, selection, drops, dialogs, 6 widths, save retry, corrupt save, CSP and resource isolation.`);
 } catch (error) {
   for (const page of fixtures.keys()) console.error(await page.locator("#monsterStatus").textContent());
   console.error(errors);

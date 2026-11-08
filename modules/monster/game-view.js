@@ -2,6 +2,7 @@ import { getPlayerExperienceRequired } from "./progression-domain.js";
 import { renderCopySelection } from "./copy-selection-view.js";
 import { renderRole, renderBag, renderSkills } from "./character-view.js";
 import { readGameInsets, nodeScreenBox, observeVisibleViewport } from "./viewport-view.js";
+import { renderTrial } from "./trial-view.js";
 
 const assets = "/monster/assets/";
 
@@ -170,6 +171,7 @@ export function createMonsterGameView({ warView }) {
     statusMessage(`${state.player.name} · Lv.${state.player.level} · 金币 ${state.gold} · 已开放关卡 ${state.progress.levelId}`);
   }
   async function battle(initial, state, catalog) {
+    document.getElementById("monsterDetails").close();
     const request = ++serial;
     const files = [...new Set([...warView.layouts[0].nodes.filter((node) => node.asset).map((node) => assets + node.asset), ...initial.enemies.map((enemy) => `${assets}enemy/${catalog.enemies.find((row) => row.id === enemy.id).img}`)])];
     await new Promise((resolve, reject) => cc.loader.load(files, (error) => error ? reject(new Error(String(error))) : resolve()));
@@ -317,10 +319,17 @@ export function createMonsterGameView({ warView }) {
     renderCopySelection({ content, state, catalog, settings, onStart(copyId, selected) {
       document.getElementById("monsterDetails").close();
       actions.startCopy(copyId, selected);
-    } });
+    }, onClaim: () => actions.claimTrial() });
+  }
+  function trial(state, catalog) {
+    const content = details("勇者试炼", controls.Adventure);
+    renderTrial({ content, state, catalog, onStart(trialHard) {
+      document.getElementById("monsterDetails").close();
+      actions.startCopy(3101, { trialHard, repeat: false });
+    }, onClaim: () => actions.claimTrial() });
   }
   return {
-    menu, home, battle, battleUpdate, result, role, bag, skills, selectCopy, notice,
+    menu, home, battle, battleUpdate, result, role, bag, skills, selectCopy, trial, notice,
     repeatStatus(enabled) { repeating = enabled; document.getElementById("monsterStop").hidden = !enabled; stage(phase); },
     loadError(message) { stage("error"); statusMessage(message); },
     saveStatus(message, error = false, status = null) {

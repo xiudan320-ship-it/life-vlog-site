@@ -1,4 +1,4 @@
-import { element, picture, itemTile, showItem } from "./visual-ui.js";
+import { element, picture, itemTile, showItem, petTile } from "./visual-ui.js";
 
 export function renderRole(content, state, catalog, actions) {
   content.className = "monster-character-content";
@@ -38,11 +38,12 @@ export function renderBag(content, state, catalog, actions) {
     { name: "道具", entries: state.inventory.goods, quantity: true },
     { name: "装备", entries: state.inventory.equipment },
     { name: "翅膀", entries: state.inventory.wings },
+    { name: "宠物", entries: state.inventory.pets, pets: true },
   ];
   function select(group) {
     for (const button of tabs.children) button.setAttribute("aria-pressed", String(button.textContent === group.name));
     panel.replaceChildren();
-    group.entries.forEach((item, index) => panel.append(itemTile(item, catalog, { quantity: group.quantity,
+    group.entries.forEach((item, index) => panel.append(group.pets ? petTile(item, catalog) : itemTile(item, catalog, { quantity: group.quantity,
       onClick: () => showItem(item, catalog, group.name === "装备" && item.subtype <= 9 ? () => actions.equip(index) : null) })));
     for (let index = group.entries.length; index < 30; index += 1) panel.append(element("div", undefined, "monster-empty-slot"));
     empty.textContent = group.entries.length ? `${group.name} ${group.entries.length} 件 · 点击图标查看` : "暂时没有材料或装备，冒险中获得的物品会保存在这里。";

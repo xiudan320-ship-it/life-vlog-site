@@ -18,8 +18,8 @@ async function boot() {
   });
   await backend.restoreSessionBackup();
   if (!backend.readSession()) throw new Error("请先返回咻蛋之家登录，再进入游戏");
-  const [items, enemies, skills, copies, chapters, dropGroups, equipmentTemplates, warView] = await Promise.all([
-    ...["item", "enemy", "skill", "copy", "chapter", "drop-groups", "equipment-templates"].map((name) => json(`data/${name}.json`)),
+  const [items, enemies, skills, copies, chapters, dropGroups, equipmentTemplates, trials, pets, warView] = await Promise.all([
+    ...["item", "enemy", "skill", "copy", "chapter", "drop-groups", "equipment-templates", "trial", "pet"].map((name) => json(`data/${name}.json`)),
     json("war-view.json"),
   ]);
   document.ccConfig = {
@@ -36,7 +36,7 @@ async function boot() {
   await new Promise((resolve) => { globalThis.cc.game.onStart = resolve; globalThis.cc.game.run(); });
   const view = createMonsterGameView({ warView });
   const controller = createMonsterGameController({
-    catalog: { items, enemies, skills, copies: copies.map((copy) => ({ ...copy, dropGroups: dropGroups[copy.id] })), chapters, equipmentTemplates },
+    catalog: { items, enemies, skills, copies: copies.map((copy) => ({ ...copy, dropGroups: dropGroups[copy.id] })), chapters, equipmentTemplates, trials, pets },
     store: createMonsterSaveStore({ request: backend.request, getSession: backend.readSession }), view,
     random() { const value = new Uint32Array(1); crypto.getRandomValues(value); return value[0] & 0x7fffffff; },
     wait: (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)),

@@ -82,3 +82,9 @@ SHA-256：`9767B9C3945D38985C07DB73D56DEC83E162B37C69A9686686BC9BDE67E35079`。
 | `native-abyss-milestone-fixtures.json` | 114 | `recover-abyss-milestones.py`；全深渊层数的固定里程碑材料，不含每日重置/扫荡 |
 
 `public/monster/data/drop-groups.json` 由 `recover-catalog-drop-groups.py` 使用原生宽松 CSJson 解析全 331 条关卡，保留原目录中严格 JSON 无法解析的掉落字段；`equipment-templates.json` 保留原工厂固定属性。界面仅开放已装配路径，尚未恢复的任务、宠物等效果不因数据表存在而视为完成。
+
+## 试炼积分与奖励
+
+- `native-trial-progress-fixtures.json`：`recover-trial-progress.py` 执行 `WarFinishLayer::showTrialDialog` 的胜利积分片段（0x9f7a44–0x9f7c14），90 组合成层数/难度/加分词条/随机输入；比较积分、下一层、最高分回调及两次随机消耗，不执行 UI。
+- `native-trial-reward-fixtures.json`：`recover-trial-rewards.py` 执行原 `GameData::getTrialItems`（0x7ce2ec），330 组。目录迭代适配为原 JSON 的明确顺序，物品/宠物工厂用身份适配器替代，验证资格、权重、ID、数量与随机消耗；不覆盖整个原进程的 unordered_map 顺序、宠物属性构造或后续 UI。领奖装备的 `setScore(0,0)` / `resetGodValue(7,0)` 来自结束分支反汇编，数值生成器由既有装备/神器 fixture 覆盖。
+- 原表 `trial.json`、`pet.json` 直接复制 APK 解码目录；现仅恢复试炼宠物奖励所有权，未接通宠物成长/出战及原服务器的入场限制。

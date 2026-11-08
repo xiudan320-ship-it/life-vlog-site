@@ -20,7 +20,7 @@ function createBattleReward({ state, copy, prepared, catalog, draw, partial = fa
   const input = { copy: { ...copy, clearCount: partial ? Math.max(1, clearCount) : clearCount }, player: state.player, hard,
     globalRate: prepared.rewardRate, enemyCount: prepared.enemyCount, rareRoll: draw(),
     paragonOffset: copyUsesParagon(copy, hard) ? Math.fround(Math.fround(state.player.paragon / 150) + Math.fround(1.2)) : null,
-    trialLevel: state.player.trialLevel || 1, trialHard: state.player.trialHard || 1 };
+    trialLevel: state.trial?.level || 1, trialHard: state.trial?.hard || 1 };
   const reward = copy.type === 1 ? calculateRegularCopyRewards(input) : calculateInstanceRewards(input);
   if (partial) {
     reward.honor = 0;

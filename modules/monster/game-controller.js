@@ -4,6 +4,7 @@ import { calculatePlayerEffects, collectEquipmentAttributes, recalculatePlayerFr
 import { getCopyAccess, maximumCopyDifficulty, prepareCopyBattle } from "./copy-domain.js";
 import { payCopyEntry, settleCopyVictory, settleCopyDefeat } from "./adventure-domain.js";
 import { equipBagItem, toggleEquippedSkill } from "./loadout-domain.js";
+import { beginTrial, advanceTrial, claimTrialRewards } from "./trial-domain.js";
 
 export function createMonsterGameController({ catalog, store, view, random, wait }) {
   let state = null;
@@ -32,17 +33,23 @@ export function createMonsterGameController({ catalog, store, view, random, wait
     if (!copy) { view.notice("关卡不存在"); return; }
     const locked = getCopyAccess(copy, state, catalog.chapters);
     if (locked) { view.notice(locked); return; }
+    if (copy.type === 6 && state.trial?.status === "ended") { view.notice("本轮试炼已结束，请先结算奖励。"); return; }
     Object.assign(settings, selected);
     settings.hard = Math.max(1, Math.min(maximumCopyDifficulty(state.player), Math.trunc(settings.hard)));
     settings.waves = Math.max(1, Math.min(10 + (state.player.extraWaves || 0), Math.trunc(settings.waves)));
     const serial = ++revision;
     active = true;
-    repeat = settings.repeat;
+    repeat = copy.type !== 6 && settings.repeat;
     view.repeatStatus(repeat);
     try {
+      if (copy.type === 6 && (!state.trial || state.trial.status === "claimed")) {
+        state = beginTrial(state, selected?.trialHard || 1);
+        if (!await save() || serial !== revision) return;
+      }
       do {
         refresh();
-        const prepared = prepareCopyBattle({ copy, player: state.player,
+        const player = copy.type === 6 ? { ...state.player, trialLevel: state.trial.level, trialHard: state.trial.hard } : state.player;
+        const prepared = prepareCopyBattle({ copy, player,
           clearCount: state.progress.copies.find((entry) => entry.id === copy.id)?.value || 0,
           hard: settings.hard, waves: settings.waves, catalog, draw: random });
         let battle = { ...prepared.battle, bonuses: state.player.bonuses };
@@ -68,12 +75,16 @@ export function createMonsterGameController({ catalog, store, view, random, wait
           ? settleCopyVictory({ state, copy, prepared, catalog, draw: random })
           : settleCopyDefeat({ state, copy, prepared, battle, catalog, draw: random });
         state = settlement.state;
+        if (copy.type === 6) state = { ...state, trial: battle.outcome === 3
+          ? advanceTrial({ trial: state.trial, scoreBonus: state.player.trialScoreBonus, draw: random })
+          : { ...state.trial, status: "ended" } };
         const reward = settlement.reward;
         if (battle.outcome !== 3) repeat = false;
         refresh();
         if (!await save()) repeat = false;
         if (serial !== revision) return;
         await view.result(battle.outcome, reward, state, catalog);
+        if (copy.type === 6) view.trial(state, catalog);
         if (repeat) {
           if (copy.type === 5) {
             const next = catalog.copies.find((item) => item.id === copy.id + 1 && item.type === 5);
@@ -111,6 +122,17 @@ export function createMonsterGameController({ catalog, store, view, random, wait
       view.selectCopy(state, catalog, settings);
     },
     startCopy,
+    async claimTrial() {
+      if (!state || active || unsaved) return;
+      const serial = revision;
+      active = true;
+      try {
+        state = claimTrialRewards({ state, catalog, draw: random });
+        await save();
+        if (serial === revision) view.trial(state, catalog);
+      } catch (error) { view.notice(error.message); }
+      finally { if (serial === revision) active = false; }
+    },
     stopRepeat() { repeat = false; view.repeatStatus(false); view.notice("已关闭连续战斗，本场结算后停止。"); },
     role() { if (state && !active) view.role(state, catalog); },
     skills() { if (state && !active) view.skills(state, catalog); },

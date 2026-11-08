@@ -5,6 +5,7 @@ import worker from "../cloudflare-worker/src/worker.js";
 import { createWorkerFixture } from "./fixtures/memory-d1.mjs";
 import { createNewGame } from "../modules/monster/new-game-domain.js";
 import { createMonsterSaveStore } from "../modules/monster/save-store.js";
+import { beginTrial } from "../modules/monster/trial-domain.js";
 
 const items = JSON.parse(await readFile(new URL("../public/monster/data/item.json", import.meta.url)));
 const skills = JSON.parse(await readFile(new URL("../public/monster/data/skill.json", import.meta.url)));
@@ -60,4 +61,21 @@ test("cloud client refuses late results and writes after an account switch", asy
   release();
   await assert.rejects(pending, { code: "ACCOUNT_CHANGED" });
   await assert.rejects(store.save(state()), { code: "ACCOUNT_CHANGED" });
+});
+
+test("trial rounds and reward receipts round-trip per account and reject invalid progress", async () => {
+  const fixture = createWorkerFixture();
+  try {
+    const progress = beginTrial(state(), 3);
+    progress.trial = { ...progress.trial, level: 7, score: 800, bestScores: { 3: 800 } };
+    assert.equal((await request(fixture, "owner", "PUT", { expectedRevision: 0, state: progress })).status, 200);
+    assert.deepEqual((await request(fixture, "owner")).body.state.trial, progress.trial);
+    assert.equal((await request(fixture, "member")).body.state, null);
+    const invalid = { ...progress, trial: { ...progress.trial, hard: 4 } };
+    assert.equal((await request(fixture, "owner", "PUT", { expectedRevision: 1, state: invalid })).status, 400);
+    progress.trial = { ...progress.trial, status: "claimed", rewards: [{ id: 5116, type: 1, quantity: 2 }] };
+    progress.inventory.goods.push(progress.trial.rewards[0]);
+    assert.equal((await request(fixture, "owner", "PUT", { expectedRevision: 1, state: progress })).status, 200);
+    assert.deepEqual((await request(fixture, "owner")).body.state, progress);
+  } finally { fixture.close(); }
 });
