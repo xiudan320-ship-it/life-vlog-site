@@ -44,7 +44,16 @@ export function createMonsterGameView({ warView }) {
   resize();
   new ResizeObserver(resize).observe(frame);
 
-  function notice(message) { status.textContent = message; }
+  function statusMessage(message) { status.textContent = message; }
+  function notice(message) {
+    statusMessage(message);
+    document.getElementById("monsterToast")?.remove();
+    const toast = document.createElement("p"); toast.id = "monsterToast"; toast.className = "monster-toast";
+    toast.setAttribute("role", "status"); toast.textContent = message;
+    const dialog = [...document.querySelectorAll("dialog[open]")].at(-1);
+    (dialog || document.querySelector("main")).append(toast);
+    setTimeout(() => toast.remove(), 4000);
+  }
   function walk(root, callback) { callback(root); for (const child of root.getChildren?.() || []) walk(child, callback); }
   function find(root, name) { let match; walk(root, (node) => { if (!match && node.getName?.() === name) match = node; }); return match; }
   function text(root, name, value) { find(root, name)?.setString(String(value)); }
@@ -105,7 +114,7 @@ export function createMonsterGameView({ warView }) {
     current.addChild(logo, 10);
     lastRender = () => menu(saved);
     stage("menu");
-    notice("游戏进度随登录账号保存在云端，每场结算后自动保存。");
+    statusMessage("游戏进度随登录账号保存在云端，每场结算后自动保存。");
   }
   async function home(state, catalog) {
     const request = ++serial;
@@ -149,7 +158,7 @@ export function createMonsterGameView({ warView }) {
     cc.director.runScene(current);
     lastRender = () => home(state, catalog);
     stage("home");
-    notice(`${state.player.name} · Lv.${state.player.level} · 金币 ${state.gold} · 已开放关卡 ${state.progress.levelId}`);
+    statusMessage(`${state.player.name} · Lv.${state.player.level} · 金币 ${state.gold} · 已开放关卡 ${state.progress.levelId}`);
   }
   async function battle(initial, state, catalog) {
     const request = ++serial;
@@ -215,7 +224,7 @@ export function createMonsterGameView({ warView }) {
       else label.runAction(cc.sequence(cc.spawn(cc.moveBy(0.5, cc.p(0, 45)), cc.fadeOut(0.5)), cc.removeSelf()));
     }
     lastRender = () => battle(value, state, catalog);
-    notice(`战斗中 · 生命 ${player.hp}/${player.maxHp} · 结算后自动保存`);
+    statusMessage(`战斗中 · 生命 ${player.hp}/${player.maxHp} · 结算后自动保存`);
   }
   async function result(outcome, reward, state, catalog) {
     const request = ++serial;
@@ -258,7 +267,7 @@ export function createMonsterGameView({ warView }) {
     scene(widget, true);
     lastRender = () => result(outcome, reward, state, catalog);
     stage("result");
-    notice(`${outcome === 3 ? "胜利" : "战斗结束"} · 金币 +${reward.gold} · 经验 +${reward.experience} · 当前 Lv.${state.player.level}`);
+    statusMessage(`${outcome === 3 ? "胜利" : "战斗结束"} · 金币 +${reward.gold} · 经验 +${reward.experience} · 当前 Lv.${state.player.level}`);
   }
   function details(title, opener) {
     document.getElementById("monsterDetailsTitle").textContent = title;
@@ -287,12 +296,13 @@ export function createMonsterGameView({ warView }) {
   return {
     menu, home, battle, battleUpdate, result, role, bag, skills, selectCopy, notice,
     repeatStatus(enabled) { repeating = enabled; document.getElementById("monsterStop").hidden = !enabled; stage(phase); },
-    loadError(message) { stage("error"); notice(message); },
+    loadError(message) { stage("error"); statusMessage(message); },
     saveStatus(message, error = false, status = null) {
       saveErrorStatus = status;
       document.getElementById("monsterCloudIndicator").textContent = error ? "!" : message.startsWith("正在") ? "…" : "✓";
       document.getElementById("monsterSaveStatus").textContent = message;
       document.querySelector(".monster-save-line").dataset.error = String(error);
+      if (error && document.querySelector("dialog[open]")) notice(message);
       document.getElementById("monsterSaveRetry").hidden = !error;
       document.getElementById("monsterSaveRetry").textContent = status === 409 ? "重载云存档" : status === 401 ? "返回登录" : "重试保存";
     },

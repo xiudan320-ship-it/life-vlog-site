@@ -174,7 +174,16 @@ try {
   await page.waitForFunction(() => document.getElementById("monsterSaveStatus").textContent.includes("已保存"));
   assert.ok((await saved(page)).player.equippedSkillIds.includes(2));
   await page.screenshot({ path: resolve(artifacts, "skills.png") });
+  await page.evaluate(() => { window.monsterFixtureBlockSave = true; });
+  await page.getByRole("checkbox", { name: "重击", exact: true }).uncheck();
+  await page.locator("#monsterDetails > #monsterToast").waitFor({ state: "visible" });
+  assert.match(await page.locator("#monsterToast").textContent(), /保存失败/);
+  assert.ok((await saved(page)).player.equippedSkillIds.includes(2));
+  await page.evaluate(() => { window.monsterFixtureBlockSave = false; });
   await page.locator("#monsterDetailsClose").click();
+  await page.locator("#monsterSaveRetry").click();
+  await page.locator("#monsterSaveRetry").waitFor({ state: "hidden" });
+  assert.ok(!(await saved(page)).player.equippedSkillIds.includes(2));
 
   const drops = await pageFor({ roll: 16, colorScheme: "light", reducedMotion: "reduce" });
   await create(drops); await fight(drops);
