@@ -21,7 +21,7 @@ export function petTile(pet, catalog, onClick) {
   if (onClick) { tile.type = "button"; tile.onclick = onClick; }
   tile.dataset.quality = pet.quality;
   tile.append(picture(`pet/${row.img}`, row.name), element("span", row.name, "monster-item-name"));
-  if (pet.main) tile.append(element("b", "主宠", "monster-item-quantity"));
+  if (pet.partyRole === 1) tile.append(element("b", "主宠", "monster-item-quantity"));
   return tile;
 }
 

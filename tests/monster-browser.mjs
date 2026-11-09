@@ -636,7 +636,7 @@ try {
   await petPage.locator("[data-save-feedback-retry]").click(); await petPage.locator("[data-save-feedback-retry]").waitFor({ state: "detached" });
   assert.equal(await petPage.locator("#monsterToast").count(), 0);
   const petSelected = await saved(petPage);
-  assert.deepEqual(petSelected.inventory.pets.map((pet) => pet.main), [false, true, false]);
+  assert.deepEqual(petSelected.inventory.pets.map((pet) => pet.partyRole), [0, 1, 0]);
   assert.equal(petSelected.player.attack, petBefore.player.attack + 81);
   assert.equal(petSelected.player.defense, petBefore.player.defense + 37);
   await petPage.locator(".monster-pet-card").nth(1).locator("summary").click();
@@ -657,14 +657,14 @@ try {
   assert.equal(await petPage.locator("[data-main-pet-index='1']").textContent(), "卸下主宠");
   await petPage.locator("[data-main-pet-index='2']").click();
   await petPage.locator("[data-main-pet-index='2'][aria-pressed='true']").waitFor();
-  assert.deepEqual((await saved(petPage)).inventory.pets.map((pet) => pet.main), [false, false, true]);
+  assert.deepEqual((await saved(petPage)).inventory.pets.map((pet) => pet.partyRole), [0, 0, 1]);
   assert.equal((await saved(petPage)).player.attack, petSelected.player.attack);
   await petPage.locator("[data-main-pet-index='0']").click();
   await petPage.locator("[data-main-pet-index='0'][aria-pressed='true']").waitFor();
   assert.equal((await saved(petPage)).player.attack, petBefore.player.attack + 61);
   await petPage.locator("#monsterDetailsClose").click(); await fight(petPage);
   assert.equal((await saved(petPage)).player.attack, petBefore.player.attack + 61);
-  assert.equal((await saved(petPage)).inventory.pets[0].main, true);
+  assert.equal((await saved(petPage)).inventory.pets[0].partyRole, 1);
   await petPage.locator("#monsterEnter").click(); await stage(petPage, "home"); await tapNative(petPage, "btn_pet");
   await petPage.locator("[data-main-pet-index='0']").click();
   await petPage.locator("[data-main-pet-index='0'][aria-pressed='false']").waitFor();

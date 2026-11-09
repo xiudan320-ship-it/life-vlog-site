@@ -89,9 +89,9 @@ test("main-pet flags round-trip per account and reject multiple selected owned p
     progress.inventory.pets = [0, 1].map(() => ({ id: 4026, type: 3, level: 1, quality: 4, experience: 0 }));
     const assigned = assignMainPet({ state: progress, catalog: { pets }, target: { index: 1, id: 4026 }, enabled: true });
     assert.equal((await request(fixture, "owner", "PUT", { expectedRevision: 0, state: assigned })).status, 200);
-    assert.deepEqual((await request(fixture, "owner")).body.state.inventory.pets.map((pet) => pet.main), [false, true]);
+    assert.deepEqual((await request(fixture, "owner")).body.state.inventory.pets.map((pet) => pet.partyRole), [0, 1]);
     assert.equal((await request(fixture, "member")).body.state, null);
-    const invalid = structuredClone(assigned); invalid.inventory.pets[0].main = true;
+    const invalid = structuredClone(assigned); invalid.inventory.pets[0].partyRole = 1;
     assert.equal((await request(fixture, "owner", "PUT", { expectedRevision: 1, state: invalid })).status, 400);
     assert.deepEqual((await request(fixture, "owner")).body.state, assigned);
   } finally { fixture.close(); }

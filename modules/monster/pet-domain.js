@@ -32,11 +32,11 @@ export function getPetSummary({ state, catalog, target }) {
   const row = pet && catalog.pets.find((entry) => entry.id === pet.id);
   if (!pet || pet.id !== target.id || pet.type !== 3 || !row) throw new RangeError("请选择当前持有的宠物");
   const input = { row, level: pet.level, quality: pet.quality };
-  return { pet, row, core: calculatePetCore(input), contribution: calculateMainPetContribution({ ...input, playerLevel: state.player.level }), selected: pet.main === true, loyalty: 90, stars: 0, growth: 0 };
+  return { pet, row, core: calculatePetCore(input), contribution: calculateMainPetContribution({ ...input, playerLevel: state.player.level }), selected: pet.partyRole === 1, loyalty: 90, stars: 0, growth: 0 };
 }
 
 export function collectMainPetAttributes({ state, catalog }) {
-  const index = state.inventory.pets.findIndex((pet) => pet.main === true);
+  const index = state.inventory.pets.findIndex((pet) => pet.partyRole === 1);
   return index < 0 || state.player.level < 35 ? [] : getPetSummary({ state, catalog, target: { index, id: state.inventory.pets[index].id } }).contribution;
 }
 
@@ -44,5 +44,5 @@ export function assignMainPet({ state, catalog, target, enabled }) {
   if (state.player.level < 35) throw new RangeError("宠物在 35 级开放");
   const { selected } = getPetSummary({ state, catalog, target });
   if (typeof enabled !== "boolean" || selected === enabled) throw new RangeError(enabled ? "这只宠物已是主宠" : "这只宠物没有担任主宠");
-  return { ...state, inventory: { ...state.inventory, pets: state.inventory.pets.map((pet, index) => ({ ...pet, main: enabled ? index === target.index : false })) } };
+  return { ...state, inventory: { ...state.inventory, pets: state.inventory.pets.map((pet, index) => ({ ...pet, partyRole: enabled && index === target.index ? 1 : 0 })) } };
 }

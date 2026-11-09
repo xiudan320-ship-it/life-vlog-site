@@ -39,7 +39,7 @@ test("main-pet assignment distinguishes duplicate owned pets, replaces and remov
   const state = fixture(), before = structuredClone(state);
   const first = assignMainPet({ state, catalog, target: { index: 1, id: 4026 }, enabled: true });
   const replaced = assignMainPet({ state: first, catalog, target: { index: 2, id: 4026 }, enabled: true });
-  assert.deepEqual(replaced.inventory.pets.map((pet) => pet.main), [false, false, true]);
+  assert.deepEqual(replaced.inventory.pets.map((pet) => pet.partyRole), [0, 0, 1]);
   assert.equal(replaced.inventory.pets.length, 3);
   assert.equal(getPetSummary({ state: replaced, catalog, target: { index: 2, id: 4026 } }).selected, true);
   const removed = assignMainPet({ state: replaced, catalog, target: { index: 2, id: 4026 }, enabled: false });
@@ -76,12 +76,12 @@ test("failed main-pet writes preserve the pending selection and block further mu
   const view = new Proxy({}, { get: (_, key) => key === "notice" ? (text) => notices.push(text) : (...args) => { if (key === "pets") receipts.push(args.at(-1)); return Promise.resolve(); } });
   const controller = createMonsterGameController({ catalog, view, store: { load: async () => structuredClone(remote), save: async (state) => { writes++; if (fail) throw Object.assign(new Error("fixture fail"), { status: 503 }); remote = structuredClone(state); } } });
   await controller.initialize(); await controller.setMainPet({ index: 0, id: 4001 }, true);
-  assert.equal(remote.inventory.pets.some((pet) => pet.main), false);
+  assert.equal(remote.inventory.pets.some((pet) => pet.partyRole === 1), false);
   assert.deepEqual([receipts.at(-1).saved, receipts.at(-1).status], [false, 503]);
   await controller.setMainPet({ index: 1, id: 4026 }, true); assert.equal(writes, 1); assert.match(notices.at(-1), /重试保存/);
   fail = false; assert.equal(await controller.save(), true);
-  assert.equal(remote.inventory.pets[0].main, true); assert.equal(writes, 2);
+  assert.equal(remote.inventory.pets[0].partyRole, 1); assert.equal(writes, 2);
   assert.equal(validateMonsterSave(remote), remote);
-  const invalid = structuredClone(remote); invalid.inventory.pets[1].main = true;
+  const invalid = structuredClone(remote); invalid.inventory.pets[1].partyRole = 1;
   assert.throws(() => validateMonsterSave(invalid), /主宠存档/);
 });
