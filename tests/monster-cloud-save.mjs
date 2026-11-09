@@ -6,6 +6,7 @@ import { createWorkerFixture } from "./fixtures/memory-d1.mjs";
 import { createNewGame } from "../modules/monster/new-game-domain.js";
 import { createMonsterSaveStore } from "../modules/monster/save-store.js";
 import { beginTrial } from "../modules/monster/trial-domain.js";
+import { assignMainPet } from "../modules/monster/pet-domain.js";
 
 const items = JSON.parse(await readFile(new URL("../public/monster/data/item.json", import.meta.url)));
 const skills = JSON.parse(await readFile(new URL("../public/monster/data/skill.json", import.meta.url)));
@@ -77,5 +78,21 @@ test("trial rounds and reward receipts round-trip per account and reject invalid
     progress.inventory.goods.push(progress.trial.rewards[0]);
     assert.equal((await request(fixture, "owner", "PUT", { expectedRevision: 1, state: progress })).status, 200);
     assert.deepEqual((await request(fixture, "owner")).body.state, progress);
+  } finally { fixture.close(); }
+});
+
+test("main-pet flags round-trip per account and reject multiple selected owned pets", async () => {
+  const fixture = createWorkerFixture();
+  try {
+    const pets = JSON.parse(await readFile(new URL("../public/monster/data/pet.json", import.meta.url)));
+    const progress = state(); progress.player.level = 35;
+    progress.inventory.pets = [0, 1].map(() => ({ id: 4026, type: 3, level: 1, quality: 4, experience: 0 }));
+    const assigned = assignMainPet({ state: progress, catalog: { pets }, target: { index: 1, id: 4026 }, enabled: true });
+    assert.equal((await request(fixture, "owner", "PUT", { expectedRevision: 0, state: assigned })).status, 200);
+    assert.deepEqual((await request(fixture, "owner")).body.state.inventory.pets.map((pet) => pet.main), [false, true]);
+    assert.equal((await request(fixture, "member")).body.state, null);
+    const invalid = structuredClone(assigned); invalid.inventory.pets[0].main = true;
+    assert.equal((await request(fixture, "owner", "PUT", { expectedRevision: 1, state: invalid })).status, 400);
+    assert.deepEqual((await request(fixture, "owner")).body.state, assigned);
   } finally { fixture.close(); }
 });

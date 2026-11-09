@@ -45,12 +45,12 @@ export function renderBag(content, state, catalog, actions, { kind = "goods", re
     { name: "道具", kind: "goods", entries: state.inventory.goods, quantity: true },
     { name: "装备", kind: "equipment", entries: state.inventory.equipment },
     { name: "翅膀", entries: state.inventory.wings },
-    { name: "宠物", entries: state.inventory.pets, pets: true },
+    { name: "宠物", kind: "pets", entries: state.inventory.pets, pets: true },
   ];
   function select(group) {
     for (const button of tabs.children) button.setAttribute("aria-pressed", String(button.textContent === group.name));
     panel.replaceChildren();
-    group.entries.forEach((item, index) => panel.append(group.pets ? petTile(item, catalog) : itemTile(item, catalog, { quantity: group.quantity,
+    group.entries.forEach((item, index) => panel.append(group.pets ? petTile(item, catalog, () => actions.pets()) : itemTile(item, catalog, { quantity: group.quantity,
       onClick: () => showItem(item, catalog, group.name === "装备" && (item.subtype <= 9 || item.subtype >= 11 && item.subtype <= 14) ? () => actions.equip(index) : null,
         group.name === "装备" && item.subtype <= 9 ? () => actions.upgrade({ source: "bag", index, id: item.id }) : null,
         group.kind ? () => actions.bagItem({ kind: group.kind, index, id: item.id }) : null) })));

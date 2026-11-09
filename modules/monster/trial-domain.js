@@ -47,7 +47,8 @@ export function claimTrialRewards({ state, catalog, draw }) {
     if (item.type === 3) {
       const row = catalog.pets.find((row) => row.id === item.id);
       if (!row) throw new RangeError(`缺少原版宠物 ${item.id}`);
-      // Ownership is durable; pet growth, equipment and combat are a separate port.
+      // Initial core stats are derived from native factory defaults; growth and
+      // independent pet actions are separate from ownership and main-pet tags.
       item = { id: row.id, type: 3, level: row.level, quality: row.quality, experience: 0 };
       inventory = { ...inventory, pets: [...inventory.pets, item] };
     } else {

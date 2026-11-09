@@ -107,4 +107,11 @@ SHA-256：`9767B9C3945D38985C07DB73D56DEC83E162B37C69A9686686BC9BDE67E35079`。
 
 - `native-trial-progress-fixtures.json`：`recover-trial-progress.py` 执行 `WarFinishLayer::showTrialDialog` 的胜利积分片段（0x9f7a44–0x9f7c14），90 组合成层数/难度/加分词条/随机输入；比较积分、下一层、最高分回调及两次随机消耗，不执行 UI。
 - `native-trial-reward-fixtures.json`：`recover-trial-rewards.py` 执行原 `GameData::getTrialItems`（0x7ce2ec），330 组。目录迭代适配为原 JSON 的明确顺序，物品/宠物工厂用身份适配器替代，验证资格、权重、ID、数量与随机消耗；不覆盖整个原进程的 unordered_map 顺序、宠物属性构造或后续 UI。领奖装备的 `setScore(0,0)` / `resetGodValue(7,0)` 来自结束分支反汇编，数值生成器由既有装备/神器 fixture 覆盖。
-- 原表 `trial.json`、`pet.json` 直接复制 APK 解码目录；现仅恢复试炼宠物奖励所有权，未接通宠物成长/出战及原服务器的入场限制。
+- 原表 `trial.json`、`pet.json` 直接复制 APK 解码目录；试炼宠物奖励可作为主宠提供核心属性，宠物成长／独立行动及原服务器的入场限制未接通。
+
+## 宠物初始属性与主宠贡献
+
+- `native-pet-rules-fixtures.json`：`recover-pet-rules.py` 执行 Pet 翻译单元静态初始化 0x99b50c 后，为全部 26 种目录宠物运行 `GameData::getBasePetById`。记录初始核心值、忠诚 90、零星级和成长，以及原生品质／星级 float 表；不执行完整 UI、战斗或网络。
+- `native-main-pet-contribution-fixtures.json`：`recover-main-pet-contribution.py` 在合成角色和宠物上执行 `Player::refreshPlayerAttribute` 的主宠片段（0x99d77c 至 0x99de84／0x99e620），仅以捕获器替代 `addEquipAtt`。353 组覆盖全部种类、角色 34／35／80 级、宠物等级、忠诚阈值、品质／星级／成长和无主宠。原 `refreshPetAttr` 与第二次忠诚计算实际执行；跳过副宠及无关效果。
+
+`tests/monster-pets.mjs` 对照两阶段 float32 舍入及八项贡献，另验证持有记录标记、同 ID 替换、卸下、云档失败及重载不叠加。当前玩法只接通工厂初始忠诚、零星级／成长条件下的主宠核心加成；fixture 的更广参数覆盖不代表成长或完整宠物战斗已经开放。原 `Player::changePetAttr` 是战斗临时技能路径，未混入此常驻核心贡献。

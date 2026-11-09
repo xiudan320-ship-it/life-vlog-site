@@ -1,33 +1,15 @@
 import { element, itemTile, picture } from "./visual-ui.js";
 import { getBagItem, getItemSalePreview } from "./bag-item-domain.js";
+import { renderSaveFeedback } from "./save-feedback-view.js";
 
 export function renderBagReceipt({ content, catalog, receipt, actions }) {
   const panel = element("section", undefined, "monster-original-panel monster-bag-item-panel");
-  const status = element("p", receipt.message, "monster-upgrade-receipt"); status.setAttribute("role", "status"); panel.append(status);
+  renderSaveFeedback({ content: panel, receipt, actions });
   if (receipt.reward) {
     panel.append(element("p", `金币 +${receipt.reward.gold} · 魔石 +${receipt.reward.money}`));
     const rewards = element("div", undefined, "monster-bag-item-rewards");
     for (const item of receipt.reward.items) rewards.append(itemTile(item, catalog, { quantity: true }));
     panel.append(rewards);
-  }
-  if (!receipt.saved) {
-    if (receipt.status === 401 || receipt.status === 409) {
-      const conflict = receipt.status === 409;
-      status.textContent += conflict ? " · 云档已有更新，请重载云存档" : " · 登录已过期，请返回登录";
-      const recover = element("button", conflict ? "重载云存档" : "返回登录", "monster-image-button"); recover.type = "button";
-      recover.onclick = () => { if (conflict) location.reload(); else location.href = "/"; };
-      panel.append(recover); content.append(panel); return;
-    }
-    status.textContent += " · 云端尚未保存，请重试";
-    const retry = element("button", "重试云端保存", "monster-image-button"); retry.type = "button"; retry.dataset.bagSaveRetry = "";
-    retry.onclick = async () => {
-      retry.disabled = true;
-      try {
-        if (await actions.save()) { status.textContent = `${receipt.message} · 已保存到云端`; retry.remove(); }
-        else status.textContent = `${receipt.message} · 保存失败，请重试`;
-      } finally { retry.disabled = false; }
-    };
-    panel.append(retry);
   }
   content.append(panel);
 }

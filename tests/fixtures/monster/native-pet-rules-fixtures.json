@@ -1,0 +1,955 @@
+{
+  "scope": "Original Pet factory and attribute calculations on synthetic memory only.\nThe original Pet translation-unit static tables execute before pet creation.\nNo battle/UI/network/save side effects are executed.\n",
+  "qualityFactors": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.100000023841858
+  ],
+  "starFactors": [
+    1.0,
+    1.2000000476837158,
+    1.399999976158142,
+    1.7000000476837158,
+    2.0
+  ],
+  "factories": [
+    {
+      "id": 4001,
+      "getters": {
+        "_ZNK3Pet7getTypeEv": 0,
+        "_ZNK3Pet15getKillEnemyNumEv": 0
+      },
+      "values": {
+        "level": 1,
+        "quality": 2,
+        "loyalty": 90,
+        "stars": 0,
+        "growth": 0,
+        "attack": 61,
+        "defense": 20,
+        "maxHp": 45,
+        "hit": 37,
+        "dodge": 11,
+        "crit": 13,
+        "critHurt": 39,
+        "resistance": 25
+      },
+      "base": {
+        "0x388": 45,
+        "0x390": 61,
+        "0x398": 20,
+        "0x3a0": 11,
+        "0x3a8": 13,
+        "0x3b0": 39,
+        "0x3b8": 37,
+        "0x3c0": 25,
+        "0x3c8": 7,
+        "0x3d0": 7,
+        "0x3d8": 7,
+        "0x3e0": 7
+      }
+    },
+    {
+      "id": 4002,
+      "getters": {
+        "_ZNK3Pet7getTypeEv": 0,
+        "_ZNK3Pet15getKillEnemyNumEv": 0
+      },
+      "values": {
+        "level": 1,
+        "quality": 2,
+        "loyalty": 90,
+        "stars": 0,
+        "growth": 0,
+        "attack": 51,
+        "defense": 22,
+        "maxHp": 51,
+        "hit": 37,
+        "dodge": 12,
+        "crit": 13,
+        "critHurt": 39,
+        "resistance": 27
+      },
+      "base": {
+        "0x388": 51,
+        "0x390": 51,
+        "0x398": 22,
+        "0x3a0": 12,
+        "0x3a8": 13,
+        "0x3b0": 39,
+        "0x3b8": 37,
+        "0x3c0": 27,
+        "0x3c8": 7,
+        "0x3d0": 7,
+        "0x3d8": 8,
+        "0x3e0": 7
+      }
+    },
+    {
+      "id": 4003,
+      "getters": {
+        "_ZNK3Pet7getTypeEv": 0,
+        "_ZNK3Pet15getKillEnemyNumEv": 0
+      },
+      "values": {
+        "level": 1,
+        "quality": 2,
+        "loyalty": 90,
+        "stars": 0,
+        "growth": 0,
+        "attack": 45,
+        "defense": 21,
+        "maxHp": 61,
+        "hit": 40,
+        "dodge": 11,
+        "crit": 13,
+        "critHurt": 39,
+        "resistance": 25
+      },
+      "base": {
+        "0x388": 61,
+        "0x390": 45,
+        "0x398": 21,
+        "0x3a0": 11,
+        "0x3a8": 13,
+        "0x3b0": 39,
+        "0x3b8": 40,
+        "0x3c0": 25,
+        "0x3c8": 7,
+        "0x3d0": 8,
+        "0x3d8": 7,
+        "0x3e0": 8
+      }
+    },
+    {
+      "id": 4004,
+      "getters": {
+        "_ZNK3Pet7getTypeEv": 0,
+        "_ZNK3Pet15getKillEnemyNumEv": 0
+      },
+      "values": {
+        "level": 1,
+        "quality": 2,
+        "loyalty": 90,
+        "stars": 0,
+        "growth": 0,
+        "attack": 51,
+        "defense": 22,
+        "maxHp": 51,
+        "hit": 40,
+        "dodge": 12,
+        "crit": 13,
+        "critHurt": 34,
+        "resistance": 25
+      },
+      "base": {
+        "0x388": 51,
+        "0x390": 51,
+        "0x398": 22,
+        "0x3a0": 12,
+        "0x3a8": 13,
+        "0x3b0": 34,
+        "0x3b8": 40,
+        "0x3c0": 25,
+        "0x3c8": 7,
+        "0x3d0": 7,
+        "0x3d8": 8,
+        "0x3e0": 8
+      }
+    },
+    {
+      "id": 4005,
+      "getters": {
+        "_ZNK3Pet7getTypeEv": 0,
+        "_ZNK3Pet15getKillEnemyNumEv": 0
+      },
+      "values": {
+        "level": 1,
+        "quality": 2,
+        "loyalty": 90,
+        "stars": 0,
+        "growth": 0,
+        "attack": 45,
+        "defense": 20,
+        "maxHp": 61,
+        "hit": 37,
+        "dodge": 11,
+        "crit": 13,
+        "critHurt": 34,
+        "resistance": 25
+      },
+      "base": {
+        "0x388": 61,
+        "0x390": 45,
+        "0x398": 20,
+        "0x3a0": 11,
+        "0x3a8": 13,
+        "0x3b0": 34,
+        "0x3b8": 37,
+        "0x3c0": 25,
+        "0x3c8": 7,
+        "0x3d0": 7,
+        "0x3d8": 7,
+        "0x3e0": 8
+      }
+    },
+    {
+      "id": 4006,
+      "getters": {
+        "_ZNK3Pet7getTypeEv": 0,
+        "_ZNK3Pet15getKillEnemyNumEv": 0
+      },
+      "values": {
+        "level": 1,
+        "quality": 2,
+        "loyalty": 90,
+        "stars": 0,
+        "growth": 0,
+        "attack": 61,
+        "defense": 20,
+        "maxHp": 45,
+        "hit": 37,
+        "dodge": 11,
+        "crit": 13,
+        "critHurt": 39,
+        "resistance": 27
+      },
+      "base": {
+        "0x388": 45,
+        "0x390": 61,
+        "0x398": 20,
+        "0x3a0": 11,
+        "0x3a8": 13,
+        "0x3b0": 39,
+        "0x3b8": 37,
+        "0x3c0": 27,
+        "0x3c8": 7,
+        "0x3d0": 7,
+        "0x3d8": 9,
+        "0x3e0": 8
+      }
+    },
+    {
+      "id": 4007,
+      "getters": {
+        "_ZNK3Pet7getTypeEv": 0,
+        "_ZNK3Pet15getKillEnemyNumEv": 0
+      },
+      "values": {
+        "level": 1,
+        "quality": 3,
+        "loyalty": 90,
+        "stars": 0,
+        "growth": 0,
+        "attack": 55,
+        "defense": 24,
+        "maxHp": 73,
+        "hit": 44,
+        "dodge": 13,
+        "crit": 16,
+        "critHurt": 47,
+        "resistance": 30
+      },
+      "base": {
+        "0x388": 73,
+        "0x390": 55,
+        "0x398": 24,
+        "0x3a0": 13,
+        "0x3a8": 16,
+        "0x3b0": 47,
+        "0x3b8": 44,
+        "0x3c0": 30,
+        "0x3c8": 8,
+        "0x3d0": 8,
+        "0x3d8": 9,
+        "0x3e0": 8
+      }
+    },
+    {
+      "id": 4008,
+      "getters": {
+        "_ZNK3Pet7getTypeEv": 0,
+        "_ZNK3Pet15getKillEnemyNumEv": 0
+      },
+      "values": {
+        "level": 1,
+        "quality": 3,
+        "loyalty": 90,
+        "stars": 0,
+        "growth": 0,
+        "attack": 73,
+        "defense": 24,
+        "maxHp": 55,
+        "hit": 46,
+        "dodge": 14,
+        "crit": 18,
+        "critHurt": 49,
+        "resistance": 30
+      },
+      "base": {
+        "0x388": 55,
+        "0x390": 73,
+        "0x398": 24,
+        "0x3a0": 14,
+        "0x3a8": 18,
+        "0x3b0": 49,
+        "0x3b8": 46,
+        "0x3c0": 30,
+        "0x3c8": 8,
+        "0x3d0": 9,
+        "0x3d8": 8,
+        "0x3e0": 8
+      }
+    },
+    {
+      "id": 4009,
+      "getters": {
+        "_ZNK3Pet7getTypeEv": 0,
+        "_ZNK3Pet15getKillEnemyNumEv": 0
+      },
+      "values": {
+        "level": 1,
+        "quality": 3,
+        "loyalty": 90,
+        "stars": 0,
+        "growth": 0,
+        "attack": 55,
+        "defense": 33,
+        "maxHp": 55,
+        "hit": 44,
+        "dodge": 13,
+        "crit": 16,
+        "critHurt": 47,
+        "resistance": 30
+      },
+      "base": {
+        "0x388": 55,
+        "0x390": 55,
+        "0x398": 33,
+        "0x3a0": 13,
+        "0x3a8": 16,
+        "0x3b0": 47,
+        "0x3b8": 44,
+        "0x3c0": 30,
+        "0x3c8": 8,
+        "0x3d0": 8,
+        "0x3d8": 8,
+        "0x3e0": 9
+      }
+    },
+    {
+      "id": 4010,
+      "getters": {
+        "_ZNK3Pet7getTypeEv": 0,
+        "_ZNK3Pet15getKillEnemyNumEv": 0
+      },
+      "values": {
+        "level": 1,
+        "quality": 3,
+        "loyalty": 90,
+        "stars": 0,
+        "growth": 0,
+        "attack": 55,
+        "defense": 33,
+        "maxHp": 55,
+        "hit": 44,
+        "dodge": 13,
+        "crit": 16,
+        "critHurt": 47,
+        "resistance": 30
+      },
+      "base": {
+        "0x388": 55,
+        "0x390": 55,
+        "0x398": 33,
+        "0x3a0": 13,
+        "0x3a8": 16,
+        "0x3b0": 47,
+        "0x3b8": 44,
+        "0x3c0": 30,
+        "0x3c8": 8,
+        "0x3d0": 8,
+        "0x3d8": 9,
+        "0x3e0": 8
+      }
+    },
+    {
+      "id": 4011,
+      "getters": {
+        "_ZNK3Pet7getTypeEv": 0,
+        "_ZNK3Pet15getKillEnemyNumEv": 0
+      },
+      "values": {
+        "level": 1,
+        "quality": 3,
+        "loyalty": 90,
+        "stars": 0,
+        "growth": 0,
+        "attack": 69,
+        "defense": 23,
+        "maxHp": 51,
+        "hit": 41,
+        "dodge": 12,
+        "crit": 15,
+        "critHurt": 44,
+        "resistance": 28
+      },
+      "base": {
+        "0x388": 51,
+        "0x390": 69,
+        "0x398": 23,
+        "0x3a0": 12,
+        "0x3a8": 15,
+        "0x3b0": 44,
+        "0x3b8": 41,
+        "0x3c0": 28,
+        "0x3c8": 8,
+        "0x3d0": 9,
+        "0x3d8": 8,
+        "0x3e0": 9
+      }
+    },
+    {
+      "id": 4012,
+      "getters": {
+        "_ZNK3Pet7getTypeEv": 0,
+        "_ZNK3Pet15getKillEnemyNumEv": 0
+      },
+      "values": {
+        "level": 1,
+        "quality": 3,
+        "loyalty": 90,
+        "stars": 0,
+        "growth": 0,
+        "attack": 66,
+        "defense": 27,
+        "maxHp": 66,
+        "hit": 44,
+        "dodge": 13,
+        "crit": 16,
+        "critHurt": 47,
+        "resistance": 30
+      },
+      "base": {
+        "0x388": 66,
+        "0x390": 66,
+        "0x398": 27,
+        "0x3a0": 13,
+        "0x3a8": 16,
+        "0x3b0": 47,
+        "0x3b8": 44,
+        "0x3c0": 30,
+        "0x3c8": 9,
+        "0x3d0": 8,
+        "0x3d8": 8,
+        "0x3e0": 8
+      }
+    },
+    {
+      "id": 4013,
+      "getters": {
+        "_ZNK3Pet7getTypeEv": 0,
+        "_ZNK3Pet15getKillEnemyNumEv": 0
+      },
+      "values": {
+        "level": 1,
+        "quality": 4,
+        "loyalty": 90,
+        "stars": 0,
+        "growth": 0,
+        "attack": 85,
+        "defense": 28,
+        "maxHp": 64,
+        "hit": 51,
+        "dodge": 18,
+        "crit": 19,
+        "critHurt": 60,
+        "resistance": 35
+      },
+      "base": {
+        "0x388": 64,
+        "0x390": 85,
+        "0x398": 28,
+        "0x3a0": 18,
+        "0x3a8": 19,
+        "0x3b0": 60,
+        "0x3b8": 51,
+        "0x3c0": 35,
+        "0x3c8": 9,
+        "0x3d0": 9,
+        "0x3d8": 8,
+        "0x3e0": 10
+      }
+    },
+    {
+      "id": 4014,
+      "getters": {
+        "_ZNK3Pet7getTypeEv": 0,
+        "_ZNK3Pet15getKillEnemyNumEv": 0
+      },
+      "values": {
+        "level": 1,
+        "quality": 4,
+        "loyalty": 90,
+        "stars": 0,
+        "growth": 0,
+        "attack": 64,
+        "defense": 28,
+        "maxHp": 85,
+        "hit": 51,
+        "dodge": 15,
+        "crit": 22,
+        "critHurt": 55,
+        "resistance": 35
+      },
+      "base": {
+        "0x388": 85,
+        "0x390": 64,
+        "0x398": 28,
+        "0x3a0": 15,
+        "0x3a8": 22,
+        "0x3b0": 55,
+        "0x3b8": 51,
+        "0x3c0": 35,
+        "0x3c8": 10,
+        "0x3d0": 9,
+        "0x3d8": 8,
+        "0x3e0": 9
+      }
+    },
+    {
+      "id": 4015,
+      "getters": {
+        "_ZNK3Pet7getTypeEv": 0,
+        "_ZNK3Pet15getKillEnemyNumEv": 0
+      },
+      "values": {
+        "level": 1,
+        "quality": 4,
+        "loyalty": 90,
+        "stars": 0,
+        "growth": 0,
+        "attack": 71,
+        "defense": 32,
+        "maxHp": 71,
+        "hit": 52,
+        "dodge": 15,
+        "crit": 19,
+        "critHurt": 55,
+        "resistance": 36
+      },
+      "base": {
+        "0x388": 71,
+        "0x390": 71,
+        "0x398": 32,
+        "0x3a0": 15,
+        "0x3a8": 19,
+        "0x3b0": 55,
+        "0x3b8": 52,
+        "0x3c0": 36,
+        "0x3c8": 9,
+        "0x3d0": 8,
+        "0x3d8": 10,
+        "0x3e0": 9
+      }
+    },
+    {
+      "id": 4016,
+      "getters": {
+        "_ZNK3Pet7getTypeEv": 0,
+        "_ZNK3Pet15getKillEnemyNumEv": 0
+      },
+      "values": {
+        "level": 1,
+        "quality": 4,
+        "loyalty": 90,
+        "stars": 0,
+        "growth": 0,
+        "attack": 64,
+        "defense": 38,
+        "maxHp": 64,
+        "hit": 51,
+        "dodge": 18,
+        "crit": 19,
+        "critHurt": 55,
+        "resistance": 38
+      },
+      "base": {
+        "0x388": 64,
+        "0x390": 64,
+        "0x398": 38,
+        "0x3a0": 18,
+        "0x3a8": 19,
+        "0x3b0": 55,
+        "0x3b8": 51,
+        "0x3c0": 38,
+        "0x3c8": 10,
+        "0x3d0": 9,
+        "0x3d8": 9,
+        "0x3e0": 8
+      }
+    },
+    {
+      "id": 4017,
+      "getters": {
+        "_ZNK3Pet7getTypeEv": 0,
+        "_ZNK3Pet15getKillEnemyNumEv": 0
+      },
+      "values": {
+        "level": 1,
+        "quality": 4,
+        "loyalty": 90,
+        "stars": 0,
+        "growth": 0,
+        "attack": 69,
+        "defense": 38,
+        "maxHp": 92,
+        "hit": 51,
+        "dodge": 15,
+        "crit": 19,
+        "critHurt": 60,
+        "resistance": 35
+      },
+      "base": {
+        "0x388": 92,
+        "0x390": 69,
+        "0x398": 38,
+        "0x3a0": 15,
+        "0x3a8": 19,
+        "0x3b0": 60,
+        "0x3b8": 51,
+        "0x3c0": 35,
+        "0x3c8": 10,
+        "0x3d0": 8,
+        "0x3d8": 8,
+        "0x3e0": 9
+      }
+    },
+    {
+      "id": 4018,
+      "getters": {
+        "_ZNK3Pet7getTypeEv": 0,
+        "_ZNK3Pet15getKillEnemyNumEv": 0
+      },
+      "values": {
+        "level": 1,
+        "quality": 4,
+        "loyalty": 90,
+        "stars": 0,
+        "growth": 0,
+        "attack": 85,
+        "defense": 28,
+        "maxHp": 64,
+        "hit": 56,
+        "dodge": 15,
+        "crit": 22,
+        "critHurt": 60,
+        "resistance": 35
+      },
+      "base": {
+        "0x388": 64,
+        "0x390": 85,
+        "0x398": 28,
+        "0x3a0": 15,
+        "0x3a8": 22,
+        "0x3b0": 60,
+        "0x3b8": 56,
+        "0x3c0": 35,
+        "0x3c8": 10,
+        "0x3d0": 9,
+        "0x3d8": 9,
+        "0x3e0": 8
+      }
+    },
+    {
+      "id": 4019,
+      "getters": {
+        "_ZNK3Pet7getTypeEv": 0,
+        "_ZNK3Pet15getKillEnemyNumEv": 0
+      },
+      "values": {
+        "level": 1,
+        "quality": 4,
+        "loyalty": 90,
+        "stars": 0,
+        "growth": 0,
+        "attack": 85,
+        "defense": 28,
+        "maxHp": 64,
+        "hit": 51,
+        "dodge": 18,
+        "crit": 22,
+        "critHurt": 55,
+        "resistance": 38
+      },
+      "base": {
+        "0x388": 64,
+        "0x390": 85,
+        "0x398": 28,
+        "0x3a0": 18,
+        "0x3a8": 22,
+        "0x3b0": 55,
+        "0x3b8": 51,
+        "0x3c0": 38,
+        "0x3c8": 9,
+        "0x3d0": 8,
+        "0x3d8": 9,
+        "0x3e0": 10
+      }
+    },
+    {
+      "id": 4020,
+      "getters": {
+        "_ZNK3Pet7getTypeEv": 0,
+        "_ZNK3Pet15getKillEnemyNumEv": 0
+      },
+      "values": {
+        "level": 1,
+        "quality": 4,
+        "loyalty": 90,
+        "stars": 0,
+        "growth": 0,
+        "attack": 94,
+        "defense": 33,
+        "maxHp": 90,
+        "hit": 51,
+        "dodge": 15,
+        "crit": 22,
+        "critHurt": 55,
+        "resistance": 35
+      },
+      "base": {
+        "0x388": 90,
+        "0x390": 94,
+        "0x398": 33,
+        "0x3a0": 15,
+        "0x3a8": 22,
+        "0x3b0": 55,
+        "0x3b8": 51,
+        "0x3c0": 35,
+        "0x3c8": 11,
+        "0x3d0": 10,
+        "0x3d8": 10,
+        "0x3e0": 10
+      }
+    },
+    {
+      "id": 4021,
+      "getters": {
+        "_ZNK3Pet7getTypeEv": 0,
+        "_ZNK3Pet15getKillEnemyNumEv": 0
+      },
+      "values": {
+        "level": 1,
+        "quality": 4,
+        "loyalty": 90,
+        "stars": 0,
+        "growth": 0,
+        "attack": 92,
+        "defense": 28,
+        "maxHp": 65,
+        "hit": 56,
+        "dodge": 15,
+        "crit": 19,
+        "critHurt": 58,
+        "resistance": 34
+      },
+      "base": {
+        "0x388": 65,
+        "0x390": 92,
+        "0x398": 28,
+        "0x3a0": 15,
+        "0x3a8": 19,
+        "0x3b0": 58,
+        "0x3b8": 56,
+        "0x3c0": 34,
+        "0x3c8": 10,
+        "0x3d0": 9,
+        "0x3d8": 9,
+        "0x3e0": 8
+      }
+    },
+    {
+      "id": 4022,
+      "getters": {
+        "_ZNK3Pet7getTypeEv": 0,
+        "_ZNK3Pet15getKillEnemyNumEv": 0
+      },
+      "values": {
+        "level": 1,
+        "quality": 4,
+        "loyalty": 90,
+        "stars": 0,
+        "growth": 0,
+        "attack": 64,
+        "defense": 38,
+        "maxHp": 64,
+        "hit": 51,
+        "dodge": 11,
+        "crit": 17,
+        "critHurt": 55,
+        "resistance": 35
+      },
+      "base": {
+        "0x388": 64,
+        "0x390": 64,
+        "0x398": 38,
+        "0x3a0": 11,
+        "0x3a8": 17,
+        "0x3b0": 55,
+        "0x3b8": 51,
+        "0x3c0": 35,
+        "0x3c8": 9,
+        "0x3d0": 10,
+        "0x3d8": 10,
+        "0x3e0": 10
+      }
+    },
+    {
+      "id": 4023,
+      "getters": {
+        "_ZNK3Pet7getTypeEv": 0,
+        "_ZNK3Pet15getKillEnemyNumEv": 0
+      },
+      "values": {
+        "level": 1,
+        "quality": 4,
+        "loyalty": 90,
+        "stars": 0,
+        "growth": 0,
+        "attack": 90,
+        "defense": 36,
+        "maxHp": 72,
+        "hit": 53,
+        "dodge": 16,
+        "crit": 24,
+        "critHurt": 61,
+        "resistance": 40
+      },
+      "base": {
+        "0x388": 72,
+        "0x390": 90,
+        "0x398": 36,
+        "0x3a0": 16,
+        "0x3a8": 24,
+        "0x3b0": 61,
+        "0x3b8": 53,
+        "0x3c0": 40,
+        "0x3c8": 10,
+        "0x3d0": 10,
+        "0x3d8": 8,
+        "0x3e0": 10
+      }
+    },
+    {
+      "id": 4024,
+      "getters": {
+        "_ZNK3Pet7getTypeEv": 0,
+        "_ZNK3Pet15getKillEnemyNumEv": 0
+      },
+      "values": {
+        "level": 1,
+        "quality": 4,
+        "loyalty": 90,
+        "stars": 0,
+        "growth": 0,
+        "attack": 67,
+        "defense": 35,
+        "maxHp": 67,
+        "hit": 48,
+        "dodge": 15,
+        "crit": 21,
+        "critHurt": 51,
+        "resistance": 33
+      },
+      "base": {
+        "0x388": 67,
+        "0x390": 67,
+        "0x398": 35,
+        "0x3a0": 15,
+        "0x3a8": 21,
+        "0x3b0": 51,
+        "0x3b8": 48,
+        "0x3c0": 33,
+        "0x3c8": 10,
+        "0x3d0": 10,
+        "0x3d8": 9,
+        "0x3e0": 10
+      }
+    },
+    {
+      "id": 4025,
+      "getters": {
+        "_ZNK3Pet7getTypeEv": 0,
+        "_ZNK3Pet15getKillEnemyNumEv": 0
+      },
+      "values": {
+        "level": 1,
+        "quality": 4,
+        "loyalty": 90,
+        "stars": 0,
+        "growth": 0,
+        "attack": 52,
+        "defense": 30,
+        "maxHp": 52,
+        "hit": 43,
+        "dodge": 13,
+        "crit": 18,
+        "critHurt": 46,
+        "resistance": 33
+      },
+      "base": {
+        "0x388": 52,
+        "0x390": 52,
+        "0x398": 30,
+        "0x3a0": 13,
+        "0x3a8": 18,
+        "0x3b0": 46,
+        "0x3b8": 43,
+        "0x3c0": 33,
+        "0x3c8": 10,
+        "0x3d0": 8,
+        "0x3d8": 11,
+        "0x3e0": 10
+      }
+    },
+    {
+      "id": 4026,
+      "getters": {
+        "_ZNK3Pet7getTypeEv": 0,
+        "_ZNK3Pet15getKillEnemyNumEv": 0
+      },
+      "values": {
+        "level": 1,
+        "quality": 4,
+        "loyalty": 90,
+        "stars": 0,
+        "growth": 0,
+        "attack": 81,
+        "defense": 37,
+        "maxHp": 81,
+        "hit": 51,
+        "dodge": 15,
+        "crit": 22,
+        "critHurt": 55,
+        "resistance": 35
+      },
+      "base": {
+        "0x388": 81,
+        "0x390": 81,
+        "0x398": 37,
+        "0x3a0": 15,
+        "0x3a8": 22,
+        "0x3b0": 55,
+        "0x3b8": 51,
+        "0x3c0": 35,
+        "0x3c8": 10,
+        "0x3d0": 10,
+        "0x3d8": 10,
+        "0x3e0": 10
+      }
+    }
+  ]
+}

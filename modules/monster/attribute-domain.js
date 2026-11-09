@@ -19,13 +19,20 @@ export function collectEquipmentAttributes(equipment) {
   const attributes = [];
   for (const item of equipment) {
     for (const attribute of [item.mainAttribute, item.secondaryAttribute, ...(item.attributes || []), item.enchantment]) {
-      if (!attribute?.type) continue;
-      const existing = attributes.find((entry) => entry.type === attribute.type);
-      if (existing) existing.value = (existing.value + attribute.value) | 0;
-      else attributes.push({ ...attribute });
+      if (attribute?.type) attributes.push(attribute);
     }
   }
-  return attributes;
+  return sumAttributes(attributes);
+}
+
+export function sumAttributes(attributes) {
+  const result = [];
+  for (const attribute of attributes) {
+    const existing = result.find((entry) => entry.type === attribute.type);
+    if (existing) existing.value = (existing.value + attribute.value) | 0;
+    else result.push({ ...attribute });
+  }
+  return result;
 }
 
 /** Recalculate core stats while preserving HP, matching refreshPlayerAttribute. */

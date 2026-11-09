@@ -1,6 +1,6 @@
 import { createNewGame } from "./new-game-domain.js";
 import { advanceSoloBattle } from "./battle-domain.js";
-import { calculatePlayerEffects, collectEquipmentAttributes, recalculatePlayerFromEquipment } from "./attribute-domain.js";
+import { calculatePlayerEffects, collectEquipmentAttributes, calculatePlayerCoreAttributes, sumAttributes } from "./attribute-domain.js";
 import { getCopyAccess, maximumCopyDifficulty, prepareCopyBattle } from "./copy-domain.js";
 import { payCopyEntry, settleCopyVictory, settleCopyDefeat } from "./adventure-domain.js";
 import { equipBagItem, toggleEquippedSkill } from "./loadout-domain.js";
@@ -12,6 +12,7 @@ import { smeltItems } from "./smelt-domain.js";
 import { upgradeSpecial, calculateSpecialAttributes } from "./special-upgrade-domain.js";
 import { upgradeGod } from "./god-upgrade-domain.js";
 import { sellBagItem, toggleBagEquipmentLock } from "./bag-item-domain.js";
+import { assignMainPet, collectMainPetAttributes } from "./pet-domain.js";
 
 export function createMonsterGameController({ catalog, store, view, random, wait, now = Date.now }) {
   let state = null;
@@ -36,7 +37,8 @@ export function createMonsterGameController({ catalog, store, view, random, wait
       inventory: { ...state.inventory, equipment: state.inventory.equipment.map(special) } };
     const wing = state.inventory.wings.find((item) => item.id === state.player.wingId);
     const equipment = [...state.player.equipmentSets[state.player.equipmentSetIndex], ...(wing ? [wing] : [])];
-    state = { ...state, player: { ...recalculatePlayerFromEquipment(state.player, equipment), ...calculatePlayerEffects(collectEquipmentAttributes(equipment)) } };
+    const attributes = sumAttributes([...collectEquipmentAttributes(equipment), ...collectMainPetAttributes({ state, catalog })]);
+    state = { ...state, player: { ...state.player, ...calculatePlayerCoreAttributes({ level: state.player.level, paragon: state.player.paragon, attributes }), ...calculatePlayerEffects(attributes) } };
   }
   async function startCopy(copyId, selected) {
     if (!state || active) return;
@@ -231,6 +233,21 @@ export function createMonsterGameController({ catalog, store, view, random, wait
     skills() { if (state && !active) view.skills(state, catalog); },
     bag(kind) { if (state && !active) view.bag(state, catalog, kind); },
     bagItem(target) { if (state && !active) view.bagItem(state, catalog, target); },
+    pets() {
+      if (!state || active) return;
+      if (state.player.level < 35) { view.notice("宠物在 35 级开放"); return; }
+      view.pets(state, catalog);
+    },
+    async setMainPet(target, enabled) {
+      if (!state || active || unsaved) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
+      const serial = revision; active = true;
+      try {
+        state = assignMainPet({ state, catalog, target, enabled }); refresh();
+        const saved = await save();
+        if (serial === revision) { view.updateHome(state, catalog); view.pets(state, catalog, { message: enabled ? "主宠已更新，角色属性已重算" : "主宠已卸下，角色属性已重算", saved, status: saveErrorStatus }); }
+      } catch (error) { if (serial === revision) view.notice(error.message); }
+      finally { if (serial === revision) active = false; }
+    },
     async sellItem(target, quantity) {
       if (!state || active || unsaved) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
       const serial = revision; active = true;
@@ -268,6 +285,7 @@ export function createMonsterGameController({ catalog, store, view, random, wait
       finally { if (request === revision) active = false; }
     },
     save() { if (state && !active) return save(); },
+    getSaveErrorStatus() { return saveErrorStatus; },
     destroy() { revision += 1; active = false; repeat = false; view.repeatStatus(false); },
   };
 }

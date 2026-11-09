@@ -15,11 +15,13 @@ export function picture(path, alt = "", className) {
   return image;
 }
 
-export function petTile(pet, catalog) {
+export function petTile(pet, catalog, onClick) {
   const row = catalog.pets.find((row) => row.id === pet.id);
-  const tile = element("div", undefined, "monster-item monster-pet");
+  const tile = element(onClick ? "button" : "div", undefined, "monster-item monster-pet");
+  if (onClick) { tile.type = "button"; tile.onclick = onClick; }
   tile.dataset.quality = pet.quality;
   tile.append(picture(`pet/${row.img}`, row.name), element("span", row.name, "monster-item-name"));
+  if (pet.main) tile.append(element("b", "主宠", "monster-item-quantity"));
   return tile;
 }
 

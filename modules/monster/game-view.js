@@ -10,6 +10,7 @@ import { renderSmelt } from "./smelt-view.js";
 import { renderSpecialUpgrade } from "./special-upgrade-view.js";
 import { renderGodUpgrade } from "./god-upgrade-view.js";
 import { renderBagItem } from "./bag-item-view.js";
+import { renderPets } from "./pet-view.js";
 
 const assets = "/monster/assets/";
 
@@ -151,10 +152,10 @@ export function createMonsterGameView({ warView }) {
     walk(content, (node) => {
       if (!(node instanceof ccui.Button)) return;
       const type = adventureButtons[node.getName()];
-      const handler = { btn_task: () => actions.tasks(), btn_blacksmith: () => actions.workshop(), btn_strength: () => actions.workshop() }[node.getName()];
+      const handler = { btn_task: () => actions.tasks(), btn_blacksmith: () => actions.workshop(), btn_strength: () => actions.workshop(), btn_pet: () => actions.pets() }[node.getName()];
       node.setVisible(Boolean(type || handler));
       if (type) click(node, () => actions.selectCopy(type));
-      else if (handler) { find(node, "img_lock")?.setVisible(false); click(node, handler); }
+      else if (handler) { find(node, "img_lock")?.setVisible(node.getName() === "btn_pet" && state.player.level < 35); click(node, handler); }
     });
     homeHeader = header;
     homeStats(header, state);
@@ -334,6 +335,7 @@ export function createMonsterGameView({ warView }) {
   }
   function bag(state, catalog, kind, receipt) { renderBag(details("背包", controls.Bag), state, catalog, actions, { kind, receipt }); }
   function bagItem(state, catalog, target, receipt) { renderBagItem({ content: details(target.kind === "equipment" ? "装备分解与锁定" : "道具出售", controls.Bag), state, catalog, target, actions, receipt }); }
+  function pets(state, catalog, receipt) { renderPets({ content: details("宠物 · 主宠加成", controls.Bag), state, catalog, actions, receipt }); }
   function skills(state, catalog) { renderSkills(details("技能", controls.Skills), state, catalog, actions); }
   function selectCopy(state, catalog, settings) {
     const content = details("选择关卡", controls.Adventure);
@@ -359,11 +361,12 @@ export function createMonsterGameView({ warView }) {
   function specialUpgrade(state, catalog, target, receipt) { renderSpecialUpgrade({ content: details("徽章升级", controls.Role), state, catalog, target, actions, receipt }); }
   function godUpgrade(state, catalog, target, receipt) { renderGodUpgrade({ content: details("神器培养", controls.Role), state, catalog, target, actions, receipt }); }
   return {
-    menu, home, updateHome, battle, battleUpdate, result, role, bag, bagItem, skills, selectCopy, trial, tasks, workshop, upgrade, craft, smelt, specialUpgrade, godUpgrade, notice,
+    menu, home, updateHome, battle, battleUpdate, result, role, bag, bagItem, pets, skills, selectCopy, trial, tasks, workshop, upgrade, craft, smelt, specialUpgrade, godUpgrade, notice,
     repeatStatus(enabled) { repeating = enabled; document.getElementById("monsterStop").hidden = !enabled; stage(phase); },
     loadError(message) { stage("error"); statusMessage(message); },
     saveStatus(message, error = false, status = null) {
       saveErrorStatus = status;
+      if (!error && message.startsWith("已保存")) document.getElementById("monsterToast")?.remove();
       document.getElementById("monsterCloudIndicator").textContent = error ? "!" : message.startsWith("正在") ? "…" : "✓";
       document.getElementById("monsterSaveStatus").textContent = message;
       document.querySelector(".monster-save-line").dataset.error = String(error);
