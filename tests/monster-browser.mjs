@@ -147,7 +147,15 @@ async function create(page) {
   await page.locator('#monsterNewGameForm button[type="submit"]').click();
   await stage(page, "home");
 }
-async function fight(page, copyId = 1001) {
+async function fight(page, copyId = 1001, controlled = false) {
+  if (controlled) await page.evaluate(() => {
+    const schedule = window.monsterFixtureNativeTimeout;
+    window.monsterFixturePendingBattle = null;
+    window.setTimeout = (callback, delay, ...args) => {
+      if (delay === 550) { window.monsterFixturePendingBattle = () => callback(...args); return 0; }
+      return schedule(callback, delay, ...args);
+    };
+  });
   await page.locator("#monsterAdventure").click();
   await page.locator(`[data-copy-id="${copyId}"]`).click();
   await stage(page, "battle");
@@ -161,6 +169,13 @@ async function fight(page, copyId = 1001) {
     await page.screenshot({ path: resolve(artifacts, "iphone13-battle.png") });
   }
   assert.equal(await page.locator("#monsterAdventure").isDisabled(), true);
+  if (controlled) {
+    await page.waitForFunction(() => typeof window.monsterFixturePendingBattle === "function");
+    await page.evaluate(() => {
+      window.setTimeout = window.monsterFixtureNativeTimeout;
+      window.monsterFixturePendingBattle(); window.monsterFixturePendingBattle = null;
+    });
+  }
   await stage(page, "result");
   await page.waitForTimeout(300); // Native victory ScaleTo sequence completes in 230ms.
 }
@@ -664,8 +679,7 @@ try {
   await petPage.locator("[data-main-pet-index='0'][aria-pressed='true']").waitFor();
   assert.equal((await saved(petPage)).player.attack, petBefore.player.attack + 61);
   await petPage.locator("#monsterDetailsClose").click();
-  await petPage.evaluate(() => { window.setTimeout = window.monsterFixtureNativeTimeout; });
-  await fight(petPage);
+  await fight(petPage, 1001, true);
   assert.equal((await saved(petPage)).player.attack, petBefore.player.attack + 61);
   assert.equal((await saved(petPage)).inventory.pets[0].partyRole, 1);
   await petPage.locator("#monsterEnter").click(); await stage(petPage, "home"); await tapNative(petPage, "btn_pet");
@@ -730,7 +744,9 @@ try {
   assert.deepEqual(errors, []);
   console.log(`Monster ${browserType.name()} passed: main-pet stats/assignment, bag sales/decomposition/locking, trial, tasks, workshop upgrades, crafting, smelting, badges, god upgrades, result navigation, cloud save and retry, responsive layout, accessibility, CSP and resource isolation.`);
 } catch (error) {
-  for (const page of fixtures.keys()) console.error(await page.locator("#monsterStatus").textContent());
+  for (const page of fixtures.keys()) {
+    if (!page.isClosed()) console.error(await page.locator("#monsterStatus").textContent().catch(() => "Status unavailable"));
+  }
   console.error(errors);
   console.error("Failed requests:", requestFailures);
   throw error;
