@@ -47,12 +47,13 @@ export function renderCopySelection({ content, state, catalog, settings, onStart
     for (const tab of categories.children) tab.setAttribute("aria-pressed", String(Number(tab.dataset.copyType) === settings.type));
     for (const tab of chapterRail.children) tab.setAttribute("aria-current", String(Number(tab.dataset.chapterId) === settings.chapterId));
     chapterRail.hidden = settings.type !== 1;
-    hard.parentElement.hidden = waves.parentElement.hidden = settings.type !== 1;
+    hard.parentElement.hidden = settings.type === 6;
+    waves.parentElement.hidden = settings.type !== 1;
     autoLabel.hidden = settings.type === 6;
     list.replaceChildren();
     if (settings.type === 6) {
       list.style.height = ""; list.className = "monster-copy-list";
-      renderTrial({ content: list, state, catalog, onStart: (trialHard) => onStart(3101, { ...settings, repeat: false, trialHard }), onClaim });
+      renderTrial({ content: list, state, catalog, initialHard: settings.trialHard, onStart: (trialHard) => onStart(3101, { ...settings, repeat: false, trialHard }), onClaim });
       return;
     }
     const chapter = catalog.chapters.find((row) => row.id === settings.chapterId);
@@ -86,4 +87,14 @@ export function renderCopySelection({ content, state, catalog, settings, onStart
   render();
   content.scrollTop = settings.scrollTop || 0;
   chapterRail.scrollLeft = settings.chapterScrollLeft || 0;
+  if (settings.focusCopyId) {
+    const button = list.querySelector(`[data-copy-id="${settings.focusCopyId}"]`)
+      || (settings.type === 6 ? list.querySelector("[data-trial-claim]") : null);
+    if (button) {
+      button.classList.add("monster-copy-focused");
+      button.scrollIntoView({ block: "center", inline: "nearest" });
+      if (!button.disabled) button.focus({ preventScroll: true });
+    }
+    settings.focusCopyId = null;
+  }
 }

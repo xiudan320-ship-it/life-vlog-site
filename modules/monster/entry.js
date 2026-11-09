@@ -1,6 +1,7 @@
 import "../../styles/monster.css";
 import "./bag-item.css";
 import "./pet.css";
+import "./upgrade.css";
 import { createMonsterSaveStore } from "./save-store.js";
 import { createMonsterGameController } from "./game-controller.js";
 import { createMonsterGameView } from "./game-view.js";
@@ -44,6 +45,7 @@ async function boot() {
     wait: (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)),
   });
   view.bind(controller);
+  document.addEventListener("visibilitychange", () => { if (document.hidden) controller.stopStrengthening(); });
   await controller.initialize();
   window.addEventListener("pagehide", (event) => { if (!event.persisted) controller.destroy(); });
   window.addEventListener("pageshow", (event) => { if (event.persisted) { controller.destroy(); void controller.initialize(); } });

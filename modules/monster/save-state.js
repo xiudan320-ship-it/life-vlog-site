@@ -14,6 +14,10 @@ export function validateMonsterSave(state) {
     throw new TypeError("游戏存档数据不完整，请保留原存档并重试。");
   }
   const mainPets = state.inventory.pets.filter((pet) => pet?.partyRole === 1);
+  if (state.crafting !== undefined && (!state.crafting || !state.crafting.counts || typeof state.crafting.counts !== "object"
+    || Array.isArray(state.crafting.counts) || !Object.entries(state.crafting.counts).every(([id, count]) => /^[1-9]\d*$/.test(id) && integer(Number(id), 1) && integer(count, 1)))) {
+    throw new TypeError("打造记录不完整，请保留原存档并重试。");
+  }
   if (mainPets.length > 1 || state.inventory.pets.some((pet) => pet?.partyRole !== undefined && ![0, 1].includes(pet.partyRole))
     || mainPets.some((pet) => pet.type !== 3 || !integer(pet.id, 1) || !integer(pet.level, 1) || !integer(pet.quality, 1) || pet.quality > 5 || !integer(pet.experience))) {
     throw new TypeError("主宠存档数据不完整，请保留原存档并重试。");

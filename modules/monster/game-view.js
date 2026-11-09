@@ -11,6 +11,7 @@ import { renderSpecialUpgrade } from "./special-upgrade-view.js";
 import { renderGodUpgrade } from "./god-upgrade-view.js";
 import { renderBagItem } from "./bag-item-view.js";
 import { renderPets } from "./pet-view.js";
+import { renderMaterialSources } from "./material-source-view.js";
 
 const assets = "/monster/assets/";
 
@@ -31,6 +32,8 @@ export function createMonsterGameView({ warView }) {
   let nodes = new Map();
   let lastRender;
   let homeHeader;
+  let upgradeScreen;
+  let craftSelection;
   let size = { width: 0, height: 0 };
 
   function stage(value) {
@@ -338,6 +341,7 @@ export function createMonsterGameView({ warView }) {
   function pets(state, catalog, receipt) { renderPets({ content: details("宠物 · 主宠加成", controls.Bag), state, catalog, actions, receipt }); }
   function skills(state, catalog) { renderSkills(details("技能", controls.Skills), state, catalog, actions); }
   function selectCopy(state, catalog, settings) {
+    document.getElementById("monsterItemDetails").close();
     const content = details("选择关卡", controls.Adventure);
     renderCopySelection({ content, state, catalog, settings, onStart(copyId, selected) {
       document.getElementById("monsterDetails").close();
@@ -355,13 +359,37 @@ export function createMonsterGameView({ warView }) {
     renderTasks({ content: details("日常任务", controls.Enter), state, catalog, actions, now });
   }
   function workshop(state, catalog) { renderWorkshop({ content: details("铁匠铺", controls.Role), state, catalog, actions }); }
-  function upgrade(state, catalog, target, receipt) { renderUpgrade({ content: details("装备培养", controls.Role), state, catalog, target, actions, receipt }); }
-  function craft(state, catalog, receipt) { details("打造与合成", controls.Role).append(renderCraft({ state, catalog, actions, receipt })); }
+  function upgrade(state, catalog, target, receipt) {
+    upgradeScreen = { target: { ...target }, screen: renderUpgrade({ content: details("装备培养", controls.Role), state, catalog, target, actions, receipt }) };
+  }
+  function updateUpgrade(state, catalog, target, receipt, session) {
+    if (!upgradeScreen || !upgradeScreen.screen.root.isConnected || !document.getElementById("monsterDetails").open) return;
+    const current = upgradeScreen.target;
+    if (current.source !== target.source || current.index !== target.index || current.id !== target.id) return;
+    upgradeScreen.screen.update({ state, receipt, session });
+  }
+  function craft(state, catalog, receipt, preserveSelection = false) {
+    if (preserveSelection && (!document.getElementById("monsterDetails").open || !document.querySelector("#monsterDetailsContent .monster-craft"))) return;
+    if (!preserveSelection) craftSelection = { category: "equipment", itemId: null };
+    const content = document.getElementById("monsterDetailsContent");
+    const scrollTop = preserveSelection ? content.scrollTop : 0;
+    const listScrollTop = preserveSelection ? content.querySelector(".monster-craft-list")?.scrollTop || 0 : 0;
+    details("打造与合成", controls.Role).append(renderCraft({ state, catalog, actions, receipt, selection: craftSelection }));
+    content.scrollTop = scrollTop;
+    content.querySelector(".monster-craft-list").scrollTop = listScrollTop;
+  }
+  function materialSources(state, catalog, itemId, sources) {
+    const dialog = document.getElementById("monsterItemDetails");
+    const content = dialog.querySelector(".monster-item-information"); content.replaceChildren();
+    renderMaterialSources({ content, state, catalog, itemId, sources, actions });
+    if (!dialog.open) dialog.showModal();
+  }
+  function closeMaterialSources() { document.getElementById("monsterItemDetails").close(); }
   function smelt(state, catalog, receipt) { renderSmelt({ content: details("熔炼", controls.Role), state, catalog, actions, receipt }); }
   function specialUpgrade(state, catalog, target, receipt) { renderSpecialUpgrade({ content: details("徽章升级", controls.Role), state, catalog, target, actions, receipt }); }
   function godUpgrade(state, catalog, target, receipt) { renderGodUpgrade({ content: details("神器培养", controls.Role), state, catalog, target, actions, receipt }); }
   return {
-    menu, home, updateHome, battle, battleUpdate, result, role, bag, bagItem, pets, skills, selectCopy, trial, tasks, workshop, upgrade, craft, smelt, specialUpgrade, godUpgrade, notice,
+    menu, home, updateHome, battle, battleUpdate, result, role, bag, bagItem, pets, skills, selectCopy, trial, tasks, workshop, upgrade, updateUpgrade, craft, materialSources, closeMaterialSources, smelt, specialUpgrade, godUpgrade, notice,
     repeatStatus(enabled) { repeating = enabled; document.getElementById("monsterStop").hidden = !enabled; stage(phase); },
     loadError(message) { stage("error"); statusMessage(message); },
     saveStatus(message, error = false, status = null) {
@@ -391,6 +419,7 @@ export function createMonsterGameView({ warView }) {
       document.getElementById("monsterNewGame").addEventListener("close", () => controls.Enter.focus());
       document.getElementById("monsterNewGameForm").onsubmit = (event) => { event.preventDefault(); const name = document.getElementById("monsterName").value.trim(); if (!name) return; hasSave = true; document.getElementById("monsterNewGame").close(); actions.create(name); };
       document.getElementById("monsterDetailsClose").onclick = () => document.getElementById("monsterDetails").close();
+      document.getElementById("monsterDetails").addEventListener("close", () => actions.stopStrengthening());
     },
   };
 }

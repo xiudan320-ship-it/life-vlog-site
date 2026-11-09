@@ -37,6 +37,21 @@ test("cloud game saves isolate family accounts and compare revisions atomically"
   } finally { fixture.close(); }
 });
 
+test("crafting history persists per account and malformed counts cannot replace the cloud save", async () => {
+  const fixture = createWorkerFixture();
+  try {
+    const progress = { ...state(), crafting: { counts: { 6002: 2, 5065: 1 } } };
+    assert.equal((await request(fixture, "owner", "PUT", { expectedRevision: 0, state: progress })).status, 200);
+    assert.deepEqual((await request(fixture, "owner")).body.state.crafting, progress.crafting);
+    assert.equal((await request(fixture, "member")).body.state, null);
+    for (const crafting of [null, { counts: [] }, { counts: { 6002: 0 } }, { counts: { 6002: -1 } }, { counts: { invalid: 1 } }, { counts: { 6002: 1.5 } }]) {
+      assert.equal((await request(fixture, "owner", "PUT", { expectedRevision: 1, state: { ...progress, crafting } })).status, 400);
+    }
+    assert.deepEqual((await request(fixture, "owner")).body.state.crafting, progress.crafting);
+    assert.equal((await request(fixture, "owner")).body.revision, 1);
+  } finally { fixture.close(); }
+});
+
 test("cloud client refuses late results and writes after an account switch", async () => {
   let session = { access_token: "fixture-a", user: { id: "owner" } };
   let remote = null;

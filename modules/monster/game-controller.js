@@ -6,13 +6,14 @@ import { payCopyEntry, settleCopyVictory, settleCopyDefeat } from "./adventure-d
 import { equipBagItem, toggleEquippedSkill } from "./loadout-domain.js";
 import { beginTrial, advanceTrial, claimTrialRewards } from "./trial-domain.js";
 import { createTaskBoard, recordTaskBattle, claimTask, claimDailyReward, gameDay } from "./task-domain.js";
-import { upgradeEquipment } from "./upgrade-domain.js";
+import { upgradeEquipment, getOwnedEquipment } from "./upgrade-domain.js";
 import { craftItem } from "./craft-domain.js";
 import { smeltItems } from "./smelt-domain.js";
 import { upgradeSpecial, calculateSpecialAttributes } from "./special-upgrade-domain.js";
 import { upgradeGod } from "./god-upgrade-domain.js";
 import { sellBagItem, toggleBagEquipmentLock } from "./bag-item-domain.js";
 import { assignMainPet, collectMainPetAttributes } from "./pet-domain.js";
+import { findMaterialSources } from "./material-source-domain.js";
 
 export function createMonsterGameController({ catalog, store, view, random, wait, now = Date.now }) {
   let state = null;
@@ -21,6 +22,7 @@ export function createMonsterGameController({ catalog, store, view, random, wait
   let unsaved = false;
   let saveErrorStatus = null;
   let repeat = false;
+  let strengthening = false;
   const settings = { type: 1, chapterId: null, hard: 1, waves: 1, repeat: false };
   async function save() {
     const request = revision;
@@ -39,6 +41,11 @@ export function createMonsterGameController({ catalog, store, view, random, wait
     const equipment = [...state.player.equipmentSets[state.player.equipmentSetIndex], ...(wing ? [wing] : [])];
     const attributes = sumAttributes([...collectEquipmentAttributes(equipment), ...collectMainPetAttributes({ state, catalog })]);
     state = { ...state, player: { ...state.player, ...calculatePlayerCoreAttributes({ level: state.player.level, paragon: state.player.paragon, attributes }), ...calculatePlayerEffects(attributes) } };
+  }
+  async function upgradeStep(target, operation, boost) {
+    const result = upgradeEquipment({ state, target, operation, boost, catalog, draw: random });
+    state = result.state; refresh();
+    return { ...result, saved: await save() };
   }
   async function startCopy(copyId, selected) {
     if (!state || active) return;
@@ -143,6 +150,23 @@ export function createMonsterGameController({ catalog, store, view, random, wait
       if ([1, 2, 3, 5, 6].includes(type)) settings.type = type;
       view.selectCopy(state, catalog, settings);
     },
+    materialSources(itemId) {
+      if (state && !active) view.materialSources(state, catalog, itemId, findMaterialSources({ state, catalog, itemId }));
+    },
+    closeMaterialSources() { view.closeMaterialSources(); },
+    goToCopy(copyId, source = {}) {
+      if (!state || active) return;
+      const copy = catalog.copies.find((entry) => entry.id === copyId);
+      if (!copy || ![1, 2, 3, 5, 6].includes(copy.type)) return;
+      const reason = getCopyAccess(copy, state, catalog.chapters);
+      if (reason) { view.notice(reason); return; }
+      const hard = [1, 2, 3, 4, 5, 6].includes(source.hard) ? source.hard : 1;
+      if (hard > maximumCopyDifficulty(state.player)) { view.notice("当前角色尚未解锁此难度"); return; }
+      Object.assign(settings, { type: copy.type, focusCopyId: copyId, scrollTop: 0, repeat: false, hard, trialHard: [1, 2, 3].includes(source.trialHard) ? source.trialHard : 1 });
+      const chapter = catalog.chapters.find((entry) => copy.id >= entry.minid && copy.id <= entry.maxid || copy.id === entry.hideboss);
+      if (chapter) settings.chapterId = chapter.id;
+      view.selectCopy(state, catalog, settings);
+    },
     startCopy,
     workshop() { if (state && !active) view.workshop(state, catalog); },
     godUpgrade(target) { if (state && !active) view.godUpgrade(state, catalog, target); },
@@ -158,8 +182,15 @@ export function createMonsterGameController({ catalog, store, view, random, wait
     async craft(itemId) {
       if (!state || active || unsaved) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
       const serial = revision; active = true;
-      try { state = craftItem({ state, itemId, catalog, draw: random }).state; await save(); if (serial === revision) view.craft(state, catalog, "打造完成，物品已入背包"); }
-      catch (error) { if (serial === revision) { view.craft(state, catalog); view.notice(error.message); } }
+      try {
+        state = craftItem({ state, itemId, catalog, draw: random }).state;
+        const saved = await save();
+        if (serial === revision) {
+          view.updateHome(state, catalog);
+          view.craft(state, catalog, saved ? "打造完成，物品已入背包并保存" : "打造已完成，云端未保存，请先重试保存", true);
+        }
+      }
+      catch (error) { if (serial === revision) { view.craft(state, catalog, undefined, true); view.notice(error.message); } }
       finally { if (serial === revision) active = false; }
     },
     async smelt(mode, selection) {
@@ -186,12 +217,43 @@ export function createMonsterGameController({ catalog, store, view, random, wait
       if (!state || active || unsaved) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
       const serial = revision; active = true;
       try {
-        const result = upgradeEquipment({ state, target, operation, boost, catalog, draw: random }); state = result.state; refresh();
-        await save();
-        if (serial === revision) view.upgrade(state, catalog, target, result.success ? "操作完成，装备属性已更新" : "强化失败，已保留原强化等级");
-      } catch (error) { if (serial === revision) { view.upgrade(state, catalog, target); view.notice(error.message); } }
+        const result = await upgradeStep(target, operation, boost);
+        if (serial === revision) {
+          view.updateHome(state, catalog);
+          view.updateUpgrade(state, catalog, target, { message: operation === "strength" ? result.success ? `强化成功 +${result.item.strength}` : `强化失败，保留 +${result.item.strength}` : "操作完成，装备属性已更新", saved: result.saved, status: saveErrorStatus }, { running: false, attempts: 0 });
+        }
+      } catch (error) { if (serial === revision) view.notice(error.message); }
       finally { if (serial === revision) active = false; }
     },
+    async strengthenUntil(target, targetLevel, boost) {
+      if (!state || active || unsaved) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
+      let level;
+      try {
+        level = getOwnedEquipment(state, target).strength;
+        if (!Number.isSafeInteger(targetLevel) || targetLevel <= level || targetLevel > 18) throw new RangeError("请选择高于当前等级且不超过 +18 的目标");
+      } catch (error) { view.notice(error.message); return; }
+      const serial = revision; active = true; strengthening = true;
+      let attempts = 0, receipt = null;
+      const update = (running) => view.updateUpgrade(state, catalog, target, receipt, { running, attempts, targetLevel });
+      try {
+        update(true);
+        while (strengthening && serial === revision && level < targetLevel) {
+          const result = await upgradeStep(target, "strength", boost);
+          if (serial !== revision) return;
+          attempts++; level = result.item.strength;
+          receipt = { message: result.success ? `强化成功 +${level}` : `强化失败，保留 +${level}`, saved: result.saved, status: saveErrorStatus };
+          view.updateHome(state, catalog); update(true);
+          if (!result.saved || !strengthening) break;
+          if (level < targetLevel) await wait(100);
+        }
+        if (receipt?.saved) receipt = { ...receipt, message: level >= targetLevel ? `已强化到 +${level} · 尝试 ${attempts} 次` : `已停止连续强化 · 当前 +${level}` };
+      } catch (error) {
+        if (serial === revision) receipt = { message: `连续强化停止：${error.message}`, saved: !unsaved, status: saveErrorStatus };
+      } finally {
+        if (serial === revision) { strengthening = false; active = false; update(false); }
+      }
+    },
+    stopStrengthening() { strengthening = false; },
     async tasks() {
       if (!state || active) return;
       if (!state.taskBoard) {
@@ -286,6 +348,6 @@ export function createMonsterGameController({ catalog, store, view, random, wait
     },
     save() { if (state && !active) return save(); },
     getSaveErrorStatus() { return saveErrorStatus; },
-    destroy() { revision += 1; active = false; repeat = false; view.repeatStatus(false); },
+    destroy() { revision += 1; active = false; repeat = false; strengthening = false; view.repeatStatus(false); },
   };
 }

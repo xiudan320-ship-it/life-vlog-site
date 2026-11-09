@@ -1,5 +1,30 @@
 import { addBagItem, spendGoods } from "./inventory-domain.js";
 import { createCatalogEquipment, rollEquipmentScore } from "./item-domain.js";
+import { calculateSpecialAttributes } from "./special-upgrade-domain.js";
+
+export function getCraftHistoryCount(state, itemId) {
+  return state.crafting?.counts[itemId] || 0;
+}
+
+export function getCraftOwnedCount(state, itemId) {
+  return (state.inventory.goods.find((item) => item.id === itemId)?.quantity || 0)
+    + state.inventory.equipment.filter((item) => item.id === itemId).length
+    + state.player.equipmentSets.flat().filter((item) => item.id === itemId).length;
+}
+
+/** Preview the actual unstrengthened factory range without consuming random draws. */
+export function getCraftEquipmentComparison({ state, itemId, catalog }) {
+  const row = catalog.items.find((item) => item.id === itemId);
+  if (row?.type !== 2) return null;
+  const preview = (scoreTier, scoreValue) => {
+    const item = createCatalogEquipment({ row, template: catalog.equipmentTemplates[itemId], scoreTier, scoreValue });
+    return row.subtype === 9 ? { ...item, attributes: calculateSpecialAttributes({ item, player: state.player, catalog }) } : item;
+  };
+  return {
+    equipped: state.player.equipmentSets[state.player.equipmentSetIndex].find((item) => item.subtype === row.subtype) || null,
+    min: preview(1, 1), max: preview(4, 100),
+  };
+}
 
 /** Resolve a recipe against the original item catalog and current bag. */
 export function getCraftRequirements({ state, itemId, catalog }) {
@@ -41,5 +66,6 @@ export function craftItem({ state, itemId, catalog, draw }) {
   const item = product.type === 1 ? { id: itemId, type: 1, quantity: 1 }
     : createCatalogEquipment({ row: product, template: catalog.equipmentTemplates[itemId], ...rollEquipmentScore(draw) });
   inventory = addBagItem({ inventory, item });
-  return { state: { ...state, inventory, [currency]: state[currency] - price }, item };
+  const crafting = { counts: { ...state.crafting?.counts, [itemId]: getCraftHistoryCount(state, itemId) + 1 } };
+  return { state: { ...state, inventory, crafting, [currency]: state[currency] - price }, item };
 }

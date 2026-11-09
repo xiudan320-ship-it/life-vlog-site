@@ -1,7 +1,7 @@
 import { getCopyAccess } from "./copy-domain.js";
 import { element, picture, itemTile, petTile } from "./visual-ui.js";
 
-export function renderTrial({ content, state, catalog, onStart, onClaim }) {
+export function renderTrial({ content, state, catalog, onStart, onClaim, initialHard = 1 }) {
   content.classList.add("monster-trial-content");
   const trial = state.trial;
   const current = trial && trial.status !== "claimed";
@@ -13,7 +13,7 @@ export function renderTrial({ content, state, catalog, onStart, onClaim }) {
   const score = element("p", `本轮积分 ${trial?.score || 0}`); score.dataset.trialScore = "";
   stats.append(score, element("p", current ? `难度 ${trial.hard} · 已通过 ${trial.level - 1} 层` : "等级 80 开放 · 逐层挑战"));
   panel.append(stats);
-  let hard = trial?.hard || 1;
+  let hard = current ? trial.hard : initialHard;
   const difficulties = element("nav", undefined, "monster-trial-difficulties"); difficulties.setAttribute("aria-label", "试炼难度");
   for (let value = 1; value <= 3; value += 1) {
     const button = element("button", undefined, "monster-image-button"); button.type = "button"; button.dataset.trialHard = value;

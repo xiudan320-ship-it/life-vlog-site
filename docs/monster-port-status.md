@@ -11,6 +11,8 @@
 
 ## 当前可玩范围
 
+本次优化：普通培养支持原位快速操作和目标等级连续强化，每次保存后再继续；任务与打造的缺料入口可查看实际来源、定位地图并预选所需难度，试炼进行中仍保留本轮难度。打造界面保留当前配方，区分已持有与更新后累计的已打造次数，比较同部位装备的合计属性和随机成品范围。历史档案没有物品来源记录，旧装备不追溯为已打造。
+
 | 范围 | 已接通内容 | 边界 |
 | --- | --- | --- |
 | 入口与画面 | 首页快捷条末尾「黑暗传说」；手机画布铺满可视区，原菜单/主页/战斗/结算、图形角色/背包/技能和地图 | 原图视图结合 HTML 控件，非所有原生 Cocos 节点逐像素复刻；原动画和音效仍未完成 |
@@ -53,6 +55,8 @@
 - 首页不提前加载游戏资源，游戏页面、模块、样式与原资源不进入宿主预缓存。此版本仍需联网，不提供完整离线安装。
 
 ## 验证
+
+`tests/monster-strengthening.mjs` 验证连续强化保存顺序、失败保级、停止、并发保护和账号修订；`tests/monster-material-sources.mjs` 验证实际来源、解锁和只定位不开战。打造／云档测试覆盖历史次数同次入账、隔离及非法记录拒绝。浏览器专项覆盖真实触摸连续操作、同一控件保留、390×844 一屏强化、打造分类／选择保留、保存失败重试不重复打造，以及任务／配方来源跳转。
 
 领域测试入口：`tests/monster-domain.mjs`、`monster-cloud-save.mjs`、`monster-skill-domain.mjs`、`monster-copy-domain.mjs`、`monster-item-domain.mjs`、`monster-adventure.mjs`、`monster-trial.mjs`、`monster-tasks.mjs`、`monster-upgrades.mjs`、`monster-smith-random.mjs`、`monster-craft.mjs`、`monster-smelt.mjs`、`monster-special-upgrade.mjs`、`monster-god-upgrade.mjs`、`monster-bag-items.mjs`、`monster-pets.mjs`。覆盖原生规则对照、完整合成战斗、目录准备、随机装备、任务及装备培养、背包整理、主宠和云存档隔离/冲突/失败，并验证用户指定的战败保留规则；各原生 fixture 来源见 `tests/fixtures/monster/README.md`。
 

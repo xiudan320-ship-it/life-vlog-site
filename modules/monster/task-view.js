@@ -34,7 +34,14 @@ export function renderTasks({ content, state, catalog, actions, now }) {
       const button = element("button", entry.claimed ? "已领取" : [3, 15].includes(entry.type) ? "交纳并领取" : "领取奖励", "monster-image-button");
       button.type = "button"; button.disabled = Boolean(locked || entry.claimed || count < entry.need);
       button.onclick = () => actions.claimTask(entry.id);
-      body.append(button); card.append(body); content.append(card);
+      body.append(button);
+      if ([3, 15].includes(entry.type) && !entry.claimed && count < entry.need) {
+        const source = element("button", "查看材料来源", "monster-image-button");
+        source.type = "button"; source.dataset.materialSource = entry.target;
+        source.onclick = () => actions.materialSources(entry.target);
+        body.append(source);
+      }
+      card.append(body); content.append(card);
     }
   }
 }

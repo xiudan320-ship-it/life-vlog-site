@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { craftItem, getCraftRequirements } from "../modules/monster/craft-domain.js";
+import { craftItem, getCraftRequirements, getCraftHistoryCount, getCraftOwnedCount, getCraftEquipmentComparison } from "../modules/monster/craft-domain.js";
 
 const catalog = {
   items: [
@@ -67,4 +67,35 @@ test("材料类成品堆叠入背包，不抽装备评分", () => {
   assert.equal(result.state.gold, 97);
   assert.equal(result.state.inventory.goods.find((entry) => entry.id === 2).quantity, 5);
   assert.equal(input.inventory.goods.find((entry) => entry.id === 2).quantity, 4);
+});
+
+test("打造次数独立于持有数量，消耗或售出成品后历史仍保留", () => {
+  const input = state();
+  input.inventory.equipment.push({ id: 3, type: 2, subtype: 1 });
+  assert.equal(getCraftOwnedCount(input, 3), 1);
+  assert.equal(getCraftHistoryCount(input, 3), 0);
+  const first = craftItem({ state: input, itemId: 3, catalog, draw: () => 0 }).state;
+  assert.equal(getCraftHistoryCount(first, 3), 1);
+  assert.equal(getCraftOwnedCount(first, 3), 2);
+  const second = craftItem({ state: first, itemId: 3, catalog, draw: () => 0 }).state;
+  second.inventory.equipment = [];
+  assert.equal(getCraftHistoryCount(second, 3), 2);
+  assert.equal(getCraftOwnedCount(second, 3), 0);
+  assert.equal(getCraftHistoryCount(input, 3), 0);
+});
+
+test("打造对比按当前套装同部位匹配，预览范围包含实际随机成品", () => {
+  const input = state(); input.player.equipmentSetIndex = 1;
+  const sword = { id: 3, type: 2, subtype: 1, strength: 5 };
+  input.player.equipmentSets.push([sword]);
+  const before = structuredClone(input);
+  const comparison = getCraftEquipmentComparison({ state: input, itemId: 3, catalog });
+  assert.equal(comparison.equipped, sword);
+  for (const roll of [0, 29, 64, 92, 99]) {
+    const item = craftItem({ state: input, itemId: 3, catalog, draw: () => roll }).item;
+    assert.ok(item.mainAttribute.value >= comparison.min.mainAttribute.value);
+    assert.ok(item.mainAttribute.value <= comparison.max.mainAttribute.value);
+  }
+  assert.equal(getCraftEquipmentComparison({ state: input, itemId: 2, catalog }), null);
+  assert.deepEqual(input, before);
 });
