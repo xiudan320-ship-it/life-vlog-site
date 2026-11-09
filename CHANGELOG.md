@@ -7,8 +7,6 @@
 
 ### Added
 
-- 黑暗传说主宠接入战斗与任务经验、原版逐级余量和 60 级上限；宠物玩具等装备的经验加成随角色属性汇总生效。经验、升级后的角色加成与奖励同次保存，失败重试不重发；战败按已保留的角色经验发放主宠经验。
-- 宠物卡片增加经验进度条、当前经验和满级状态；相同种类的重复宠物分别保存进度，只有当前主宠获得经验。
 - 日记卡片支持同篇多图横向预览轨道、触摸滑动保护和“查看全部 N 张”入口；媒体失败仍可单项重试并保留原索引。
 - 日记发布表单改为媒体优先、文字居中、发布选项折叠的紧凑结构，增加草稿清空确认、队列状态与上传中心入口。
 
@@ -61,6 +59,21 @@
 ### Fixed
 
 - 修复显式深链在断网启动时因初始路由状态提前切换而丢失隐藏缓存日记的问题；缓存画廊现在可在非 gallery 深链下先渲染并由路由控制显隐。
+
+## [2026-11-09] — 主宠经验与升级
+
+### Added
+
+- 主宠接入战斗与任务经验、原版逐级余量和 60 级上限；宠物玩具等装备的经验加成随角色属性汇总生效。经验、升级后的角色加成与奖励同次保存，失败重试不重发；战败按已保留的角色经验发放主宠经验。
+- 宠物卡片增加经验进度条、当前经验和满级状态；相同种类的重复宠物分别保存进度，只有当前主宠获得经验。角色升级递归产生的每次主宠经验事件均按原顺序应用，未改为单次合并奖励。
+
+### Release
+
+- 已从已提交并推送的 `main` 源码 `f47794c07cf0ee0c6701477e22c26192fdfac3e4` 运行统一发布脚本。preview deployment `f8895360-4de5-43fe-8d82-8c2c007d734a`（固定 alias `https://codex-preview.life-vlog-site.pages.dev`），production `608c28dd-85d7-4f09-b1f1-1e7090e62642`（`https://608c28dd.life-vlog-site.pages.dev`），正式游戏入口 `https://life-vlog-site.pages.dev/monster`。Worker `life-vlog-r2-upload` 版本 `f31d3dc1-b4ff-4bb4-9542-90264c6c6c45`。
+- 游戏脚本 `monster-D7tNQaQt.js`，SHA-256 `f79d7588bf2cf82366e5b230afc754e4333d592f336ce82fac98d878b1f93a21`；游戏样式 `monster-CRgnkdAt.css`，SHA-256 `5e00a6f3ca1ac49866d29edd4167bbd46fb1bbc0cfa790fef93cfde134c1ce90`。正式游戏 HTML 引用及资源校验值与本次构建一致。
+- 宿主入口 `index-D9iGdFag.js`，SHA-256 `f8019d744acda81d039305d2c8493b0d3d09d3ae05d7fff3aa16de912cd87a81`；宿主样式 `index-BOxzJ3xB.css`，SHA-256 `d850fc4b9a552ebcea0a6ed2bf21bb4bbc1dda1f267a232b405137c709e9226a`；`sw.js` SHA-256 `a2d9ff79482e1f7e7d00ea9c3d30ed876e600a28040fb057f088b0bced8115fe`，Workbox precache 40 条，游戏仍排除在宿主预缓存外。
+- 统一发布脚本退出 0：242 份 JavaScript 语法检查、333 项单元测试、静态／结构／资源预算、宿主完整浏览器回归、游戏 Chromium 与 iPhone 13 条件 WebKit、本地 release、preview／production Worker CORS、Axe critical/serious 和确定性 release smoke 全部通过。正式站额外通过主宠经验、升级加成、任务发放、重试、重载和满级 UI 的 WebKit 专项；真实 Worker 代码加隔离内存 D1，不使用真实账号或业务数据。
+- 新增 68 条真实 ARM `Pet::addExp` 样本，对照逐级阈值、跨级余量及 60 级边界，并组合既有 128 条角色经验事件验证入账。当前边界不包括有符号溢出、副宠、宠物独立行动、喂养、忠诚消耗或真实 iPhone／完整 APK 等价验收。本次使用已有宠物等级／经验 JSON 字段，无远程 D1 结构变更。
 
 ## [2026-11-09] — 快速强化、打造对比与材料定位
 
