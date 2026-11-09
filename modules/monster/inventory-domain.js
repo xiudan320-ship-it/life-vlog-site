@@ -21,3 +21,13 @@ export function addBagItem({ inventory, item }) {
   if (!matched) goods.push({ ...item });
   return { ...inventory, goods };
 }
+
+export function spendGoods(inventory, requirements) {
+  const totals = new Map();
+  for (const { id, quantity } of requirements) {
+    if (!Number.isSafeInteger(quantity) || quantity < 1) throw new RangeError("材料数量无效");
+    totals.set(id, (totals.get(id) || 0) + quantity);
+  }
+  for (const [id, quantity] of totals) if ((inventory.goods.find((item) => item.id === id)?.quantity || 0) < quantity) throw new RangeError(`材料不足：${id} ×${quantity}`);
+  return { ...inventory, goods: inventory.goods.map((item) => totals.has(item.id) ? { ...item, quantity: item.quantity - totals.get(item.id) } : item).filter((item) => item.quantity > 0) };
+}

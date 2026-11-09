@@ -34,7 +34,7 @@ export function itemTile(item, catalog, { onClick, quantity = false } = {}) {
   return tile;
 }
 
-export function showItem(item, catalog, onEquip) {
+export function showItem(item, catalog, onEquip, onUpgrade) {
   const row = catalog.items.find((entry) => entry.id === item.id);
   const dialog = document.getElementById("monsterItemDetails");
   const content = dialog.querySelector(".monster-item-information");
@@ -42,6 +42,12 @@ export function showItem(item, catalog, onEquip) {
   if (item.level) content.append(element("p", `等级 ${item.level}${item.paragonGrowth ? ` · 巅峰 ${item.paragonGrowth}` : ""}`));
   if (item.scoreValue) content.append(element("p", `装备评分 ${item.scoreTier} / ${item.scoreValue}${item.godLevel ? ` · 神器 ${item.godLevel} 星` : ""}`));
   if (row.describe && row.describe !== "null") content.append(element("p", row.describe));
+  if (item.strength) content.append(element("p", `强化 +${item.strength}`));
+  if (item.enchantment) content.append(element("p", `附魔 ${["", "攻击", "防御", "生命", "命中", "闪避", "暴击", "暴击伤害", "负面抵抗"][item.enchantment.type]} +${item.enchantment.value}`));
+  if (onUpgrade) {
+    const upgrade = element("button", item.subtype === 9 ? "升级徽章" : "强化 / 重铸 / 附魔", "monster-image-button"); upgrade.type = "button";
+    upgrade.onclick = () => { dialog.close(); onUpgrade(); }; content.append(upgrade);
+  }
   if (onEquip) {
     const equip = element("button", "穿戴", "monster-image-button"); equip.type = "button";
     equip.onclick = () => { dialog.close(); onEquip(); }; content.append(equip);

@@ -9,8 +9,8 @@ export function toggleEquippedSkill(state, skillId, skills) {
 
 export function equipBagItem(state, index) {
   const item = state.inventory.equipment[index];
-  if (!item || item.subtype < 1 || item.subtype > 9) throw new RangeError("请选择可穿戴的装备");
-  if (state.player.level < item.level || item.paragonGrowth && state.player.paragon < item.paragonGrowth) throw new RangeError("角色等级或巅峰等级不足");
+  if (!item || item.subtype < 1 || item.subtype === 10 || item.subtype > 14) throw new RangeError("请选择可穿戴的装备");
+  if (state.player.level < item.level || item.subtype <= 9 && item.paragonGrowth && state.player.paragon < item.paragonGrowth) throw new RangeError("角色等级或巅峰等级不足");
   const setIndex = state.player.equipmentSetIndex;
   const equipment = state.player.equipmentSets[setIndex];
   const previous = equipment.find((old) => old.subtype === item.subtype);

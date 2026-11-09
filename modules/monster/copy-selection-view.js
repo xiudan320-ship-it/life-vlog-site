@@ -38,7 +38,7 @@ export function renderCopySelection({ content, state, catalog, settings, onStart
     const image = picture("icon/chapter/" + chapter.icon); image.loading = "lazy";
     button.append(image, element("strong", chapter.name), element("small", `Lv.${chapter.minlevel}–${chapter.maxlevel}`));
     if (chapter.id > state.progress.chapterId) button.append(picture("img/lock.png", "", "monster-chapter-lock"));
-    button.onclick = () => { settings.chapterId = chapter.id; render(); }; chapterRail.append(button);
+      button.onclick = () => { settings.chapterId = chapter.id; settings.scrollTop = 0; render(); content.scrollTop = 0; }; chapterRail.append(button);
   }
   content.append(categories, chapterRail, form, list, info);
   form.onsubmit = (event) => event.preventDefault();
@@ -80,8 +80,10 @@ export function renderCopySelection({ content, state, catalog, settings, onStart
       const image = picture("enemy/" + enemy.img, "", "monster-copy-enemy"); image.loading = "lazy"; button.append(image);
       if (reason) button.append(picture("img/lock.png", "", "monster-copy-lock"));
       button.append(element("strong", copy.name), element("small", reason || `${copy.level > 80 ? "巅峰 " + (copy.level - 80) : "Lv." + copy.level} · ${copy.copyprice ? "卷轴 ×" + copy.copyprice : "挑战"}`));
-      button.onclick = () => onStart(copy.id, { ...settings }); row.append(button); list.append(row);
+      button.onclick = () => onStart(copy.id, { ...settings, scrollTop: content.scrollTop, chapterScrollLeft: chapterRail.scrollLeft }); row.append(button); list.append(row);
     });
   }
   render();
+  content.scrollTop = settings.scrollTop || 0;
+  chapterRail.scrollLeft = settings.chapterScrollLeft || 0;
 }

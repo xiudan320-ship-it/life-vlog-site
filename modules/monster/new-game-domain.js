@@ -41,7 +41,7 @@ export function createNewGame({ items, skills }) {
     },
     gold: 1000, money: 10,
     inventory: { equipment: [], goods: [], wings: [wing], pets: [] },
-    gemSlots: Array(8).fill(0),
+    tutorialFlags: Array(8).fill(0),
     progress: { chapterId: 1, levelId: 1, newChapter: true, finished: false, copies: [{ id: 16002, value: 1 }], special: [] },
   };
 }

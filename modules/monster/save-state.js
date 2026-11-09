@@ -23,5 +23,14 @@ export function validateMonsterSave(state) {
       throw new TypeError("试炼存档数据不完整，请保留原存档并重试。");
     }
   }
+  if (state.taskBoard !== undefined) {
+    const board = state.taskBoard;
+    if (!board || !integer(board.points) || !(board.dailyRewardDay === null || /^\d{4}-\d{2}-\d{2}$/.test(board.dailyRewardDay))
+      || !Array.isArray(board.entries) || new Set(board.entries.map((entry) => entry.id)).size !== board.entries.length
+      || !board.entries.every((entry) => integer(entry.id, 1) && [1, 2, 3, 11, 12, 13, 14, 15, 16, 17].includes(entry.type)
+        && integer(entry.target) && integer(entry.need, 1) && integer(entry.count) && entry.count <= entry.need && [0, 1].includes(entry.claimed))) {
+      throw new TypeError("任务存档数据不完整，请保留原存档并重试。");
+    }
+  }
   return state;
 }

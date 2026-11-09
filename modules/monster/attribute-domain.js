@@ -18,7 +18,7 @@ const coreAttributes = Object.freeze([
 export function collectEquipmentAttributes(equipment) {
   const attributes = [];
   for (const item of equipment) {
-    for (const attribute of [item.mainAttribute, item.secondaryAttribute, ...(item.attributes || [])]) {
+    for (const attribute of [item.mainAttribute, item.secondaryAttribute, ...(item.attributes || []), item.enchantment]) {
       if (!attribute?.type) continue;
       const existing = attributes.find((entry) => entry.type === attribute.type);
       if (existing) existing.value = (existing.value + attribute.value) | 0;
@@ -40,7 +40,7 @@ export function calculatePlayerEffects(attributes) {
   const value = (type) => attributes.find((tag) => tag.type === type)?.value || 0;
   return {
     goldRate: 100 + value(19), dropRate: 100 + value(9), experienceRate: 100 + value(10),
-    regeneration: value(11), hurtBonus: value(33), critResistance: value(40), trialScoreBonus: value(36),
+    regeneration: value(11), hurtBonus: value(33), critResistance: value(40), trialScoreBonus: value(36), smeltBonus: value(35),
     flatCrit: value(23), buffResistance: value(27), procBonus: value(21), encounterBonus: value(22), extraWaves: value(30),
     bonuses: { crit: value(23), critHurt: value(24), hit: value(25), dodge: value(26), hurtIncrease: value(16), hurtDecrease: value(17) },
   };

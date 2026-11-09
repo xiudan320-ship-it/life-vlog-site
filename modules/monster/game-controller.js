@@ -5,8 +5,14 @@ import { getCopyAccess, maximumCopyDifficulty, prepareCopyBattle } from "./copy-
 import { payCopyEntry, settleCopyVictory, settleCopyDefeat } from "./adventure-domain.js";
 import { equipBagItem, toggleEquippedSkill } from "./loadout-domain.js";
 import { beginTrial, advanceTrial, claimTrialRewards } from "./trial-domain.js";
+import { createTaskBoard, recordTaskBattle, claimTask, claimDailyReward, gameDay } from "./task-domain.js";
+import { upgradeEquipment } from "./upgrade-domain.js";
+import { craftItem } from "./craft-domain.js";
+import { smeltItems } from "./smelt-domain.js";
+import { upgradeSpecial, calculateSpecialAttributes } from "./special-upgrade-domain.js";
+import { upgradeGod } from "./god-upgrade-domain.js";
 
-export function createMonsterGameController({ catalog, store, view, random, wait }) {
+export function createMonsterGameController({ catalog, store, view, random, wait, now = Date.now }) {
   let state = null;
   let active = false;
   let revision = 0;
@@ -22,6 +28,9 @@ export function createMonsterGameController({ catalog, store, view, random, wait
   }
   function home() { return view.home(state, catalog).catch((error) => view.notice(`界面加载失败：${error.message}`)); }
   function refresh() {
+    const special = (item) => item.subtype === 9 ? { ...item, attributes: calculateSpecialAttributes({ item, player: state.player, catalog }) } : item;
+    state = { ...state, player: { ...state.player, equipmentSets: state.player.equipmentSets.map((set) => set.map(special)) },
+      inventory: { ...state.inventory, equipment: state.inventory.equipment.map(special) } };
     const wing = state.inventory.wings.find((item) => item.id === state.player.wingId);
     const equipment = [...state.player.equipmentSets[state.player.equipmentSetIndex], ...(wing ? [wing] : [])];
     state = { ...state, player: { ...recalculatePlayerFromEquipment(state.player, equipment), ...calculatePlayerEffects(collectEquipmentAttributes(equipment)) } };
@@ -35,6 +44,7 @@ export function createMonsterGameController({ catalog, store, view, random, wait
     if (locked) { view.notice(locked); return; }
     if (copy.type === 6 && state.trial?.status === "ended") { view.notice("本轮试炼已结束，请先结算奖励。"); return; }
     Object.assign(settings, selected);
+    settings.type = copy.type === 4 ? 3 : copy.type;
     settings.hard = Math.max(1, Math.min(maximumCopyDifficulty(state.player), Math.trunc(settings.hard)));
     settings.waves = Math.max(1, Math.min(10 + (state.player.extraWaves || 0), Math.trunc(settings.waves)));
     const serial = ++revision;
@@ -71,6 +81,7 @@ export function createMonsterGameController({ catalog, store, view, random, wait
         await wait(450);
         if (serial !== revision) return;
         state = { ...state, player: { ...state.player, hp: battle.allies[0].hp, dead: battle.allies[0].dead } };
+        state = recordTaskBattle({ state, copy, prepared, battle });
         const settlement = battle.outcome === 3
           ? settleCopyVictory({ state, copy, prepared, catalog, draw: random })
           : settleCopyDefeat({ state, copy, prepared, battle, catalog, draw: random });
@@ -116,12 +127,91 @@ export function createMonsterGameController({ catalog, store, view, random, wait
       await home();
     },
     continue() { if (state && !active) void home(); },
+    async returnToSelection() {
+      if (!state || active) return;
+      const serial = revision;
+      await home();
+      if (serial === revision) view.selectCopy(state, catalog, settings);
+    },
     selectCopy(type) {
       if (!state || active) return;
       if ([1, 2, 3, 5, 6].includes(type)) settings.type = type;
       view.selectCopy(state, catalog, settings);
     },
     startCopy,
+    workshop() { if (state && !active) view.workshop(state, catalog); },
+    godUpgrade(target) { if (state && !active) view.godUpgrade(state, catalog, target); },
+    async performGodUpgrade(target, operation) {
+      if (!state || active || unsaved) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
+      const serial = revision; active = true;
+      try { state = upgradeGod({ state, target, operation, catalog, draw: random }).state; refresh(); await save(); if (serial === revision) view.godUpgrade(state, catalog, target, operation === "upgrade" ? "神器升星完成" : "最后一星属性已更新"); }
+      catch (error) { if (serial === revision) { view.godUpgrade(state, catalog, target); view.notice(error.message); } }
+      finally { if (serial === revision) active = false; }
+    },
+    showCraft() { if (state && !active) view.craft(state, catalog); },
+    showSmelt() { if (state && !active) view.smelt(state, catalog); },
+    async craft(itemId) {
+      if (!state || active || unsaved) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
+      const serial = revision; active = true;
+      try { state = craftItem({ state, itemId, catalog, draw: random }).state; await save(); if (serial === revision) view.craft(state, catalog, "打造完成，物品已入背包"); }
+      catch (error) { if (serial === revision) { view.craft(state, catalog); view.notice(error.message); } }
+      finally { if (serial === revision) active = false; }
+    },
+    async smelt(mode, selection) {
+      if (!state || active || unsaved) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
+      const serial = revision; active = true;
+      try { const result = smeltItems({ state, mode, selection, catalog, draw: random }); state = result.state; await save(); if (serial === revision) view.smelt(state, catalog, result); }
+      catch (error) { if (serial === revision) { view.smelt(state, catalog); view.notice(error.message); } }
+      finally { if (serial === revision) active = false; }
+    },
+    upgrade(target) {
+      if (!state || active) return;
+      const item = (target.source === "bag" ? state.inventory.equipment : state.player.equipmentSets[state.player.equipmentSetIndex])[target.index];
+      if (item?.subtype === 9) view.specialUpgrade(state, catalog, target);
+      else view.upgrade(state, catalog, target);
+    },
+    async performSpecialUpgrade(target) {
+      if (!state || active || unsaved) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
+      const serial = revision; active = true;
+      try { state = upgradeSpecial({ state, target, catalog }).state; refresh(); await save(); if (serial === revision) view.specialUpgrade(state, catalog, target, "徽章升级完成"); }
+      catch (error) { if (serial === revision) { view.specialUpgrade(state, catalog, target); view.notice(error.message); } }
+      finally { if (serial === revision) active = false; }
+    },
+    async performUpgrade(target, operation, boost) {
+      if (!state || active || unsaved) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
+      const serial = revision; active = true;
+      try {
+        const result = upgradeEquipment({ state, target, operation, boost, catalog, draw: random }); state = result.state; refresh();
+        await save();
+        if (serial === revision) view.upgrade(state, catalog, target, result.success ? "操作完成，装备属性已更新" : "强化失败，已保留原强化等级");
+      } catch (error) { if (serial === revision) { view.upgrade(state, catalog, target); view.notice(error.message); } }
+      finally { if (serial === revision) active = false; }
+    },
+    async tasks() {
+      if (!state || active) return;
+      if (!state.taskBoard) {
+        if (unsaved) { view.notice("请先重试保存当前进度。"); return; }
+        const serial = revision; active = true;
+        try { state = createTaskBoard({ state, catalog, draw: random }); await save(); }
+        finally { if (serial === revision) active = false; }
+        if (serial !== revision) return;
+      }
+      view.tasks(state, catalog, now());
+    },
+    async claimTask(id) {
+      if (!state || active || unsaved) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
+      const serial = revision; active = true;
+      try { state = claimTask({ state, id, catalog }); refresh(); await save(); if (serial === revision) view.tasks(state, catalog, now()); }
+      catch (error) { view.notice(error.message); }
+      finally { if (serial === revision) active = false; }
+    },
+    async claimDailyReward() {
+      if (!state || active || unsaved) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
+      const serial = revision; active = true;
+      try { state = claimDailyReward({ state, catalog, draw: random, day: gameDay(now()) }); await save(); if (serial === revision) view.tasks(state, catalog, now()); }
+      catch (error) { view.notice(error.message); }
+      finally { if (serial === revision) active = false; }
+    },
     async claimTrial() {
       if (!state || active || unsaved) return;
       const serial = revision;

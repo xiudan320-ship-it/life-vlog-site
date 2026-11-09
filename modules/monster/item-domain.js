@@ -48,7 +48,7 @@ export function createCatalogEquipment({ row, template, scoreTier = 4, scoreValu
     mainAttribute: { type: main[0], value: main[1] },
     secondaryAttribute: { type: template.sub[0], value: template.sub[1] },
     attributes: attributes.map(([type, value]) => ({ type, value })),
-    ...(god ? { godLevel: god.godLevel, godOffset: god.godOffset } : {}),
+    ...(god ? { godLevel: god.godLevel, godOffset: god.godOffset, godUpgradeCount: 0 } : {}),
     ...(paragon ? { paragonGrowth: paragon.paragonGrowth } : {}),
   };
 }

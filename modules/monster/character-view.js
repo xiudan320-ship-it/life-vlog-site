@@ -14,7 +14,7 @@ export function renderRole(content, state, catalog, actions) {
   const worn = [...state.player.equipmentSets[state.player.equipmentSetIndex], ...state.inventory.wings.filter((item) => item.id === state.player.wingId)];
   for (const [subtype, [left, top]] of Object.entries(positions)) {
     const item = worn.find((entry) => entry.subtype === Number(subtype));
-    const slot = item ? itemTile(item, catalog, { onClick: () => showItem(item, catalog) }) : element("div", undefined, "monster-empty-slot");
+    const slot = item ? itemTile(item, catalog, { onClick: () => showItem(item, catalog, null, item.subtype <= 9 ? () => actions.upgrade({ source: "equipped", index: worn.indexOf(item), id: item.id }) : null) }) : element("div", undefined, "monster-empty-slot");
     slot.style.left = `${left}%`; slot.style.top = `${top}%`; doll.append(slot);
   }
   const skills = element("button", undefined, "monster-role-skills"); skills.type = "button"; skills.setAttribute("aria-label", "选择装备技能");
@@ -26,7 +26,12 @@ export function renderRole(content, state, catalog, actions) {
     skills.append(slot);
   }
   skills.onclick = () => actions.skills(); doll.append(skills);
-  content.append(stats, doll, element("p", "点击装备查看详情 · 点击技能槽装配技能", "monster-panel-hint"));
+  const gems = element("section", undefined, "monster-gem-equipment monster-original-panel"); gems.setAttribute("aria-label", "特殊徽章装备");
+  for (const [subtype, label] of [[11, "冒险者徽章"], [12, "深渊徽章"], [13, "铁匠徽章"], [14, "巅峰徽章"]]) {
+    const slot = element("div"); const item = worn.find((entry) => entry.subtype === subtype);
+    slot.append(item ? itemTile(item, catalog, { onClick: () => showItem(item, catalog) }) : element("div", undefined, "monster-empty-slot"), element("small", label)); gems.append(slot);
+  }
+  content.append(stats, doll, gems, element("p", "点击装备查看详情 · 点击技能槽装配技能", "monster-panel-hint"));
 }
 
 export function renderBag(content, state, catalog, actions) {
@@ -44,7 +49,8 @@ export function renderBag(content, state, catalog, actions) {
     for (const button of tabs.children) button.setAttribute("aria-pressed", String(button.textContent === group.name));
     panel.replaceChildren();
     group.entries.forEach((item, index) => panel.append(group.pets ? petTile(item, catalog) : itemTile(item, catalog, { quantity: group.quantity,
-      onClick: () => showItem(item, catalog, group.name === "装备" && item.subtype <= 9 ? () => actions.equip(index) : null) })));
+      onClick: () => showItem(item, catalog, group.name === "装备" && (item.subtype <= 9 || item.subtype >= 11 && item.subtype <= 14) ? () => actions.equip(index) : null,
+        group.name === "装备" && item.subtype <= 9 ? () => actions.upgrade({ source: "bag", index, id: item.id }) : null) })));
     for (let index = group.entries.length; index < 30; index += 1) panel.append(element("div", undefined, "monster-empty-slot"));
     empty.textContent = group.entries.length ? `${group.name} ${group.entries.length} 件 · 点击图标查看` : "暂时没有材料或装备，冒险中获得的物品会保存在这里。";
   }

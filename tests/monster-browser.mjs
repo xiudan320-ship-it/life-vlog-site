@@ -10,6 +10,7 @@ import { createCloudflareApiFixture } from "./fixtures/cloudflare-api-fixture.mj
 import { createWorkerFixture } from "./fixtures/memory-d1.mjs";
 import worker from "../cloudflare-worker/src/worker.js";
 import { createNewGame } from "../modules/monster/new-game-domain.js";
+import { createCatalogEquipment } from "../modules/monster/item-domain.js";
 
 const root = resolve("dist");
 const headers = await readFile(resolve(root, "_headers"), "utf8");
@@ -43,15 +44,23 @@ let keyboardChecked = false;
 const artifacts = resolve("artifacts/monster");
 await mkdir(artifacts, { recursive: true });
 
-async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, defeat = false, trial = false, trialRewards = false, colorScheme = "dark", reducedMotion = "no-preference" } = {}) {
+async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, defeat = false, trial = false, trialRewards = false, workshop = false, navigation = false, colorScheme = "dark", reducedMotion = "no-preference" } = {}) {
   const context = await browser.newContext({ ...(iphone13 ? devices["iPhone 13"] : {}), viewport: { width: 390, height: 844 }, screen: { width: 390, height: 844 }, colorScheme, reducedMotion });
   contexts.push(context);
   context.on("requestfailed", (request) => requestFailures.push({ url: request.url(), error: request.failure()?.errorText }));
   const fixture = createWorkerFixture({ origin });
-  if (trial) {
+  if (trial || workshop || navigation) {
     const [items, skills] = await Promise.all(["item", "skill"].map(async (name) => JSON.parse(await readFile(resolve(root, `monster/data/${name}.json`), "utf8"))));
-    const seed = createNewGame({ items, skills }); seed.player.name = "试炼测试勇者"; seed.player.level = 80;
-    seed.player.equipmentSets[0][0].attributes.push(...[1, 2, 3, 4].map((type) => ({ type, value: 10000000 })));
+    const seed = createNewGame({ items, skills }); seed.player.name = "功能测试勇者";
+    if (trial || navigation) { seed.player.level = 80; seed.player.equipmentSets[0][0].attributes.push(...[1, 2, 3, 4].map((type) => ({ type, value: 10000000 }))); }
+    if (navigation) { seed.progress.chapterId = 3; seed.progress.levelId = 1; }
+    if (workshop) {
+      seed.gold = 10000000; seed.money = 10000;
+      seed.inventory.goods.push(...[5003, 5004, 5038, 5046, 5048, 5092, 5040, 5052, 5044, 5058, 5042, 5065].map((id) => ({ id, type: 1, quantity: 1000 })), { id: 5002, type: 1, quantity: 100 });
+      const artifact = { ...seed.player.equipmentSets[0][0], equipped: false, quality: 6, godLevel: 1, godOffset: 0, godUpgradeCount: 0, attributes: [{ type: 16, value: 1 }] };
+      const templates = JSON.parse(await readFile(resolve(root, "monster/data/equipment-templates.json"), "utf8"));
+      seed.inventory.equipment.push(artifact, structuredClone(artifact), createCatalogEquipment({ row: items.find((item) => item.id === 6802), template: templates[6802] }));
+    }
     if (trialRewards) seed.trial = { hard: 3, level: 14, score: 4000, status: "ended", bestScores: { 3: 4000 }, rewards: [] };
     fixture.DB.database.prepare("insert into monster_saves values (?, ?, ?, ?)").run("owner", JSON.stringify(seed), 1, "2030-01-01T00:00:00Z");
     await context.addInitScript(() => {
@@ -99,6 +108,17 @@ async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, de
   return page;
 }
 const stage = (page, value) => page.waitForFunction((value) => document.body.dataset.monsterStage === value, value);
+async function tapNative(page, name) {
+  const point = await page.evaluate((name) => {
+    function find(node) { if (node.getName?.() === name) return node; for (const child of node.getChildren?.() || []) { const found = find(child); if (found) return found; } }
+    const node = find(cc.director.getRunningScene());
+    const p = node.convertToWorldSpace(cc.p(node.width / 2, node.height / 2));
+    const frame = document.getElementById("monsterFrame").getBoundingClientRect();
+    return { x: frame.left + p.x / cc.winSize.width * frame.width, y: frame.top + (cc.winSize.height - p.y) / cc.winSize.height * frame.height };
+  }, name);
+  if (iphone13) await page.touchscreen.tap(point.x, point.y);
+  else await page.mouse.click(point.x, point.y);
+}
 const saved = async (page, user = "owner") => {
   const row = fixtures.get(page).DB.database.prepare("select state_json from monster_saves where user_id = ?").get(user);
   return row ? JSON.parse(row.state_json) : undefined;
@@ -299,6 +319,32 @@ try {
   await auto.locator("#monsterStop").click();
   await stage(auto, "result");
   assert.equal((await saved(auto)).progress.copies.find((row) => row.id === 1001).value, 2);
+  // Exercise the result canvas itself, including restoring a non-default chapter
+  // and both scroll positions after a real map challenge.
+  const navigationPage = await pageFor({ navigation: true, roll: 4, reducedMotion: "reduce" });
+  await navigationPage.locator("#monsterEnter").click(); await stage(navigationPage, "home");
+  await navigationPage.locator("#monsterAdventure").click();
+  await navigationPage.locator('[data-chapter-id="2"]').click();
+  const challenge = navigationPage.locator('[data-copy-id="1010"]');
+  await challenge.scrollIntoViewIfNeeded();
+  await navigationPage.locator(".monster-chapter-rail").evaluate((rail) => { rail.scrollLeft = 400; });
+  const mapPosition = await navigationPage.evaluate(() => ({
+    top: document.querySelector(".monster-adventure-content").scrollTop,
+    left: document.querySelector(".monster-chapter-rail").scrollLeft,
+  }));
+  assert.ok(mapPosition.top > 0 && mapPosition.left > 0, JSON.stringify(mapPosition));
+  await challenge.click(); await stage(navigationPage, "result");
+  await tapNative(navigationPage, "text_backtips");
+  await navigationPage.locator(".monster-adventure-content").waitFor();
+  assert.equal(await navigationPage.locator('[data-copy-type="1"]').getAttribute("aria-pressed"), "true");
+  assert.equal(await navigationPage.locator('[data-chapter-id="2"]').getAttribute("aria-current"), "true");
+  const restoredPosition = await navigationPage.evaluate(() => ({
+    top: document.querySelector(".monster-adventure-content").scrollTop,
+    left: document.querySelector(".monster-chapter-rail").scrollLeft,
+  }));
+  assert.deepEqual(restoredPosition, mapPosition);
+  await navigationPage.locator("#monsterDetailsClose").click(); await stage(navigationPage, "home");
+
   const trialPage = await pageFor({ trial: true, roll: 4, reducedMotion: "reduce" });
   await trialPage.locator("#monsterEnter").click(); await stage(trialPage, "home");
   async function openTrial() {
@@ -350,6 +396,140 @@ try {
   await prizePage.locator("#monsterDetailsClose").click(); await prizePage.locator("#monsterBag").click();
   await prizePage.getByRole("button", { name: "宠物", exact: true }).click();
   assert.equal(await prizePage.locator("#monsterDetailsContent .monster-pet").count(), 2);
+  const smithPage = await pageFor({ workshop: true, roll: 0, reducedMotion: "reduce" });
+  await smithPage.locator("#monsterEnter").click(); await stage(smithPage, "home");
+  await tapNative(smithPage, "btn_task"); await smithPage.locator("[data-task-id='64']").waitFor();
+  await smithPage.locator("[data-task-id='64'] button").click();
+  await smithPage.waitForFunction(() => document.querySelector("[data-task-id='64'] button").textContent === "已领取");
+  assert.equal((await saved(smithPage)).inventory.goods.find((item) => item.id === 5003).quantity, 990);
+  await smithPage.locator("[data-daily-reward]").click();
+  await smithPage.waitForFunction(() => document.querySelector("[data-daily-reward]").disabled);
+  assert.equal((await saved(smithPage)).inventory.goods.find((item) => item.id === 5009).quantity, 5);
+  await accessible(smithPage); await noOverflow(smithPage);
+  await smithPage.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-tasks.png" : "tasks.png") });
+  await smithPage.locator("#monsterDetailsClose").click();
+  await tapNative(smithPage, "btn_blacksmith"); await smithPage.locator(".monster-workshop-content").waitFor();
+  await smithPage.locator(".monster-workshop-content .monster-item").first().click();
+  await smithPage.locator('[data-upgrade="strength"]').click();
+  await smithPage.locator(".monster-upgrade-summary h3").filter({ hasText: "+1" }).waitFor();
+  assert.equal((await saved(smithPage)).player.equipmentSets[0][0].strength, 1);
+  await smithPage.locator('[data-upgrade="reforge"]').click();
+  await smithPage.locator(".monster-upgrade-summary").filter({ hasText: "普通 · 1" }).waitFor();
+  await smithPage.evaluate(() => { window.monsterFixtureBlockSave = true; });
+  await smithPage.locator('[data-upgrade="enchantGold"]').click();
+  await smithPage.locator(".monster-upgrade-summary").filter({ hasText: "攻击 +25" }).waitFor();
+  assert.equal((await saved(smithPage)).player.equipmentSets[0][0].enchantment, undefined);
+  await smithPage.locator('[data-upgrade="strength"]').click();
+  await smithPage.locator("#monsterToast").filter({ hasText: "请先重试保存当前进度" }).waitFor();
+  assert.equal(await smithPage.locator('[data-upgrade="strength"]').isEnabled(), true);
+  await smithPage.locator("#monsterDetailsClose").click();
+  await smithPage.evaluate(() => { window.monsterFixtureBlockSave = false; });
+  await smithPage.locator("#monsterSaveRetry").click(); await smithPage.locator("#monsterSaveRetry").waitFor({ state: "hidden" });
+  await tapNative(smithPage, "btn_blacksmith"); await smithPage.locator(".monster-workshop-content .monster-item").first().click();
+  assert.equal(await smithPage.locator('[data-upgrade="strength"]').isEnabled(), true);
+  await smithPage.locator('[data-upgrade="strength"]').click();
+  await smithPage.locator(".monster-upgrade-summary h3").filter({ hasText: "+2" }).waitFor();
+  const upgraded = await saved(smithPage);
+  assert.equal(upgraded.player.equipmentSets[0][0].strength, 2);
+  assert.equal(upgraded.player.equipmentSets[0][0].enchantment.value, 25);
+  await smithPage.reload(); await stage(smithPage, "menu");
+  assert.deepEqual(await saved(smithPage), upgraded);
+  await smithPage.locator("#monsterEnter").click(); await stage(smithPage, "home");
+  await tapNative(smithPage, "btn_blacksmith"); await smithPage.locator(".monster-workshop-content .monster-item").first().click();
+  await accessible(smithPage); await noOverflow(smithPage);
+  await smithPage.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-upgrades.png" : "upgrades.png") });
+  await smithPage.locator("#monsterDetailsClose").click();
+  await tapNative(smithPage, "btn_strength"); await smithPage.locator(".monster-workshop-content").waitFor();
+  const beforeCraft = await saved(smithPage);
+  await smithPage.getByRole("button", { name: "打造与合成" }).click();
+  await smithPage.locator("[data-recipe-id='6002']").click();
+  await smithPage.evaluate(() => { window.monsterFixtureBlockSave = true; });
+  await smithPage.locator("[data-craft-item='6002']").click();
+  await smithPage.locator(".monster-upgrade-receipt").waitFor();
+  assert.deepEqual(await saved(smithPage), beforeCraft);
+  await smithPage.locator("#monsterDetailsClose").click();
+  await smithPage.evaluate(() => { window.monsterFixtureBlockSave = false; });
+  await smithPage.locator("#monsterSaveRetry").click(); await smithPage.locator("#monsterSaveRetry").waitFor({ state: "hidden" });
+  const crafted = await saved(smithPage);
+  assert.equal(crafted.gold, beforeCraft.gold - 1);
+  for (const [id, cost] of [[5038, 5], [5046, 3], [5048, 2]]) assert.equal(crafted.inventory.goods.find((item) => item.id === id).quantity, beforeCraft.inventory.goods.find((item) => item.id === id).quantity - cost);
+  assert.equal(crafted.inventory.equipment.filter((item) => item.id === 6002).length, 1);
+  await tapNative(smithPage, "btn_blacksmith"); await smithPage.getByRole("button", { name: "熔炼", exact: true }).click();
+  await smithPage.locator("[data-smelt-mode='goods']").click();
+  await smithPage.locator("[data-smelt-goods='5002']").fill("10");
+  await smithPage.evaluate(() => { window.monsterFixtureBlockSave = true; });
+  await smithPage.locator("[data-smelt-confirm]").click();
+  await smithPage.locator(".monster-smelt-summary").filter({ hasText: "产物已入背包" }).waitFor();
+  assert.deepEqual(await saved(smithPage), crafted);
+  await smithPage.locator("#monsterDetailsClose").click();
+  await smithPage.evaluate(() => { window.monsterFixtureBlockSave = false; });
+  await smithPage.locator("#monsterSaveRetry").click(); await smithPage.locator("#monsterSaveRetry").waitFor({ state: "hidden" });
+  const materialSmelt = await saved(smithPage);
+  assert.equal(materialSmelt.gold, crafted.gold - 80000);
+  assert.equal(materialSmelt.inventory.goods.find((item) => item.id === 5002).quantity, 90);
+  assert.equal(materialSmelt.inventory.goods.find((item) => item.id === 5104).quantity, 1);
+  await tapNative(smithPage, "btn_blacksmith"); await smithPage.getByRole("button", { name: "熔炼", exact: true }).click();
+  await smithPage.locator("[data-smelt-equipment='0']").check();
+  await smithPage.locator("[data-smelt-confirm]").click();
+  await smithPage.locator(".monster-smelt-summary").filter({ hasText: "产物已入背包" }).waitFor();
+  const equipmentSmelt = await saved(smithPage);
+  assert.equal(equipmentSmelt.gold, materialSmelt.gold - 20000);
+  assert.equal(equipmentSmelt.inventory.equipment.filter((item) => item.id === 6001 && item.godLevel === 1).length, 1);
+  assert.equal(equipmentSmelt.inventory.equipment.some((item) => item.id === 6913), true);
+  await accessible(smithPage); await noOverflow(smithPage);
+  await smithPage.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-smelt.png" : "smelt.png") });
+  await smithPage.reload(); await stage(smithPage, "menu");
+  assert.deepEqual(await saved(smithPage), equipmentSmelt);
+  await smithPage.locator("#monsterEnter").click(); await stage(smithPage, "home");
+  await smithPage.evaluate(() => { let next = 1; crypto.getRandomValues = (array) => { array.fill(next++); return array; }; });
+  await tapNative(smithPage, "btn_blacksmith");
+  await smithPage.locator(".monster-bag-grid").last().locator('button[title="新手铁剑"]').click();
+  await smithPage.locator("[data-open-god-upgrade]").click();
+  await smithPage.evaluate(() => { window.monsterFixtureBlockSave = true; });
+  await smithPage.locator("[data-god-upgrade='upgrade']").click();
+  await smithPage.locator(".monster-upgrade-summary h3").filter({ hasText: "2 星" }).waitFor();
+  await smithPage.locator(".monster-upgrade-summary").filter({ hasText: "伤害减免 +1" }).waitFor();
+  assert.deepEqual(await saved(smithPage), equipmentSmelt);
+  await smithPage.locator("#monsterDetailsClose").click();
+  await smithPage.evaluate(() => { window.monsterFixtureBlockSave = false; });
+  await smithPage.locator("#monsterSaveRetry").click(); await smithPage.locator("#monsterSaveRetry").waitFor({ state: "hidden" });
+  let godState = await saved(smithPage);
+  assert.deepEqual(godState.inventory.equipment.find((item) => item.godLevel === 2).attributes.slice(-2).map((item) => item.type), [16, 17]);
+  await tapNative(smithPage, "btn_blacksmith");
+  await smithPage.locator(".monster-bag-grid").last().locator('button[title="新手铁剑"]').click();
+  await smithPage.locator("[data-open-god-upgrade]").click();
+  await smithPage.locator("[data-god-upgrade='reset']").click();
+  await smithPage.locator(".monster-upgrade-summary").filter({ hasText: "暴击 +1" }).waitFor();
+  await smithPage.locator("[data-god-upgrade='upgrade']").click();
+  await smithPage.getByRole("button", { name: "确认升星" }).click();
+  await smithPage.locator(".monster-upgrade-summary h3").filter({ hasText: "3 星" }).waitFor();
+  godState = await saved(smithPage);
+  assert.deepEqual(godState.inventory.equipment.find((item) => item.godLevel === 3).attributes.slice(-3).map((item) => item.type), [16, 23, 24]);
+  await smithPage.locator("#monsterDetailsClose").click();
+  godState.player.level = 30;
+  fixtures.get(smithPage).DB.database.prepare("update monster_saves set state_json = ? where user_id = ?").run(JSON.stringify(godState), "owner");
+  await smithPage.reload(); await stage(smithPage, "menu");
+  await smithPage.locator("#monsterEnter").click(); await stage(smithPage, "home");
+  await tapNative(smithPage, "btn_blacksmith");
+  await smithPage.locator(".monster-bag-grid").last().locator('button[title="经验卷轴"]').click();
+  await smithPage.locator("[data-special-upgrade]").click();
+  await smithPage.locator(".monster-upgrade-summary h3").filter({ hasText: "+1" }).waitFor();
+  const badgeBefore = await saved(smithPage);
+  assert.equal(badgeBefore.inventory.equipment.find((item) => item.id === 6802).strength, 1);
+  await smithPage.locator("#monsterDetailsClose").click();
+  await smithPage.locator("#monsterBag").click();
+  await smithPage.getByRole("button", { name: "装备", exact: true }).click();
+  await smithPage.locator('.monster-bag-grid button[title="铁匠徽章"]').click();
+  await smithPage.locator("#monsterItemDetails").getByRole("button", { name: "穿戴" }).click();
+  await smithPage.locator(".monster-bag-grid button[title='铁匠徽章']").waitFor({ state: "detached" });
+  const equipped = await saved(smithPage);
+  assert.ok(equipped.player.attack > badgeBefore.player.attack);
+  assert.equal(equipped.player.equipmentSets[equipped.player.equipmentSetIndex].some((item) => item.id === 6913), true);
+  await smithPage.locator("#monsterDetailsClose").click(); await smithPage.locator("#monsterRole").click();
+  assert.equal(await smithPage.locator(".monster-gem-equipment > div").count(), 4);
+  assert.equal(await smithPage.locator('.monster-gem-equipment button[title="铁匠徽章"]').count(), 1);
+  await accessible(smithPage); await noOverflow(smithPage);
+  await smithPage.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-badges.png" : "badges.png") });
   const other = await auto.context().newPage();
   await other.goto(`${origin}/monster.html`); await stage(other, "menu");
   await other.evaluate(({ key, token }) => localStorage.setItem(key, JSON.stringify({ access_token: token, user: { id: "member" }, expires_at: "2099-01-01T00:00:00Z" })), { key, token: fixtures.get(auto).tokens.get("member") });
@@ -387,7 +567,7 @@ try {
   assert.ok(["/monster", "/monster.html"].includes(new URL(home.url()).pathname));
   assert.deepEqual(external, []);
   assert.deepEqual(errors, []);
-  console.log(`Monster ${browserType.name()} passed: trial continuation/score/claim/retry, cloud save, native win, reload, level-up, selection, drops, dialogs, 6 widths, save retry, corrupt save, CSP and resource isolation.`);
+  console.log(`Monster ${browserType.name()} passed: trial, tasks, workshop upgrades, crafting, smelting, badges, god upgrades, result navigation, cloud save and retry, responsive layout, accessibility, CSP and resource isolation.`);
 } catch (error) {
   for (const page of fixtures.keys()) console.error(await page.locator("#monsterStatus").textContent());
   console.error(errors);

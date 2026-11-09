@@ -81,7 +81,19 @@ SHA-256：`9767B9C3945D38985C07DB73D56DEC83E162B37C69A9686686BC9BDE67E35079`。
 | `native-instance-reward-fixtures.json` | 96 | `recover-instance-rewards.py`；副本/特殊首领/深渊/试炼数字奖励，不代表试炼最终积分领奖已接通 |
 | `native-abyss-milestone-fixtures.json` | 114 | `recover-abyss-milestones.py`；全深渊层数的固定里程碑材料，不含每日重置/扫荡 |
 
-`public/monster/data/drop-groups.json` 由 `recover-catalog-drop-groups.py` 使用原生宽松 CSJson 解析全 331 条关卡，保留原目录中严格 JSON 无法解析的掉落字段；`equipment-templates.json` 保留原工厂固定属性。界面仅开放已装配路径，尚未恢复的任务、宠物等效果不因数据表存在而视为完成。
+`public/monster/data/drop-groups.json` 由 `recover-catalog-drop-groups.py` 使用原生宽松 CSJson 解析全 331 条关卡，保留原目录中严格 JSON 无法解析的掉落字段；`equipment-templates.json` 保留原工厂固定属性。界面仅开放已装配路径，尚未恢复的任务条件、宠物等效果不因数据表存在而视为完成。
+
+## 任务板与装备培养
+
+- `native-daily-counter-fixtures.json`：`recover-daily-counters.py` 限定执行原胜利结算的固定日常片段（0x9ef3cc–0x9ef484、0x9ef654–0x9ef6f0、0x9f2fb8–0x9f3058），840 组覆盖等级差 5 的边界、各战斗类型、敌人数、额外遭遇及已领奖标记。仅捕获计数，省略成就和通关副作用；战败保留击杀进度仍是用户指定的扩展规则。
+- `native-task-board-fixtures.json`：27 组合成状态执行原任务工厂与拒绝重抽，比较目录选择、随机消耗和进度；目录向量使用明确的 JSON 顺序，通知省略，也不连接原服务器。`public/monster/data/task.json` 保留 154 条普通任务和 7 条固定日常。`tests/monster-tasks.mjs` 使用这些样本及确定性状态验证移植行为；寻宝、黑市、充值和原服务器日切不在该对照范围。
+- `native-smith-rules-fixtures.json`：1520 组费用及 1344 组附魔数值样本，另保留强化概率和附魔权重表。仅执行限定的原生数值及界面费用片段，不执行 UI、账号、背包或网络副作用。`tests/monster-upgrades.mjs` 验证当前普通装备培养实现。
+- `native-smith-random-fixtures.json`：原生附魔等级、类型、数值函数和限定强化成功分支，比较随机输入与消耗；不表示整个 UI 和账号副作用已执行。测试入口 `tests/monster-smith-random.mjs`。
+- `native-special-upgrade-fixtures.json`：原装备属性刷新及徽章升级配方选择的限定片段，使用原目录对象与确定性内存角色；测试入口 `tests/monster-special-upgrade.mjs`。
+- `native-god-upgrade-costs.json`：原神器升星层的有限费用片段及 `getGodAttrNotHave` 抽取，120 组费用、36 组词条和拒绝重抽样本；跳过 UI 操作，不执行账号、背包或网络副作用。测试入口 `tests/monster-god-upgrade.mjs`。
+- `native-smelt-rules-fixtures.json`：144 组最低品质宝石生成、144 组神器装备熔炼评分与概率、36 组材料计分与产出；使用合成背包执行限定业务片段，不执行 UI 或网络。测试入口 `tests/monster-smelt.mjs`。
+
+原新档字段 `tutorialFlags` 对应已核实的教程标记（原生 `isTeached/setTeached`）；投影 fixture 已改字段名，原始外部状态证据仍保留旧分析标签，数值未变。它不是宝石槽。
 
 ## 试炼积分与奖励
 

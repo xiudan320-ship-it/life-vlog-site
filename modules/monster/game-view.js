@@ -3,6 +3,12 @@ import { renderCopySelection } from "./copy-selection-view.js";
 import { renderRole, renderBag, renderSkills } from "./character-view.js";
 import { readGameInsets, nodeScreenBox, observeVisibleViewport } from "./viewport-view.js";
 import { renderTrial } from "./trial-view.js";
+import { renderTasks } from "./task-view.js";
+import { renderWorkshop, renderUpgrade } from "./smith-view.js";
+import { renderCraft } from "./craft-view.js";
+import { renderSmelt } from "./smelt-view.js";
+import { renderSpecialUpgrade } from "./special-upgrade-view.js";
+import { renderGodUpgrade } from "./god-upgrade-view.js";
 
 const assets = "/monster/assets/";
 
@@ -128,8 +134,10 @@ export function createMonsterGameView({ warView }) {
     walk(content, (node) => {
       if (!(node instanceof ccui.Button)) return;
       const type = adventureButtons[node.getName()];
-      node.setVisible(Boolean(type));
+      const handler = { btn_task: () => actions.tasks(), btn_blacksmith: () => actions.workshop(), btn_strength: () => actions.workshop() }[node.getName()];
+      node.setVisible(Boolean(type || handler));
       if (type) click(node, () => actions.selectCopy(type));
+      else if (handler) { find(node, "img_lock")?.setVisible(false); click(node, handler); }
     });
     text(header, "label_name", state.player.name);
     text(header, "text_level", `等级${state.player.level}`);
@@ -291,7 +299,8 @@ export function createMonsterGameView({ warView }) {
       const quantity = new ccui.Text(String(item.quantity ?? 1), "Arial", 22); quantity.setPosition(frame.width - 12, 12); frame.addChild(quantity);
       widget.addChild(frame, 30);
     });
-    click(widget, () => actions.continue());
+    text(widget, "text_backtips", reward.partial ? `战败 · 已保留 ${reward.defeatedCount} 只怪物收益\n点击返回关卡` : "点击返回关卡");
+    click(widget, () => actions.returnToSelection());
     scene(widget, true);
     lastRender = () => result(outcome, reward, state, catalog);
     stage("result");
@@ -328,8 +337,17 @@ export function createMonsterGameView({ warView }) {
       actions.startCopy(3101, { trialHard, repeat: false });
     }, onClaim: () => actions.claimTrial() });
   }
+  function tasks(state, catalog, now) {
+    renderTasks({ content: details("日常任务", controls.Enter), state, catalog, actions, now });
+  }
+  function workshop(state, catalog) { renderWorkshop({ content: details("铁匠铺", controls.Role), state, catalog, actions }); }
+  function upgrade(state, catalog, target, receipt) { renderUpgrade({ content: details("装备培养", controls.Role), state, catalog, target, actions, receipt }); }
+  function craft(state, catalog, receipt) { details("打造与合成", controls.Role).append(renderCraft({ state, catalog, actions, receipt })); }
+  function smelt(state, catalog, receipt) { renderSmelt({ content: details("熔炼", controls.Role), state, catalog, actions, receipt }); }
+  function specialUpgrade(state, catalog, target, receipt) { renderSpecialUpgrade({ content: details("徽章升级", controls.Role), state, catalog, target, actions, receipt }); }
+  function godUpgrade(state, catalog, target, receipt) { renderGodUpgrade({ content: details("神器培养", controls.Role), state, catalog, target, actions, receipt }); }
   return {
-    menu, home, battle, battleUpdate, result, role, bag, skills, selectCopy, trial, notice,
+    menu, home, battle, battleUpdate, result, role, bag, skills, selectCopy, trial, tasks, workshop, upgrade, craft, smelt, specialUpgrade, godUpgrade, notice,
     repeatStatus(enabled) { repeating = enabled; document.getElementById("monsterStop").hidden = !enabled; stage(phase); },
     loadError(message) { stage("error"); statusMessage(message); },
     saveStatus(message, error = false, status = null) {
