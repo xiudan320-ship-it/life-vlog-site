@@ -605,10 +605,10 @@ try {
     await recoveryPage.locator("#monsterBag").click();
     await recoveryPage.locator('.monster-bag-grid button[title="普通强化石"]').click();
     await recoveryPage.locator("[data-manage-bag-item]").click(); await recoveryPage.locator("[data-sell-item]").click();
-    await recoveryPage.getByRole("button", { name: recovery, exact: true }).waitFor();
+    await recoveryPage.locator("#monsterDetails").getByRole("button", { name: recovery, exact: true }).waitFor();
     assert.equal(await recoveryPage.locator("[data-bag-save-retry]").count(), 0);
     assert.deepEqual(await saved(recoveryPage), before);
-    if (saveStatus === 409) { await recoveryPage.getByRole("button", { name: recovery, exact: true }).click(); await stage(recoveryPage, "menu"); assert.deepEqual(await saved(recoveryPage), before); }
+    if (saveStatus === 409) { await recoveryPage.locator("#monsterDetails").getByRole("button", { name: recovery, exact: true }).click(); await stage(recoveryPage, "menu"); assert.deepEqual(await saved(recoveryPage), before); }
     await recoveryPage.close();
   }
   const other = await auto.context().newPage();
