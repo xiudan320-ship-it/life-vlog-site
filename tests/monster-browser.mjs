@@ -72,6 +72,7 @@ async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, sa
     fixture.DB.database.prepare("insert into monster_saves values (?, ?, ?, ?)").run("owner", JSON.stringify(seed), 1, "2030-01-01T00:00:00Z");
     await context.addInitScript(() => {
       const schedule = window.setTimeout;
+      window.monsterFixtureNativeTimeout = schedule;
       window.setTimeout = (callback, delay, ...args) => schedule(callback, [550, 450].includes(delay) ? 0 : delay, ...args);
     });
   }
@@ -662,7 +663,9 @@ try {
   await petPage.locator("[data-main-pet-index='0']").click();
   await petPage.locator("[data-main-pet-index='0'][aria-pressed='true']").waitFor();
   assert.equal((await saved(petPage)).player.attack, petBefore.player.attack + 61);
-  await petPage.locator("#monsterDetailsClose").click(); await fight(petPage);
+  await petPage.locator("#monsterDetailsClose").click();
+  await petPage.evaluate(() => { window.setTimeout = window.monsterFixtureNativeTimeout; });
+  await fight(petPage);
   assert.equal((await saved(petPage)).player.attack, petBefore.player.attack + 61);
   assert.equal((await saved(petPage)).inventory.pets[0].partyRole, 1);
   await petPage.locator("#monsterEnter").click(); await stage(petPage, "home"); await tapNative(petPage, "btn_pet");
