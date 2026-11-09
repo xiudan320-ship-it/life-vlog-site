@@ -26,3 +26,4 @@
 .monster-upgrade-content .monster-upgrade-boost{min-height:34px;font-size:12px!important;line-height:1.2}
 .monster-upgrade-content .monster-upgrade-boost input{width:25px;height:25px}
 .monster-upgrade-content :is(button,select,input):focus-visible{outline:2px solid #ffe29c;outline-offset:2px}
+.monster-upgrade-content .monster-upgrade-inheritance{margin:0;color:#e4cca0;font-size:11px;line-height:1.25}

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { craftItem, getCraftRequirements, getCraftHistoryCount, getCraftOwnedCount, getCraftEquipmentComparison } from "../modules/monster/craft-domain.js";
+import { withEquipmentStrength } from "../modules/monster/equipment-domain.js";
 
 const catalog = {
   items: [
@@ -91,8 +92,10 @@ test("打造对比按当前套装同部位匹配，预览范围包含实际随�
   const before = structuredClone(input);
   const comparison = getCraftEquipmentComparison({ state: input, itemId: 3, catalog });
   assert.equal(comparison.equipped, sword);
+  assert.equal(comparison.min.strength, 5);
   for (const roll of [0, 29, 64, 92, 99]) {
-    const item = craftItem({ state: input, itemId: 3, catalog, draw: () => roll }).item;
+    const crafted = craftItem({ state: input, itemId: 3, catalog, draw: () => roll }).item;
+    const item = withEquipmentStrength(crafted, sword.strength, catalog.items.find((row) => row.id === 3));
     assert.ok(item.mainAttribute.value >= comparison.min.mainAttribute.value);
     assert.ok(item.mainAttribute.value <= comparison.max.mainAttribute.value);
   }

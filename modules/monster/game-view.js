@@ -12,6 +12,7 @@ import { renderGodUpgrade } from "./god-upgrade-view.js";
 import { renderBagItem } from "./bag-item-view.js";
 import { renderPets } from "./pet-view.js";
 import { renderMaterialSources } from "./material-source-view.js";
+import { renderCopyScout } from "./copy-scout-view.js";
 
 const assets = "/monster/assets/";
 
@@ -346,16 +347,20 @@ export function createMonsterGameView({ warView }) {
   function selectCopy(state, catalog, settings) {
     document.getElementById("monsterItemDetails").close();
     const content = details("选择关卡", controls.Adventure);
-    renderCopySelection({ content, state, catalog, settings, onStart(copyId, selected) {
-      document.getElementById("monsterDetails").close();
-      actions.startCopy(copyId, selected);
-    }, onClaim: () => actions.claimTrial() });
+    renderCopySelection({ content, state, catalog, settings, onScout: (copyId, selected) => actions.scoutCopy(copyId, selected), onClaim: () => actions.claimTrial() });
   }
+  function copyScout(state, catalog, copy, scout, selected) {
+    const dialog = document.getElementById("monsterItemDetails");
+    const content = dialog.querySelector(".monster-item-information"); content.replaceChildren();
+    renderCopyScout({ content, state, catalog, copy, scout, selected, actions });
+    if (!dialog.open) dialog.showModal();
+  }
+  function closeCopyScout() { document.getElementById("monsterItemDetails").close(); }
+  function closeSelection() { document.getElementById("monsterDetails").close(); }
   function trial(state, catalog) {
     const content = details("勇者试炼", controls.Adventure);
     renderTrial({ content, state, catalog, onStart(trialHard) {
-      document.getElementById("monsterDetails").close();
-      actions.startCopy(3101, { trialHard, repeat: false });
+      actions.scoutCopy(3101, { trialHard, repeat: false });
     }, onClaim: () => actions.claimTrial() });
   }
   function tasks(state, catalog, now) {
@@ -392,7 +397,7 @@ export function createMonsterGameView({ warView }) {
   function specialUpgrade(state, catalog, target, receipt) { renderSpecialUpgrade({ content: details("徽章升级", controls.Role), state, catalog, target, actions, receipt }); }
   function godUpgrade(state, catalog, target, receipt) { renderGodUpgrade({ content: details("神器培养", controls.Role), state, catalog, target, actions, receipt }); }
   return {
-    menu, home, updateHome, battle, battleUpdate, result, role, bag, bagItem, pets, skills, selectCopy, trial, tasks, workshop, upgrade, updateUpgrade, craft, materialSources, closeMaterialSources, smelt, specialUpgrade, godUpgrade, notice,
+    menu, home, updateHome, battle, battleUpdate, result, role, bag, bagItem, pets, skills, selectCopy, copyScout, closeCopyScout, closeSelection, trial, tasks, workshop, upgrade, updateUpgrade, craft, materialSources, closeMaterialSources, smelt, specialUpgrade, godUpgrade, notice,
     repeatStatus(enabled) { repeating = enabled; document.getElementById("monsterStop").hidden = !enabled; stage(phase); },
     loadError(message) { stage("error"); statusMessage(message); },
     saveStatus(message, error = false, status = null) {

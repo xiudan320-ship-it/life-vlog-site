@@ -1,6 +1,7 @@
 import { element, itemTile, picture } from "./visual-ui.js";
 import { renderSaveFeedback } from "./save-feedback-view.js";
 import { getOwnedEquipment, getUpgradeCost, strengthThreshold } from "./upgrade-domain.js";
+import { MAX_EQUIPMENT_STRENGTH } from "./equipment-domain.js";
 
 const statNames = ["", "攻击", "防御", "生命", "命中", "闪避", "暴击", "暴击伤害", "负面抵抗"];
 
@@ -53,7 +54,7 @@ export function renderUpgrade({ content, state, catalog, target, actions, receip
   const batch = element("div", undefined, "monster-upgrade-batch");
   const targetLabel = element("label", "强化至 ");
   const targetSelect = element("select"); targetSelect.dataset.strengthenTarget = "";
-  for (let level = 1; level <= 18; level++) {
+  for (let level = 1; level <= MAX_EQUIPMENT_STRENGTH; level++) {
     const option = element("option", `+${level}`); option.value = String(level); targetSelect.append(option);
   }
   targetLabel.append(targetSelect);
@@ -74,12 +75,13 @@ export function renderUpgrade({ content, state, catalog, target, actions, receip
   const god = element("button", "神器升星 / 洗星", "monster-image-button"); god.type = "button"; god.dataset.openGodUpgrade = "";
   god.onclick = () => actions.godUpgrade(target);
   navigation.append(back, god);
-  root.append(summary, feedback, error, list, batch, boostField, progress, navigation);
+  const inheritance = element("p", "换装自动继承较高强化，附魔和评分仍随装备", "monster-upgrade-inheritance");
+  root.append(summary, inheritance, feedback, error, list, batch, boostField, progress, navigation);
   content.append(root);
 
   let currentState = state, currentReceipt = receipt, currentSession = session || {}, renderedReceipt;
   let pending = false;
-  targetSelect.value = String(Math.min(18, getOwnedEquipment(state, target).strength + 1));
+  targetSelect.value = String(Math.min(MAX_EQUIPMENT_STRENGTH, getOwnedEquipment(state, target).strength + 1));
 
   function compact(value) {
     if (value >= 100000000) return `${(value / 100000000).toFixed(2).replace(/\.?0+$/, "")}亿`;
@@ -104,7 +106,7 @@ export function renderUpgrade({ content, state, catalog, target, actions, receip
     enchantment.textContent = item.enchantment ? `附魔 ${statNames[item.enchantment.type]} +${item.enchantment.value}（${item.enchantment.level}级）` : "尚未附魔";
     god.hidden = !(item.godLevel > 0);
     for (const option of targetSelect.options) { option.disabled = Number(option.value) <= item.strength; option.hidden = option.disabled; }
-    if (Number(targetSelect.value) <= item.strength && item.strength < 18) targetSelect.value = String(item.strength + 1);
+    if (Number(targetSelect.value) <= item.strength && item.strength < MAX_EQUIPMENT_STRENGTH) targetSelect.value = String(item.strength + 1);
     const busy = pending || Boolean(currentSession.running);
     for (const [operation, card] of cards) {
       card.prices.replaceChildren();
@@ -121,13 +123,13 @@ export function renderUpgrade({ content, state, catalog, target, actions, receip
         const owned = currentState.inventory.goods.find((entry) => entry.id === good.id)?.quantity || 0;
         card.prices.append(priceLine(goodRow.name, good.quantity, owned, goodRow));
       }
-      card.hint.textContent = operation === "strength" ? `成功率 ${Math.min(100, strengthThreshold(item, boostInput.checked) / 10).toFixed(2)}% · 失败保级` : operation === "reforge" ? "覆盖评分，可能变低" : "覆盖附魔，可能变低";
+      card.hint.textContent = operation === "strength" ? `成功率 ${(Math.max(0, Math.min(1001, Math.floor(strengthThreshold(item, boostInput.checked)) + 1)) / 1001 * 100).toFixed(2)}% · 失败保级` : operation === "reforge" ? "覆盖评分，可能变低" : "覆盖附魔，可能变低";
       card.affordable = currentState.gold >= cost.gold && currentState.money >= cost.money && cost.goods.every((good) => (currentState.inventory.goods.find((entry) => entry.id === good.id)?.quantity || 0) >= good.quantity);
       card.button.disabled = busy || !card.affordable;
     }
-    targetSelect.disabled = busy || item.strength >= 18;
-    until.disabled = busy || item.strength >= 18 || !cards.get("strength").affordable;
-    boostInput.disabled = busy || item.strength >= 18;
+    targetSelect.disabled = busy || item.strength >= MAX_EQUIPMENT_STRENGTH;
+    until.disabled = busy || item.strength >= MAX_EQUIPMENT_STRENGTH || !cards.get("strength").affordable;
+    boostInput.disabled = busy || item.strength >= MAX_EQUIPMENT_STRENGTH;
     back.disabled = busy; god.disabled = busy;
     stop.hidden = !currentSession.running;
     stop.disabled = !currentSession.running;

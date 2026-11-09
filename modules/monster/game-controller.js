@@ -14,6 +14,8 @@ import { upgradeGod } from "./god-upgrade-domain.js";
 import { sellBagItem, toggleBagEquipmentLock } from "./bag-item-domain.js";
 import { assignMainPet, collectMainPetAttributes } from "./pet-domain.js";
 import { findMaterialSources } from "./material-source-domain.js";
+import { MAX_EQUIPMENT_STRENGTH } from "./equipment-domain.js";
+import { getCopyScout } from "./copy-scout-domain.js";
 
 export function createMonsterGameController({ catalog, store, view, random, wait, now = Date.now }) {
   let state = null;
@@ -168,6 +170,22 @@ export function createMonsterGameController({ catalog, store, view, random, wait
       view.selectCopy(state, catalog, settings);
     },
     startCopy,
+    scoutCopy(copyId, selected) {
+      if (!state || active) return;
+      const copy = catalog.copies.find((entry) => entry.id === copyId);
+      if (copy) view.copyScout(state, catalog, copy, getCopyScout({ state, catalog, copy, settings: selected }), selected);
+    },
+    closeCopyScout() { view.closeCopyScout(); },
+    startScoutedCopy(copyId, selected) {
+      if (!state || active) return;
+      if (unsaved) { view.notice("请先重试保存当前进度，再继续战斗。"); return; }
+      const copy = catalog.copies.find((entry) => entry.id === copyId);
+      if (!copy) return;
+      const reason = getCopyAccess(copy, state, catalog.chapters);
+      if (reason) { view.notice(reason); return; }
+      view.closeCopyScout(); view.closeSelection();
+      return startCopy(copyId, selected);
+    },
     workshop() { if (state && !active) view.workshop(state, catalog); },
     godUpgrade(target) { if (state && !active) view.godUpgrade(state, catalog, target); },
     async performGodUpgrade(target, operation) {
@@ -230,7 +248,7 @@ export function createMonsterGameController({ catalog, store, view, random, wait
       let level;
       try {
         level = getOwnedEquipment(state, target).strength;
-        if (!Number.isSafeInteger(targetLevel) || targetLevel <= level || targetLevel > 18) throw new RangeError("请选择高于当前等级且不超过 +18 的目标");
+        if (!Number.isSafeInteger(targetLevel) || targetLevel <= level || targetLevel > MAX_EQUIPMENT_STRENGTH) throw new RangeError(`请选择高于当前等级且不超过 +${MAX_EQUIPMENT_STRENGTH} 的目标`);
       } catch (error) { view.notice(error.message); return; }
       const serial = revision; active = true; strengthening = true;
       let attempts = 0, receipt = null;
@@ -342,7 +360,7 @@ export function createMonsterGameController({ catalog, store, view, random, wait
     async equip(index) {
       if (!state || active || unsaved) return;
       const request = revision;
-      try { state = equipBagItem(state, index); refresh(); active = true; await save(); if (request === revision) view.bag(state, catalog); }
+      try { state = equipBagItem(state, index, catalog); refresh(); active = true; await save(); if (request === revision) view.bag(state, catalog, "equipment"); }
       catch (error) { view.notice(error.message); }
       finally { if (request === revision) active = false; }
     },

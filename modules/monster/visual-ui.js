@@ -52,6 +52,7 @@ export function showItem(item, catalog, onEquip, onUpgrade, onManage) {
     upgrade.onclick = () => { dialog.close(); onUpgrade(); }; content.append(upgrade);
   }
   if (onEquip) {
+    if (item.subtype <= 8) content.append(element("p", "穿戴时自动继承同部位较高的强化等级。"));
     const equip = element("button", "穿戴", "monster-image-button"); equip.type = "button";
     equip.onclick = () => { dialog.close(); onEquip(); }; content.append(equip);
   }

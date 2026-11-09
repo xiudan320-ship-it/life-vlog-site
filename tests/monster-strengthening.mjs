@@ -118,7 +118,7 @@ test("destroy invalidates an in-flight batch and prevents later view updates", a
 test("duplicate clicks cannot overlap and invalid targets never draw or save", async () => {
   const gate = deferred(); const f = fixture({ save: () => gate.promise });
   await f.controller.initialize();
-  for (const level of [0, 19, 1.5]) await f.controller.strengthenUntil(target, level, false);
+  for (const level of [0, 31, 1.5]) await f.controller.strengthenUntil(target, level, false);
   await f.controller.strengthenUntil({ ...target, id: 9999 }, 1, false);
   assert.equal(f.writes.length, 0); assert.equal(f.draws, 0);
   assert.equal(f.notices.length, 4);

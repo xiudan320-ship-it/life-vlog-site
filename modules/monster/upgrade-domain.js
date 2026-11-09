@@ -1,4 +1,5 @@
-import { calculateEquipmentMainAttribute } from "./equipment-domain.js";
+import { MAX_EQUIPMENT_STRENGTH, withEquipmentStrength } from "./equipment-domain.js";
+import { getExtendedStrengthRule } from "./strength-balance-domain.js";
 import { rollEquipmentScore } from "./item-domain.js";
 import { spendGoods } from "./inventory-domain.js";
 
@@ -24,7 +25,11 @@ function goldPrice(item) {
 export function getUpgradeCost(item, operation, boost = false) {
   let gold = 0, money = 0, goods = [];
   if (operation === "strength") {
-    if (item.strength >= 18) throw new RangeError("强化达到上限 +18");
+    if (item.strength >= MAX_EQUIPMENT_STRENGTH) throw new RangeError(`强化达到上限 +${MAX_EQUIPMENT_STRENGTH}`);
+    if (item.strength >= 18) {
+      const rule = getExtendedStrengthRule(item.strength, boost);
+      return { gold, money, goods: [{ id: 5086, quantity: rule.stones }, ...(rule.extra ? [{ id: 5003, quantity: rule.extra }] : [])] };
+    }
     const advanced = item.strength >= 15;
     let stone = getStrengthStoneCost(item, !advanced);
     let extra = getStrengthStoneCost(item, true);
@@ -46,6 +51,7 @@ export function getUpgradeCost(item, operation, boost = false) {
 }
 
 export function strengthThreshold(item, boost) {
+  if (item.strength >= 18) return getExtendedStrengthRule(item.strength, boost).threshold;
   const chance = float(float(chances[item.strength] - float(float(Math.trunc(item.level / 10)) * float(0.005))) + float(item.strength >= 15 && boost ? 2 : 0));
   return float(chance * float(10));
 }
@@ -85,6 +91,6 @@ export function upgradeEquipment({ state, target, operation, boost = false, cata
   else if (operation === "reforge") Object.assign(item, rollEquipmentScore(draw));
   else item.enchantment = rollEnchantment({ mode: operation === "enchantGold" ? "gold" : "money", itemLevel: item.level, draw });
   const row = catalog.items.find((row) => row.id === item.id);
-  item.mainAttribute = { ...item.mainAttribute, value: calculateEquipmentMainAttribute({ ...item, mainValue: row.mainvalue, paragonEquipment: Boolean(row.paragon) }) };
+  item = withEquipmentStrength(item, item.strength, row);
   return { state: replaceOwnedEquipment({ ...state, inventory, gold: state.gold - cost.gold, money: state.money - cost.money }, target, item), success, item };
 }

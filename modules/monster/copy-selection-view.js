@@ -1,8 +1,10 @@
+import "./copy-scout.css";
 import { getCopyAccess, maximumCopyDifficulty } from "./copy-domain.js";
+import { getCopyScout } from "./copy-scout-domain.js";
 import { element, picture } from "./visual-ui.js";
 import { renderTrial } from "./trial-view.js";
 
-export function renderCopySelection({ content, state, catalog, settings, onStart, onClaim }) {
+export function renderCopySelection({ content, state, catalog, settings, onScout, onClaim }) {
   content.className = "monster-adventure-content";
   const categories = element("nav", undefined, "monster-category-tabs");
   categories.setAttribute("aria-label", "冒险类型");
@@ -42,7 +44,7 @@ export function renderCopySelection({ content, state, catalog, settings, onStart
   }
   content.append(categories, chapterRail, form, list, info);
   form.onsubmit = (event) => event.preventDefault();
-  form.onchange = () => { settings.hard = Number(hard.value); settings.waves = Number(waves.value); settings.repeat = auto.checked; };
+  form.onchange = () => { settings.hard = Number(hard.value); settings.waves = Number(waves.value); settings.repeat = auto.checked; render(); };
   function render() {
     for (const tab of categories.children) tab.setAttribute("aria-pressed", String(Number(tab.dataset.copyType) === settings.type));
     for (const tab of chapterRail.children) tab.setAttribute("aria-current", String(Number(tab.dataset.chapterId) === settings.chapterId));
@@ -53,7 +55,7 @@ export function renderCopySelection({ content, state, catalog, settings, onStart
     list.replaceChildren();
     if (settings.type === 6) {
       list.style.height = ""; list.className = "monster-copy-list";
-      renderTrial({ content: list, state, catalog, initialHard: settings.trialHard, onStart: (trialHard) => onStart(3101, { ...settings, repeat: false, trialHard }), onClaim });
+      renderTrial({ content: list, state, catalog, initialHard: settings.trialHard, onStart: (trialHard) => onScout(3101, { ...settings, repeat: false, trialHard, scrollTop: content.scrollTop, chapterScrollLeft: chapterRail.scrollLeft }), onClaim });
       return;
     }
     const chapter = catalog.chapters.find((row) => row.id === settings.chapterId);
@@ -62,26 +64,29 @@ export function renderCopySelection({ content, state, catalog, settings, onStart
     const map = settings.type === 1;
     list.className = map ? "monster-copy-list monster-map" : "monster-copy-list monster-dungeon-grid";
     if (map) {
-      const height = rows.length * 142 + 30;
+      const height = rows.length * 170 + 30;
       list.style.height = height + "px";
       const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
       svg.setAttribute("viewBox", `0 0 100 ${height}`); svg.setAttribute("preserveAspectRatio", "none"); svg.setAttribute("aria-hidden", "true");
       const path = document.createElementNS(svg.namespaceURI, "polyline");
-      path.setAttribute("points", rows.map((_, i) => `${i % 2 ? 73 : 27},${i * 142 + 64}`).join(" "));
+      path.setAttribute("points", rows.map((_, i) => `${i % 2 ? 73 : 27},${i * 170 + 64}`).join(" "));
       svg.append(path); list.append(svg);
     } else list.style.height = "";
     rows.forEach((copy, index) => {
       const reason = getCopyAccess(copy, state, catalog.chapters);
+      const scout = getCopyScout({ state, catalog, copy, settings });
       const row = element("div", undefined, "monster-copy-row");
-      if (map) { row.style.left = index % 2 ? "73%" : "27%"; row.style.top = `${index * 142 + 12}px`; }
+      if (map) { row.style.left = index % 2 ? "73%" : "27%"; row.style.top = `${index * 170 + 12}px`; }
       const button = element("button", undefined, map ? "monster-map-node" : "monster-dungeon-card monster-original-panel");
-      button.type = "button"; button.disabled = Boolean(reason); button.dataset.copyId = copy.id;
-      button.setAttribute("aria-label", `${copy.name}：${reason || "挑战"}`); button.title = reason || copy.name;
+      button.type = "button"; button.dataset.copyId = copy.id;
+      if (reason) button.dataset.locked = "true";
+      button.setAttribute("aria-label", `查看${copy.name}${reason ? `，${reason}` : ""}的关卡预览`); button.title = reason || copy.name;
       const enemy = catalog.enemies.find((entry) => entry.id === copy.enemyid1);
       const image = picture("enemy/" + enemy.img, "", "monster-copy-enemy"); image.loading = "lazy"; button.append(image);
       if (reason) button.append(picture("img/lock.png", "", "monster-copy-lock"));
       button.append(element("strong", copy.name), element("small", reason || `${copy.level > 80 ? "巅峰 " + (copy.level - 80) : "Lv." + copy.level} · ${copy.copyprice ? "卷轴 ×" + copy.copyprice : "挑战"}`));
-      button.onclick = () => onStart(copy.id, { ...settings, scrollTop: content.scrollTop, chapterScrollLeft: chapterRail.scrollLeft }); row.append(button); list.append(row);
+      button.append(element("small", scout.unavailable ? (copy.type === 4 ? "随机遭遇 · 暂无推荐" : "暂无推荐战力") : `推荐战力 ${scout.recommendedPower.toLocaleString("zh-CN")}`, "monster-copy-power"));
+      button.onclick = () => onScout(copy.id, { ...settings, scrollTop: content.scrollTop, chapterScrollLeft: chapterRail.scrollLeft }); row.append(button); list.append(row);
     });
   }
   render();

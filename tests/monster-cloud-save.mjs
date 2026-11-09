@@ -52,6 +52,21 @@ test("crafting history persists per account and malformed counts cannot replace 
   } finally { fixture.close(); }
 });
 
+test("strength +30 round-trips per account and out-of-range values cannot replace it", async () => {
+  const fixture = createWorkerFixture();
+  try {
+    const progress = state(); progress.player.equipmentSets[0][0].strength = 30;
+    assert.equal((await request(fixture, "owner", "PUT", { expectedRevision: 0, state: progress })).status, 200);
+    assert.deepEqual((await request(fixture, "owner")).body.state, progress);
+    assert.equal((await request(fixture, "member")).body.state, null);
+    for (const strength of [-1, 31, 1.5]) {
+      const invalid = structuredClone(progress); invalid.player.equipmentSets[0][0].strength = strength;
+      assert.equal((await request(fixture, "owner", "PUT", { expectedRevision: 1, state: invalid })).status, 400);
+    }
+    assert.equal((await request(fixture, "owner")).body.revision, 1);
+  } finally { fixture.close(); }
+});
+
 test("cloud client refuses late results and writes after an account switch", async () => {
   let session = { access_token: "fixture-a", user: { id: "owner" } };
   let remote = null;

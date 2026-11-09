@@ -50,7 +50,7 @@ test("equipment swaps preserve instances and skills obey level and three-slot li
   assert.deepEqual(state.player.equippedSkillIds, [2, 4]);
   const item = { ...state.player.equipmentSets[0][0], id: 6002, equipped: false };
   state.inventory.equipment.push(item);
-  const next = equipBagItem(state, 0);
+  const next = equipBagItem(state, 0, catalog);
   assert.equal(next.inventory.equipment[0].id, 6001);
   assert.equal(next.player.equipmentSets[0].find((entry) => entry.subtype === 1).id, 6002);
   assert.equal(state.inventory.equipment[0].id, 6002);

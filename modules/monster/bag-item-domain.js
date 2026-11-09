@@ -1,4 +1,5 @@
 import { addBagItem, changeGold, spendGoods } from "./inventory-domain.js";
+import { getExtendedStrengthRule } from "./strength-balance-domain.js";
 
 const float = Math.fround;
 // GameData::getEquipSellStrenghPrice uses the original integer chance table.
@@ -14,6 +15,10 @@ export function getEquipmentSaleValue(item, row) {
 
 export function getEquipmentSaleRefund(item) {
   if (item.subtype === 9) return item.quality;
+  if (item.strength > 18) {
+    const rule = getExtendedStrengthRule(item.strength - 1);
+    return Math.floor(rule.stones * 1001 / (rule.threshold + 1) / 4);
+  }
   if (item.strength <= 3) return 0;
   const next = item.strength + 1;
   const base = Math.trunc(next ** 3 / (50 - Math.trunc(item.level / 3) + next)) + Math.trunc(item.level / 8);

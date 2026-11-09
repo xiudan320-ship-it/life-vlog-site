@@ -66,11 +66,11 @@ test("smelted subtype-13 badges equip by level, stack stats and replace only the
   const state = createNewGame(catalog); state.player.level = 30;
   const gem = { id: 6913, type: 2, subtype: 13, level: 30, paragonGrowth: 800, equipped: false, attributes: [{ type: 1, value: 50 }] };
   state.inventory.equipment.push(gem, { ...gem, id: 6911, subtype: 11 });
-  let equipped = equipBagItem(state, 0); equipped = equipBagItem(equipped, 0);
+  let equipped = equipBagItem(state, 0, catalog); equipped = equipBagItem(equipped, 0, catalog);
   assert.equal(equipped.player.equipmentSets[0].filter((item) => item.subtype >= 11).length, 2);
   assert.equal(collectEquipmentAttributes(equipped.player.equipmentSets[0]).find((entry) => entry.type === 1).value - collectEquipmentAttributes(state.player.equipmentSets[0]).find((entry) => entry.type === 1).value, 100);
   equipped.inventory.equipment.push({ ...gem, attributes: [{ type: 1, value: 80 }] });
-  const replaced = equipBagItem(equipped, 0);
+  const replaced = equipBagItem(equipped, 0, catalog);
   assert.equal(replaced.inventory.equipment[0].id, 6913);
   assert.equal(replaced.inventory.equipment[0].equipped, false);
   assert.equal(replaced.player.equipmentSets[0].filter((item) => item.subtype === 13).length, 1);

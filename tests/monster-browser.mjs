@@ -12,6 +12,7 @@ import worker from "../cloudflare-worker/src/worker.js";
 import { createNewGame } from "../modules/monster/new-game-domain.js";
 import { createCatalogEquipment } from "../modules/monster/item-domain.js";
 import { recalculatePlayerFromEquipment } from "../modules/monster/attribute-domain.js";
+import { withEquipmentStrength } from "../modules/monster/equipment-domain.js";
 
 const root = resolve("dist");
 const headers = await readFile(resolve(root, "_headers"), "utf8");
@@ -45,12 +46,12 @@ let keyboardChecked = false;
 const artifacts = resolve("artifacts/monster");
 await mkdir(artifacts, { recursive: true });
 
-async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, saveStatus = 0, defeat = false, trial = false, trialRewards = false, workshop = false, navigation = false, petParty = false, petGrowth = false, colorScheme = "dark", reducedMotion = "no-preference" } = {}) {
+async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, saveStatus = 0, defeat = false, trial = false, trialRewards = false, workshop = false, retention = false, navigation = false, petParty = false, petGrowth = false, colorScheme = "dark", reducedMotion = "no-preference" } = {}) {
   const context = await browser.newContext({ ...(iphone13 ? devices["iPhone 13"] : {}), viewport: { width: 390, height: 844 }, screen: { width: 390, height: 844 }, colorScheme, reducedMotion });
   contexts.push(context);
   context.on("requestfailed", (request) => requestFailures.push({ url: request.url(), error: request.failure()?.errorText }));
   const fixture = createWorkerFixture({ origin });
-  if (trial || workshop || navigation || petParty || petGrowth) {
+  if (trial || workshop || retention || navigation || petParty || petGrowth) {
     const [items, skills] = await Promise.all(["item", "skill"].map(async (name) => JSON.parse(await readFile(resolve(root, `monster/data/${name}.json`), "utf8"))));
     const seed = createNewGame({ items, skills }); seed.player.name = "功能测试勇者";
     if (trial || navigation) { seed.player.level = 80; seed.player.equipmentSets[0][0].attributes.push(...[1, 2, 3, 4].map((type) => ({ type, value: 10000000 }))); }
@@ -66,12 +67,18 @@ async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, sa
         seed.taskBoard = { points: 0, dailyRewardDay: null, entries: [{ id: 64, type: 3, target: 5003, need: 10, count: 0, claimed: 0 }] };
       }
     }
-    if (workshop) {
+    if (workshop || retention) {
       seed.gold = 10000000; seed.money = 10000;
       seed.inventory.goods.push(...[5003, 5004, 5038, 5046, 5048, 5092, 5040, 5052, 5044, 5058, 5042, 5065, 5063].map((id) => ({ id, type: 1, quantity: 1000 })), { id: 5002, type: 1, quantity: 100 });
       const artifact = { ...seed.player.equipmentSets[0][0], equipped: false, quality: 6, godLevel: 1, godOffset: 0, godUpgradeCount: 0, attributes: [{ type: 16, value: 1 }] };
       const templates = JSON.parse(await readFile(resolve(root, "monster/data/equipment-templates.json"), "utf8"));
       seed.inventory.equipment.push(artifact, structuredClone(artifact), createCatalogEquipment({ row: items.find((item) => item.id === 6802), template: templates[6802] }));
+      if (retention) {
+        seed.player.level = 80;
+        seed.player.equipmentSets[0][0] = withEquipmentStrength(seed.player.equipmentSets[0][0], 18, items.find((item) => item.id === 6001));
+        seed.inventory.equipment.push(createCatalogEquipment({ row: items.find((item) => item.id === 6002), template: templates[6002] }));
+        seed.inventory.goods.push({ id: 5086, type: 1, quantity: 50000 });
+      }
     }
     if (trialRewards) seed.trial = { hard: 3, level: 14, score: 4000, status: "ended", bestScores: { 3: 4000 }, rewards: [] };
     fixture.DB.database.prepare("insert into monster_saves values (?, ?, ?, ?)").run("owner", JSON.stringify(seed), 1, "2030-01-01T00:00:00Z");
@@ -163,6 +170,7 @@ async function fight(page, copyId = 1001, controlled = false) {
   });
   await page.locator("#monsterAdventure").click();
   await page.locator(`[data-copy-id="${copyId}"]`).click();
+  await page.locator(`[data-scout-start="${copyId}"]`).click();
   await stage(page, "battle");
   if (iphone13) {
     const top = await page.evaluate(() => {
@@ -252,7 +260,10 @@ try {
   await page.locator("#monsterAdventure").click();
   assert.equal(await page.locator(".monster-copy-row").count(), 6);
   assert.equal(await page.locator('[data-copy-id="1002"]').isEnabled(), true);
-  assert.equal(await page.locator('[data-copy-id="1003"]').isDisabled(), true);
+  assert.equal(await page.locator('[data-copy-id="1003"]').getAttribute("data-locked"), "true");
+  await page.locator('[data-copy-id="1003"]').click();
+  assert.equal(await page.locator('[data-scout-start="1003"]').isDisabled(), true);
+  await page.locator("#monsterItemClose").click();
   await page.locator('[data-copy-type="2"]').click(); assert.equal(await page.locator(".monster-copy-row").count(), 32);
   await page.locator('[data-copy-type="5"]').click(); assert.equal(await page.locator(".monster-copy-row").count(), 114);
   assert.equal(await page.locator('[data-copy-id="5001"]').getAttribute("title"), "需要等级 30");
@@ -330,6 +341,7 @@ try {
   await defeated.locator("#monsterAdventure").click();
   await defeated.getByLabel("连续自动战斗").check();
   await defeated.locator('[data-copy-id="1001"]').click();
+  await defeated.locator('[data-scout-start="1001"]').click();
   await stage(defeated, "result");
   assert.match(await defeated.locator("#monsterStatus").textContent(), /战败，已保留 1 只怪物收益/);
   const retained = await saved(defeated);
@@ -343,6 +355,7 @@ try {
   await auto.locator("#monsterAdventure").click();
   await auto.getByLabel("连续自动战斗").check();
   await auto.locator('[data-copy-id="1001"]').click();
+  await auto.locator('[data-scout-start="1001"]').click();
   await stage(auto, "result");
   await stage(auto, "battle");
   await auto.locator("#monsterStop").click();
@@ -362,7 +375,7 @@ try {
     left: document.querySelector(".monster-chapter-rail").scrollLeft,
   }));
   assert.ok(mapPosition.top > 0 && mapPosition.left > 0, JSON.stringify(mapPosition));
-  await challenge.click(); await stage(navigationPage, "result");
+  await challenge.click(); await navigationPage.locator('[data-scout-start="1010"]').click(); await stage(navigationPage, "result");
   await tapNative(navigationPage, "text_backtips");
   await navigationPage.locator(".monster-adventure-content").waitFor();
   assert.equal(await navigationPage.locator('[data-copy-type="1"]').getAttribute("aria-pressed"), "true");
@@ -384,6 +397,7 @@ try {
   await trialPage.locator('[data-trial-hard="2"]').click();
   await noOverflow(trialPage); await accessible(trialPage);
   await trialPage.locator('[data-copy-id="3101"]').click();
+  await trialPage.locator('[data-scout-start="3101"]').click();
   await trialPage.locator(".monster-trial-panel h2").filter({ hasText: "第 2 层" }).waitFor();
   assert.deepEqual([(await saved(trialPage)).trial.level, (await saved(trialPage)).trial.score, (await saved(trialPage)).trial.hard], [2, 86, 2]);
   await trialPage.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-trial-next.png" : "trial-next.png") });
@@ -392,6 +406,7 @@ try {
   assert.match(await trialPage.locator(".monster-trial-panel h2").textContent(), /第 2 层/);
   assert.equal(await trialPage.locator('[data-trial-hard="1"]').isDisabled(), true);
   await trialPage.locator('[data-copy-id="3101"]').click();
+  await trialPage.locator('[data-scout-start="3101"]').click();
   await trialPage.locator(".monster-trial-panel h2").filter({ hasText: "第 3 层" }).waitFor();
   assert.equal((await saved(trialPage)).trial.score, 184);
   await trialPage.evaluate(() => { window.monsterFixtureBlockSave = true; });
@@ -425,6 +440,80 @@ try {
   await prizePage.locator("#monsterDetailsClose").click(); await prizePage.locator("#monsterBag").click();
   await prizePage.getByRole("button", { name: "宠物", exact: true }).click();
   assert.equal(await prizePage.locator("#monsterDetailsContent .monster-pet").count(), 2);
+  // Retained enhancement and preflight scouting, with synthetic account data only.
+  const retentionPage = await pageFor({ retention: true, roll: 0, reducedMotion: "reduce" });
+  const retentionTap = (locator) => iphone13 ? locator.tap() : locator.click();
+  const retentionSeed = await saved(retentionPage);
+  await retentionPage.locator("#monsterEnter").click(); await stage(retentionPage, "home");
+  await retentionPage.locator("#monsterBag").click(); await retentionPage.getByRole("button", { name: "装备", exact: true }).click();
+  await retentionTap(retentionPage.locator('.monster-bag-grid button[title="兽骨短剑"]'));
+  await retentionPage.evaluate(() => { window.monsterFixtureBlockSave = true; });
+  await retentionTap(retentionPage.locator("#monsterItemDetails").getByRole("button", { name: "穿戴", exact: true }));
+  await retentionPage.locator("#monsterSaveRetry").waitFor({ state: "visible" });
+  assert.deepEqual(await saved(retentionPage), retentionSeed);
+  await retentionPage.locator("#monsterDetailsClose").click();
+  await retentionPage.evaluate(() => { window.monsterFixtureBlockSave = false; });
+  await retentionPage.locator("#monsterSaveRetry").click(); await retentionPage.locator("#monsterSaveRetry").waitFor({ state: "hidden" });
+  const inherited = await saved(retentionPage);
+  assert.equal(inherited.player.equipmentSets[0].find((item) => item.id === 6002).strength, 18);
+  assert.equal(inherited.inventory.equipment.find((item) => item.id === 6001 && !item.godLevel).strength, 0);
+  await tapNative(retentionPage, "btn_blacksmith");
+  await retentionTap(retentionPage.locator('.monster-workshop-content .monster-bag-grid').first().locator('button[title="兽骨短剑"]'));
+  await retentionPage.locator("[data-strengthen-target]").selectOption("30");
+  await retentionTap(retentionPage.locator("[data-strengthen-until]"));
+  await retentionPage.locator(".monster-upgrade-summary h3").filter({ hasText: "+30" }).waitFor();
+  await retentionPage.locator(".monster-upgrade-feedback").filter({ hasText: "已强化到 +30" }).waitFor();
+  assert.equal(await retentionPage.locator('[data-upgrade="strength"]').isDisabled(), true);
+  assert.equal(await retentionPage.locator("[data-strengthen-until]").isDisabled(), true);
+  const maxed = await saved(retentionPage);
+  assert.equal(maxed.player.equipmentSets[0].find((item) => item.id === 6002).strength, 30);
+  await accessible(retentionPage); await noOverflow(retentionPage);
+  await retentionPage.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-strength30.png" : "strength30.png") });
+  await retentionPage.locator("#monsterDetailsClose").click(); await retentionPage.locator("#monsterBag").click();
+  await retentionPage.getByRole("button", { name: "装备", exact: true }).click();
+  await retentionTap(retentionPage.locator('.monster-bag-grid button[title="新手铁剑"]').last());
+  await retentionTap(retentionPage.locator("#monsterItemDetails").getByRole("button", { name: "穿戴", exact: true }));
+  await retentionPage.locator('.monster-bag-grid button[title="兽骨短剑"]').waitFor();
+  await retentionPage.locator("#monsterDetailsClose").click();
+  const swapped = await saved(retentionPage);
+  assert.equal(swapped.player.equipmentSets[0].find((item) => item.subtype === 1).strength, 30);
+  assert.equal(swapped.inventory.equipment.find((item) => item.id === 6002).strength, 0);
+  await retentionPage.reload(); await stage(retentionPage, "menu");
+  assert.deepEqual(await saved(retentionPage), swapped);
+  await retentionPage.locator("#monsterEnter").click(); await stage(retentionPage, "home");
+  await retentionPage.locator("#monsterAdventure").click();
+  assert.match(await retentionPage.locator('[data-copy-id="1001"]').textContent(), /推荐战力/);
+  await retentionTap(retentionPage.locator('[data-copy-id="1001"]'));
+  await retentionPage.locator(".monster-copy-scout").waitFor();
+  assert.match(await retentionPage.locator(".monster-scout-power").textContent(), /当前战力.*推荐战力/);
+  assert.equal(await retentionPage.locator(".monster-scout-stats dt").count() >= 8, true);
+  assert.equal(await retentionPage.locator("body").getAttribute("data-monster-stage"), "home");
+  assert.deepEqual(await saved(retentionPage), swapped);
+  await accessible(retentionPage); await noOverflow(retentionPage);
+  await retentionPage.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-copy-scout.png" : "copy-scout.png") });
+  await retentionPage.locator("#monsterItemClose").click();
+  await retentionTap(retentionPage.locator('[data-copy-id="1003"]'));
+  assert.equal(await retentionPage.locator('[data-scout-start="1003"]').isDisabled(), true);
+  assert.match(await retentionPage.locator(".monster-scout-locked").textContent(), /先通关/);
+  await retentionPage.locator("#monsterItemClose").click();
+  await retentionPage.locator('[data-copy-type="5"]').click();
+  await retentionTap(retentionPage.locator('[data-copy-id="5114"]'));
+  assert.equal(await retentionPage.locator('[data-scout-start="5114"]').isDisabled(), true);
+  const scoutWidth = await retentionPage.locator(".monster-copy-scout").evaluate((node) => ({ width: node.clientWidth, scroll: node.scrollWidth }));
+  assert.ok(scoutWidth.scroll <= scoutWidth.width + 1, JSON.stringify(scoutWidth));
+  await accessible(retentionPage);
+  await retentionPage.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-copy-scout-abyss.png" : "copy-scout-abyss.png") });
+  await retentionPage.locator("#monsterItemClose").click();
+  await retentionPage.locator('[data-copy-type="1"]').click();
+  await retentionPage.locator("#monsterDetailsClose").click();
+  await fight(retentionPage, 1001, true);
+  await retentionPage.locator("#monsterEnter").click(); await stage(retentionPage, "home");
+  await retentionPage.locator("#monsterAdventure").click();
+  await retentionPage.getByLabel("地图难度").selectOption("3"); await retentionPage.getByLabel("地图波数").selectOption("3");
+  await retentionTap(retentionPage.locator('[data-copy-id="1001"]'));
+  assert.match(await retentionPage.locator(".monster-scout-mode").textContent(), /噩梦.*3 波.*3 个/);
+  await retentionPage.context().close();
+  // End retained enhancement and scouting.
   // Compact workshop and material navigation acceptance, with synthetic account data only.
   const comfortPage = await pageFor({ workshop: true, roll: 0, reducedMotion: "reduce" });
   const comfortTap = (locator) => iphone13 ? locator.tap() : locator.click();

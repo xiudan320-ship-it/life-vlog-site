@@ -1,6 +1,7 @@
 import { addBagItem, spendGoods } from "./inventory-domain.js";
 import { createCatalogEquipment, rollEquipmentScore } from "./item-domain.js";
 import { calculateSpecialAttributes } from "./special-upgrade-domain.js";
+import { withEquipmentStrength } from "./equipment-domain.js";
 
 export function getCraftHistoryCount(state, itemId) {
   return state.crafting?.counts[itemId] || 0;
@@ -16,12 +17,14 @@ export function getCraftOwnedCount(state, itemId) {
 export function getCraftEquipmentComparison({ state, itemId, catalog }) {
   const row = catalog.items.find((item) => item.id === itemId);
   if (row?.type !== 2) return null;
+  const equipped = state.player.equipmentSets[state.player.equipmentSetIndex].find((item) => item.subtype === row.subtype) || null;
   const preview = (scoreTier, scoreValue) => {
     const item = createCatalogEquipment({ row, template: catalog.equipmentTemplates[itemId], scoreTier, scoreValue });
+    if (row.subtype <= 8) return withEquipmentStrength(item, equipped?.strength || 0, row);
     return row.subtype === 9 ? { ...item, attributes: calculateSpecialAttributes({ item, player: state.player, catalog }) } : item;
   };
   return {
-    equipped: state.player.equipmentSets[state.player.equipmentSetIndex].find((item) => item.subtype === row.subtype) || null,
+    equipped,
     min: preview(1, 1), max: preview(4, 100),
   };
 }

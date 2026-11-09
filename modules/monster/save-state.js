@@ -1,4 +1,5 @@
 import { getPetExperienceRequired } from "./progression-domain.js";
+import { MAX_EQUIPMENT_STRENGTH } from "./equipment-domain.js";
 
 export function validateMonsterSave(state) {
   const integer = (value, min = 0) => Number.isSafeInteger(value) && value >= min;
@@ -16,6 +17,10 @@ export function validateMonsterSave(state) {
     throw new TypeError("游戏存档数据不完整，请保留原存档并重试。");
   }
   const mainPets = state.inventory.pets.filter((pet) => pet?.partyRole === 1);
+  const equipment = [...state.inventory.equipment, ...player.equipmentSets.flat()];
+  if (equipment.some((item) => item?.subtype >= 1 && item.subtype <= 8 && (!integer(item.strength) || item.strength > MAX_EQUIPMENT_STRENGTH))) {
+    throw new TypeError("装备强化数据无效，请保留原存档并重试。");
+  }
   if (state.crafting !== undefined && (!state.crafting || !state.crafting.counts || typeof state.crafting.counts !== "object"
     || Array.isArray(state.crafting.counts) || !Object.entries(state.crafting.counts).every(([id, count]) => /^[1-9]\d*$/.test(id) && integer(Number(id), 1) && integer(count, 1)))) {
     throw new TypeError("打造记录不完整，请保留原存档并重试。");

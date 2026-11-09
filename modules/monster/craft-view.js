@@ -44,12 +44,12 @@ export function renderCraft({ state, catalog, actions, receipt, selection = { ca
       const low = min.mainAttribute, high = max.mainAttribute;
       let range = describeAttribute(min);
       if (low && high && low.type === high.type && low.value !== high.value) range = `${statNames[low.type] || `属性 ${low.type}`} ${low.value}–${high.value}`;
-      section.append(element("p", `打造后：${product.name} +0 · 等级 ${product.level} · ${range}（评分随机）`));
+      section.append(element("p", `穿戴后：${product.name} +${min.strength} · 等级 ${product.level} · ${range}（评分随机${product.subtype <= 8 ? "，继承当前部位强化" : ""}）`));
       const current = collectEquipmentAttributes(equipped ? [equipped] : []);
       const lowTags = collectEquipmentAttributes([min]), highTags = collectEquipmentAttributes([max]);
       const stats = element("div", undefined, "monster-craft-stat-grid");
       const types = [...new Set([...current, ...lowTags, ...highTags].map((attr) => attr.type))];
-      stats.append(element("strong", "合计属性"), element("strong", "当前 → 打造范围"));
+      stats.append(element("strong", "合计属性"), element("strong", "当前 → 穿戴范围"));
       for (const type of types) {
         const value = (tags) => tags.find((tag) => tag.type === type)?.value || 0;
         const lo = value(lowTags), hi = value(highTags);
