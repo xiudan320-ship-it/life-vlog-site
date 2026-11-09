@@ -7,7 +7,6 @@
 
 ### Added
 
-- 黑暗传说在 35 级开放主宠属性加成，支持查看原图和属性、设置、替换与卸下；同种宠物按持有记录分别选择。选择与角色重算同次保存账号云档，刷新续档、失败重试不重复叠加。已对照 26 种原生初始属性及 353 组主宠贡献；宠物技能、独立行动、副宠和成长尚未开放。
 - 日记卡片支持同篇多图横向预览轨道、触摸滑动保护和“查看全部 N 张”入口；媒体失败仍可单项重试并保留原索引。
 - 日记发布表单改为媒体优先、文字居中、发布选项折叠的紧凑结构，增加草稿清空确认、队列状态与上传中心入口。
 
@@ -25,7 +24,6 @@
 
 ### Fixed
 
-- 游戏云档重试成功后清除过期的失败提示；重试期间转为登录过期或版本冲突时，结果面板切换到对应恢复入口。
 
 
 
@@ -61,6 +59,23 @@
 ### Fixed
 
 - 修复显式深链在断网启动时因初始路由状态提前切换而丢失隐藏缓存日记的问题；缓存画廊现在可在非 gallery 深链下先渲染并由路由控制显隐。
+
+## [2026-11-09] — 主宠属性与分配
+
+### Added
+
+- 黑暗传说在 35 级开放主宠属性加成，支持查看原图和属性、设置、替换与卸下；同种宠物按持有记录分别选择。选择与角色重算同次保存账号云档，刷新续档、失败重试不重复叠加。已对照 26 种原生初始属性及 353 组主宠贡献；宠物技能、独立行动、副宠和成长尚未开放。
+
+### Fixed
+
+- 游戏云档重试成功后清除过期的失败提示；重试期间转为登录过期或版本冲突时，结果面板切换到对应恢复入口。
+
+### Release
+
+- 已从 `main` 提交 `bef596edc4b58dc321654c3cd014558c7296a228` 通过统一脚本发布。preview deployment 为 `9185dd81-05bf-4b28-9203-c8f7ba82f130`（固定 alias `https://codex-preview.life-vlog-site.pages.dev`），production deployment 为 `af68a667-e36e-4ca8-b378-4ade7f954160`（`https://af68a667.life-vlog-site.pages.dev`），正式入口为 `https://life-vlog-site.pages.dev`。Worker `life-vlog-r2-upload` 版本为 `a7938edd-6220-43f8-bd6e-a971f4aea93f`；未变更远程 D1 结构或重置角色、宠物。
+- 宿主入口 `index-D9iGdFag.js` SHA-256 为 `f8019d744acda81d039305d2c8493b0d3d09d3ae05d7fff3aa16de912cd87a81`，宿主样式 `index-BOxzJ3xB.css` SHA-256 为 `d850fc4b9a552ebcea0a6ed2bf21bb4bbc1dda1f267a232b405137c709e9226a`；`sw.js` SHA-256 为 `a2d9ff79482e1f7e7d00ea9c3d30ed876e600a28040fb057f088b0bced8115fe`，Workbox 预缓存 40 项。独立游戏入口 `monster-KSBkqyfE.js` SHA-256 为 `8329078e282d419b6ef0ddee648b29b92ad64dec174262509a5d967f847a4ce4`，游戏样式 `monster-DIyu9R6r.css` SHA-256 为 `a45573ea7487149dac5fdd06a0ac7b1ff1131b1dd5d0f304dbac8e8b45bdda8a`；正式站游戏页面及两份资源校验值已独立核对。
+- 26 种宠物初始属性及 353 组原生贡献对照、完整 `pnpm test`（310 项单元、239 份 JS 语法）、Chromium 和 iPhone 13 条件 WebKit 完整游戏回归、本地 release gate、preview/production CORS、Axe critical/serious 与确定性 release smoke 均通过。主宠战斗画面测试通过显式 fixture 时序门闩检查布局后再推进战斗，避免将正常快速结算误判为控件状态错误。
+- 正式站额外运行 iPhone 13 条件的主宠专项 `artifacts/monster/pet-probe.mjs`，覆盖同种宠物区分、选择／替换／卸下、属性与战斗、失败重试、重载、空态、冲突恢复、六档宽度及无障碍；日志 `artifacts/monster/pet-hosted-iphone.log`，退出码 0。测试仅使用隔离内存 Worker/D1 fixture，不访问真实账号或业务数据；WebKit 模拟不代表真机或完整原 APK 等价证明。
 
 ## [2026-11-09] — 背包整理与云档恢复
 
