@@ -7,7 +7,6 @@
 
 ### Added
 
-- 黑暗传说背包接入道具出售、数量选择、装备分解和锁定，预览金币、魔石及返还材料；锁定阻止分解和神器熔炼，装备分解需确认。出售和锁定同次保存账号云档，失败可在背包内重试，已有结果不重复结算。打造仍按原版使用符合配方的 +5 装备，不因锁定而排除。
 - 日记卡片支持同篇多图横向预览轨道、触摸滑动保护和“查看全部 N 张”入口；媒体失败仍可单项重试并保留原索引。
 - 日记发布表单改为媒体优先、文字居中、发布选项折叠的紧凑结构，增加草稿清空确认、队列状态与上传中心入口。
 
@@ -25,7 +24,6 @@
 
 ### Fixed
 
-- 修复背包出售后主页金币／魔石余额未即时刷新；保存遇到登录过期或版本冲突时，背包结果面板分别提供返回登录或重载云档。
 
 
 
@@ -61,6 +59,23 @@
 ### Fixed
 
 - 修复显式深链在断网启动时因初始路由状态提前切换而丢失隐藏缓存日记的问题；缓存画廊现在可在非 gallery 深链下先渲染并由路由控制显隐。
+
+## [2026-11-09] — 背包整理与云档恢复
+
+### Added
+
+- 黑暗传说背包接入道具出售、数量选择、装备分解和锁定，预览金币、魔石及返还材料；锁定阻止分解和神器熔炼，装备分解需确认。出售和锁定同次保存账号云档，失败可在背包内重试，已有结果不重复结算。打造仍按原版使用符合配方的 +5 装备，不因锁定而排除。
+
+### Fixed
+
+- 修复背包出售后主页金币／魔石余额未即时刷新；保存遇到登录过期或版本冲突时，背包结果面板分别提供返回登录或重载云档。
+
+### Release
+
+- 已从 `main` 提交 `80ccb4c0299f47746f99bdc229e913c52ac41cd7` 通过统一脚本发布，功能提交为 `a843db10466517c1e8d03d8fec7dd38543170e70`。preview deployment 为 `625e9ea1-144a-4e4d-98af-6bcae05a30dc`（固定 alias `https://codex-preview.life-vlog-site.pages.dev`），production deployment 为 `f0d9870a-8687-4425-848f-013c71f482ad`（`https://f0d9870a.life-vlog-site.pages.dev`），正式入口为 `https://life-vlog-site.pages.dev`。Worker `life-vlog-r2-upload` 版本为 `997c9865-779f-4405-ba99-186d8a5c12f3`；未变更远程 D1 结构或重置角色。
+- 宿主入口 `index-D9iGdFag.js` SHA-256 为 `f8019d744acda81d039305d2c8493b0d3d09d3ae05d7fff3aa16de912cd87a81`，宿主样式 `index-BOxzJ3xB.css` SHA-256 为 `d850fc4b9a552ebcea0a6ed2bf21bb4bbc1dda1f267a232b405137c709e9226a`；`sw.js` SHA-256 为 `a2d9ff79482e1f7e7d00ea9c3d30ed876e600a28040fb057f088b0bced8115fe`，Workbox 预缓存 40 项。独立游戏入口 `monster-B7HPL0bz.js` SHA-256 为 `d1ae9111e868977b1b63275bbbac4ac7793bf00b94faf95497399d4ad9b3377b`，游戏样式 `monster-EA2-ky8l.css` SHA-256 为 `b06f69850cd0939f230e6d74df286d700cd93c59da7957a036e3e14e79d55a69`；正式站游戏页面及两份资源校验值已单独核对。
+- 原生卖价及强化返还 5115 组对照、完整 `pnpm test`（304 项单元）、本地 release gate、preview/production CORS、Axe critical/serious 和确定性 release smoke 均通过。完整游戏 Chromium 与 iPhone 13 条件 WebKit 回归覆盖背包交易、数量校验、锁定与重载、分解产物、失败重试、主页余额及 401／409 恢复入口；使用隔离内存 fixture，不访问真实账号或业务数据。WebKit 为模拟验收，非真机或完整 APK 等价证明。
+- 另以正式站资源运行 iPhone 13 条件的背包专项隔离 fixture，验证出售、魔石兑换、余额刷新、失败保存重试、锁定与刷新续档、神器分解和 401／409 恢复；由已提交的浏览器测试块生成 `artifacts/monster/bag-hosted-probe.mjs`，使用单件初始一星神器，日志 `artifacts/monster/bag-hosted-iphone.log`，执行退出码为 0。
 
 ## [2026-11-09] — 日常任务、铁匠铺与试炼续层
 
