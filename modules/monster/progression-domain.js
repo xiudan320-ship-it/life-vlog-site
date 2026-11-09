@@ -57,8 +57,8 @@ export function getEquipmentStrengthThreshold(currentStrength) {
 
 /**
  * Player::addExp (0x9a01bc), including its original level caps and recursion.
- * Pet grants and unlock/potion callbacks are returned for the owning controller
- * to apply. Pet growth and the callbacks themselves are separate operations.
+ * Pet grants are returned for settlement to apply in order; unlock/potion
+ * callbacks remain separate operations.
  */
 export function creditPlayerExperience({ level, paragon, experience, amount, petExperienceBonus = 0 }) {
   const float = Math.fround;

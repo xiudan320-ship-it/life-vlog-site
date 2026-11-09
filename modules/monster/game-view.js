@@ -319,7 +319,10 @@ export function createMonsterGameView({ warView }) {
     scene(widget, true);
     lastRender = () => result(outcome, reward, state, catalog);
     stage("result");
-    statusMessage(`${outcome === 3 ? "胜利" : `战败，已保留 ${reward.defeatedCount} 只怪物收益`} · 金币 +${reward.gold} · 经验 +${reward.experience} · 当前 Lv.${state.player.level}`);
+    const pet = reward.petGrowth;
+    const petMessage = pet?.amount > 0 ? `主宠经验 +${pet.amount} · 宠物 Lv.${pet.level}` : "";
+    if (pet && pet.level > pet.previousLevel && document.getElementById("monsterSaveRetry").hidden) notice(`主宠升至 ${pet.level} 级，属性加成已更新`);
+    statusMessage(`${outcome === 3 ? "胜利" : `战败，已保留 ${reward.defeatedCount} 只怪物收益`} · 金币 +${reward.gold} · 经验 +${reward.experience} · 当前 Lv.${state.player.level}${petMessage ? ` · ${petMessage}` : ""}`);
   }
   function details(title, opener) {
     document.getElementById("monsterDetailsTitle").textContent = title;

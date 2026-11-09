@@ -1,0 +1,770 @@
+{
+  "scope": "Run actual ARM Pet::addExp on a synthetic native catalog-factory pet.\n\nSeeds encrypted fields in memory only. Native threshold and recursion execute\nwithout substitutions; the existing Cocos logging/runtime adapters still apply.\nNo battle, Player::addExp, persistence, UI or network behavior is sampled.\n",
+  "provenance": {
+    "function": "Pet::addExp(int), ARM 0x99852c",
+    "thresholdFunction": "GameData::getExpByPetLevel(int), ARM 0x7d1ea4",
+    "factory": "GameData::getBasePetById(int), decoded APK pet catalog",
+    "petId": 4001,
+    "engine": "Unicorn ARM; recover-new-game.py and recover-pet-rules.py adapters",
+    "limitations": "Synthetic encrypted field seeds and in-memory pet; no signed-overflow input, negative values, battle, Player::addExp, persistence, UI or network. Native addExp and threshold run unhooked; existing platform and Cocos log adapters apply."
+  },
+  "nativeThresholds": {
+    "1": 15000,
+    "2": 60000,
+    "3": 135000,
+    "4": 240000,
+    "58": 50460000,
+    "59": 52215000,
+    "60": 52215000
+  },
+  "cases": [
+    {
+      "input": {
+        "level": 1,
+        "experience": 0,
+        "amount": 0
+      },
+      "expected": {
+        "level": 1,
+        "experience": 0
+      }
+    },
+    {
+      "input": {
+        "level": 1,
+        "experience": 0,
+        "amount": 1
+      },
+      "expected": {
+        "level": 1,
+        "experience": 1
+      }
+    },
+    {
+      "input": {
+        "level": 1,
+        "experience": 0,
+        "amount": 14999
+      },
+      "expected": {
+        "level": 1,
+        "experience": 14999
+      }
+    },
+    {
+      "input": {
+        "level": 1,
+        "experience": 0,
+        "amount": 15000
+      },
+      "expected": {
+        "level": 2,
+        "experience": 0
+      }
+    },
+    {
+      "input": {
+        "level": 1,
+        "experience": 0,
+        "amount": 15001
+      },
+      "expected": {
+        "level": 2,
+        "experience": 1
+      }
+    },
+    {
+      "input": {
+        "level": 1,
+        "experience": 14999,
+        "amount": 0
+      },
+      "expected": {
+        "level": 1,
+        "experience": 14999
+      }
+    },
+    {
+      "input": {
+        "level": 1,
+        "experience": 14999,
+        "amount": 1
+      },
+      "expected": {
+        "level": 2,
+        "experience": 0
+      }
+    },
+    {
+      "input": {
+        "level": 1,
+        "experience": 14999,
+        "amount": 14999
+      },
+      "expected": {
+        "level": 2,
+        "experience": 14998
+      }
+    },
+    {
+      "input": {
+        "level": 1,
+        "experience": 14999,
+        "amount": 15000
+      },
+      "expected": {
+        "level": 2,
+        "experience": 14999
+      }
+    },
+    {
+      "input": {
+        "level": 1,
+        "experience": 14999,
+        "amount": 15001
+      },
+      "expected": {
+        "level": 2,
+        "experience": 15000
+      }
+    },
+    {
+      "input": {
+        "level": 1,
+        "experience": 15000,
+        "amount": 0
+      },
+      "expected": {
+        "level": 2,
+        "experience": 0
+      }
+    },
+    {
+      "input": {
+        "level": 1,
+        "experience": 15000,
+        "amount": 1
+      },
+      "expected": {
+        "level": 2,
+        "experience": 1
+      }
+    },
+    {
+      "input": {
+        "level": 2,
+        "experience": 0,
+        "amount": 0
+      },
+      "expected": {
+        "level": 2,
+        "experience": 0
+      }
+    },
+    {
+      "input": {
+        "level": 2,
+        "experience": 0,
+        "amount": 1
+      },
+      "expected": {
+        "level": 2,
+        "experience": 1
+      }
+    },
+    {
+      "input": {
+        "level": 2,
+        "experience": 0,
+        "amount": 59999
+      },
+      "expected": {
+        "level": 2,
+        "experience": 59999
+      }
+    },
+    {
+      "input": {
+        "level": 2,
+        "experience": 0,
+        "amount": 60000
+      },
+      "expected": {
+        "level": 3,
+        "experience": 0
+      }
+    },
+    {
+      "input": {
+        "level": 2,
+        "experience": 0,
+        "amount": 60001
+      },
+      "expected": {
+        "level": 3,
+        "experience": 1
+      }
+    },
+    {
+      "input": {
+        "level": 2,
+        "experience": 59999,
+        "amount": 0
+      },
+      "expected": {
+        "level": 2,
+        "experience": 59999
+      }
+    },
+    {
+      "input": {
+        "level": 2,
+        "experience": 59999,
+        "amount": 1
+      },
+      "expected": {
+        "level": 3,
+        "experience": 0
+      }
+    },
+    {
+      "input": {
+        "level": 2,
+        "experience": 59999,
+        "amount": 59999
+      },
+      "expected": {
+        "level": 3,
+        "experience": 59998
+      }
+    },
+    {
+      "input": {
+        "level": 2,
+        "experience": 59999,
+        "amount": 60000
+      },
+      "expected": {
+        "level": 3,
+        "experience": 59999
+      }
+    },
+    {
+      "input": {
+        "level": 2,
+        "experience": 59999,
+        "amount": 60001
+      },
+      "expected": {
+        "level": 3,
+        "experience": 60000
+      }
+    },
+    {
+      "input": {
+        "level": 2,
+        "experience": 60000,
+        "amount": 0
+      },
+      "expected": {
+        "level": 3,
+        "experience": 0
+      }
+    },
+    {
+      "input": {
+        "level": 2,
+        "experience": 60000,
+        "amount": 1
+      },
+      "expected": {
+        "level": 3,
+        "experience": 1
+      }
+    },
+    {
+      "input": {
+        "level": 58,
+        "experience": 0,
+        "amount": 0
+      },
+      "expected": {
+        "level": 58,
+        "experience": 0
+      }
+    },
+    {
+      "input": {
+        "level": 58,
+        "experience": 0,
+        "amount": 1
+      },
+      "expected": {
+        "level": 58,
+        "experience": 1
+      }
+    },
+    {
+      "input": {
+        "level": 58,
+        "experience": 0,
+        "amount": 50459999
+      },
+      "expected": {
+        "level": 58,
+        "experience": 50459999
+      }
+    },
+    {
+      "input": {
+        "level": 58,
+        "experience": 0,
+        "amount": 50460000
+      },
+      "expected": {
+        "level": 59,
+        "experience": 0
+      }
+    },
+    {
+      "input": {
+        "level": 58,
+        "experience": 0,
+        "amount": 50460001
+      },
+      "expected": {
+        "level": 59,
+        "experience": 1
+      }
+    },
+    {
+      "input": {
+        "level": 58,
+        "experience": 50459999,
+        "amount": 0
+      },
+      "expected": {
+        "level": 58,
+        "experience": 50459999
+      }
+    },
+    {
+      "input": {
+        "level": 58,
+        "experience": 50459999,
+        "amount": 1
+      },
+      "expected": {
+        "level": 59,
+        "experience": 0
+      }
+    },
+    {
+      "input": {
+        "level": 58,
+        "experience": 50459999,
+        "amount": 50459999
+      },
+      "expected": {
+        "level": 59,
+        "experience": 50459998
+      }
+    },
+    {
+      "input": {
+        "level": 58,
+        "experience": 50459999,
+        "amount": 50460000
+      },
+      "expected": {
+        "level": 59,
+        "experience": 50459999
+      }
+    },
+    {
+      "input": {
+        "level": 58,
+        "experience": 50459999,
+        "amount": 50460001
+      },
+      "expected": {
+        "level": 59,
+        "experience": 50460000
+      }
+    },
+    {
+      "input": {
+        "level": 58,
+        "experience": 50460000,
+        "amount": 0
+      },
+      "expected": {
+        "level": 59,
+        "experience": 0
+      }
+    },
+    {
+      "input": {
+        "level": 58,
+        "experience": 50460000,
+        "amount": 1
+      },
+      "expected": {
+        "level": 59,
+        "experience": 1
+      }
+    },
+    {
+      "input": {
+        "level": 59,
+        "experience": 0,
+        "amount": 0
+      },
+      "expected": {
+        "level": 59,
+        "experience": 0
+      }
+    },
+    {
+      "input": {
+        "level": 59,
+        "experience": 0,
+        "amount": 1
+      },
+      "expected": {
+        "level": 59,
+        "experience": 1
+      }
+    },
+    {
+      "input": {
+        "level": 59,
+        "experience": 0,
+        "amount": 52214999
+      },
+      "expected": {
+        "level": 59,
+        "experience": 52214999
+      }
+    },
+    {
+      "input": {
+        "level": 59,
+        "experience": 0,
+        "amount": 52215000
+      },
+      "expected": {
+        "level": 60,
+        "experience": 52215000
+      }
+    },
+    {
+      "input": {
+        "level": 59,
+        "experience": 0,
+        "amount": 52215001
+      },
+      "expected": {
+        "level": 60,
+        "experience": 52215000
+      }
+    },
+    {
+      "input": {
+        "level": 59,
+        "experience": 52214999,
+        "amount": 0
+      },
+      "expected": {
+        "level": 59,
+        "experience": 52214999
+      }
+    },
+    {
+      "input": {
+        "level": 59,
+        "experience": 52214999,
+        "amount": 1
+      },
+      "expected": {
+        "level": 60,
+        "experience": 52215000
+      }
+    },
+    {
+      "input": {
+        "level": 59,
+        "experience": 52214999,
+        "amount": 52214999
+      },
+      "expected": {
+        "level": 60,
+        "experience": 52215000
+      }
+    },
+    {
+      "input": {
+        "level": 59,
+        "experience": 52214999,
+        "amount": 52215000
+      },
+      "expected": {
+        "level": 60,
+        "experience": 52215000
+      }
+    },
+    {
+      "input": {
+        "level": 59,
+        "experience": 52214999,
+        "amount": 52215001
+      },
+      "expected": {
+        "level": 60,
+        "experience": 52215000
+      }
+    },
+    {
+      "input": {
+        "level": 59,
+        "experience": 52215000,
+        "amount": 0
+      },
+      "expected": {
+        "level": 60,
+        "experience": 52215000
+      }
+    },
+    {
+      "input": {
+        "level": 59,
+        "experience": 52215000,
+        "amount": 1
+      },
+      "expected": {
+        "level": 60,
+        "experience": 52215000
+      }
+    },
+    {
+      "input": {
+        "level": 60,
+        "experience": 0,
+        "amount": 0
+      },
+      "expected": {
+        "level": 60,
+        "experience": 0
+      }
+    },
+    {
+      "input": {
+        "level": 60,
+        "experience": 0,
+        "amount": 1
+      },
+      "expected": {
+        "level": 60,
+        "experience": 1
+      }
+    },
+    {
+      "input": {
+        "level": 60,
+        "experience": 0,
+        "amount": 52214999
+      },
+      "expected": {
+        "level": 60,
+        "experience": 52214999
+      }
+    },
+    {
+      "input": {
+        "level": 60,
+        "experience": 0,
+        "amount": 52215000
+      },
+      "expected": {
+        "level": 60,
+        "experience": 52215000
+      }
+    },
+    {
+      "input": {
+        "level": 60,
+        "experience": 0,
+        "amount": 52215001
+      },
+      "expected": {
+        "level": 60,
+        "experience": 52215000
+      }
+    },
+    {
+      "input": {
+        "level": 60,
+        "experience": 52214999,
+        "amount": 0
+      },
+      "expected": {
+        "level": 60,
+        "experience": 52214999
+      }
+    },
+    {
+      "input": {
+        "level": 60,
+        "experience": 52214999,
+        "amount": 1
+      },
+      "expected": {
+        "level": 60,
+        "experience": 52215000
+      }
+    },
+    {
+      "input": {
+        "level": 60,
+        "experience": 52214999,
+        "amount": 52214999
+      },
+      "expected": {
+        "level": 60,
+        "experience": 52215000
+      }
+    },
+    {
+      "input": {
+        "level": 60,
+        "experience": 52214999,
+        "amount": 52215000
+      },
+      "expected": {
+        "level": 60,
+        "experience": 52215000
+      }
+    },
+    {
+      "input": {
+        "level": 60,
+        "experience": 52214999,
+        "amount": 52215001
+      },
+      "expected": {
+        "level": 60,
+        "experience": 52215000
+      }
+    },
+    {
+      "input": {
+        "level": 60,
+        "experience": 52215000,
+        "amount": 0
+      },
+      "expected": {
+        "level": 60,
+        "experience": 52215000
+      }
+    },
+    {
+      "input": {
+        "level": 60,
+        "experience": 52215000,
+        "amount": 1
+      },
+      "expected": {
+        "level": 60,
+        "experience": 52215000
+      }
+    },
+    {
+      "input": {
+        "level": 1,
+        "experience": 0,
+        "amount": 76234
+      },
+      "expected": {
+        "level": 3,
+        "experience": 1234
+      }
+    },
+    {
+      "input": {
+        "level": 1,
+        "experience": 0,
+        "amount": 449999
+      },
+      "expected": {
+        "level": 4,
+        "experience": 239999
+      }
+    },
+    {
+      "input": {
+        "level": 1,
+        "experience": 0,
+        "amount": 450000
+      },
+      "expected": {
+        "level": 5,
+        "experience": 0
+      }
+    },
+    {
+      "input": {
+        "level": 1,
+        "experience": 0,
+        "amount": 450001
+      },
+      "expected": {
+        "level": 5,
+        "experience": 1
+      }
+    },
+    {
+      "input": {
+        "level": 1,
+        "experience": 0,
+        "amount": 1000000000
+      },
+      "expected": {
+        "level": 58,
+        "experience": 49525000
+      }
+    },
+    {
+      "input": {
+        "level": 1,
+        "experience": 0,
+        "amount": 2147483647
+      },
+      "expected": {
+        "level": 60,
+        "experience": 52215000
+      }
+    },
+    {
+      "input": {
+        "level": 2,
+        "experience": 17,
+        "amount": 199321
+      },
+      "expected": {
+        "level": 4,
+        "experience": 4338
+      }
+    },
+    {
+      "input": {
+        "level": 58,
+        "experience": 123,
+        "amount": 102675007
+      },
+      "expected": {
+        "level": 60,
+        "experience": 52215000
+      }
+    }
+  ]
+}

@@ -47,7 +47,7 @@ export function calculatePlayerEffects(attributes) {
   const value = (type) => attributes.find((tag) => tag.type === type)?.value || 0;
   return {
     goldRate: 100 + value(19), dropRate: 100 + value(9), experienceRate: 100 + value(10),
-    regeneration: value(11), hurtBonus: value(33), critResistance: value(40), trialScoreBonus: value(36), smeltBonus: value(35),
+    regeneration: value(11), hurtBonus: value(33), critResistance: value(40), trialScoreBonus: value(36), smeltBonus: value(35), petExperienceBonus: value(42),
     flatCrit: value(23), buffResistance: value(27), procBonus: value(21), encounterBonus: value(22), extraWaves: value(30),
     bonuses: { crit: value(23), critHurt: value(24), hit: value(25), dodge: value(26), hurtIncrease: value(16), hurtDecrease: value(17) },
   };

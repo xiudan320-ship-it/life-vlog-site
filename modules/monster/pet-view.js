@@ -1,5 +1,6 @@
 import { element, picture } from "./visual-ui.js";
 import { getPetSummary } from "./pet-domain.js";
+import { getPetExperienceRequired } from "./progression-domain.js";
 import { renderSaveFeedback } from "./save-feedback-view.js";
 
 const stats = [
@@ -21,8 +22,7 @@ export function renderPets({ content, state, catalog, actions, receipt }) {
   content.className = "monster-pets-content";
   const header = element("section", undefined, "monster-original-panel monster-pets-header");
   header.append(element("h3", "宠物"),
-    element("p", "设置主宠后，宠物属性会为角色提供加成。", "monster-panel-hint"),
-    element("p", "当前提供主宠属性加成，宠物技能、独立行动与成长尚未开放。", "monster-panel-hint"));
+    element("p", "主宠获得角色经验奖励，并为角色提供属性加成；忠诚固定为 90。", "monster-panel-hint"));
   if (state.player.level < 35) header.append(element("p", "角色达到 35 级后可设置主宠。", "monster-panel-hint"));
   content.append(header);
   if (receipt) {
@@ -53,6 +53,18 @@ export function renderPets({ content, state, catalog, actions, receipt }) {
     description.append(title, element("p", `等级 ${pet.level} · 品质 ${pet.quality}`),
       element("p", `忠诚 ${loyalty} · 星级 ${stars} · 成长 ${growth}`, "monster-panel-hint"));
     overview.append(portrait, description);
+    const experience = element("div", undefined, "monster-pet-experience");
+    experience.dataset.petExperienceIndex = String(index);
+    const capped = pet.level >= 60;
+    const required = getPetExperienceRequired(pet.level);
+    const amount = pet.experience.toLocaleString("zh-CN");
+    const progressLabel = element("p", capped ? `已达满级 60 · 经验 ${amount}` : `经验 ${amount} / ${required.toLocaleString("zh-CN")}`);
+    const progress = element("progress");
+    progress.max = required;
+    progress.value = Math.min(pet.experience, required);
+    progress.setAttribute("aria-label", `${row.name}的经验进度`);
+    progress.setAttribute("aria-valuetext", progressLabel.textContent);
+    experience.append(progressLabel, progress);
     const details = element("details", undefined, "monster-pet-details");
     details.append(element("summary", "查看宠物属性与角色加成"), element("h4", "宠物属性"),
       statList(stats.map(([key, label]) => [label, core[key]])), element("h4", "作为主宠时给予角色"),
@@ -73,7 +85,7 @@ export function renderPets({ content, state, catalog, actions, receipt }) {
         if (content.contains(header)) controls.forEach((control, controlIndex) => { control.disabled = disabled[controlIndex]; });
       }
     };
-    card.append(overview, details, button);
+    card.append(overview, experience, details, button);
     content.append(card);
   }
   const back = element("button", "返回背包", "monster-image-button monster-pets-back");

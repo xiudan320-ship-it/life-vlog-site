@@ -1,3 +1,5 @@
+import { getPetExperienceRequired } from "./progression-domain.js";
+
 export function validateMonsterSave(state) {
   const integer = (value, min = 0) => Number.isSafeInteger(value) && value >= min;
   const player = state?.player;
@@ -19,7 +21,9 @@ export function validateMonsterSave(state) {
     throw new TypeError("打造记录不完整，请保留原存档并重试。");
   }
   if (mainPets.length > 1 || state.inventory.pets.some((pet) => pet?.partyRole !== undefined && ![0, 1].includes(pet.partyRole))
-    || mainPets.some((pet) => pet.type !== 3 || !integer(pet.id, 1) || !integer(pet.level, 1) || !integer(pet.quality, 1) || pet.quality > 5 || !integer(pet.experience))) {
+    || state.inventory.pets.some((pet) => !pet || pet.type !== 3 || !integer(pet.id, 1) || !integer(pet.level, 1) || pet.level > 60
+      || !integer(pet.quality, 1) || pet.quality > 5 || !integer(pet.experience)
+      || pet.experience > getPetExperienceRequired(pet.level) || pet.level < 60 && pet.experience === getPetExperienceRequired(pet.level))) {
     throw new TypeError("主宠存档数据不完整，请保留原存档并重试。");
   }
   if (state.trial !== undefined) {

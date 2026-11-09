@@ -111,3 +111,23 @@ test("main-pet flags round-trip per account and reject multiple selected owned p
     assert.deepEqual((await request(fixture, "owner")).body.state, assigned);
   } finally { fixture.close(); }
 });
+
+test("pet level and XP persist for the owning account and invalid unassigned pets cannot overwrite it", async () => {
+  const fixture = createWorkerFixture();
+  try {
+    const progress = state(); progress.player.level = 35;
+    progress.inventory.pets = [
+      { id: 4001, type: 3, level: 2, quality: 1, experience: 3, partyRole: 1 },
+      { id: 4026, type: 3, level: 60, quality: 4, experience: 52215000, partyRole: 0 },
+    ];
+    assert.equal((await request(fixture, "owner", "PUT", { expectedRevision: 0, state: progress })).status, 200);
+    assert.deepEqual((await request(fixture, "owner")).body.state.inventory.pets, progress.inventory.pets);
+    assert.equal((await request(fixture, "member")).body.state, null);
+    for (const invalid of [{ level: 61 }, { level: 1, experience: 15000 }, { experience: -1 }, { experience: 52215001 }]) {
+      const corrupt = structuredClone(progress); Object.assign(corrupt.inventory.pets[1], invalid);
+      assert.equal((await request(fixture, "owner", "PUT", { expectedRevision: 1, state: corrupt })).status, 400);
+    }
+    assert.equal((await request(fixture, "owner")).body.revision, 1);
+    assert.deepEqual((await request(fixture, "owner")).body.state.inventory.pets, progress.inventory.pets);
+  } finally { fixture.close(); }
+});

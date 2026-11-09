@@ -53,7 +53,9 @@ function createBattleReward({ state, copy, prepared, catalog, draw, partial = fa
 export function settleCopyVictory(input) {
   const { copy, prepared, catalog } = input;
   const reward = createBattleReward(input);
-  let state = creditBattleLoot(input.state, reward).state;
+  const credited = creditBattleLoot(input.state, reward);
+  let state = credited.state;
+  if (credited.effects.petGrowth) reward.petGrowth = credited.effects.petGrowth;
   if (copy.type === 1) {
     const chapter = catalog.chapters.find((row) => copy.id >= row.minid && copy.id <= row.maxid || row.hideboss === copy.id);
     const progress = recordRegularCopyVictory({ progress: state.progress, money: state.money, copy, chapter, enemyCount: prepared.enemyCount });
@@ -72,5 +74,7 @@ export function settleCopyDefeat({ state, copy, prepared, battle, catalog, draw 
     encounterCopy: prepared.encounterCopy && battle.enemies.at(-1).dead ? prepared.encounterCopy : null };
   const reward = createBattleReward({ state, copy, prepared: earned, catalog, draw, partial: true, fraction: defeated.length / prepared.enemyCount });
   reward.partial = true; reward.defeatedCount = defeated.length;
-  return { state: creditBattleLoot(state, reward).state, reward };
+  const credited = creditBattleLoot(state, reward);
+  if (credited.effects.petGrowth) reward.petGrowth = credited.effects.petGrowth;
+  return { state: credited.state, reward };
 }

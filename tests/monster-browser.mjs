@@ -45,21 +45,26 @@ let keyboardChecked = false;
 const artifacts = resolve("artifacts/monster");
 await mkdir(artifacts, { recursive: true });
 
-async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, saveStatus = 0, defeat = false, trial = false, trialRewards = false, workshop = false, navigation = false, petParty = false, colorScheme = "dark", reducedMotion = "no-preference" } = {}) {
+async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, saveStatus = 0, defeat = false, trial = false, trialRewards = false, workshop = false, navigation = false, petParty = false, petGrowth = false, colorScheme = "dark", reducedMotion = "no-preference" } = {}) {
   const context = await browser.newContext({ ...(iphone13 ? devices["iPhone 13"] : {}), viewport: { width: 390, height: 844 }, screen: { width: 390, height: 844 }, colorScheme, reducedMotion });
   contexts.push(context);
   context.on("requestfailed", (request) => requestFailures.push({ url: request.url(), error: request.failure()?.errorText }));
   const fixture = createWorkerFixture({ origin });
-  if (trial || workshop || navigation || petParty) {
+  if (trial || workshop || navigation || petParty || petGrowth) {
     const [items, skills] = await Promise.all(["item", "skill"].map(async (name) => JSON.parse(await readFile(resolve(root, `monster/data/${name}.json`), "utf8"))));
     const seed = createNewGame({ items, skills }); seed.player.name = "功能测试勇者";
     if (trial || navigation) { seed.player.level = 80; seed.player.equipmentSets[0][0].attributes.push(...[1, 2, 3, 4].map((type) => ({ type, value: 10000000 }))); }
     if (navigation) { seed.progress.chapterId = 3; seed.progress.levelId = 1; }
-    if (petParty) {
+    if (petParty || petGrowth) {
       const rows = JSON.parse(await readFile(resolve(root, "monster/data/pet.json"), "utf8"));
       seed.player.level = 35;
       seed.player = recalculatePlayerFromEquipment(seed.player, [...seed.player.equipmentSets[0], ...seed.inventory.wings.filter((item) => item.id === seed.player.wingId)]);
       seed.inventory.pets = [4001, 4026, 4026].map((id) => ({ id, type: 3, level: 1, quality: rows.find((row) => row.id === id).quality, experience: 0 }));
+      if (petGrowth) {
+        Object.assign(seed.inventory.pets[0], { partyRole: 1, experience: 14999 });
+        seed.inventory.goods.push({ id: 5003, type: 1, quantity: 10 });
+        seed.taskBoard = { points: 0, dailyRewardDay: null, entries: [{ id: 64, type: 3, target: 5003, need: 10, count: 0, claimed: 0 }] };
+      }
     }
     if (workshop) {
       seed.gold = 10000000; seed.money = 10000;
@@ -713,6 +718,60 @@ try {
     if (saveStatus === 409) { await recoveryPage.locator("#monsterDetails").getByRole("button", { name: recovery, exact: true }).click(); await stage(recoveryPage, "menu"); assert.deepEqual(await saved(recoveryPage), before); }
     await recoveryPage.close();
   }
+  // Main-pet XP integration: saved victory, failure retry, tasks and cap display.
+  const growthPage = await pageFor({ petGrowth: true, roll: 0, reducedMotion: "reduce" });
+  const growthSeed = await saved(growthPage);
+  const growthTap = (locator) => iphone13 ? locator.tap() : locator.click();
+  await growthPage.locator("#monsterEnter").click(); await stage(growthPage, "home");
+  await tapNative(growthPage, "btn_pet");
+  assert.match(await growthPage.locator('[data-pet-experience-index="0"]').textContent(), /14,999 \/ 15,000/);
+  assert.equal(await growthPage.locator('[data-pet-experience-index="0"] progress').getAttribute("value"), "14999");
+  await noOverflow(growthPage); await accessible(growthPage);
+  await growthPage.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-pet-experience-before.png" : "pet-experience-before.png") });
+  await growthPage.locator("#monsterDetailsClose").click();
+  await growthPage.evaluate(() => { window.monsterFixtureBlockSave = true; });
+  await fight(growthPage, 1001, true);
+  assert.deepEqual(await saved(growthPage), growthSeed);
+  const growthStatus = await growthPage.locator("#monsterStatus").textContent();
+  const earnedPetXP = Number(growthStatus.match(/主宠经验 \+(\d+)/)?.[1]);
+  assert.ok(earnedPetXP > 0, growthStatus);
+  await growthPage.locator("#monsterEnter").click(); await stage(growthPage, "home"); await tapNative(growthPage, "btn_pet");
+  assert.match(await growthPage.locator(".monster-pet-card").first().textContent(), /等级 2/);
+  assert.match(await growthPage.locator('[data-pet-experience-index="0"]').textContent(), new RegExp(`经验 ${earnedPetXP - 1} / 60,000`));
+  await growthPage.locator("#monsterDetailsClose").click();
+  await growthPage.evaluate(() => { window.monsterFixtureBlockSave = false; });
+  await growthPage.locator("#monsterSaveRetry").click(); await growthPage.locator("#monsterSaveRetry").waitFor({ state: "hidden" });
+  const grown = await saved(growthPage);
+  assert.deepEqual([grown.inventory.pets[0].level, grown.inventory.pets[0].experience], [2, earnedPetXP - 1]);
+  assert.equal(grown.player.attack, growthSeed.player.attack + 122);
+  assert.equal(grown.inventory.pets[1].experience, 0);
+  assert.equal(grown.inventory.pets[2].experience, 0);
+  await growthPage.reload(); await stage(growthPage, "menu");
+  assert.deepEqual(await saved(growthPage), grown);
+  await growthPage.locator("#monsterEnter").click(); await stage(growthPage, "home"); await tapNative(growthPage, "btn_pet");
+  await growthPage.locator(".monster-pet-card").first().locator("summary").click();
+  assert.equal(await growthPage.locator(".monster-pet-card").first().locator(".monster-pet-stats").first().locator("dd").first().textContent(), "122");
+  await noOverflow(growthPage); await accessible(growthPage);
+  await growthPage.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-pet-experience-after.png" : "pet-experience-after.png") });
+  await growthTap(growthPage.locator('[data-main-pet-index="1"]'));
+  await growthPage.locator('[data-main-pet-index="1"][aria-pressed="true"]').waitFor();
+  await growthPage.locator("#monsterDetailsClose").click(); await tapNative(growthPage, "btn_task");
+  await growthPage.locator('[data-task-id="64"] button').click();
+  await growthPage.getByRole("button", { name: "已领取", exact: true }).waitFor();
+  const taskGrowth = await saved(growthPage);
+  assert.equal(taskGrowth.inventory.pets[1].experience, 10);
+  assert.deepEqual(taskGrowth.inventory.pets[0], { ...grown.inventory.pets[0], partyRole: 0 });
+  assert.equal(taskGrowth.inventory.pets[2].experience, 0);
+  const cappedGrowth = structuredClone(taskGrowth);
+  Object.assign(cappedGrowth.inventory.pets[0], { level: 60, experience: 52215000 });
+  fixtures.get(growthPage).DB.database.prepare("update monster_saves set state_json = ? where user_id = ?").run(JSON.stringify(cappedGrowth), "owner");
+  await growthPage.reload(); await stage(growthPage, "menu");
+  await growthPage.locator("#monsterEnter").click(); await stage(growthPage, "home"); await tapNative(growthPage, "btn_pet");
+  assert.match(await growthPage.locator('[data-pet-experience-index="0"]').textContent(), /已达满级 60/);
+  assert.equal(await growthPage.locator('[data-pet-experience-index="0"] progress').getAttribute("value"), "52215000");
+  await accessible(growthPage); await noOverflow(growthPage);
+  await growthPage.context().close();
+  // End main-pet XP integration.
   const petPage = await pageFor({ petParty: true });
   const petBefore = await saved(petPage);
   await petPage.locator("#monsterEnter").click(); await stage(petPage, "home");
