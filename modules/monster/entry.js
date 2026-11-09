@@ -1,4 +1,5 @@
 import "../../styles/monster.css";
+import "./bag-item.css";
 import { createMonsterSaveStore } from "./save-store.js";
 import { createMonsterGameController } from "./game-controller.js";
 import { createMonsterGameView } from "./game-view.js";

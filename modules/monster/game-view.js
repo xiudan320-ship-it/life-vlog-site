@@ -9,6 +9,7 @@ import { renderCraft } from "./craft-view.js";
 import { renderSmelt } from "./smelt-view.js";
 import { renderSpecialUpgrade } from "./special-upgrade-view.js";
 import { renderGodUpgrade } from "./god-upgrade-view.js";
+import { renderBagItem } from "./bag-item-view.js";
 
 const assets = "/monster/assets/";
 
@@ -28,6 +29,7 @@ export function createMonsterGameView({ warView }) {
   let serial = 0;
   let nodes = new Map();
   let lastRender;
+  let homeHeader;
   let size = { width: 0, height: 0 };
 
   function stage(value) {
@@ -126,6 +128,21 @@ export function createMonsterGameView({ warView }) {
     stage("menu");
     statusMessage("游戏进度随登录账号保存在云端，每场结算后自动保存。");
   }
+  function homeStats(header, state) {
+    text(header, "label_name", state.player.name);
+    text(header, "text_level", `等级${state.player.level}`);
+    find(header, "label_level")?.setVisible(false);
+    text(header, "label_gold", state.gold);
+    text(header, "label_money", state.money);
+    text(header, "label_special", 0);
+    text(header, "label_exp", `${state.player.experience}/${getPlayerExperienceRequired(state.player.level)}`);
+    find(header, "bar_exp")?.setPercent(state.player.experience / getPlayerExperienceRequired(state.player.level) * 100);
+  }
+  function updateHome(state, catalog) {
+    if (phase !== "home" || !homeHeader) return;
+    homeStats(homeHeader, state);
+    lastRender = () => home(state, catalog);
+  }
   async function home(state, catalog) {
     const request = ++serial;
     const [header, content] = await Promise.all([load("main_layer"), load("main_main_layer")]);
@@ -139,14 +156,8 @@ export function createMonsterGameView({ warView }) {
       if (type) click(node, () => actions.selectCopy(type));
       else if (handler) { find(node, "img_lock")?.setVisible(false); click(node, handler); }
     });
-    text(header, "label_name", state.player.name);
-    text(header, "text_level", `等级${state.player.level}`);
-    find(header, "label_level")?.setVisible(false);
-    text(header, "label_gold", state.gold);
-    text(header, "label_money", state.money);
-    text(header, "label_special", 0);
-    text(header, "label_exp", `${state.player.experience}/${getPlayerExperienceRequired(state.player.level)}`);
-    find(header, "bar_exp")?.setPercent(state.player.experience / getPlayerExperienceRequired(state.player.level) * 100);
+    homeHeader = header;
+    homeStats(header, state);
     for (const name of ["label_achevement", "label_achevementdesc", "label_id", "btn_share", "btn_rename"]) find(header, name)?.setVisible(false);
     walk(header, (node) => {
       if (!(node instanceof ccui.Button)) return;
@@ -321,7 +332,8 @@ export function createMonsterGameView({ warView }) {
   function role(state, catalog) {
     renderRole(details(`角色属性 · Lv.${state.player.level}`, controls.Role), state, catalog, actions);
   }
-  function bag(state, catalog) { renderBag(details("背包", controls.Bag), state, catalog, actions); }
+  function bag(state, catalog, kind, receipt) { renderBag(details("背包", controls.Bag), state, catalog, actions, { kind, receipt }); }
+  function bagItem(state, catalog, target, receipt) { renderBagItem({ content: details(target.kind === "equipment" ? "装备分解与锁定" : "道具出售", controls.Bag), state, catalog, target, actions, receipt }); }
   function skills(state, catalog) { renderSkills(details("技能", controls.Skills), state, catalog, actions); }
   function selectCopy(state, catalog, settings) {
     const content = details("选择关卡", controls.Adventure);
@@ -347,7 +359,7 @@ export function createMonsterGameView({ warView }) {
   function specialUpgrade(state, catalog, target, receipt) { renderSpecialUpgrade({ content: details("徽章升级", controls.Role), state, catalog, target, actions, receipt }); }
   function godUpgrade(state, catalog, target, receipt) { renderGodUpgrade({ content: details("神器培养", controls.Role), state, catalog, target, actions, receipt }); }
   return {
-    menu, home, battle, battleUpdate, result, role, bag, skills, selectCopy, trial, tasks, workshop, upgrade, craft, smelt, specialUpgrade, godUpgrade, notice,
+    menu, home, updateHome, battle, battleUpdate, result, role, bag, bagItem, skills, selectCopy, trial, tasks, workshop, upgrade, craft, smelt, specialUpgrade, godUpgrade, notice,
     repeatStatus(enabled) { repeating = enabled; document.getElementById("monsterStop").hidden = !enabled; stage(phase); },
     loadError(message) { stage("error"); statusMessage(message); },
     saveStatus(message, error = false, status = null) {

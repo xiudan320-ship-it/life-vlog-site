@@ -1,4 +1,5 @@
 import { element, picture, itemTile, showItem, petTile } from "./visual-ui.js";
+import { renderBagReceipt } from "./bag-item-view.js";
 
 export function renderRole(content, state, catalog, actions) {
   content.className = "monster-character-content";
@@ -34,14 +35,15 @@ export function renderRole(content, state, catalog, actions) {
   content.append(stats, doll, gems, element("p", "点击装备查看详情 · 点击技能槽装配技能", "monster-panel-hint"));
 }
 
-export function renderBag(content, state, catalog, actions) {
+export function renderBag(content, state, catalog, actions, { kind = "goods", receipt } = {}) {
   content.className = "monster-bag-content";
+  if (receipt) renderBagReceipt({ content, catalog, receipt, actions });
   const tabs = element("nav", undefined, "monster-image-tabs"); tabs.setAttribute("aria-label", "背包分类");
   const panel = element("section", undefined, "monster-bag-grid monster-original-panel");
   const empty = element("p", undefined, "monster-empty-bag");
   const groups = [
-    { name: "道具", entries: state.inventory.goods, quantity: true },
-    { name: "装备", entries: state.inventory.equipment },
+    { name: "道具", kind: "goods", entries: state.inventory.goods, quantity: true },
+    { name: "装备", kind: "equipment", entries: state.inventory.equipment },
     { name: "翅膀", entries: state.inventory.wings },
     { name: "宠物", entries: state.inventory.pets, pets: true },
   ];
@@ -50,14 +52,15 @@ export function renderBag(content, state, catalog, actions) {
     panel.replaceChildren();
     group.entries.forEach((item, index) => panel.append(group.pets ? petTile(item, catalog) : itemTile(item, catalog, { quantity: group.quantity,
       onClick: () => showItem(item, catalog, group.name === "装备" && (item.subtype <= 9 || item.subtype >= 11 && item.subtype <= 14) ? () => actions.equip(index) : null,
-        group.name === "装备" && item.subtype <= 9 ? () => actions.upgrade({ source: "bag", index, id: item.id }) : null) })));
+        group.name === "装备" && item.subtype <= 9 ? () => actions.upgrade({ source: "bag", index, id: item.id }) : null,
+        group.kind ? () => actions.bagItem({ kind: group.kind, index, id: item.id }) : null) })));
     for (let index = group.entries.length; index < 30; index += 1) panel.append(element("div", undefined, "monster-empty-slot"));
     empty.textContent = group.entries.length ? `${group.name} ${group.entries.length} 件 · 点击图标查看` : "暂时没有材料或装备，冒险中获得的物品会保存在这里。";
   }
   for (const group of groups) {
     const tab = element("button", group.name, "monster-image-button"); tab.type = "button"; tab.onclick = () => select(group); tabs.append(tab);
   }
-  content.append(tabs, panel, empty); select(groups[0]);
+  content.append(tabs, panel, empty); select(groups.find((group) => group.kind === kind) || groups[0]);
 }
 
 export function renderSkills(content, state, catalog, actions) {

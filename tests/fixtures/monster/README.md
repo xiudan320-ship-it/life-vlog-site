@@ -95,6 +95,14 @@ SHA-256：`9767B9C3945D38985C07DB73D56DEC83E162B37C69A9686686BC9BDE67E35079`。
 
 原新档字段 `tutorialFlags` 对应已核实的教程标记（原生 `isTeached/setTeached`）；投影 fixture 已改字段名，原始外部状态证据仍保留旧分析标签，数值未变。它不是宝石槽。
 
+## 背包卖价与分解返还
+
+`native-item-sale-fixtures.json` 由 `recover-item-sale.py` 执行原 `GameData::getEquipSellPrice`（0x7d0a70）和 `getEquipSellStrenghPrice`（0x7d0d9c），包含 3195 组目录／强化组合与 1920 组评分档、附魔、神器星数、品质、强化变体，共 5115 组。原目录工厂和数值函数执行于既有确定性内存 harness；不执行完整出售 UI、保存、成就或网络。`tests/monster-bag-items.mjs` 对照卖价值及返还数值，并验证移植版交易和保存失败行为。
+
+返还类型来自 `GameItemDetailLayer::touchEvent` 的反汇编分支：普通装备 tag 1（0x82de20–0x82e340），特殊装备 subtype 9 的 tag 15（0x82e7ec 起），徽章 subtype 11–14 的 tag 18（0x82ed50 起）。普通神器分解可给 5092 碎片，强化返还为 5003／5086；特殊装备返还 5056，四类徽章只给金币。道具出售按 `getItemUseId`（虚槽 +0x48）是否为 6 选择魔石，其余金币，单价为 +0x50；库存不超过 9 时原版仅卖单件。锁定切换片段为 0x8308c4–0x830a80。当前 UI 使用显式确认控件，未还原原版再次点击确认；翅膀和宠物出售未接通。
+
+原打造 `getBagEquipsByIdStrengh`（0x84f5d8–0x84f6f8）只比较 ID 与强化值，未检查锁定，当前保留该行为并在锁定界面说明。
+
 ## 试炼积分与奖励
 
 - `native-trial-progress-fixtures.json`：`recover-trial-progress.py` 执行 `WarFinishLayer::showTrialDialog` 的胜利积分片段（0x9f7a44–0x9f7c14），90 组合成层数/难度/加分词条/随机输入；比较积分、下一层、最高分回调及两次随机消耗，不执行 UI。

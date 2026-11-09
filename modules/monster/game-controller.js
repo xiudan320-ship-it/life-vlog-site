@@ -11,20 +11,23 @@ import { craftItem } from "./craft-domain.js";
 import { smeltItems } from "./smelt-domain.js";
 import { upgradeSpecial, calculateSpecialAttributes } from "./special-upgrade-domain.js";
 import { upgradeGod } from "./god-upgrade-domain.js";
+import { sellBagItem, toggleBagEquipmentLock } from "./bag-item-domain.js";
 
 export function createMonsterGameController({ catalog, store, view, random, wait, now = Date.now }) {
   let state = null;
   let active = false;
   let revision = 0;
   let unsaved = false;
+  let saveErrorStatus = null;
   let repeat = false;
   const settings = { type: 1, chapterId: null, hard: 1, waves: 1, repeat: false };
   async function save() {
     const request = revision;
     unsaved = true;
+    saveErrorStatus = null;
     view.saveStatus("正在保存到当前账号…");
     try { await store.save(state); if (request !== revision) return false; unsaved = false; view.saveStatus("已保存到当前账号的云存档"); return true; }
-    catch (error) { if (request === revision) view.saveStatus(`云端保存失败：${error.message}`, true, error.status); return false; }
+    catch (error) { if (request === revision) { saveErrorStatus = error.status || null; view.saveStatus(`云端保存失败：${error.message}`, true, error.status); } return false; }
   }
   function home() { return view.home(state, catalog).catch((error) => view.notice(`界面加载失败：${error.message}`)); }
   function refresh() {
@@ -226,7 +229,28 @@ export function createMonsterGameController({ catalog, store, view, random, wait
     stopRepeat() { repeat = false; view.repeatStatus(false); view.notice("已关闭连续战斗，本场结算后停止。"); },
     role() { if (state && !active) view.role(state, catalog); },
     skills() { if (state && !active) view.skills(state, catalog); },
-    bag() { if (state && !active) view.bag(state, catalog); },
+    bag(kind) { if (state && !active) view.bag(state, catalog, kind); },
+    bagItem(target) { if (state && !active) view.bagItem(state, catalog, target); },
+    async sellItem(target, quantity) {
+      if (!state || active || unsaved) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
+      const serial = revision; active = true;
+      try {
+        const result = sellBagItem({ state, target, quantity, catalog }); state = result.state;
+        const saved = await save();
+        if (serial === revision) { view.updateHome(state, catalog); view.bag(state, catalog, target.kind, { message: target.kind === "equipment" ? "分解完成" : "出售完成", reward: result.reward, saved, status: saveErrorStatus }); }
+      } catch (error) { if (serial === revision) view.notice(error.message); }
+      finally { if (serial === revision) active = false; }
+    },
+    async toggleItemLock(target) {
+      if (!state || active || unsaved) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
+      const serial = revision; active = true;
+      try {
+        state = toggleBagEquipmentLock({ state, target, catalog });
+        const saved = await save();
+        if (serial === revision) view.bagItem(state, catalog, target, { message: state.inventory.equipment[target.index].locked ? "装备已锁定" : "装备已解锁", saved, status: saveErrorStatus });
+      } catch (error) { if (serial === revision) view.notice(error.message); }
+      finally { if (serial === revision) active = false; }
+    },
     async toggleSkill(id) {
       if (!state || active || unsaved) return false;
       const request = revision;

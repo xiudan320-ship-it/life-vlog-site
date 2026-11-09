@@ -1,6 +1,6 @@
 # 黑暗传说 7.1 移植试玩
 
-目标是在当前 App 的快捷滑动条内逐步恢复原版玩法，供 iPhone 浏览器运行。本页描述已部署的当前源码；部署提交与门禁以 CHANGELOG 为准。尚未完成全游戏或原版 100% 一致交付。
+目标是在当前 App 的快捷滑动条内逐步恢复原版玩法，供 iPhone 浏览器运行。本页描述当前源码；本轮背包出售、分解和锁定尚未部署，部署提交与门禁以 CHANGELOG 为准。尚未完成全游戏或原版 100% 一致交付。
 
 ## 原版依据
 
@@ -21,6 +21,7 @@
 | 任务 | 适龄普通任务和固定日常；击杀、副本、遭遇及材料交纳；每日魔石 10、卷轴 5，领取后刷新任务 | 寻宝和黑市未接通，充值在移植版不提供；日切按客户端 UTC+8 日期，未还原原服务器时钟、活动或 VIP |
 | 角色操作 | 背包查看、装备穿脱、四类徽章装备位、技能学习与最多三个技能装配；普通装备强化、重铸、附魔、神器升星／洗星及徽章升级 | 普通强化／重铸／附魔及神器培养限 subtype <= 8；宠物系统未完成 |
 | 铁匠铺 | 按原配方打造；材料或神器装备熔炼；徽章升级 | 装备配方材料须恰好 +5；熔炼失败仍消耗所选材料和金币；具体原生证据边界见 fixture 说明 |
+| 背包整理 | 道具出售与数量选择，普通／特殊装备及四类徽章分解、材料返还、装备锁定，操作后保留当前背包分类 | 锁定保护分解和神器熔炼；打造按原版仍会消耗锁定的 +5 配方装备。装备分解用显式确认控件；翅膀与宠物出售未接通 |
 | 连续战斗 | 每场结算保存；战败保留已击杀怪物的收益并停止，不计通关或里程碑；保存失败可重试；深渊胜利可进入下一层 | 需要保持页面打开；没有离线收益，不保证 iOS 后台或锁屏继续 |
 | 存档 | 宿主登录账号独立云存档，刷新续玩、错误重试、版本冲突保护、切换账号重新载入 | 各账号新角色，不导入早期设备试玩档或 Android 加密存档 |
 
@@ -42,6 +43,7 @@
 - 试炼 `state.trial` 首次进入时建立，包含 `hard / level / score / status / bestScores / rewards`；状态为 `ready`（待挑战本层）、`ended`（战败待领奖）或 `claimed`（本轮已入账）。逐层保存；结束领奖与背包入账在同一个账号版本写入，失败重试仅保存现有结果，不重新抽奖。页面刷新恢复已结算层；进行中的单场仍按既有战斗边界处理。
 - `battle-domain.js` / `skill-domain.js` 使用既有攻击、目标、生命与属性领域模块推进战斗，旧 `solo-battle-domain.js` 已删除。
 - `item-domain.js` / `gem-domain.js` / `paragon-equipment-domain.js` 构造物品；`loadout-domain.js` 管理穿戴和技能装配；视图与领域逻辑分离。
+- `bag-item-domain.js` / `bag-item-view.js` 恢复道具出售、装备分解及锁定。道具按 `useid === 6` 发魔石，其余金币；库存不超过 9 时仅逐件卖出，超过时可选数量。分解按普通、特殊及徽章分支发金币／神器碎片和强化返还，5115 组原生数值样本覆盖评分档、附魔、品质、星数及强化边界。移除物品与返还同次保存；失败后在背包内重试，不能重复结算。
 - `character-view.js` / `visual-ui.js` 复用原装备格、面板、勇者与物品/技能图标，提供纸娃娃装备位、背包格子、技能图标卡片和物品详情。地图展示原章节缩略图及可点击怪物节点，其他模式为敌人图片卡片。菜单、主页、战斗和结算保留 Canvas 原图，奖励物品也显示原图图标；有实际意义的数值、名称和提示仍使用文字。
 - 结算画面返回刚选的关卡；`copy-selection-view.js` 保留类别、章节及纵横滚动位置，明确的主页按钮仍返回主页。
 - `save-store.js` / `save-state.js` 管理云存档；Worker `monster-save-api.js` 提供 `GET/PUT /api/monster/save`。D1 `monster_saves` 每个 user_id 一条记录，原子 revision 防止多设备覆盖；不接受客户端传入账号归属，同家庭账号也不能读取其他人的档。
@@ -50,7 +52,7 @@
 
 ## 验证
 
-领域测试入口：`tests/monster-domain.mjs`、`monster-cloud-save.mjs`、`monster-skill-domain.mjs`、`monster-copy-domain.mjs`、`monster-item-domain.mjs`、`monster-adventure.mjs`、`monster-trial.mjs`、`monster-tasks.mjs`、`monster-upgrades.mjs`、`monster-smith-random.mjs`、`monster-craft.mjs`、`monster-smelt.mjs`、`monster-special-upgrade.mjs`、`monster-god-upgrade.mjs`。覆盖原生规则对照、完整合成战斗、目录准备、随机装备、任务及装备培养和云存档隔离/冲突/失败，并验证用户指定的战败保留规则；各原生 fixture 来源见 `tests/fixtures/monster/README.md`。
+领域测试入口：`tests/monster-domain.mjs`、`monster-cloud-save.mjs`、`monster-skill-domain.mjs`、`monster-copy-domain.mjs`、`monster-item-domain.mjs`、`monster-adventure.mjs`、`monster-trial.mjs`、`monster-tasks.mjs`、`monster-upgrades.mjs`、`monster-smith-random.mjs`、`monster-craft.mjs`、`monster-smelt.mjs`、`monster-special-upgrade.mjs`、`monster-god-upgrade.mjs`、`monster-bag-items.mjs`。覆盖原生规则对照、完整合成战斗、目录准备、随机装备、任务及装备培养、背包整理和云存档隔离/冲突/失败，并验证用户指定的战败保留规则；各原生 fixture 来源见 `tests/fixtures/monster/README.md`。
 
 `node tests/monster-browser.mjs` 与 `--webkit` 使用真实 Worker 代码加确定性内存 D1，验证首胜、升级、材料、刷新续玩、选关分类与解锁、连续战斗停止、切换账号新档、保存失败重试、损坏存档保留、六个宽度、浅/深色、减少动态效果、Axe、CSP 和宿主资源隔离。可用 `MONSTER_BASE_URL` 指定线上 alias，以相同合成 fixture 验证发布产物；不写入真实账号或业务数据。
 

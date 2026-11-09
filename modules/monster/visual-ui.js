@@ -30,11 +30,12 @@ export function itemTile(item, catalog, { onClick, quantity = false } = {}) {
   tile.dataset.quality = item.quality || row.quality || 1;
   tile.title = row.name;
   tile.append(picture(`icon/item/${row.icon}`), element("span", row.name, "monster-item-name"));
+  if (item.locked) tile.append(picture("bg/btn_lock2.png", "已锁定", "monster-item-lock"));
   if (quantity) tile.append(element("b", item.quantity ?? 1, "monster-item-quantity"));
   return tile;
 }
 
-export function showItem(item, catalog, onEquip, onUpgrade) {
+export function showItem(item, catalog, onEquip, onUpgrade, onManage) {
   const row = catalog.items.find((entry) => entry.id === item.id);
   const dialog = document.getElementById("monsterItemDetails");
   const content = dialog.querySelector(".monster-item-information");
@@ -51,6 +52,11 @@ export function showItem(item, catalog, onEquip, onUpgrade) {
   if (onEquip) {
     const equip = element("button", "穿戴", "monster-image-button"); equip.type = "button";
     equip.onclick = () => { dialog.close(); onEquip(); }; content.append(equip);
+  }
+  if (onManage) {
+    const manage = element("button", item.type === 1 ? "出售" : "分解 / 锁定", "monster-image-button"); manage.type = "button";
+    manage.dataset.manageBagItem = "";
+    manage.onclick = () => { dialog.close(); onManage(); }; content.append(manage);
   }
   if (!dialog.open) dialog.showModal();
 }
