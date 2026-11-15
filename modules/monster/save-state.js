@@ -31,6 +31,10 @@ export function validateMonsterSave(state) {
       || pet.experience > getPetExperienceRequired(pet.level) || pet.level < 60 && pet.experience === getPetExperienceRequired(pet.level))) {
     throw new TypeError("主宠存档数据不完整，请保留原存档并重试。");
   }
+  if (state.inventory.pets.some((pet) => pet.care !== undefined && (!pet.care || !integer(pet.care.loyalty, 30)
+    || pet.care.loyalty > 100 || !integer(pet.care.killCount) || pet.care.killCount >= 600))) {
+    throw new TypeError("宠物忠诚存档数据不完整，请保留原存档并重试。");
+  }
   if (state.trial !== undefined) {
     const trial = state.trial;
     const validReward = (item) => item && integer(item.id, 1) && [1, 2, 3].includes(item.type);

@@ -46,17 +46,17 @@ let keyboardChecked = false;
 const artifacts = resolve("artifacts/monster");
 await mkdir(artifacts, { recursive: true });
 
-async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, saveStatus = 0, defeat = false, trial = false, trialRewards = false, workshop = false, retention = false, navigation = false, petParty = false, petGrowth = false, colorScheme = "dark", reducedMotion = "no-preference" } = {}) {
+async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, saveStatus = 0, defeat = false, trial = false, trialRewards = false, workshop = false, retention = false, navigation = false, petParty = false, petGrowth = false, petCare = false, colorScheme = "dark", reducedMotion = "no-preference" } = {}) {
   const context = await browser.newContext({ ...(iphone13 ? devices["iPhone 13"] : {}), viewport: { width: 390, height: 844 }, screen: { width: 390, height: 844 }, colorScheme, reducedMotion });
   contexts.push(context);
   context.on("requestfailed", (request) => requestFailures.push({ url: request.url(), error: request.failure()?.errorText }));
   const fixture = createWorkerFixture({ origin });
-  if (trial || workshop || retention || navigation || petParty || petGrowth) {
+  if (trial || workshop || retention || navigation || petParty || petGrowth || petCare) {
     const [items, skills] = await Promise.all(["item", "skill"].map(async (name) => JSON.parse(await readFile(resolve(root, `monster/data/${name}.json`), "utf8"))));
     const seed = createNewGame({ items, skills }); seed.player.name = "功能测试勇者";
     if (trial || navigation) { seed.player.level = 80; seed.player.equipmentSets[0][0].attributes.push(...[1, 2, 3, 4].map((type) => ({ type, value: 10000000 }))); }
     if (navigation) { seed.progress.chapterId = 3; seed.progress.levelId = 1; }
-    if (petParty || petGrowth) {
+    if (petParty || petGrowth || petCare) {
       const rows = JSON.parse(await readFile(resolve(root, "monster/data/pet.json"), "utf8"));
       seed.player.level = 35;
       seed.player = recalculatePlayerFromEquipment(seed.player, [...seed.player.equipmentSets[0], ...seed.inventory.wings.filter((item) => item.id === seed.player.wingId)]);
@@ -65,6 +65,12 @@ async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, sa
         Object.assign(seed.inventory.pets[0], { partyRole: 1, experience: 14999 });
         seed.inventory.goods.push({ id: 5003, type: 1, quantity: 10 });
         seed.taskBoard = { points: 0, dailyRewardDay: null, entries: [{ id: 64, type: 3, target: 5003, need: 10, count: 0, claimed: 0 }] };
+      }
+      if (petCare) {
+        seed.player.level = 80;
+        seed.player = recalculatePlayerFromEquipment(seed.player, [...seed.player.equipmentSets[0], ...seed.inventory.wings.filter((item) => item.id === seed.player.wingId)]);
+        Object.assign(seed.inventory.pets[1], { partyRole: 1, care: { loyalty: 80, killCount: 599 } });
+        seed.inventory.goods.push({ id: 5105, type: 1, quantity: 20 });
       }
     }
     if (workshop || retention) {
@@ -807,6 +813,71 @@ try {
     if (saveStatus === 409) { await recoveryPage.locator("#monsterDetails").getByRole("button", { name: recovery, exact: true }).click(); await stage(recoveryPage, "menu"); assert.deepEqual(await saved(recoveryPage), before); }
     await recoveryPage.close();
   }
+  // Pet loyalty, feeding and cloud recovery; all values are synthetic.
+  const carePage = await pageFor({ petCare: true, roll: 0, reducedMotion: "reduce" });
+  const careTap = (locator) => iphone13 ? locator.tap() : locator.click();
+  const careSeed = await saved(carePage);
+  await carePage.locator("#monsterEnter").click(); await stage(carePage, "home"); await tapNative(carePage, "btn_pet");
+  await carePage.locator('[data-pet-care-index="1"]').filter({ hasText: "还需击败 1 只" }).waitFor();
+  await carePage.locator("#monsterDetailsClose").click();
+  await carePage.evaluate(() => { window.monsterFixtureBlockSave = true; });
+  await fight(carePage, 1001, true);
+  assert.deepEqual(await saved(carePage), careSeed);
+  assert.match(await carePage.locator("#monsterStatus").textContent(), /主宠忠诚降至 79/);
+  await carePage.locator("#monsterEnter").click(); await stage(carePage, "home"); await tapNative(carePage, "btn_pet");
+  const selectedCare = carePage.locator(".monster-pet-card").nth(1);
+  assert.match(await selectedCare.textContent(), /忠诚 79/);
+  assert.match(await selectedCare.locator('[data-pet-care-index="1"]').textContent(), /还需击败 600 只/);
+  await careTap(selectedCare.locator('[data-material-source="5105"]'));
+  assert.equal(await carePage.locator('[data-material-copy="2050"]').first().isEnabled(), true);
+  await carePage.locator("#monsterItemClose").click();
+  await carePage.locator("#monsterDetailsClose").click();
+  await carePage.evaluate(() => { window.monsterFixtureBlockSave = false; });
+  await carePage.locator("#monsterSaveRetry").click(); await carePage.locator("#monsterSaveRetry").waitFor({ state: "hidden" });
+  const tired = await saved(carePage);
+  assert.deepEqual(tired.inventory.pets[1].care, { loyalty: 79, killCount: 0 });
+  assert.equal(tired.inventory.pets[2].care, undefined);
+  assert.equal(tired.player.attack, careSeed.player.attack + 39);
+  await carePage.reload(); await stage(carePage, "menu"); await carePage.locator("#monsterEnter").click(); await stage(carePage, "home"); await tapNative(carePage, "btn_pet");
+  await carePage.evaluate(() => { window.monsterFixtureBlockSave = true; });
+  await careTap(carePage.locator('[data-pet-feed-index="1"]'));
+  await carePage.locator("[data-save-feedback-retry]").waitFor();
+  assert.deepEqual(await saved(carePage), tired);
+  assert.match(await carePage.locator(".monster-pet-card").nth(1).textContent(), /忠诚 80/);
+  await careTap(carePage.locator('[data-pet-feed-index="1"]'));
+  assert.deepEqual(await saved(carePage), tired);
+  await carePage.evaluate(() => { window.monsterFixtureBlockSave = false; });
+  await carePage.locator("[data-save-feedback-retry]").click(); await carePage.locator("[data-save-feedback-retry]").waitFor({ state: "detached" });
+  const fed = await saved(carePage);
+  assert.deepEqual(fed.inventory.pets[1].care, { loyalty: 80, killCount: 0 });
+  assert.equal(fed.inventory.goods.find((entry) => entry.id === 5105).quantity, 19);
+  assert.equal(fed.player.attack, careSeed.player.attack + 81);
+  assert.equal(fed.inventory.pets[2].care, undefined);
+  const stocked = structuredClone(fed); stocked.inventory.goods.find((entry) => entry.id === 5105).quantity += 5;
+  fixtures.get(carePage).DB.database.prepare("update monster_saves set state_json = ? where user_id = ?").run(JSON.stringify(stocked), "owner");
+  await carePage.reload(); await stage(carePage, "menu"); await carePage.locator("#monsterEnter").click(); await stage(carePage, "home"); await tapNative(carePage, "btn_pet");
+  assert.equal(await carePage.locator('[data-pet-feed-full-index="1"]').isEnabled(), true);
+  await careTap(carePage.locator('[data-pet-feed-full-index="1"]'));
+  await carePage.locator('[data-pet-care-index="1"]').filter({ hasText: "忠诚已满" }).waitFor();
+  const fullCare = await saved(carePage);
+  assert.deepEqual(fullCare.inventory.pets[1].care, { loyalty: 100, killCount: 0 });
+  assert.equal(fullCare.inventory.goods.find((entry) => entry.id === 5105).quantity, 4);
+  await noOverflow(carePage); await accessible(carePage);
+  await carePage.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-pet-care.png" : "pet-care.png") });
+  await carePage.reload(); await stage(carePage, "menu"); assert.deepEqual(await saved(carePage), fullCare);
+  const floorCare = structuredClone(fullCare);
+  floorCare.inventory.pets[1].care = { loyalty: 30, killCount: 599 };
+  fixtures.get(carePage).DB.database.prepare("update monster_saves set state_json = ? where user_id = ?").run(JSON.stringify(floorCare), "owner");
+  await carePage.reload(); await stage(carePage, "menu"); await carePage.locator("#monsterEnter").click(); await stage(carePage, "home"); await tapNative(carePage, "btn_pet");
+  assert.match(await carePage.locator('[data-pet-care-index="1"]').textContent(), /忠诚已到最低值 30/);
+  await carePage.context().close();
+  const defeatCare = await pageFor({ petCare: true, defeat: true, roll: 0, reducedMotion: "reduce" });
+  await defeatCare.locator("#monsterEnter").click(); await stage(defeatCare, "home");
+  await fight(defeatCare, 1001, true);
+  assert.match(await defeatCare.locator("#monsterStatus").textContent(), /战败，已保留 1 只怪物收益/);
+  assert.deepEqual((await saved(defeatCare)).inventory.pets[1].care, { loyalty: 80, killCount: 599 });
+  await defeatCare.context().close();
+  // End pet loyalty acceptance.
   // Main-pet XP integration: saved victory, failure retry, tasks and cap display.
   const growthPage = await pageFor({ petGrowth: true, roll: 0, reducedMotion: "reduce" });
   const growthSeed = await saved(growthPage);

@@ -146,3 +146,24 @@ test("pet level and XP persist for the owning account and invalid unassigned pet
     assert.deepEqual((await request(fixture, "owner")).body.state.inventory.pets, progress.inventory.pets);
   } finally { fixture.close(); }
 });
+
+test("pet loyalty and kill count are isolated by account and reject malformed care records", async () => {
+  const fixture = createWorkerFixture();
+  try {
+    const progress = state(); progress.player.level = 35;
+    progress.inventory.pets = [
+      { id: 4026, type: 3, level: 1, quality: 4, experience: 0, partyRole: 1, care: { loyalty: 79, killCount: 0 } },
+      { id: 4026, type: 3, level: 1, quality: 4, experience: 0 },
+    ];
+    assert.equal((await request(fixture, "owner", "PUT", { expectedRevision: 0, state: progress })).status, 200);
+    assert.deepEqual((await request(fixture, "owner")).body.state.inventory.pets, progress.inventory.pets);
+    assert.equal((await request(fixture, "member")).body.state, null);
+    for (const care of [null, { loyalty: 29, killCount: 0 }, { loyalty: 101, killCount: 0 },
+      { loyalty: 90, killCount: -1 }, { loyalty: 90, killCount: 600 }, { loyalty: 90, killCount: 0.5 }]) {
+      const invalid = structuredClone(progress); invalid.inventory.pets[1].care = care;
+      assert.equal((await request(fixture, "owner", "PUT", { expectedRevision: 1, state: invalid })).status, 400);
+    }
+    assert.equal((await request(fixture, "owner")).body.revision, 1);
+    assert.deepEqual((await request(fixture, "owner")).body.state.inventory.pets, progress.inventory.pets);
+  } finally { fixture.close(); }
+});

@@ -12,7 +12,7 @@ import { smeltItems } from "./smelt-domain.js";
 import { upgradeSpecial, calculateSpecialAttributes } from "./special-upgrade-domain.js";
 import { upgradeGod } from "./god-upgrade-domain.js";
 import { sellBagItem, toggleBagEquipmentLock } from "./bag-item-domain.js";
-import { assignMainPet, collectMainPetAttributes } from "./pet-domain.js";
+import { assignMainPet, collectMainPetAttributes, feedPet as feedOwnedPet } from "./pet-domain.js";
 import { findMaterialSources } from "./material-source-domain.js";
 import { MAX_EQUIPMENT_STRENGTH } from "./equipment-domain.js";
 import { getCopyScout } from "./copy-scout-domain.js";
@@ -324,7 +324,20 @@ export function createMonsterGameController({ catalog, store, view, random, wait
       try {
         state = assignMainPet({ state, catalog, target, enabled }); refresh();
         const saved = await save();
-        if (serial === revision) { view.updateHome(state, catalog); view.pets(state, catalog, { message: enabled ? "主宠已更新，角色属性已重算" : "主宠已卸下，角色属性已重算", saved, status: saveErrorStatus }); }
+        if (serial === revision) { view.updateHome(state, catalog); view.pets(state, catalog, { message: enabled ? "主宠已更新，角色属性已重算" : "主宠已卸下，角色属性已重算", saved, status: saveErrorStatus, targetIndex: target.index }); }
+      } catch (error) { if (serial === revision) view.notice(error.message); }
+      finally { if (serial === revision) active = false; }
+    },
+    async feedPet(target, quantity) {
+      if (!state || active || unsaved) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
+      const serial = revision; active = true;
+      try {
+        state = feedOwnedPet({ state, catalog, target, quantity }); refresh();
+        const saved = await save();
+        if (serial === revision) {
+          view.updateHome(state, catalog);
+          view.pets(state, catalog, { message: `喂养完成 · 忠诚 +${quantity}`, saved, status: saveErrorStatus, targetIndex: target.index });
+        }
       } catch (error) { if (serial === revision) view.notice(error.message); }
       finally { if (serial === revision) active = false; }
     },

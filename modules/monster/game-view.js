@@ -322,8 +322,13 @@ export function createMonsterGameView({ warView }) {
     stage("result");
     const pet = reward.petGrowth;
     const petMessage = pet?.amount > 0 ? `主宠经验 +${pet.amount} · 宠物 Lv.${pet.level}` : "";
-    if (pet && pet.level > pet.previousLevel && document.getElementById("monsterSaveRetry").hidden) notice(`主宠升至 ${pet.level} 级，属性加成已更新`);
-    statusMessage(`${outcome === 3 ? "胜利" : `战败，已保留 ${reward.defeatedCount} 只怪物收益`} · 金币 +${reward.gold} · 经验 +${reward.experience} · 当前 Lv.${state.player.level}${petMessage ? ` · ${petMessage}` : ""}`);
+    const care = reward.petCare;
+    const careMessage = care ? `主宠忠诚降至 ${care.loyalty}` : "";
+    const notices = [];
+    if (pet && pet.level > pet.previousLevel) notices.push(`主宠升至 ${pet.level} 级`);
+    if (care) notices.push(`${careMessage}${[79, 59].includes(care.loyalty) ? "，属性加成降低" : ""}，可用宠物精魂喂养`);
+    if (notices.length && document.getElementById("monsterSaveRetry").hidden) notice(notices.join(" · "));
+    statusMessage(`${outcome === 3 ? "胜利" : `战败，已保留 ${reward.defeatedCount} 只怪物收益`} · 金币 +${reward.gold} · 经验 +${reward.experience} · 当前 Lv.${state.player.level}${petMessage ? ` · ${petMessage}` : ""}${careMessage ? ` · ${careMessage}` : ""}`);
   }
   function details(title, opener) {
     document.getElementById("monsterDetailsTitle").textContent = title;
@@ -342,7 +347,25 @@ export function createMonsterGameView({ warView }) {
   }
   function bag(state, catalog, kind, receipt) { renderBag(details("背包", controls.Bag), state, catalog, actions, { kind, receipt }); }
   function bagItem(state, catalog, target, receipt) { renderBagItem({ content: details(target.kind === "equipment" ? "装备分解与锁定" : "道具出售", controls.Bag), state, catalog, target, actions, receipt }); }
-  function pets(state, catalog, receipt) { renderPets({ content: details("宠物 · 主宠加成", controls.Bag), state, catalog, actions, receipt }); }
+  function pets(state, catalog, receipt) {
+    const preserveIndex = receipt?.targetIndex ?? null;
+    const dialog = document.getElementById("monsterDetails");
+    const content = document.getElementById("monsterDetailsContent");
+    if (preserveIndex !== null && (!dialog.open || !content.classList.contains("monster-pets-content"))) return;
+    const card = preserveIndex === null ? null : content.querySelector(`[data-pet-care-index="${preserveIndex}"]`)?.closest(".monster-pet-card");
+    const top = card?.getBoundingClientRect().top;
+    const focus = document.activeElement?.dataset;
+    const focusSelector = focus?.petFeedIndex === String(preserveIndex) ? `[data-pet-feed-index="${preserveIndex}"]`
+      : focus?.petFeedFullIndex === String(preserveIndex) ? `[data-pet-feed-full-index="${preserveIndex}"]` : null;
+    renderPets({ content: details("宠物 · 主宠加成", controls.Bag), state, catalog, actions, receipt });
+    const updated = preserveIndex === null ? null : content.querySelector(`[data-pet-care-index="${preserveIndex}"]`)?.closest(".monster-pet-card");
+    if (updated && top !== undefined) content.scrollTop += updated.getBoundingClientRect().top - top;
+    if (focusSelector) {
+      const next = content.querySelector(focusSelector);
+      if (next && !next.disabled) next.focus({ preventScroll: true });
+      else updated?.querySelector("summary")?.focus({ preventScroll: true });
+    }
+  }
   function skills(state, catalog) { renderSkills(details("技能", controls.Skills), state, catalog, actions); }
   function selectCopy(state, catalog, settings) {
     document.getElementById("monsterItemDetails").close();

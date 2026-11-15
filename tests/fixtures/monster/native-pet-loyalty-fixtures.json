@@ -1,0 +1,4849 @@
+{
+  "scope": "Run original ARM Pet::addKillEnemyNum on an in-memory factory pet.\n\nInputs use synthetic state; native setters, getters and target execute without\nsubstitution. This is not a battle, save, UI or Player-level integration oracle.\n",
+  "provenance": {
+    "function": "Pet::addKillEnemyNum(int), ARM 0x998678",
+    "factory": "GameData::getBasePetById(int), decoded APK pet catalog",
+    "petId": 4001,
+    "engine": "Unicorn ARM; recover-new-game.py and recover-pet-rules.py adapters",
+    "state": "Native type and kill count setters/getters; synthetic in-memory encrypted loyalty at pet+0x34c.",
+    "limitations": "Single synthetic factory pet; types 0/3 are synthetic probes, not asserted gameplay roles. No negative inputs, signed overflow, battle, Player::addPetKillNum, persistence, contribution refresh, UI or network. Target, type and kill count getters/setters and encryption methods execute unhooked; existing platform and Cocos adapters apply."
+  },
+  "cases": [
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 100,
+        "amount": 0
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 100
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 100,
+        "amount": 0
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 100
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 100,
+        "amount": 1
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 99
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 100,
+        "amount": 2
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 99
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 100,
+        "amount": 1799
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 100
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 100,
+        "amount": 1800
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 99
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 100,
+        "amount": 1801
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 99
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 100,
+        "amount": 5407
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 99
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 1800,
+        "loyalty": 100,
+        "amount": 0
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 99
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 90,
+        "amount": 0
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 90
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 90,
+        "amount": 0
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 90
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 90,
+        "amount": 1
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 89
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 90,
+        "amount": 2
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 89
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 90,
+        "amount": 1799
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 90
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 90,
+        "amount": 1800
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 89
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 90,
+        "amount": 1801
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 89
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 90,
+        "amount": 5407
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 89
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 1800,
+        "loyalty": 90,
+        "amount": 0
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 89
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 81,
+        "amount": 0
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 81
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 81,
+        "amount": 0
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 81
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 81,
+        "amount": 1
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 81,
+        "amount": 2
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 81,
+        "amount": 1799
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 81
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 81,
+        "amount": 1800
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 81,
+        "amount": 1801
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 81,
+        "amount": 5407
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 1800,
+        "loyalty": 81,
+        "amount": 0
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 80,
+        "amount": 0
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 80,
+        "amount": 0
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 80,
+        "amount": 1
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 79
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 80,
+        "amount": 2
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 79
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 80,
+        "amount": 1799
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 80,
+        "amount": 1800
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 79
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 80,
+        "amount": 1801
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 79
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 80,
+        "amount": 5407
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 79
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 1800,
+        "loyalty": 80,
+        "amount": 0
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 79
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 79,
+        "amount": 0
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 79
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 79,
+        "amount": 0
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 79
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 79,
+        "amount": 1
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 78
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 79,
+        "amount": 2
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 78
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 79,
+        "amount": 1799
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 79
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 79,
+        "amount": 1800
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 78
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 79,
+        "amount": 1801
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 78
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 79,
+        "amount": 5407
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 78
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 1800,
+        "loyalty": 79,
+        "amount": 0
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 78
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 61,
+        "amount": 0
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 61
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 61,
+        "amount": 0
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 61
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 61,
+        "amount": 1
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 60
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 61,
+        "amount": 2
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 60
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 61,
+        "amount": 1799
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 61
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 61,
+        "amount": 1800
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 60
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 61,
+        "amount": 1801
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 60
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 61,
+        "amount": 5407
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 60
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 1800,
+        "loyalty": 61,
+        "amount": 0
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 60
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 60,
+        "amount": 0
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 60
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 60,
+        "amount": 0
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 60
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 60,
+        "amount": 1
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 59
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 60,
+        "amount": 2
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 59
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 60,
+        "amount": 1799
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 60
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 60,
+        "amount": 1800
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 59
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 60,
+        "amount": 1801
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 59
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 60,
+        "amount": 5407
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 59
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 1800,
+        "loyalty": 60,
+        "amount": 0
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 59
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 59,
+        "amount": 0
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 59
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 59,
+        "amount": 0
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 59
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 59,
+        "amount": 1
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 58
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 59,
+        "amount": 2
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 58
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 59,
+        "amount": 1799
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 59
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 59,
+        "amount": 1800
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 58
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 59,
+        "amount": 1801
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 58
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 59,
+        "amount": 5407
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 58
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 1800,
+        "loyalty": 59,
+        "amount": 0
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 58
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 31,
+        "amount": 0
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 31
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 31,
+        "amount": 0
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 31
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 31,
+        "amount": 1
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 31,
+        "amount": 2
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 31,
+        "amount": 1799
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 31
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 31,
+        "amount": 1800
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 31,
+        "amount": 1801
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 31,
+        "amount": 5407
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 1800,
+        "loyalty": 31,
+        "amount": 0
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 30,
+        "amount": 0
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 30,
+        "amount": 0
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 30,
+        "amount": 1
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 30,
+        "amount": 2
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 30,
+        "amount": 1799
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 30,
+        "amount": 1800
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 30,
+        "amount": 1801
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 30,
+        "amount": 5407
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 1800,
+        "loyalty": 30,
+        "amount": 0
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 17,
+        "loyalty": 81,
+        "amount": 3699
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 81,
+        "amount": 2147483647
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 0,
+        "killCount": 1799,
+        "loyalty": 81,
+        "amount": 2147481848
+      },
+      "expected": {
+        "type": 0,
+        "killCount": 0,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 100,
+        "amount": 0
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 100
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 100,
+        "amount": 0
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 100
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 100,
+        "amount": 1
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 99
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 100,
+        "amount": 2
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 99
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 100,
+        "amount": 599
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 100
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 100,
+        "amount": 600
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 99
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 100,
+        "amount": 601
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 99
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 100,
+        "amount": 1807
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 99
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 600,
+        "loyalty": 100,
+        "amount": 0
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 99
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 90,
+        "amount": 0
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 90
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 90,
+        "amount": 0
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 90
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 90,
+        "amount": 1
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 89
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 90,
+        "amount": 2
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 89
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 90,
+        "amount": 599
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 90
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 90,
+        "amount": 600
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 89
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 90,
+        "amount": 601
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 89
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 90,
+        "amount": 1807
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 89
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 600,
+        "loyalty": 90,
+        "amount": 0
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 89
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 81,
+        "amount": 0
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 81
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 81,
+        "amount": 0
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 81
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 81,
+        "amount": 1
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 81,
+        "amount": 2
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 81,
+        "amount": 599
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 81
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 81,
+        "amount": 600
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 81,
+        "amount": 601
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 81,
+        "amount": 1807
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 600,
+        "loyalty": 81,
+        "amount": 0
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 80,
+        "amount": 0
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 80,
+        "amount": 0
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 80,
+        "amount": 1
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 79
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 80,
+        "amount": 2
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 79
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 80,
+        "amount": 599
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 80,
+        "amount": 600
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 79
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 80,
+        "amount": 601
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 79
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 80,
+        "amount": 1807
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 79
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 600,
+        "loyalty": 80,
+        "amount": 0
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 79
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 79,
+        "amount": 0
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 79
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 79,
+        "amount": 0
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 79
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 79,
+        "amount": 1
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 78
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 79,
+        "amount": 2
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 78
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 79,
+        "amount": 599
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 79
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 79,
+        "amount": 600
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 78
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 79,
+        "amount": 601
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 78
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 79,
+        "amount": 1807
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 78
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 600,
+        "loyalty": 79,
+        "amount": 0
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 78
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 61,
+        "amount": 0
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 61
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 61,
+        "amount": 0
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 61
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 61,
+        "amount": 1
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 60
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 61,
+        "amount": 2
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 60
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 61,
+        "amount": 599
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 61
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 61,
+        "amount": 600
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 60
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 61,
+        "amount": 601
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 60
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 61,
+        "amount": 1807
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 60
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 600,
+        "loyalty": 61,
+        "amount": 0
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 60
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 60,
+        "amount": 0
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 60
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 60,
+        "amount": 0
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 60
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 60,
+        "amount": 1
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 59
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 60,
+        "amount": 2
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 59
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 60,
+        "amount": 599
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 60
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 60,
+        "amount": 600
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 59
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 60,
+        "amount": 601
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 59
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 60,
+        "amount": 1807
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 59
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 600,
+        "loyalty": 60,
+        "amount": 0
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 59
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 59,
+        "amount": 0
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 59
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 59,
+        "amount": 0
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 59
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 59,
+        "amount": 1
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 58
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 59,
+        "amount": 2
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 58
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 59,
+        "amount": 599
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 59
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 59,
+        "amount": 600
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 58
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 59,
+        "amount": 601
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 58
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 59,
+        "amount": 1807
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 58
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 600,
+        "loyalty": 59,
+        "amount": 0
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 58
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 31,
+        "amount": 0
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 31
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 31,
+        "amount": 0
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 31
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 31,
+        "amount": 1
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 31,
+        "amount": 2
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 31,
+        "amount": 599
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 31
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 31,
+        "amount": 600
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 31,
+        "amount": 601
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 31,
+        "amount": 1807
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 600,
+        "loyalty": 31,
+        "amount": 0
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 30,
+        "amount": 0
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 30,
+        "amount": 0
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 30,
+        "amount": 1
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 30,
+        "amount": 2
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 30,
+        "amount": 599
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 30,
+        "amount": 600
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 30,
+        "amount": 601
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 30,
+        "amount": 1807
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 600,
+        "loyalty": 30,
+        "amount": 0
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 17,
+        "loyalty": 81,
+        "amount": 1299
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 81,
+        "amount": 2147483647
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 1,
+        "killCount": 599,
+        "loyalty": 81,
+        "amount": 2147483048
+      },
+      "expected": {
+        "type": 1,
+        "killCount": 0,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 100,
+        "amount": 0
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 100
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 100,
+        "amount": 0
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 100
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 100,
+        "amount": 1
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 99
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 100,
+        "amount": 2
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 99
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 100,
+        "amount": 1799
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 100
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 100,
+        "amount": 1800
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 99
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 100,
+        "amount": 1801
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 99
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 100,
+        "amount": 5407
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 99
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 1800,
+        "loyalty": 100,
+        "amount": 0
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 99
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 90,
+        "amount": 0
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 90
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 90,
+        "amount": 0
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 90
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 90,
+        "amount": 1
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 89
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 90,
+        "amount": 2
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 89
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 90,
+        "amount": 1799
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 90
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 90,
+        "amount": 1800
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 89
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 90,
+        "amount": 1801
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 89
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 90,
+        "amount": 5407
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 89
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 1800,
+        "loyalty": 90,
+        "amount": 0
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 89
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 81,
+        "amount": 0
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 81
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 81,
+        "amount": 0
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 81
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 81,
+        "amount": 1
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 81,
+        "amount": 2
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 81,
+        "amount": 1799
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 81
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 81,
+        "amount": 1800
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 81,
+        "amount": 1801
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 81,
+        "amount": 5407
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 1800,
+        "loyalty": 81,
+        "amount": 0
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 80,
+        "amount": 0
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 80,
+        "amount": 0
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 80,
+        "amount": 1
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 79
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 80,
+        "amount": 2
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 79
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 80,
+        "amount": 1799
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 80,
+        "amount": 1800
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 79
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 80,
+        "amount": 1801
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 79
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 80,
+        "amount": 5407
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 79
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 1800,
+        "loyalty": 80,
+        "amount": 0
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 79
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 79,
+        "amount": 0
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 79
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 79,
+        "amount": 0
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 79
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 79,
+        "amount": 1
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 78
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 79,
+        "amount": 2
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 78
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 79,
+        "amount": 1799
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 79
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 79,
+        "amount": 1800
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 78
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 79,
+        "amount": 1801
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 78
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 79,
+        "amount": 5407
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 78
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 1800,
+        "loyalty": 79,
+        "amount": 0
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 78
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 61,
+        "amount": 0
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 61
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 61,
+        "amount": 0
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 61
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 61,
+        "amount": 1
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 60
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 61,
+        "amount": 2
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 60
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 61,
+        "amount": 1799
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 61
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 61,
+        "amount": 1800
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 60
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 61,
+        "amount": 1801
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 60
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 61,
+        "amount": 5407
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 60
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 1800,
+        "loyalty": 61,
+        "amount": 0
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 60
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 60,
+        "amount": 0
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 60
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 60,
+        "amount": 0
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 60
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 60,
+        "amount": 1
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 59
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 60,
+        "amount": 2
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 59
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 60,
+        "amount": 1799
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 60
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 60,
+        "amount": 1800
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 59
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 60,
+        "amount": 1801
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 59
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 60,
+        "amount": 5407
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 59
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 1800,
+        "loyalty": 60,
+        "amount": 0
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 59
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 59,
+        "amount": 0
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 59
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 59,
+        "amount": 0
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 59
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 59,
+        "amount": 1
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 58
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 59,
+        "amount": 2
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 58
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 59,
+        "amount": 1799
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 59
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 59,
+        "amount": 1800
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 58
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 59,
+        "amount": 1801
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 58
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 59,
+        "amount": 5407
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 58
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 1800,
+        "loyalty": 59,
+        "amount": 0
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 58
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 31,
+        "amount": 0
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 31
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 31,
+        "amount": 0
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 31
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 31,
+        "amount": 1
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 31,
+        "amount": 2
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 31,
+        "amount": 1799
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 31
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 31,
+        "amount": 1800
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 31,
+        "amount": 1801
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 31,
+        "amount": 5407
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 1800,
+        "loyalty": 31,
+        "amount": 0
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 30,
+        "amount": 0
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 30,
+        "amount": 0
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 30,
+        "amount": 1
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 30,
+        "amount": 2
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 30,
+        "amount": 1799
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 30,
+        "amount": 1800
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 30,
+        "amount": 1801
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 30,
+        "amount": 5407
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 1800,
+        "loyalty": 30,
+        "amount": 0
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 17,
+        "loyalty": 81,
+        "amount": 3699
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 81,
+        "amount": 2147483647
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 2,
+        "killCount": 1799,
+        "loyalty": 81,
+        "amount": 2147481848
+      },
+      "expected": {
+        "type": 2,
+        "killCount": 0,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 100,
+        "amount": 0
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 100
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 100,
+        "amount": 0
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 100
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 100,
+        "amount": 1
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 99
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 100,
+        "amount": 2
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 99
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 100,
+        "amount": 1799
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 100
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 100,
+        "amount": 1800
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 99
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 100,
+        "amount": 1801
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 99
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 100,
+        "amount": 5407
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 99
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 1800,
+        "loyalty": 100,
+        "amount": 0
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 99
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 90,
+        "amount": 0
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 90
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 90,
+        "amount": 0
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 90
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 90,
+        "amount": 1
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 89
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 90,
+        "amount": 2
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 89
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 90,
+        "amount": 1799
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 90
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 90,
+        "amount": 1800
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 89
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 90,
+        "amount": 1801
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 89
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 90,
+        "amount": 5407
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 89
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 1800,
+        "loyalty": 90,
+        "amount": 0
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 89
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 81,
+        "amount": 0
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 81
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 81,
+        "amount": 0
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 81
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 81,
+        "amount": 1
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 81,
+        "amount": 2
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 81,
+        "amount": 1799
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 81
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 81,
+        "amount": 1800
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 81,
+        "amount": 1801
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 81,
+        "amount": 5407
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 1800,
+        "loyalty": 81,
+        "amount": 0
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 80,
+        "amount": 0
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 80,
+        "amount": 0
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 80,
+        "amount": 1
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 79
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 80,
+        "amount": 2
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 79
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 80,
+        "amount": 1799
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 80,
+        "amount": 1800
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 79
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 80,
+        "amount": 1801
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 79
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 80,
+        "amount": 5407
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 79
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 1800,
+        "loyalty": 80,
+        "amount": 0
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 79
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 79,
+        "amount": 0
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 79
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 79,
+        "amount": 0
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 79
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 79,
+        "amount": 1
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 78
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 79,
+        "amount": 2
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 78
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 79,
+        "amount": 1799
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 79
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 79,
+        "amount": 1800
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 78
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 79,
+        "amount": 1801
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 78
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 79,
+        "amount": 5407
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 78
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 1800,
+        "loyalty": 79,
+        "amount": 0
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 78
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 61,
+        "amount": 0
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 61
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 61,
+        "amount": 0
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 61
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 61,
+        "amount": 1
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 60
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 61,
+        "amount": 2
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 60
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 61,
+        "amount": 1799
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 61
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 61,
+        "amount": 1800
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 60
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 61,
+        "amount": 1801
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 60
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 61,
+        "amount": 5407
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 60
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 1800,
+        "loyalty": 61,
+        "amount": 0
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 60
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 60,
+        "amount": 0
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 60
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 60,
+        "amount": 0
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 60
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 60,
+        "amount": 1
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 59
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 60,
+        "amount": 2
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 59
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 60,
+        "amount": 1799
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 60
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 60,
+        "amount": 1800
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 59
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 60,
+        "amount": 1801
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 59
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 60,
+        "amount": 5407
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 59
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 1800,
+        "loyalty": 60,
+        "amount": 0
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 59
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 59,
+        "amount": 0
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 59
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 59,
+        "amount": 0
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 59
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 59,
+        "amount": 1
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 58
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 59,
+        "amount": 2
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 58
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 59,
+        "amount": 1799
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 59
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 59,
+        "amount": 1800
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 58
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 59,
+        "amount": 1801
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 58
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 59,
+        "amount": 5407
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 58
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 1800,
+        "loyalty": 59,
+        "amount": 0
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 58
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 31,
+        "amount": 0
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 31
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 31,
+        "amount": 0
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 31
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 31,
+        "amount": 1
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 31,
+        "amount": 2
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 31,
+        "amount": 1799
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 31
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 31,
+        "amount": 1800
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 31,
+        "amount": 1801
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 31,
+        "amount": 5407
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 1800,
+        "loyalty": 31,
+        "amount": 0
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 30,
+        "amount": 0
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 30,
+        "amount": 0
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 30,
+        "amount": 1
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 30,
+        "amount": 2
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 30,
+        "amount": 1799
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 30,
+        "amount": 1800
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 30,
+        "amount": 1801
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 30,
+        "amount": 5407
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 1800,
+        "loyalty": 30,
+        "amount": 0
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 30
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 17,
+        "loyalty": 81,
+        "amount": 3699
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 81,
+        "amount": 2147483647
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 80
+      }
+    },
+    {
+      "input": {
+        "type": 3,
+        "killCount": 1799,
+        "loyalty": 81,
+        "amount": 2147481848
+      },
+      "expected": {
+        "type": 3,
+        "killCount": 0,
+        "loyalty": 80
+      }
+    }
+  ]
+}

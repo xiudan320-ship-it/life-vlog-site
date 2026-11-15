@@ -17,6 +17,7 @@
 | 黑暗传说背包出售、分解和装备锁定 | `modules/monster/bag-item-domain.js`, `modules/monster/bag-item-view.js`, `modules/monster/bag-item.css` | 原生卖价与强化返还、按物品类型发金币／魔石／材料；锁定阻止分解和神器熔炼，打造保持原规则；背包内云档重试；`tests/monster-bag-items.mjs` |
 | 黑暗传说主宠选择与角色属性贡献 | `modules/monster/pet-domain.js`, `modules/monster/pet-view.js`, `modules/monster/pet.css` | 35 级开放，原图、初始属性、选择／替换／卸下及账号云档；每条持有记录的 `partyRole` 标志区分同种宠物；26 种工厂及 353 组原生贡献对照；`tests/monster-pets.mjs` |
 | 黑暗传说主宠经验与等级 | `modules/monster/pet-progression-domain.js`, `modules/monster/progression-domain.js`, `modules/monster/settlement-domain.js` | 战斗／任务经验事件逐次入账、tag 42 装备加成、60 级边界、属性重算与账号保存；`tests/monster-pet-progression.mjs`、68 组原生宠物升级样本 |
+| 黑暗传说主宠忠诚与喂养 | `modules/monster/pet-care-domain.js`, `modules/monster/pet-domain.js`, `modules/monster/pet-view.js` | 胜利击杀累计与忠诚、宠物精魂喂养及一键补满、获取途径和账号保存；`tests/monster-pet-care.mjs`、372 组原生忠诚样本 |
 | 黑暗传说背包与主宠操作保存反馈 | `modules/monster/save-feedback-view.js` | 失败重试只保存当前结果；401 返回登录、409 重载云档，重试时错误类型变化也更新恢复入口 |
 | 黑暗传说 iPhone 安全区、HUD 避让与键盘可视区 | `modules/monster/viewport-view.js`, `modules/monster/game-view.js`, `styles/monster.css` | CSS 安全区统一供 Canvas 与 HTML 使用；原生弹窗随 VisualViewport 调整；`tests/monster-browser.mjs --webkit --iphone13` |
 | 黑暗传说攻击、属性、装备、角色生命/技能、成长、全敌人目录及调整（迁移中） | `modules/monster/combat-domain.js`, `modules/monster/attribute-domain.js`, `modules/monster/equipment-domain.js`, `modules/monster/role-domain.js`, `modules/monster/progression-domain.js`, `modules/monster/enemy-domain.js` | `tests/monster-domain.mjs`, `tests/fixtures/monster/`；恢复边界见 `docs/monster-port-status.md` |

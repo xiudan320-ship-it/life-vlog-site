@@ -4,6 +4,7 @@ import { createCopyDrops } from "./item-domain.js";
 import { creditBattleLoot } from "./settlement-domain.js";
 import { recordRegularCopyVictory, incrementCopyClear } from "./copy-progress-domain.js";
 import { copyUsesParagon } from "./copy-domain.js";
+import { getPetCare, recordMainPetKills } from "./pet-care-domain.js";
 
 export function payCopyEntry(state, copy) {
   if (!copy.copyprice) return state;
@@ -53,7 +54,14 @@ function createBattleReward({ state, copy, prepared, catalog, draw, partial = fa
 export function settleCopyVictory(input) {
   const { copy, prepared, catalog } = input;
   const reward = createBattleReward(input);
-  const credited = creditBattleLoot(input.state, reward);
+  const cared = recordMainPetKills(input.state, prepared.enemyCount);
+  const previousPet = input.state.inventory.pets.find((pet) => pet.partyRole === 1);
+  const currentPet = cared.inventory.pets.find((pet) => pet.partyRole === 1);
+  if (previousPet && currentPet) {
+    const previous = getPetCare(previousPet).loyalty, loyalty = getPetCare(currentPet).loyalty;
+    if (loyalty < previous) reward.petCare = { previous, loyalty };
+  }
+  const credited = creditBattleLoot(cared, reward);
   let state = credited.state;
   if (credited.effects.petGrowth) reward.petGrowth = credited.effects.petGrowth;
   if (copy.type === 1) {
