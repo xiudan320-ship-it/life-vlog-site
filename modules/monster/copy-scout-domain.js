@@ -3,7 +3,7 @@ import { getCopyAccess, maximumCopyDifficulty, prepareCopyBattle } from "./copy-
 const attributes = ["attack", "defense", "maxHp", "hit", "dodge", "crit", "critHurt", "resistance", "critResistance"];
 const integer = (value, fallback) => Number.isFinite(value) ? Math.trunc(value) : fallback;
 const bound = (value, min, max) => Math.max(min, Math.min(max, value));
-const referencePower = (role) => Math.round(role.attack + role.defense + role.maxHp / 10);
+export const referencePower = (role) => Math.round(role.attack + role.defense + role.maxHp / 10);
 
 /** Preview ordinary enemy bounds using deterministic preparation, never gameplay RNG. */
 export function getCopyScout({ state, catalog, copy, settings = {} }) {

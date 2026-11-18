@@ -24,6 +24,7 @@ export function createMonsterGameController({ catalog, store, view, random, wait
   let unsaved = false;
   let saveErrorStatus = null;
   let repeat = false;
+  let battleSession = null;
   let strengthening = false;
   const settings = { type: 1, chapterId: null, hard: 1, waves: 1, repeat: false };
   async function save() {
@@ -62,13 +63,19 @@ export function createMonsterGameController({ catalog, store, view, random, wait
     settings.hard = Math.max(1, Math.min(maximumCopyDifficulty(state.player), Math.trunc(settings.hard)));
     settings.waves = Math.max(1, Math.min(10 + (state.player.extraWaves || 0), Math.trunc(settings.waves)));
     const serial = ++revision;
+    let cancelWait;
+    const session = { cancelled: false, stopped: new Promise((resolve) => { cancelWait = resolve; }) };
+    session.cancel = () => { session.cancelled = true; cancelWait(); };
+    battleSession = session;
+    const stopped = () => session.cancelled || serial !== revision;
+    const battleWait = (milliseconds) => Promise.race([wait(milliseconds), session.stopped]);
     active = true;
     repeat = copy.type !== 6 && settings.repeat;
     view.repeatStatus(repeat);
     try {
       if (copy.type === 6 && (!state.trial || state.trial.status === "claimed")) {
         state = beginTrial(state, selected?.trialHard || 1);
-        if (!await save() || serial !== revision) return;
+        if (!await save() || stopped()) return;
       }
       do {
         refresh();
@@ -78,22 +85,25 @@ export function createMonsterGameController({ catalog, store, view, random, wait
           hard: settings.hard, waves: settings.waves, catalog, draw: random });
         let battle = { ...prepared.battle, bonuses: state.player.bonuses };
         await view.battle(battle, state, catalog);
-        if (serial !== revision) return;
+        if (stopped()) return;
         const paid = payCopyEntry(state, copy);
         if (paid !== state) {
           state = paid;
-          if (!await save() || serial !== revision) return;
+          if (!await save() || stopped()) return;
         }
-        while (serial === revision && ![1, 3].includes(battle.outcome)) {
-          await wait(550);
-          if (serial !== revision) return;
+        session.current = { copy, prepared, battle };
+        while (!stopped() && ![1, 3].includes(battle.outcome)) {
+          await battleWait(550);
+          if (stopped()) return;
           const action = advanceSoloBattle(battle, { draw: random, skills: catalog.skills });
           battle = action.battle;
+          session.current.battle = battle;
           view.battleUpdate(battle, null, state, catalog);
           for (const hit of action.hits) view.battleUpdate(battle, hit, state, catalog);
         }
-        await wait(450);
-        if (serial !== revision) return;
+        await battleWait(450);
+        if (stopped()) return;
+        session.current = null;
         state = { ...state, player: { ...state.player, hp: battle.allies[0].hp, dead: battle.allies[0].dead } };
         state = recordTaskBattle({ state, copy, prepared, battle });
         const settlement = battle.outcome === 3
@@ -107,8 +117,9 @@ export function createMonsterGameController({ catalog, store, view, random, wait
         if (battle.outcome !== 3) repeat = false;
         refresh();
         if (!await save()) repeat = false;
-        if (serial !== revision) return;
+        if (stopped()) return;
         await view.result(battle.outcome, reward, state, catalog);
+        if (stopped()) return;
         if (copy.type === 6) view.trial(state, catalog);
         if (repeat) {
           if (copy.type === 5) {
@@ -116,13 +127,17 @@ export function createMonsterGameController({ catalog, store, view, random, wait
             if (next) copy = next;
             else repeat = false;
           }
-          if (repeat) await wait(1800);
+          if (repeat) await battleWait(1800);
         }
-      } while (repeat && serial === revision);
+      } while (repeat && !stopped());
     } catch (error) {
       repeat = false;
-      if (serial === revision) { await home(); view.notice(`战斗未能继续：${error.message}`); }
-    } finally { if (serial === revision) { active = false; view.repeatStatus(false); } }
+      if (!stopped()) { await home(); view.notice(`战斗未能继续：${error.message}`); }
+    } finally {
+      if (session.exitSave) await session.exitSave;
+      if (battleSession === session) battleSession = null;
+      if (serial === revision) { active = false; if (session.cancelled) view.exitPending(false); view.repeatStatus(false); }
+    }
   }
   return {
     async initialize() {
@@ -309,6 +324,30 @@ export function createMonsterGameController({ catalog, store, view, random, wait
       finally { if (serial === revision) active = false; }
     },
     stopRepeat() { repeat = false; view.repeatStatus(false); view.notice("已关闭连续战斗，本场结算后停止。"); },
+    exitBattle() {
+      if (!battleSession || battleSession.cancelled) return;
+      const session = battleSession, serial = revision;
+      session.cancel(); repeat = false; settings.repeat = false;
+      view.exitPending(true);
+      view.repeatStatus(false);
+      const current = session.current;
+      const kills = current?.battle.enemies.filter((enemy) => enemy.dead).length || 0;
+      let exitError = null;
+      if (kills) {
+        const before = state;
+        try {
+          const battle = { ...current.battle, outcome: 1 };
+          const counted = recordTaskBattle({ state, copy: current.copy, prepared: current.prepared, battle });
+          state = settleCopyDefeat({ state: counted, copy: current.copy, prepared: current.prepared, battle, catalog, draw: random }).state;
+          refresh();
+          session.exitSave = save();
+        } catch (error) { state = before; exitError = error; }
+      }
+      void home().then(async () => {
+        if (exitError && serial === revision) view.notice(`已退出战斗，但本场收益计算失败：${exitError.message}`);
+        else if (session.exitSave && await session.exitSave && serial === revision) view.notice(`已退出战斗，已保存 ${kills} 只怪物的收益。`);
+      });
+    },
     role() { if (state && !active) view.role(state, catalog); },
     skills() { if (state && !active) view.skills(state, catalog); },
     bag(kind) { if (state && !active) view.bag(state, catalog, kind); },
@@ -379,6 +418,6 @@ export function createMonsterGameController({ catalog, store, view, random, wait
     },
     save() { if (state && !active) return save(); },
     getSaveErrorStatus() { return saveErrorStatus; },
-    destroy() { revision += 1; active = false; repeat = false; strengthening = false; view.repeatStatus(false); },
+    destroy() { revision += 1; if (battleSession?.cancelled) view.exitPending(false); battleSession?.cancel(); battleSession = null; active = false; repeat = false; strengthening = false; view.repeatStatus(false); },
   };
 }

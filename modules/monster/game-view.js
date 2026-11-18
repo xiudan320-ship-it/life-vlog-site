@@ -13,6 +13,7 @@ import { renderBagItem } from "./bag-item-view.js";
 import { renderPets } from "./pet-view.js";
 import { renderMaterialSources } from "./material-source-view.js";
 import { renderCopyScout } from "./copy-scout-view.js";
+import { referencePower } from "./copy-scout-domain.js";
 
 const assets = "/monster/assets/";
 
@@ -21,6 +22,15 @@ export function createMonsterGameView({ warView }) {
   const frame = document.getElementById("monsterFrame");
   const status = document.getElementById("monsterStatus");
   const controls = Object.fromEntries(["Enter", "Adventure", "Role", "Skills", "Bag"].map((name) => [name, document.getElementById(`monster${name}`)]));
+  const exitBattle = document.createElement("button");
+  exitBattle.id = "monsterExitBattle";
+  exitBattle.type = "button";
+  exitBattle.textContent = "退出战斗";
+  exitBattle.hidden = true;
+  const battlePower = document.createElement("div");
+  battlePower.id = "monsterBattlePower";
+  battlePower.hidden = true;
+  document.querySelector(".monster-host-header").append(exitBattle, battlePower);
   // Names use the accessible HTML form; the legacy canvas IME input is unused.
   document.getElementById("imeDispatcherInput")?.setAttribute("inert", "");
   document.getElementById("monsterCanvas").tabIndex = -1;
@@ -28,6 +38,7 @@ export function createMonsterGameView({ warView }) {
   let hasSave = false;
   let phase = "loading";
   let repeating = false;
+  let exitPending = false;
   let saveErrorStatus = null;
   let serial = 0;
   let nodes = new Map();
@@ -40,9 +51,12 @@ export function createMonsterGameView({ warView }) {
   function stage(value) {
     phase = value;
     document.body.dataset.monsterStage = value;
-    controls.Enter.disabled = repeating || value === "battle" || value === "loading" || value === "error";
+    exitBattle.hidden = value !== "battle" && !(value === "result" && repeating);
+    battlePower.hidden = value !== "battle";
+    exitBattle.disabled = exitPending;
+    controls.Enter.disabled = exitPending || repeating || value === "battle" || value === "loading" || value === "error";
     controls.Enter.textContent = value === "menu" ? hasSave ? "继续游戏" : "开始游戏" : "主页";
-    for (const key of ["Adventure", "Role", "Skills", "Bag"]) controls[key].disabled = repeating || value !== "home" && value !== "result";
+    for (const key of ["Adventure", "Role", "Skills", "Bag"]) controls[key].disabled = exitPending || repeating || value !== "home" && value !== "result";
   }
   function resize() {
     const width = frame.clientWidth;
@@ -233,11 +247,12 @@ export function createMonsterGameView({ warView }) {
       nodes.get(spec.id).addChild(nodes.get(child), childSpec.z || 0);
     }
     scene(nodes.get(warView.root));
+    battlePower.textContent = `战力 ${referencePower(state.player).toLocaleString("zh-CN")}`;
+    stage("battle");
     const enemyBox = nodeScreenBox(nodes.get(warView.bindings.enemyName), frame, cc);
-    const back = document.querySelector(".monster-host-header a").getBoundingClientRect();
+    const back = exitBattle.getBoundingClientRect();
     const shift = Math.max(0, back.bottom + 8 - enemyBox.top) * cc.winSize.height / frame.clientHeight;
     for (const spec of low.nodes) if (spec.position?.[1] >= 720) nodes.get(spec.id).y -= shift;
-    stage("battle");
     battleUpdate(initial, null, state, catalog);
   }
   function battleUpdate(value, hit, state, catalog) {
@@ -370,7 +385,7 @@ export function createMonsterGameView({ warView }) {
   function selectCopy(state, catalog, settings) {
     document.getElementById("monsterItemDetails").close();
     const content = details("选择关卡", controls.Adventure);
-    renderCopySelection({ content, state, catalog, settings, onScout: (copyId, selected) => actions.scoutCopy(copyId, selected), onClaim: () => actions.claimTrial() });
+    renderCopySelection({ content, state, catalog, settings, onStart: (copyId, selected) => actions.startScoutedCopy(copyId, selected), onScout: (copyId, selected) => actions.scoutCopy(copyId, selected), onClaim: () => actions.claimTrial() });
   }
   function copyScout(state, catalog, copy, scout, selected) {
     const dialog = document.getElementById("monsterItemDetails");
@@ -422,6 +437,7 @@ export function createMonsterGameView({ warView }) {
   return {
     menu, home, updateHome, battle, battleUpdate, result, role, bag, bagItem, pets, skills, selectCopy, copyScout, closeCopyScout, closeSelection, trial, tasks, workshop, upgrade, updateUpgrade, craft, materialSources, closeMaterialSources, smelt, specialUpgrade, godUpgrade, notice,
     repeatStatus(enabled) { repeating = enabled; document.getElementById("monsterStop").hidden = !enabled; stage(phase); },
+    exitPending(enabled) { exitPending = enabled; stage(phase); },
     loadError(message) { stage("error"); statusMessage(message); },
     saveStatus(message, error = false, status = null) {
       saveErrorStatus = status;
@@ -438,6 +454,7 @@ export function createMonsterGameView({ warView }) {
       controls.Enter.onclick = enter;
       controls.Adventure.onclick = () => actions.selectCopy();
       document.getElementById("monsterStop").onclick = () => actions.stopRepeat();
+      exitBattle.onclick = () => { exitBattle.disabled = true; actions.exitBattle(); };
       controls.Role.onclick = () => actions.role(); controls.Bag.onclick = () => actions.bag();
       controls.Skills.onclick = () => actions.skills();
       document.getElementById("monsterItemClose").onclick = () => document.getElementById("monsterItemDetails").close();

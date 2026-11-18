@@ -94,7 +94,8 @@ export function renderCraft({ state, catalog, actions, receipt, selection = { ca
     for (const material of materials) {
       const row = catalog.items.find((item) => item.id === material.id);
       const line = element("li"); line.dataset.materialId = material.id;
-      const label = element("span", `${row.name}${material.type === 2 ? "（背包中强化 +5，含锁定）" : ""}：消耗 ${material.quantity}，持有 ${material.owned}`);
+      const label = element("span", `${row.name}${material.type === 2 ? "（背包 +5，含锁定）" : ""}：${material.quantity} / ${material.owned}`);
+      label.setAttribute("aria-label", `${row.name}${material.type === 2 ? "，背包中强化 +5，含锁定" : ""}，消耗 ${material.quantity}，持有 ${material.owned}`);
       line.append(label);
       if (material.owned < material.quantity) {
         line.dataset.insufficient = "true";
@@ -106,14 +107,24 @@ export function renderCraft({ state, catalog, actions, receipt, selection = { ca
       }
       costs.append(line);
     }
-    const coin = element("li", `${currency === "gold" ? "金币" : "魔石"}：消耗 ${price}，持有 ${state[currency]}`);
+    const currencyName = currency === "gold" ? "金币" : "魔石";
+    const coin = element("li", `${currencyName}：${price} / ${state[currency]}`);
+    coin.setAttribute("aria-label", `${currencyName}，消耗 ${price}，持有 ${state[currency]}`);
     if (state[currency] < price) coin.dataset.insufficient = "true";
-    costs.append(coin); detail.append(costs);
+    costs.append(coin); detail.append(element("h4", "材料与费用（消耗 / 持有）", "monster-craft-costs-heading"), costs);
     const button = element("button", "打造", "monster-image-button"); button.type = "button"; button.dataset.craftItem = selection.itemId;
     button.disabled = !affordable;
     button.onclick = async () => { button.disabled = true; try { await actions.craft(selection.itemId); } finally { if (button.isConnected) button.disabled = !affordable; } };
     detail.append(button);
   }
   render();
+  // A successful craft rebuilds this view; keep an off-screen selected recipe visible.
+  queueMicrotask(() => {
+    const selected = list.querySelector('[aria-pressed="true"]');
+    if (!list.isConnected || !selected) return;
+    const listBox = list.getBoundingClientRect(), selectedBox = selected.getBoundingClientRect();
+    if (selectedBox.right > listBox.right) list.scrollLeft += selectedBox.right - listBox.right + 10;
+    else if (selectedBox.left < listBox.left) list.scrollLeft -= listBox.left - selectedBox.left + 10;
+  });
   return root;
 }

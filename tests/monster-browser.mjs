@@ -55,7 +55,7 @@ async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, sa
     const [items, skills] = await Promise.all(["item", "skill"].map(async (name) => JSON.parse(await readFile(resolve(root, `monster/data/${name}.json`), "utf8"))));
     const seed = createNewGame({ items, skills }); seed.player.name = "功能测试勇者";
     if (trial || navigation) { seed.player.level = 80; seed.player.equipmentSets[0][0].attributes.push(...[1, 2, 3, 4].map((type) => ({ type, value: 10000000 }))); }
-    if (navigation) { seed.progress.chapterId = 3; seed.progress.levelId = 1; }
+    if (navigation) { seed.progress.chapterId = 3; seed.progress.levelId = 5; }
     if (petParty || petGrowth || petCare) {
       const rows = JSON.parse(await readFile(resolve(root, "monster/data/pet.json"), "utf8"));
       seed.player.level = 35;
@@ -176,14 +176,13 @@ async function fight(page, copyId = 1001, controlled = false) {
   });
   await page.locator("#monsterAdventure").click();
   await page.locator(`[data-copy-id="${copyId}"]`).click();
-  await page.locator(`[data-scout-start="${copyId}"]`).click();
   await stage(page, "battle");
   if (iphone13) {
     const top = await page.evaluate(() => {
       const tops = []; function walk(node) { if (node.getString?.().startsWith("Lv.")) { const p = node.convertToWorldSpace(cc.p(0, node.height)); tops.push((cc.winSize.height - p.y) / cc.winSize.height * innerHeight); } for (const child of node.getChildren?.() || []) walk(child); }
       walk(cc.director.getRunningScene()); return Math.min(...tops);
     });
-    const back = await page.locator(".monster-host-header a").boundingBox();
+    const back = await page.locator("#monsterExitBattle").boundingBox();
     assert.ok(Number.isFinite(top) && top >= back.y + back.height + 7, `battle HUD entered the notch/header: ${top}`);
     await page.screenshot({ path: resolve(artifacts, "iphone13-battle.png") });
   }
@@ -267,7 +266,7 @@ try {
   assert.equal(await page.locator(".monster-copy-row").count(), 6);
   assert.equal(await page.locator('[data-copy-id="1002"]').isEnabled(), true);
   assert.equal(await page.locator('[data-copy-id="1003"]').getAttribute("data-locked"), "true");
-  await page.locator('[data-copy-id="1003"]').click();
+  await page.locator('[data-copy-details="1003"]').click();
   assert.equal(await page.locator('[data-scout-start="1003"]').isDisabled(), true);
   await page.locator("#monsterItemClose").click();
   await page.locator('[data-copy-type="2"]').click(); assert.equal(await page.locator(".monster-copy-row").count(), 32);
@@ -347,7 +346,6 @@ try {
   await defeated.locator("#monsterAdventure").click();
   await defeated.getByLabel("连续自动战斗").check();
   await defeated.locator('[data-copy-id="1001"]').click();
-  await defeated.locator('[data-scout-start="1001"]').click();
   await stage(defeated, "result");
   assert.match(await defeated.locator("#monsterStatus").textContent(), /战败，已保留 1 只怪物收益/);
   const retained = await saved(defeated);
@@ -361,37 +359,161 @@ try {
   await auto.locator("#monsterAdventure").click();
   await auto.getByLabel("连续自动战斗").check();
   await auto.locator('[data-copy-id="1001"]').click();
-  await auto.locator('[data-scout-start="1001"]').click();
   await stage(auto, "result");
   await stage(auto, "battle");
   await auto.locator("#monsterStop").click();
   await stage(auto, "result");
   assert.equal((await saved(auto)).progress.copies.find((row) => row.id === 1001).value, 2);
+  // Stop an unfinished fight using the top-left control; previously saved progress remains intact.
+  const exitPage = await pageFor({ navigation: true, roll: 4, reducedMotion: "reduce" });
+  const beforeExit = await saved(exitPage);
+  await exitPage.locator("#monsterEnter").click(); await stage(exitPage, "home");
+  await exitPage.evaluate(() => {
+    const schedule = window.monsterFixtureNativeTimeout;
+    window.monsterFixturePendingBattle = null;
+    window.setTimeout = (callback, delay, ...args) => {
+      if (delay === 550) { window.monsterFixturePendingBattle = () => callback(...args); return 0; }
+      return schedule(callback, delay, ...args);
+    };
+  });
+  await exitPage.locator("#monsterAdventure").click();
+  await exitPage.locator('[data-chapter-id="1"]').click();
+  await exitPage.getByLabel("连续自动战斗").check();
+  await exitPage.locator('[data-copy-id="1001"]').click(); await stage(exitPage, "battle");
+  await exitPage.waitForFunction(() => typeof window.monsterFixturePendingBattle === "function");
+  const exitBox = await exitPage.locator("#monsterExitBattle").boundingBox();
+  assert.ok(exitBox.x < 15 && exitBox.y >= (iphone13 ? 47 : 0) && exitBox.width >= 44 && exitBox.height >= 44, JSON.stringify(exitBox));
+  assert.match(await exitPage.locator("#monsterBattlePower").textContent(), /战力 [\d,]+/);
+  const powerBox = await exitPage.locator("#monsterBattlePower").boundingBox();
+  assert.ok(powerBox.x >= exitBox.x + exitBox.width && powerBox.y >= (iphone13 ? 47 : 0), JSON.stringify(powerBox));
+  await exitPage.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-battle-exit.png" : "battle-exit.png") });
+  if (iphone13) await exitPage.locator("#monsterExitBattle").tap(); else await exitPage.locator("#monsterExitBattle").click();
+  await stage(exitPage, "home");
+  assert.deepEqual(await saved(exitPage), beforeExit);
+  await exitPage.locator("#monsterAdventure").click();
+  assert.equal(await exitPage.getByLabel("连续自动战斗").isChecked(), false);
+  await exitPage.context().close();
+  const partialExit = await pageFor({ navigation: true, roll: 4, reducedMotion: "reduce" });
+  const partialSeed = await saved(partialExit);
+  partialSeed.progress.copies.push({ id: 1001, value: 1 });
+  fixtures.get(partialExit).DB.database.prepare("update monster_saves set state_json = ? where user_id = ?").run(JSON.stringify(partialSeed), "owner");
+  await partialExit.reload(); await stage(partialExit, "menu");
+  await partialExit.locator("#monsterEnter").click(); await stage(partialExit, "home");
+  await partialExit.evaluate(() => {
+    const schedule = window.monsterFixtureNativeTimeout;
+    window.monsterFixturePendingBattle = null;
+    window.setTimeout = (callback, delay, ...args) => {
+      if (delay === 550) { window.monsterFixturePendingBattle = () => callback(...args); return 0; }
+      return schedule(callback, delay, ...args);
+    };
+  });
+  await partialExit.locator("#monsterAdventure").click(); await partialExit.locator('[data-chapter-id="1"]').click();
+  await partialExit.getByLabel("地图波数").selectOption("3");
+  await partialExit.locator('[data-copy-id="1001"]').click(); await stage(partialExit, "battle");
+  let defeatedEnemy = false;
+  for (let turn = 0; turn < 12 && !defeatedEnemy; turn += 1) {
+    await partialExit.waitForFunction(() => typeof window.monsterFixturePendingBattle === "function");
+    await partialExit.evaluate(() => { const next = window.monsterFixturePendingBattle; window.monsterFixturePendingBattle = null; next(); });
+    await partialExit.waitForFunction(() => typeof window.monsterFixturePendingBattle === "function");
+    defeatedEnemy = await partialExit.evaluate(() => {
+      function hasZeroHp(node) { return /^0\/[1-9]\d*$/.test(node.getString?.() || "") || (node.getChildren?.() || []).some(hasZeroHp); }
+      return hasZeroHp(cc.director.getRunningScene());
+    });
+  }
+  assert.equal(defeatedEnemy, true, "fixture must defeat an enemy before exiting");
+  await partialExit.evaluate(() => { window.monsterFixtureBlockSave = true; });
+  if (iphone13) await partialExit.locator("#monsterExitBattle").tap(); else await partialExit.locator("#monsterExitBattle").click();
+  await stage(partialExit, "home"); await partialExit.locator("#monsterSaveRetry").waitFor({ state: "visible" });
+  assert.deepEqual(await saved(partialExit), partialSeed);
+  await partialExit.evaluate(() => { window.monsterFixtureBlockSave = false; });
+  await partialExit.locator("#monsterSaveRetry").click(); await partialExit.locator("#monsterSaveRetry").waitFor({ state: "hidden" });
+  const partialSaved = await saved(partialExit);
+  assert.ok(partialSaved.gold > partialSeed.gold);
+  assert.deepEqual(partialSaved.progress, partialSeed.progress);
+  await partialExit.reload(); await stage(partialExit, "menu"); assert.deepEqual(await saved(partialExit), partialSaved);
+  await partialExit.context().close();
   // Exercise the result canvas itself, including restoring a non-default chapter
   // and both scroll positions after a real map challenge.
   const navigationPage = await pageFor({ navigation: true, roll: 4, reducedMotion: "reduce" });
   await navigationPage.locator("#monsterEnter").click(); await stage(navigationPage, "home");
   await navigationPage.locator("#monsterAdventure").click();
+  assert.match(await navigationPage.locator(".monster-adventure-overview").textContent(), /当前战力.*点按挑战.*长按查看详情/);
+  const currentMap = navigationPage.locator('[data-copy-id="1018"]');
+  const mapVisible = await currentMap.evaluate((node) => {
+    const rect = node.getBoundingClientRect(), view = node.closest(".monster-copy-viewport").getBoundingClientRect();
+    return rect.top >= view.top && rect.bottom <= view.bottom;
+  });
+  assert.equal(mapVisible, true, "opening the map should show the current unlocked stage");
+  assert.ok(await navigationPage.locator(".monster-copy-viewport").evaluate((node) => node.scrollTop) > 0);
+  const powerPosition = await navigationPage.locator(".monster-adventure-overview").boundingBox();
+  const targetBox = await currentMap.boundingBox();
+  await navigationPage.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + targetBox.height / 2);
+  await navigationPage.mouse.down();
+  await navigationPage.locator(".monster-copy-scout").waitFor();
+  await navigationPage.mouse.up();
+  assert.match(await navigationPage.locator(".monster-scout-power").textContent(), /当前战力.*推荐战力/);
+  assert.equal(await navigationPage.locator("body").getAttribute("data-monster-stage"), "home");
+  await navigationPage.locator("#monsterItemClose").click();
+  await currentMap.dispatchEvent("pointerdown", { pointerId: 91, pointerType: "touch", button: 0, clientX: 20, clientY: 20 });
+  await currentMap.dispatchEvent("pointermove", { pointerId: 91, pointerType: "touch", button: 0, clientX: 20, clientY: 50 });
+  await navigationPage.waitForTimeout(550);
+  await currentMap.dispatchEvent("pointercancel", { pointerId: 91, pointerType: "touch" });
+  assert.equal(await navigationPage.locator("#monsterItemDetails").evaluate((dialog) => dialog.open), false, "scrolling must cancel the long press");
+  await navigationPage.locator('[data-copy-details="1018"]').focus();
+  await navigationPage.keyboard.press("Enter");
+  await navigationPage.locator(".monster-copy-scout").waitFor();
+  await navigationPage.locator("#monsterItemClose").click();
+  await navigationPage.locator(".monster-copy-viewport").evaluate((node) => { node.scrollTop = 0; });
+  assert.equal((await navigationPage.locator(".monster-adventure-overview").boundingBox()).y, powerPosition.y);
+  await noOverflow(navigationPage); await accessible(navigationPage);
+  await navigationPage.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-map-compact.png" : "map-compact.png") });
+  await navigationPage.locator(".monster-copy-viewport").evaluate((node) => { node.scrollTop = 250; });
+  await navigationPage.waitForTimeout(50);
+  const reopenPosition = await navigationPage.locator(".monster-copy-viewport").evaluate((node) => node.scrollTop);
+  await navigationPage.locator("#monsterDetailsClose").click(); await navigationPage.locator("#monsterAdventure").click();
+  assert.equal(await navigationPage.locator(".monster-copy-viewport").evaluate((node) => node.scrollTop), reopenPosition);
   await navigationPage.locator('[data-chapter-id="2"]').click();
   const challenge = navigationPage.locator('[data-copy-id="1010"]');
   await challenge.scrollIntoViewIfNeeded();
   await navigationPage.locator(".monster-chapter-rail").evaluate((rail) => { rail.scrollLeft = 400; });
   const mapPosition = await navigationPage.evaluate(() => ({
-    top: document.querySelector(".monster-adventure-content").scrollTop,
+    top: document.querySelector(".monster-copy-viewport").scrollTop,
     left: document.querySelector(".monster-chapter-rail").scrollLeft,
   }));
   assert.ok(mapPosition.top > 0 && mapPosition.left > 0, JSON.stringify(mapPosition));
-  await challenge.click(); await navigationPage.locator('[data-scout-start="1010"]').click(); await stage(navigationPage, "result");
+  if (iphone13) await challenge.tap(); else await challenge.click();
+  await stage(navigationPage, "result");
   await tapNative(navigationPage, "text_backtips");
   await navigationPage.locator(".monster-adventure-content").waitFor();
   assert.equal(await navigationPage.locator('[data-copy-type="1"]').getAttribute("aria-pressed"), "true");
   assert.equal(await navigationPage.locator('[data-chapter-id="2"]').getAttribute("aria-current"), "true");
   const restoredPosition = await navigationPage.evaluate(() => ({
-    top: document.querySelector(".monster-adventure-content").scrollTop,
+    top: document.querySelector(".monster-copy-viewport").scrollTop,
     left: document.querySelector(".monster-chapter-rail").scrollLeft,
   }));
   assert.deepEqual(restoredPosition, mapPosition);
+  await navigationPage.locator('[data-chapter-id="3"]').click();
+  if (iphone13) await navigationPage.locator('[data-copy-id="1018"]').tap(); else await navigationPage.locator('[data-copy-id="1018"]').click();
+  await stage(navigationPage, "result"); await tapNative(navigationPage, "text_backtips");
+  await navigationPage.locator(".monster-adventure-content").waitFor();
+  assert.equal(await navigationPage.locator('[data-copy-id="1019"]').evaluate((node) => {
+    const rect = node.getBoundingClientRect(), view = node.closest(".monster-copy-viewport").getBoundingClientRect();
+    return rect.top >= view.top && rect.bottom <= view.bottom;
+  }), true, "newly unlocked stage should be visible without another scroll");
   await navigationPage.locator("#monsterDetailsClose").click(); await stage(navigationPage, "home");
+
+  const chapterAdvance = await pageFor({ navigation: true, roll: 4, reducedMotion: "reduce" });
+  const chapterSeed = await saved(chapterAdvance); chapterSeed.progress.levelId = 7;
+  fixtures.get(chapterAdvance).DB.database.prepare("update monster_saves set state_json = ? where user_id = ?").run(JSON.stringify(chapterSeed), "owner");
+  await chapterAdvance.reload(); await stage(chapterAdvance, "menu");
+  await chapterAdvance.locator("#monsterEnter").click(); await stage(chapterAdvance, "home");
+  await chapterAdvance.locator("#monsterAdventure").click();
+  if (iphone13) await chapterAdvance.locator('[data-copy-id="1020"]').tap(); else await chapterAdvance.locator('[data-copy-id="1020"]').click();
+  await stage(chapterAdvance, "result"); await tapNative(chapterAdvance, "text_backtips");
+  await chapterAdvance.locator(".monster-adventure-content").waitFor();
+  assert.equal(await chapterAdvance.locator('[data-chapter-id="4"]').getAttribute("aria-current"), "true");
+  assert.equal(await chapterAdvance.locator('[data-copy-id="1021"]').count(), 1);
+  await chapterAdvance.context().close();
 
   const trialPage = await pageFor({ trial: true, roll: 4, reducedMotion: "reduce" });
   await trialPage.locator("#monsterEnter").click(); await stage(trialPage, "home");
@@ -489,7 +611,7 @@ try {
   await retentionPage.locator("#monsterEnter").click(); await stage(retentionPage, "home");
   await retentionPage.locator("#monsterAdventure").click();
   assert.match(await retentionPage.locator('[data-copy-id="1001"]').textContent(), /推荐战力/);
-  await retentionTap(retentionPage.locator('[data-copy-id="1001"]'));
+  await retentionTap(retentionPage.locator('[data-copy-details="1001"]'));
   await retentionPage.locator(".monster-copy-scout").waitFor();
   assert.match(await retentionPage.locator(".monster-scout-power").textContent(), /当前战力.*推荐战力/);
   assert.equal(await retentionPage.locator(".monster-scout-stats dt").count() >= 8, true);
@@ -498,12 +620,12 @@ try {
   await accessible(retentionPage); await noOverflow(retentionPage);
   await retentionPage.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-copy-scout.png" : "copy-scout.png") });
   await retentionPage.locator("#monsterItemClose").click();
-  await retentionTap(retentionPage.locator('[data-copy-id="1003"]'));
+  await retentionTap(retentionPage.locator('[data-copy-details="1003"]'));
   assert.equal(await retentionPage.locator('[data-scout-start="1003"]').isDisabled(), true);
   assert.match(await retentionPage.locator(".monster-scout-locked").textContent(), /先通关/);
   await retentionPage.locator("#monsterItemClose").click();
   await retentionPage.locator('[data-copy-type="5"]').click();
-  await retentionTap(retentionPage.locator('[data-copy-id="5114"]'));
+  await retentionTap(retentionPage.locator('[data-copy-details="5114"]'));
   assert.equal(await retentionPage.locator('[data-scout-start="5114"]').isDisabled(), true);
   const scoutWidth = await retentionPage.locator(".monster-copy-scout").evaluate((node) => ({ width: node.clientWidth, scroll: node.scrollWidth }));
   assert.ok(scoutWidth.scroll <= scoutWidth.width + 1, JSON.stringify(scoutWidth));
@@ -516,7 +638,7 @@ try {
   await retentionPage.locator("#monsterEnter").click(); await stage(retentionPage, "home");
   await retentionPage.locator("#monsterAdventure").click();
   await retentionPage.getByLabel("地图难度").selectOption("3"); await retentionPage.getByLabel("地图波数").selectOption("3");
-  await retentionTap(retentionPage.locator('[data-copy-id="1001"]'));
+  await retentionTap(retentionPage.locator('[data-copy-details="1001"]'));
   assert.match(await retentionPage.locator(".monster-scout-mode").textContent(), /噩梦.*3 波.*3 个/);
   await retentionPage.context().close();
   // End retained enhancement and scouting.
