@@ -64,19 +64,36 @@ export function renderCraft({ state, catalog, actions, receipt, selection = { ca
     for (const [value, label] of [["equipment", "装备"], ["badge", "徽章"], ["goods", "材料"]]) {
       const button = element("button", label, "monster-image-button"); button.type = "button";
       button.setAttribute("aria-pressed", String(selection.category === value));
-      button.onclick = () => { selection.category = value; selection.itemId = null; render(); tabs.querySelector('[aria-pressed="true"]')?.focus(); };
+      button.onclick = (event) => {
+        selection.byCategory ||= {};
+        selection.byCategory[selection.category] = selection.itemId;
+        selection.category = value; selection.itemId = selection.byCategory[value] ?? null;
+        render(); revealSelection();
+        if (event.detail === 0) tabs.querySelector('[aria-pressed="true"]')?.focus();
+      };
       tabs.append(button);
     }
     const visible = recipes.filter((entry) => categoryOf(catalog.items.find((row) => row.id === entry.itemid)) === selection.category);
-    if (!visible.some((entry) => entry.itemid === selection.itemId)) selection.itemId = visible[0]?.itemid ?? null;
+    if (!visible.some((entry) => entry.itemid === selection.itemId)) {
+      if (selection.category === "equipment" && visible.length) {
+        const levels = visible.map((entry) => catalog.items.find((row) => row.id === entry.itemid).level);
+        const eligible = levels.filter((level) => level <= state.player.level);
+        const targetLevel = eligible.length ? Math.max(...eligible) : Math.min(...levels);
+        selection.itemId = visible.find((entry) => catalog.items.find((row) => row.id === entry.itemid).level === targetLevel).itemid;
+      } else selection.itemId = visible[0]?.itemid ?? null;
+    }
     for (const recipe of visible) {
       const count = getCraftHistoryCount(state, recipe.itemid);
       const owned = getCraftOwnedCount(state, recipe.itemid);
-      const tile = itemTile({ id: recipe.itemid }, catalog, { onClick: () => { selection.itemId = recipe.itemid; render(); list.querySelector('[aria-pressed="true"]')?.focus(); } });
+      const tile = itemTile({ id: recipe.itemid }, catalog, { onClick: (event) => {
+        selection.itemId = recipe.itemid; render();
+        if (event.detail === 0) list.querySelector('[aria-pressed="true"]')?.focus();
+      } });
       tile.dataset.recipeId = recipe.itemid;
       tile.setAttribute("aria-pressed", String(recipe.itemid === selection.itemId));
-      const itemName = catalog.items.find((row) => row.id === recipe.itemid).name;
-      tile.setAttribute("aria-label", `${itemName}，已打造 ${count} 次，已持有 ${owned} 个`);
+      const product = catalog.items.find((row) => row.id === recipe.itemid);
+      tile.setAttribute("aria-label", `${product.name}，物品等级 ${product.level}，已打造 ${count} 次，已持有 ${owned} 个`);
+      tile.append(element("span", `Lv.${product.level}`, "monster-craft-level"));
       if (count) { const badge = element("b", `造${count}`, "monster-craft-made"); badge.setAttribute("aria-hidden", "true"); tile.append(badge); }
       list.append(tile);
     }
@@ -117,14 +134,15 @@ export function renderCraft({ state, catalog, actions, receipt, selection = { ca
     button.onclick = async () => { button.disabled = true; try { await actions.craft(selection.itemId); } finally { if (button.isConnected) button.disabled = !affordable; } };
     detail.append(button);
   }
-  render();
-  // A successful craft rebuilds this view; keep an off-screen selected recipe visible.
-  queueMicrotask(() => {
+  function revealSelection() { queueMicrotask(() => {
     const selected = list.querySelector('[aria-pressed="true"]');
     if (!list.isConnected || !selected) return;
     const listBox = list.getBoundingClientRect(), selectedBox = selected.getBoundingClientRect();
-    if (selectedBox.right > listBox.right) list.scrollLeft += selectedBox.right - listBox.right + 10;
-    else if (selectedBox.left < listBox.left) list.scrollLeft -= listBox.left - selectedBox.left + 10;
-  });
+    if (selectedBox.bottom > listBox.bottom) list.scrollTop += selectedBox.bottom - listBox.bottom + 10;
+    else if (selectedBox.top < listBox.top) list.scrollTop -= listBox.top - selectedBox.top + 10;
+  }); }
+  render();
+  // A rebuild can restore the prior scroll position; only reveal a hidden selection.
+  revealSelection();
   return root;
 }

@@ -1,6 +1,6 @@
 import { createNewGame } from "./new-game-domain.js";
 import { advanceSoloBattle } from "./battle-domain.js";
-import { calculatePlayerEffects, collectEquipmentAttributes, calculatePlayerCoreAttributes, sumAttributes } from "./attribute-domain.js";
+import { refreshGamePlayer } from "./player-refresh-domain.js";
 import { getCopyAccess, maximumCopyDifficulty, prepareCopyBattle } from "./copy-domain.js";
 import { payCopyEntry, settleCopyVictory, settleCopyDefeat } from "./adventure-domain.js";
 import { equipBagItem, toggleEquippedSkill } from "./loadout-domain.js";
@@ -9,15 +9,17 @@ import { createTaskBoard, recordTaskBattle, claimTask, claimDailyReward, gameDay
 import { upgradeEquipment, getOwnedEquipment } from "./upgrade-domain.js";
 import { craftItem } from "./craft-domain.js";
 import { smeltItems } from "./smelt-domain.js";
-import { upgradeSpecial, calculateSpecialAttributes } from "./special-upgrade-domain.js";
+import { upgradeSpecial } from "./special-upgrade-domain.js";
 import { upgradeGod } from "./god-upgrade-domain.js";
 import { sellBagItem, toggleBagEquipmentLock } from "./bag-item-domain.js";
-import { assignMainPet, collectMainPetAttributes, feedPet as feedOwnedPet } from "./pet-domain.js";
+import { assignMainPet, feedPet as feedOwnedPet } from "./pet-domain.js";
 import { findMaterialSources } from "./material-source-domain.js";
 import { MAX_EQUIPMENT_STRENGTH } from "./equipment-domain.js";
 import { getCopyScout } from "./copy-scout-domain.js";
+import { createOfflineRun, MAX_OFFLINE_MS } from "./offline-domain.js";
+import { runOffline } from "./offline-runner.js";
 
-export function createMonsterGameController({ catalog, store, view, random, wait, now = Date.now }) {
+export function createMonsterGameController({ catalog, store, view, random, wait, now = Date.now, calculateOffline = runOffline }) {
   let state = null;
   let active = false;
   let revision = 0;
@@ -25,6 +27,7 @@ export function createMonsterGameController({ catalog, store, view, random, wait
   let saveErrorStatus = null;
   let repeat = false;
   let battleSession = null;
+  let offlineAbort = null;
   let strengthening = false;
   const settings = { type: 1, chapterId: null, hard: 1, waves: 1, repeat: false };
   async function save() {
@@ -36,23 +39,35 @@ export function createMonsterGameController({ catalog, store, view, random, wait
     catch (error) { if (request === revision) { saveErrorStatus = error.status || null; view.saveStatus(`云端保存失败：${error.message}`, true, error.status); } return false; }
   }
   function home() { return view.home(state, catalog).catch((error) => view.notice(`界面加载失败：${error.message}`)); }
-  function refresh() {
-    const special = (item) => item.subtype === 9 ? { ...item, attributes: calculateSpecialAttributes({ item, player: state.player, catalog }) } : item;
-    state = { ...state, player: { ...state.player, equipmentSets: state.player.equipmentSets.map((set) => set.map(special)) },
-      inventory: { ...state.inventory, equipment: state.inventory.equipment.map(special) } };
-    const wing = state.inventory.wings.find((item) => item.id === state.player.wingId);
-    const equipment = [...state.player.equipmentSets[state.player.equipmentSetIndex], ...(wing ? [wing] : [])];
-    const attributes = sumAttributes([...collectEquipmentAttributes(equipment), ...collectMainPetAttributes({ state, catalog })]);
-    state = { ...state, player: { ...state.player, ...calculatePlayerCoreAttributes({ level: state.player.level, paragon: state.player.paragon, attributes }), ...calculatePlayerEffects(attributes) } };
+  function refresh() { state = refreshGamePlayer(state, catalog); }
+  function blockedByOffline() {
+    if (!state?.offlineRun) return false;
+    view.notice("请先领取离线挂机收益，再进行其他操作。");
+    return true;
   }
   async function upgradeStep(target, operation, boost) {
     const result = upgradeEquipment({ state, target, operation, boost, catalog, draw: random });
     state = result.state; refresh();
     return { ...result, saved: await save() };
   }
+  async function showOffline() {
+    if (!state?.offlineRun || active || unsaved) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
+    const serial = revision;
+    active = true;
+    try {
+      const serverNow = await store.getServerTime();
+      if (serial === revision) view.offline(state, catalog, { phase: "running", elapsedMs: Math.min(MAX_OFFLINE_MS, Math.max(0, serverNow - state.offlineRun.startedAt)) });
+    } catch (error) {
+      if (serial === revision) {
+        if ([401, 409].includes(error.status)) view.saveStatus(error.message, true, error.status);
+        else view.notice(`无法读取挂机进度：${error.message}`);
+      }
+    } finally { if (serial === revision) active = false; }
+  }
   async function startCopy(copyId, selected) {
     if (!state || active) return;
     if (unsaved) { view.notice("请先重试保存当前进度，再继续战斗。"); return; }
+    if (blockedByOffline()) return;
     let copy = catalog.copies.find((item) => item.id === copyId);
     if (!copy) { view.notice("关卡不存在"); return; }
     const locked = getCopyAccess(copy, state, catalog.chapters);
@@ -155,24 +170,24 @@ export function createMonsterGameController({ catalog, store, view, random, wait
       await save(); if (request !== revision) return; active = false;
       await home();
     },
-    continue() { if (state && !active) void home(); },
+    continue() { if (state && !active) { if (state.offlineRun) void showOffline(); else void home(); } },
     async returnToSelection() {
-      if (!state || active) return;
+      if (!state || active || blockedByOffline()) return;
       const serial = revision;
       await home();
       if (serial === revision) view.selectCopy(state, catalog, settings);
     },
     selectCopy(type) {
-      if (!state || active) return;
+      if (!state || active || blockedByOffline()) return;
       if ([1, 2, 3, 5, 6].includes(type)) settings.type = type;
       view.selectCopy(state, catalog, settings);
     },
     materialSources(itemId) {
-      if (state && !active) view.materialSources(state, catalog, itemId, findMaterialSources({ state, catalog, itemId }));
+      if (state && !active && !blockedByOffline()) view.materialSources(state, catalog, itemId, findMaterialSources({ state, catalog, itemId }));
     },
     closeMaterialSources() { view.closeMaterialSources(); },
     goToCopy(copyId, source = {}) {
-      if (!state || active) return;
+      if (!state || active || blockedByOffline()) return;
       const copy = catalog.copies.find((entry) => entry.id === copyId);
       if (!copy || ![1, 2, 3, 5, 6].includes(copy.type)) return;
       const reason = getCopyAccess(copy, state, catalog.chapters);
@@ -185,8 +200,65 @@ export function createMonsterGameController({ catalog, store, view, random, wait
       view.selectCopy(state, catalog, settings);
     },
     startCopy,
+    async startOffline(copyId, selected) {
+      if (!state || active || unsaved || blockedByOffline()) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
+      const serial = revision;
+      active = true;
+      try {
+        const serverNow = await store.getServerTime();
+        if (serial !== revision) return;
+        const seed = random() || 1;
+        state = createOfflineRun({ state, catalog, copyId, hard: Number(selected.hard), waves: Number(selected.waves), startedAt: serverNow, seed });
+        Object.assign(settings, selected, { repeat: false });
+        const saved = await save();
+        if (serial !== revision) return;
+        view.closeSelection();
+        await view.menu(true);
+        if (serial === revision) view.offline(state, catalog, { phase: "running", elapsedMs: 0,
+          ...(saved ? {} : { receipt: { message: "挂机记录未保存", saved: false, status: saveErrorStatus } }) });
+      } catch (error) {
+        if (serial === revision) {
+          if ([401, 409].includes(error.status)) view.saveStatus(error.message, true, error.status);
+          else view.notice(error.message);
+        }
+      } finally { if (serial === revision) active = false; }
+    },
+    async claimOffline() {
+      if (!state?.offlineRun || active || unsaved) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
+      const serial = revision;
+      let elapsedMs = 0;
+      let abort;
+      active = true;
+      try {
+        const serverNow = await store.getServerTime();
+        if (serial !== revision) return;
+        elapsedMs = Math.min(MAX_OFFLINE_MS, Math.max(0, serverNow - state.offlineRun.startedAt));
+        abort = new AbortController();
+        offlineAbort = abort;
+        view.offline(state, catalog, { phase: "calculating" });
+        const result = await calculateOffline({ state, catalog, serverNow, signal: abort.signal,
+          onProgress: (progress) => { if (serial === revision) view.offlineProgress(progress); } });
+        if (serial !== revision) return;
+        state = result.state;
+        const saved = await save();
+        if (serial === revision) view.offline(state, catalog, { phase: "result", summary: result.summary,
+          receipt: { message: "本次收益已结算", saved, status: saveErrorStatus } });
+      } catch (error) {
+        if (serial === revision && error.name !== "AbortError") {
+          view.offline(state, catalog, { phase: "running", elapsedMs,
+            ...([401, 409].includes(error.status) ? { receipt: { message: "无法领取挂机收益", saved: false, status: error.status } } : {}) });
+          if ([401, 409].includes(error.status)) view.saveStatus(error.message, true, error.status);
+          else view.notice(`离线收益未结算：${error.message}`);
+        }
+      } finally { if (offlineAbort === abort) offlineAbort = null; if (serial === revision) active = false; }
+    },
+    dismissOffline() {
+      if (active) return;
+      view.closeOffline();
+      if (state && !state.offlineRun) void home();
+    },
     scoutCopy(copyId, selected) {
-      if (!state || active) return;
+      if (!state || active || blockedByOffline()) return;
       const copy = catalog.copies.find((entry) => entry.id === copyId);
       if (copy) view.copyScout(state, catalog, copy, getCopyScout({ state, catalog, copy, settings: selected }), selected);
     },
@@ -194,6 +266,7 @@ export function createMonsterGameController({ catalog, store, view, random, wait
     startScoutedCopy(copyId, selected) {
       if (!state || active) return;
       if (unsaved) { view.notice("请先重试保存当前进度，再继续战斗。"); return; }
+      if (blockedByOffline()) return;
       const copy = catalog.copies.find((entry) => entry.id === copyId);
       if (!copy) return;
       const reason = getCopyAccess(copy, state, catalog.chapters);
@@ -201,19 +274,19 @@ export function createMonsterGameController({ catalog, store, view, random, wait
       view.closeCopyScout(); view.closeSelection();
       return startCopy(copyId, selected);
     },
-    workshop() { if (state && !active) view.workshop(state, catalog); },
-    godUpgrade(target) { if (state && !active) view.godUpgrade(state, catalog, target); },
+    workshop() { if (state && !active && !blockedByOffline()) view.workshop(state, catalog); },
+    godUpgrade(target) { if (state && !active && !blockedByOffline()) view.godUpgrade(state, catalog, target); },
     async performGodUpgrade(target, operation) {
-      if (!state || active || unsaved) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
+      if (!state || active || unsaved || blockedByOffline()) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
       const serial = revision; active = true;
       try { state = upgradeGod({ state, target, operation, catalog, draw: random }).state; refresh(); await save(); if (serial === revision) view.godUpgrade(state, catalog, target, operation === "upgrade" ? "神器升星完成" : "最后一星属性已更新"); }
       catch (error) { if (serial === revision) { view.godUpgrade(state, catalog, target); view.notice(error.message); } }
       finally { if (serial === revision) active = false; }
     },
-    showCraft() { if (state && !active) view.craft(state, catalog); },
-    showSmelt() { if (state && !active) view.smelt(state, catalog); },
+    showCraft() { if (state && !active && !blockedByOffline()) view.craft(state, catalog); },
+    showSmelt() { if (state && !active && !blockedByOffline()) view.smelt(state, catalog); },
     async craft(itemId) {
-      if (!state || active || unsaved) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
+      if (!state || active || unsaved || blockedByOffline()) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
       const serial = revision; active = true;
       try {
         state = craftItem({ state, itemId, catalog, draw: random }).state;
@@ -227,27 +300,27 @@ export function createMonsterGameController({ catalog, store, view, random, wait
       finally { if (serial === revision) active = false; }
     },
     async smelt(mode, selection) {
-      if (!state || active || unsaved) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
+      if (!state || active || unsaved || blockedByOffline()) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
       const serial = revision; active = true;
       try { const result = smeltItems({ state, mode, selection, catalog, draw: random }); state = result.state; await save(); if (serial === revision) view.smelt(state, catalog, result); }
       catch (error) { if (serial === revision) { view.smelt(state, catalog); view.notice(error.message); } }
       finally { if (serial === revision) active = false; }
     },
     upgrade(target) {
-      if (!state || active) return;
+      if (!state || active || blockedByOffline()) return;
       const item = (target.source === "bag" ? state.inventory.equipment : state.player.equipmentSets[state.player.equipmentSetIndex])[target.index];
       if (item?.subtype === 9) view.specialUpgrade(state, catalog, target);
       else view.upgrade(state, catalog, target);
     },
     async performSpecialUpgrade(target) {
-      if (!state || active || unsaved) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
+      if (!state || active || unsaved || blockedByOffline()) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
       const serial = revision; active = true;
       try { state = upgradeSpecial({ state, target, catalog }).state; refresh(); await save(); if (serial === revision) view.specialUpgrade(state, catalog, target, "徽章升级完成"); }
       catch (error) { if (serial === revision) { view.specialUpgrade(state, catalog, target); view.notice(error.message); } }
       finally { if (serial === revision) active = false; }
     },
     async performUpgrade(target, operation, boost) {
-      if (!state || active || unsaved) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
+      if (!state || active || unsaved || blockedByOffline()) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
       const serial = revision; active = true;
       try {
         const result = await upgradeStep(target, operation, boost);
@@ -259,7 +332,7 @@ export function createMonsterGameController({ catalog, store, view, random, wait
       finally { if (serial === revision) active = false; }
     },
     async strengthenUntil(target, targetLevel, boost) {
-      if (!state || active || unsaved) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
+      if (!state || active || unsaved || blockedByOffline()) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
       let level;
       try {
         level = getOwnedEquipment(state, target).strength;
@@ -288,7 +361,7 @@ export function createMonsterGameController({ catalog, store, view, random, wait
     },
     stopStrengthening() { strengthening = false; },
     async tasks() {
-      if (!state || active) return;
+      if (!state || active || blockedByOffline()) return;
       if (!state.taskBoard) {
         if (unsaved) { view.notice("请先重试保存当前进度。"); return; }
         const serial = revision; active = true;
@@ -299,21 +372,21 @@ export function createMonsterGameController({ catalog, store, view, random, wait
       view.tasks(state, catalog, now());
     },
     async claimTask(id) {
-      if (!state || active || unsaved) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
+      if (!state || active || unsaved || blockedByOffline()) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
       const serial = revision; active = true;
       try { state = claimTask({ state, id, catalog }); refresh(); await save(); if (serial === revision) view.tasks(state, catalog, now()); }
       catch (error) { view.notice(error.message); }
       finally { if (serial === revision) active = false; }
     },
     async claimDailyReward() {
-      if (!state || active || unsaved) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
+      if (!state || active || unsaved || blockedByOffline()) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
       const serial = revision; active = true;
       try { state = claimDailyReward({ state, catalog, draw: random, day: gameDay(now()) }); await save(); if (serial === revision) view.tasks(state, catalog, now()); }
       catch (error) { view.notice(error.message); }
       finally { if (serial === revision) active = false; }
     },
     async claimTrial() {
-      if (!state || active || unsaved) return;
+      if (!state || active || unsaved || blockedByOffline()) return;
       const serial = revision;
       active = true;
       try {
@@ -348,17 +421,17 @@ export function createMonsterGameController({ catalog, store, view, random, wait
         else if (session.exitSave && await session.exitSave && serial === revision) view.notice(`已退出战斗，已保存 ${kills} 只怪物的收益。`);
       });
     },
-    role() { if (state && !active) view.role(state, catalog); },
-    skills() { if (state && !active) view.skills(state, catalog); },
-    bag(kind) { if (state && !active) view.bag(state, catalog, kind); },
-    bagItem(target) { if (state && !active) view.bagItem(state, catalog, target); },
+    role() { if (state && !active && !blockedByOffline()) view.role(state, catalog); },
+    skills() { if (state && !active && !blockedByOffline()) view.skills(state, catalog); },
+    bag(kind) { if (state && !active && !blockedByOffline()) view.bag(state, catalog, kind); },
+    bagItem(target) { if (state && !active && !blockedByOffline()) view.bagItem(state, catalog, target); },
     pets() {
-      if (!state || active) return;
+      if (!state || active || blockedByOffline()) return;
       if (state.player.level < 35) { view.notice("宠物在 35 级开放"); return; }
       view.pets(state, catalog);
     },
     async setMainPet(target, enabled) {
-      if (!state || active || unsaved) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
+      if (!state || active || unsaved || blockedByOffline()) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
       const serial = revision; active = true;
       try {
         state = assignMainPet({ state, catalog, target, enabled }); refresh();
@@ -368,7 +441,7 @@ export function createMonsterGameController({ catalog, store, view, random, wait
       finally { if (serial === revision) active = false; }
     },
     async feedPet(target, quantity) {
-      if (!state || active || unsaved) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
+      if (!state || active || unsaved || blockedByOffline()) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
       const serial = revision; active = true;
       try {
         state = feedOwnedPet({ state, catalog, target, quantity }); refresh();
@@ -381,7 +454,7 @@ export function createMonsterGameController({ catalog, store, view, random, wait
       finally { if (serial === revision) active = false; }
     },
     async sellItem(target, quantity) {
-      if (!state || active || unsaved) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
+      if (!state || active || unsaved || blockedByOffline()) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
       const serial = revision; active = true;
       try {
         const result = sellBagItem({ state, target, quantity, catalog }); state = result.state;
@@ -391,7 +464,7 @@ export function createMonsterGameController({ catalog, store, view, random, wait
       finally { if (serial === revision) active = false; }
     },
     async toggleItemLock(target) {
-      if (!state || active || unsaved) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
+      if (!state || active || unsaved || blockedByOffline()) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
       const serial = revision; active = true;
       try {
         state = toggleBagEquipmentLock({ state, target, catalog });
@@ -401,7 +474,7 @@ export function createMonsterGameController({ catalog, store, view, random, wait
       finally { if (serial === revision) active = false; }
     },
     async toggleSkill(id) {
-      if (!state || active || unsaved) return false;
+      if (!state || active || unsaved || blockedByOffline()) return false;
       const request = revision;
       try {
         state = toggleEquippedSkill(state, id, catalog.skills); active = true;
@@ -410,7 +483,7 @@ export function createMonsterGameController({ catalog, store, view, random, wait
       finally { if (request === revision) active = false; }
     },
     async equip(index) {
-      if (!state || active || unsaved) return;
+      if (!state || active || unsaved || blockedByOffline()) return;
       const request = revision;
       try { state = equipBagItem(state, index, catalog); refresh(); active = true; await save(); if (request === revision) view.bag(state, catalog, "equipment"); }
       catch (error) { view.notice(error.message); }
@@ -418,6 +491,6 @@ export function createMonsterGameController({ catalog, store, view, random, wait
     },
     save() { if (state && !active) return save(); },
     getSaveErrorStatus() { return saveErrorStatus; },
-    destroy() { revision += 1; if (battleSession?.cancelled) view.exitPending(false); battleSession?.cancel(); battleSession = null; active = false; repeat = false; strengthening = false; view.repeatStatus(false); },
+    destroy() { revision += 1; if (offlineAbort) { offlineAbort.abort(); offlineAbort = null; view.resetOffline(); } if (battleSession?.cancelled) view.exitPending(false); battleSession?.cancel(); battleSession = null; active = false; repeat = false; strengthening = false; view.repeatStatus(false); },
   };
 }

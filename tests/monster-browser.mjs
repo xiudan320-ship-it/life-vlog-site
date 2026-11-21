@@ -46,16 +46,18 @@ let keyboardChecked = false;
 const artifacts = resolve("artifacts/monster");
 await mkdir(artifacts, { recursive: true });
 
-async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, saveStatus = 0, defeat = false, trial = false, trialRewards = false, workshop = false, retention = false, navigation = false, petParty = false, petGrowth = false, petCare = false, colorScheme = "dark", reducedMotion = "no-preference" } = {}) {
+async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, saveStatus = 0, defeat = false, trial = false, trialRewards = false, workshop = false, retention = false, navigation = false, offline = false, petParty = false, petGrowth = false, petCare = false, colorScheme = "dark", reducedMotion = "no-preference" } = {}) {
   const context = await browser.newContext({ ...(iphone13 ? devices["iPhone 13"] : {}), viewport: { width: 390, height: 844 }, screen: { width: 390, height: 844 }, colorScheme, reducedMotion });
   contexts.push(context);
   context.on("requestfailed", (request) => requestFailures.push({ url: request.url(), error: request.failure()?.errorText }));
   const fixture = createWorkerFixture({ origin });
-  if (trial || workshop || retention || navigation || petParty || petGrowth || petCare) {
+  if (offline) fixture.serverTime = Date.UTC(2026, 0, 1);
+  if (trial || workshop || retention || navigation || offline || petParty || petGrowth || petCare) {
     const [items, skills] = await Promise.all(["item", "skill"].map(async (name) => JSON.parse(await readFile(resolve(root, `monster/data/${name}.json`), "utf8"))));
     const seed = createNewGame({ items, skills }); seed.player.name = "功能测试勇者";
-    if (trial || navigation) { seed.player.level = 80; seed.player.equipmentSets[0][0].attributes.push(...[1, 2, 3, 4].map((type) => ({ type, value: 10000000 }))); }
+    if (trial || navigation || offline) { seed.player.level = 80; seed.player.equipmentSets[0][0].attributes.push(...[1, 2, 3, 4].map((type) => ({ type, value: 10000000 }))); }
     if (navigation) { seed.progress.chapterId = 3; seed.progress.levelId = 5; }
+    if (offline) { seed.progress.levelId = 2; seed.progress.copies.push({ id: 1001, value: 1 }); }
     if (petParty || petGrowth || petCare) {
       const rows = JSON.parse(await readFile(resolve(root, "monster/data/pet.json"), "utf8"));
       seed.player.level = 35;
@@ -114,7 +116,12 @@ async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, sa
       if (request.method() === "PUT" && await page.evaluate(() => window.monsterFixtureBlockSave)) return route.fulfill({ status: 503, headers: { "access-control-allow-origin": origin }, contentType: "application/json", body: JSON.stringify({ error: "fixture save failure" }) });
       if (request.method() === "PUT" && saveStatus) return route.fulfill({ status: saveStatus, headers: { "access-control-allow-origin": origin }, contentType: "application/json", body: JSON.stringify({ error: "fixture account/version recovery" }) });
       const response = await worker.fetch(new Request(request.url(), { method: request.method(), headers: request.headers(), ...(request.postData() ? { body: request.postData() } : {}) }), fixture.env);
-      return route.fulfill({ status: response.status, headers: Object.fromEntries(response.headers), body: await response.text() });
+      const body = await response.text();
+      if (request.method() === "GET" && response.ok && fixture.serverTime !== undefined) {
+        return route.fulfill({ status: response.status, headers: Object.fromEntries(response.headers),
+          body: JSON.stringify({ ...JSON.parse(body), serverTime: new Date(fixture.serverTime).toISOString() }) });
+      }
+      return route.fulfill({ status: response.status, headers: Object.fromEntries(response.headers), body });
     }
     if (new URL(route.request().url()).origin !== origin) { external.push(route.request().url()); return route.abort(); }
     return route.continue();
@@ -207,7 +214,56 @@ async function accessible(page) {
     .map(({ id, nodes }) => ({ id, targets: nodes.map(({ target }) => target) }));
   assert.deepEqual(failures, []);
 }
+async function checkOfflineRun() {
+  const page = await pageFor({ offline: true, roll: 123456789, reducedMotion: "reduce" });
+  const fixture = fixtures.get(page), startedAt = fixture.serverTime;
+  const workers = [];
+  page.on("worker", (worker) => workers.push(worker.url()));
+  await page.locator("#monsterEnter").click(); await stage(page, "home");
+  await page.locator("#monsterAdventure").click();
+  const idleMode = page.getByRole("button", { name: "选择离线挂机" });
+  if (iphone13) await idleMode.tap(); else await idleMode.click();
+  assert.equal(await page.getByRole("button", { name: "取消选择" }).evaluate((node) => getComputedStyle(node).outlineStyle), "none", "touch/click should not leave a focus frame");
+  await page.locator('[data-copy-id="1002"]').click();
+  await page.locator("#monsterToast").filter({ hasText: "请先通关" }).waitFor();
+  assert.equal((await saved(page)).offlineRun, undefined);
+  await page.locator('[data-copy-id="1001"]').click();
+  await page.locator('[data-offline-phase="running"]').waitFor();
+  const running = await saved(page);
+  assert.deepEqual(running.offlineRun, { copyId: 1001, hard: 1, waves: 1, startedAt, seed: 123456789 });
+  await noOverflow(page); await accessible(page);
+  await page.reload(); await stage(page, "menu");
+  await page.locator("#monsterEnter").click();
+  await page.locator('[data-offline-phase="running"]').waitFor();
+  assert.deepEqual((await saved(page)).offlineRun, running.offlineRun);
+  fixture.serverTime = startedAt + 40 * 60 * 60 * 1000;
+  await page.evaluate(() => { window.monsterFixtureBlockSave = true; });
+  await page.locator('[data-offline-claim]').click();
+  await page.locator('[data-offline-phase="result"]').waitFor({ timeout: 60000 });
+  assert.ok(workers.some((url) => /monster-offline-worker/.test(url)), `offline settlement must use a Web Worker: ${workers}`);
+  assert.match(await page.locator('.monster-offline-stats').textContent(), /累计时间\s*20小时 0分 0秒/);
+  assert.equal(await page.locator('[data-offline-reason="cap"]').count(), 1);
+  assert.match(await page.locator('.monster-offline-feedback').textContent(), /云端尚未保存/);
+  assert.deepEqual(await saved(page), running, "failed claim save must leave the account cloud record unchanged");
+  await page.evaluate(() => { window.monsterFixtureBlockSave = false; });
+  await page.locator('[data-save-feedback-retry]').click();
+  await page.locator('.monster-offline-feedback').filter({ hasText: "已保存到云端" }).waitFor();
+  await noOverflow(page); await accessible(page);
+  await page.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-offline-result.png" : "offline-result.png") });
+  const settled = await saved(page);
+  assert.equal(settled.offlineRun, undefined);
+  assert.ok(settled.gold > running.gold, "settlement should persist earned rewards");
+  assert.ok(settled.progress.copies.find((row) => row.id === 1001).value > 1);
+  await page.locator('[data-offline-dismiss]').click(); await stage(page, "home");
+  await page.reload(); await stage(page, "menu");
+  await page.locator("#monsterEnter").click(); await stage(page, "home");
+  assert.deepEqual(await saved(page), settled, "reopening must not award the same run twice");
+  await page.context().close();
+  console.log(`Offline ${browserType.name()} passed: account cloud save, server clock cap, Web Worker, reopen, claim and retry.`);
+}
 try {
+  await checkOfflineRun();
+  if (!process.argv.includes("--offline-only")) {
   const manifest = await readWorkboxManifest(resolve(root, "sw.js"));
   assert.ok(!manifest.some(({ url }) => /^\/?(?:monster(?:\/|\.html)|assets\/monster-)/.test(url)), "game resources must stay out of home precache");
   const index = await readFile(resolve(root, "index.html"), "utf8");
@@ -470,12 +526,17 @@ try {
   await navigationPage.locator(".monster-copy-viewport").evaluate((node) => { node.scrollTop = 250; });
   await navigationPage.waitForTimeout(50);
   const reopenPosition = await navigationPage.locator(".monster-copy-viewport").evaluate((node) => node.scrollTop);
+  assert.ok(reopenPosition > 0, "reopening must exercise a nonzero map scroll position");
   await navigationPage.locator("#monsterDetailsClose").click(); await navigationPage.locator("#monsterAdventure").click();
   assert.equal(await navigationPage.locator(".monster-copy-viewport").evaluate((node) => node.scrollTop), reopenPosition);
   await navigationPage.locator('[data-chapter-id="2"]').click();
   const challenge = navigationPage.locator('[data-copy-id="1010"]');
-  await challenge.scrollIntoViewIfNeeded();
+  await challenge.evaluate((node) => {
+    const viewport = node.closest(".monster-copy-viewport");
+    viewport.scrollTop = Math.max(1, node.closest(".monster-copy-row").offsetTop - 16);
+  });
   await navigationPage.locator(".monster-chapter-rail").evaluate((rail) => { rail.scrollLeft = 400; });
+  await navigationPage.waitForTimeout(50);
   const mapPosition = await navigationPage.evaluate(() => ({
     top: document.querySelector(".monster-copy-viewport").scrollTop,
     left: document.querySelector(".monster-chapter-rail").scrollLeft,
@@ -1163,6 +1224,7 @@ try {
   assert.deepEqual(external, []);
   assert.deepEqual(errors, []);
   console.log(`Monster ${browserType.name()} passed: main-pet stats/assignment, bag sales/decomposition/locking, trial, tasks, workshop upgrades, crafting, smelting, badges, god upgrades, result navigation, cloud save and retry, responsive layout, accessibility, CSP and resource isolation.`);
+  }
 } catch (error) {
   for (const page of fixtures.keys()) {
     if (!page.isClosed()) console.error(await page.locator("#monsterStatus").textContent().catch(() => "Status unavailable"));

@@ -35,6 +35,14 @@ export function validateMonsterSave(state) {
     || pet.care.loyalty > 100 || !integer(pet.care.killCount) || pet.care.killCount >= 600))) {
     throw new TypeError("宠物忠诚存档数据不完整，请保留原存档并重试。");
   }
+  if (state.offlineRun !== undefined) {
+    const run = state.offlineRun;
+    if (!run || !integer(run.copyId, 1) || !integer(run.hard, 1) || run.hard > 6
+      || !integer(run.waves, 1) || run.waves > 100 || !integer(run.startedAt, 1)
+      || !integer(run.seed, 1) || run.seed > 0x7fffffff) {
+      throw new TypeError("离线挂机记录无效，请保留原存档并重试。");
+    }
+  }
   if (state.trial !== undefined) {
     const trial = state.trial;
     const validReward = (item) => item && integer(item.id, 1) && [1, 2, 3].includes(item.type);

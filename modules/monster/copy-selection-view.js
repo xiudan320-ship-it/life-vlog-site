@@ -29,7 +29,7 @@ function bindCopyPress(button, start, scout) {
   });
 }
 
-export function renderCopySelection({ content, state, catalog, settings, onStart, onScout, onClaim }) {
+export function renderCopySelection({ content, state, catalog, settings, onStart, onScout, onClaim, onOffline }) {
   content.className = "monster-adventure-content";
   const previous = settings.progressAtStart;
   const previousChapter = previous && catalog.chapters.find((chapter) => chapter.id === previous.chapterId);
@@ -41,8 +41,18 @@ export function renderCopySelection({ content, state, catalog, settings, onStart
     settings.chapterId = state.progress.chapterId; settings.scrollTop = undefined; settings.chapterScrollLeft = undefined;
   }
   const overview = element("div", undefined, "monster-adventure-overview");
-  overview.append(element("strong", `当前战力 ${referencePower(state.player).toLocaleString("zh-CN")}`),
-    element("span", "点按挑战 · 长按查看详情"));
+  const hint = element("span", "点按挑战 · 长按查看详情");
+  const offline = element("button", "选择离线挂机", "monster-idle-mode");
+  offline.type = "button";
+  let idleMode = false;
+  function updateIdleMode() {
+    offline.hidden = settings.type === 6;
+    offline.setAttribute("aria-pressed", String(idleMode));
+    offline.textContent = idleMode ? "取消选择" : "选择离线挂机";
+    hint.textContent = idleMode ? "点已通关关卡 · 上限20小时" : "点按挑战 · 长按查看详情";
+  }
+  offline.onclick = () => { idleMode = !idleMode; settings.scrollTop = viewport.scrollTop; render(); };
+  overview.append(element("strong", `当前战力 ${referencePower(state.player).toLocaleString("zh-CN")}`), hint, offline);
   const categories = element("nav", undefined, "monster-category-tabs");
   categories.setAttribute("aria-label", "冒险类型");
   const chapterRail = element("nav", undefined, "monster-chapter-rail");
@@ -69,11 +79,11 @@ export function renderCopySelection({ content, state, catalog, settings, onStart
   viewport.addEventListener("scroll", () => { settings.scrollTop = viewport.scrollTop; });
   chapterRail.addEventListener("scroll", () => { settings.chapterScrollLeft = chapterRail.scrollLeft; });
   const info = element("details", undefined, "monster-copy-info");
-  info.append(element("summary", "冒险说明"), element("p", "地图首通固定普通单波。每场结算后保存，战败保留已击杀怪物的收益并停止，不计通关或里程碑奖励。连续战斗需要保持游戏打开，暂不支持离线挂机。试炼可逐层挑战并按累计积分结算奖励。"));
+  info.append(element("summary", "冒险说明"), element("p", "地图首通固定普通单波。每场结算后保存，战败保留已击杀怪物的收益并停止，不计通关或里程碑奖励。连续战斗需要保持游戏打开；离线挂机需选择已通关关卡，最长 20 小时。试炼可逐层挑战并按累计积分结算奖励。"));
   for (const [type, name, icon] of [[1, "地图", "img_level.png"], [2, "副本", "main_btn_copy.png"], [5, "深渊", "main_btn_abyss.png"], [6, "试炼", "main_btn_achieve.png"], [3, "遭遇", "main_btn_god.png"]]) {
     const tab = element("button", undefined, "monster-category"); tab.type = "button"; tab.dataset.copyType = type; tab.setAttribute("aria-label", name);
     tab.append(picture("ui/btn/" + icon), element("span", name));
-    tab.onclick = () => { settings.type = type; settings.scrollTop = undefined; render(); }; categories.append(tab);
+    tab.onclick = () => { settings.type = type; if (type === 6) idleMode = false; settings.scrollTop = undefined; render(); }; categories.append(tab);
   }
   settings.chapterId ||= state.progress.chapterId;
   for (const chapter of catalog.chapters) {
@@ -89,6 +99,7 @@ export function renderCopySelection({ content, state, catalog, settings, onStart
   form.onsubmit = (event) => event.preventDefault();
   form.onchange = () => { settings.hard = Number(hard.value); settings.waves = Number(waves.value); settings.repeat = auto.checked; settings.scrollTop = viewport.scrollTop; render(); };
   function render() {
+    updateIdleMode();
     for (const tab of categories.children) tab.setAttribute("aria-pressed", String(Number(tab.dataset.copyType) === settings.type));
     for (const tab of chapterRail.children) tab.setAttribute("aria-current", String(Number(tab.dataset.chapterId) === settings.chapterId));
     chapterRail.hidden = settings.type !== 1;
@@ -108,23 +119,23 @@ export function renderCopySelection({ content, state, catalog, settings, onStart
     const map = settings.type === 1;
     list.className = map ? "monster-copy-list monster-map" : "monster-copy-list monster-dungeon-grid";
     if (map) {
-      const height = rows.length * 170 + 30;
+      const height = rows.length * 110 + 10;
       list.style.height = height + "px";
       const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
       svg.setAttribute("viewBox", `0 0 100 ${height}`); svg.setAttribute("preserveAspectRatio", "none"); svg.setAttribute("aria-hidden", "true");
       const path = document.createElementNS(svg.namespaceURI, "polyline");
-      path.setAttribute("points", rows.map((_, i) => `${i % 2 ? 73 : 27},${i * 170 + 64}`).join(" "));
+      path.setAttribute("points", rows.map((_, i) => `${i % 2 ? 73 : 27},${i * 110 + 38}`).join(" "));
       svg.append(path); list.append(svg);
     } else list.style.height = "";
     rows.forEach((copy, index) => {
       const reason = getCopyAccess(copy, state, catalog.chapters);
       const scout = getCopyScout({ state, catalog, copy, settings });
       const row = element("div", undefined, "monster-copy-row");
-      if (map) { row.style.left = index % 2 ? "73%" : "27%"; row.style.top = `${index * 170 + 12}px`; }
+      if (map) { row.style.left = index % 2 ? "73%" : "27%"; row.style.top = `${index * 110 + 8}px`; }
       const button = element("button", undefined, map ? "monster-map-node" : "monster-dungeon-card monster-original-panel");
       button.type = "button"; button.dataset.copyId = copy.id;
       if (reason) button.dataset.locked = "true";
-      button.setAttribute("aria-label", `${copy.name}${reason ? `，${reason}` : "，点击挑战，长按查看详情"}`); button.title = reason || copy.name;
+      button.setAttribute("aria-label", `${copy.name}${reason ? `，${reason}` : idleMode ? "，选择离线挂机，长按查看详情" : "，点击挑战，长按查看详情"}`); button.title = reason || copy.name;
       const enemy = catalog.enemies.find((entry) => entry.id === copy.enemyid1);
       const image = picture("enemy/" + enemy.img, "", "monster-copy-enemy"); image.loading = "lazy"; button.append(image);
       if (reason) button.append(picture("img/lock.png", "", "monster-copy-lock"));
@@ -133,7 +144,7 @@ export function renderCopySelection({ content, state, catalog, settings, onStart
       const selected = () => ({ ...settings, lastCopyId: copy.id,
         progressAtStart: { chapterId: state.progress.chapterId, levelId: state.progress.levelId },
         scrollTop: viewport.scrollTop, chapterScrollLeft: chapterRail.scrollLeft });
-      bindCopyPress(button, () => onStart(copy.id, selected()), () => onScout(copy.id, selected()));
+      bindCopyPress(button, () => idleMode ? onOffline(copy.id, selected()) : onStart(copy.id, selected()), () => onScout(copy.id, selected()));
       const details = element("button", "ⓘ", "monster-copy-details");
       details.type = "button"; details.dataset.copyDetails = copy.id;
       details.setAttribute("aria-label", `查看${copy.name}的详情及战力对比`);

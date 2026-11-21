@@ -5,6 +5,7 @@ import "./upgrade.css";
 import { createMonsterSaveStore } from "./save-store.js";
 import { createMonsterGameController } from "./game-controller.js";
 import { createMonsterGameView } from "./game-view.js";
+import { addPortDrops } from "./port-drop-domain.js";
 import { APP_CONFIG } from "../app-config.js";
 import { createCloudflareBackend } from "../cloudflare-client.js";
 
@@ -39,7 +40,7 @@ async function boot() {
   await new Promise((resolve) => { globalThis.cc.game.onStart = resolve; globalThis.cc.game.run(); });
   const view = createMonsterGameView({ warView });
   const controller = createMonsterGameController({
-    catalog: { items, enemies, skills, copies: copies.map((copy) => ({ ...copy, dropGroups: dropGroups[copy.id] })), chapters, equipmentTemplates, trials, pets, tasks, make },
+    catalog: { items, enemies, skills, copies: addPortDrops(copies, dropGroups), chapters, equipmentTemplates, trials, pets, tasks, make },
     store: createMonsterSaveStore({ request: backend.request, getSession: backend.readSession }), view,
     random() { const value = new Uint32Array(1); crypto.getRandomValues(value); return value[0] & 0x7fffffff; },
     wait: (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)),

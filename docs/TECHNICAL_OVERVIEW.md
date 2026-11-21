@@ -211,7 +211,11 @@ pnpm preview
 
 `monster.html` 是独立的第二页面入口，由首页工具区进入，仅该页加载 `modules/monster/entry.js`、独立游戏样式、固定版 Cocos2d HTML5 引擎和 APK 原资源。构建保留原生 modulepreload 链接，关闭其额外 polyfill，避免多页面构建让首页新增一条共享兼容脚本请求。`public/monster/` 直接复制到构建产物，不导入首页模块图；`monster.html`、游戏 JS/CSS 和原资源全部排除出首页预缓存，工具入口图标仍按普通 UI 资源缓存。登录后开放全目录选关、单角色技能战斗、掉落及前台连续战斗；试炼支持三档难度、逐层推进、累计积分与结束领奖。尚未提供游戏完整离线缓存或 iOS 原生安装包，各迁移边界与验收见 `monster-port-status.md`。
 
-游戏入口复用宿主认证键与会话备份，API 地址统一取 `APP_CONFIG.apiEndpoint`。`GET /api/monster/save` 返回当前用户的 `{userId, revision, updatedAt, state}`，无档时为 revision 0、state null；`PUT` 提交 `{expectedRevision, state}`，响应递增后的版本。Worker 在认证后以服务器 user.id 读写 D1 `monster_saves(user_id PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, state_json CHECK(json_valid), revision CHECK(revision >= 1), updated_at)`，不接受客户端指定归属，也不授予同家庭成员访问。写入上限 1 MiB；首次 INSERT 和后续 UPDATE 使用原子 revision 条件，冲突为 409。
+游戏入口复用宿主认证键与会话备份，API 地址统一取 `APP_CONFIG.apiEndpoint`。`GET /api/monster/save` 返回当前用户的 `{userId, revision, updatedAt, state, serverTime}`，其中 `serverTime` 是服务器当前 ISO 时间，无档时为 revision 0、state null；`PUT` 提交 `{expectedRevision, state}`，响应递增后的版本。Worker 在认证后以服务器 user.id 读写 D1 `monster_saves(user_id PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, state_json CHECK(json_valid), revision CHECK(revision >= 1), updated_at)`，不接受客户端指定归属，也不授予同家庭成员访问。写入上限 1 MiB；首次 INSERT 和后续 UPDATE 使用原子 revision 条件，冲突为 409。
+
+离线挂机是新增模拟玩法，不是服务器后台持续运行战斗。玩家先通关目标地图、副本、深渊或特殊首领，再以所选难度／波数开启；账号云档保存 `offlineRun: { copyId, hard, waves, startedAt, seed }`，开始与领取均通过已认证 GET 获取服务器时间并检查账号、会话和当前 revision。领取时以服务器时间差计算最多 20 小时，在客户端 Web Worker 中用保存的种子重放现有战斗、任务和奖励规则，结果与结束标记同次 CAS 保存；失败重试现有结果，409 须重新载入。战败保留已击杀收益并停止；副本卷轴不足或接近 1 MiB 存档容量时提前停止，未完成的部分不算通关。时间上限、动作耗时与种子属于移植规则；客户端模拟和可提交状态并非服务器端防作弊。挂机记录可跨关闭页面保留，但开始与领取需要联网，不能视为完整离线安装。
+
+`port-drop-domain.js` 在目录装配时为恐惧地牢、狼人巢穴和魔龙血域补充 10 种原配方所需徽章，战斗与材料来源查询复用同一份运行时掉落组；原始 APK 目录不变。这些补充及其概率是移植平衡，并非原版概率。已开放的深渊层可重复挑战，故现有深渊材料并不依赖尚未接通的原版每日重置。
 
 试炼的可选字段 `state.trial` 在首次进入时创建，保存难度、待挑战层数、累计积分、每档最高分、状态和领奖收据。`ready` 可续层，`ended` 待领奖，`claimed` 已结算；奖励和背包在同一次 revision 写入，失败重试不重抽。账号无试炼字段表示尚未参加，不导入旧设备进度。宠物奖励保存持有记录，35 级后可选择唯一主宠提供核心属性加成。
 

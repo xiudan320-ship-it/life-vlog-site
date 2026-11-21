@@ -6,7 +6,7 @@ export async function handleMonsterSave(request, env, user, respond) {
   if (request.method === "GET") {
     const row = await env.DB.prepare("select state_json, revision, updated_at from monster_saves where user_id=?")
       .bind(user.id).first();
-    return respond({ userId: user.id, revision: row?.revision || 0, updatedAt: row?.updated_at || null, state: row ? JSON.parse(row.state_json) : null });
+    return respond({ userId: user.id, revision: row?.revision || 0, updatedAt: row?.updated_at || null, state: row ? JSON.parse(row.state_json) : null, serverTime: new Date().toISOString() });
   }
   if (request.method !== "PUT") throw new WorkerHttpError(405, "Method not allowed.");
   const text = await request.text();

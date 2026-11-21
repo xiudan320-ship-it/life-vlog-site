@@ -4,6 +4,10 @@ function accountChanged() {
   return Object.assign(new Error("登录账号已变更，请重新进入游戏。"), { code: "ACCOUNT_CHANGED", status: 401 });
 }
 
+function revisionConflict() {
+  return Object.assign(new Error("云存档已被另一台设备更新，请重新载入后继续。"), { status: 409 });
+}
+
 // Cloud is authoritative. No device-global save or offline write fallback.
 export function createMonsterSaveStore({ request, getSession }) {
   let session;
@@ -31,6 +35,19 @@ export function createMonsterSaveStore({ request, getSession }) {
       if (result.state !== null) validateMonsterSave(result.state);
       revision = result.revision;
       return result.state;
+    },
+    async getServerTime() {
+      assertAccount();
+      if (revision === null) throw new Error("请先载入云存档。");
+      if (writing) throw revisionConflict();
+      const loadedSession = session;
+      const loadedRevision = revision;
+      const result = await send({});
+      if (session !== loadedSession) throw accountChanged();
+      if (writing || revision !== loadedRevision || result.revision !== loadedRevision) throw revisionConflict();
+      const value = typeof result.serverTime === "string" ? Date.parse(result.serverTime) : NaN;
+      if (!Number.isSafeInteger(value) || new Date(value).toISOString() !== result.serverTime) throw new Error("服务器时间无效，请重试。");
+      return value;
     },
     async save(state) {
       assertAccount();

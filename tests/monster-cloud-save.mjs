@@ -23,7 +23,9 @@ test("cloud game saves isolate family accounts and compare revisions atomically"
   const fixture = createWorkerFixture();
   try {
     assert.equal((await request(fixture, "missing")).status, 401);
-    assert.deepEqual((await request(fixture, "owner")).body, { userId: "owner", revision: 0, updatedAt: null, state: null });
+    const first = (await request(fixture, "owner")).body;
+    assert.deepEqual({ ...first, serverTime: undefined }, { userId: "owner", revision: 0, updatedAt: null, state: null, serverTime: undefined });
+    assert.equal(new Date(first.serverTime).toISOString(), first.serverTime);
     assert.equal((await request(fixture, "owner", "PUT", { expectedRevision: 0, state: state(), userId: "member" })).status, 200);
     assert.equal((await request(fixture, "member")).body.state, null);
     assert.equal((await request(fixture, "owner")).body.state.gold, 1117);
@@ -34,6 +36,28 @@ test("cloud game saves isolate family accounts and compare revisions atomically"
     assert.equal((await request(fixture, "member")).body.revision, 0);
     assert.equal((await request(fixture, "owner", "PUT", { expectedRevision: 2, state: {} })).status, 400);
     assert.equal((await request(fixture, "owner")).body.revision, 2);
+  } finally { fixture.close(); }
+});
+
+test("offline runs and their one-time settlement are isolated and revision protected", async () => {
+  const fixture = createWorkerFixture();
+  try {
+    const run = { ...state(), offlineRun: { copyId: 1001, hard: 1, waves: 1, startedAt: 1700000000000, seed: 12345 } };
+    assert.equal((await request(fixture, "owner", "PUT", { expectedRevision: 0, state: run })).status, 200);
+    assert.deepEqual((await request(fixture, "owner")).body.state.offlineRun, run.offlineRun);
+    assert.equal((await request(fixture, "member")).body.state, null);
+    assert.equal((await request(fixture, "owner", "PUT", { expectedRevision: 1, state: { ...run, offlineRun: { ...run.offlineRun, seed: 0 } } })).status, 400);
+    assert.equal((await request(fixture, "owner")).body.revision, 1);
+    const { offlineRun, ...completed } = run;
+    const writes = await Promise.all([200, 300].map((reward) => request(fixture, "owner", "PUT", {
+      expectedRevision: 1, state: { ...completed, gold: completed.gold + reward },
+    })));
+    assert.deepEqual(writes.map((result) => result.status).sort(), [200, 409]);
+    const saved = (await request(fixture, "owner")).body;
+    assert.equal(saved.revision, 2);
+    assert.equal(saved.state.offlineRun, undefined);
+    assert.ok([1317, 1417].includes(saved.state.gold));
+    assert.equal((await request(fixture, "member")).body.state, null);
   } finally { fixture.close(); }
 });
 

@@ -14,6 +14,7 @@ import { renderPets } from "./pet-view.js";
 import { renderMaterialSources } from "./material-source-view.js";
 import { renderCopyScout } from "./copy-scout-view.js";
 import { referencePower } from "./copy-scout-domain.js";
+import { renderOffline } from "./offline-view.js";
 
 const assets = "/monster/assets/";
 
@@ -39,6 +40,7 @@ export function createMonsterGameView({ warView }) {
   let phase = "loading";
   let repeating = false;
   let exitPending = false;
+  let offlineBusy = false;
   let saveErrorStatus = null;
   let serial = 0;
   let nodes = new Map();
@@ -385,8 +387,25 @@ export function createMonsterGameView({ warView }) {
   function selectCopy(state, catalog, settings) {
     document.getElementById("monsterItemDetails").close();
     const content = details("选择关卡", controls.Adventure);
-    renderCopySelection({ content, state, catalog, settings, onStart: (copyId, selected) => actions.startScoutedCopy(copyId, selected), onScout: (copyId, selected) => actions.scoutCopy(copyId, selected), onClaim: () => actions.claimTrial() });
+    renderCopySelection({ content, state, catalog, settings, onStart: (copyId, selected) => actions.startScoutedCopy(copyId, selected), onOffline: (copyId, selected) => actions.startOffline(copyId, selected), onScout: (copyId, selected) => actions.scoutCopy(copyId, selected), onClaim: () => actions.claimTrial() });
   }
+  function offline(state, catalog, options) {
+    offlineBusy = options.phase === "calculating";
+    document.getElementById("monsterDetailsClose").disabled = offlineBusy;
+    renderOffline({ content: details("离线挂机", controls.Enter), state, catalog, actions, ...options });
+  }
+  function offlineProgress(value) {
+    const root = document.querySelector('[data-offline-phase="calculating"]');
+    if (!root) return;
+    const fraction = Math.max(0, Math.min(1, Number(value) || 0));
+    const bar = root.querySelector("progress");
+    const label = root.querySelector(".monster-offline-progress-label");
+    const percent = Math.floor(fraction * 20) * 5;
+    bar.value = fraction;
+    if (label.dataset.percent !== String(percent)) { label.dataset.percent = String(percent); label.textContent = `正在计算 ${percent}%`; }
+  }
+  function closeOffline() { offlineBusy = false; document.getElementById("monsterDetailsClose").disabled = false; document.getElementById("monsterDetails").close(); }
+  function resetOffline() { closeOffline(); }
   function copyScout(state, catalog, copy, scout, selected) {
     const dialog = document.getElementById("monsterItemDetails");
     const content = dialog.querySelector(".monster-item-information"); content.replaceChildren();
@@ -435,7 +454,7 @@ export function createMonsterGameView({ warView }) {
   function specialUpgrade(state, catalog, target, receipt) { renderSpecialUpgrade({ content: details("徽章升级", controls.Role), state, catalog, target, actions, receipt }); }
   function godUpgrade(state, catalog, target, receipt) { renderGodUpgrade({ content: details("神器培养", controls.Role), state, catalog, target, actions, receipt }); }
   return {
-    menu, home, updateHome, battle, battleUpdate, result, role, bag, bagItem, pets, skills, selectCopy, copyScout, closeCopyScout, closeSelection, trial, tasks, workshop, upgrade, updateUpgrade, craft, materialSources, closeMaterialSources, smelt, specialUpgrade, godUpgrade, notice,
+    menu, home, updateHome, battle, battleUpdate, result, role, bag, bagItem, pets, skills, selectCopy, offline, offlineProgress, closeOffline, resetOffline, copyScout, closeCopyScout, closeSelection, trial, tasks, workshop, upgrade, updateUpgrade, craft, materialSources, closeMaterialSources, smelt, specialUpgrade, godUpgrade, notice,
     repeatStatus(enabled) { repeating = enabled; document.getElementById("monsterStop").hidden = !enabled; stage(phase); },
     exitPending(enabled) { exitPending = enabled; stage(phase); },
     loadError(message) { stage("error"); statusMessage(message); },
@@ -466,7 +485,8 @@ export function createMonsterGameView({ warView }) {
       document.getElementById("monsterNewCancel").onclick = () => document.getElementById("monsterNewGame").close();
       document.getElementById("monsterNewGame").addEventListener("close", () => controls.Enter.focus());
       document.getElementById("monsterNewGameForm").onsubmit = (event) => { event.preventDefault(); const name = document.getElementById("monsterName").value.trim(); if (!name) return; hasSave = true; document.getElementById("monsterNewGame").close(); actions.create(name); };
-      document.getElementById("monsterDetailsClose").onclick = () => document.getElementById("monsterDetails").close();
+      document.getElementById("monsterDetailsClose").onclick = () => { if (!offlineBusy) document.getElementById("monsterDetails").close(); };
+      document.getElementById("monsterDetails").addEventListener("cancel", (event) => { if (offlineBusy) event.preventDefault(); });
       document.getElementById("monsterDetails").addEventListener("close", () => actions.stopStrengthening());
     },
   };
