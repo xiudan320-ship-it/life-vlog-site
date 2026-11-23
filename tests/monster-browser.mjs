@@ -70,7 +70,13 @@ async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, sa
     }
     if (trial || navigation || offline) { seed.player.level = 80; seed.player.equipmentSets[0][0].attributes.push(...[1, 2, 3, 4].map((type) => ({ type, value: 10000000 }))); }
     if (navigation) { seed.progress.chapterId = 3; seed.progress.levelId = 5; }
-    if (offline) { seed.progress.levelId = 2; seed.progress.copies.push({ id: 1001, value: 1 }); }
+    if (offline) {
+      seed.progress.levelId = 2; seed.progress.copies.push({ id: 1001, value: 1 });
+      if (sidePets) {
+        seed.inventory.pets[1].partyRole = 2; seed.inventory.pets[1].experience = 14999;
+        seed.player.equipmentSets[0][0].attributes.push({ type: 10, value: 1000 });
+      }
+    }
     if (petParty || petGrowth || petCare) {
       const rows = JSON.parse(await readFile(resolve(root, "monster/data/pet.json"), "utf8"));
       seed.player.level = 35;
@@ -348,8 +354,8 @@ async function checkShop() {
   await conflict.context().close();
   console.log(`Shop ${browserType.name()} passed: original bundles, material shortcut, cloud save retry/conflict and responsive controls.`);
 }
-async function checkOfflineRun() {
-  const page = await pageFor({ offline: true, roll: 123456789, reducedMotion: "reduce" });
+async function checkOfflineRun({ sidePets = false } = {}) {
+  const page = await pageFor({ offline: true, sidePets, roll: 123456789, reducedMotion: "reduce" });
   const fixture = fixtures.get(page), startedAt = fixture.serverTime;
   const workers = [];
   page.on("worker", (worker) => workers.push(worker.url()));
@@ -388,15 +394,21 @@ async function checkOfflineRun() {
   assert.equal(settled.offlineRun, undefined);
   assert.ok(settled.gold > running.gold, "settlement should persist earned rewards");
   assert.ok(settled.progress.copies.find((row) => row.id === 1001).value > 1);
+  if (sidePets) {
+    assert.equal(settled.inventory.pets[1].partyRole, 2);
+    assert.ok(settled.inventory.pets[1].level > running.inventory.pets[1].level);
+    assert.ok(settled.inventory.pets[1].care.loyalty < running.inventory.pets[1].care.loyalty);
+    assert.deepEqual(settled.inventory.pets[2], running.inventory.pets[2]);
+  }
   await page.locator('[data-offline-dismiss]').click(); await stage(page, "home");
   await page.reload(); await stage(page, "menu");
   await page.locator("#monsterEnter").click(); await stage(page, "home");
   assert.deepEqual(await saved(page), settled, "reopening must not award the same run twice");
   await page.context().close();
-  console.log(`Offline ${browserType.name()} passed: account cloud save, server clock cap, Web Worker, reopen, claim and retry.`);
+  console.log(`Offline ${browserType.name()} passed: account cloud save, server clock cap, Web Worker, reopen, claim and retry${sidePets ? ", side-pet XP and loyalty" : ""}.`);
 }
 try {
-  if (!process.argv.includes("--shop-only") && !process.argv.includes("--side-pet-only")) await checkOfflineRun();
+  if (!process.argv.includes("--shop-only") && !process.argv.includes("--side-pet-only")) await checkOfflineRun({ sidePets: process.argv.includes("--side-offline") });
   if (!process.argv.includes("--offline-only") && !process.argv.includes("--side-pet-only")) await checkShop();
   if (!process.argv.includes("--offline-only") && !process.argv.includes("--shop-only")) await checkSidePets();
   if (!["--offline-only", "--shop-only", "--side-pet-only"].some((option) => process.argv.includes(option))) {
