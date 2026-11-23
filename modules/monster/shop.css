@@ -1,0 +1,16 @@
+.monster-shop-content{padding-top:0!important}
+.monster-shop-summary{position:sticky;top:0;z-index:2;padding:8px 10px;background-color:#21150e}
+.monster-shop-summary h3{margin:0;color:#ffd18b;font-size:17px;font-weight:400}
+.monster-shop-balance{margin:4px 0;color:#ead8b6;font-size:13px}
+.monster-shop-selected{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:54px}
+.monster-shop-selected-text{min-width:0;font-size:13px;line-height:1.4}
+.monster-shop-selected-text strong{color:#ffda99}.monster-shop-selected-text p{margin:3px 0}
+.monster-shop-selected button{flex-shrink:0;min-width:100px;min-height:44px}
+.monster-shop-warning{color:#ffbf9e}
+.monster-shop-feedback{font-size:12px}.monster-shop-feedback p{margin:3px 0}.monster-shop-feedback button{min-height:44px}
+.monster-shop-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:10px 2px}
+.monster-shop-offer{display:flex;align-items:center;gap:5px;min-width:0;min-height:70px;padding:4px;text-align:left;color:#f5dfb5;background:#291c12;border:1px solid #74542d;border-radius:5px}
+.monster-shop-offer[aria-pressed="true"]{border-color:#f4c56a;background:#44301a}
+.monster-shop-offer:focus-visible{outline:2px solid #ffe2a1;outline-offset:2px}
+.monster-shop-offer>.monster-item{width:48px;flex-shrink:0}.monster-shop-offer .monster-item-name{display:none}
+.monster-shop-offer-text{display:grid;gap:5px;min-width:0;line-height:1.3}.monster-shop-offer-text strong{font-size:13px;font-weight:400;overflow-wrap:anywhere}.monster-shop-offer-text small{color:#f3c76e;font-size:12px}

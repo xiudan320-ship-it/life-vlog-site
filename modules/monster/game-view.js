@@ -15,6 +15,7 @@ import { renderMaterialSources } from "./material-source-view.js";
 import { renderCopyScout } from "./copy-scout-view.js";
 import { referencePower } from "./copy-scout-domain.js";
 import { renderOffline } from "./offline-view.js";
+import { renderShop } from "./shop-view.js";
 
 const assets = "/monster/assets/";
 
@@ -48,6 +49,7 @@ export function createMonsterGameView({ warView }) {
   let homeHeader;
   let upgradeScreen;
   let craftSelection;
+  let shopSelection;
   let size = { width: 0, height: 0 };
 
   function stage(value) {
@@ -172,7 +174,7 @@ export function createMonsterGameView({ warView }) {
     walk(content, (node) => {
       if (!(node instanceof ccui.Button)) return;
       const type = adventureButtons[node.getName()];
-      const handler = { btn_task: () => actions.tasks(), btn_blacksmith: () => actions.workshop(), btn_strength: () => actions.workshop(), btn_pet: () => actions.pets() }[node.getName()];
+      const handler = { btn_task: () => actions.tasks(), btn_blacksmith: () => actions.workshop(), btn_strength: () => actions.workshop(), btn_pet: () => actions.pets(), btn_shop: () => actions.shop() }[node.getName()];
       node.setVisible(Boolean(type || handler));
       if (type) click(node, () => actions.selectCopy(type));
       else if (handler) { find(node, "img_lock")?.setVisible(node.getName() === "btn_pet" && state.player.level < 35); click(node, handler); }
@@ -423,6 +425,19 @@ export function createMonsterGameView({ warView }) {
   function tasks(state, catalog, now) {
     renderTasks({ content: details("日常任务", controls.Enter), state, catalog, actions, now });
   }
+  function shop(state, catalog, { itemId, preserve = false, receipt } = {}) {
+    const content = document.getElementById("monsterDetailsContent");
+    if (preserve && (!document.getElementById("monsterDetails").open || !content.classList.contains("monster-shop-content"))) return;
+    if (!preserve) shopSelection = { index: itemId === undefined ? null : catalog.shop.findIndex((offer) => offer.type === 1 && offer.itemid === itemId) };
+    const scrollTop = preserve ? content.scrollTop : 0;
+    renderShop({ content: details("魔石商店", controls.Enter), state, catalog, actions, selection: shopSelection, receipt });
+    content.scrollTop = scrollTop;
+    if (preserve) {
+      const target = receipt && !receipt.saved ? content.querySelector(".monster-shop-feedback button")
+        : content.querySelector("[data-shop-purchase]:not(:disabled)");
+      (target || content.querySelector(`[data-shop-offer="${shopSelection.index}"]`))?.focus({ preventScroll: true });
+    }
+  }
   function workshop(state, catalog) { renderWorkshop({ content: details("铁匠铺", controls.Role), state, catalog, actions }); }
   function upgrade(state, catalog, target, receipt) {
     upgradeScreen = { target: { ...target }, screen: renderUpgrade({ content: details("装备培养", controls.Role), state, catalog, target, actions, receipt }) };
@@ -454,7 +469,7 @@ export function createMonsterGameView({ warView }) {
   function specialUpgrade(state, catalog, target, receipt) { renderSpecialUpgrade({ content: details("徽章升级", controls.Role), state, catalog, target, actions, receipt }); }
   function godUpgrade(state, catalog, target, receipt) { renderGodUpgrade({ content: details("神器培养", controls.Role), state, catalog, target, actions, receipt }); }
   return {
-    menu, home, updateHome, battle, battleUpdate, result, role, bag, bagItem, pets, skills, selectCopy, offline, offlineProgress, closeOffline, resetOffline, copyScout, closeCopyScout, closeSelection, trial, tasks, workshop, upgrade, updateUpgrade, craft, materialSources, closeMaterialSources, smelt, specialUpgrade, godUpgrade, notice,
+    menu, home, updateHome, battle, battleUpdate, result, role, bag, bagItem, pets, skills, selectCopy, offline, offlineProgress, closeOffline, resetOffline, copyScout, closeCopyScout, closeSelection, trial, tasks, shop, workshop, upgrade, updateUpgrade, craft, materialSources, closeMaterialSources, smelt, specialUpgrade, godUpgrade, notice,
     repeatStatus(enabled) { repeating = enabled; document.getElementById("monsterStop").hidden = !enabled; stage(phase); },
     exitPending(enabled) { exitPending = enabled; stage(phase); },
     loadError(message) { stage("error"); statusMessage(message); },

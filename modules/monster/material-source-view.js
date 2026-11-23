@@ -1,5 +1,6 @@
 import "./material-source.css";
 import { element, itemTile, picture } from "./visual-ui.js";
+import { getShopOffers } from "./shop-domain.js";
 
 /** Show the verified locations for an item; navigation remains with the controller. */
 export function renderMaterialSources({ content, state, catalog, sources, actions, itemId }) {
@@ -15,6 +16,13 @@ export function renderMaterialSources({ content, state, catalog, sources, action
     element("p", "选择已解锁的地点，在冒险页面查看。", "monster-panel-hint"));
   if (item?.type === 2) description.append(element("p", "作为打造材料时，需要背包中未穿戴且强化 +5 的装备。", "monster-panel-hint"));
   heading.append(description); content.append(heading);
+  const shopOffer = getShopOffers({ state, catalog }).find((offer) => offer.item.id === itemId);
+  if (shopOffer) {
+    const shop = element("button", `商店购买 · 魔石 ${shopOffer.price} 起`, "monster-image-button");
+    shop.type = "button"; shop.dataset.materialShop = String(itemId);
+    shop.onclick = () => actions.shop(itemId);
+    content.append(shop);
+  }
   if (!sources.length) {
     content.append(element("p", "当前没有可定位的冒险来源。", "monster-panel-hint"));
     return;

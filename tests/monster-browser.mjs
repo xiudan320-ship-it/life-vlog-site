@@ -46,15 +46,20 @@ let keyboardChecked = false;
 const artifacts = resolve("artifacts/monster");
 await mkdir(artifacts, { recursive: true });
 
-async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, saveStatus = 0, defeat = false, trial = false, trialRewards = false, workshop = false, retention = false, navigation = false, offline = false, petParty = false, petGrowth = false, petCare = false, colorScheme = "dark", reducedMotion = "no-preference" } = {}) {
+async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, saveStatus = 0, defeat = false, trial = false, trialRewards = false, workshop = false, retention = false, navigation = false, offline = false, shop = false, petParty = false, petGrowth = false, petCare = false, colorScheme = "dark", reducedMotion = "no-preference" } = {}) {
   const context = await browser.newContext({ ...(iphone13 ? devices["iPhone 13"] : {}), viewport: { width: 390, height: 844 }, screen: { width: 390, height: 844 }, colorScheme, reducedMotion });
   contexts.push(context);
   context.on("requestfailed", (request) => requestFailures.push({ url: request.url(), error: request.failure()?.errorText }));
   const fixture = createWorkerFixture({ origin });
   if (offline) fixture.serverTime = Date.UTC(2026, 0, 1);
-  if (trial || workshop || retention || navigation || offline || petParty || petGrowth || petCare) {
+  if (trial || workshop || retention || navigation || offline || shop || petParty || petGrowth || petCare) {
     const [items, skills] = await Promise.all(["item", "skill"].map(async (name) => JSON.parse(await readFile(resolve(root, `monster/data/${name}.json`), "utf8"))));
     const seed = createNewGame({ items, skills }); seed.player.name = "功能测试勇者";
+    if (shop) {
+      const rows = JSON.parse(await readFile(resolve(root, "monster/data/pet.json"), "utf8"));
+      seed.player.level = 35; seed.money = 65;
+      seed.inventory.pets = [{ id: 4001, type: 3, level: 1, quality: rows.find((row) => row.id === 4001).quality, experience: 0 }];
+    }
     if (trial || navigation || offline) { seed.player.level = 80; seed.player.equipmentSets[0][0].attributes.push(...[1, 2, 3, 4].map((type) => ({ type, value: 10000000 }))); }
     if (navigation) { seed.progress.chapterId = 3; seed.progress.levelId = 5; }
     if (offline) { seed.progress.levelId = 2; seed.progress.copies.push({ id: 1001, value: 1 }); }
@@ -214,6 +219,63 @@ async function accessible(page) {
     .map(({ id, nodes }) => ({ id, targets: nodes.map(({ target }) => target) }));
   assert.deepEqual(failures, []);
 }
+async function checkShop() {
+  const page = await pageFor({ shop: true, blocked: true, reducedMotion: "reduce" });
+  const before = await saved(page);
+  await page.locator("#monsterEnter").click(); await stage(page, "home");
+  await tapNative(page, "btn_shop");
+  assert.equal(await page.locator("[data-shop-offer]").count(), 22);
+  await page.locator('[data-shop-offer="3"]').click();
+  assert.equal(await page.locator('[data-shop-offer="3"]').getAttribute("aria-pressed"), "true");
+  assert.match(await page.locator(".monster-shop-selected").textContent(), /普通强化石 ×100/);
+  await noOverflow(page); await accessible(page);
+  await page.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-shop.png" : "shop.png") });
+  for (const width of [375, 430]) { await page.setViewportSize({ width, height: 844 }); await noOverflow(page); }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ colorScheme: "light" }); await accessible(page); await noOverflow(page);
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.locator("[data-shop-purchase]").click();
+  await page.locator("[data-save-feedback-retry]").waitFor();
+  assert.deepEqual(await saved(page), before);
+  await page.locator("[data-shop-purchase]").click();
+  assert.deepEqual(await saved(page), before);
+  await page.evaluate(() => { window.monsterFixtureBlockSave = false; });
+  await page.locator("[data-save-feedback-retry]").click();
+  await page.locator("[data-save-feedback-retry]").waitFor({ state: "detached" });
+  let result = await saved(page);
+  assert.equal(result.money, 60);
+  assert.equal(result.inventory.goods.find((item) => item.id === 5003).quantity, 100);
+  await page.locator('[data-shop-offer="0"]').click();
+  await page.locator("[data-shop-purchase]").click();
+  await page.getByText("兑换完成 · 金币 +100000", { exact: true }).waitFor();
+  result = await saved(page);
+  assert.equal(result.money, 58); assert.equal(result.gold, before.gold + 100000);
+  await page.locator("#monsterDetailsClose").click();
+  await tapNative(page, "btn_pet");
+  await page.locator('[data-material-source="5105"]').click();
+  await page.locator('[data-material-shop="5105"]').click();
+  assert.equal(await page.locator('[data-shop-offer="23"]').getAttribute("aria-pressed"), "true");
+  assert.match(await page.locator(".monster-shop-selected").textContent(), /宠物精魂 ×1/);
+  await page.locator("[data-shop-purchase]").click();
+  await page.getByText("兑换完成 · 宠物精魂 ×1", { exact: true }).waitFor();
+  result = await saved(page);
+  assert.equal(result.money, 53);
+  assert.equal(result.inventory.goods.find((item) => item.id === 5105).quantity, 1);
+  await page.reload(); await stage(page, "menu");
+  assert.deepEqual(await saved(page), result);
+  await page.context().close();
+  const conflict = await pageFor({ shop: true, saveStatus: 409 });
+  const unchanged = await saved(conflict);
+  await conflict.locator("#monsterEnter").click(); await stage(conflict, "home");
+  await tapNative(conflict, "btn_shop");
+  await conflict.locator('[data-shop-offer="23"]').click();
+  await conflict.locator("[data-shop-purchase]").click();
+  await conflict.locator("#monsterDetails").getByRole("button", { name: "重载云存档", exact: true }).waitFor();
+  assert.deepEqual(await saved(conflict), unchanged);
+  assert.equal(await conflict.locator("[data-save-feedback-retry]").count(), 0);
+  await conflict.context().close();
+  console.log(`Shop ${browserType.name()} passed: original bundles, material shortcut, cloud save retry/conflict and responsive controls.`);
+}
 async function checkOfflineRun() {
   const page = await pageFor({ offline: true, roll: 123456789, reducedMotion: "reduce" });
   const fixture = fixtures.get(page), startedAt = fixture.serverTime;
@@ -262,8 +324,9 @@ async function checkOfflineRun() {
   console.log(`Offline ${browserType.name()} passed: account cloud save, server clock cap, Web Worker, reopen, claim and retry.`);
 }
 try {
-  await checkOfflineRun();
-  if (!process.argv.includes("--offline-only")) {
+  if (!process.argv.includes("--shop-only")) await checkOfflineRun();
+  if (!process.argv.includes("--offline-only")) await checkShop();
+  if (!process.argv.includes("--offline-only") && !process.argv.includes("--shop-only")) {
   const manifest = await readWorkboxManifest(resolve(root, "sw.js"));
   assert.ok(!manifest.some(({ url }) => /^\/?(?:monster(?:\/|\.html)|assets\/monster-)/.test(url)), "game resources must stay out of home precache");
   const index = await readFile(resolve(root, "index.html"), "utf8");

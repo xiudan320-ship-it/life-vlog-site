@@ -18,6 +18,7 @@ import { MAX_EQUIPMENT_STRENGTH } from "./equipment-domain.js";
 import { getCopyScout } from "./copy-scout-domain.js";
 import { createOfflineRun, MAX_OFFLINE_MS } from "./offline-domain.js";
 import { runOffline } from "./offline-runner.js";
+import { purchaseShopOffer } from "./shop-domain.js";
 
 export function createMonsterGameController({ catalog, store, view, random, wait, now = Date.now, calculateOffline = runOffline }) {
   let state = null;
@@ -275,6 +276,25 @@ export function createMonsterGameController({ catalog, store, view, random, wait
       return startCopy(copyId, selected);
     },
     workshop() { if (state && !active && !blockedByOffline()) view.workshop(state, catalog); },
+    shop(itemId) {
+      if (!state || active || blockedByOffline()) return;
+      if (itemId !== undefined) view.closeMaterialSources();
+      view.shop(state, catalog, { itemId });
+    },
+    async buyShopOffer(index) {
+      if (!state || active || unsaved || blockedByOffline()) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
+      const serial = revision; active = true;
+      try {
+        const result = purchaseShopOffer({ state, catalog, index }); state = result.state;
+        const saved = await save();
+        if (serial === revision) {
+          view.updateHome(state, catalog);
+          const description = result.offer.goldOffer ? `金币 +${result.offer.quantity}` : `${result.offer.item.name} ×${result.offer.quantity}`;
+          view.shop(state, catalog, { preserve: true, receipt: { message: `兑换完成 · ${description}`, saved, status: saveErrorStatus } });
+        }
+      } catch (error) { if (serial === revision) view.notice(error.message); }
+      finally { if (serial === revision) active = false; }
+    },
     godUpgrade(target) { if (state && !active && !blockedByOffline()) view.godUpgrade(state, catalog, target); },
     async performGodUpgrade(target, operation) {
       if (!state || active || unsaved || blockedByOffline()) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }

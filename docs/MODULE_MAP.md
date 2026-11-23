@@ -15,6 +15,7 @@
 | 黑暗传说全屏试玩、原资源画面与控制器 | `monster.html`, `modules/monster/entry.js`, `modules/monster/game-controller.js`, `modules/monster/game-view.js` | `styles/monster.css`, `public/monster/`, `tests/monster-browser.mjs`；首页工具区进入，登录后独立加载引擎，手机画布铺满可视区 |
 | 黑暗传说图形角色/背包/技能及物品详情 | `modules/monster/character-view.js`, `modules/monster/visual-ui.js` | 复用原背景、面板、装备格、勇者、装备/技能图标；原图按钮和可访问的 HTML 控件，未接通玩法不创建空入口 |
 | 黑暗传说背包出售、分解和装备锁定 | `modules/monster/bag-item-domain.js`, `modules/monster/bag-item-view.js`, `modules/monster/bag-item.css` | 原生卖价与强化返还、按物品类型发金币／魔石／材料；锁定阻止分解和神器熔炼，打造保持原规则；背包内云档重试；`tests/monster-bag-items.mjs` |
+| 黑暗传说魔石商店 | `modules/monster/shop-domain.js`, `modules/monster/shop-view.js`, `modules/monster/shop.css` | 原版商店目录中当前可用的 22 个商品包、金币直接入账、购买与扣款同次保存；材料来源可跳转；`tests/monster-shop.mjs` |
 | 黑暗传说主宠选择与角色属性贡献 | `modules/monster/pet-domain.js`, `modules/monster/pet-view.js`, `modules/monster/pet.css` | 35 级开放，原图、初始属性、选择／替换／卸下及账号云档；每条持有记录的 `partyRole` 标志区分同种宠物；26 种工厂及 353 组原生贡献对照；`tests/monster-pets.mjs` |
 | 黑暗传说主宠经验与等级 | `modules/monster/pet-progression-domain.js`, `modules/monster/progression-domain.js`, `modules/monster/settlement-domain.js` | 战斗／任务经验事件逐次入账、tag 42 装备加成、60 级边界、属性重算与账号保存；`tests/monster-pet-progression.mjs`、68 组原生宠物升级样本 |
 | 黑暗传说主宠忠诚与喂养 | `modules/monster/pet-care-domain.js`, `modules/monster/pet-domain.js`, `modules/monster/pet-view.js` | 胜利击杀累计与忠诚、宠物精魂喂养及一键补满、获取途径和账号保存；`tests/monster-pet-care.mjs`、372 组原生忠诚样本 |
