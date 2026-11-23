@@ -1,5 +1,6 @@
 import { element, picture } from "./visual-ui.js";
-import { getPetSummary } from "./pet-domain.js";
+import { getPetSummary, MAX_SIDE_PETS } from "./pet-domain.js";
+import { MAIN_PET_KILL_THRESHOLD, SIDE_PET_KILL_THRESHOLD } from "./pet-care-domain.js";
 import { getPetExperienceRequired } from "./progression-domain.js";
 import { renderSaveFeedback } from "./save-feedback-view.js";
 
@@ -20,9 +21,11 @@ function statList(values) {
 
 export function renderPets({ content, state, catalog, actions, receipt }) {
   content.className = "monster-pets-content";
+  const sideCount = state.inventory.pets.filter((pet) => pet.partyRole === 2).length;
   const header = element("section", undefined, "monster-original-panel monster-pets-header");
   header.append(element("h3", "宠物"),
-    element("p", "主宠获得角色经验奖励，并为角色提供属性加成。胜利累计击败 600 只敌人，主宠忠诚降低 1；忠诚 80 及以上享有满加成。", "monster-panel-hint"));
+    element("p", `主宠提供属性加成；副宠最多 ${MAX_SIDE_PETS} 只（已设置 ${sideCount}），提供约 30% 属性和经验。副宠暂不独立攻击。`, "monster-panel-hint"),
+    element("p", "胜利累计击败 600 只敌人使主宠忠诚降低 1；副宠每 1800 只降低 1。忠诚 80 及以上享有满加成。", "monster-panel-hint"));
   if (state.player.level < 35) header.append(element("p", "角色达到 35 级后可设置主宠或喂养宠物。", "monster-panel-hint"));
   content.append(header);
   if (receipt) {
@@ -57,7 +60,7 @@ export function renderPets({ content, state, catalog, actions, receipt }) {
   }
   for (const [index, owned] of state.inventory.pets.entries()) {
     const target = { index, id: owned.id };
-    const { pet, row, core, contribution, selected, loyalty, killCount, stars, growth } = getPetSummary({ state, catalog, target });
+    const { pet, row, core, contribution, sideContribution, selected, side, loyalty, killCount, stars, growth } = getPetSummary({ state, catalog, target });
     const card = element("section", undefined, "monster-original-panel monster-pet-card");
     const overview = element("div", undefined, "monster-pet-overview");
     const portrait = element("div", undefined, "monster-item monster-pet monster-pet-portrait");
@@ -66,6 +69,7 @@ export function renderPets({ content, state, catalog, actions, receipt }) {
     const description = element("div", undefined, "monster-pet-description");
     const title = element("h3", row.name);
     if (selected) title.append(element("span", "主宠", "monster-pet-selected"));
+    if (side) title.append(element("span", "副宠", "monster-pet-selected"));
     description.append(title, element("p", `等级 ${pet.level} · 品质 ${pet.quality}`),
       element("p", `忠诚 ${loyalty} · 星级 ${stars} · 成长 ${growth}`, "monster-panel-hint"));
     overview.append(portrait, description);
@@ -83,7 +87,11 @@ export function renderPets({ content, state, catalog, actions, receipt }) {
     experience.append(progressLabel, progress);
     const care = element("div", undefined, "monster-pet-care");
     care.dataset.petCareIndex = String(index);
-    if (selected) care.append(element("p", loyalty > 30 ? `距离忠诚下降还需击败 ${600 - killCount} 只敌人` : "忠诚已到最低值 30", "monster-pet-care-progress"));
+    if (selected || side) {
+      const remaining = (selected ? MAIN_PET_KILL_THRESHOLD : SIDE_PET_KILL_THRESHOLD) - killCount;
+      care.append(element("p", loyalty <= 30 ? "忠诚已到最低值 30" : remaining > 0
+        ? `距离忠诚下降还需击败 ${remaining} 只敌人` : "下次胜利后忠诚将下降", "monster-pet-care-progress"));
+    }
     const material = element("div", undefined, "monster-pet-care-material");
     material.append(picture(`icon/item/${catalog.items.find((item) => item.id === 5105).icon}`, "", "monster-pet-care-icon"),
       element("span", `宠物精魂 ×${souls} · 每个忠诚 +1`));
@@ -117,14 +125,26 @@ export function renderPets({ content, state, catalog, actions, receipt }) {
     const details = element("details", undefined, "monster-pet-details");
     details.append(element("summary", "查看宠物属性与角色加成"), element("h4", "宠物属性"),
       statList(stats.map(([key, label]) => [label, core[key]])), element("h4", "作为主宠时给予角色"),
-      statList(stats.map(([, label], statIndex) => [label, `+${contribution.find((entry) => entry.type === statIndex + 1)?.value ?? 0}`])));
-    const button = element("button", selected ? "卸下主宠" : "设为主宠", "monster-image-button monster-pet-main-button");
+      statList(stats.map(([, label], statIndex) => [label, `+${contribution.find((entry) => entry.type === statIndex + 1)?.value ?? 0}`])),
+      element("h4", "作为副宠时给予角色"),
+      statList(stats.map(([, label], statIndex) => [label, `+${sideContribution.find((entry) => entry.type === statIndex + 1)?.value ?? 0}`])));
+    const button = element("button", selected ? "卸下主宠" : side ? "转为主宠" : "设为主宠", "monster-image-button monster-pet-main-button");
     button.type = "button";
     button.dataset.mainPetIndex = String(index);
     button.setAttribute("aria-pressed", String(selected));
+    button.setAttribute("aria-label", `${selected ? "卸下主宠" : side ? "转为主宠" : "设为主宠"}：${row.name}`);
     button.disabled = state.player.level < 35;
     button.onclick = () => saveOperation(() => actions.setMainPet(target, !selected));
-    card.append(overview, experience, care, details, button);
+    const sideButton = element("button", side ? "卸下副宠" : sideCount >= MAX_SIDE_PETS ? "副宠已满" : selected ? "转为副宠" : "设为副宠", "monster-image-button monster-pet-side-button");
+    sideButton.type = "button";
+    sideButton.dataset.sidePetIndex = String(index);
+    sideButton.setAttribute("aria-pressed", String(side));
+    sideButton.setAttribute("aria-label", `${side ? "卸下副宠" : selected ? "转为副宠" : "设为副宠"}：${row.name}`);
+    sideButton.disabled = state.player.level < 35 || !side && sideCount >= MAX_SIDE_PETS;
+    sideButton.onclick = () => saveOperation(() => actions.setSidePet(target, !side));
+    const partyActions = element("div", undefined, "monster-pet-party-actions");
+    partyActions.append(button, sideButton);
+    card.append(overview, partyActions, experience, care, details);
     content.append(card);
   }
   const back = element("button", "返回背包", "monster-image-button monster-pets-back");

@@ -1,6 +1,6 @@
 import { addBagItem, changeGold } from "./inventory-domain.js";
 import { creditPlayerExperience } from "./progression-domain.js";
-import { creditMainPetExperience } from "./pet-progression-domain.js";
+import { creditPartyPetExperience } from "./pet-progression-domain.js";
 
 /**
  * Numeric/item credit portion of WarFinishLayer, in native grant order.
@@ -15,14 +15,14 @@ export function creditBattleLoot(state, { gold, experience, items }) {
   });
   const balance = changeGold({ gold: state.gold, delta: gold });
   const inventory = items.reduce((bag, item) => addBagItem({ inventory: bag, item }), state.inventory);
-  const petCredit = creditMainPetExperience({ inventory, grants: growth.petGrants });
+  const petCredit = creditPartyPetExperience({ inventory, grants: growth.petGrants });
   return {
     state: {
       ...state, gold: balance.gold, inventory: petCredit.inventory,
       player: { ...state.player, level: growth.level, paragon: growth.paragon, experience: growth.experience },
     },
     effects: {
-      petGrants: growth.petGrants, petGrowth: petCredit.growth, unlockLevels: growth.unlockLevels,
+      petGrants: growth.petGrants, petGrowth: petCredit.growth, sidePetGrowth: petCredit.sideGrowth, unlockLevels: growth.unlockLevels,
       potionLevelUpdates: growth.potionLevelUpdates, achievementBalance: balance.achievementBalance,
     },
   };

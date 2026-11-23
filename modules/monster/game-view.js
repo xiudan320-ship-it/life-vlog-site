@@ -342,12 +342,16 @@ export function createMonsterGameView({ warView }) {
     const pet = reward.petGrowth;
     const petMessage = pet?.amount > 0 ? `主宠经验 +${pet.amount} · 宠物 Lv.${pet.level}` : "";
     const care = reward.petCare;
+    const sideLevelUps = reward.sidePetGrowth?.filter((entry) => entry.level > entry.previousLevel).length || 0;
+    const sideCare = reward.sidePetCare?.length || 0;
     const careMessage = care ? `主宠忠诚降至 ${care.loyalty}` : "";
     const notices = [];
     if (pet && pet.level > pet.previousLevel) notices.push(`主宠升至 ${pet.level} 级`);
     if (care) notices.push(`${careMessage}${[79, 59].includes(care.loyalty) ? "，属性加成降低" : ""}，可用宠物精魂喂养`);
+    if (sideLevelUps) notices.push(`${sideLevelUps} 只副宠升级`);
+    if (sideCare) notices.push(`${sideCare} 只副宠忠诚下降`);
     if (notices.length && document.getElementById("monsterSaveRetry").hidden) notice(notices.join(" · "));
-    statusMessage(`${outcome === 3 ? "胜利" : `战败，已保留 ${reward.defeatedCount} 只怪物收益`} · 金币 +${reward.gold} · 经验 +${reward.experience} · 当前 Lv.${state.player.level}${petMessage ? ` · ${petMessage}` : ""}${careMessage ? ` · ${careMessage}` : ""}`);
+    statusMessage(`${outcome === 3 ? "胜利" : `战败，已保留 ${reward.defeatedCount} 只怪物收益`} · 金币 +${reward.gold} · 经验 +${reward.experience} · 当前 Lv.${state.player.level}${petMessage ? ` · ${petMessage}` : ""}${careMessage ? ` · ${careMessage}` : ""}${sideLevelUps ? ` · ${sideLevelUps} 只副宠升级` : ""}${sideCare ? ` · ${sideCare} 只副宠忠诚下降` : ""}`);
   }
   function details(title, opener) {
     document.getElementById("monsterDetailsTitle").textContent = title;
@@ -373,11 +377,15 @@ export function createMonsterGameView({ warView }) {
     if (preserveIndex !== null && (!dialog.open || !content.classList.contains("monster-pets-content"))) return;
     const card = preserveIndex === null ? null : content.querySelector(`[data-pet-care-index="${preserveIndex}"]`)?.closest(".monster-pet-card");
     const top = card?.getBoundingClientRect().top;
+    const expanded = card?.querySelector("details")?.open;
     const focus = document.activeElement?.dataset;
-    const focusSelector = focus?.petFeedIndex === String(preserveIndex) ? `[data-pet-feed-index="${preserveIndex}"]`
+    const focusSelector = focus?.mainPetIndex === String(preserveIndex) ? `[data-main-pet-index="${preserveIndex}"]`
+      : focus?.sidePetIndex === String(preserveIndex) ? `[data-side-pet-index="${preserveIndex}"]`
+      : focus?.petFeedIndex === String(preserveIndex) ? `[data-pet-feed-index="${preserveIndex}"]`
       : focus?.petFeedFullIndex === String(preserveIndex) ? `[data-pet-feed-full-index="${preserveIndex}"]` : null;
-    renderPets({ content: details("宠物 · 主宠加成", controls.Bag), state, catalog, actions, receipt });
+    renderPets({ content: details("宠物 · 主宠与副宠", controls.Bag), state, catalog, actions, receipt });
     const updated = preserveIndex === null ? null : content.querySelector(`[data-pet-care-index="${preserveIndex}"]`)?.closest(".monster-pet-card");
+    if (expanded && updated) updated.querySelector("details").open = true;
     if (updated && top !== undefined) content.scrollTop += updated.getBoundingClientRect().top - top;
     if (focusSelector) {
       const next = content.querySelector(focusSelector);

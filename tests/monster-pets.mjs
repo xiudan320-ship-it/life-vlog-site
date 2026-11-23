@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
-import { calculatePetCore, calculateMainPetContribution, getPetSummary, assignMainPet, collectMainPetAttributes } from "../modules/monster/pet-domain.js";
+import { calculatePetCore, calculateMainPetContribution, getPetSummary, assignMainPet, collectPartyPetAttributes } from "../modules/monster/pet-domain.js";
 import { createNewGame } from "../modules/monster/new-game-domain.js";
 import { createMonsterGameController } from "../modules/monster/game-controller.js";
 import { calculatePlayerCoreAttributes, collectEquipmentAttributes, sumAttributes } from "../modules/monster/attribute-domain.js";
@@ -43,7 +43,7 @@ test("main-pet assignment distinguishes duplicate owned pets, replaces and remov
   assert.equal(replaced.inventory.pets.length, 3);
   assert.equal(getPetSummary({ state: replaced, catalog, target: { index: 2, id: 4026 } }).selected, true);
   const removed = assignMainPet({ state: replaced, catalog, target: { index: 2, id: 4026 }, enabled: false });
-  assert.deepEqual(collectMainPetAttributes({ state: removed, catalog }), []);
+  assert.deepEqual(collectPartyPetAttributes({ state: removed, catalog }), []);
   assert.deepEqual(state, before);
   assert.throws(() => assignMainPet({ state, catalog, target: { index: 1, id: 4001 }, enabled: true }), /当前持有/);
   assert.throws(() => assignMainPet({ state: { ...state, player: { ...state.player, level: 34 } }, catalog, target: { index: 0, id: 4001 }, enabled: true }), /35/);
@@ -58,7 +58,7 @@ test("pet tags combine with equipment, affect all eight player stats once and pr
   const equipment = [...seed.player.equipmentSets[0], ...seed.inventory.wings.filter((item) => item.id === seed.player.wingId)];
   const expectedBase = calculatePlayerCoreAttributes({ level: 35, paragon: seed.player.paragon, attributes: collectEquipmentAttributes(equipment) });
   await controller.setMainPet({ index: 1, id: 4026 }, true);
-  const contribution = collectMainPetAttributes({ state: remote, catalog });
+  const contribution = collectPartyPetAttributes({ state: remote, catalog });
   const expected = calculatePlayerCoreAttributes({ level: 35, paragon: seed.player.paragon, attributes: sumAttributes([...collectEquipmentAttributes(equipment), ...contribution]) });
   for (const key of coreKeys) assert.equal(remote.player[key], expected[key]);
   assert.equal(remote.player.attack - expectedBase.attack, 81);
@@ -83,5 +83,5 @@ test("failed main-pet writes preserve the pending selection and block further mu
   assert.equal(remote.inventory.pets[0].partyRole, 1); assert.equal(writes, 2);
   assert.equal(validateMonsterSave(remote), remote);
   const invalid = structuredClone(remote); invalid.inventory.pets[1].partyRole = 1;
-  assert.throws(() => validateMonsterSave(invalid), /主宠存档/);
+  assert.throws(() => validateMonsterSave(invalid), /宠物存档/);
 });

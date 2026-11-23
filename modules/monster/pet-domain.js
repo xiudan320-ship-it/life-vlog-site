@@ -5,6 +5,7 @@ const float = Math.fround;
 const qualityFactors = [1, 1, 1, 1, 1.1].map(float);
 const starFactors = [1, 1.2, 1.4, 1.7, 2].map(float);
 const stats = [["attack", "att"], ["defense", "def"], ["maxHp", "hp"], ["hit", "hit"], ["dodge", "spo"], ["crit", "cri"], ["critHurt", "crihurt"], ["resistance", "res"]];
+export const MAX_SIDE_PETS = 4;
 
 export function getPetLoyaltyOffset(loyalty) {
   return loyalty >= 80 ? 100 : loyalty >= 60 ? 70 : loyalty >= 30 ? 50 : 30;
@@ -30,25 +31,48 @@ export function calculateMainPetContribution({ playerLevel, row, level = row?.le
   return stats.map(([key], index) => ({ type: index + 1, value: Math.trunc(float(float(core[key]) * factor)) }));
 }
 
+// Native side pets multiply by float32(0.3) before the second loyalty factor.
+export function calculateSidePetContribution({ playerLevel, row, level = row?.level, quality = row?.quality, loyalty = 90, stars = 0, growth = 0 }) {
+  if (playerLevel < 35 || !row) return [];
+  const core = calculatePetCore({ row, level, quality, loyalty, stars, growth });
+  const factor = float(float(getPetLoyaltyOffset(loyalty)) / float(100));
+  return stats.map(([key], index) => ({ type: index + 1, value: Math.trunc(float(float(float(core[key]) * float(0.3)) * factor)) }));
+}
+
 export function getPetSummary({ state, catalog, target }) {
   const pet = Number.isSafeInteger(target?.index) && target.index >= 0 ? state.inventory.pets[target.index] : null;
   const row = pet && catalog.pets.find((entry) => entry.id === pet.id);
   if (!pet || pet.id !== target.id || pet.type !== 3 || !row) throw new RangeError("请选择当前持有的宠物");
   const { loyalty, killCount } = getPetCare(pet);
   const input = { row, level: pet.level, quality: pet.quality, loyalty };
-  return { pet, row, core: calculatePetCore(input), contribution: calculateMainPetContribution({ ...input, playerLevel: state.player.level }), selected: pet.partyRole === 1, loyalty, killCount, stars: 0, growth: 0 };
+  return { pet, row, core: calculatePetCore(input), contribution: calculateMainPetContribution({ ...input, playerLevel: state.player.level }),
+    sideContribution: calculateSidePetContribution({ ...input, playerLevel: state.player.level }), selected: pet.partyRole === 1, side: pet.partyRole === 2, loyalty, killCount, stars: 0, growth: 0 };
 }
 
-export function collectMainPetAttributes({ state, catalog }) {
-  const index = state.inventory.pets.findIndex((pet) => pet.partyRole === 1);
-  return index < 0 || state.player.level < 35 ? [] : getPetSummary({ state, catalog, target: { index, id: state.inventory.pets[index].id } }).contribution;
+export function collectPartyPetAttributes({ state, catalog }) {
+  if (state.player.level < 35) return [];
+  return state.inventory.pets.flatMap((pet, index) => {
+    if (![1, 2].includes(pet.partyRole)) return [];
+    const summary = getPetSummary({ state, catalog, target: { index, id: pet.id } });
+    return pet.partyRole === 1 ? summary.contribution : summary.sideContribution;
+  });
 }
 
 export function assignMainPet({ state, catalog, target, enabled }) {
   if (state.player.level < 35) throw new RangeError("宠物在 35 级开放");
   const { selected } = getPetSummary({ state, catalog, target });
   if (typeof enabled !== "boolean" || selected === enabled) throw new RangeError(enabled ? "这只宠物已是主宠" : "这只宠物没有担任主宠");
-  return { ...state, inventory: { ...state.inventory, pets: state.inventory.pets.map((pet, index) => ({ ...pet, partyRole: enabled && index === target.index ? 1 : 0 })) } };
+  return { ...state, inventory: { ...state.inventory, pets: state.inventory.pets.map((pet, index) => ({ ...pet,
+    partyRole: enabled && index === target.index ? 1 : pet.partyRole === 1 ? 0 : pet.partyRole ?? 0 })) } };
+}
+
+export function assignSidePet({ state, catalog, target, enabled }) {
+  if (state.player.level < 35) throw new RangeError("宠物在 35 级开放");
+  const { side } = getPetSummary({ state, catalog, target });
+  if (typeof enabled !== "boolean" || side === enabled) throw new RangeError(enabled ? "这只宠物已是副宠" : "这只宠物没有担任副宠");
+  if (enabled && state.inventory.pets.filter((pet) => pet.partyRole === 2).length >= MAX_SIDE_PETS) throw new RangeError("副宠位置已满，请先卸下一只");
+  return { ...state, inventory: { ...state.inventory, pets: state.inventory.pets.map((pet, index) => index === target.index
+    ? { ...pet, partyRole: enabled ? 2 : 0 } : pet) } };
 }
 
 /** One spirit restores one loyalty; batching is the same transaction repeated. */

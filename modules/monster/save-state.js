@@ -1,5 +1,7 @@
 import { getPetExperienceRequired } from "./progression-domain.js";
 import { MAX_EQUIPMENT_STRENGTH } from "./equipment-domain.js";
+import { MAX_SIDE_PETS } from "./pet-domain.js";
+import { SIDE_PET_KILL_THRESHOLD } from "./pet-care-domain.js";
 
 export function validateMonsterSave(state) {
   const integer = (value, min = 0) => Number.isSafeInteger(value) && value >= min;
@@ -17,6 +19,7 @@ export function validateMonsterSave(state) {
     throw new TypeError("游戏存档数据不完整，请保留原存档并重试。");
   }
   const mainPets = state.inventory.pets.filter((pet) => pet?.partyRole === 1);
+  const sidePets = state.inventory.pets.filter((pet) => pet?.partyRole === 2);
   const equipment = [...state.inventory.equipment, ...player.equipmentSets.flat()];
   if (equipment.some((item) => item?.subtype >= 1 && item.subtype <= 8 && (!integer(item.strength) || item.strength > MAX_EQUIPMENT_STRENGTH))) {
     throw new TypeError("装备强化数据无效，请保留原存档并重试。");
@@ -25,14 +28,14 @@ export function validateMonsterSave(state) {
     || Array.isArray(state.crafting.counts) || !Object.entries(state.crafting.counts).every(([id, count]) => /^[1-9]\d*$/.test(id) && integer(Number(id), 1) && integer(count, 1)))) {
     throw new TypeError("打造记录不完整，请保留原存档并重试。");
   }
-  if (mainPets.length > 1 || state.inventory.pets.some((pet) => pet?.partyRole !== undefined && ![0, 1].includes(pet.partyRole))
+  if (mainPets.length > 1 || sidePets.length > MAX_SIDE_PETS || state.inventory.pets.some((pet) => pet?.partyRole !== undefined && ![0, 1, 2].includes(pet.partyRole))
     || state.inventory.pets.some((pet) => !pet || pet.type !== 3 || !integer(pet.id, 1) || !integer(pet.level, 1) || pet.level > 60
       || !integer(pet.quality, 1) || pet.quality > 5 || !integer(pet.experience)
       || pet.experience > getPetExperienceRequired(pet.level) || pet.level < 60 && pet.experience === getPetExperienceRequired(pet.level))) {
-    throw new TypeError("主宠存档数据不完整，请保留原存档并重试。");
+    throw new TypeError("宠物存档数据不完整，请保留原存档并重试。");
   }
   if (state.inventory.pets.some((pet) => pet.care !== undefined && (!pet.care || !integer(pet.care.loyalty, 30)
-    || pet.care.loyalty > 100 || !integer(pet.care.killCount) || pet.care.killCount >= 600))) {
+    || pet.care.loyalty > 100 || !integer(pet.care.killCount) || pet.care.killCount >= SIDE_PET_KILL_THRESHOLD))) {
     throw new TypeError("宠物忠诚存档数据不完整，请保留原存档并重试。");
   }
   if (state.offlineRun !== undefined) {

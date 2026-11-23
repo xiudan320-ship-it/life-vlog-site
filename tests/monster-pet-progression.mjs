@@ -102,7 +102,7 @@ test("save validation accepts the level-60 cap and rejects invalid pet experienc
   for (const [level, experience] of [[1, 15000], [60, 52215001], [61, 0], [1, -1], [1, 0.5]]) {
     const invalid = structuredClone(state);
     Object.assign(invalid.inventory.pets[0], { level, experience });
-    assert.throws(() => validateMonsterSave(invalid), /主宠存档/, `${level}/${experience}`);
+    assert.throws(() => validateMonsterSave(invalid), /宠物存档/, `${level}/${experience}`);
   }
 });
 

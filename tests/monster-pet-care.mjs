@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
-import { addPetKills, getPetCare, recordMainPetKills } from "../modules/monster/pet-care-domain.js";
-import { collectMainPetAttributes, feedPet, getPetSummary } from "../modules/monster/pet-domain.js";
+import { addPetKills, getPetCare, recordPartyPetKills } from "../modules/monster/pet-care-domain.js";
+import { collectPartyPetAttributes, feedPet, getPetSummary } from "../modules/monster/pet-domain.js";
 import { calculatePlayerCoreAttributes, collectEquipmentAttributes, sumAttributes } from "../modules/monster/attribute-domain.js";
 import { createNewGame } from "../modules/monster/new-game-domain.js";
 import { prepareCopyBattle } from "../modules/monster/copy-domain.js";
@@ -43,14 +43,14 @@ test("kill credit updates only the selected instance, without mutating prior sta
   state.inventory.pets = [owned(4001), owned(4001, 1, { loyalty: 81, killCount: 598 }), owned(4026)];
   const before = structuredClone(state);
   assert.deepEqual(getPetCare(state.inventory.pets[0]), { loyalty: 90, killCount: 0 });
-  const result = recordMainPetKills(state, 3);
+  const result = recordPartyPetKills(state, 3);
   assert.deepEqual(result.inventory.pets[1].care, { loyalty: 80, killCount: 0 });
   assert.deepEqual(result.inventory.pets[0], before.inventory.pets[0]);
   assert.deepEqual(result.inventory.pets[2], before.inventory.pets[2]);
   assert.deepEqual(state, before);
-  assert.strictEqual(recordMainPetKills(state, 0), state);
+  assert.strictEqual(recordPartyPetKills(state, 0), state);
   state.inventory.pets[1].partyRole = 0;
-  assert.strictEqual(recordMainPetKills(state, 600), state);
+  assert.strictEqual(recordPartyPetKills(state, 600), state);
 });
 
 test("victory credits prepared enemy count; defeat including zero kills never changes care", () => {
@@ -104,7 +104,7 @@ test("feeding rejects missing materials, stale selection, full loyalty and inval
 test("80 to 79 loyalty matches both native float stages and changes refreshed player contribution", () => {
   const state = stateWithPet({ loyalty: 80, killCount: 599 });
   state.inventory.pets[0].level = 10;
-  const after = recordMainPetKills(state, 1);
+  const after = recordPartyPetKills(state, 1);
   const equipment = state.player.equipmentSets[state.player.equipmentSetIndex];
   for (const current of [state, after]) {
     const loyalty = getPetCare(current.inventory.pets[0]).loyalty;
@@ -114,10 +114,10 @@ test("80 to 79 loyalty matches both native float stages and changes refreshed pl
     const summary = getPetSummary({ state: current, catalog, target });
     assert.deepEqual(summary.core, expected.petCore);
     assert.deepEqual(summary.contribution, expected.contribution);
-    assert.deepEqual(collectMainPetAttributes({ state: current, catalog }), expected.contribution);
+    assert.deepEqual(collectPartyPetAttributes({ state: current, catalog }), expected.contribution);
   }
   const refresh = (current) => calculatePlayerCoreAttributes({ level: current.player.level, paragon: current.player.paragon,
-    attributes: sumAttributes([...collectEquipmentAttributes(equipment), ...collectMainPetAttributes({ state: current, catalog })]) });
+    attributes: sumAttributes([...collectEquipmentAttributes(equipment), ...collectPartyPetAttributes({ state: current, catalog })]) });
   const before = refresh(state), lowered = refresh(after);
   assert.equal(before.attack - lowered.attack, 610 - 298);
   assert.equal(before.defense - lowered.defense, 200 - 98);
@@ -128,7 +128,7 @@ test("save validation checks loyalty and kill count boundaries", () => {
   const state = stateWithPet({ loyalty: 30, killCount: 599 });
   assert.strictEqual(validateMonsterSave(state), state);
   for (const care of [{ loyalty: 29, killCount: 0 }, { loyalty: 101, killCount: 0 }, { loyalty: 90, killCount: -1 },
-    { loyalty: 90, killCount: 600 }, { loyalty: 90.5, killCount: 0 }, { loyalty: 90, killCount: 0.5 }, null]) {
+    { loyalty: 90, killCount: 1800 }, { loyalty: 90.5, killCount: 0 }, { loyalty: 90, killCount: 0.5 }, null]) {
     const invalid = structuredClone(state); invalid.inventory.pets[0].care = care;
     assert.throws(() => validateMonsterSave(invalid), /忠诚/, JSON.stringify(care));
   }

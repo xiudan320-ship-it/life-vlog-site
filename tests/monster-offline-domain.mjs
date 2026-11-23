@@ -60,27 +60,41 @@ test("server elapsed time caps at 20 hours and a seeded replay is deterministic"
 });
 
 test("one offline victory matches the foreground battle and settlement with the same draws", () => {
-  const run = begin(setup());
-  const copy = catalog.copies.find((entry) => entry.id === run.offlineRun.copyId);
-  let value = run.offlineRun.seed;
-  const draw = () => { value ^= value << 13; value ^= value >>> 17; value ^= value << 5; return (value >>> 0) & 0x7fffffff; };
-  let foreground = refreshGamePlayer(run, catalog);
-  const prepared = prepareCopyBattle({ copy, player: foreground.player, clearCount: 1, hard: 1, waves: 1, catalog, draw });
-  foreground = payCopyEntry(foreground, copy);
-  let battle = { ...prepared.battle, bonuses: foreground.player.bonuses };
-  let turns = 0;
-  while (![1, 3].includes(battle.outcome)) { battle = advanceSoloBattle(battle, { draw, skills: catalog.skills }).battle; turns++; }
-  assert.equal(battle.outcome, 3);
-  foreground = { ...foreground, player: { ...foreground.player, hp: battle.allies[0].hp, dead: battle.allies[0].dead } };
-  foreground = recordTaskBattle({ state: foreground, copy, prepared, battle });
-  const settled = settleCopyVictory({ state: foreground, copy, prepared, catalog, draw });
-  foreground = refreshGamePlayer(settled.state, catalog);
-  delete foreground.offlineRun;
-  const offline = simulateOffline({ state: run, catalog, serverNow: startedAt + turns * 550 + 450 });
-  assert.deepEqual(offline.state, foreground);
-  assert.equal(offline.summary.victories, 1);
-  assert.equal(offline.summary.gold, settled.reward.gold);
-  assert.equal(offline.summary.experience, settled.reward.experience);
+  for (const withSide of [false, true]) {
+    const state = setup();
+    if (withSide) {
+      state.player.equipmentSets[0][0].attributes.push({ type: 10, value: 1000 });
+      state.inventory.pets = [{ id: 4001, type: 3, level: 1, quality: 2, experience: 14999, partyRole: 2,
+        care: { loyalty: 80, killCount: 1799 } }, { id: 4001, type: 3, level: 1, quality: 2, experience: 0 }];
+    }
+    const run = begin(state);
+    const copy = catalog.copies.find((entry) => entry.id === run.offlineRun.copyId);
+    let value = run.offlineRun.seed;
+    const draw = () => { value ^= value << 13; value ^= value >>> 17; value ^= value << 5; return (value >>> 0) & 0x7fffffff; };
+    let foreground = refreshGamePlayer(run, catalog);
+    const prepared = prepareCopyBattle({ copy, player: foreground.player, clearCount: 1, hard: 1, waves: 1, catalog, draw });
+    foreground = payCopyEntry(foreground, copy);
+    let battle = { ...prepared.battle, bonuses: foreground.player.bonuses };
+    let turns = 0;
+    while (![1, 3].includes(battle.outcome)) { battle = advanceSoloBattle(battle, { draw, skills: catalog.skills }).battle; turns++; }
+    assert.equal(battle.outcome, 3);
+    foreground = { ...foreground, player: { ...foreground.player, hp: battle.allies[0].hp, dead: battle.allies[0].dead } };
+    foreground = recordTaskBattle({ state: foreground, copy, prepared, battle });
+    const settled = settleCopyVictory({ state: foreground, copy, prepared, catalog, draw });
+    foreground = refreshGamePlayer(settled.state, catalog);
+    delete foreground.offlineRun;
+    const offline = simulateOffline({ state: run, catalog, serverNow: startedAt + turns * 550 + 450 });
+    assert.deepEqual(offline.state, foreground);
+    assert.equal(offline.summary.victories, 1);
+    assert.equal(offline.summary.gold, settled.reward.gold);
+    assert.equal(offline.summary.experience, settled.reward.experience);
+    if (withSide) {
+      assert.equal(offline.state.inventory.pets[0].level, 2);
+      assert.deepEqual(offline.state.inventory.pets[0].care, { loyalty: 79, killCount: 0 });
+      assert.deepEqual(offline.state.inventory.pets[1], state.inventory.pets[1]);
+      assert.strictEqual(validateMonsterSave(offline.state), offline.state);
+    }
+  }
 });
 
 test("short claims never fabricate rewards or clear progress", () => {

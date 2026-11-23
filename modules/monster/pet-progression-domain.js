@@ -17,19 +17,20 @@ export function creditPetExperience({ level, experience, amount }) {
   return { level, experience: total };
 }
 
-/** Apply every Player::addExp grant in order to the selected owned record only. */
-export function creditMainPetExperience({ inventory, grants }) {
-  const index = inventory.pets.findIndex((pet) => pet.partyRole === 1);
-  if (index < 0) return { inventory, growth: null };
-  const original = inventory.pets[index];
-  let progress = { level: original.level, experience: original.experience }, amount = 0;
-  for (const grant of grants) {
-    progress = creditPetExperience({ ...progress, amount: grant.active });
-    amount += grant.active;
-  }
-  const pet = { ...original, ...progress };
-  return {
-    inventory: { ...inventory, pets: inventory.pets.map((entry, ownedIndex) => ownedIndex === index ? pet : entry) },
-    growth: { index, id: pet.id, amount, previousLevel: original.level, ...progress },
-  };
+/** Apply each original Player::addExp event to the assigned owned records. */
+export function creditPartyPetExperience({ inventory, grants }) {
+  let growth = null;
+  const sideGrowth = [];
+  const pets = inventory.pets.map((original, index) => {
+    if (![1, 2].includes(original.partyRole)) return original;
+    let progress = { level: original.level, experience: original.experience }, amount = 0;
+    for (const grant of grants) {
+      const credit = original.partyRole === 1 ? grant.active : grant.assist;
+      progress = creditPetExperience({ ...progress, amount: credit }); amount += credit;
+    }
+    const result = { index, id: original.id, amount, previousLevel: original.level, ...progress };
+    if (original.partyRole === 1) growth = result; else sideGrowth.push(result);
+    return { ...original, ...progress };
+  });
+  return { inventory: growth || sideGrowth.length ? { ...inventory, pets } : inventory, growth, sideGrowth };
 }

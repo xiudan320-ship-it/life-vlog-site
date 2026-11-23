@@ -4,7 +4,7 @@ import { createCopyDrops } from "./item-domain.js";
 import { creditBattleLoot } from "./settlement-domain.js";
 import { recordRegularCopyVictory, incrementCopyClear } from "./copy-progress-domain.js";
 import { copyUsesParagon } from "./copy-domain.js";
-import { getPetCare, recordMainPetKills } from "./pet-care-domain.js";
+import { getPetCare, recordPartyPetKills } from "./pet-care-domain.js";
 
 export function payCopyEntry(state, copy) {
   if (!copy.copyprice) return state;
@@ -54,16 +54,23 @@ function createBattleReward({ state, copy, prepared, catalog, draw, partial = fa
 export function settleCopyVictory(input) {
   const { copy, prepared, catalog } = input;
   const reward = createBattleReward(input);
-  const cared = recordMainPetKills(input.state, prepared.enemyCount);
+  const cared = recordPartyPetKills(input.state, prepared.enemyCount);
   const previousPet = input.state.inventory.pets.find((pet) => pet.partyRole === 1);
   const currentPet = cared.inventory.pets.find((pet) => pet.partyRole === 1);
   if (previousPet && currentPet) {
     const previous = getPetCare(previousPet).loyalty, loyalty = getPetCare(currentPet).loyalty;
     if (loyalty < previous) reward.petCare = { previous, loyalty };
   }
+  const sidePetCare = cared.inventory.pets.flatMap((pet, index) => {
+    if (pet.partyRole !== 2) return [];
+    const previous = getPetCare(input.state.inventory.pets[index]).loyalty, loyalty = getPetCare(pet).loyalty;
+    return loyalty < previous ? [{ index, id: pet.id, previous, loyalty }] : [];
+  });
+  if (sidePetCare.length) reward.sidePetCare = sidePetCare;
   const credited = creditBattleLoot(cared, reward);
   let state = credited.state;
   if (credited.effects.petGrowth) reward.petGrowth = credited.effects.petGrowth;
+  if (credited.effects.sidePetGrowth.length) reward.sidePetGrowth = credited.effects.sidePetGrowth;
   if (copy.type === 1) {
     const chapter = catalog.chapters.find((row) => copy.id >= row.minid && copy.id <= row.maxid || row.hideboss === copy.id);
     const progress = recordRegularCopyVictory({ progress: state.progress, money: state.money, copy, chapter, enemyCount: prepared.enemyCount });
@@ -84,5 +91,6 @@ export function settleCopyDefeat({ state, copy, prepared, battle, catalog, draw 
   reward.partial = true; reward.defeatedCount = defeated.length;
   const credited = creditBattleLoot(state, reward);
   if (credited.effects.petGrowth) reward.petGrowth = credited.effects.petGrowth;
+  if (credited.effects.sidePetGrowth.length) reward.sidePetGrowth = credited.effects.sidePetGrowth;
   return { state: credited.state, reward };
 }

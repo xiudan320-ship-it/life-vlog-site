@@ -12,7 +12,7 @@ import { smeltItems } from "./smelt-domain.js";
 import { upgradeSpecial } from "./special-upgrade-domain.js";
 import { upgradeGod } from "./god-upgrade-domain.js";
 import { sellBagItem, toggleBagEquipmentLock } from "./bag-item-domain.js";
-import { assignMainPet, feedPet as feedOwnedPet } from "./pet-domain.js";
+import { assignMainPet, assignSidePet, feedPet as feedOwnedPet } from "./pet-domain.js";
 import { findMaterialSources } from "./material-source-domain.js";
 import { MAX_EQUIPMENT_STRENGTH } from "./equipment-domain.js";
 import { getCopyScout } from "./copy-scout-domain.js";
@@ -457,6 +457,16 @@ export function createMonsterGameController({ catalog, store, view, random, wait
         state = assignMainPet({ state, catalog, target, enabled }); refresh();
         const saved = await save();
         if (serial === revision) { view.updateHome(state, catalog); view.pets(state, catalog, { message: enabled ? "主宠已更新，角色属性已重算" : "主宠已卸下，角色属性已重算", saved, status: saveErrorStatus, targetIndex: target.index }); }
+      } catch (error) { if (serial === revision) view.notice(error.message); }
+      finally { if (serial === revision) active = false; }
+    },
+    async setSidePet(target, enabled) {
+      if (!state || active || unsaved || blockedByOffline()) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
+      const serial = revision; active = true;
+      try {
+        state = assignSidePet({ state, catalog, target, enabled }); refresh();
+        const saved = await save();
+        if (serial === revision) { view.updateHome(state, catalog); view.pets(state, catalog, { message: enabled ? "副宠已设置，角色属性已重算" : "副宠已卸下，角色属性已重算", saved, status: saveErrorStatus, targetIndex: target.index }); }
       } catch (error) { if (serial === revision) view.notice(error.message); }
       finally { if (serial === revision) active = false; }
     },
