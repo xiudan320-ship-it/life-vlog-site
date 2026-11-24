@@ -31,6 +31,7 @@ export function renderPetTraining({ state, catalog, target, actions, saveOperati
   const submit = element("button", "确认培养", "monster-image-button"); submit.type = "button";
   submit.dataset.petTrainingSubmit = String(target.index); submit.disabled = true;
   let choice = null;
+  let initialized = false;
 
   function updatePreview() {
     choice = null; checked.checked = false; submit.disabled = true;
@@ -47,6 +48,7 @@ export function renderPetTraining({ state, catalog, target, actions, saveOperati
     choice = { material, affordable: state.money >= result.cost };
   }
   function updateCandidates() {
+    initialized = true;
     donor.replaceChildren();
     const placeholder = element("option", "请选择宠物"); placeholder.value = ""; donor.append(placeholder);
     for (const [index, candidate] of state.inventory.pets.entries()) {
@@ -66,7 +68,6 @@ export function renderPetTraining({ state, catalog, target, actions, saveOperati
   submit.onclick = () => { if (choice && checked.checked) void saveOperation(() => actions.trainPet(target, choice.material, mode.value)); };
   details.append(element("p", "融合需同种宠物；吞噬仅对品质 4 宠物开放。已出战的主宠和副宠不能作为材料。", "monster-panel-hint"),
     modeLabel, mode, donorLabel, donor, preview, confirmation, submit);
-  let initialized = false;
-  details.ontoggle = () => { if (details.open && !initialized) { initialized = true; updateCandidates(); } };
+  details.ontoggle = () => { if (details.open && !initialized) updateCandidates(); };
   return details;
 }

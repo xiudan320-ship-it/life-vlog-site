@@ -274,7 +274,18 @@ async function checkPetTraining() {
   assert.deepEqual(fused.inventory.pets[0].training, { stars: 1, starExperience: 0, growth: 99 });
   await page.reload(); await stage(page, "menu"); await page.evaluate(() => { window.monsterFixtureBlockSave = false; });
   await page.locator("#monsterEnter").click(); await stage(page, "home"); await tapNative(page, "btn_pet");
-  const afterFuse = page.locator('[data-pet-training-index="0"]'); await afterFuse.locator("summary").click();
+  const afterFuse = page.locator('[data-pet-training-index="0"]');
+  // A details toggle is dispatched asynchronously and can arrive after the user selects a donor.
+  await afterFuse.evaluate((details) => {
+    details.open = true;
+    const mode = details.querySelector('[data-pet-training-mode="0"]');
+    const donor = details.querySelector('[data-pet-training-donor="0"]');
+    mode.value = "devour"; mode.dispatchEvent(new Event("change", { bubbles: true }));
+    donor.value = "1"; donor.dispatchEvent(new Event("change", { bubbles: true }));
+    details.dispatchEvent(new Event("toggle"));
+  });
+  assert.equal(await afterFuse.locator('[data-pet-training-donor="0"]').inputValue(), "1", "a delayed toggle must not clear the selected donor");
+  await afterFuse.locator('[data-pet-training-mode="0"]').selectOption("fuse");
   await afterFuse.locator('[data-pet-training-mode="0"]').selectOption("devour");
   await afterFuse.locator('[data-pet-training-donor="0"]').selectOption("1");
   assert.match(await afterFuse.locator(".monster-pet-training-preview").textContent(), /成长 99 → 100，提升至品质 5.*90 魔石/);
