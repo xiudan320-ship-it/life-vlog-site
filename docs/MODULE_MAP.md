@@ -12,7 +12,7 @@
 
 | 现象或功能 | 首要模组 | 相关视图 / 领域模组 |
 | --- | --- | --- |
-| 黑暗传说全屏试玩、原资源画面与控制器 | `monster.html`, `modules/monster/entry.js`, `modules/monster/game-controller.js`, `modules/monster/game-view.js` | `styles/monster.css`, `public/monster/`, `tests/monster-browser.mjs`；首页工具区进入，登录后独立加载引擎，手机画布铺满可视区 |
+| 黑暗传说全屏试玩、原资源画面与控制器 | `monster.html`, `modules/monster/entry.js`, `modules/monster/game-controller.js`, `modules/monster/game-view.js`, `modules/monster/typography.js`, `modules/monster/focus-modality.js` | `styles/monster.css`, `public/monster/`, `tests/monster-browser.mjs`；统一页面与画布字体，触摸不留焦点框、键盘保留可见焦点；首页工具区进入，登录后独立加载引擎 |
 | 黑暗传说图形角色/背包/技能及物品详情 | `modules/monster/character-view.js`, `modules/monster/visual-ui.js`, `modules/monster/bag-equipment.css` | 复用原背景、面板、装备格、勇者、装备/技能图标；背包中可直接穿戴或更换装备；原图按钮和可访问的 HTML 控件，未接通玩法不创建空入口 |
 | 黑暗传说背包出售、分解和装备锁定 | `modules/monster/bag-item-domain.js`, `modules/monster/bag-item-view.js`, `modules/monster/bag-item.css` | 原生卖价与强化返还、按物品类型发金币／魔石／材料；锁定阻止分解和神器熔炼，打造保持原规则；背包内云档重试；`tests/monster-bag-items.mjs` |
 | 黑暗传说魔石商店 | `modules/monster/shop-domain.js`, `modules/monster/shop-view.js`, `modules/monster/shop.css` | 原版商店目录中当前可用的 22 个商品包、金币直接入账、购买与扣款同次保存；材料来源可跳转；`tests/monster-shop.mjs` |
@@ -33,7 +33,7 @@
 | 黑暗传说普通装备强化、重铸和附魔 | `modules/monster/upgrade-domain.js`, `modules/monster/smith-view.js`, `modules/monster/upgrade.css` | 原位更新、紧凑双列及目标等级连续强化；每次尝试先保存再继续，关闭或后台停止；`tests/monster-upgrades.mjs`、`tests/monster-strengthening.mjs` |
 | 黑暗传说换装强化继承与 +30 扩展 | `modules/monster/loadout-domain.js`, `modules/monster/equipment-domain.js`, `modules/monster/strength-balance-domain.js` | 同部位换装交换强化等级以保留较高值，不复制强化；+19–30 固定材料／概率规则、主属性倍率与分解返还，打造对比预览继承后的属性；`tests/monster-strength-retention.mjs` |
 | 黑暗传说缺料获取地点与地图定位 | `modules/monster/material-source-domain.js`, `modules/monster/material-source-view.js`, `modules/monster/material-source.css` | 任务／打造入口，实际掉落、遭遇、深渊及试炼条件，保留地图锁定；定位不自动挑战；`tests/monster-material-sources.mjs` |
-| 黑暗传说打造和材料／神器熔炼 | `modules/monster/craft-domain.js`, `modules/monster/craft-view.js`, `modules/monster/smelt-domain.js`, `modules/monster/smelt-view.js` | `public/monster/data/make.json`；双列配方、等级与分类选择记忆；装备配方材料需恰好 +5；打造历史、持有标记与同部位属性范围对比；消耗和产物一次云档保存；`tests/monster-craft.mjs`、`tests/monster-smelt.mjs` |
+| 黑暗传说打造和材料／神器熔炼 | `modules/monster/craft-domain.js`, `modules/monster/craft-view.js`, `modules/monster/attribute-labels.js`, `modules/monster/smelt-domain.js`, `modules/monster/smelt-view.js` | `public/monster/data/make.json`；双列配方、徽章效果、等级与分类选择记忆；装备配方材料需恰好 +5；打造历史、持有标记与同部位属性范围对比；消耗和产物一次云档保存；`tests/monster-craft.mjs`、`tests/monster-smelt.mjs` |
 | 黑暗传说徽章升级与神器升星、洗星 | `modules/monster/special-upgrade-domain.js`, `modules/monster/special-upgrade-view.js`, `modules/monster/god-upgrade-domain.js`, `modules/monster/god-upgrade-view.js` | 徽章 +5 上限；神器最多升星两次，洗星只替换最后一次升星词条；`tests/monster-special-upgrade.mjs`、`tests/monster-god-upgrade.mjs` |
 | 黑暗传说初始角色、掉落、奖励和数值入账 | `modules/monster/new-game-domain.js`, `modules/monster/loot-domain.js`, `modules/monster/port-drop-domain.js`, `modules/monster/reward-domain.js`, `modules/monster/inventory-domain.js`, `modules/monster/settlement-domain.js` | 普通/副本/遭遇奖励、深渊里程碑、角色／主宠经验；移植补充掉落与来源查询共用目录，概率非原版；`tests/monster-port-drops.mjs`；成就等后续效果未执行 |
 | 黑暗传说随机装备、宝石、神器/巅峰词条及穿戴/技能装配 | `modules/monster/item-domain.js`, `modules/monster/gem-domain.js`, `modules/monster/paragon-equipment-domain.js`, `modules/monster/loadout-domain.js` | `public/monster/data/drop-groups.json`, `public/monster/data/equipment-templates.json`, `tests/monster-item-domain.mjs` |

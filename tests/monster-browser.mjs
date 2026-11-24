@@ -89,9 +89,9 @@ async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, sa
     if (taskNavigation) {
       const rows = JSON.parse(await readFile(resolve(root, "monster/data/task.json"), "utf8"));
       seed.player.level = 10; seed.progress.chapterId = 1; seed.progress.levelId = 6;
-      seed.taskBoard = { points: 0, dailyRewardDay: null, entries: [1, 3, 39, 64].map((id) => {
+      seed.taskBoard = { points: 0, dailyRewardDay: null, entries: [1, 3, 39, 40, 64].map((id) => {
         const row = rows.find((item) => item.id === id);
-        return { id, type: row.type, target: row.target, need: row.needcount, count: 0, claimed: 0 };
+        return { id, type: row.type, target: row.target, need: row.needcount, count: id === 40 ? row.needcount : 0, claimed: 0 };
       }) };
     }
     if (offline) {
@@ -589,6 +589,7 @@ async function checkTaskNavigation() {
   await page.locator("#monsterEnter").click(); await stage(page, "home"); await tapNative(page, "btn_task");
   const first = page.locator('[data-task-id="1"]');
   await first.waitFor();
+  assert.equal(await page.locator('[data-task-id="40"] [data-task-copy]').count(), 0, "completed tasks should not offer a destination");
   for (const width of [375, 390, 430, 768]) {
     await page.setViewportSize({ width, height: 844 });
     await noOverflow(page);
@@ -671,13 +672,93 @@ async function checkEquipmentSwap() {
   await conflict.context().close();
   console.log(`Equipment swap ${browserType.name()} passed: visible controls, strength inheritance, save retry, conflict and reload.`);
 }
+
+async function checkMapAndBadgeUi() {
+  const page = await pageFor({ navigation: true, retention: true, reducedMotion: "reduce" });
+  await page.locator("#monsterEnter").click(); await stage(page, "home");
+  const homePower = await page.locator("#monsterBattlePower").textContent();
+  assert.match(homePower, /参考战力 [\d,]+/);
+  assert.match(await page.evaluate(() => getComputedStyle(document.documentElement).fontFamily), /^Arial/);
+  const canvasFonts = await page.evaluate(() => {
+    const fonts = [];
+    function walk(node) { if (node instanceof ccui.Text && node.getString()) fonts.push(node.getFontName()); for (const child of node.getChildren?.() || []) walk(child); }
+    walk(cc.director.getRunningScene()); return fonts;
+  });
+  assert.ok(canvasFonts.length > 0 && canvasFonts.every((font) => font === "Arial"), JSON.stringify(canvasFonts));
+  await page.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-home-power.png" : "home-power.png") });
+  const locks = await page.evaluate(() => {
+    function find(node, name) { if (node.getName?.() === name) return node; for (const child of node.getChildren?.() || []) { const result = find(child, name); if (result) return result; } }
+    const scene = cc.director.getRunningScene();
+    return ["btn_copy", "btn_abyss"].map((name) => find(find(scene, name), "img_lock")?.isVisible());
+  });
+  assert.deepEqual(locks, [false, false]);
+  await page.locator("#monsterRole").click();
+  assert.equal(await page.locator("#monsterDetailsClose").evaluate((node) => getComputedStyle(node).outlineStyle), "none");
+  assert.equal((await page.locator(".monster-role-power").textContent()).replace(/\s/g, ""), homePower.replace(/\s/g, ""));
+  await page.locator("#monsterDetailsClose").click();
+  await page.locator("#monsterAdventure").click();
+  await page.locator('[data-chapter-id="21"]').click();
+  for (const [width, height] of [[375, 667], [375, 844], [390, 844], [430, 844]]) {
+    await page.setViewportSize({ width, height }); await noOverflow(page);
+    const layout = await page.locator(".monster-map").evaluate((map) => {
+      const viewport = map.closest(".monster-copy-viewport").getBoundingClientRect();
+      return [...map.querySelectorAll(".monster-copy-row")].map((row) => {
+        const box = row.getBoundingClientRect(); return { top: box.top - viewport.top, bottom: viewport.bottom - box.bottom, width: box.width, height: box.height };
+      });
+    });
+    assert.equal(layout.length, 9);
+    assert.ok(layout.every((row) => row.top >= -1 && row.bottom >= -1 && row.width >= 44 && row.height >= 44), JSON.stringify(layout));
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-chapter-grid.png" : "chapter-grid.png") });
+  await page.getByRole("button", { name: "增加波数" }).click();
+  assert.equal(await page.getByLabel("地图波数").inputValue(), "2");
+  assert.equal(await page.getByRole("button", { name: "增加波数" }).evaluate((node) => getComputedStyle(node).outlineStyle), "none");
+  await page.keyboard.press("Tab");
+  assert.equal(await page.evaluate(() => document.documentElement.dataset.monsterInput), "keyboard");
+  assert.notEqual(await page.evaluate(() => getComputedStyle(document.activeElement).outlineStyle), "none");
+  await page.getByLabel("地图波数").selectOption("10");
+  await page.getByRole("button", { name: "减少波数" }).click();
+  assert.equal(await page.getByLabel("地图波数").inputValue(), "9");
+  await accessible(page); await page.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-chapter-grid.png" : "chapter-grid.png") });
+  await page.getByLabel("地图波数").selectOption("1");
+  await page.locator('[data-chapter-id="2"]').click();
+  await page.locator(".monster-chapter-rail").evaluate((rail) => { rail.scrollLeft = 400; });
+  await page.waitForTimeout(50);
+  const chapterScroll = await page.locator(".monster-chapter-rail").evaluate((rail) => rail.scrollLeft);
+  await page.locator('[data-copy-id="1010"]').click(); await stage(page, "result");
+  await tapNative(page, "text_backtips"); await page.locator(".monster-adventure-content").waitFor();
+  assert.equal(await page.locator('[data-chapter-id="2"]').getAttribute("aria-current"), "true");
+  assert.equal(await page.locator(".monster-chapter-rail").evaluate((rail) => rail.scrollLeft), chapterScroll);
+  assert.equal(await page.locator(".monster-copy-viewport").evaluate((viewport) => viewport.scrollTop), 0);
+  await page.locator('[data-copy-type="6"]').click();
+  await page.locator('[data-trial-hard="2"]').click();
+  assert.equal(await page.locator('[data-trial-hard="2"]').evaluate((node) => getComputedStyle(node).outlineStyle), "none");
+  await page.locator("#monsterDetailsClose").click();
+  await tapNative(page, "btn_blacksmith"); await page.getByRole("button", { name: "打造与合成", exact: true }).click();
+  await page.locator(".monster-craft-tabs").getByRole("button", { name: "徽章", exact: true }).click();
+  for (const id of [6850, 6851, 6853, 6855, 6858, 6857, 6862, 6864]) {
+    await page.locator(`[data-recipe-id="${id}"]`).click();
+    assert.ok(await page.locator(".monster-craft-badge-effects p").count() > 0, `badge ${id} should show effects`);
+  }
+  await page.locator('[data-recipe-id="6853"]').click();
+  assert.match(await page.locator(".monster-craft-badge-effects").textContent(), /复活效果.*暂未接通/);
+  await page.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-badge-effects.png" : "badge-effects.png") });
+  await page.locator("#monsterDetailsClose").click(); await page.locator("#monsterBag").click();
+  await page.getByRole("button", { name: "装备", exact: true }).click();
+  await page.locator('.monster-bag-grid button[title="经验卷轴"]').click();
+  assert.match(await page.locator(".monster-item-effects").textContent(), /经验获取 \+5%/);
+  await page.context().close();
+  console.log(`Map and badge UI ${browserType.name()} passed: home locks, power, whole chapter, waves, focus and badge effects.`);
+}
 try {
-  const focused = ["--offline-only", "--offline-retry-only", "--tasks-only", "--equipment-only", "--shop-only", "--side-pet-only", "--pet-passive-only", "--pet-training-only"];
+  const focused = ["--offline-only", "--offline-retry-only", "--tasks-only", "--equipment-only", "--map-layout-only", "--shop-only", "--side-pet-only", "--pet-passive-only", "--pet-training-only"];
   const selected = (flag) => !focused.some((option) => process.argv.includes(option)) || process.argv.includes(flag);
   if (selected("--offline-only")) await checkOfflineRun({ sidePets: process.argv.includes("--side-offline") });
   if (selected("--offline-retry-only")) await checkOfflineDefeatRetry();
   if (selected("--tasks-only")) await checkTaskNavigation();
   if (selected("--equipment-only")) await checkEquipmentSwap();
+  if (selected("--map-layout-only")) await checkMapAndBadgeUi();
   if (selected("--shop-only")) await checkShop();
   if (selected("--side-pet-only")) await checkSidePets();
   if (selected("--pet-passive-only")) await checkPetPassives();
@@ -907,8 +988,7 @@ try {
   assert.deepEqual(partialSaved.progress, partialSeed.progress);
   await partialExit.reload(); await stage(partialExit, "menu"); assert.deepEqual(await saved(partialExit), partialSaved);
   await partialExit.context().close();
-  // Exercise the result canvas itself, including restoring a non-default chapter
-  // and both scroll positions after a real map challenge.
+  // Exercise the result canvas and restore a non-default chapter after a map challenge.
   const navigationPage = await pageFor({ navigation: true, roll: 4, reducedMotion: "reduce" });
   await navigationPage.locator("#monsterEnter").click(); await stage(navigationPage, "home");
   await navigationPage.locator("#monsterAdventure").click();
@@ -919,7 +999,13 @@ try {
     return rect.top >= view.top && rect.bottom <= view.bottom;
   });
   assert.equal(mapVisible, true, "opening the map should show the current unlocked stage");
-  assert.ok(await navigationPage.locator(".monster-copy-viewport").evaluate((node) => node.scrollTop) > 0);
+  assert.equal(await navigationPage.locator(".monster-copy-viewport").evaluate((node) => node.scrollTop), 0);
+  assert.equal(await navigationPage.locator(".monster-map").evaluate((map) => {
+    const view = map.closest(".monster-copy-viewport").getBoundingClientRect();
+    return [...map.querySelectorAll(".monster-copy-row")].every((row) => {
+      const rect = row.getBoundingClientRect(); return rect.top >= view.top && rect.bottom <= view.bottom;
+    });
+  }), true, "every monster in the chapter should fit in the viewport");
   const powerPosition = await navigationPage.locator(".monster-adventure-overview").boundingBox();
   const targetBox = await currentMap.boundingBox();
   await navigationPage.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + targetBox.height / 2);
@@ -942,25 +1028,17 @@ try {
   assert.equal((await navigationPage.locator(".monster-adventure-overview").boundingBox()).y, powerPosition.y);
   await noOverflow(navigationPage); await accessible(navigationPage);
   await navigationPage.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-map-compact.png" : "map-compact.png") });
-  await navigationPage.locator(".monster-copy-viewport").evaluate((node) => { node.scrollTop = 250; });
-  await navigationPage.waitForTimeout(50);
-  const reopenPosition = await navigationPage.locator(".monster-copy-viewport").evaluate((node) => node.scrollTop);
-  assert.ok(reopenPosition > 0, "reopening must exercise a nonzero map scroll position");
   await navigationPage.locator("#monsterDetailsClose").click(); await navigationPage.locator("#monsterAdventure").click();
-  assert.equal(await navigationPage.locator(".monster-copy-viewport").evaluate((node) => node.scrollTop), reopenPosition);
+  assert.equal(await navigationPage.locator(".monster-copy-viewport").evaluate((node) => node.scrollTop), 0);
   await navigationPage.locator('[data-chapter-id="2"]').click();
   const challenge = navigationPage.locator('[data-copy-id="1010"]');
-  await challenge.evaluate((node) => {
-    const viewport = node.closest(".monster-copy-viewport");
-    viewport.scrollTop = Math.max(1, node.closest(".monster-copy-row").offsetTop - 16);
-  });
   await navigationPage.locator(".monster-chapter-rail").evaluate((rail) => { rail.scrollLeft = 400; });
   await navigationPage.waitForTimeout(50);
   const mapPosition = await navigationPage.evaluate(() => ({
     top: document.querySelector(".monster-copy-viewport").scrollTop,
     left: document.querySelector(".monster-chapter-rail").scrollLeft,
   }));
-  assert.ok(mapPosition.top > 0 && mapPosition.left > 0, JSON.stringify(mapPosition));
+  assert.ok(mapPosition.top === 0 && mapPosition.left > 0, JSON.stringify(mapPosition));
   if (iphone13) await challenge.tap(); else await challenge.click();
   await stage(navigationPage, "result");
   await tapNative(navigationPage, "text_backtips");

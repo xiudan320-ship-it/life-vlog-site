@@ -1,11 +1,15 @@
 import "./bag-equipment.css";
 import { element, picture, itemTile, showItem, petTile } from "./visual-ui.js";
 import { renderBagReceipt } from "./bag-item-view.js";
+import { referencePower } from "./copy-scout-domain.js";
 
 export function renderRole(content, state, catalog, actions) {
   content.className = "monster-character-content";
   const stats = element("section", undefined, "monster-role-stats monster-original-panel");
   stats.setAttribute("aria-label", "角色属性");
+  const power = element("div", undefined, "monster-role-power");
+  power.append(element("span", "参考战力"), element("b", referencePower(state.player).toLocaleString("zh-CN")));
+  stats.append(power);
   for (const [key, name] of [["maxHp", "生命"], ["critHurt", "暴击伤害"], ["attack", "攻击"], ["resistance", "负面抵抗"], ["defense", "防御"], ["regeneration", "生命回复"], ["hit", "命中"], ["dropRate", "物品掉落"], ["dodge", "闪避"], ["goldRate", "金币掉落"], ["crit", "暴击"], ["experienceRate", "经验获得"]]) {
     const line = element("div"); line.append(element("span", name), element("b", `${state.player[key] || 0}${key.endsWith("Rate") ? "%" : ""}`)); stats.append(line);
   }

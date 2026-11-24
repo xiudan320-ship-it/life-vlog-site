@@ -13,4 +13,4 @@
 .monster-material-description small{color:#d8c49f;font-size:11px}
 .monster-item-information .monster-material-description .monster-material-locked{color:#f0b4a0}
 .monster-material-card button{grid-column:2;min-height:44px;font-size:16px;min-width:0}
-.monster-copy-focused{outline:3px solid #ffe4a1;outline-offset:2px;filter:drop-shadow(0 0 8px #ffc45c)}
+.monster-copy-focused{filter:brightness(1.2)}

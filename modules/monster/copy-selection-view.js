@@ -58,20 +58,30 @@ export function renderCopySelection({ content, state, catalog, settings, onStart
   const chapterRail = element("nav", undefined, "monster-chapter-rail");
   chapterRail.setAttribute("aria-label", "章节");
   const form = element("form", undefined, "monster-copy-settings");
-  function select(label, values, selected) {
-    const field = element("label", label);
+  function select(label, values, selected, id) {
+    const field = element("div", undefined, "monster-copy-field");
+    const caption = element("label", label); caption.htmlFor = id; field.append(caption);
     const input = element("select");
-    input.setAttribute("aria-label", label);
+    input.id = id;
     for (const { value, name, disabled = false } of values) {
       const option = element("option", name); option.value = value; option.disabled = disabled; input.append(option);
     }
     input.value = selected; field.append(input); form.append(field); return input;
   }
-  const hard = select("地图难度", ["普通", "困难", "噩梦", "巅峰 I", "巅峰 II", "巅峰 III"].map((name, index) => ({ value: index + 1, name, disabled: index + 1 > maximumCopyDifficulty(state.player) })), settings.hard);
-  const waves = select("地图波数", Array.from({ length: 10 + (state.player.extraWaves || 0) }, (_, index) => ({ value: index + 1, name: `${index + 1} 波` })), settings.waves);
+  const hard = select("地图难度", ["普通", "困难", "噩梦", "巅峰 I", "巅峰 II", "巅峰 III"].map((name, index) => ({ value: index + 1, name, disabled: index + 1 > maximumCopyDifficulty(state.player) })), settings.hard, "monster-map-hard");
+  const waves = select("地图波数", Array.from({ length: 10 + (state.player.extraWaves || 0) }, (_, index) => ({ value: index + 1, name: `${index + 1} 波` })), settings.waves, "monster-map-waves");
+  const wavesField = waves.parentElement;
+  const waveControls = element("div", undefined, "monster-wave-controls");
+  const less = element("button", "−", "monster-wave-step"), more = element("button", "+", "monster-wave-step");
+  less.type = more.type = "button"; less.setAttribute("aria-label", "减少波数"); more.setAttribute("aria-label", "增加波数");
+  waves.replaceWith(waveControls); waveControls.append(less, waves, more);
+  for (const [button, delta] of [[less, -1], [more, 1]]) button.onclick = () => {
+    waves.value = String(Math.max(1, Math.min(waves.options.length, Number(waves.value) + delta)));
+    waves.dispatchEvent(new Event("change", { bubbles: true }));
+  };
   const autoLabel = element("label", undefined, "monster-auto-label");
-  const auto = element("input"); auto.type = "checkbox"; auto.checked = settings.repeat;
-  autoLabel.append(auto, element("span", "连续自动战斗")); form.append(autoLabel);
+  const auto = element("input"); auto.type = "checkbox"; auto.checked = settings.repeat; auto.setAttribute("aria-label", "连续自动战斗");
+  autoLabel.append(auto, element("span", "连续战斗")); form.append(autoLabel);
   const list = element("div", undefined, "monster-copy-list");
   const viewport = element("div", undefined, "monster-copy-viewport");
   viewport.setAttribute("aria-label", "关卡列表");
@@ -104,7 +114,8 @@ export function renderCopySelection({ content, state, catalog, settings, onStart
     for (const tab of chapterRail.children) tab.setAttribute("aria-current", String(Number(tab.dataset.chapterId) === settings.chapterId));
     chapterRail.hidden = settings.type !== 1;
     hard.parentElement.hidden = settings.type === 6;
-    waves.parentElement.hidden = settings.type !== 1;
+    wavesField.hidden = settings.type !== 1;
+    less.disabled = Number(waves.value) <= 1; more.disabled = Number(waves.value) >= waves.options.length;
     autoLabel.hidden = settings.type === 6;
     list.replaceChildren();
     if (settings.type === 6) {
@@ -118,20 +129,12 @@ export function renderCopySelection({ content, state, catalog, settings, onStart
       : copy.type === settings.type && (copy.type !== 1 || copy.id >= chapter.minid && copy.id <= chapter.maxid || copy.id === chapter.hideboss));
     const map = settings.type === 1;
     list.className = map ? "monster-copy-list monster-map" : "monster-copy-list monster-dungeon-grid";
-    if (map) {
-      const height = rows.length * 110 + 10;
-      list.style.height = height + "px";
-      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-      svg.setAttribute("viewBox", `0 0 100 ${height}`); svg.setAttribute("preserveAspectRatio", "none"); svg.setAttribute("aria-hidden", "true");
-      const path = document.createElementNS(svg.namespaceURI, "polyline");
-      path.setAttribute("points", rows.map((_, i) => `${i % 2 ? 73 : 27},${i * 110 + 38}`).join(" "));
-      svg.append(path); list.append(svg);
-    } else list.style.height = "";
-    rows.forEach((copy, index) => {
+    if (map) { list.style.height = "100%"; list.style.setProperty("--monster-map-rows", String(Math.ceil(rows.length / 3))); }
+    else { list.style.height = ""; list.style.removeProperty("--monster-map-rows"); }
+    rows.forEach((copy) => {
       const reason = getCopyAccess(copy, state, catalog.chapters);
       const scout = getCopyScout({ state, catalog, copy, settings });
       const row = element("div", undefined, "monster-copy-row");
-      if (map) { row.style.left = index % 2 ? "73%" : "27%"; row.style.top = `${index * 110 + 8}px`; }
       const button = element("button", undefined, map ? "monster-map-node" : "monster-dungeon-card monster-original-panel");
       button.type = "button"; button.dataset.copyId = copy.id;
       if (reason) button.dataset.locked = "true";
@@ -151,22 +154,9 @@ export function renderCopySelection({ content, state, catalog, settings, onStart
       details.onclick = () => onScout(copy.id, selected());
       row.append(button, details); list.append(row);
     });
-    if (settings.scrollTop !== undefined) viewport.scrollTop = settings.scrollTop;
-    else if (map && chapter.id === state.progress.chapterId) {
-      const current = list.querySelector(`[data-copy-id="${Math.min(chapter.maxid, chapter.minid + state.progress.levelId - 1)}"]`);
-      if (current) viewport.scrollTop = Math.max(0, current.closest(".monster-copy-row").offsetTop - viewport.clientHeight / 3);
-    } else viewport.scrollTop = 0;
+    viewport.scrollTop = map ? 0 : settings.scrollTop || 0;
   }
   render();
-  if (advanced && settings.chapterId === state.progress.chapterId) {
-    const chapter = catalog.chapters.find((row) => row.id === settings.chapterId);
-    const current = list.querySelector(`[data-copy-id="${Math.min(chapter.maxid, chapter.minid + state.progress.levelId - 1)}"]`);
-    if (current) {
-      const node = current.getBoundingClientRect(), box = viewport.getBoundingClientRect();
-      if (node.bottom > box.bottom) viewport.scrollTop += node.bottom - box.bottom + 8;
-      else if (node.top < box.top) viewport.scrollTop -= box.top - node.top + 8;
-    }
-  }
   if (settings.chapterScrollLeft !== undefined) chapterRail.scrollLeft = settings.chapterScrollLeft;
   else {
     const selectedChapter = chapterRail.querySelector(`[data-chapter-id="${settings.chapterId}"]`);
@@ -177,7 +167,7 @@ export function renderCopySelection({ content, state, catalog, settings, onStart
       || (settings.type === 6 ? list.querySelector("[data-trial-claim]") : null);
     if (button) {
       button.classList.add("monster-copy-focused");
-      button.scrollIntoView({ block: "center", inline: "nearest" });
+      if (settings.type !== 1) button.scrollIntoView({ block: "center", inline: "nearest" });
       if (!button.disabled) button.focus({ preventScroll: true });
     }
     settings.focusCopyId = null;

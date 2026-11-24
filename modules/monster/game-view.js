@@ -16,6 +16,7 @@ import { renderCopyScout } from "./copy-scout-view.js";
 import { referencePower } from "./copy-scout-domain.js";
 import { renderOffline } from "./offline-view.js";
 import { renderShop } from "./shop-view.js";
+import { MONSTER_FONT, unifyCanvasTypography } from "./typography.js";
 
 const assets = "/monster/assets/";
 
@@ -56,7 +57,7 @@ export function createMonsterGameView({ warView }) {
     phase = value;
     document.body.dataset.monsterStage = value;
     exitBattle.hidden = value !== "battle" && !(value === "result" && repeating);
-    battlePower.hidden = value !== "battle";
+    battlePower.hidden = value !== "battle" && value !== "home";
     exitBattle.disabled = exitPending;
     controls.Enter.disabled = exitPending || repeating || value === "battle" || value === "loading" || value === "error";
     controls.Enter.textContent = value === "menu" ? hasSave ? "继续游戏" : "开始游戏" : "主页";
@@ -112,6 +113,7 @@ export function createMonsterGameView({ warView }) {
     await new Promise((resolve, reject) => cc.loader.load([...resources], (error) => error ? reject(new Error(String(error))) : resolve()));
     const widget = ccs.load(url).node;
     if (!widget) throw new Error("原界面无法载入");
+    unifyCanvasTypography(widget, cc, ccui);
     // Native layouts use a 640x960 design. Preserve their authored coordinates
     // when adapting the top HUD; percentage layout must not undo the offset.
     for (const child of widget.getChildren()) if (child instanceof ccui.Widget) child.setPositionType(ccui.Widget.POSITION_ABSOLUTE);
@@ -152,6 +154,7 @@ export function createMonsterGameView({ warView }) {
     statusMessage("游戏进度随登录账号保存在云端，每场结算后自动保存。");
   }
   function homeStats(header, state) {
+    battlePower.textContent = `参考战力 ${referencePower(state.player).toLocaleString("zh-CN")}`;
     text(header, "label_name", state.player.name);
     text(header, "text_level", `等级${state.player.level}`);
     find(header, "label_level")?.setVisible(false);
@@ -176,7 +179,7 @@ export function createMonsterGameView({ warView }) {
       const type = adventureButtons[node.getName()];
       const handler = { btn_task: () => actions.tasks(), btn_blacksmith: () => actions.workshop(), btn_strength: () => actions.workshop(), btn_pet: () => actions.pets(), btn_shop: () => actions.shop() }[node.getName()];
       node.setVisible(Boolean(type || handler));
-      if (type) click(node, () => actions.selectCopy(type));
+      if (type) { find(node, "img_lock")?.setVisible(false); click(node, () => actions.selectCopy(type)); }
       else if (handler) { find(node, "img_lock")?.setVisible(node.getName() === "btn_pet" && state.player.level < 35); click(node, handler); }
     });
     homeHeader = header;
@@ -234,7 +237,7 @@ export function createMonsterGameView({ warView }) {
     for (const spec of low.nodes) {
       if (spec.kind === "ProgressTimer") continue;
       const node = spec.kind === "Sprite" ? new cc.Sprite(assets + spec.asset)
-        : spec.kind === "Text" ? new ccui.Text(spec.text || "", "Arial", spec.fontSize || 24) : new cc.Node();
+        : spec.kind === "Text" ? new ccui.Text(spec.text || "", MONSTER_FONT, spec.fontSize || 24) : new cc.Node();
       nodes.set(spec.id, configure(node, spec));
       if (spec.asset === "img/layer_bg7.png") node.setScale(Math.max(spec.scale || 1, cc.winSize.width / node.width, cc.winSize.height / node.height));
     }
@@ -276,7 +279,7 @@ export function createMonsterGameView({ warView }) {
     bound("playerBar").setPercentage(player.hp / player.maxHp * 100);
     if (hit) {
       const target = bound(hit.target.side === "allies" ? "player" : "enemy");
-      const label = new ccui.Text(hit.hpBefore === hit.hpAfter ? "闪避" : String(hit.hpBefore - hit.hpAfter), "Arial", 32);
+      const label = new ccui.Text(hit.hpBefore === hit.hpAfter ? "闪避" : String(hit.hpBefore - hit.hpAfter), MONSTER_FONT, 32);
       label.setColor(cc.color(255, 70, 70));
       label.setPosition(0, 100);
       target.addChild(label, 50);
@@ -319,7 +322,7 @@ export function createMonsterGameView({ warView }) {
     }
     for (const [name, value] of [["img_coinbg", reward.gold], ["img_expbg", reward.experience], ["img_honorbg", reward.honor]]) {
       const container = find(widget, name);
-      const label = new ccui.Text(String(value), "Arial", 30);
+      const label = new ccui.Text(String(value), MONSTER_FONT, 30);
       label.setPosition(container.width / 2, container.height / 2);
       container.addChild(label, 20);
     }
@@ -333,7 +336,7 @@ export function createMonsterGameView({ warView }) {
       frame.setPosition(95 + index % 6 * 90, 410 - Math.floor(index / 6) * 100);
       const icon = new ccui.ImageView(`${assets}icon/item/${row.icon}`);
       icon.setScale(58 / Math.max(icon.width, icon.height)); icon.setPosition(frame.width / 2, frame.height / 2); frame.addChild(icon);
-      const quantity = new ccui.Text(String(item.quantity ?? 1), "Arial", 22); quantity.setPosition(frame.width - 12, 12); frame.addChild(quantity);
+      const quantity = new ccui.Text(String(item.quantity ?? 1), MONSTER_FONT, 22); quantity.setPosition(frame.width - 12, 12); frame.addChild(quantity);
       widget.addChild(frame, 30);
     });
     text(widget, "text_backtips", reward.partial ? `战败 · 已保留 ${reward.defeatedCount} 只怪物收益\n点击返回关卡` : "点击返回关卡");

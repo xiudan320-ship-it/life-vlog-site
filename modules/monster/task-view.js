@@ -42,7 +42,8 @@ export function renderTasks({ content, state, catalog, actions, now }) {
       button.onclick = () => actions.claimTask(entry.id);
       const controls = element("div", undefined, "monster-task-actions");
       controls.append(button);
-      const destination = [1, 2].includes(entry.type) && catalog.copies.find((copy) => copy.id === entry.target && copy.type === entry.type);
+      const destination = !entry.claimed && count < entry.need && [1, 2].includes(entry.type)
+        && catalog.copies.find((copy) => copy.id === entry.target && copy.type === entry.type);
       if (destination) {
         const location = element("button", entry.type === 1 ? "前往地图" : "前往副本", "monster-image-button");
         location.type = "button"; location.dataset.taskCopy = String(destination.id);

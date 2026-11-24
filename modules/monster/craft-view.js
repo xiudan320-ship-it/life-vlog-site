@@ -2,6 +2,7 @@ import "./craft.css";
 import { element, itemTile } from "./visual-ui.js";
 import { getCraftRequirements, getCraftEquipmentComparison, getCraftHistoryCount, getCraftOwnedCount } from "./craft-domain.js";
 import { collectEquipmentAttributes } from "./attribute-domain.js";
+import { describeEquipmentAttribute } from "./attribute-labels.js";
 
 const statNames = ["", "攻击", "防御", "生命", "命中", "闪避", "暴击", "暴击伤害", "负面抵抗"];
 const scoreNames = ["", "普通", "标准", "优秀", "极品"];
@@ -106,7 +107,14 @@ export function renderCraft({ state, catalog, actions, receipt, selection = { ca
     const counts = element("p", `已打造 ×${history} · 已持有 ×${owned}`, "monster-craft-counts"); counts.dataset.craftCounts = "";
     detail.append(counts);
     if (!history) detail.append(element("p", "打造次数从本次更新起记录", "monster-panel-hint"));
-    renderComparison(product);
+    if (product.type === 2 && product.subtype === 9) {
+      const preview = getCraftEquipmentComparison({ state, itemId: product.id, catalog }).min;
+      const effects = element("section", undefined, "monster-craft-badge-effects");
+      effects.append(element("h4", "徽章效果（穿戴后生效）"));
+      for (const attribute of preview.attributes) effects.append(element("p", describeEquipmentAttribute(attribute)));
+      if (product.specialgrow) effects.append(element("small", "效果随角色等级与巅峰成长。"));
+      detail.append(effects);
+    } else renderComparison(product);
     const costs = element("ul", undefined, "monster-craft-costs");
     for (const material of materials) {
       const row = catalog.items.find((item) => item.id === material.id);
