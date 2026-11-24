@@ -28,7 +28,9 @@ const server = createServer(async (request, response) => {
 await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
 const address = server.address();
 const baseUrl = `http://127.0.0.1:${address.port}`;
-const browser = await chromium.launch({ headless: true });
+// The OS can assign a port that Chromium normally blocks (for example, 6697).
+// Allow only this test server's actual port for the isolated browser process.
+const browser = await chromium.launch({ headless: true, args: [`--explicitly-allowed-ports=${address.port}`] });
 const coverage = [];
 try {
   for (const path of ["/", "/?page=recipes", "/?page=wishlist", "/?page=weekend", "/?page=wardrobe", "/?page=secret", "/?page=mood"]) {
