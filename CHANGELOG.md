@@ -12,7 +12,6 @@
 
 ### Changed
 
-- 黑暗传说任务页改为紧凑卡片，击杀与副本任务可直接定位对应关卡；未解锁地点可查看，挑战仍受解锁条件限制。
 
 
 
@@ -25,8 +24,6 @@
 
 ### Fixed
 
-- 黑暗传说背包的可穿戴装备直接显示“穿戴”或“更换”按钮，装备详情的穿戴入口提前，方便在手机上更换装备。
-- 修复离线挂机一次战败后提前停止、长时间离线收益偏少的问题；战败保留已击杀收益并继续挑战，结果区显示实际结算时长和战败次数，副本和深渊每次重试消耗卷轴。
 
 
 
@@ -62,6 +59,23 @@
 ### Fixed
 
 - 修复显式深链在断网启动时因初始路由状态提前切换而丢失隐藏缓存日记的问题；缓存画廊现在可在非 gallery 深链下先渲染并由路由控制显隐。
+
+## [2026-11-24] — 黑暗传说挂机、任务与装备
+
+### Changed
+
+- 任务页改为紧凑卡片，击杀与副本任务可直接定位对应关卡；未解锁地点可查看，挑战仍受解锁条件限制。
+- 背包的可穿戴装备直接显示“穿戴”或“更换”按钮；保存失败可在背包内重试，强化等级继承保持原有规则。
+
+### Fixed
+
+- 修复离线挂机一次战败后提前停止、长时间离线收益偏少的问题；战败保留已击杀收益并继续挑战，结果区显示实际结算时长和战败次数，副本和深渊每次重试消耗卷轴。
+
+### Release
+
+- 从 `main` 提交 `fb56847967867f14914eac0a3f6db38c98ab23b3` 通过统一脚本发布；preview 为 `https://codex-preview.life-vlog-site.pages.dev`，正式入口为 `https://life-vlog-site.pages.dev`，production deployment 为 `https://cab1796d.life-vlog-site.pages.dev`，Worker 版本 `385a57e4-e695-483c-be1d-d740721b566e`。无 D1 结构变更。
+- 257 份 JavaScript 语法检查、427 项单元测试、完整 Chromium／iPhone 13 WebKit 游戏回归、本地及 preview／production Axe、CORS 与确定性 smoke 全部通过；预览及正式站另用内存 fixture 验证 16 小时挂机战败重试、任务定位、装备更换与云档重试。未测试实体 iPhone 或真实账号。
+- 正式站 `monster-D8Vbg9DW.js`（SHA-256 `21aa92e4cf555285a05ec30caaf5be5617d1f28e763b016f398cc875128044d5`）、`monster-CkziiVoA.css`（`7fb1315ffb1588b3b29cbef1d004dd4db1e81078f6be6fafaa33ad2c719aaa70`）、`monster-offline-worker-B-y_l1oJ.js`（`b874720107652b8f4e1cd38aa58be588b82271b349081e6fba82fab391f3bc6f`）和 `sw.js`（`a2d9ff79482e1f7e7d00ea9c3d30ed876e600a28040fb057f088b0bced8115fe`）与构建一致。
 
 ## [2026-11-24] — 黑暗传说宠物培养
 
