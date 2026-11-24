@@ -131,7 +131,7 @@ export function createMonsterGameController({ catalog, store, view, random, wait
           battle = action.battle;
           session.current.battle = battle;
           view.battleUpdate(battle, null, state, catalog);
-          for (const hit of action.hits) view.battleUpdate(battle, hit, state, catalog);
+          action.hits.forEach((hit, index) => view.battleUpdate(battle, hit, state, catalog, index === 0));
         }
         await battleWait(450);
         if (stopped()) return;

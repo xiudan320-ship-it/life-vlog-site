@@ -17,11 +17,13 @@ import { referencePower } from "./copy-scout-domain.js";
 import { renderOffline } from "./offline-view.js";
 import { renderShop } from "./shop-view.js";
 import { MONSTER_FONT, unifyCanvasTypography } from "./typography.js";
+import { createBattleAnimations } from "./battle-animation-view.js";
 
 const assets = "/monster/assets/";
 
 export function createMonsterGameView({ warView }) {
   const { cc, ccui, ccs } = globalThis;
+  const battleAnimations = createBattleAnimations({ cc, assets, reducedMotion: () => matchMedia("(prefers-reduced-motion: reduce)").matches });
   const frame = document.getElementById("monsterFrame");
   const status = document.getElementById("monsterStatus");
   const controls = Object.fromEntries(["Enter", "Adventure", "Role", "Skills", "Bag"].map((name) => [name, document.getElementById(`monster${name}`)]));
@@ -219,7 +221,10 @@ export function createMonsterGameView({ warView }) {
     document.getElementById("monsterDetails").close();
     const request = ++serial;
     const files = [...new Set([...warView.layouts[0].nodes.filter((node) => node.asset).map((node) => assets + node.asset), ...initial.enemies.map((enemy) => `${assets}enemy/${catalog.enemies.find((row) => row.id === enemy.id).img}`)])];
-    await new Promise((resolve, reject) => cc.loader.load(files, (error) => error ? reject(new Error(String(error))) : resolve()));
+    await Promise.all([
+      new Promise((resolve, reject) => cc.loader.load(files, (error) => error ? reject(new Error(String(error))) : resolve())),
+      battleAnimations.prepare(initial, catalog.skills),
+    ]);
     if (request !== serial) return;
     const low = warView.layouts[0];
     const high = new Map(warView.layouts[1].nodes.map((node) => [node.id, node]));
@@ -253,6 +258,8 @@ export function createMonsterGameView({ warView }) {
       const childSpec = low.nodes.find((candidate) => candidate.id === child);
       nodes.get(spec.id).addChild(nodes.get(child), childSpec.z || 0);
     }
+    nodes.get(warView.bindings.player).setName("monster-battle-player");
+    nodes.get(warView.bindings.enemy).setName("monster-battle-enemy");
     scene(nodes.get(warView.root));
     const petCount = initial.petPassives?.length || 0;
     battlePower.textContent = `战力 ${referencePower(state.player).toLocaleString("zh-CN")}${petCount ? ` · 助战 ${petCount}` : ""}`;
@@ -263,7 +270,7 @@ export function createMonsterGameView({ warView }) {
     for (const spec of low.nodes) if (spec.position?.[1] >= 720) nodes.get(spec.id).y -= shift;
     battleUpdate(initial, null, state, catalog);
   }
-  function battleUpdate(value, hit, state, catalog) {
+  function battleUpdate(value, hit, state, catalog, firstHit = false) {
     const bound = (key) => nodes.get(warView.bindings[key]);
     const enemy = value.enemies[value.currentEnemyIndex];
     const player = value.allies[0];
@@ -279,6 +286,8 @@ export function createMonsterGameView({ warView }) {
     bound("playerBar").setPercentage(player.hp / player.maxHp * 100);
     if (hit) {
       const target = bound(hit.target.side === "allies" ? "player" : "enemy");
+      const actor = bound(hit.actor.side === "allies" ? "player" : "enemy");
+      battleAnimations.hit(hit, catalog.skills.find((skill) => skill.id === hit.skillId), actor, target, firstHit);
       const label = new ccui.Text(hit.hpBefore === hit.hpAfter ? "闪避" : String(hit.hpBefore - hit.hpAfter), MONSTER_FONT, 32);
       label.setColor(cc.color(255, 70, 70));
       label.setPosition(0, 100);

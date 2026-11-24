@@ -48,15 +48,16 @@ let keyboardChecked = false;
 const artifacts = resolve("artifacts/monster");
 await mkdir(artifacts, { recursive: true });
 
-async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, saveStatus = 0, defeat = false, trial = false, trialRewards = false, workshop = false, retention = false, navigation = false, taskNavigation = false, offline = false, offlineWeak = false, shop = false, sidePets = false, petParty = false, petGrowth = false, petCare = false, petPassives = false, petTraining = false, colorScheme = "dark", reducedMotion = "no-preference" } = {}) {
+async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, saveStatus = 0, defeat = false, trial = false, trialRewards = false, workshop = false, retention = false, navigation = false, taskNavigation = false, offline = false, offlineWeak = false, shop = false, sidePets = false, petParty = false, petGrowth = false, petCare = false, petPassives = false, petTraining = false, animationSkill = 0, colorScheme = "dark", reducedMotion = "no-preference" } = {}) {
   const context = await browser.newContext({ ...(iphone13 ? devices["iPhone 13"] : {}), viewport: { width: 390, height: 844 }, screen: { width: 390, height: 844 }, colorScheme, reducedMotion });
   contexts.push(context);
   context.on("requestfailed", (request) => requestFailures.push({ url: request.url(), error: request.failure()?.errorText }));
   const fixture = createWorkerFixture({ origin });
   if (offline) fixture.serverTime = Date.UTC(2026, 0, 1);
-  if (trial || workshop || retention || navigation || taskNavigation || offline || shop || sidePets || petParty || petGrowth || petCare || petPassives || petTraining) {
+  if (trial || workshop || retention || navigation || taskNavigation || offline || shop || sidePets || petParty || petGrowth || petCare || petPassives || petTraining || animationSkill) {
     const [items, skills] = await Promise.all(["item", "skill"].map(async (name) => JSON.parse(await readFile(resolve(root, `monster/data/${name}.json`), "utf8"))));
     const seed = createNewGame({ items, skills }); seed.player.name = "功能测试勇者";
+    if (animationSkill) seed.player.equippedSkillIds = [animationSkill];
     if (shop) {
       const rows = JSON.parse(await readFile(resolve(root, "monster/data/pet.json"), "utf8"));
       seed.player.level = 35; seed.money = 65;
@@ -751,14 +752,69 @@ async function checkMapAndBadgeUi() {
   await page.context().close();
   console.log(`Map and badge UI ${browserType.name()} passed: home locks, power, whole chapter, waves, focus and badge effects.`);
 }
+
+async function checkBattleAnimation() {
+  for (const reducedMotion of ["no-preference", "reduce"]) {
+    const page = await pageFor({ animationSkill: 2, roll: 0, reducedMotion });
+    await page.locator("#monsterEnter").click(); await stage(page, "home");
+    await page.evaluate(() => {
+      const schedule = window.monsterFixtureNativeTimeout;
+      window.setTimeout = (callback, delay, ...args) => {
+        if (delay === 550 || delay === 450) { window.monsterFixturePendingBattle = () => callback(...args); return 0; }
+        return schedule(callback, delay, ...args);
+      };
+    });
+    await page.locator("#monsterAdventure").click();
+    await page.locator('[data-copy-id="1001"]').click(); await stage(page, "battle");
+    await page.waitForFunction(() => typeof window.monsterFixturePendingBattle === "function");
+    await page.evaluate(() => {
+      function find(node, name) { if (node.getName?.() === name) return node; for (const child of node.getChildren?.() || []) { const result = find(child, name); if (result) return result; } }
+      const scene = cc.director.getRunningScene();
+      const player = find(scene, "monster-battle-player");
+      const startY = player.y;
+      const samples = window.monsterAnimationSamples = { y: [], frames: [], startY, done: false };
+      const setPosition = player.setPosition.bind(player);
+      player.setPosition = (...args) => { setPosition(...args); samples.y.push(player.y); };
+      const start = performance.now();
+      function sample() {
+        samples.y.push(player.y);
+        const effect = find(scene, "monster-skill-effect");
+        if (effect) samples.frames.push(effect.getSpriteFrame().getRect());
+        if (performance.now() - start < 420) requestAnimationFrame(sample);
+        else samples.done = true;
+      }
+      window.monsterFixturePendingBattle(); window.monsterFixturePendingBattle = null;
+      requestAnimationFrame(sample);
+    });
+    if (reducedMotion === "no-preference") {
+      await page.waitForFunction(() => window.monsterAnimationSamples.frames.some((frame) => frame.width >= 99));
+      await page.evaluate(() => cc.director.pause());
+      await page.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-battle-animation.png" : "battle-animation.png") });
+      await page.evaluate(() => cc.director.resume());
+    }
+    await page.waitForFunction(() => window.monsterAnimationSamples.done);
+    const samples = await page.evaluate(() => window.monsterAnimationSamples);
+    if (reducedMotion === "no-preference") {
+      assert.ok(samples.y.some((y) => y > samples.startY + 1), `player should move toward the enemy: ${JSON.stringify(samples)}`);
+      assert.ok(new Set(samples.frames.map(JSON.stringify)).size >= 2, "skill atlas should advance through its frames");
+    } else {
+      assert.ok(samples.y.every((y) => y === samples.startY), "reduced motion should keep the player still");
+      assert.equal(samples.frames.length, 0, "reduced motion should skip the skill animation");
+    }
+    assert.deepEqual(errors, []);
+    await page.context().close();
+  }
+  console.log(`Battle animation ${browserType.name()} passed: player movement, original skill frames and reduced motion.`);
+}
 try {
-  const focused = ["--offline-only", "--offline-retry-only", "--tasks-only", "--equipment-only", "--map-layout-only", "--shop-only", "--side-pet-only", "--pet-passive-only", "--pet-training-only"];
+  const focused = ["--offline-only", "--offline-retry-only", "--tasks-only", "--equipment-only", "--map-layout-only", "--animation-only", "--shop-only", "--side-pet-only", "--pet-passive-only", "--pet-training-only"];
   const selected = (flag) => !focused.some((option) => process.argv.includes(option)) || process.argv.includes(flag);
   if (selected("--offline-only")) await checkOfflineRun({ sidePets: process.argv.includes("--side-offline") });
   if (selected("--offline-retry-only")) await checkOfflineDefeatRetry();
   if (selected("--tasks-only")) await checkTaskNavigation();
   if (selected("--equipment-only")) await checkEquipmentSwap();
   if (selected("--map-layout-only")) await checkMapAndBadgeUi();
+  if (selected("--animation-only")) await checkBattleAnimation();
   if (selected("--shop-only")) await checkShop();
   if (selected("--side-pet-only")) await checkSidePets();
   if (selected("--pet-passive-only")) await checkPetPassives();

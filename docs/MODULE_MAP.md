@@ -13,6 +13,7 @@
 | 现象或功能 | 首要模组 | 相关视图 / 领域模组 |
 | --- | --- | --- |
 | 黑暗传说全屏试玩、原资源画面与控制器 | `monster.html`, `modules/monster/entry.js`, `modules/monster/game-controller.js`, `modules/monster/game-view.js`, `modules/monster/typography.js`, `modules/monster/focus-modality.js` | `styles/monster.css`, `public/monster/`, `tests/monster-browser.mjs`；统一页面与画布字体，触摸不留焦点框、键盘保留可见焦点；首页工具区进入，登录后独立加载引擎 |
+| 黑暗传说战斗动作与技能特效 | `modules/monster/battle-animation-view.js` | 按参与战斗角色的技能加载原包 atlas，出手时播放突进和对应技能帧；减少动态效果时关闭，不参与伤害或存档计算；`tests/monster-browser.mjs --animation-only` |
 | 黑暗传说图形角色/背包/技能及物品详情 | `modules/monster/character-view.js`, `modules/monster/visual-ui.js`, `modules/monster/bag-equipment.css` | 复用原背景、面板、装备格、勇者、装备/技能图标；背包中可直接穿戴或更换装备；原图按钮和可访问的 HTML 控件，未接通玩法不创建空入口 |
 | 黑暗传说背包出售、分解和装备锁定 | `modules/monster/bag-item-domain.js`, `modules/monster/bag-item-view.js`, `modules/monster/bag-item.css` | 原生卖价与强化返还、按物品类型发金币／魔石／材料；锁定阻止分解和神器熔炼，打造保持原规则；背包内云档重试；`tests/monster-bag-items.mjs` |
 | 黑暗传说魔石商店 | `modules/monster/shop-domain.js`, `modules/monster/shop-view.js`, `modules/monster/shop.css` | 原版商店目录中当前可用的 22 个商品包、金币直接入账、购买与扣款同次保存；材料来源可跳转；`tests/monster-shop.mjs` |
