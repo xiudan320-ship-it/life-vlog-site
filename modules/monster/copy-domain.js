@@ -87,7 +87,7 @@ export function prepareCopyBattle({ copy, player, clearCount, hard, waves, catal
     enemies.push(enemy);
   }
   if (encounterCopy) enemies.push(applyEnemyParagon(createEncounterEnemy({ copy: encounterCopy, player, catalog }), player, copyUsesParagon(copy, rewardHard)));
-  return { hard, rewardHard, groups, encounterCopy, enemyCount: enemies.length, rewardRate: getBattleQualityRewardRate(enemies.map((row) => row.quality)),
+  return { hard, rewardHard, groups, encounterCopy, petPassives: [], enemyCount: enemies.length, rewardRate: getBattleQualityRewardRate(enemies.map((row) => row.quality)),
     battle: { allies: [{ ...player, hp: player.maxHp, dead: false, acted: false, roleType: 1, buffs: [] }],
       enemies, currentEnemyIndex: 0, phase: 1, wave: 1, outcome: 0, revives: 0, warType: copy.type } };
 }

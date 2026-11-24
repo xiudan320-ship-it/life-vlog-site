@@ -1,4 +1,5 @@
 import { advanceSoloBattle } from "./battle-domain.js";
+import { preparePetBattle } from "./pet-battle-domain.js";
 import { getCopyAccess, maximumCopyDifficulty, prepareCopyBattle } from "./copy-domain.js";
 import { payCopyEntry, settleCopyDefeat, settleCopyVictory } from "./adventure-domain.js";
 import { recordTaskBattle } from "./task-domain.js";
@@ -79,11 +80,12 @@ export function simulateOffline({ state, catalog, serverNow, onProgress = () => 
     if (copy.copyprice && (current.inventory.goods.find((item) => item.id === 5009)?.quantity || 0) < copy.copyprice) {
       current = beforeBattle; reason = "tickets"; break;
     }
-    const prepared = prepareCopyBattle({ copy, player: current.player,
+    const basePrepared = prepareCopyBattle({ copy, player: current.player,
       clearCount: current.progress.copies.find((entry) => entry.id === copy.id)?.value || 0,
       hard: run.hard, waves: run.waves, catalog, draw });
+    const prepared = preparePetBattle({ prepared: basePrepared, state: current, catalog, draw });
     current = payCopyEntry(current, copy);
-    let battle = { ...prepared.battle, bonuses: current.player.bonuses };
+    let battle = prepared.battle;
     while (remaining >= ACTION_MS && ![1, 3].includes(battle.outcome)) {
       remaining -= ACTION_MS;
       battle = advanceSoloBattle(battle, { draw, skills: catalog.skills }).battle;

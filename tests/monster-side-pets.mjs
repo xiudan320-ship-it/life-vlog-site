@@ -10,11 +10,12 @@ import { prepareCopyBattle } from "../modules/monster/copy-domain.js";
 import { settleCopyVictory, settleCopyDefeat } from "../modules/monster/adventure-domain.js";
 import { validateMonsterSave } from "../modules/monster/save-state.js";
 import { createMonsterGameController } from "../modules/monster/game-controller.js";
+import { getPetPassiveAttributes, getPetPassiveThreshold, preparePetBattle, applyPetPassiveAttributes } from "../modules/monster/pet-battle-domain.js";
 
 const read = async (name) => JSON.parse(await readFile(new URL(`../public/monster/data/${name}.json`, import.meta.url), "utf8"));
-const [items, skills, pets, enemies, copies, chapters, groups, equipmentTemplates, oracle, playerOracle] = await Promise.all([
+const [items, skills, pets, enemies, copies, chapters, groups, equipmentTemplates, oracle, playerOracle, passiveOracle] = await Promise.all([
   ...["item", "skill", "pet", "enemy", "copy", "chapter", "drop-groups", "equipment-templates"].map(read),
-  ...["native-side-pet-contribution-fixtures", "native-experience-credit-fixtures"].map(async (name) => JSON.parse(await readFile(new URL(`./fixtures/monster/${name}.json`, import.meta.url), "utf8"))),
+  ...["native-side-pet-contribution-fixtures", "native-experience-credit-fixtures", "native-pet-passives-fixtures"].map(async (name) => JSON.parse(await readFile(new URL(`./fixtures/monster/${name}.json`, import.meta.url), "utf8"))),
 ]);
 const catalog = { items, skills, pets, enemies, chapters, equipmentTemplates, copies: copies.map((copy) => ({ ...copy, dropGroups: groups[copy.id] })) };
 const owned = (id, partyRole = 0, care) => ({ id, type: 3, level: 1, quality: pets.find((row) => row.id === id).quality,
@@ -129,4 +130,97 @@ test("an active offline run blocks side-pet changes before any save", async () =
   await controller.setSidePet(target(state, 1), true);
   assert.equal(writes, 0);
   assert.match(notices.at(-1), /离线挂机/);
+});
+
+test("pet passive factories, chances and original main/side selection match native ARM samples", () => {
+  assert.equal(passiveOracle.factories.length, 26);
+  assert.equal(passiveOracle.chances.length, 72);
+  assert.equal(passiveOracle.selections.length, 192);
+  for (const item of passiveOracle.factories) {
+    assert.deepEqual(getPetPassiveAttributes(pets.find((row) => row.id === item.id)).map(({ type, value }) => ({ type, value })), item.attributes);
+  }
+  for (const item of passiveOracle.chances) assert.equal(getPetPassiveThreshold(item), item.chance, JSON.stringify(item));
+  for (const item of passiveOracle.selections) {
+    const state = seed();
+    state.player.petProcBonus = item.bonus;
+    state.inventory.pets = [{ ...owned(item.id, item.role, { loyalty: item.loyalty, killCount: 0 }), quality: item.quality }];
+    const prepared = { battle: { allies: [{ ...state.player, bonuses: {} }] } };
+    let used = 0;
+    const result = preparePetBattle({ prepared, state, catalog, draw: () => item.rolls[used++] });
+    assert.equal(used, item.used, JSON.stringify(item));
+    assert.deepEqual(result.petPassives.map(({ type, value }) => ({ type, value })), item.attributes, JSON.stringify(item));
+  }
+  assert.equal(passiveOracle.effects.length, 26);
+  for (const item of passiveOracle.effects) {
+    const player = { dropRate: 100, experienceRate: 100, goldRate: 100, procBonus: 100, buffResistance: 100, hurtBonus: 100, critResistance: 100,
+      flatCrit: 100, bonuses: { hurtIncrease: 100, hurtDecrease: 100, crit: 100, critHurt: 100, hit: 100, dodge: 100 } };
+    const result = applyPetPassiveAttributes(player, [item]);
+    const values = { 9: result.dropRate, 10: result.experienceRate, 16: result.bonuses.hurtIncrease, 17: result.bonuses.hurtDecrease,
+      19: result.goldRate, 21: result.procBonus, 23: result.bonuses.crit, 24: result.bonuses.critHurt,
+      25: result.bonuses.hit, 26: result.bonuses.dodge, 27: result.buffResistance, 33: result.hurtBonus, 40: result.critResistance };
+    assert.deepEqual(values, item.after, JSON.stringify(item));
+  }
+});
+
+test("pet passives roll main first, preserve duplicates and modify only the current battle", () => {
+  const state = seed();
+  state.inventory.pets = [owned(4022, 2), owned(4013, 1), owned(4022, 2), owned(4013)];
+  const before = structuredClone(state);
+  const prepared = { battle: { allies: [{ ...state.player, goldRate: 100, dropRate: 100, experienceRate: 100,
+    hurtBonus: 0, bonuses: { critHurt: 0 } }] } };
+  const result = preparePetBattle({ prepared, state, catalog, draw: () => 0 });
+  assert.deepEqual(result.petPassives.map(({ index, type }) => [index, type]), [[1, 33], [1, 24], [0, 9], [0, 10], [2, 9], [2, 10]]);
+  assert.equal(result.battle.allies[0].hurtBonus, 5);
+  assert.equal(result.battle.bonuses.critHurt, 20);
+  assert.equal(result.battle.allies[0].dropRate, 110);
+  assert.equal(result.battle.allies[0].experienceRate, 120);
+  assert.deepEqual(state, before);
+  assert.equal(prepared.battle.allies[0].experienceRate, 100);
+  assert.deepEqual(preparePetBattle({ prepared, state: { ...state, player: { ...state.player, level: 34 } }, catalog, draw() { throw new Error("locked pets cannot roll"); } }).petPassives, []);
+  assert.throws(() => preparePetBattle({ prepared, state, catalog, draw: () => undefined }), /随机数/);
+});
+
+test("pet reward effects apply on victory and partial defeat without entering the saved player", () => {
+  const state = seed();
+  Object.assign(state.player, { goldRate: 100, experienceRate: 100, dropRate: 100 });
+  const copy = catalog.copies.find((row) => row.id === 1001);
+  const prepared = prepareCopyBattle({ copy, player: state.player, clearCount: 1, hard: 1, waves: 3, catalog, draw: () => 324508639 });
+  const active = { ...prepared, petPassives: [{ type: 9, value: 50 }, { type: 10, value: 100 }, { type: 19, value: 100 }] };
+  const battle = structuredClone(prepared.battle); battle.enemies[0].dead = true;
+  for (const partial of [false, true]) {
+    const settle = (candidate) => partial ? settleCopyDefeat({ state, copy, prepared: candidate, battle, catalog, draw: () => 324508639 })
+      : settleCopyVictory({ state, copy, prepared: candidate, catalog, draw: () => 324508639 });
+    const normal = settle(prepared), boosted = settle(active);
+    assert.ok(boosted.reward.gold > normal.reward.gold);
+    assert.ok(boosted.reward.experience > normal.reward.experience);
+    assert.ok(boosted.reward.dropRate > normal.reward.dropRate);
+    assert.equal(boosted.state.player.goldRate, state.player.goldRate);
+    assert.equal(boosted.state.player.experienceRate, state.player.experienceRate);
+  }
+  const stats = applyPetPassiveAttributes({ bonuses: {} }, [{ type: 23, value: 5 }, { type: 27, value: 5 }, { type: 40, value: 5 }]);
+  assert.deepEqual([stats.bonuses.crit, stats.flatCrit, stats.buffResistance, stats.critResistance], [5, 5, 5, 5]);
+});
+
+test("foreground pet passives settle once and failed saves retry without rerolling", async () => {
+  const state = seed();
+  state.inventory.pets = [owned(4022, 1), owned(4024, 2)];
+  state.player.equipmentSets[0][0].attributes.push(...[1, 2, 3, 4].map((type) => ({ type, value: 10000000 })));
+  let fail = true, draws = 0;
+  const writes = [], battles = [];
+  const view = new Proxy({}, { get: (_, name) => (...args) => { if (name === "battle") battles.push(structuredClone(args[0])); } });
+  const controller = createMonsterGameController({ catalog, view, wait: async () => {},
+    random: () => { draws++; return 0; },
+    store: { async load() { return structuredClone(state); }, async save(value) { writes.push(structuredClone(value)); if (fail) throw new Error("fixture"); } } });
+  await controller.initialize();
+  await controller.startCopy(1001, { hard: 1, waves: 1, repeat: false });
+  assert.equal(battles.length, 1);
+  assert.deepEqual(battles[0].petPassives.map(({ type }) => type), [9, 10, 9, 19]);
+  assert.equal(writes.length, 1);
+  assert.equal(writes[0].player.dropRate, 100);
+  assert.equal(writes[0].player.experienceRate, 100);
+  assert.equal(writes[0].player.goldRate, 100);
+  const beforeRetry = draws;
+  fail = false; assert.equal(await controller.save(), true);
+  assert.equal(draws, beforeRetry);
+  assert.deepEqual(writes[1], writes[0]);
 });

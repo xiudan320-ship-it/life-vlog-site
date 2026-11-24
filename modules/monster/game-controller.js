@@ -1,5 +1,6 @@
 import { createNewGame } from "./new-game-domain.js";
 import { advanceSoloBattle } from "./battle-domain.js";
+import { preparePetBattle } from "./pet-battle-domain.js";
 import { refreshGamePlayer } from "./player-refresh-domain.js";
 import { getCopyAccess, maximumCopyDifficulty, prepareCopyBattle } from "./copy-domain.js";
 import { payCopyEntry, settleCopyVictory, settleCopyDefeat } from "./adventure-domain.js";
@@ -96,10 +97,11 @@ export function createMonsterGameController({ catalog, store, view, random, wait
       do {
         refresh();
         const player = copy.type === 6 ? { ...state.player, trialLevel: state.trial.level, trialHard: state.trial.hard } : state.player;
-        const prepared = prepareCopyBattle({ copy, player,
+        const basePrepared = prepareCopyBattle({ copy, player,
           clearCount: state.progress.copies.find((entry) => entry.id === copy.id)?.value || 0,
           hard: settings.hard, waves: settings.waves, catalog, draw: random });
-        let battle = { ...prepared.battle, bonuses: state.player.bonuses };
+        const prepared = preparePetBattle({ prepared: basePrepared, state, catalog, draw: random });
+        let battle = prepared.battle;
         await view.battle(battle, state, catalog);
         if (stopped()) return;
         const paid = payCopyEntry(state, copy);

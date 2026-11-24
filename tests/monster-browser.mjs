@@ -13,6 +13,8 @@ import { createNewGame } from "../modules/monster/new-game-domain.js";
 import { createCatalogEquipment } from "../modules/monster/item-domain.js";
 import { recalculatePlayerFromEquipment } from "../modules/monster/attribute-domain.js";
 import { withEquipmentStrength } from "../modules/monster/equipment-domain.js";
+import { simulateOffline } from "../modules/monster/offline-domain.js";
+import { addPortDrops } from "../modules/monster/port-drop-domain.js";
 
 const root = resolve("dist");
 const headers = await readFile(resolve(root, "_headers"), "utf8");
@@ -46,13 +48,13 @@ let keyboardChecked = false;
 const artifacts = resolve("artifacts/monster");
 await mkdir(artifacts, { recursive: true });
 
-async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, saveStatus = 0, defeat = false, trial = false, trialRewards = false, workshop = false, retention = false, navigation = false, offline = false, shop = false, sidePets = false, petParty = false, petGrowth = false, petCare = false, colorScheme = "dark", reducedMotion = "no-preference" } = {}) {
+async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, saveStatus = 0, defeat = false, trial = false, trialRewards = false, workshop = false, retention = false, navigation = false, offline = false, shop = false, sidePets = false, petParty = false, petGrowth = false, petCare = false, petPassives = false, colorScheme = "dark", reducedMotion = "no-preference" } = {}) {
   const context = await browser.newContext({ ...(iphone13 ? devices["iPhone 13"] : {}), viewport: { width: 390, height: 844 }, screen: { width: 390, height: 844 }, colorScheme, reducedMotion });
   contexts.push(context);
   context.on("requestfailed", (request) => requestFailures.push({ url: request.url(), error: request.failure()?.errorText }));
   const fixture = createWorkerFixture({ origin });
   if (offline) fixture.serverTime = Date.UTC(2026, 0, 1);
-  if (trial || workshop || retention || navigation || offline || shop || sidePets || petParty || petGrowth || petCare) {
+  if (trial || workshop || retention || navigation || offline || shop || sidePets || petParty || petGrowth || petCare || petPassives) {
     const [items, skills] = await Promise.all(["item", "skill"].map(async (name) => JSON.parse(await readFile(resolve(root, `monster/data/${name}.json`), "utf8"))));
     const seed = createNewGame({ items, skills }); seed.player.name = "功能测试勇者";
     if (shop) {
@@ -68,11 +70,18 @@ async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, sa
       seed.inventory.pets[0].partyRole = 1;
       seed.inventory.pets[1].care = { loyalty: 80, killCount: 1799 };
     }
+    if (petPassives) {
+      seed.player.level = 80;
+      seed.player.equipmentSets[0][0].attributes.push(...[1, 2, 3, 4].map((type) => ({ type, value: 10000000 })));
+      seed.inventory.pets = [{ id: 4022, type: 3, level: 1, quality: 4, experience: 0, partyRole: 1 },
+        { id: 4026, type: 3, level: 1, quality: 4, experience: 0, partyRole: 2 }];
+    }
     if (trial || navigation || offline) { seed.player.level = 80; seed.player.equipmentSets[0][0].attributes.push(...[1, 2, 3, 4].map((type) => ({ type, value: 10000000 }))); }
     if (navigation) { seed.progress.chapterId = 3; seed.progress.levelId = 5; }
     if (offline) {
       seed.progress.levelId = 2; seed.progress.copies.push({ id: 1001, value: 1 });
       if (sidePets) {
+        seed.inventory.pets[0] = { id: 4022, type: 3, level: 1, quality: 4, experience: 0, partyRole: 1 };
         seed.inventory.pets[1].partyRole = 2; seed.inventory.pets[1].experience = 14999;
         seed.player.equipmentSets[0][0].attributes.push({ type: 10, value: 1000 });
       }
@@ -232,6 +241,48 @@ async function accessible(page) {
   const failures = report.violations.filter(({ impact }) => ["critical", "serious"].includes(impact))
     .map(({ id, nodes }) => ({ id, targets: nodes.map(({ target }) => target) }));
   assert.deepEqual(failures, []);
+}
+async function checkPetPassives() {
+  let page = await pageFor({ petPassives: true, roll: 0, reducedMotion: "reduce" });
+  await page.locator("#monsterEnter").click(); await stage(page, "home"); await tapNative(page, "btn_pet");
+  const card = page.locator(".monster-pet-card").first();
+  await card.locator("summary").click();
+  assert.match(await card.textContent(), /主宠约 29\.7%，副宠约 8\.9%/);
+  assert.match(await card.textContent(), /掉落 \+5%/);
+  assert.match(await card.textContent(), /经验 \+10%/);
+  assert.match(await card.textContent(), /金币 \+20%（品质 5 解锁/);
+  for (const width of [375, 390, 430]) { await page.setViewportSize({ width, height: 844 }); await noOverflow(page); }
+  await page.emulateMedia({ colorScheme: "light" }); await accessible(page);
+  await page.emulateMedia({ colorScheme: "dark" }); await accessible(page);
+  await card.getByRole("heading", { name: "战斗助战词条" }).scrollIntoViewIfNeeded();
+  await page.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-pet-passives.png" : "pet-passives.png") });
+  await page.context().close();
+  page = await pageFor({ petPassives: true, roll: 0, reducedMotion: "reduce" });
+  await page.locator("#monsterEnter").click(); await stage(page, "home");
+  await page.evaluate(() => {
+    const schedule = window.monsterFixtureNativeTimeout;
+    window.setTimeout = (callback, delay, ...args) => {
+      if (delay === 550) { window.monsterFixturePendingBattle = () => callback(...args); return 0; }
+      return schedule(callback, delay, ...args);
+    };
+  });
+  await page.locator("#monsterAdventure").click(); await page.locator('[data-copy-id="1001"]').click(); await stage(page, "battle");
+  await page.waitForFunction(() => typeof window.monsterFixturePendingBattle === "function");
+  assert.match(await page.locator("#monsterBattlePower").textContent(), /助战 4/);
+  assert.match(await page.locator("#monsterStatus").textContent(), /宠物助战 4 项/);
+  const back = await page.locator("#monsterExitBattle").boundingBox(), power = await page.locator("#monsterBattlePower").boundingBox();
+  assert.ok(back.x + back.width <= power.x, "pet indicator must not overlap the exit control");
+  await noOverflow(page); await page.waitForTimeout(250);
+  await page.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-pet-passives-battle.png" : "pet-passives-battle.png") });
+  await page.evaluate(() => { window.setTimeout = window.monsterFixtureNativeTimeout; window.monsterFixturePendingBattle(); window.monsterFixturePendingBattle = null; });
+  await stage(page, "result");
+  const result = await saved(page);
+  assert.equal(result.player.dropRate, 100);
+  assert.equal(result.player.experienceRate, 100);
+  assert.equal(result.player.bonuses.critHurt, 0);
+  await page.reload(); await stage(page, "menu"); assert.deepEqual(await saved(page), result);
+  await page.context().close();
+  console.log(`Pet passives ${browserType.name()} passed: details, battle indicator, temporary effects and cloud reload.`);
 }
 async function checkSidePets() {
   const page = await pageFor({ sidePets: true, blocked: true, reducedMotion: "reduce" });
@@ -399,6 +450,12 @@ async function checkOfflineRun({ sidePets = false } = {}) {
     assert.ok(settled.inventory.pets[1].level > running.inventory.pets[1].level);
     assert.ok(settled.inventory.pets[1].care.loyalty < running.inventory.pets[1].care.loyalty);
     assert.deepEqual(settled.inventory.pets[2], running.inventory.pets[2]);
+    const names = ["item", "skill", "pet", "enemy", "copy", "chapter", "drop-groups", "equipment-templates", "trial", "task"];
+    const [items, skills, pets, enemies, copies, chapters, groups, equipmentTemplates, trials, tasks] = await Promise.all(
+      names.map(async (name) => JSON.parse(await readFile(resolve(root, `monster/data/${name}.json`), "utf8"))));
+    const catalog = { items, skills, pets, enemies, chapters, equipmentTemplates, trials, tasks, copies: addPortDrops(copies, groups) };
+    const expected = simulateOffline({ state: running, catalog, serverNow: fixture.serverTime });
+    assert.deepEqual(settled, expected.state, "Worker and foreground simulation must agree with pet passives");
   }
   await page.locator('[data-offline-dismiss]').click(); await stage(page, "home");
   await page.reload(); await stage(page, "menu");
@@ -408,10 +465,11 @@ async function checkOfflineRun({ sidePets = false } = {}) {
   console.log(`Offline ${browserType.name()} passed: account cloud save, server clock cap, Web Worker, reopen, claim and retry${sidePets ? ", side-pet XP and loyalty" : ""}.`);
 }
 try {
-  if (!process.argv.includes("--shop-only") && !process.argv.includes("--side-pet-only")) await checkOfflineRun({ sidePets: process.argv.includes("--side-offline") });
-  if (!process.argv.includes("--offline-only") && !process.argv.includes("--side-pet-only")) await checkShop();
-  if (!process.argv.includes("--offline-only") && !process.argv.includes("--shop-only")) await checkSidePets();
-  if (!["--offline-only", "--shop-only", "--side-pet-only"].some((option) => process.argv.includes(option))) {
+  if (!["--shop-only", "--side-pet-only", "--pet-passive-only"].some((option) => process.argv.includes(option))) await checkOfflineRun({ sidePets: process.argv.includes("--side-offline") });
+  if (!["--offline-only", "--side-pet-only", "--pet-passive-only"].some((option) => process.argv.includes(option))) await checkShop();
+  if (!["--offline-only", "--shop-only", "--pet-passive-only"].some((option) => process.argv.includes(option))) await checkSidePets();
+  if (!["--offline-only", "--shop-only", "--side-pet-only"].some((option) => process.argv.includes(option))) await checkPetPassives();
+  if (!["--offline-only", "--shop-only", "--side-pet-only", "--pet-passive-only"].some((option) => process.argv.includes(option))) {
   const manifest = await readWorkboxManifest(resolve(root, "sw.js"));
   assert.ok(!manifest.some(({ url }) => /^\/?(?:monster(?:\/|\.html)|assets\/monster-)/.test(url)), "game resources must stay out of home precache");
   const index = await readFile(resolve(root, "index.html"), "utf8");

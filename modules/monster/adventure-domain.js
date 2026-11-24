@@ -5,6 +5,7 @@ import { creditBattleLoot } from "./settlement-domain.js";
 import { recordRegularCopyVictory, incrementCopyClear } from "./copy-progress-domain.js";
 import { copyUsesParagon } from "./copy-domain.js";
 import { getPetCare, recordPartyPetKills } from "./pet-care-domain.js";
+import { applyPetPassiveAttributes } from "./pet-battle-domain.js";
 
 export function payCopyEntry(state, copy) {
   if (!copy.copyprice) return state;
@@ -18,7 +19,8 @@ export function payCopyEntry(state, copy) {
 function createBattleReward({ state, copy, prepared, catalog, draw, partial = false, fraction = 1 }) {
   const clearCount = state.progress.copies.find((entry) => entry.id === copy.id)?.value || 0;
   const hard = prepared.rewardHard;
-  const input = { copy: { ...copy, clearCount: partial ? Math.max(1, clearCount) : clearCount }, player: state.player, hard,
+  const rewardPlayer = applyPetPassiveAttributes(state.player, prepared.petPassives);
+  const input = { copy: { ...copy, clearCount: partial ? Math.max(1, clearCount) : clearCount }, player: rewardPlayer, hard,
     globalRate: prepared.rewardRate, enemyCount: prepared.enemyCount, rareRoll: draw(),
     paragonOffset: copyUsesParagon(copy, hard) ? Math.fround(Math.fround(state.player.paragon / 150) + Math.fround(1.2)) : null,
     trialLevel: state.trial?.level || 1, trialHard: state.trial?.hard || 1 };
@@ -37,7 +39,7 @@ function createBattleReward({ state, copy, prepared, catalog, draw, partial = fa
     const count = Object.entries(groups).reduce((sum, [key, ids]) => sum + (key === "paragondrop10" && hard <= 3 ? 0 : ids.length) + (key === "percent1" && [1, 2].includes(dropCopy.type) ? ids.filter((id) => id === 6865).length : 0), 0);
     const selected = selectCopyDropIds({ groups, copyType: dropCopy.type, hard,
       activityEnabled: false, dropRate, rolls: Array.from({ length: count }, draw) });
-    reward.items.push(...createCopyDrops({ itemIds: selected.itemIds, catalog, copy: dropCopy, player: state.player, draw }));
+    reward.items.push(...createCopyDrops({ itemIds: selected.itemIds, catalog, copy: dropCopy, player: rewardPlayer, draw }));
   }
   const attempts = copy.type === 1 ? prepared.enemyCount : 1;
   for (let attempt = 0; attempt < attempts; attempt += 1) drops(copy, prepared.groups, reward.dropRate);

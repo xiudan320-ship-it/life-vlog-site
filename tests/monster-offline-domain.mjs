@@ -8,6 +8,7 @@ import { refreshGamePlayer } from "../modules/monster/player-refresh-domain.js";
 import { validateMonsterSave } from "../modules/monster/save-state.js";
 import { prepareCopyBattle } from "../modules/monster/copy-domain.js";
 import { advanceSoloBattle } from "../modules/monster/battle-domain.js";
+import { preparePetBattle } from "../modules/monster/pet-battle-domain.js";
 import { payCopyEntry, settleCopyVictory } from "../modules/monster/adventure-domain.js";
 import { recordTaskBattle } from "../modules/monster/task-domain.js";
 
@@ -65,16 +66,19 @@ test("one offline victory matches the foreground battle and settlement with the 
     if (withSide) {
       state.player.equipmentSets[0][0].attributes.push({ type: 10, value: 1000 });
       state.inventory.pets = [{ id: 4001, type: 3, level: 1, quality: 2, experience: 14999, partyRole: 2,
-        care: { loyalty: 80, killCount: 1799 } }, { id: 4001, type: 3, level: 1, quality: 2, experience: 0 }];
+        care: { loyalty: 80, killCount: 1799 } }, { id: 4001, type: 3, level: 1, quality: 2, experience: 0 },
+      { id: 4022, type: 3, level: 1, quality: 4, experience: 0, partyRole: 1 }];
     }
     const run = begin(state);
     const copy = catalog.copies.find((entry) => entry.id === run.offlineRun.copyId);
     let value = run.offlineRun.seed;
     const draw = () => { value ^= value << 13; value ^= value >>> 17; value ^= value << 5; return (value >>> 0) & 0x7fffffff; };
     let foreground = refreshGamePlayer(run, catalog);
-    const prepared = prepareCopyBattle({ copy, player: foreground.player, clearCount: 1, hard: 1, waves: 1, catalog, draw });
+    const basePrepared = prepareCopyBattle({ copy, player: foreground.player, clearCount: 1, hard: 1, waves: 1, catalog, draw });
+    const prepared = preparePetBattle({ prepared: basePrepared, state: foreground, catalog, draw });
+    if (withSide) assert.ok(prepared.petPassives.length > 0, "seed must exercise a real pet passive");
     foreground = payCopyEntry(foreground, copy);
-    let battle = { ...prepared.battle, bonuses: foreground.player.bonuses };
+    let battle = prepared.battle;
     let turns = 0;
     while (![1, 3].includes(battle.outcome)) { battle = advanceSoloBattle(battle, { draw, skills: catalog.skills }).battle; turns++; }
     assert.equal(battle.outcome, 3);

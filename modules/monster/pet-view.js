@@ -1,5 +1,6 @@
 import { element, picture } from "./visual-ui.js";
 import { getPetSummary, MAX_SIDE_PETS } from "./pet-domain.js";
+import { getPetPassiveAttributes, getPetPassiveThreshold } from "./pet-battle-domain.js";
 import { MAIN_PET_KILL_THRESHOLD, SIDE_PET_KILL_THRESHOLD } from "./pet-care-domain.js";
 import { getPetExperienceRequired } from "./progression-domain.js";
 import { renderSaveFeedback } from "./save-feedback-view.js";
@@ -24,7 +25,7 @@ export function renderPets({ content, state, catalog, actions, receipt }) {
   const sideCount = state.inventory.pets.filter((pet) => pet.partyRole === 2).length;
   const header = element("section", undefined, "monster-original-panel monster-pets-header");
   header.append(element("h3", "宠物"),
-    element("p", `主宠提供属性加成；副宠最多 ${MAX_SIDE_PETS} 只（已设置 ${sideCount}），提供约 30% 属性和经验。副宠暂不独立攻击。`, "monster-panel-hint"),
+    element("p", `主宠提供属性加成；副宠最多 ${MAX_SIDE_PETS} 只（已设置 ${sideCount}），提供约 30% 属性和经验。战斗开始时有机会触发宠物词条。`, "monster-panel-hint"),
     element("p", "胜利累计击败 600 只敌人使主宠忠诚降低 1；副宠每 1800 只降低 1。忠诚 80 及以上享有满加成。", "monster-panel-hint"));
   if (state.player.level < 35) header.append(element("p", "角色达到 35 级后可设置主宠或喂养宠物。", "monster-panel-hint"));
   content.append(header);
@@ -123,8 +124,21 @@ export function renderPets({ content, state, catalog, actions, receipt }) {
       care.append(controls);
     } else care.append(element("p", "忠诚已满", "monster-pet-care-progress"));
     const details = element("details", undefined, "monster-pet-details");
-    details.append(element("summary", "查看宠物属性与角色加成"), element("h4", "宠物属性"),
-      statList(stats.map(([key, label]) => [label, core[key]])), element("h4", "作为主宠时给予角色"),
+    details.append(element("summary", "查看战斗助战与属性加成"));
+    const passiveAttributes = getPetPassiveAttributes(row);
+    details.append(element("h4", "战斗助战词条"));
+    if (!passiveAttributes.length) details.append(element("p", "这只宠物没有助战词条。", "monster-panel-hint"));
+    else {
+      const rate = (role) => Math.max(0, Math.min(101, getPetPassiveThreshold({ role, loyalty, bonus: state.player.petProcBonus || 0 })));
+      const percent = (role) => (rate(role) * 100 / 101).toFixed(1);
+      details.append(element("p", `每条词条独立判定：主宠约 ${percent(1)}%，副宠约 ${percent(2)}%；效果持续至本场结束。`, "monster-panel-hint"));
+      for (const [passiveIndex, attribute] of passiveAttributes.entries()) {
+        const locked = passiveIndex === 2 && pet.quality !== 5;
+        details.append(element("p", `${attribute.name} +${attribute.value}%${locked ? "（品质 5 解锁，培养暂未开放）" : ""}`, "monster-panel-hint"));
+      }
+    }
+    details.append(element("h4", "宠物属性"), statList(stats.map(([key, label]) => [label, core[key]])),
+      element("h4", "作为主宠时给予角色"),
       statList(stats.map(([, label], statIndex) => [label, `+${contribution.find((entry) => entry.type === statIndex + 1)?.value ?? 0}`])),
       element("h4", "作为副宠时给予角色"),
       statList(stats.map(([, label], statIndex) => [label, `+${sideContribution.find((entry) => entry.type === statIndex + 1)?.value ?? 0}`])));

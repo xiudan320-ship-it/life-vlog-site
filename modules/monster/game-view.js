@@ -251,7 +251,8 @@ export function createMonsterGameView({ warView }) {
       nodes.get(spec.id).addChild(nodes.get(child), childSpec.z || 0);
     }
     scene(nodes.get(warView.root));
-    battlePower.textContent = `战力 ${referencePower(state.player).toLocaleString("zh-CN")}`;
+    const petCount = initial.petPassives?.length || 0;
+    battlePower.textContent = `战力 ${referencePower(state.player).toLocaleString("zh-CN")}${petCount ? ` · 助战 ${petCount}` : ""}`;
     stage("battle");
     const enemyBox = nodeScreenBox(nodes.get(warView.bindings.enemyName), frame, cc);
     const back = exitBattle.getBoundingClientRect();
@@ -283,7 +284,8 @@ export function createMonsterGameView({ warView }) {
       else label.runAction(cc.sequence(cc.spawn(cc.moveBy(0.5, cc.p(0, 45)), cc.fadeOut(0.5)), cc.removeSelf()));
     }
     lastRender = () => battle(value, state, catalog);
-    statusMessage(`战斗中 · 生命 ${player.hp}/${player.maxHp} · 结算后自动保存`);
+    const petCount = value.petPassives?.length || 0;
+    statusMessage(`战斗中 · 生命 ${player.hp}/${player.maxHp}${petCount ? ` · 宠物助战 ${petCount} 项` : ""} · 结算后自动保存`);
   }
   async function result(outcome, reward, state, catalog) {
     const request = ++serial;
