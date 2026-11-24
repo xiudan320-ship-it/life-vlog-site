@@ -1,15 +1,20 @@
+import "./task.css";
 import { element, picture } from "./visual-ui.js";
 import { gameDay, taskCount } from "./task-domain.js";
 
 export function renderTasks({ content, state, catalog, actions, now }) {
   content.className = "monster-tasks-content";
   const header = element("section", undefined, "monster-original-panel monster-task-summary");
-  header.append(element("h3", `任务积分 ${state.taskBoard.points}`));
-  const daily = element("button", "领取每日奖励并刷新任务", "monster-image-button"); daily.type = "button"; daily.dataset.dailyReward = "";
+  const summary = element("div", undefined, "monster-task-summary-top");
+  summary.append(element("h3", `任务积分 ${state.taskBoard.points}`));
+  const daily = element("button", "领取每日奖励", "monster-image-button"); daily.type = "button"; daily.dataset.dailyReward = "";
   daily.disabled = Boolean(state.taskBoard.dailyRewardDay && state.taskBoard.dailyRewardDay >= gameDay(now));
   if (daily.disabled) daily.textContent = "今日奖励已领取";
   daily.onclick = () => actions.claimDailyReward();
-  header.append(daily, element("p", "魔石 ×10 · 副本卷轴 ×5。领取会刷新本页任务与进度；每日 00:00（UTC+8）后可再次领取。", "monster-panel-hint"));
+  summary.append(daily);
+  const explanation = element("p", undefined, "monster-panel-hint");
+  explanation.append(element("span", "魔石 ×10 · 卷轴 ×5；领取后刷新任务。"), element("span", "每日 00:00（UTC+8）可领取。"));
+  header.append(summary, explanation);
   content.append(header);
   const pending = { 14: "寻宝玩法尚未接通", 16: "黑市玩法尚未接通", 17: "当前移植版不提供充值" };
   for (const [title, test] of [["等级任务", (entry) => entry.type <= 3], ["每日目标", (entry) => entry.type >= 11]]) {
@@ -25,22 +30,33 @@ export function renderTasks({ content, state, catalog, actions, now }) {
         icon = picture(enemy ? "enemy/" + enemy.img : "ui/btn/main_btn_achieve.png");
       }
       card.append(icon);
-      const body = element("div");
+      const body = element("div", undefined, "monster-task-body");
       const count = entry.claimed ? entry.need : taskCount(entry, state);
-      body.append(element("strong", row.name), element("p", `${count} / ${entry.need}`),
-        element("small", `魔石 +${row.awardmoney} · 经验 +${row.awardexp} · 积分 +${row.awardspecial}`));
+      const heading = element("div", undefined, "monster-task-title");
+      heading.append(element("strong", row.name), element("span", `${count} / ${entry.need}`, "monster-task-progress"));
+      body.append(heading, element("small", `魔石 +${row.awardmoney} · 经验 +${row.awardexp} · 积分 +${row.awardspecial}`));
       const locked = state.player.level < row.level ? `需要等级 ${row.level}` : pending[entry.type];
       if (locked) body.append(element("p", locked, "monster-panel-hint"));
       const button = element("button", entry.claimed ? "已领取" : [3, 15].includes(entry.type) ? "交纳并领取" : "领取奖励", "monster-image-button");
       button.type = "button"; button.disabled = Boolean(locked || entry.claimed || count < entry.need);
       button.onclick = () => actions.claimTask(entry.id);
-      body.append(button);
+      const controls = element("div", undefined, "monster-task-actions");
+      controls.append(button);
+      const destination = [1, 2].includes(entry.type) && catalog.copies.find((copy) => copy.id === entry.target && copy.type === entry.type);
+      if (destination) {
+        const location = element("button", entry.type === 1 ? "前往地图" : "前往副本", "monster-image-button");
+        location.type = "button"; location.dataset.taskCopy = String(destination.id);
+        location.setAttribute("aria-label", `前往${destination.name}${entry.type === 1 ? "地图" : "副本"}`);
+        location.onclick = () => actions.goToTaskCopy(destination.id);
+        controls.append(location);
+      }
       if ([3, 15].includes(entry.type) && !entry.claimed && count < entry.need) {
         const source = element("button", "查看材料来源", "monster-image-button");
         source.type = "button"; source.dataset.materialSource = entry.target;
         source.onclick = () => actions.materialSources(entry.target);
-        body.append(source);
+        controls.append(source);
       }
+      body.append(controls);
       card.append(body); content.append(card);
     }
   }

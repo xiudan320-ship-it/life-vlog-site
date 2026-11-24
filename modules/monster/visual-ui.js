@@ -43,6 +43,11 @@ export function showItem(item, catalog, onEquip, onUpgrade, onManage) {
   const dialog = document.getElementById("monsterItemDetails");
   const content = dialog.querySelector(".monster-item-information");
   content.replaceChildren(itemTile(item, catalog), element("h2", row.name));
+  if (onEquip) {
+    const equip = element("button", "穿戴 / 更换", "monster-image-button"); equip.type = "button";
+    equip.onclick = () => { dialog.close(); onEquip(); }; content.append(equip);
+    if (item.subtype <= 8) content.append(element("p", "穿戴时自动继承同部位较高的强化等级。"));
+  }
   if (item.level) content.append(element("p", `等级 ${item.level}${item.paragonGrowth ? ` · 巅峰 ${item.paragonGrowth}` : ""}`));
   if (item.scoreValue) content.append(element("p", `装备评分 ${item.scoreTier} / ${item.scoreValue}${item.godLevel ? ` · 神器 ${item.godLevel} 星` : ""}`));
   if (row.describe && row.describe !== "null") content.append(element("p", row.describe));
@@ -51,11 +56,6 @@ export function showItem(item, catalog, onEquip, onUpgrade, onManage) {
   if (onUpgrade) {
     const upgrade = element("button", item.subtype === 9 ? "升级徽章" : "强化 / 重铸 / 附魔", "monster-image-button"); upgrade.type = "button";
     upgrade.onclick = () => { dialog.close(); onUpgrade(); }; content.append(upgrade);
-  }
-  if (onEquip) {
-    if (item.subtype <= 8) content.append(element("p", "穿戴时自动继承同部位较高的强化等级。"));
-    const equip = element("button", "穿戴", "monster-image-button"); equip.type = "button";
-    equip.onclick = () => { dialog.close(); onEquip(); }; content.append(equip);
   }
   if (onManage) {
     const manage = element("button", item.type === 1 ? "出售" : "分解 / 锁定", "monster-image-button"); manage.type = "button";

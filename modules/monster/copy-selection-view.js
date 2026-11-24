@@ -49,7 +49,7 @@ export function renderCopySelection({ content, state, catalog, settings, onStart
     offline.hidden = settings.type === 6;
     offline.setAttribute("aria-pressed", String(idleMode));
     offline.textContent = idleMode ? "取消选择" : "选择离线挂机";
-    hint.textContent = idleMode ? "点已通关关卡 · 上限20小时" : "点按挑战 · 长按查看详情";
+    hint.textContent = idleMode ? ([2, 5].includes(settings.type) ? "点已通关 · 战败重试 · 每场耗卷轴" : "点已通关 · 战败自动重试") : "点按挑战 · 长按查看详情";
   }
   offline.onclick = () => { idleMode = !idleMode; settings.scrollTop = viewport.scrollTop; render(); };
   overview.append(element("strong", `当前战力 ${referencePower(state.player).toLocaleString("zh-CN")}`), hint, offline);
@@ -79,7 +79,7 @@ export function renderCopySelection({ content, state, catalog, settings, onStart
   viewport.addEventListener("scroll", () => { settings.scrollTop = viewport.scrollTop; });
   chapterRail.addEventListener("scroll", () => { settings.chapterScrollLeft = chapterRail.scrollLeft; });
   const info = element("details", undefined, "monster-copy-info");
-  info.append(element("summary", "冒险说明"), element("p", "地图首通固定普通单波。每场结算后保存，战败保留已击杀怪物的收益并停止，不计通关或里程碑奖励。连续战斗需要保持游戏打开；离线挂机需选择已通关关卡，最长 20 小时。试炼可逐层挑战并按累计积分结算奖励。"));
+  info.append(element("summary", "冒险说明"), element("p", "地图首通固定普通单波。前台战斗战败保留已击杀收益并停止，不计通关或里程碑奖励；连续战斗需要保持游戏打开。离线挂机需选择已通关关卡，最长 20 小时，战败后自动重试；副本和深渊每次挑战消耗卷轴。试炼可逐层挑战并按累计积分结算奖励。"));
   for (const [type, name, icon] of [[1, "地图", "img_level.png"], [2, "副本", "main_btn_copy.png"], [5, "深渊", "main_btn_abyss.png"], [6, "试炼", "main_btn_achieve.png"], [3, "遭遇", "main_btn_god.png"]]) {
     const tab = element("button", undefined, "monster-category"); tab.type = "button"; tab.dataset.copyType = type; tab.setAttribute("aria-label", name);
     tab.append(picture("ui/btn/" + icon), element("span", name));

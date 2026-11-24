@@ -50,7 +50,7 @@ export function simulateOffline({ state, catalog, serverNow, onProgress = () => 
   let remaining = elapsedMs;
   let current = refreshGamePlayer(state, catalog);
   let estimatedSize = byteSize(current);
-  let victories = 0, kills = 0, experience = 0, actions = 0;
+  let victories = 0, defeats = 0, kills = 0, experience = 0, actions = 0, attempts = 0;
   let reason = elapsedMs === MAX_OFFLINE_MS ? "cap" : "claimed";
   const initialGold = state.gold;
   const drops = new Map();
@@ -67,7 +67,7 @@ export function simulateOffline({ state, catalog, serverNow, onProgress = () => 
   };
   const accept = (candidate, reward) => {
     estimatedSize += reward.items.reduce((total, item) => total + (item.type === 1 ? 16 : byteSize(item) + 1), 0) + 8;
-    if (estimatedSize > MAX_STATE_BYTES - 65536 || victories % 250 === 0) {
+    if (estimatedSize > MAX_STATE_BYTES - 65536 || attempts % 250 === 0) {
       estimatedSize = byteSize(candidate);
       if (estimatedSize > MAX_STATE_BYTES) return false;
     }
@@ -102,11 +102,12 @@ export function simulateOffline({ state, catalog, serverNow, onProgress = () => 
     const settlement = partial
       ? settleCopyDefeat({ state: counted, copy, prepared, battle: outcome, catalog, draw })
       : settleCopyVictory({ state: counted, copy, prepared, catalog, draw });
+    attempts += 1;
     if (!accept(refreshGamePlayer(settlement.state, catalog), settlement.reward)) { current = beforeBattle; reason = "storage"; break; }
     kills += defeated;
-    if (battle.outcome === 1) { reason = "defeat"; break; }
+    if (battle.outcome === 1) defeats += 1;
     if (!finished) break;
-    victories += 1;
+    if (battle.outcome === 3) victories += 1;
     if (remaining < REPEAT_MS) break;
     remaining -= REPEAT_MS;
   }
@@ -114,7 +115,7 @@ export function simulateOffline({ state, catalog, serverNow, onProgress = () => 
   const { offlineRun: _completedRun, ...completed } = current;
   return {
     state: completed,
-    summary: { copyId: run.copyId, elapsedMs, simulatedMs: elapsedMs - remaining, victories, kills,
+    summary: { copyId: run.copyId, elapsedMs, simulatedMs: elapsedMs - remaining, victories, defeats, kills,
       gold: completed.gold - initialGold, experience, items: [...drops.values()], reason },
   };
 }

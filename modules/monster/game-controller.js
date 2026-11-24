@@ -48,6 +48,19 @@ export function createMonsterGameController({ catalog, store, view, random, wait
     view.notice("请先领取离线挂机收益，再进行其他操作。");
     return true;
   }
+  function openCopyLocation(copyId, source, allowLocked) {
+    if (!state || active || blockedByOffline()) return;
+    const copy = catalog.copies.find((entry) => entry.id === copyId);
+    if (!copy || ![1, 2, 3, 5, 6].includes(copy.type)) return;
+    const reason = getCopyAccess(copy, state, catalog.chapters);
+    if (reason && !allowLocked) { view.notice(reason); return; }
+    const hard = [1, 2, 3, 4, 5, 6].includes(source.hard) ? source.hard : 1;
+    if (hard > maximumCopyDifficulty(state.player)) { view.notice("当前角色尚未解锁此难度"); return; }
+    Object.assign(settings, { type: copy.type, focusCopyId: copyId, scrollTop: 0, repeat: false, hard, trialHard: [1, 2, 3].includes(source.trialHard) ? source.trialHard : 1 });
+    const chapter = catalog.chapters.find((entry) => copy.id >= entry.minid && copy.id <= entry.maxid || entry.hideboss === copy.id);
+    if (chapter) settings.chapterId = chapter.id;
+    view.selectCopy(state, catalog, settings);
+  }
   async function upgradeStep(target, operation, boost) {
     const result = upgradeEquipment({ state, target, operation, boost, catalog, draw: random });
     state = result.state; refresh();
@@ -191,18 +204,9 @@ export function createMonsterGameController({ catalog, store, view, random, wait
     },
     closeMaterialSources() { view.closeMaterialSources(); },
     goToCopy(copyId, source = {}) {
-      if (!state || active || blockedByOffline()) return;
-      const copy = catalog.copies.find((entry) => entry.id === copyId);
-      if (!copy || ![1, 2, 3, 5, 6].includes(copy.type)) return;
-      const reason = getCopyAccess(copy, state, catalog.chapters);
-      if (reason) { view.notice(reason); return; }
-      const hard = [1, 2, 3, 4, 5, 6].includes(source.hard) ? source.hard : 1;
-      if (hard > maximumCopyDifficulty(state.player)) { view.notice("当前角色尚未解锁此难度"); return; }
-      Object.assign(settings, { type: copy.type, focusCopyId: copyId, scrollTop: 0, repeat: false, hard, trialHard: [1, 2, 3].includes(source.trialHard) ? source.trialHard : 1 });
-      const chapter = catalog.chapters.find((entry) => copy.id >= entry.minid && copy.id <= entry.maxid || copy.id === entry.hideboss);
-      if (chapter) settings.chapterId = chapter.id;
-      view.selectCopy(state, catalog, settings);
+      openCopyLocation(copyId, source, false);
     },
+    goToTaskCopy(copyId) { openCopyLocation(copyId, {}, true); },
     startCopy,
     async startOffline(copyId, selected) {
       if (!state || active || unsaved || blockedByOffline()) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
@@ -532,7 +536,11 @@ export function createMonsterGameController({ catalog, store, view, random, wait
     async equip(index) {
       if (!state || active || unsaved || blockedByOffline()) return;
       const request = revision;
-      try { state = equipBagItem(state, index, catalog); refresh(); active = true; await save(); if (request === revision) view.bag(state, catalog, "equipment"); }
+      try {
+        state = equipBagItem(state, index, catalog); refresh(); active = true;
+        const saved = await save();
+        if (request === revision) view.bag(state, catalog, "equipment", saved ? undefined : { message: "装备已更换", saved, status: saveErrorStatus });
+      }
       catch (error) { view.notice(error.message); }
       finally { if (request === revision) active = false; }
     },

@@ -122,7 +122,7 @@ test("instance runs stop when the paid tickets run out", () => {
   assert.equal(result.state.progress.copies.find((row) => row.id === 2001).value, 3);
 });
 
-test("a defeat stops the run and keeps the already defeated enemy rewards", () => {
+test("a defeat keeps already defeated enemy rewards and offline fighting resumes", () => {
   const state = setup();
   state.player.equipmentSets[0][0].attributes = [{ type: 1, value: 10000 }, { type: 4, value: 10000 }];
   const refreshed = refreshGamePlayer(state, catalog);
@@ -130,11 +130,42 @@ test("a defeat stops the run and keeps the already defeated enemy rewards", () =
     hp: 100000000, att: 10000000, def: 10000000, hit: 10000000, spo: 0, skillid1: 0, skillid2: 0 };
   const local = { ...catalog, enemies: [...catalog.enemies, tough], copies: catalog.copies.map((copy) => copy.id === 1001 ? { ...copy, enemyid2: tough.id } : copy) };
   const run = createOfflineRun({ state: refreshed, catalog: local, copyId: 1001, hard: 1, waves: 1, startedAt, seed: 123456789 });
-  const result = simulateOffline({ state: run, catalog: local, serverNow: startedAt + 3600000 });
-  assert.equal(result.summary.reason, "defeat");
+  const result = simulateOffline({ state: run, catalog: local, serverNow: startedAt + 60000 });
+  assert.equal(result.summary.reason, "claimed");
   assert.equal(result.summary.victories, 0);
-  assert.equal(result.summary.kills, 1);
+  assert.ok(result.summary.defeats > 1, "the player should retry after a defeat");
+  assert.ok(result.summary.kills > 1, "each attempt should retain its defeated enemies");
   assert.ok(result.summary.gold > 0 && result.summary.experience > 0);
+  assert.ok(result.summary.simulatedMs > 57000, "the run must not stop after the first defeat");
+  assert.deepEqual(result.state.progress, run.progress);
+});
+
+test("a 16-hour run against a level-10 monster continues after early defeats", () => {
+  let state = setup(1013);
+  state.player.level = 10;
+  state.player.equipmentSets[0][0].attributes = [1, 2, 3, 4].map((type) => ({ type, value: 500 }));
+  state = refreshGamePlayer(state, catalog);
+  const run = begin(state, 1013);
+  const result = simulateOffline({ state: run, catalog, serverNow: startedAt + 16 * 60 * 60 * 1000 });
+  assert.ok(result.summary.defeats > 0);
+  assert.ok(result.summary.kills > 35, "the run must continue beyond its first early defeat");
+  assert.ok(result.summary.simulatedMs > 3600000, "the run must not stop after a few minutes");
+  assert.ok(["claimed", "storage"].includes(result.summary.reason));
+});
+
+test("each failed dungeon retry spends a ticket and stops when tickets run out", () => {
+  const state = setup(2001);
+  state.player.equipmentSets[0][0].attributes = [{ type: 1, value: 10000 }, { type: 4, value: 10000 }];
+  state.inventory.goods.push({ id: 5009, type: 1, quantity: 2 });
+  const tough = { ...catalog.enemies.find((row) => row.id === 4001), id: 900001, name: "测试强敌",
+    hp: 100000000, att: 10000000, def: 10000000, hit: 10000000, spo: 0, skillid1: 0, skillid2: 0 };
+  const local = { ...catalog, enemies: [...catalog.enemies, tough], copies: catalog.copies.map((copy) => copy.id === 2001 ? { ...copy, enemyid2: tough.id } : copy) };
+  const run = createOfflineRun({ state: refreshGamePlayer(state, local), catalog: local, copyId: 2001, hard: 1, waves: 1, startedAt, seed: 123456789 });
+  const result = simulateOffline({ state: run, catalog: local, serverNow: startedAt + 3600000 });
+  assert.equal(result.summary.reason, "tickets");
+  assert.equal(result.summary.defeats, 2);
+  assert.equal(result.summary.victories, 0);
+  assert.equal(result.state.inventory.goods.find((item) => item.id === 5009), undefined);
   assert.deepEqual(result.state.progress, run.progress);
 });
 

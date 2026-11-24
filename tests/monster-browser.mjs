@@ -48,13 +48,13 @@ let keyboardChecked = false;
 const artifacts = resolve("artifacts/monster");
 await mkdir(artifacts, { recursive: true });
 
-async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, saveStatus = 0, defeat = false, trial = false, trialRewards = false, workshop = false, retention = false, navigation = false, offline = false, shop = false, sidePets = false, petParty = false, petGrowth = false, petCare = false, petPassives = false, petTraining = false, colorScheme = "dark", reducedMotion = "no-preference" } = {}) {
+async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, saveStatus = 0, defeat = false, trial = false, trialRewards = false, workshop = false, retention = false, navigation = false, taskNavigation = false, offline = false, offlineWeak = false, shop = false, sidePets = false, petParty = false, petGrowth = false, petCare = false, petPassives = false, petTraining = false, colorScheme = "dark", reducedMotion = "no-preference" } = {}) {
   const context = await browser.newContext({ ...(iphone13 ? devices["iPhone 13"] : {}), viewport: { width: 390, height: 844 }, screen: { width: 390, height: 844 }, colorScheme, reducedMotion });
   contexts.push(context);
   context.on("requestfailed", (request) => requestFailures.push({ url: request.url(), error: request.failure()?.errorText }));
   const fixture = createWorkerFixture({ origin });
   if (offline) fixture.serverTime = Date.UTC(2026, 0, 1);
-  if (trial || workshop || retention || navigation || offline || shop || sidePets || petParty || petGrowth || petCare || petPassives || petTraining) {
+  if (trial || workshop || retention || navigation || taskNavigation || offline || shop || sidePets || petParty || petGrowth || petCare || petPassives || petTraining) {
     const [items, skills] = await Promise.all(["item", "skill"].map(async (name) => JSON.parse(await readFile(resolve(root, `monster/data/${name}.json`), "utf8"))));
     const seed = createNewGame({ items, skills }); seed.player.name = "功能测试勇者";
     if (shop) {
@@ -86,8 +86,21 @@ async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, sa
     }
     if (trial || navigation || offline) { seed.player.level = 80; seed.player.equipmentSets[0][0].attributes.push(...[1, 2, 3, 4].map((type) => ({ type, value: 10000000 }))); }
     if (navigation) { seed.progress.chapterId = 3; seed.progress.levelId = 5; }
+    if (taskNavigation) {
+      const rows = JSON.parse(await readFile(resolve(root, "monster/data/task.json"), "utf8"));
+      seed.player.level = 10; seed.progress.chapterId = 1; seed.progress.levelId = 6;
+      seed.taskBoard = { points: 0, dailyRewardDay: null, entries: [1, 3, 39, 64].map((id) => {
+        const row = rows.find((item) => item.id === id);
+        return { id, type: row.type, target: row.target, need: row.needcount, count: 0, claimed: 0 };
+      }) };
+    }
     if (offline) {
       seed.progress.levelId = 2; seed.progress.copies.push({ id: 1001, value: 1 });
+      if (offlineWeak) {
+        seed.player.level = 10; seed.progress.chapterId = 21;
+        seed.progress.copies.push({ id: 1013, value: 1 });
+        seed.player.equipmentSets[0][0].attributes = [1, 2, 3, 4].map((type) => ({ type, value: 500 }));
+      }
       if (sidePets) {
         seed.inventory.pets[0] = { id: 4022, type: 3, level: 1, quality: 5, experience: 0, partyRole: 1,
           training: { stars: 2, starExperience: 1, growth: 100 } };
@@ -510,7 +523,7 @@ async function checkOfflineRun({ sidePets = false } = {}) {
   await page.locator('[data-offline-claim]').click();
   await page.locator('[data-offline-phase="result"]').waitFor({ timeout: 60000 });
   assert.ok(workers.some((url) => /monster-offline-worker/.test(url)), `offline settlement must use a Web Worker: ${workers}`);
-  assert.match(await page.locator('.monster-offline-stats').textContent(), /累计时间\s*20小时 0分 0秒/);
+  assert.match(await page.locator('.monster-offline-stats').textContent(), /挂机时长\s*20小时 0分 0秒/);
   assert.equal(await page.locator('[data-offline-reason="cap"]').count(), 1);
   assert.match(await page.locator('.monster-offline-feedback').textContent(), /云端尚未保存/);
   assert.deepEqual(await saved(page), running, "failed claim save must leave the account cloud record unchanged");
@@ -542,13 +555,134 @@ async function checkOfflineRun({ sidePets = false } = {}) {
   await page.context().close();
   console.log(`Offline ${browserType.name()} passed: account cloud save, server clock cap, Web Worker, reopen, claim and retry${sidePets ? ", side-pet XP and loyalty" : ""}.`);
 }
+
+async function checkOfflineDefeatRetry() {
+  const page = await pageFor({ offline: true, offlineWeak: true, roll: 123456789, reducedMotion: "reduce" });
+  const fixture = fixtures.get(page), startedAt = fixture.serverTime;
+  await page.locator("#monsterEnter").click(); await stage(page, "home");
+  await page.locator("#monsterAdventure").click();
+  await page.getByRole("button", { name: "选择离线挂机" }).click();
+  await page.getByText("点已通关 · 战败自动重试", { exact: true }).waitFor();
+  await page.locator('[data-copy-type="2"]').click();
+  await page.getByText("点已通关 · 战败重试 · 每场耗卷轴", { exact: true }).waitFor();
+  await page.locator('[data-copy-type="1"]').click();
+  await page.locator('[data-chapter-id="2"]').click();
+  await page.locator('[data-copy-id="1013"]').click();
+  await page.locator('[data-offline-phase="running"]').waitFor();
+  fixture.serverTime = startedAt + 16 * 60 * 60 * 1000;
+  await page.locator('[data-offline-claim]').click();
+  await page.locator('[data-offline-phase="result"]').waitFor({ timeout: 60000 });
+  const stat = (label) => page.locator(".monster-offline-stats > div").filter({ has: page.getByText(label, { exact: true }) }).locator("dd");
+  assert.equal(await stat("挂机时长").textContent(), "16小时 0分 0秒");
+  assert.match(await stat("实际结算").textContent(), /15小时 59分|16小时/);
+  assert.ok(Number((await stat("战败次数").textContent()).replaceAll(",", "")) > 0);
+  assert.ok(Number((await stat("击杀").textContent()).replaceAll(",", "")) > 35);
+  assert.equal((await saved(page)).offlineRun, undefined);
+  await noOverflow(page); await accessible(page);
+  await page.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-offline-retry.png" : "offline-retry.png") });
+  await page.context().close();
+  console.log(`Offline defeat retry ${browserType.name()} passed: 16-hour level-10 run continues and displays actual time and defeats.`);
+}
+
+async function checkTaskNavigation() {
+  const page = await pageFor({ taskNavigation: true, reducedMotion: "reduce" });
+  await page.locator("#monsterEnter").click(); await stage(page, "home"); await tapNative(page, "btn_task");
+  const first = page.locator('[data-task-id="1"]');
+  await first.waitFor();
+  for (const width of [375, 390, 430, 768]) {
+    await page.setViewportSize({ width, height: 844 });
+    await noOverflow(page);
+    const geometry = await first.evaluate((card) => ({ height: card.getBoundingClientRect().height,
+      buttons: [...card.querySelectorAll("button")].map((button) => button.getBoundingClientRect().height) }));
+    assert.ok(geometry.height <= 135 && geometry.buttons.every((height) => height >= 44), JSON.stringify(geometry));
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ colorScheme: "light" }); await accessible(page);
+  await page.emulateMedia({ colorScheme: "dark" }); await accessible(page);
+  await page.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-tasks-compact.png" : "tasks-compact.png") });
+  await first.locator('[data-task-copy="1006"]').click();
+  await page.locator('[data-copy-id="1006"].monster-copy-focused').waitFor();
+  assert.equal(await page.locator('[data-chapter-id="1"]').getAttribute("aria-current"), "true");
+  await page.locator("#monsterDetailsClose").click(); await tapNative(page, "btn_task");
+  await page.locator('[data-task-copy="1013"]').click();
+  const locked = page.locator('[data-copy-id="1013"].monster-copy-focused');
+  await locked.waitFor();
+  assert.equal(await locked.getAttribute("data-locked"), "true");
+  await locked.click();
+  await page.locator("#monsterToast").filter({ hasText: "尚未解锁章节" }).waitFor();
+  await page.locator('[data-copy-details="1013"]').click();
+  assert.equal(await page.locator('[data-scout-start="1013"]').isDisabled(), true);
+  await page.locator(".monster-scout-controls button").first().click();
+  await page.locator("#monsterDetailsClose").click(); await tapNative(page, "btn_task");
+  await page.locator('[data-task-copy="2001"]').click();
+  await page.locator('[data-copy-id="2001"].monster-copy-focused').waitFor();
+  assert.equal(await page.locator('[data-copy-type="2"]').getAttribute("aria-pressed"), "true");
+  await page.context().close();
+  console.log(`Task navigation ${browserType.name()} passed: compact layout, map, locked map and dungeon.`);
+}
+
+async function checkEquipmentSwap() {
+  const page = await pageFor({ retention: true, roll: 0, reducedMotion: "reduce" });
+  const initial = await saved(page);
+  await page.locator("#monsterEnter").click(); await stage(page, "home");
+  await page.locator("#monsterBag").click(); await page.getByRole("button", { name: "装备", exact: true }).click();
+  const direct = page.getByRole("button", { name: "更换为兽骨短剑", exact: true });
+  await direct.waitFor();
+  assert.equal(await page.locator(".monster-bag-equipment-hint").isVisible(), true);
+  for (const width of [375, 390, 430, 768]) {
+    await page.setViewportSize({ width, height: 844 }); await noOverflow(page);
+    assert.ok((await direct.boundingBox()).height >= 44);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ colorScheme: "light" }); await accessible(page);
+  await page.emulateMedia({ colorScheme: "dark" }); await accessible(page);
+  await page.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-bag-equip.png" : "bag-equip.png") });
+  await page.evaluate(() => { window.monsterFixtureBlockSave = true; });
+  if (iphone13) await direct.tap(); else await direct.click();
+  await page.locator("[data-save-feedback-retry]").waitFor({ state: "visible" });
+  assert.deepEqual(await saved(page), initial, "failed save must not change the cloud loadout");
+  await page.evaluate(() => { window.monsterFixtureBlockSave = false; });
+  await page.locator("[data-save-feedback-retry]").click(); await page.locator("[data-save-feedback-retry]").waitFor({ state: "detached" });
+  const equipped = await saved(page);
+  assert.equal(equipped.player.equipmentSets[0].find((item) => item.subtype === 1).id, 6002);
+  assert.equal(equipped.player.equipmentSets[0].find((item) => item.subtype === 1).strength, 18);
+  assert.equal(equipped.inventory.equipment.find((item) => item.id === 6001 && !item.godLevel).strength, 0);
+  await page.locator('.monster-bag-grid button[title="新手铁剑"]').last().click();
+  const details = page.locator("#monsterItemDetails");
+  const equip = details.getByRole("button", { name: "穿戴 / 更换", exact: true });
+  await equip.waitFor();
+  const bounds = await equip.boundingBox(), dialog = await details.boundingBox();
+  assert.ok(bounds.y >= dialog.y && bounds.y + bounds.height <= dialog.y + dialog.height, "the equip action must be visible without scrolling");
+  await equip.click();
+  await page.waitForFunction(() => !document.querySelector("#monsterSaveStatus").textContent.includes("正在保存"));
+  const swapped = await saved(page);
+  assert.equal(swapped.player.equipmentSets[0].find((item) => item.subtype === 1).id, 6001);
+  assert.equal(swapped.player.equipmentSets[0].find((item) => item.subtype === 1).strength, 18);
+  await page.reload(); await stage(page, "menu"); assert.deepEqual(await saved(page), swapped);
+  await page.context().close();
+
+  const conflict = await pageFor({ retention: true, saveStatus: 409, reducedMotion: "reduce" });
+  const unchanged = await saved(conflict);
+  await conflict.locator("#monsterEnter").click(); await stage(conflict, "home");
+  await conflict.locator("#monsterBag").click(); await conflict.getByRole("button", { name: "装备", exact: true }).click();
+  await conflict.getByRole("button", { name: "更换为兽骨短剑", exact: true }).click();
+  await conflict.locator("#monsterDetails").getByRole("button", { name: "重载云存档", exact: true }).waitFor();
+  assert.deepEqual(await saved(conflict), unchanged);
+  await conflict.context().close();
+  console.log(`Equipment swap ${browserType.name()} passed: visible controls, strength inheritance, save retry, conflict and reload.`);
+}
 try {
-  if (!["--shop-only", "--side-pet-only", "--pet-passive-only", "--pet-training-only"].some((option) => process.argv.includes(option))) await checkOfflineRun({ sidePets: process.argv.includes("--side-offline") });
-  if (!["--offline-only", "--side-pet-only", "--pet-passive-only", "--pet-training-only"].some((option) => process.argv.includes(option))) await checkShop();
-  if (!["--offline-only", "--shop-only", "--pet-passive-only", "--pet-training-only"].some((option) => process.argv.includes(option))) await checkSidePets();
-  if (!["--offline-only", "--shop-only", "--side-pet-only", "--pet-training-only"].some((option) => process.argv.includes(option))) await checkPetPassives();
-  if (!["--offline-only", "--shop-only", "--side-pet-only", "--pet-passive-only"].some((option) => process.argv.includes(option))) await checkPetTraining();
-  if (!["--offline-only", "--shop-only", "--side-pet-only", "--pet-passive-only", "--pet-training-only"].some((option) => process.argv.includes(option))) {
+  const focused = ["--offline-only", "--offline-retry-only", "--tasks-only", "--equipment-only", "--shop-only", "--side-pet-only", "--pet-passive-only", "--pet-training-only"];
+  const selected = (flag) => !focused.some((option) => process.argv.includes(option)) || process.argv.includes(flag);
+  if (selected("--offline-only")) await checkOfflineRun({ sidePets: process.argv.includes("--side-offline") });
+  if (selected("--offline-retry-only")) await checkOfflineDefeatRetry();
+  if (selected("--tasks-only")) await checkTaskNavigation();
+  if (selected("--equipment-only")) await checkEquipmentSwap();
+  if (selected("--shop-only")) await checkShop();
+  if (selected("--side-pet-only")) await checkSidePets();
+  if (selected("--pet-passive-only")) await checkPetPassives();
+  if (selected("--pet-training-only")) await checkPetTraining();
+  if (!focused.some((option) => process.argv.includes(option))) {
   const manifest = await readWorkboxManifest(resolve(root, "sw.js"));
   assert.ok(!manifest.some(({ url }) => /^\/?(?:monster(?:\/|\.html)|assets\/monster-)/.test(url)), "game resources must stay out of home precache");
   const index = await readFile(resolve(root, "index.html"), "utf8");
@@ -922,7 +1056,7 @@ try {
   await retentionPage.locator("#monsterBag").click(); await retentionPage.getByRole("button", { name: "装备", exact: true }).click();
   await retentionTap(retentionPage.locator('.monster-bag-grid button[title="兽骨短剑"]'));
   await retentionPage.evaluate(() => { window.monsterFixtureBlockSave = true; });
-  await retentionTap(retentionPage.locator("#monsterItemDetails").getByRole("button", { name: "穿戴", exact: true }));
+  await retentionTap(retentionPage.locator("#monsterItemDetails").getByRole("button", { name: "穿戴 / 更换", exact: true }));
   await retentionPage.locator("#monsterSaveRetry").waitFor({ state: "visible" });
   assert.deepEqual(await saved(retentionPage), retentionSeed);
   await retentionPage.locator("#monsterDetailsClose").click();
@@ -946,7 +1080,7 @@ try {
   await retentionPage.locator("#monsterDetailsClose").click(); await retentionPage.locator("#monsterBag").click();
   await retentionPage.getByRole("button", { name: "装备", exact: true }).click();
   await retentionTap(retentionPage.locator('.monster-bag-grid button[title="新手铁剑"]').last());
-  await retentionTap(retentionPage.locator("#monsterItemDetails").getByRole("button", { name: "穿戴", exact: true }));
+  await retentionTap(retentionPage.locator("#monsterItemDetails").getByRole("button", { name: "穿戴 / 更换", exact: true }));
   await retentionPage.locator('.monster-bag-grid button[title="兽骨短剑"]').waitFor();
   await retentionPage.locator("#monsterDetailsClose").click();
   const swapped = await saved(retentionPage);

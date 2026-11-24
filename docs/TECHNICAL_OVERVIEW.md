@@ -213,7 +213,7 @@ pnpm preview
 
 游戏入口复用宿主认证键与会话备份，API 地址统一取 `APP_CONFIG.apiEndpoint`。`GET /api/monster/save` 返回当前用户的 `{userId, revision, updatedAt, state, serverTime}`，其中 `serverTime` 是服务器当前 ISO 时间，无档时为 revision 0、state null；`PUT` 提交 `{expectedRevision, state}`，响应递增后的版本。Worker 在认证后以服务器 user.id 读写 D1 `monster_saves(user_id PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, state_json CHECK(json_valid), revision CHECK(revision >= 1), updated_at)`，不接受客户端指定归属，也不授予同家庭成员访问。写入上限 1 MiB；首次 INSERT 和后续 UPDATE 使用原子 revision 条件，冲突为 409。
 
-离线挂机是新增模拟玩法，不是服务器后台持续运行战斗。玩家先通关目标地图、副本、深渊或特殊首领，再以所选难度／波数开启；账号云档保存 `offlineRun: { copyId, hard, waves, startedAt, seed }`，开始与领取均通过已认证 GET 获取服务器时间并检查账号、会话和当前 revision。领取时以服务器时间差计算最多 20 小时，在客户端 Web Worker 中用保存的种子重放现有战斗、任务和奖励规则，结果与结束标记同次 CAS 保存；失败重试现有结果，409 须重新载入。战败保留已击杀收益并停止；副本卷轴不足或接近 1 MiB 存档容量时提前停止，未完成的部分不算通关。时间上限、动作耗时与种子属于移植规则；客户端模拟和可提交状态并非服务器端防作弊。挂机记录可跨关闭页面保留，但开始与领取需要联网，不能视为完整离线安装。
+离线挂机是新增模拟玩法，不是服务器后台持续运行战斗。玩家先通关目标地图、副本、深渊或特殊首领，再以所选难度／波数开启；账号云档保存 `offlineRun: { copyId, hard, waves, startedAt, seed }`，开始与领取均通过已认证 GET 获取服务器时间并检查账号、会话和当前 revision。领取时以服务器时间差计算最多 20 小时，在客户端 Web Worker 中用保存的种子重放现有战斗、任务和奖励规则，结果与结束标记同次 CAS 保存；失败重试现有结果，409 须重新载入。离线战败保留已击杀收益并自动重试，不计通关；每次副本或深渊挑战扣除卷轴，卷轴不足或接近 1 MiB 存档容量时提前停止。结果显示离线时长、实际结算时长和战败次数。时间上限、动作耗时与种子属于移植规则；客户端模拟和可提交状态并非服务器端防作弊。挂机记录可跨关闭页面保留，但开始与领取需要联网，不能视为完整离线安装。
 
 `port-drop-domain.js` 在目录装配时为恐惧地牢、狼人巢穴和魔龙血域补充 10 种原配方所需徽章，战斗与材料来源查询复用同一份运行时掉落组；原始 APK 目录不变。这些补充及其概率是移植平衡，并非原版概率。已开放的深渊层可重复挑战，故现有深渊材料并不依赖尚未接通的原版每日重置。
 
@@ -229,7 +229,7 @@ pnpm preview
 
 `pet-battle-domain.js` 在准备战斗后抽取已分配宠物的原生助战词条，先主宠再副宠，每条按星级、忠诚、身份及装备 tag 43 的原生 float32 阈值使用一次 0–100 抽样，第三条仅品质 5 开放。触发记录和临时角色属性只存在当前 `prepared`／`battle`；战斗和收益计算复用它们，前台、主动退出及离线 Worker 均走相同结算，账号存档保持常驻属性。保存失败重试既有结算，不重新抽词条。原生片段样本不代表完整 APK 与动画时序已还原。
 
-任务板的可选字段 `state.taskBoard` 首次打开时创建，保存 `dailyRewardDay`、`points` 和含 `id / type / target / need / count / claimed` 的 `entries`。普通任务从 161 条原目录中的适龄候选随机选取至多 10 条并追加 7 条固定日常；领取材料任务时消耗指定物品。每日领取在客户端按 UTC+8 日期限制，发放魔石和卷轴并重抽、清空任务进度；并不代表原服务器时钟、活动或 VIP 规则。领取、材料消耗及重抽结果作为一次云档 revision 保存，失败重试现有状态，不再次抽取。
+任务板的可选字段 `state.taskBoard` 首次打开时创建，保存 `dailyRewardDay`、`points` 和含 `id / type / target / need / count / claimed` 的 `entries`。普通任务从 161 条原目录中的适龄候选随机选取至多 10 条并追加 7 条固定日常；领取材料任务时消耗指定物品。指定地图／副本任务可定位到目标关卡，未解锁关卡可查看但不能挑战。每日领取在客户端按 UTC+8 日期限制，发放魔石和卷轴并重抽、清空任务进度；并不代表原服务器时钟、活动或 VIP 规则。领取、材料消耗及重抽结果作为一次云档 revision 保存，失败重试现有状态，不再次抽取。
 
 装备培养支持背包和当前装备组中的普通装备：强化、重铸和金币／魔石附魔由领域模块处理，附魔以 `enchantment: { type, level, value }` 保存在装备并参与属性收集。神器使用 `godLevel`、`godOffset` 和 `godUpgradeCount` 保存星级、主属性偏移和已升星次数；`attributes` 尾部 `godLevel` 项是工厂生成时追加的神器词条，洗星只替换最后一项。未记录次数的本 App 旧物品确实从未进行过此新操作，首次操作从零开始；不导入 Android 存档。`subtype == 9` 的徽章使用配方升级，冒险者／深渊／铁匠／巅峰四类徽章各有装备位。
 

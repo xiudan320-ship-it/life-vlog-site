@@ -1,3 +1,4 @@
+import "./bag-equipment.css";
 import { element, picture, itemTile, showItem, petTile } from "./visual-ui.js";
 import { renderBagReceipt } from "./bag-item-view.js";
 
@@ -41,6 +42,7 @@ export function renderBag(content, state, catalog, actions, { kind = "goods", re
   const tabs = element("nav", undefined, "monster-image-tabs"); tabs.setAttribute("aria-label", "背包分类");
   const panel = element("section", undefined, "monster-bag-grid monster-original-panel");
   const empty = element("p", undefined, "monster-empty-bag");
+  const equipmentHint = element("p", "点装备查看详情，或直接按下方按钮穿戴 / 更换。", "monster-panel-hint monster-bag-equipment-hint");
   const groups = [
     { name: "道具", kind: "goods", entries: state.inventory.goods, quantity: true },
     { name: "装备", kind: "equipment", entries: state.inventory.equipment },
@@ -50,17 +52,29 @@ export function renderBag(content, state, catalog, actions, { kind = "goods", re
   function select(group) {
     for (const button of tabs.children) button.setAttribute("aria-pressed", String(button.textContent === group.name));
     panel.replaceChildren();
-    group.entries.forEach((item, index) => panel.append(group.pets ? petTile(item, catalog, () => actions.pets()) : itemTile(item, catalog, { quantity: group.quantity,
-      onClick: () => showItem(item, catalog, group.name === "装备" && (item.subtype <= 9 || item.subtype >= 11 && item.subtype <= 14) ? () => actions.equip(index) : null,
-        group.name === "装备" && item.subtype <= 9 ? () => actions.upgrade({ source: "bag", index, id: item.id }) : null,
-        group.kind ? () => actions.bagItem({ kind: group.kind, index, id: item.id }) : null) })));
+    equipmentHint.hidden = group.kind !== "equipment";
+    group.entries.forEach((item, index) => {
+      const wearable = group.kind === "equipment" && (item.subtype >= 1 && item.subtype <= 9 || item.subtype >= 11 && item.subtype <= 14);
+      const tile = group.pets ? petTile(item, catalog, () => actions.pets()) : itemTile(item, catalog, { quantity: group.quantity,
+        onClick: () => showItem(item, catalog, wearable ? () => actions.equip(index) : null,
+          group.kind === "equipment" && item.subtype <= 9 ? () => actions.upgrade({ source: "bag", index, id: item.id }) : null,
+          group.kind ? () => actions.bagItem({ kind: group.kind, index, id: item.id }) : null) });
+      if (!wearable) { panel.append(tile); return; }
+      const cell = element("div", undefined, "monster-bag-equipment-cell");
+      const replacing = state.player.equipmentSets[state.player.equipmentSetIndex].some((worn) => worn.subtype === item.subtype);
+      const wear = element("button", replacing ? "更换" : "穿戴", "monster-image-button monster-bag-equip");
+      wear.type = "button"; wear.dataset.equipBagIndex = String(index);
+      wear.setAttribute("aria-label", `${replacing ? "更换为" : "穿戴"}${catalog.items.find((row) => row.id === item.id).name}`);
+      wear.onclick = () => actions.equip(index);
+      cell.append(tile, wear); panel.append(cell);
+    });
     for (let index = group.entries.length; index < 30; index += 1) panel.append(element("div", undefined, "monster-empty-slot"));
     empty.textContent = group.entries.length ? `${group.name} ${group.entries.length} 件 · 点击图标查看` : "暂时没有材料或装备，冒险中获得的物品会保存在这里。";
   }
   for (const group of groups) {
     const tab = element("button", group.name, "monster-image-button"); tab.type = "button"; tab.onclick = () => select(group); tabs.append(tab);
   }
-  content.append(tabs, panel, empty); select(groups.find((group) => group.kind === kind) || groups[0]);
+  content.append(tabs, equipmentHint, panel, empty); select(groups.find((group) => group.kind === kind) || groups[0]);
 }
 
 export function renderSkills(content, state, catalog, actions) {
