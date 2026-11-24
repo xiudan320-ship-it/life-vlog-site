@@ -1,0 +1,7050 @@
+{
+  "scope": "Run native pet fusion and devouring arithmetic on deterministic synthetic pets.\n\nOriginal factory, star/growth methods and attribute refresh execute in ARM;\nthe surrounding selection UI, account persistence and network are excluded.\n",
+  "starThresholds": [
+    1,
+    2,
+    4,
+    6
+  ],
+  "fusion": [
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 1,
+      "expected": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 1,
+      "expected": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 1,
+      "expected": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 1,
+      "expected": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 2,
+      "expected": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 2,
+      "expected": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 0
+      },
+      "amount": 3,
+      "expected": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 0
+      },
+      "amount": 3,
+      "expected": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 4,
+      "expected": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 1,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 4,
+      "expected": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 1,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 3,
+        "growth": 0
+      },
+      "amount": 7,
+      "expected": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 3,
+        "growth": 0
+      },
+      "amount": 7,
+      "expected": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 8,
+      "expected": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 1,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 8,
+      "expected": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 1,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 5,
+        "growth": 0
+      },
+      "amount": 13,
+      "expected": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 5,
+        "growth": 0
+      },
+      "amount": 13,
+      "expected": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 14,
+      "expected": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 14,
+      "expected": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 14,
+      "expected": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 14,
+      "expected": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 1,
+      "expected": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 1,
+      "expected": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 1,
+      "expected": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 1,
+      "expected": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 2,
+      "expected": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 2,
+      "expected": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 1,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 0
+      },
+      "amount": 3,
+      "expected": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 1,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 0
+      },
+      "amount": 3,
+      "expected": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 4,
+      "expected": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 4,
+      "expected": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 3,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 3,
+        "growth": 0
+      },
+      "amount": 7,
+      "expected": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 1,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 3,
+        "growth": 0
+      },
+      "amount": 7,
+      "expected": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 2,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 8,
+      "expected": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 2,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 8,
+      "expected": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 5,
+        "growth": 0
+      },
+      "amount": 13,
+      "expected": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 5,
+        "growth": 0
+      },
+      "amount": 13,
+      "expected": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 14,
+      "expected": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 14,
+      "expected": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 14,
+      "expected": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 14,
+      "expected": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 1,
+      "expected": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 1,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 3,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 1,
+      "expected": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 1,
+      "expected": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 1,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 3,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 1,
+      "expected": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 2,
+      "expected": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 3,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 2,
+      "expected": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 1,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 0
+      },
+      "amount": 3,
+      "expected": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 3,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 3,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 0
+      },
+      "amount": 3,
+      "expected": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 2,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 4,
+      "expected": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 3,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 4,
+      "expected": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 3,
+        "growth": 0
+      },
+      "amount": 7,
+      "expected": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 3,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 3,
+        "growth": 0
+      },
+      "amount": 7,
+      "expected": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 8,
+      "expected": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 4,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 3,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 8,
+      "expected": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 5,
+        "growth": 0
+      },
+      "amount": 13,
+      "expected": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 3,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 5,
+        "growth": 0
+      },
+      "amount": 13,
+      "expected": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 14,
+      "expected": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 3,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 14,
+      "expected": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 14,
+      "expected": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 3,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 14,
+      "expected": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 1,
+      "expected": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 1,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 5,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 1,
+      "expected": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 1,
+      "expected": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 1,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 5,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 1,
+      "expected": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 2,
+      "expected": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 2,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 5,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 2,
+      "expected": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 0
+      },
+      "amount": 3,
+      "expected": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 5,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 0
+      },
+      "amount": 3,
+      "expected": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 4,
+      "expected": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 4,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 5,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 4,
+      "expected": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 3,
+        "growth": 0
+      },
+      "amount": 7,
+      "expected": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 5,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 3,
+        "growth": 0
+      },
+      "amount": 7,
+      "expected": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 8,
+      "expected": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 5,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 8,
+      "expected": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 5,
+        "growth": 0
+      },
+      "amount": 13,
+      "expected": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 5,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 5,
+        "growth": 0
+      },
+      "amount": 13,
+      "expected": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 14,
+      "expected": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 5,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 14,
+      "expected": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 14,
+      "expected": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 5,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 14,
+      "expected": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      }
+    }
+  ],
+  "devour": [
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 3,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 3
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 49
+      },
+      "amount": 52,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 52
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      },
+      "amount": 103,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 0
+      },
+      "amount": 9,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 9
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 49
+      },
+      "amount": 58,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 58
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 100
+      },
+      "amount": 109,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 0
+      },
+      "amount": 18,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 18
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 49
+      },
+      "amount": 67,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 67
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 100
+      },
+      "amount": 118,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 0
+      },
+      "amount": 33,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 33
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 49
+      },
+      "amount": 82,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 82
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 100
+      },
+      "amount": 133,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 42,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 42
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 49
+      },
+      "amount": 91,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 91
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 100
+      },
+      "amount": 142,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 4,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 4
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 49
+      },
+      "amount": 53,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 53
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      },
+      "amount": 104,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 0
+      },
+      "amount": 13,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 13
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 49
+      },
+      "amount": 62,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 62
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 100
+      },
+      "amount": 113,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 0
+      },
+      "amount": 27,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 27
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 49
+      },
+      "amount": 76,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 76
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 100
+      },
+      "amount": 127,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 0
+      },
+      "amount": 49,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 49
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 49
+      },
+      "amount": 98,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 100
+      },
+      "amount": 149,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 63,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 63
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 49
+      },
+      "amount": 112,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 100
+      },
+      "amount": 163,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 6,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 6
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 49
+      },
+      "amount": 55,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 55
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      },
+      "amount": 106,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 0
+      },
+      "amount": 18,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 18
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 49
+      },
+      "amount": 67,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 67
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 100
+      },
+      "amount": 118,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 0
+      },
+      "amount": 36,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 36
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 49
+      },
+      "amount": 85,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 85
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 100
+      },
+      "amount": 136,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 0
+      },
+      "amount": 66,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 66
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 49
+      },
+      "amount": 115,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 100
+      },
+      "amount": 166,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 84,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 84
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 49
+      },
+      "amount": 133,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 100
+      },
+      "amount": 184,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 3,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 4
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 49
+      },
+      "amount": 52,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 53
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      },
+      "amount": 103,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 0
+      },
+      "amount": 9,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 10
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 49
+      },
+      "amount": 58,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 59
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 100
+      },
+      "amount": 109,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 0
+      },
+      "amount": 18,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 19
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 49
+      },
+      "amount": 67,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 68
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 100
+      },
+      "amount": 118,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 0
+      },
+      "amount": 33,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 34
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 49
+      },
+      "amount": 82,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 83
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 100
+      },
+      "amount": 133,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 42,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 43
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 49
+      },
+      "amount": 91,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 92
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 100
+      },
+      "amount": 142,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 4,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 5
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 49
+      },
+      "amount": 53,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 54
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      },
+      "amount": 104,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 0
+      },
+      "amount": 13,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 14
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 49
+      },
+      "amount": 62,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 63
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 100
+      },
+      "amount": 113,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 0
+      },
+      "amount": 27,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 28
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 49
+      },
+      "amount": 76,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 77
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 100
+      },
+      "amount": 127,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 0
+      },
+      "amount": 49,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 49
+      },
+      "amount": 98,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 100
+      },
+      "amount": 149,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 63,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 64
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 49
+      },
+      "amount": 112,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 100
+      },
+      "amount": 163,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 6,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 7
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 49
+      },
+      "amount": 55,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 56
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      },
+      "amount": 106,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 0
+      },
+      "amount": 18,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 19
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 49
+      },
+      "amount": 67,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 68
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 100
+      },
+      "amount": 118,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 0
+      },
+      "amount": 36,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 37
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 49
+      },
+      "amount": 85,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 86
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 100
+      },
+      "amount": 136,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 0
+      },
+      "amount": 66,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 67
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 49
+      },
+      "amount": 115,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 100
+      },
+      "amount": 166,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 84,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 85
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 49
+      },
+      "amount": 133,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 1
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 100
+      },
+      "amount": 184,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 3,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 53
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 49
+      },
+      "amount": 52,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      },
+      "amount": 103,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 0
+      },
+      "amount": 9,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 59
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 49
+      },
+      "amount": 58,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 100
+      },
+      "amount": 109,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 0
+      },
+      "amount": 18,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 68
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 49
+      },
+      "amount": 67,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 100
+      },
+      "amount": 118,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 0
+      },
+      "amount": 33,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 83
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 49
+      },
+      "amount": 82,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 100
+      },
+      "amount": 133,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 42,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 92
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 49
+      },
+      "amount": 91,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 100
+      },
+      "amount": 142,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 4,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 54
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 49
+      },
+      "amount": 53,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      },
+      "amount": 104,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 0
+      },
+      "amount": 13,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 63
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 49
+      },
+      "amount": 62,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 100
+      },
+      "amount": 113,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 0
+      },
+      "amount": 27,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 77
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 49
+      },
+      "amount": 76,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 100
+      },
+      "amount": 127,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 0
+      },
+      "amount": 49,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 49
+      },
+      "amount": 98,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 100
+      },
+      "amount": 149,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 63,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 49
+      },
+      "amount": 112,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 100
+      },
+      "amount": 163,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 6,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 56
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 49
+      },
+      "amount": 55,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      },
+      "amount": 106,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 0
+      },
+      "amount": 18,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 68
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 49
+      },
+      "amount": 67,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 100
+      },
+      "amount": 118,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 0
+      },
+      "amount": 36,
+      "expected": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 86
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 49
+      },
+      "amount": 85,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 100
+      },
+      "amount": 136,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 0
+      },
+      "amount": 66,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 49
+      },
+      "amount": 115,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 100
+      },
+      "amount": 166,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 84,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 49
+      },
+      "amount": 133,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 50
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 100
+      },
+      "amount": 184,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 3,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 49
+      },
+      "amount": 52,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      },
+      "amount": 103,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 0
+      },
+      "amount": 9,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 49
+      },
+      "amount": 58,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 100
+      },
+      "amount": 109,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 0
+      },
+      "amount": 18,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 49
+      },
+      "amount": 67,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 100
+      },
+      "amount": 118,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 0
+      },
+      "amount": 33,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 49
+      },
+      "amount": 82,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 100
+      },
+      "amount": 133,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 42,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 49
+      },
+      "amount": 91,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 100
+      },
+      "amount": 142,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 4,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 49
+      },
+      "amount": 53,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      },
+      "amount": 104,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 0
+      },
+      "amount": 13,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 49
+      },
+      "amount": 62,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 100
+      },
+      "amount": 113,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 0
+      },
+      "amount": 27,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 49
+      },
+      "amount": 76,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 100
+      },
+      "amount": 127,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 0
+      },
+      "amount": 49,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 49
+      },
+      "amount": 98,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 100
+      },
+      "amount": 149,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 63,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 49
+      },
+      "amount": 112,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 100
+      },
+      "amount": 163,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 6,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 49
+      },
+      "amount": 55,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      },
+      "amount": 106,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 0
+      },
+      "amount": 18,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 49
+      },
+      "amount": 67,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 100
+      },
+      "amount": 118,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 0
+      },
+      "amount": 36,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 49
+      },
+      "amount": 85,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 100
+      },
+      "amount": 136,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 0
+      },
+      "amount": 66,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 49
+      },
+      "amount": 115,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 100
+      },
+      "amount": 166,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 84,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 49
+      },
+      "amount": 133,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 98
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 100
+      },
+      "amount": 184,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 3,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 49
+      },
+      "amount": 52,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      },
+      "amount": 103,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 0
+      },
+      "amount": 9,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 49
+      },
+      "amount": 58,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 100
+      },
+      "amount": 109,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 0
+      },
+      "amount": 18,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 49
+      },
+      "amount": 67,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 100
+      },
+      "amount": 118,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 0
+      },
+      "amount": 33,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 49
+      },
+      "amount": 82,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 100
+      },
+      "amount": 133,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 42,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 49
+      },
+      "amount": 91,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 2,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 100
+      },
+      "amount": 142,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 4,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 49
+      },
+      "amount": 53,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      },
+      "amount": 104,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 0
+      },
+      "amount": 13,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 49
+      },
+      "amount": 62,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 100
+      },
+      "amount": 113,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 0
+      },
+      "amount": 27,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 49
+      },
+      "amount": 76,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 100
+      },
+      "amount": 127,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 0
+      },
+      "amount": 49,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 49
+      },
+      "amount": 98,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 100
+      },
+      "amount": 149,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 63,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 49
+      },
+      "amount": 112,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 3,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 100
+      },
+      "amount": 163,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 6,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 49
+      },
+      "amount": 55,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      },
+      "amount": 106,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 0
+      },
+      "amount": 18,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 49
+      },
+      "amount": 67,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 1,
+        "starExperience": 1,
+        "growth": 100
+      },
+      "amount": 118,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 0
+      },
+      "amount": 36,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 49
+      },
+      "amount": 85,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 2,
+        "starExperience": 2,
+        "growth": 100
+      },
+      "amount": 136,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 0
+      },
+      "amount": 66,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 49
+      },
+      "amount": 115,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 3,
+        "starExperience": 3,
+        "growth": 100
+      },
+      "amount": 166,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 0
+      },
+      "amount": 84,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 49
+      },
+      "amount": 133,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    },
+    {
+      "target": {
+        "quality": 4,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 99
+      },
+      "donor": {
+        "quality": 4,
+        "stars": 4,
+        "starExperience": 0,
+        "growth": 100
+      },
+      "amount": 184,
+      "expected": {
+        "quality": 5,
+        "stars": 0,
+        "starExperience": 0,
+        "growth": 100
+      }
+    }
+  ],
+  "chances": [
+    {
+      "stars": 0,
+      "role": 1,
+      "loyalty": 30,
+      "bonus": 0,
+      "chance": 15
+    },
+    {
+      "stars": 0,
+      "role": 1,
+      "loyalty": 30,
+      "bonus": 25,
+      "chance": 18
+    },
+    {
+      "stars": 0,
+      "role": 1,
+      "loyalty": 30,
+      "bonus": 100,
+      "chance": 30
+    },
+    {
+      "stars": 0,
+      "role": 1,
+      "loyalty": 60,
+      "bonus": 0,
+      "chance": 21
+    },
+    {
+      "stars": 0,
+      "role": 1,
+      "loyalty": 60,
+      "bonus": 25,
+      "chance": 26
+    },
+    {
+      "stars": 0,
+      "role": 1,
+      "loyalty": 60,
+      "bonus": 100,
+      "chance": 42
+    },
+    {
+      "stars": 0,
+      "role": 1,
+      "loyalty": 80,
+      "bonus": 0,
+      "chance": 30
+    },
+    {
+      "stars": 0,
+      "role": 1,
+      "loyalty": 80,
+      "bonus": 25,
+      "chance": 37
+    },
+    {
+      "stars": 0,
+      "role": 1,
+      "loyalty": 80,
+      "bonus": 100,
+      "chance": 60
+    },
+    {
+      "stars": 0,
+      "role": 2,
+      "loyalty": 30,
+      "bonus": 0,
+      "chance": 4
+    },
+    {
+      "stars": 0,
+      "role": 2,
+      "loyalty": 30,
+      "bonus": 25,
+      "chance": 5
+    },
+    {
+      "stars": 0,
+      "role": 2,
+      "loyalty": 30,
+      "bonus": 100,
+      "chance": 9
+    },
+    {
+      "stars": 0,
+      "role": 2,
+      "loyalty": 60,
+      "bonus": 0,
+      "chance": 6
+    },
+    {
+      "stars": 0,
+      "role": 2,
+      "loyalty": 60,
+      "bonus": 25,
+      "chance": 7
+    },
+    {
+      "stars": 0,
+      "role": 2,
+      "loyalty": 60,
+      "bonus": 100,
+      "chance": 12
+    },
+    {
+      "stars": 0,
+      "role": 2,
+      "loyalty": 80,
+      "bonus": 0,
+      "chance": 9
+    },
+    {
+      "stars": 0,
+      "role": 2,
+      "loyalty": 80,
+      "bonus": 25,
+      "chance": 11
+    },
+    {
+      "stars": 0,
+      "role": 2,
+      "loyalty": 80,
+      "bonus": 100,
+      "chance": 18
+    },
+    {
+      "stars": 1,
+      "role": 1,
+      "loyalty": 30,
+      "bonus": 0,
+      "chance": 16
+    },
+    {
+      "stars": 1,
+      "role": 1,
+      "loyalty": 30,
+      "bonus": 25,
+      "chance": 20
+    },
+    {
+      "stars": 1,
+      "role": 1,
+      "loyalty": 30,
+      "bonus": 100,
+      "chance": 32
+    },
+    {
+      "stars": 1,
+      "role": 1,
+      "loyalty": 60,
+      "bonus": 0,
+      "chance": 22
+    },
+    {
+      "stars": 1,
+      "role": 1,
+      "loyalty": 60,
+      "bonus": 25,
+      "chance": 28
+    },
+    {
+      "stars": 1,
+      "role": 1,
+      "loyalty": 60,
+      "bonus": 100,
+      "chance": 44
+    },
+    {
+      "stars": 1,
+      "role": 1,
+      "loyalty": 80,
+      "bonus": 0,
+      "chance": 32
+    },
+    {
+      "stars": 1,
+      "role": 1,
+      "loyalty": 80,
+      "bonus": 25,
+      "chance": 40
+    },
+    {
+      "stars": 1,
+      "role": 1,
+      "loyalty": 80,
+      "bonus": 100,
+      "chance": 64
+    },
+    {
+      "stars": 1,
+      "role": 2,
+      "loyalty": 30,
+      "bonus": 0,
+      "chance": 4
+    },
+    {
+      "stars": 1,
+      "role": 2,
+      "loyalty": 30,
+      "bonus": 25,
+      "chance": 6
+    },
+    {
+      "stars": 1,
+      "role": 2,
+      "loyalty": 30,
+      "bonus": 100,
+      "chance": 9
+    },
+    {
+      "stars": 1,
+      "role": 2,
+      "loyalty": 60,
+      "bonus": 0,
+      "chance": 6
+    },
+    {
+      "stars": 1,
+      "role": 2,
+      "loyalty": 60,
+      "bonus": 25,
+      "chance": 8
+    },
+    {
+      "stars": 1,
+      "role": 2,
+      "loyalty": 60,
+      "bonus": 100,
+      "chance": 13
+    },
+    {
+      "stars": 1,
+      "role": 2,
+      "loyalty": 80,
+      "bonus": 0,
+      "chance": 9
+    },
+    {
+      "stars": 1,
+      "role": 2,
+      "loyalty": 80,
+      "bonus": 25,
+      "chance": 12
+    },
+    {
+      "stars": 1,
+      "role": 2,
+      "loyalty": 80,
+      "bonus": 100,
+      "chance": 19
+    },
+    {
+      "stars": 2,
+      "role": 1,
+      "loyalty": 30,
+      "bonus": 0,
+      "chance": 17
+    },
+    {
+      "stars": 2,
+      "role": 1,
+      "loyalty": 30,
+      "bonus": 25,
+      "chance": 21
+    },
+    {
+      "stars": 2,
+      "role": 1,
+      "loyalty": 30,
+      "bonus": 100,
+      "chance": 34
+    },
+    {
+      "stars": 2,
+      "role": 1,
+      "loyalty": 60,
+      "bonus": 0,
+      "chance": 23
+    },
+    {
+      "stars": 2,
+      "role": 1,
+      "loyalty": 60,
+      "bonus": 25,
+      "chance": 29
+    },
+    {
+      "stars": 2,
+      "role": 1,
+      "loyalty": 60,
+      "bonus": 100,
+      "chance": 47
+    },
+    {
+      "stars": 2,
+      "role": 1,
+      "loyalty": 80,
+      "bonus": 0,
+      "chance": 34
+    },
+    {
+      "stars": 2,
+      "role": 1,
+      "loyalty": 80,
+      "bonus": 25,
+      "chance": 42
+    },
+    {
+      "stars": 2,
+      "role": 1,
+      "loyalty": 80,
+      "bonus": 100,
+      "chance": 68
+    },
+    {
+      "stars": 2,
+      "role": 2,
+      "loyalty": 30,
+      "bonus": 0,
+      "chance": 5
+    },
+    {
+      "stars": 2,
+      "role": 2,
+      "loyalty": 30,
+      "bonus": 25,
+      "chance": 6
+    },
+    {
+      "stars": 2,
+      "role": 2,
+      "loyalty": 30,
+      "bonus": 100,
+      "chance": 10
+    },
+    {
+      "stars": 2,
+      "role": 2,
+      "loyalty": 60,
+      "bonus": 0,
+      "chance": 7
+    },
+    {
+      "stars": 2,
+      "role": 2,
+      "loyalty": 60,
+      "bonus": 25,
+      "chance": 8
+    },
+    {
+      "stars": 2,
+      "role": 2,
+      "loyalty": 60,
+      "bonus": 100,
+      "chance": 14
+    },
+    {
+      "stars": 2,
+      "role": 2,
+      "loyalty": 80,
+      "bonus": 0,
+      "chance": 10
+    },
+    {
+      "stars": 2,
+      "role": 2,
+      "loyalty": 80,
+      "bonus": 25,
+      "chance": 12
+    },
+    {
+      "stars": 2,
+      "role": 2,
+      "loyalty": 80,
+      "bonus": 100,
+      "chance": 20
+    },
+    {
+      "stars": 3,
+      "role": 1,
+      "loyalty": 30,
+      "bonus": 0,
+      "chance": 18
+    },
+    {
+      "stars": 3,
+      "role": 1,
+      "loyalty": 30,
+      "bonus": 25,
+      "chance": 22
+    },
+    {
+      "stars": 3,
+      "role": 1,
+      "loyalty": 30,
+      "bonus": 100,
+      "chance": 36
+    },
+    {
+      "stars": 3,
+      "role": 1,
+      "loyalty": 60,
+      "bonus": 0,
+      "chance": 25
+    },
+    {
+      "stars": 3,
+      "role": 1,
+      "loyalty": 60,
+      "bonus": 25,
+      "chance": 31
+    },
+    {
+      "stars": 3,
+      "role": 1,
+      "loyalty": 60,
+      "bonus": 100,
+      "chance": 50
+    },
+    {
+      "stars": 3,
+      "role": 1,
+      "loyalty": 80,
+      "bonus": 0,
+      "chance": 36
+    },
+    {
+      "stars": 3,
+      "role": 1,
+      "loyalty": 80,
+      "bonus": 25,
+      "chance": 45
+    },
+    {
+      "stars": 3,
+      "role": 1,
+      "loyalty": 80,
+      "bonus": 100,
+      "chance": 72
+    },
+    {
+      "stars": 3,
+      "role": 2,
+      "loyalty": 30,
+      "bonus": 0,
+      "chance": 5
+    },
+    {
+      "stars": 3,
+      "role": 2,
+      "loyalty": 30,
+      "bonus": 25,
+      "chance": 6
+    },
+    {
+      "stars": 3,
+      "role": 2,
+      "loyalty": 30,
+      "bonus": 100,
+      "chance": 10
+    },
+    {
+      "stars": 3,
+      "role": 2,
+      "loyalty": 60,
+      "bonus": 0,
+      "chance": 7
+    },
+    {
+      "stars": 3,
+      "role": 2,
+      "loyalty": 60,
+      "bonus": 25,
+      "chance": 9
+    },
+    {
+      "stars": 3,
+      "role": 2,
+      "loyalty": 60,
+      "bonus": 100,
+      "chance": 15
+    },
+    {
+      "stars": 3,
+      "role": 2,
+      "loyalty": 80,
+      "bonus": 0,
+      "chance": 10
+    },
+    {
+      "stars": 3,
+      "role": 2,
+      "loyalty": 80,
+      "bonus": 25,
+      "chance": 13
+    },
+    {
+      "stars": 3,
+      "role": 2,
+      "loyalty": 80,
+      "bonus": 100,
+      "chance": 21
+    },
+    {
+      "stars": 4,
+      "role": 1,
+      "loyalty": 30,
+      "bonus": 0,
+      "chance": 19
+    },
+    {
+      "stars": 4,
+      "role": 1,
+      "loyalty": 30,
+      "bonus": 25,
+      "chance": 23
+    },
+    {
+      "stars": 4,
+      "role": 1,
+      "loyalty": 30,
+      "bonus": 100,
+      "chance": 38
+    },
+    {
+      "stars": 4,
+      "role": 1,
+      "loyalty": 60,
+      "bonus": 0,
+      "chance": 26
+    },
+    {
+      "stars": 4,
+      "role": 1,
+      "loyalty": 60,
+      "bonus": 25,
+      "chance": 33
+    },
+    {
+      "stars": 4,
+      "role": 1,
+      "loyalty": 60,
+      "bonus": 100,
+      "chance": 53
+    },
+    {
+      "stars": 4,
+      "role": 1,
+      "loyalty": 80,
+      "bonus": 0,
+      "chance": 38
+    },
+    {
+      "stars": 4,
+      "role": 1,
+      "loyalty": 80,
+      "bonus": 25,
+      "chance": 47
+    },
+    {
+      "stars": 4,
+      "role": 1,
+      "loyalty": 80,
+      "bonus": 100,
+      "chance": 76
+    },
+    {
+      "stars": 4,
+      "role": 2,
+      "loyalty": 30,
+      "bonus": 0,
+      "chance": 5
+    },
+    {
+      "stars": 4,
+      "role": 2,
+      "loyalty": 30,
+      "bonus": 25,
+      "chance": 7
+    },
+    {
+      "stars": 4,
+      "role": 2,
+      "loyalty": 30,
+      "bonus": 100,
+      "chance": 11
+    },
+    {
+      "stars": 4,
+      "role": 2,
+      "loyalty": 60,
+      "bonus": 0,
+      "chance": 7
+    },
+    {
+      "stars": 4,
+      "role": 2,
+      "loyalty": 60,
+      "bonus": 25,
+      "chance": 9
+    },
+    {
+      "stars": 4,
+      "role": 2,
+      "loyalty": 60,
+      "bonus": 100,
+      "chance": 15
+    },
+    {
+      "stars": 4,
+      "role": 2,
+      "loyalty": 80,
+      "bonus": 0,
+      "chance": 11
+    },
+    {
+      "stars": 4,
+      "role": 2,
+      "loyalty": 80,
+      "bonus": 25,
+      "chance": 14
+    },
+    {
+      "stars": 4,
+      "role": 2,
+      "loyalty": 80,
+      "bonus": 100,
+      "chance": 22
+    }
+  ]
+}

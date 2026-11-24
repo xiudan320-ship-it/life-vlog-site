@@ -208,3 +208,24 @@ test("pet loyalty and kill count are isolated by account and reject malformed ca
     assert.deepEqual((await request(fixture, "owner")).body.state.inventory.pets, progress.inventory.pets);
   } finally { fixture.close(); }
 });
+
+test("pet training stays account isolated and invalid star or growth states cannot overwrite it", async () => {
+  const fixture = createWorkerFixture();
+  try {
+    const progress = state(); progress.player.level = 35;
+    progress.inventory.pets = [{ id: 4013, type: 3, level: 1, quality: 5, experience: 0, partyRole: 1,
+      training: { stars: 2, starExperience: 3, growth: 100 } },
+    { id: 4013, type: 3, level: 1, quality: 4, experience: 0 }];
+    assert.equal((await request(fixture, "owner", "PUT", { expectedRevision: 0, state: progress })).status, 200);
+    assert.deepEqual((await request(fixture, "owner")).body.state, progress);
+    assert.equal((await request(fixture, "member")).body.state, null);
+    for (const training of [null, [], { stars: 5, starExperience: 0, growth: 0 },
+      { stars: 1, starExperience: 2, growth: 0 }, { stars: 4, starExperience: 1, growth: 0 },
+      { stars: 0, starExperience: 0, growth: 101 }, { stars: -1, starExperience: 0, growth: 0 }]) {
+      const invalid = structuredClone(progress); invalid.inventory.pets[1].training = training;
+      assert.equal((await request(fixture, "owner", "PUT", { expectedRevision: 1, state: invalid })).status, 400);
+    }
+    assert.equal((await request(fixture, "owner")).body.revision, 1);
+    assert.deepEqual((await request(fixture, "owner")).body.state, progress);
+  } finally { fixture.close(); }
+});

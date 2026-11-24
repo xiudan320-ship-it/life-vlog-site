@@ -14,6 +14,7 @@ import { upgradeSpecial } from "./special-upgrade-domain.js";
 import { upgradeGod } from "./god-upgrade-domain.js";
 import { sellBagItem, toggleBagEquipmentLock } from "./bag-item-domain.js";
 import { assignMainPet, assignSidePet, feedPet as feedOwnedPet } from "./pet-domain.js";
+import { trainPet as trainOwnedPet } from "./pet-training-domain.js";
 import { findMaterialSources } from "./material-source-domain.js";
 import { MAX_EQUIPMENT_STRENGTH } from "./equipment-domain.js";
 import { getCopyScout } from "./copy-scout-domain.js";
@@ -481,6 +482,20 @@ export function createMonsterGameController({ catalog, store, view, random, wait
         if (serial === revision) {
           view.updateHome(state, catalog);
           view.pets(state, catalog, { message: `喂养完成 · 忠诚 +${quantity}`, saved, status: saveErrorStatus, targetIndex: target.index });
+        }
+      } catch (error) { if (serial === revision) view.notice(error.message); }
+      finally { if (serial === revision) active = false; }
+    },
+    async trainPet(target, donor, mode) {
+      if (!state || active || unsaved || blockedByOffline()) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
+      const serial = revision; active = true;
+      try {
+        const result = trainOwnedPet({ state, catalog, target, donor, mode }); state = result.state; refresh();
+        const saved = await save();
+        if (serial === revision) {
+          view.updateHome(state, catalog);
+          const message = mode === "fuse" ? `融合完成 · 升星经验 +${result.result.amount}` : `吞噬完成 · 成长 ${result.result.training.growth}/100`;
+          view.pets(state, catalog, { message, saved, status: saveErrorStatus, targetIndex: result.targetIndex, previousTargetIndex: target.index });
         }
       } catch (error) { if (serial === revision) view.notice(error.message); }
       finally { if (serial === revision) active = false; }

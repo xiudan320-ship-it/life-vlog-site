@@ -374,25 +374,29 @@ export function createMonsterGameView({ warView }) {
   function bagItem(state, catalog, target, receipt) { renderBagItem({ content: details(target.kind === "equipment" ? "装备分解与锁定" : "道具出售", controls.Bag), state, catalog, target, actions, receipt }); }
   function pets(state, catalog, receipt) {
     const preserveIndex = receipt?.targetIndex ?? null;
+    const previousIndex = receipt?.previousTargetIndex ?? preserveIndex;
     const dialog = document.getElementById("monsterDetails");
     const content = document.getElementById("monsterDetailsContent");
     if (preserveIndex !== null && (!dialog.open || !content.classList.contains("monster-pets-content"))) return;
-    const card = preserveIndex === null ? null : content.querySelector(`[data-pet-care-index="${preserveIndex}"]`)?.closest(".monster-pet-card");
+    const card = previousIndex === null ? null : content.querySelector(`[data-pet-care-index="${previousIndex}"]`)?.closest(".monster-pet-card");
     const top = card?.getBoundingClientRect().top;
-    const expanded = card?.querySelector("details")?.open;
+    const expanded = card?.querySelector(".monster-pet-details")?.open;
+    const trainingExpanded = card?.querySelector(".monster-pet-training")?.open;
     const focus = document.activeElement?.dataset;
     const focusSelector = focus?.mainPetIndex === String(preserveIndex) ? `[data-main-pet-index="${preserveIndex}"]`
       : focus?.sidePetIndex === String(preserveIndex) ? `[data-side-pet-index="${preserveIndex}"]`
       : focus?.petFeedIndex === String(preserveIndex) ? `[data-pet-feed-index="${preserveIndex}"]`
-      : focus?.petFeedFullIndex === String(preserveIndex) ? `[data-pet-feed-full-index="${preserveIndex}"]` : null;
+      : focus?.petFeedFullIndex === String(preserveIndex) ? `[data-pet-feed-full-index="${preserveIndex}"]`
+      : focus?.petTrainingSubmit === String(previousIndex) ? `[data-pet-training-index="${preserveIndex}"] > summary` : null;
     renderPets({ content: details("宠物 · 主宠与副宠", controls.Bag), state, catalog, actions, receipt });
     const updated = preserveIndex === null ? null : content.querySelector(`[data-pet-care-index="${preserveIndex}"]`)?.closest(".monster-pet-card");
-    if (expanded && updated) updated.querySelector("details").open = true;
+    if (expanded && updated) updated.querySelector(".monster-pet-details").open = true;
+    if (trainingExpanded && updated) updated.querySelector(".monster-pet-training").open = true;
     if (updated && top !== undefined) content.scrollTop += updated.getBoundingClientRect().top - top;
     if (focusSelector) {
       const next = content.querySelector(focusSelector);
       if (next && !next.disabled) next.focus({ preventScroll: true });
-      else updated?.querySelector("summary")?.focus({ preventScroll: true });
+      else updated?.querySelector(".monster-pet-details > summary")?.focus({ preventScroll: true });
     }
   }
   function skills(state, catalog) { renderSkills(details("技能", controls.Skills), state, catalog, actions); }

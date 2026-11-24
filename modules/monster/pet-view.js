@@ -4,6 +4,7 @@ import { getPetPassiveAttributes, getPetPassiveThreshold } from "./pet-battle-do
 import { MAIN_PET_KILL_THRESHOLD, SIDE_PET_KILL_THRESHOLD } from "./pet-care-domain.js";
 import { getPetExperienceRequired } from "./progression-domain.js";
 import { renderSaveFeedback } from "./save-feedback-view.js";
+import { renderPetTraining } from "./pet-training-view.js";
 
 const stats = [
   ["attack", "攻击"], ["defense", "防御"], ["maxHp", "生命"], ["hit", "命中"],
@@ -43,7 +44,7 @@ export function renderPets({ content, state, catalog, actions, receipt }) {
   async function saveOperation(operation) {
     if (pending) return;
     pending = true;
-    const controls = [...content.querySelectorAll("button, input")];
+    const controls = [...content.querySelectorAll("button, input, select")];
     const disabled = controls.map((control) => control.disabled);
     controls.forEach((control) => { control.disabled = true; });
     error.textContent = "";
@@ -129,12 +130,12 @@ export function renderPets({ content, state, catalog, actions, receipt }) {
     details.append(element("h4", "战斗助战词条"));
     if (!passiveAttributes.length) details.append(element("p", "这只宠物没有助战词条。", "monster-panel-hint"));
     else {
-      const rate = (role) => Math.max(0, Math.min(101, getPetPassiveThreshold({ role, loyalty, bonus: state.player.petProcBonus || 0 })));
+      const rate = (role) => Math.max(0, Math.min(101, getPetPassiveThreshold({ role, loyalty, stars, bonus: state.player.petProcBonus || 0 })));
       const percent = (role) => (rate(role) * 100 / 101).toFixed(1);
       details.append(element("p", `每条词条独立判定：主宠约 ${percent(1)}%，副宠约 ${percent(2)}%；效果持续至本场结束。`, "monster-panel-hint"));
       for (const [passiveIndex, attribute] of passiveAttributes.entries()) {
         const locked = passiveIndex === 2 && pet.quality !== 5;
-        details.append(element("p", `${attribute.name} +${attribute.value}%${locked ? "（品质 5 解锁，培养暂未开放）" : ""}`, "monster-panel-hint"));
+        details.append(element("p", `${attribute.name} +${attribute.value}%${locked ? "（品质 5 解锁）" : ""}`, "monster-panel-hint"));
       }
     }
     details.append(element("h4", "宠物属性"), statList(stats.map(([key, label]) => [label, core[key]])),
@@ -158,7 +159,8 @@ export function renderPets({ content, state, catalog, actions, receipt }) {
     sideButton.onclick = () => saveOperation(() => actions.setSidePet(target, !side));
     const partyActions = element("div", undefined, "monster-pet-party-actions");
     partyActions.append(button, sideButton);
-    card.append(overview, partyActions, experience, care, details);
+    const training = renderPetTraining({ state, catalog, target, actions, saveOperation });
+    card.append(overview, partyActions, experience, care, training, details);
     content.append(card);
   }
   const back = element("button", "返回背包", "monster-image-button monster-pets-back");

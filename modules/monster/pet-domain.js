@@ -1,5 +1,6 @@
 import { spendGoods } from "./inventory-domain.js";
 import { getPetCare } from "./pet-care-domain.js";
+import { getPetTraining } from "./pet-training-domain.js";
 
 const float = Math.fround;
 const qualityFactors = [1, 1, 1, 1, 1.1].map(float);
@@ -12,7 +13,7 @@ export function getPetLoyaltyOffset(loyalty) {
 }
 
 // Pet::getGrowOffset and refreshPetAttr; defaults are the original factory's
-// initial values. Stars and growth are not yet mutable gameplay features.
+// initial values. Star and growth changes are collected from each owned pet.
 export function calculatePetCore({ row, level = row.level, quality = row.quality, loyalty = 90, stars = 0, growth = 0 }) {
   if (!Number.isSafeInteger(level) || level < 1 || !Number.isInteger(quality) || quality < 1 || quality > 5 || !Number.isInteger(stars) || stars < 0 || stars > 4) throw new RangeError("宠物属性参数无效");
   const effectiveQuality = quality === 4 && growth === 100 ? 5 : quality;
@@ -44,9 +45,10 @@ export function getPetSummary({ state, catalog, target }) {
   const row = pet && catalog.pets.find((entry) => entry.id === pet.id);
   if (!pet || pet.id !== target.id || pet.type !== 3 || !row) throw new RangeError("请选择当前持有的宠物");
   const { loyalty, killCount } = getPetCare(pet);
-  const input = { row, level: pet.level, quality: pet.quality, loyalty };
+  const { stars, starExperience, growth } = getPetTraining(pet);
+  const input = { row, level: pet.level, quality: pet.quality, loyalty, stars, growth };
   return { pet, row, core: calculatePetCore(input), contribution: calculateMainPetContribution({ ...input, playerLevel: state.player.level }),
-    sideContribution: calculateSidePetContribution({ ...input, playerLevel: state.player.level }), selected: pet.partyRole === 1, side: pet.partyRole === 2, loyalty, killCount, stars: 0, growth: 0 };
+    sideContribution: calculateSidePetContribution({ ...input, playerLevel: state.player.level }), selected: pet.partyRole === 1, side: pet.partyRole === 2, loyalty, killCount, stars, starExperience, growth };
 }
 
 export function collectPartyPetAttributes({ state, catalog }) {

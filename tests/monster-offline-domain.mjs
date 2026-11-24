@@ -67,7 +67,7 @@ test("one offline victory matches the foreground battle and settlement with the 
       state.player.equipmentSets[0][0].attributes.push({ type: 10, value: 1000 });
       state.inventory.pets = [{ id: 4001, type: 3, level: 1, quality: 2, experience: 14999, partyRole: 2,
         care: { loyalty: 80, killCount: 1799 } }, { id: 4001, type: 3, level: 1, quality: 2, experience: 0 },
-      { id: 4022, type: 3, level: 1, quality: 4, experience: 0, partyRole: 1 }];
+      { id: 4022, type: 3, level: 1, quality: 4, experience: 0, partyRole: 1, training: { stars: 2, starExperience: 1, growth: 35 } }];
     }
     const run = begin(state);
     const copy = catalog.copies.find((entry) => entry.id === run.offlineRun.copyId);

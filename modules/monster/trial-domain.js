@@ -47,8 +47,7 @@ export function claimTrialRewards({ state, catalog, draw }) {
     if (item.type === 3) {
       const row = catalog.pets.find((row) => row.id === item.id);
       if (!row) throw new RangeError(`缺少原版宠物 ${item.id}`);
-      // Initial core stats are derived from native factory defaults; growth and
-      // independent pet actions are separate from ownership and main-pet tags.
+      // Factory pets start untrained; cultivation is recorded on later actions.
       item = { id: row.id, type: 3, level: row.level, quality: row.quality, experience: 0 };
       inventory = { ...inventory, pets: [...inventory.pets, item] };
     } else {

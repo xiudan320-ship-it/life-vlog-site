@@ -1,5 +1,6 @@
 import { getPetCare } from "./pet-care-domain.js";
 import { getPetLoyaltyOffset } from "./pet-domain.js";
+import { getPetTraining } from "./pet-training-domain.js";
 
 const f = Math.fround;
 const scalarEffects = { 9: "dropRate", 10: "experienceRate", 19: "goldRate", 21: "procBonus", 27: "buffResistance", 33: "hurtBonus", 40: "critResistance" };
@@ -43,7 +44,7 @@ export function preparePetBattle({ prepared, state, catalog, draw }) {
     for (const { pet, index } of pets) {
       const row = catalog.pets.find((entry) => entry.id === pet.id);
       if (!row) throw new RangeError(`缺少原版宠物 ${pet.id}`);
-      const threshold = getPetPassiveThreshold({ role: pet.partyRole, loyalty: getPetCare(pet).loyalty, bonus: state.player.petProcBonus || 0 });
+      const threshold = getPetPassiveThreshold({ role: pet.partyRole, loyalty: getPetCare(pet).loyalty, stars: getPetTraining(pet).stars, bonus: state.player.petProcBonus || 0 });
       const attributes = getPetPassiveAttributes(row);
       for (const [attributeIndex, attribute] of attributes.entries()) {
         if (attributeIndex === 2 && pet.quality !== 5) continue;

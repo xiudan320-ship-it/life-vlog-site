@@ -2,6 +2,7 @@ import { getPetExperienceRequired } from "./progression-domain.js";
 import { MAX_EQUIPMENT_STRENGTH } from "./equipment-domain.js";
 import { MAX_SIDE_PETS } from "./pet-domain.js";
 import { SIDE_PET_KILL_THRESHOLD } from "./pet-care-domain.js";
+import { PET_STAR_THRESHOLDS } from "./pet-training-domain.js";
 
 export function validateMonsterSave(state) {
   const integer = (value, min = 0) => Number.isSafeInteger(value) && value >= min;
@@ -37,6 +38,12 @@ export function validateMonsterSave(state) {
   if (state.inventory.pets.some((pet) => pet.care !== undefined && (!pet.care || !integer(pet.care.loyalty, 30)
     || pet.care.loyalty > 100 || !integer(pet.care.killCount) || pet.care.killCount >= SIDE_PET_KILL_THRESHOLD))) {
     throw new TypeError("宠物忠诚存档数据不完整，请保留原存档并重试。");
+  }
+  if (state.inventory.pets.some((pet) => pet.training !== undefined && (!pet.training || Array.isArray(pet.training)
+    || !integer(pet.training.stars) || pet.training.stars > 4 || !integer(pet.training.starExperience)
+    || (pet.training.stars === 4 ? pet.training.starExperience !== 0 : pet.training.starExperience >= PET_STAR_THRESHOLDS[pet.training.stars])
+    || !integer(pet.training.growth) || pet.training.growth > 100))) {
+    throw new TypeError("宠物培养存档数据不完整，请保留原存档并重试。");
   }
   if (state.offlineRun !== undefined) {
     const run = state.offlineRun;

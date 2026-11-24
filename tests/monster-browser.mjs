@@ -48,13 +48,13 @@ let keyboardChecked = false;
 const artifacts = resolve("artifacts/monster");
 await mkdir(artifacts, { recursive: true });
 
-async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, saveStatus = 0, defeat = false, trial = false, trialRewards = false, workshop = false, retention = false, navigation = false, offline = false, shop = false, sidePets = false, petParty = false, petGrowth = false, petCare = false, petPassives = false, colorScheme = "dark", reducedMotion = "no-preference" } = {}) {
+async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, saveStatus = 0, defeat = false, trial = false, trialRewards = false, workshop = false, retention = false, navigation = false, offline = false, shop = false, sidePets = false, petParty = false, petGrowth = false, petCare = false, petPassives = false, petTraining = false, colorScheme = "dark", reducedMotion = "no-preference" } = {}) {
   const context = await browser.newContext({ ...(iphone13 ? devices["iPhone 13"] : {}), viewport: { width: 390, height: 844 }, screen: { width: 390, height: 844 }, colorScheme, reducedMotion });
   contexts.push(context);
   context.on("requestfailed", (request) => requestFailures.push({ url: request.url(), error: request.failure()?.errorText }));
   const fixture = createWorkerFixture({ origin });
   if (offline) fixture.serverTime = Date.UTC(2026, 0, 1);
-  if (trial || workshop || retention || navigation || offline || shop || sidePets || petParty || petGrowth || petCare || petPassives) {
+  if (trial || workshop || retention || navigation || offline || shop || sidePets || petParty || petGrowth || petCare || petPassives || petTraining) {
     const [items, skills] = await Promise.all(["item", "skill"].map(async (name) => JSON.parse(await readFile(resolve(root, `monster/data/${name}.json`), "utf8"))));
     const seed = createNewGame({ items, skills }); seed.player.name = "功能测试勇者";
     if (shop) {
@@ -76,12 +76,21 @@ async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, sa
       seed.inventory.pets = [{ id: 4022, type: 3, level: 1, quality: 4, experience: 0, partyRole: 1 },
         { id: 4026, type: 3, level: 1, quality: 4, experience: 0, partyRole: 2 }];
     }
+    if (petTraining) {
+      seed.player.level = 35; seed.money = 1000;
+      seed.player.equipmentSets[0][0].attributes.push(...[1, 2, 3, 4].map((type) => ({ type, value: 10000000 })));
+      seed.inventory.pets = [{ id: 4013, type: 3, level: 1, quality: 4, experience: 0 },
+        { id: 4013, type: 3, level: 1, quality: 4, experience: 0, partyRole: 1, training: { stars: 0, starExperience: 0, growth: 99 } },
+        { id: 4001, type: 3, level: 1, quality: 2, experience: 0 },
+        { id: 4014, type: 3, level: 1, quality: 4, experience: 0, partyRole: 2 }];
+    }
     if (trial || navigation || offline) { seed.player.level = 80; seed.player.equipmentSets[0][0].attributes.push(...[1, 2, 3, 4].map((type) => ({ type, value: 10000000 }))); }
     if (navigation) { seed.progress.chapterId = 3; seed.progress.levelId = 5; }
     if (offline) {
       seed.progress.levelId = 2; seed.progress.copies.push({ id: 1001, value: 1 });
       if (sidePets) {
-        seed.inventory.pets[0] = { id: 4022, type: 3, level: 1, quality: 4, experience: 0, partyRole: 1 };
+        seed.inventory.pets[0] = { id: 4022, type: 3, level: 1, quality: 5, experience: 0, partyRole: 1,
+          training: { stars: 2, starExperience: 1, growth: 100 } };
         seed.inventory.pets[1].partyRole = 2; seed.inventory.pets[1].experience = 14999;
         seed.player.equipmentSets[0][0].attributes.push({ type: 10, value: 1000 });
       }
@@ -242,11 +251,69 @@ async function accessible(page) {
     .map(({ id, nodes }) => ({ id, targets: nodes.map(({ target }) => target) }));
   assert.deepEqual(failures, []);
 }
+async function checkPetTraining() {
+  const page = await pageFor({ petTraining: true, blocked: true, roll: 0, reducedMotion: "reduce" });
+  const before = await saved(page);
+  await page.locator("#monsterEnter").click(); await stage(page, "home"); await tapNative(page, "btn_pet");
+  const training = page.locator('[data-pet-training-index="1"]');
+  await training.locator("summary").click();
+  await training.locator('[data-pet-training-donor="1"]').selectOption("0");
+  assert.match(await training.locator(".monster-pet-training-preview").textContent(), /星级 0 → 1.*消耗第 1 只恶魔之子.*300 魔石/);
+  assert.equal(await training.locator('[data-pet-training-submit="1"]').isDisabled(), true);
+  await training.locator('[data-pet-training-confirm="1"]').check();
+  await noOverflow(page); await accessible(page);
+  await training.locator('[data-pet-training-submit="1"]').click();
+  await page.locator("[data-save-feedback-retry]").waitFor();
+  assert.deepEqual(await saved(page), before, "failed save must not consume remote pets");
+  assert.equal(await page.locator('[data-pet-training-index="0"]').getAttribute("open"), "");
+  await page.evaluate(() => { window.monsterFixtureBlockSave = false; });
+  await page.locator("[data-save-feedback-retry]").click();
+  await page.locator("[data-save-feedback-retry]").waitFor({ state: "detached" });
+  const fused = await saved(page);
+  assert.equal(fused.money, 700); assert.equal(fused.inventory.pets.length, 3);
+  assert.deepEqual(fused.inventory.pets[0].training, { stars: 1, starExperience: 0, growth: 99 });
+  await page.reload(); await stage(page, "menu"); await page.evaluate(() => { window.monsterFixtureBlockSave = false; });
+  await page.locator("#monsterEnter").click(); await stage(page, "home"); await tapNative(page, "btn_pet");
+  const afterFuse = page.locator('[data-pet-training-index="0"]'); await afterFuse.locator("summary").click();
+  await afterFuse.locator('[data-pet-training-mode="0"]').selectOption("devour");
+  await afterFuse.locator('[data-pet-training-donor="0"]').selectOption("1");
+  assert.match(await afterFuse.locator(".monster-pet-training-preview").textContent(), /成长 99 → 100，提升至品质 5.*90 魔石/);
+  await afterFuse.locator('[data-pet-training-confirm="0"]').check();
+  await afterFuse.scrollIntoViewIfNeeded();
+  for (const width of [375, 390, 430]) { await page.setViewportSize({ width, height: 844 }); await noOverflow(page); }
+  await page.emulateMedia({ colorScheme: "light" }); await accessible(page);
+  await page.emulateMedia({ colorScheme: "dark" }); await accessible(page);
+  await page.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-pet-training.png" : "pet-training.png") });
+  await afterFuse.locator('[data-pet-training-submit="0"]').click();
+  await page.locator(".monster-pets-feedback").filter({ hasText: "吞噬完成" }).waitFor();
+  assert.equal(await page.locator("[data-save-feedback-retry]").count(), 0);
+  const promoted = await saved(page);
+  assert.equal(promoted.money, 610); assert.equal(promoted.inventory.pets.length, 2);
+  assert.equal(promoted.inventory.pets[0].quality, 5);
+  assert.deepEqual(promoted.inventory.pets[0].training, { stars: 1, starExperience: 0, growth: 100 });
+  assert.equal(promoted.inventory.pets[1].partyRole, 2);
+  await page.locator(".monster-pet-card").first().locator(".monster-pet-details > summary").click();
+  assert.doesNotMatch(await page.locator(".monster-pet-card").first().locator(".monster-pet-details").textContent(), /品质 5 解锁/);
+  await page.reload(); await stage(page, "menu"); assert.deepEqual(await saved(page), promoted);
+  await page.context().close();
+
+  const conflict = await pageFor({ petTraining: true, saveStatus: 409 });
+  const unchanged = await saved(conflict);
+  await conflict.locator("#monsterEnter").click(); await stage(conflict, "home"); await tapNative(conflict, "btn_pet");
+  const panel = conflict.locator('[data-pet-training-index="1"]'); await panel.locator("summary").click();
+  await panel.locator('[data-pet-training-donor="1"]').selectOption("0");
+  await panel.locator('[data-pet-training-confirm="1"]').check();
+  await panel.locator('[data-pet-training-submit="1"]').click();
+  await conflict.locator("#monsterDetails").getByRole("button", { name: "重载云存档", exact: true }).waitFor();
+  assert.deepEqual(await saved(conflict), unchanged);
+  await conflict.context().close();
+  console.log(`Pet training ${browserType.name()} passed: selection, confirmation, fusion, promotion, retry, conflict and reload.`);
+}
 async function checkPetPassives() {
   let page = await pageFor({ petPassives: true, roll: 0, reducedMotion: "reduce" });
   await page.locator("#monsterEnter").click(); await stage(page, "home"); await tapNative(page, "btn_pet");
   const card = page.locator(".monster-pet-card").first();
-  await card.locator("summary").click();
+  await card.locator(".monster-pet-details > summary").click();
   assert.match(await card.textContent(), /主宠约 29\.7%，副宠约 8\.9%/);
   assert.match(await card.textContent(), /掉落 \+5%/);
   assert.match(await card.textContent(), /经验 \+10%/);
@@ -313,14 +380,14 @@ async function checkSidePets() {
   await page.locator('[data-side-pet-index="4"][aria-pressed="true"]').waitFor();
   await page.locator(".monster-pet-card").nth(1).scrollIntoViewIfNeeded();
   await page.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-side-pets.png" : "side-pets.png") });
-  await page.locator(".monster-pet-card").nth(1).locator("summary").click();
+  await page.locator(".monster-pet-card").nth(1).locator(".monster-pet-details > summary").click();
   for (const width of [375, 390, 430]) { await page.setViewportSize({ width, height: 844 }); await noOverflow(page); }
   await page.emulateMedia({ colorScheme: "light" }); await accessible(page);
   await page.emulateMedia({ colorScheme: "dark" }); await accessible(page);
   await page.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-side-pets-detail.png" : "side-pets-detail.png") });
   await tap(page.locator('[data-main-pet-index="1"]'));
   await page.locator('[data-main-pet-index="1"][aria-pressed="true"]').waitFor();
-  assert.equal(await page.locator(".monster-pet-card").nth(1).locator("details").getAttribute("open"), "");
+  assert.equal(await page.locator(".monster-pet-card").nth(1).locator(".monster-pet-details").getAttribute("open"), "");
   let promoted = await saved(page);
   assert.deepEqual(promoted.inventory.pets.map((pet) => pet.partyRole || 0), [0, 1, 2, 2, 2, 0]);
   assert.deepEqual(promoted.inventory.pets[1].care, { loyalty: 80, killCount: 1799 });
@@ -465,11 +532,12 @@ async function checkOfflineRun({ sidePets = false } = {}) {
   console.log(`Offline ${browserType.name()} passed: account cloud save, server clock cap, Web Worker, reopen, claim and retry${sidePets ? ", side-pet XP and loyalty" : ""}.`);
 }
 try {
-  if (!["--shop-only", "--side-pet-only", "--pet-passive-only"].some((option) => process.argv.includes(option))) await checkOfflineRun({ sidePets: process.argv.includes("--side-offline") });
-  if (!["--offline-only", "--side-pet-only", "--pet-passive-only"].some((option) => process.argv.includes(option))) await checkShop();
-  if (!["--offline-only", "--shop-only", "--pet-passive-only"].some((option) => process.argv.includes(option))) await checkSidePets();
-  if (!["--offline-only", "--shop-only", "--side-pet-only"].some((option) => process.argv.includes(option))) await checkPetPassives();
-  if (!["--offline-only", "--shop-only", "--side-pet-only", "--pet-passive-only"].some((option) => process.argv.includes(option))) {
+  if (!["--shop-only", "--side-pet-only", "--pet-passive-only", "--pet-training-only"].some((option) => process.argv.includes(option))) await checkOfflineRun({ sidePets: process.argv.includes("--side-offline") });
+  if (!["--offline-only", "--side-pet-only", "--pet-passive-only", "--pet-training-only"].some((option) => process.argv.includes(option))) await checkShop();
+  if (!["--offline-only", "--shop-only", "--pet-passive-only", "--pet-training-only"].some((option) => process.argv.includes(option))) await checkSidePets();
+  if (!["--offline-only", "--shop-only", "--side-pet-only", "--pet-training-only"].some((option) => process.argv.includes(option))) await checkPetPassives();
+  if (!["--offline-only", "--shop-only", "--side-pet-only", "--pet-passive-only"].some((option) => process.argv.includes(option))) await checkPetTraining();
+  if (!["--offline-only", "--shop-only", "--side-pet-only", "--pet-passive-only", "--pet-training-only"].some((option) => process.argv.includes(option))) {
   const manifest = await readWorkboxManifest(resolve(root, "sw.js"));
   assert.ok(!manifest.some(({ url }) => /^\/?(?:monster(?:\/|\.html)|assets\/monster-)/.test(url)), "game resources must stay out of home precache");
   const index = await readFile(resolve(root, "index.html"), "utf8");
@@ -1298,7 +1366,7 @@ try {
   await growthPage.reload(); await stage(growthPage, "menu");
   assert.deepEqual(await saved(growthPage), grown);
   await growthPage.locator("#monsterEnter").click(); await stage(growthPage, "home"); await tapNative(growthPage, "btn_pet");
-  await growthPage.locator(".monster-pet-card").first().locator("summary").click();
+  await growthPage.locator(".monster-pet-card").first().locator(".monster-pet-details > summary").click();
   assert.equal(await growthPage.locator(".monster-pet-card").first().locator(".monster-pet-stats").first().locator("dd").first().textContent(), "122");
   await noOverflow(growthPage); await accessible(growthPage);
   await growthPage.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-pet-experience-after.png" : "pet-experience-after.png") });
@@ -1326,7 +1394,7 @@ try {
   await petPage.locator("#monsterEnter").click(); await stage(petPage, "home");
   await tapNative(petPage, "btn_pet"); await petPage.locator(".monster-pets-content").waitFor();
   assert.equal(await petPage.locator(".monster-pet-card").count(), 3);
-  await petPage.locator(".monster-pet-card").nth(1).locator("summary").click();
+  await petPage.locator(".monster-pet-card").nth(1).locator(".monster-pet-details > summary").click();
   assert.equal(await petPage.locator(".monster-pet-card").nth(1).locator(".monster-pet-stats").first().locator("dd").first().textContent(), "81");
   await petPage.evaluate(() => { window.monsterFixtureBlockSave = true; });
   await petPage.locator("[data-main-pet-index='1']").click();
@@ -1342,7 +1410,7 @@ try {
   assert.deepEqual(petSelected.inventory.pets.map((pet) => pet.partyRole), [0, 1, 0]);
   assert.equal(petSelected.player.attack, petBefore.player.attack + 81);
   assert.equal(petSelected.player.defense, petBefore.player.defense + 37);
-  await petPage.locator(".monster-pet-card").nth(1).locator("summary").click();
+  await petPage.locator(".monster-pet-card").nth(1).locator(".monster-pet-details > summary").click();
   for (const width of [375, 390, 430, 768, 1024, 1440]) {
     await petPage.setViewportSize({ width, height: 844 }); await noOverflow(petPage);
   }

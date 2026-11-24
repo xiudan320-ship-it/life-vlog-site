@@ -17,6 +17,7 @@
 | 黑暗传说背包出售、分解和装备锁定 | `modules/monster/bag-item-domain.js`, `modules/monster/bag-item-view.js`, `modules/monster/bag-item.css` | 原生卖价与强化返还、按物品类型发金币／魔石／材料；锁定阻止分解和神器熔炼，打造保持原规则；背包内云档重试；`tests/monster-bag-items.mjs` |
 | 黑暗传说魔石商店 | `modules/monster/shop-domain.js`, `modules/monster/shop-view.js`, `modules/monster/shop.css` | 原版商店目录中当前可用的 22 个商品包、金币直接入账、购买与扣款同次保存；材料来源可跳转；`tests/monster-shop.mjs` |
 | 黑暗传说主副宠选择与角色属性贡献 | `modules/monster/pet-domain.js`, `modules/monster/pet-view.js`, `modules/monster/pet.css` | 35 级开放一只主宠及最多四只副宠；按持有记录分别选择，选择与属性同次保存；353 组主宠及 82 组副宠原生贡献对照；`tests/monster-pets.mjs`、`monster-side-pets.mjs` |
+| 黑暗传说宠物融合与吞噬培养 | `modules/monster/pet-training-domain.js`, `modules/monster/pet-training-view.js` | 同种宠融合升星、品质 4 吞噬提升成长，预览并确认消耗；已出战宠物不能作为材料，培养、扣款和角色重算同次保存；`tests/monster-pet-training.mjs` |
 | 黑暗传说宠物战斗助战词条 | `modules/monster/pet-battle-domain.js`, `modules/monster/pet-view.js`, `modules/monster/adventure-domain.js` | 前台／离线战斗开始按原生概率逐条抽取，本场战斗和收益结算生效，结束后不写入永久属性；原生工厂、概率、选择和加减属性样本见 `tests/monster-side-pets.mjs` |
 | 黑暗传说宠物经验与等级 | `modules/monster/pet-progression-domain.js`, `modules/monster/progression-domain.js`, `modules/monster/settlement-domain.js` | 战斗／任务经验事件逐次入账，副宠每次获得 30% 截断值；tag 42 装备加成、60 级边界及账号保存 |
 | 黑暗传说宠物忠诚与喂养 | `modules/monster/pet-care-domain.js`, `modules/monster/pet-domain.js`, `modules/monster/pet-view.js` | 主副宠分别按 600／1800 胜利击杀计忠诚；切换保留计数；宠物精魂喂养和账号保存；372 组原生忠诚样本 |
