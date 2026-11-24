@@ -7,7 +7,6 @@
 
 ### Added
 
-- 黑暗传说接通主宠和副宠的战斗助战词条，按原版忠诚及触发属性逐条判定；详情显示概率与解锁条件，前台、离线战斗和收益结算共用本场临时效果。
 - 日记卡片支持同篇多图横向预览轨道、触摸滑动保护和“查看全部 N 张”入口；媒体失败仍可单项重试并保留原索引。
 - 日记发布表单改为媒体优先、文字居中、发布选项折叠的紧凑结构，增加草稿清空确认、队列状态与上传中心入口。
 
@@ -60,6 +59,18 @@
 ### Fixed
 
 - 修复显式深链在断网启动时因初始路由状态提前切换而丢失隐藏缓存日记的问题；缓存画廊现在可在非 gallery 深链下先渲染并由路由控制显隐。
+
+## [2026-11-24] — 黑暗传说宠物助战
+
+### Added
+
+- 主宠与副宠在战斗开始时按原版忠诚、身份及装备触发加成逐条抽取助战词条，效果用于本场战斗和收益结算；前台与离线挂机共用规则。宠物详情展示实际触发概率和品质解锁条件，战斗中显示触发数量；临时效果不会写入永久属性。
+
+### Release
+
+- 从 `main` 提交 `40a3075a649c826a9fb789758a8f72accc9dd5c8` 通过统一脚本发布；固定 preview 为 `https://codex-preview.life-vlog-site.pages.dev`，production deployment 为 `https://c70ea9fe.life-vlog-site.pages.dev`，正式入口为 `https://life-vlog-site.pages.dev`。Worker 版本 `cf840f7e-dfed-4f2d-b63a-d810a5a825a9`；无远程 D1 结构变更。
+- 26 种原生宠物词条、72 组触发阈值、192 组原生选择片段和 26 组属性加减样本对照通过；255 份 JS 语法检查、417 项单元测试、完整 Chromium／iPhone 13 WebKit 回归、本地 release、发布脚本 fixture 及 preview／production CORS、Axe、确定性 smoke 均通过。预览站和正式站另用隔离内存 D1 验证助战、保存刷新及 20 小时离线 Worker／领取重试；未访问真实账号。
+- 正式站 `monster-C1hMmztY.js`（SHA-256 `e03eaafabfec4b6ddb8a31062d8615a720c7c849c041a4b8db15ed43d4c9cf1c`）、`monster-kZyfv3rO.css`（`60902cc270931abeaa062b8b848a8a516b0f0dbe03cdb048e113bdb772448dfc`）、`monster-offline-worker-DxgRj_FO.js`（`ded7eb7633e57e5fb762c6e56e4b8789d5bf1f305cc2b4738ce5eb19c237838c`）及 `sw.js`（`a2d9ff79482e1f7e7d00ea9c3d30ed876e600a28040fb057f088b0bced8115fe`）与构建一致。未进行真实 iPhone 或完整原版等价验收。
 
 ## [2026-11-23] — 黑暗传说副宠
 
