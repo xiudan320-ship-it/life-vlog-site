@@ -10,7 +10,8 @@ export function renderShop({ content, state, catalog, actions, selection, receip
   const summary = element("section", undefined, "monster-original-panel monster-shop-summary");
   summary.append(element("h3", "魔石商店"), element("p", `魔石 ${state.money.toLocaleString("zh-CN")} · 金币 ${state.gold.toLocaleString("zh-CN")}`, "monster-shop-balance"));
   const selected = element("div", undefined, "monster-shop-selected");
-  summary.append(selected);
+  const points = element("button", "积分商店", "monster-image-button"); points.type = "button"; points.dataset.pointShop = ""; points.onclick = () => actions.pointShop();
+  summary.append(points, selected);
   if (receipt) {
     const feedback = element("div", undefined, "monster-shop-feedback");
     renderSaveFeedback({ content: feedback, receipt, actions });

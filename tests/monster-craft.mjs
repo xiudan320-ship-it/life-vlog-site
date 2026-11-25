@@ -92,9 +92,13 @@ test("打造对比按当前套装同部位匹配，预览范围包含实际随�
   const before = structuredClone(input);
   const comparison = getCraftEquipmentComparison({ state: input, itemId: 3, catalog });
   assert.equal(comparison.equipped, sword);
+  assert.equal(comparison.baseMin.strength, 0);
+  assert.equal(comparison.baseMax.strength, 0);
   assert.equal(comparison.min.strength, 5);
   for (const roll of [0, 29, 64, 92, 99]) {
     const crafted = craftItem({ state: input, itemId: 3, catalog, draw: () => roll }).item;
+    assert.ok(crafted.mainAttribute.value >= comparison.baseMin.mainAttribute.value);
+    assert.ok(crafted.mainAttribute.value <= comparison.baseMax.mainAttribute.value);
     const item = withEquipmentStrength(crafted, sword.strength, catalog.items.find((row) => row.id === 3));
     assert.ok(item.mainAttribute.value >= comparison.min.mainAttribute.value);
     assert.ok(item.mainAttribute.value <= comparison.max.mainAttribute.value);

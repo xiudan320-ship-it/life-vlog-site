@@ -45,6 +45,8 @@ export function renderCopySelection({ content, state, catalog, settings, onStart
   const offline = element("button", "选择离线挂机", "monster-idle-mode");
   offline.type = "button";
   let idleMode = false;
+  const focusedCopyId = settings.focusCopyId;
+  const focusReason = settings.focusReason;
   function updateIdleMode() {
     offline.hidden = settings.type === 6;
     offline.setAttribute("aria-pressed", String(idleMode));
@@ -142,6 +144,12 @@ export function renderCopySelection({ content, state, catalog, settings, onStart
       const enemy = catalog.enemies.find((entry) => entry.id === copy.enemyid1);
       const image = picture("enemy/" + enemy.img, "", "monster-copy-enemy"); image.loading = "lazy"; button.append(image);
       if (reason) button.append(picture("img/lock.png", "", "monster-copy-lock"));
+      if (copy.id === focusedCopyId) {
+        const marker = focusReason === "task" ? "任务目标" : "获取地点";
+        button.classList.add("monster-copy-focused");
+        button.setAttribute("aria-label", `${button.getAttribute("aria-label")}，${marker}`);
+        button.append(element("span", marker, "monster-copy-target-marker"));
+      }
       button.append(element("strong", copy.name), element("small", reason || `${copy.level > 80 ? "巅峰 " + (copy.level - 80) : "Lv." + copy.level} · ${copy.copyprice ? "卷轴 ×" + copy.copyprice : "挑战"}`));
       button.append(element("small", scout.unavailable ? (copy.type === 4 ? "随机遭遇 · 暂无推荐" : "暂无推荐战力") : `推荐战力 ${scout.recommendedPower.toLocaleString("zh-CN")}`, "monster-copy-power"));
       const selected = () => ({ ...settings, lastCopyId: copy.id,
@@ -171,5 +179,6 @@ export function renderCopySelection({ content, state, catalog, settings, onStart
       if (!button.disabled) button.focus({ preventScroll: true });
     }
     settings.focusCopyId = null;
+    settings.focusReason = null;
   }
 }

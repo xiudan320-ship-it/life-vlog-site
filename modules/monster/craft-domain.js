@@ -19,14 +19,13 @@ export function getCraftEquipmentComparison({ state, itemId, catalog }) {
   if (row?.type !== 2) return null;
   const equipped = state.player.equipmentSets[state.player.equipmentSetIndex].find((item) => item.subtype === row.subtype) || null;
   const preview = (scoreTier, scoreValue) => {
-    const item = createCatalogEquipment({ row, template: catalog.equipmentTemplates[itemId], scoreTier, scoreValue });
-    if (row.subtype <= 8) return withEquipmentStrength(item, equipped?.strength || 0, row);
-    return row.subtype === 9 ? { ...item, attributes: calculateSpecialAttributes({ item, player: state.player, catalog }) } : item;
+    const base = createCatalogEquipment({ row, template: catalog.equipmentTemplates[itemId], scoreTier, scoreValue });
+    if (row.subtype <= 8) return { base, equipped: withEquipmentStrength(base, equipped?.strength || 0, row) };
+    const actual = row.subtype === 9 ? { ...base, attributes: calculateSpecialAttributes({ item: base, player: state.player, catalog }) } : base;
+    return { base: actual, equipped: actual };
   };
-  return {
-    equipped,
-    min: preview(1, 1), max: preview(4, 100),
-  };
+  const low = preview(1, 1), high = preview(4, 100);
+  return { equipped, baseMin: low.base, baseMax: high.base, min: low.equipped, max: high.equipped };
 }
 
 /** Resolve a recipe against the original item catalog and current bag. */

@@ -49,15 +49,20 @@ let keyboardChecked = false;
 const artifacts = resolve("artifacts/monster");
 await mkdir(artifacts, { recursive: true });
 
-async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, saveStatus = 0, defeat = false, trial = false, trialRewards = false, workshop = false, retention = false, navigation = false, taskNavigation = false, offline = false, offlineWeak = false, shop = false, sidePets = false, petParty = false, petGrowth = false, petCare = false, petPassives = false, petTraining = false, bagBatch = false, wingPreview = false, lootFull = false, achievementsFixture = false, animationSkill = 0, colorScheme = "dark", reducedMotion = "no-preference" } = {}) {
+async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, saveStatus = 0, defeat = false, trial = false, trialRewards = false, workshop = false, retention = false, navigation = false, taskNavigation = false, offline = false, offlineWeak = false, shop = false, sidePets = false, petParty = false, petGrowth = false, petCare = false, petPassives = false, petTraining = false, bagBatch = false, wingPreview = false, playerImage = "", pointShopFixture = false, lootFull = false, achievementsFixture = false, animationSkill = 0, colorScheme = "dark", reducedMotion = "no-preference" } = {}) {
   const context = await browser.newContext({ ...(iphone13 ? devices["iPhone 13"] : {}), viewport: { width: 390, height: 844 }, screen: { width: 390, height: 844 }, colorScheme, reducedMotion });
   contexts.push(context);
   context.on("requestfailed", (request) => requestFailures.push({ url: request.url(), error: request.failure()?.errorText }));
   const fixture = createWorkerFixture({ origin });
   if (offline) fixture.serverTime = Date.UTC(2026, 0, 1);
-  if (trial || workshop || retention || navigation || taskNavigation || offline || shop || sidePets || petParty || petGrowth || petCare || petPassives || petTraining || bagBatch || wingPreview || lootFull || achievementsFixture || animationSkill) {
+  if (trial || workshop || retention || navigation || taskNavigation || offline || shop || sidePets || petParty || petGrowth || petCare || petPassives || petTraining || bagBatch || wingPreview || playerImage || pointShopFixture || lootFull || achievementsFixture || animationSkill) {
     const [items, skills] = await Promise.all(["item", "skill"].map(async (name) => JSON.parse(await readFile(resolve(root, `monster/data/${name}.json`), "utf8"))));
     const seed = createNewGame({ items, skills }); seed.player.name = "功能测试勇者";
+    if (playerImage) seed.player.image = playerImage;
+    if (pointShopFixture) {
+      seed.inventory.goods.push({ id: 5003, type: 1, quantity: 10 });
+      seed.taskBoard = { points: 9, dailyRewardDay: null, entries: [{ id: 64, type: 3, target: 5003, need: 10, count: 0, claimed: 0 }] };
+    }
     if (lootFull) seed.progress.copies.push({ id: 1001, value: 1 });
     if (animationSkill) seed.player.equippedSkillIds = [animationSkill];
     if (achievementsFixture) {
@@ -627,6 +632,10 @@ async function checkTaskNavigation() {
   await page.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-tasks-compact.png" : "tasks-compact.png") });
   await first.locator('[data-task-copy="1006"]').click();
   await page.locator('[data-copy-id="1006"].monster-copy-focused').waitFor();
+  assert.equal(await page.locator('[data-copy-id="1006"] .monster-copy-target-marker').textContent(), "任务目标");
+  assert.match(await page.locator('[data-copy-id="1006"]').getAttribute("aria-label"), /任务目标/);
+  await page.getByLabel("地图波数").selectOption("2");
+  assert.equal(await page.locator('[data-copy-id="1006"] .monster-copy-target-marker').textContent(), "任务目标");
   assert.equal(await page.locator('[data-chapter-id="1"]').getAttribute("aria-current"), "true");
   await page.locator("#monsterDetailsClose").click(); await tapNative(page, "btn_task");
   await page.locator('[data-task-copy="1013"]').click();
@@ -641,7 +650,9 @@ async function checkTaskNavigation() {
   await page.locator("#monsterDetailsClose").click(); await tapNative(page, "btn_task");
   await page.locator('[data-task-copy="2001"]').click();
   await page.locator('[data-copy-id="2001"].monster-copy-focused').waitFor();
+  assert.equal(await page.locator('[data-copy-id="2001"] .monster-copy-target-marker').textContent(), "任务目标");
   assert.equal(await page.locator('[data-copy-type="2"]').getAttribute("aria-pressed"), "true");
+  await page.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-task-target.png" : "task-target.png") });
   await page.context().close();
   console.log(`Task navigation ${browserType.name()} passed: compact layout, map, locked map and dungeon.`);
 }
@@ -870,8 +881,11 @@ async function checkItemInformation() {
   await comparison.locator(".monster-bag-equipment-cell .monster-item").first().click();
   assert.equal(await comparison.locator(".monster-comparison-card").count(), 2);
   assert.match(await comparison.locator(".monster-equipment-comparison").textContent(), /选中装备.*当前穿戴/s);
+  assert.match(await comparison.locator(".monster-item-information").textContent(), /以初始属性对比/);
+  assert.match(await comparison.locator(".monster-equipment-comparison").textContent(), /初始差值/);
+  assert.match(await comparison.locator(".monster-equipment-comparison").textContent(), /换装后/);
   assert.ok(await comparison.locator(".monster-comparison-stat b").count() > 0);
-  assert.match(await comparison.locator(".monster-item-information").textContent(), /已计入强化继承/);
+  assert.match(await comparison.locator(".monster-item-information").textContent(), /换装后继承强化/);
   for (const width of [375, 390, 430]) { await comparison.setViewportSize({ width, height: 844 }); await noOverflow(comparison); }
   await accessible(comparison);
   await comparison.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-equipment-compare.png" : "equipment-compare.png") });
@@ -994,6 +1008,83 @@ async function checkAchievements() {
   console.log(`Achievements ${browserType.name()} passed: battle progress, one-time rewards, title attributes, save retry and reload.`);
 }
 
+async function checkPlayerImage() {
+  const page = await pageFor({ playerImage: "ani/2001.png", blocked: true, reducedMotion: "reduce" });
+  const before = await saved(page);
+  await page.locator("#monsterEnter").click(); await stage(page, "home");
+  await page.locator("#monsterRole").click(); await page.locator("[data-character-models]").click();
+  await page.getByRole("button", { name: "使用暗影形象" }).click();
+  await page.locator("[data-save-feedback-retry]").waitFor();
+  assert.deepEqual(await saved(page), before);
+  await page.evaluate(() => { window.monsterFixtureBlockSave = false; });
+  await page.locator("[data-save-feedback-retry]").click(); await page.locator("[data-save-feedback-retry]").waitFor({ state: "detached" });
+  const switched = await saved(page);
+  assert.equal(switched.player.image, "ani/2002.png");
+  assert.equal(switched.player.dropRate, (before.player.dropRate ?? 100) + 5);
+  assert.equal(switched.player.level, before.player.level); assert.deepEqual(switched.inventory, before.inventory);
+  await noOverflow(page); await accessible(page);
+  await page.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-character-models.png" : "character-models.png") });
+  await page.reload(); await stage(page, "menu"); await page.locator("#monsterEnter").click(); await stage(page, "home");
+  await page.locator("#monsterRole").click();
+  assert.match(await page.locator(".monster-role-character").getAttribute("src"), /ani\/2002\.png$/);
+  await page.locator("#monsterDetailsClose").click();
+  await page.locator("#monsterAdventure").click(); await page.locator('[data-copy-id="1001"]').click(); await stage(page, "battle");
+  const texture = await page.evaluate(() => {
+    let player;
+    function walk(node) { if (node.getName?.() === "monster-battle-player") player = node; for (const child of node.getChildren?.() || []) walk(child); }
+    walk(cc.director.getRunningScene());
+    return player?.getChildren()[0]?.getTexture()?.getHtmlElementObj()?.src;
+  });
+  assert.match(texture, /ani\/2002\.png$/);
+  assert.deepEqual(errors, []); await page.context().close();
+  console.log(`Character model ${browserType.name()} passed: selection, real bonus, save retry, reload and battle appearance.`);
+}
+
+async function checkPointShop() {
+  const page = await pageFor({ pointShopFixture: true, reducedMotion: "reduce" });
+  await page.locator("#monsterEnter").click(); await stage(page, "home"); await tapNative(page, "btn_task");
+  await page.locator('[data-task-id="64"]').getByRole("button", { name: "交纳并领取" }).click();
+  await page.getByText("任务积分 10", { exact: true }).waitFor();
+  await page.locator("[data-point-shop]").click();
+  await page.locator('[data-point-offer="2"]').click();
+  await page.evaluate(() => { window.monsterFixtureBlockSave = true; });
+  await page.locator('[data-point-purchase="2"]').click();
+  await page.locator("[data-save-feedback-retry]").waitFor();
+  assert.equal((await saved(page)).taskBoard.points, 10);
+  await page.evaluate(() => { window.monsterFixtureBlockSave = false; });
+  await page.locator("[data-save-feedback-retry]").click(); await page.locator("[data-save-feedback-retry]").waitFor({ state: "detached" });
+  const result = await saved(page);
+  assert.equal(result.taskBoard.points, 0);
+  assert.equal(result.inventory.goods.find((item) => item.id === 5044).quantity, 10);
+  await noOverflow(page); await accessible(page);
+  await page.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-point-shop.png" : "point-shop.png") });
+  await page.reload(); await stage(page, "menu"); assert.deepEqual(await saved(page), result);
+  assert.deepEqual(errors, []); await page.context().close();
+  console.log(`Point shop ${browserType.name()} passed: task points, redemption, save retry and reload.`);
+}
+
+async function checkCraftLayout() {
+  const page = await pageFor({ retention: true, reducedMotion: "reduce" });
+  await page.locator("#monsterEnter").click(); await stage(page, "home"); await tapNative(page, "btn_blacksmith");
+  await page.getByRole("button", { name: "打造与合成", exact: true }).click();
+  await page.locator('[data-recipe-id="6002"]').click();
+  for (const width of [375, 390, 430]) {
+    await page.setViewportSize({ width, height: 844 }); await noOverflow(page);
+    const layout = await page.evaluate(() => {
+      const box = (selector) => { const rect = document.querySelector(selector).getBoundingClientRect(); return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom }; };
+      return { list: box(".monster-craft-list"), detail: box(".monster-craft-detail"), comparison: box(".monster-craft-comparison"), action: box("[data-craft-item]"), viewport: box("#monsterDetailsContent") };
+    });
+    assert.ok(layout.list.right <= layout.detail.left + 1, JSON.stringify(layout));
+    assert.ok(layout.comparison.top >= layout.viewport.top && layout.comparison.bottom <= layout.viewport.bottom, JSON.stringify(layout));
+    assert.ok(layout.action.bottom <= layout.viewport.bottom, JSON.stringify(layout));
+    assert.equal(await page.locator(".monster-craft-compare-card").count(), 2);
+    assert.match(await page.locator(".monster-craft-stat-grid").textContent(), /[+±-]/);
+  }
+  await accessible(page); await page.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-craft-split.png" : "craft-split.png") });
+  assert.deepEqual(errors, []); await page.context().close();
+  console.log(`Craft layout ${browserType.name()} passed: recipe and comparison visible together at phone widths.`);
+}
+
 async function checkWingEquipment() {
   const page = await pageFor({ wingPreview: true, blocked: true, reducedMotion: "reduce" });
   const before = await saved(page);
@@ -1011,7 +1102,7 @@ async function checkWingEquipment() {
   console.log(`Wing equipment ${browserType.name()} passed: direct change, stats and save retry.`);
 }
 try {
-  const focused = ["--offline-only", "--offline-retry-only", "--tasks-only", "--equipment-only", "--map-layout-only", "--animation-only", "--item-info-only", "--bag-batch-only", "--equipment-target-only", "--wing-only", "--achievements-only", "--shop-only", "--side-pet-only", "--pet-passive-only", "--pet-training-only"];
+  const focused = ["--offline-only", "--offline-retry-only", "--tasks-only", "--equipment-only", "--map-layout-only", "--animation-only", "--item-info-only", "--bag-batch-only", "--equipment-target-only", "--wing-only", "--player-image-only", "--point-shop-only", "--craft-layout-only", "--achievements-only", "--shop-only", "--side-pet-only", "--pet-passive-only", "--pet-training-only"];
   const selected = (flag) => !focused.some((option) => process.argv.includes(option)) || process.argv.includes(flag);
   if (selected("--offline-only")) await checkOfflineRun({ sidePets: process.argv.includes("--side-offline") });
   if (selected("--offline-retry-only")) await checkOfflineDefeatRetry();
@@ -1023,6 +1114,9 @@ try {
   if (selected("--bag-batch-only")) await checkBagBatch();
   if (selected("--equipment-target-only")) await checkEquipmentTargets();
   if (selected("--wing-only")) await checkWingEquipment();
+  if (selected("--player-image-only")) await checkPlayerImage();
+  if (selected("--point-shop-only")) await checkPointShop();
+  if (selected("--craft-layout-only")) await checkCraftLayout();
   if (selected("--achievements-only")) await checkAchievements();
   if (selected("--shop-only")) await checkShop();
   if (selected("--side-pet-only")) await checkSidePets();

@@ -1,5 +1,6 @@
 import { getPlayerExperienceRequired } from "./progression-domain.js";
 import { renderCopySelection } from "./copy-selection-view.js";
+import { renderCharacterModels } from "./character-model-view.js";
 import { renderRole, renderBag, renderSkills } from "./character-view.js";
 import { readGameInsets, nodeScreenBox, observeVisibleViewport } from "./viewport-view.js";
 import { renderTrial } from "./trial-view.js";
@@ -18,6 +19,7 @@ import { renderMaterialSources } from "./material-source-view.js";
 import { renderCopyScout } from "./copy-scout-view.js";
 import { referencePower } from "./copy-scout-domain.js";
 import { renderOffline } from "./offline-view.js";
+import { renderPointShop } from "./point-shop-view.js";
 import { renderShop } from "./shop-view.js";
 import { MONSTER_FONT, unifyCanvasTypography } from "./typography.js";
 import { createBattleAnimations } from "./battle-animation-view.js";
@@ -64,6 +66,7 @@ export function createMonsterGameView({ warView }) {
   let equipmentTargetSelection = { filter: "all" };
   let achievementSelection = { section: "achievements" };
   let shopSelection;
+  let pointShopSelection = { category: "all", id: null };
   let size = { width: 0, height: 0 };
 
   function stage(value) {
@@ -233,13 +236,16 @@ export function createMonsterGameView({ warView }) {
   async function battle(initial, state, catalog) {
     document.getElementById("monsterDetails").close();
     const request = ++serial;
-    const files = [...new Set([...warView.layouts[0].nodes.filter((node) => node.asset).map((node) => assets + node.asset), ...initial.enemies.map((enemy) => `${assets}enemy/${catalog.enemies.find((row) => row.id === enemy.id).img}`)])];
+    const low = warView.layouts[0];
+    const playerNode = low.nodes.find((node) => node.id === warView.bindings.player);
+    const playerImageId = playerNode.children.find((id) => low.nodes.find((node) => node.id === id)?.kind === "Sprite");
+    const assetFor = (spec) => spec.id === playerImageId ? state.player.image : spec.asset;
+    const files = [...new Set([...low.nodes.filter((node) => node.asset).map((node) => assets + assetFor(node)), ...initial.enemies.map((enemy) => `${assets}enemy/${catalog.enemies.find((row) => row.id === enemy.id).img}`)])];
     await Promise.all([
       new Promise((resolve, reject) => cc.loader.load(files, (error) => error ? reject(new Error(String(error))) : resolve())),
       battleAnimations.prepare(initial, catalog.skills),
     ]);
     if (request !== serial) return;
-    const low = warView.layouts[0];
     const high = new Map(warView.layouts[1].nodes.map((node) => [node.id, node]));
     const factor = (cc.winSize.height - low.height) / (warView.layouts[1].height - low.height);
     nodes = new Map();
@@ -254,7 +260,7 @@ export function createMonsterGameView({ warView }) {
     }
     for (const spec of low.nodes) {
       if (spec.kind === "ProgressTimer") continue;
-      const node = spec.kind === "Sprite" ? new cc.Sprite(assets + spec.asset)
+      const node = spec.kind === "Sprite" ? new cc.Sprite(assets + assetFor(spec))
         : spec.kind === "Text" ? new ccui.Text(spec.text || "", MONSTER_FONT, spec.fontSize || 24) : new cc.Node();
       nodes.set(spec.id, configure(node, spec));
       if (spec.asset === "img/layer_bg7.png") node.setScale(Math.max(spec.scale || 1, cc.winSize.width / node.width, cc.winSize.height / node.height));
@@ -420,6 +426,7 @@ export function createMonsterGameView({ warView }) {
   function role(state, catalog) {
     renderRole(details(`角色属性 · Lv.${state.player.level}`, controls.Role), state, catalog, actions);
   }
+  function characterModels(state, receipt) { renderCharacterModels({ content: details("人物形象", controls.Role), state, actions, receipt }); }
   function bag(state, catalog, kind, receipt) { renderBag(details("背包", controls.Bag), state, catalog, actions, { kind, receipt }); }
   function bagBatch(state, catalog, selectAll) { renderBagBatch({ content: details("批量分解", controls.Bag), state, catalog, actions, selectAll }); }
   function equipmentTargets(state, catalog, receipt) {
@@ -501,6 +508,14 @@ export function createMonsterGameView({ warView }) {
   function tasks(state, catalog, now) {
     renderTasks({ content: details("日常任务", controls.Enter), state, catalog, actions, now });
   }
+  function pointShop(state, catalog, { preserve = false, receipt } = {}) {
+    const content = document.getElementById("monsterDetailsContent");
+    if (preserve && (!document.getElementById("monsterDetails").open || !content.classList.contains("monster-point-shop-content"))) return;
+    if (!preserve) pointShopSelection = { category: "all", id: null };
+    const scrollTop = preserve ? content.scrollTop : 0;
+    renderPointShop({ content: details("积分商店", controls.Enter), state, catalog, actions, selection: pointShopSelection, receipt });
+    content.scrollTop = scrollTop;
+  }
   function shop(state, catalog, { itemId, preserve = false, receipt } = {}) {
     const content = document.getElementById("monsterDetailsContent");
     if (preserve && (!document.getElementById("monsterDetails").open || !content.classList.contains("monster-shop-content"))) return;
@@ -545,7 +560,7 @@ export function createMonsterGameView({ warView }) {
   function specialUpgrade(state, catalog, target, receipt) { renderSpecialUpgrade({ content: details("徽章升级", controls.Role), state, catalog, target, actions, receipt }); }
   function godUpgrade(state, catalog, target, receipt) { renderGodUpgrade({ content: details("神器培养", controls.Role), state, catalog, target, actions, receipt }); }
   return {
-    menu, home, updateHome, battle, battleUpdate, result, role, bag, bagBatch, equipmentTargets, bagItem, pets, skills, selectCopy, offline, offlineProgress, closeOffline, resetOffline, copyScout, closeCopyScout, closeSelection, trial, tasks, achievements, shop, workshop, upgrade, updateUpgrade, craft, materialSources, closeMaterialSources, smelt, specialUpgrade, godUpgrade, notice,
+    menu, home, updateHome, battle, battleUpdate, result, role, characterModels, bag, bagBatch, equipmentTargets, bagItem, pets, skills, selectCopy, offline, offlineProgress, closeOffline, resetOffline, copyScout, closeCopyScout, closeSelection, trial, tasks, achievements, shop, pointShop, workshop, upgrade, updateUpgrade, craft, materialSources, closeMaterialSources, smelt, specialUpgrade, godUpgrade, notice,
     repeatStatus(enabled) { repeating = enabled; document.getElementById("monsterStop").hidden = !enabled; stage(phase); },
     exitPending(enabled) { exitPending = enabled; stage(phase); },
     loadError(message) { stage("error"); statusMessage(message); },

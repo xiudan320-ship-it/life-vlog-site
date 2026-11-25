@@ -2,10 +2,10 @@ import "./craft.css";
 import { element, itemTile } from "./visual-ui.js";
 import { getCraftRequirements, getCraftEquipmentComparison, getCraftHistoryCount, getCraftOwnedCount } from "./craft-domain.js";
 import { collectEquipmentAttributes } from "./attribute-domain.js";
+import { initialEquipment } from "./item-comparison-domain.js";
 import { describeEquipmentAttribute } from "./attribute-labels.js";
 
 const statNames = ["", "攻击", "防御", "生命", "命中", "闪避", "暴击", "暴击伤害", "负面抵抗"];
-const scoreNames = ["", "普通", "标准", "优秀", "极品"];
 const effectNames = { 9: "物品掉落", 10: "经验获取", 11: "生命回复", 12: "攻击加成", 13: "防御加成", 14: "生命加成", 16: "伤害加成", 17: "伤害减免", 19: "金币获取", 20: "特殊效果", 21: "触发加成", 22: "遭遇加成", 23: "暴击加成", 24: "暴击伤害加成", 25: "命中加成", 26: "闪避加成", 27: "负面抵抗加成", 30: "额外波数", 33: "伤害加成", 35: "熔炼加成", 36: "试炼积分", 40: "暴击抵抗" };
 
 /** Return a self-contained recipe browser. The controller owns crafting and saving. */
@@ -18,50 +18,54 @@ export function renderCraft({ state, catalog, actions, receipt, selection = { ca
   list.setAttribute("aria-label", "打造配方");
   const detail = element("section", undefined, "monster-craft-detail monster-original-panel");
   detail.setAttribute("aria-label", "配方需求");
+  const detailBody = element("div", undefined, "monster-craft-detail-scroll");
+  const workspace = element("div", undefined, "monster-craft-workspace");
   root.append(tabs);
   if (receipt) { const status = element("p", receipt, "monster-upgrade-receipt"); status.setAttribute("role", "status"); root.append(status); }
-  root.append(list, detail);
+  workspace.append(list, detail); root.append(workspace);
 
   function categoryOf(row) { return row.type === 1 ? "goods" : row.subtype === 9 ? "badge" : "equipment"; }
-  function describeAttribute(item) {
-    const attr = item.mainAttribute;
-    return attr ? `${statNames[attr.type] || `属性 ${attr.type}`} ${attr.value}` : "无主属性";
-  }
   function renderComparison(product) {
     const comparison = getCraftEquipmentComparison({ state, itemId: product.id, catalog });
     if (!comparison) return;
     const section = element("section", undefined, "monster-craft-comparison");
     section.dataset.craftComparison = "";
     section.append(element("h4", "同部位装备对比"));
-    const { equipped, min, max } = comparison;
+    const { equipped, baseMin, baseMax, min, max } = comparison;
+    const baseCurrent = initialEquipment(equipped, state, catalog);
+    const cards = element("div", undefined, "monster-craft-compare-cards");
+    const currentCard = element("div", undefined, "monster-craft-compare-card");
+    const nextCard = element("div", undefined, "monster-craft-compare-card");
     if (equipped) {
       const equippedRow = catalog.items.find((row) => row.id === equipped.id);
       const equippedName = equippedRow?.name || `装备 ${equipped.id}`;
-      const score = equipped.scoreTier ? ` · 评分 ${scoreNames[equipped.scoreTier]} ${equipped.scoreValue}` : "";
-      const enchant = equipped.enchantment ? ` · 附魔 ${statNames[equipped.enchantment.type] || `属性 ${equipped.enchantment.type}`} +${equipped.enchantment.value}` : "";
-      section.append(element("p", `当前：${equippedName} +${equipped.strength} · 等级 ${equipped.level} · ${describeAttribute(equipped)}${score}${enchant}`));
-    } else section.append(element("p", "当前：此部位未穿戴装备"));
-    if (min && max) {
-      const low = min.mainAttribute, high = max.mainAttribute;
-      let range = describeAttribute(min);
-      if (low && high && low.type === high.type && low.value !== high.value) range = `${statNames[low.type] || `属性 ${low.type}`} ${low.value}–${high.value}`;
-      section.append(element("p", `穿戴后：${product.name} +${min.strength} · 等级 ${product.level} · ${range}（评分随机${product.subtype <= 8 ? "，继承当前部位强化" : ""}）`));
-      const current = collectEquipmentAttributes(equipped ? [equipped] : []);
-      const lowTags = collectEquipmentAttributes([min]), highTags = collectEquipmentAttributes([max]);
-      const stats = element("div", undefined, "monster-craft-stat-grid");
-      const types = [...new Set([...current, ...lowTags, ...highTags].map((attr) => attr.type))];
-      stats.append(element("strong", "合计属性"), element("strong", "当前 → 穿戴范围"));
-      for (const type of types) {
-        const value = (tags) => tags.find((tag) => tag.type === type)?.value || 0;
-        const lo = value(lowTags), hi = value(highTags);
-        stats.append(element("span", statNames[type] || effectNames[type] || `属性 ${type}`), element("span", `${value(current)} → ${lo === hi ? lo : `${lo}–${hi}`}`));
-      }
-      section.append(stats);
+      currentCard.append(element("strong", "当前穿戴"), element("p", `当前：${equippedName} +${equipped.strength}`));
+    } else currentCard.append(element("strong", "当前穿戴"), element("p", "此部位未穿戴装备"));
+    nextCard.append(element("strong", "打造预览"), element("p", product.name));
+    cards.append(currentCard, nextCard); section.append(cards);
+    const current = collectEquipmentAttributes(baseCurrent ? [baseCurrent] : []);
+    const currentEnhanced = collectEquipmentAttributes(equipped ? [equipped] : []);
+    const lowTags = collectEquipmentAttributes([baseMin]), highTags = collectEquipmentAttributes([baseMax]);
+    const lowAfter = collectEquipmentAttributes([min]), highAfter = collectEquipmentAttributes([max]);
+    const stats = element("div", undefined, "monster-craft-stat-grid");
+    const types = [...new Set([...current, ...currentEnhanced, ...lowTags, ...highTags, ...lowAfter, ...highAfter].map((attr) => attr.type))];
+    stats.append(element("strong", "初始属性"), element("strong", "当前 → 打造范围"));
+    const value = (tags, type) => tags.find((tag) => tag.type === type)?.value || 0;
+    const range = (low, high) => low === high ? String(low) : `${low}–${high}`;
+    const signed = (number) => number > 0 ? `+${number}` : number === 0 ? "±0" : String(number);
+    for (const type of types) {
+      const old = value(current, type), enhanced = value(currentEnhanced, type);
+      const lo = value(lowTags, type), hi = value(highTags, type), afterLo = value(lowAfter, type), afterHi = value(highAfter, type);
+      const delta = lo - old === hi - old ? signed(lo - old) : `${signed(lo - old)}～${signed(hi - old)}`;
+      const now = enhanced === old ? String(old) : `${old}（当前${enhanced}）`;
+      const after = afterLo === lo && afterHi === hi ? "" : `（换装后${range(afterLo, afterHi)}）`;
+      stats.append(element("span", statNames[type] || effectNames[type] || `属性 ${type}`), element("span", `${now} → ${range(lo, hi)}${after} · ${delta}`));
     }
-    detail.append(section);
+    section.append(stats, element("p", "括号为强化、附魔后的数值；打造评分随机。"));
+    detailBody.append(section);
   }
   function render() {
-    tabs.replaceChildren(); list.replaceChildren(); detail.replaceChildren();
+    tabs.replaceChildren(); list.replaceChildren(); detailBody.replaceChildren(); detail.replaceChildren(detailBody); detailBody.scrollTop = 0;
     for (const [value, label] of [["equipment", "装备"], ["badge", "徽章"], ["goods", "材料"]]) {
       const button = element("button", label, "monster-image-button"); button.type = "button";
       button.setAttribute("aria-pressed", String(selection.category === value));
@@ -98,23 +102,23 @@ export function renderCraft({ state, catalog, actions, receipt, selection = { ca
       if (count) { const badge = element("b", `造${count}`, "monster-craft-made"); badge.setAttribute("aria-hidden", "true"); tile.append(badge); }
       list.append(tile);
     }
-    if (!selection.itemId) { detail.append(element("p", "暂无配方", "monster-panel-hint")); return; }
+    if (!selection.itemId) { detailBody.append(element("p", "暂无配方", "monster-panel-hint")); return; }
     const requirements = getCraftRequirements({ state, itemId: selection.itemId, catalog });
     const { product, materials, currency, price, affordable } = requirements;
     const history = getCraftHistoryCount(state, selection.itemId);
     const owned = getCraftOwnedCount(state, selection.itemId);
-    detail.append(element("h3", product.name), element("p", `物品等级 ${product.level} · 打造后放入背包`, "monster-panel-hint"));
+    detailBody.append(element("h3", product.name), element("p", `等级 ${product.level} · 成品入背包`, "monster-panel-hint"));
     const counts = element("p", `已打造 ×${history} · 已持有 ×${owned}`, "monster-craft-counts"); counts.dataset.craftCounts = "";
-    detail.append(counts);
-    if (!history) detail.append(element("p", "打造次数从本次更新起记录", "monster-panel-hint"));
+    detailBody.append(counts);
+    if (product.type === 2) renderComparison(product);
     if (product.type === 2 && product.subtype === 9) {
       const preview = getCraftEquipmentComparison({ state, itemId: product.id, catalog }).min;
       const effects = element("section", undefined, "monster-craft-badge-effects");
       effects.append(element("h4", "徽章效果（穿戴后生效）"));
       for (const attribute of preview.attributes) effects.append(element("p", describeEquipmentAttribute(attribute)));
       if (product.specialgrow) effects.append(element("small", "效果随角色等级与巅峰成长。"));
-      detail.append(effects);
-    } else renderComparison(product);
+      detailBody.append(effects);
+    }
     const costs = element("ul", undefined, "monster-craft-costs");
     for (const material of materials) {
       const row = catalog.items.find((item) => item.id === material.id);
@@ -136,7 +140,7 @@ export function renderCraft({ state, catalog, actions, receipt, selection = { ca
     const coin = element("li", `${currencyName}：${price} / ${state[currency]}`);
     coin.setAttribute("aria-label", `${currencyName}，消耗 ${price}，持有 ${state[currency]}`);
     if (state[currency] < price) coin.dataset.insufficient = "true";
-    costs.append(coin); detail.append(element("h4", "材料与费用（消耗 / 持有）", "monster-craft-costs-heading"), costs);
+    costs.append(coin); detailBody.append(element("h4", "材料与费用（消耗 / 持有）", "monster-craft-costs-heading"), costs);
     const button = element("button", "打造", "monster-image-button"); button.type = "button"; button.dataset.craftItem = selection.itemId;
     button.disabled = !affordable;
     button.onclick = async () => { button.disabled = true; try { await actions.craft(selection.itemId); } finally { if (button.isConnected) button.disabled = !affordable; } };

@@ -11,7 +11,8 @@ export function renderTasks({ content, state, catalog, actions, now }) {
   daily.disabled = Boolean(state.taskBoard.dailyRewardDay && state.taskBoard.dailyRewardDay >= gameDay(now));
   if (daily.disabled) daily.textContent = "今日奖励已领取";
   daily.onclick = () => actions.claimDailyReward();
-  summary.append(daily);
+  const shop = element("button", "积分商店", "monster-image-button"); shop.type = "button"; shop.dataset.pointShop = ""; shop.onclick = () => actions.pointShop();
+  summary.append(shop, daily);
   const explanation = element("p", undefined, "monster-panel-hint");
   explanation.append(element("span", "魔石 ×10 · 卷轴 ×5；领取后刷新任务。"), element("span", "每日 00:00（UTC+8）可领取。"));
   header.append(summary, explanation);

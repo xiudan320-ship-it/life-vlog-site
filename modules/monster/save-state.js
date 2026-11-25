@@ -36,7 +36,9 @@ export function validateMonsterSave(state) {
     if (!progress || !progress.counters || typeof progress.counters !== "object" || Array.isArray(progress.counters)
       || !Object.entries(progress.counters).every(([id, value]) => /^[1-9]\d*$/.test(id) && integer(value))
       || !Array.isArray(progress.completed) || !progress.completed.every((id) => integer(id, 1))
-      || new Set(progress.completed).size !== progress.completed.length || !integer(progress.points) || !integer(progress.titleId)) {
+      || new Set(progress.completed).size !== progress.completed.length || !integer(progress.points) || !integer(progress.titleId)
+      || progress.purchasedTitles !== undefined && (!Array.isArray(progress.purchasedTitles)
+        || !progress.purchasedTitles.every((id) => integer(id, 1)) || new Set(progress.purchasedTitles).size !== progress.purchasedTitles.length)) {
       throw new TypeError("成就存档数据无效，请保留原存档并重试。");
     }
   }

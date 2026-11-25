@@ -1,5 +1,5 @@
 // Native achievement rows supply thresholds, rewards and title attributes.
-const supported = new Set([1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14, 20, 21, 27, 28, 30, 33, 35]);
+const supported = new Set([1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14, 20, 21, 22, 27, 28, 30, 33, 35]);
 const exchangeTitles = new Map([[144, 500], [145, 650], [158, 800], [171, 950]]);
 const emptyProgress = () => ({ counters: {}, completed: [], points: 0, titleId: 0 });
 
@@ -46,6 +46,7 @@ export function recordBattleAchievements({ state, catalog, copy, prepared, defea
 
 export function titleStatus(row, state, catalog) {
   const progress = achievementProgress(state);
+  if (progress.purchasedTitles?.includes(row.id)) return { unlocked: true, detail: "已通过积分商店解锁" };
   if (row.subtype === 51) {
     const possible = catalog.achievements.filter((entry) => entry.type === 1 && achievementAvailable(entry)).reduce((sum, entry) => sum + entry.awardspecial, 0);
     return { unlocked: progress.points >= row.needcount, detail: `成就积分 ${progress.points} / ${row.needcount}${row.needcount > possible ? "（需更多玩法接通）" : ""}` };

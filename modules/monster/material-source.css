@@ -13,4 +13,4 @@
 .monster-material-description small{color:#d8c49f;font-size:11px}
 .monster-item-information .monster-material-description .monster-material-locked{color:#f0b4a0}
 .monster-material-card button{grid-column:2;min-height:44px;font-size:16px;min-width:0}
-.monster-copy-focused{filter:brightness(1.2)}
+.monster-copy-focused{filter:none;box-shadow:inset 0 0 0 2px #81c9a9;background-color:#194c3599}.monster-copy-target-marker{position:absolute;z-index:4;top:2px;left:2px;padding:2px 5px;color:#f1fff7;background:#185339;border:1px solid #8cd5ad;font-size:10px;line-height:1.3;white-space:nowrap;text-shadow:none;pointer-events:none}

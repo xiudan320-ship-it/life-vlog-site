@@ -36,15 +36,21 @@ export function showItem({ item, catalog, state, onEquip, onUpgrade, onManage, o
       const { name, unit, supported } = getEquipmentAttributeLabel(entry.type);
       const diff = entry.delta > 0 ? `+${entry.delta}` : entry.delta === 0 ? "±0" : String(entry.delta);
       const selectedLine = element("p", `${name} ${entry.selectedValue}${unit}`, "monster-comparison-stat");
-      const change = element("b", ` (${diff}${unit})`, entry.delta > 0 ? "is-positive" : entry.delta < 0 ? "is-negative" : "");
-      change.setAttribute("aria-label", `${name}变化 ${diff}${unit}${supported ? "" : "，暂未接通"}`);
-      selectedLine.append(change);
-      left.append(selectedLine);
-      right.append(element("p", `${name} ${entry.currentValue}${unit}`, "monster-comparison-stat"));
+      if (entry.selectedEnhancedValue !== entry.selectedValue || entry.selectedAfterValue !== entry.selectedEnhancedValue) {
+        const enhanced = entry.selectedAfterValue !== entry.selectedEnhancedValue
+          ? `当前 ${entry.selectedEnhancedValue}${unit}，换装后 ${entry.selectedAfterValue}${unit}` : `强化附魔后 ${entry.selectedEnhancedValue}${unit}`;
+        selectedLine.append(element("small", `（${enhanced}）`));
+      }
+      const change = element("b", ` 初始差值 ${diff}${unit}`, entry.delta > 0 ? "is-positive" : entry.delta < 0 ? "is-negative" : "");
+      change.setAttribute("aria-label", `${name}初始值变化 ${diff}${unit}${supported ? "" : "，暂未接通"}`);
+      selectedLine.append(change); left.append(selectedLine);
+      const currentLine = element("p", `${name} ${entry.currentValue}${unit}`, "monster-comparison-stat");
+      if (entry.currentEnhancedValue !== entry.currentValue) currentLine.append(element("small", `（强化附魔后 ${entry.currentEnhancedValue}${unit}）`));
+      right.append(currentLine);
     }
     panel.append(left, right);
-    content.append(panel);
-    if (comparison.inherited) content.append(element("p", `对比已计入强化继承至 +${comparison.selected.strength}。`, "monster-panel-hint"));
+    content.append(element("p", "以初始属性对比；括号显示强化、附魔后的数值。", "monster-panel-hint"), panel);
+    if (comparison.inherited) content.append(element("p", `换装后继承强化至 +${comparison.selected.strength}。`, "monster-panel-hint"));
   }
   if (item.subtype === 9 && item.attributes?.length) {
     const effects = element("section", undefined, "monster-item-effects");

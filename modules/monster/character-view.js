@@ -7,6 +7,8 @@ import { sortBagEquipment } from "./bag-sort-domain.js";
 
 export function renderRole(content, state, catalog, actions) {
   content.className = "monster-character-content";
+  const models = element("button", "更换人物形象", "monster-image-button monster-role-model-button"); models.type = "button"; models.dataset.characterModels = ""; models.onclick = () => actions.characterModels();
+  content.append(models);
   const stats = element("section", undefined, "monster-role-stats monster-original-panel");
   stats.setAttribute("aria-label", "角色属性");
   const power = element("div", undefined, "monster-role-power");
@@ -17,7 +19,7 @@ export function renderRole(content, state, catalog, actions) {
   }
   const doll = element("section", undefined, "monster-paperdoll monster-original-panel");
   doll.setAttribute("aria-label", "已穿戴装备");
-  doll.append(picture("ani/2001.png", "勇者", "monster-role-character"));
+  doll.append(picture(state.player.image, "角色形象", "monster-role-character"));
   const positions = { 2: [15, 17], 3: [15, 40], 8: [15, 63], 1: [15, 86], 7: [85, 17], 4: [85, 40], 6: [85, 63], 5: [85, 86], 9: [61, 11], 10: [39, 11] };
   const worn = [...state.player.equipmentSets[state.player.equipmentSetIndex], ...state.inventory.wings.filter((item) => item.id === state.player.wingId)];
   for (const [subtype, [left, top]] of Object.entries(positions)) {

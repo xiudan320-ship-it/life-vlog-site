@@ -1,7 +1,20 @@
 import { collectEquipmentAttributes } from "./attribute-domain.js";
 import { withEquipmentStrength } from "./equipment-domain.js";
+import { calculateSpecialAttributes } from "./special-upgrade-domain.js";
 
-/** Compare the actual replacement, including inherited enhancement. */
+/** Remove strengthening and enchantment while retaining the item's rolled base. */
+export function initialEquipment(item, state, catalog) {
+  if (!item) return null;
+  const initial = { ...item, enchantment: undefined };
+  if (item.subtype <= 8) return withEquipmentStrength(initial, 0, catalog.items.find((row) => row.id === item.id));
+  if (item.subtype === 9) {
+    initial.strength = 0;
+    initial.attributes = calculateSpecialAttributes({ item: initial, player: state.player, catalog });
+  }
+  return initial;
+}
+
+/** Compare original attributes first, plus current and post-inheritance values. */
 export function compareEquipment({ state, item, catalog }) {
   if (item.type !== 2 || !item.mainAttribute || !state) return null;
   const current = item.subtype === 10
@@ -9,13 +22,17 @@ export function compareEquipment({ state, item, catalog }) {
     : state.player.equipmentSets[state.player.equipmentSetIndex].find((entry) => entry.subtype === item.subtype) || null;
   const selected = current && item.subtype <= 8 && current.strength > item.strength
     ? withEquipmentStrength(item, current.strength, catalog.items.find((row) => row.id === item.id)) : item;
-  const left = collectEquipmentAttributes([selected]);
-  const right = collectEquipmentAttributes(current ? [current] : []);
-  const types = [...new Set([...left, ...right].map((attribute) => attribute.type))].sort((a, b) => a - b);
+  const baseSelected = collectEquipmentAttributes([initialEquipment(item, state, catalog)]);
+  const baseCurrent = collectEquipmentAttributes(current ? [initialEquipment(current, state, catalog)] : []);
+  const enhancedSelected = collectEquipmentAttributes([item]);
+  const enhancedCurrent = collectEquipmentAttributes(current ? [current] : []);
+  const afterEquip = collectEquipmentAttributes([selected]);
+  const types = [...new Set([...baseSelected, ...baseCurrent, ...enhancedSelected, ...enhancedCurrent, ...afterEquip].map((attribute) => attribute.type))].sort((a, b) => a - b);
+  const value = (attributes, type) => attributes.find((entry) => entry.type === type)?.value || 0;
   const rows = types.map((type) => {
-    const selectedValue = left.find((attribute) => attribute.type === type)?.value || 0;
-    const currentValue = right.find((attribute) => attribute.type === type)?.value || 0;
-    return { type, selectedValue, currentValue, delta: selectedValue - currentValue };
+    const selectedValue = value(baseSelected, type), currentValue = value(baseCurrent, type);
+    return { type, selectedValue, currentValue, delta: selectedValue - currentValue,
+      selectedEnhancedValue: value(enhancedSelected, type), currentEnhancedValue: value(enhancedCurrent, type), selectedAfterValue: value(afterEquip, type) };
   });
   return { selected, current, rows, inherited: selected !== item };
 }

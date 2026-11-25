@@ -23,6 +23,8 @@ import { getCopyScout } from "./copy-scout-domain.js";
 import { createOfflineRun, MAX_OFFLINE_MS } from "./offline-domain.js";
 import { runOffline } from "./offline-runner.js";
 import { recordAchievements, equipTitle } from "./achievement-domain.js";
+import { changeCharacterModel } from "./character-model-domain.js";
+import { purchasePointOffer } from "./point-shop-domain.js";
 import { purchaseShopOffer } from "./shop-domain.js";
 
 export function createMonsterGameController({ catalog, store, view, random, wait, now = Date.now, calculateOffline = runOffline }) {
@@ -59,7 +61,7 @@ export function createMonsterGameController({ catalog, store, view, random, wait
     if (reason && !allowLocked) { view.notice(reason); return; }
     const hard = [1, 2, 3, 4, 5, 6].includes(source.hard) ? source.hard : 1;
     if (hard > maximumCopyDifficulty(state.player)) { view.notice("当前角色尚未解锁此难度"); return; }
-    Object.assign(settings, { type: copy.type, focusCopyId: copyId, scrollTop: 0, repeat: false, hard, trialHard: [1, 2, 3].includes(source.trialHard) ? source.trialHard : 1 });
+    Object.assign(settings, { type: copy.type, focusCopyId: copyId, focusReason: source.focusReason || "source", scrollTop: 0, repeat: false, hard, trialHard: [1, 2, 3].includes(source.trialHard) ? source.trialHard : 1 });
     const chapter = catalog.chapters.find((entry) => copy.id >= entry.minid && copy.id <= entry.maxid || entry.hideboss === copy.id);
     if (chapter) settings.chapterId = chapter.id;
     view.selectCopy(state, catalog, settings);
@@ -211,7 +213,7 @@ export function createMonsterGameController({ catalog, store, view, random, wait
     goToCopy(copyId, source = {}) {
       openCopyLocation(copyId, source, false);
     },
-    goToTaskCopy(copyId) { openCopyLocation(copyId, {}, true); },
+    goToTaskCopy(copyId) { openCopyLocation(copyId, { focusReason: "task" }, true); },
     startCopy,
     async startOffline(copyId, selected) {
       if (!state || active || unsaved || blockedByOffline()) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
@@ -292,6 +294,20 @@ export function createMonsterGameController({ catalog, store, view, random, wait
       if (!state || active || blockedByOffline()) return;
       if (itemId !== undefined) view.closeMaterialSources();
       view.shop(state, catalog, { itemId });
+    },
+    pointShop() { if (state && !active && !blockedByOffline()) view.pointShop(state, catalog); },
+    async purchasePointOffer(id) {
+      if (!state || active || unsaved || blockedByOffline()) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
+      const serial = revision; active = true;
+      try {
+        const observed = recordAchievements({ state, catalog });
+        const result = purchasePointOffer({ state: observed, catalog, id });
+        state = recordAchievements({ state: recordTaskShopPurchase(result.state), catalog,
+          increments: { 22: 1, 30: Number(result.offer.type === 7) } });
+        const saved = await save();
+        if (serial === revision) { view.updateHome(state, catalog); view.pointShop(state, catalog, { preserve: true, receipt: { message: `已兑换 ${result.offer.product.name}`, saved, status: saveErrorStatus } }); }
+      } catch (error) { if (serial === revision) view.notice(error.message); }
+      finally { if (serial === revision) active = false; }
     },
     async buyShopOffer(index) {
       if (!state || active || unsaved || blockedByOffline()) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
@@ -477,6 +493,17 @@ export function createMonsterGameController({ catalog, store, view, random, wait
       });
     },
     role() { if (state && !active && !blockedByOffline()) view.role(state, catalog); },
+    characterModels() { if (state && !active && !blockedByOffline()) view.characterModels(state); },
+    async changeModel(image) {
+      if (!state || active || unsaved || blockedByOffline()) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
+      const serial = revision; active = true;
+      try {
+        state = changeCharacterModel(state, image); refresh();
+        const saved = await save();
+        if (serial === revision) { view.updateHome(state, catalog); view.characterModels(state, { message: "人物形象已更换", saved, status: saveErrorStatus }); }
+      } catch (error) { if (serial === revision) view.notice(error.message); }
+      finally { if (serial === revision) active = false; }
+    },
     skills() { if (state && !active && !blockedByOffline()) view.skills(state, catalog); },
     bag(kind) { if (state && !active && !blockedByOffline()) view.bag(state, catalog, kind); },
     bagBatch(selectAll) { if (state && !active && !blockedByOffline()) view.bagBatch(state, catalog, selectAll); },

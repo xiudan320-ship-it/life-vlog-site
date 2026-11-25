@@ -7,7 +7,8 @@ import { collectEquipmentAttributes } from "../modules/monster/attribute-domain.
 import { equipBagItem } from "../modules/monster/loadout-domain.js";
 import { withEquipmentStrength } from "../modules/monster/equipment-domain.js";
 import { addBagItem } from "../modules/monster/inventory-domain.js";
-import { createCopyDrops } from "../modules/monster/item-domain.js";
+import { createCatalogEquipment, createCopyDrops } from "../modules/monster/item-domain.js";
+import { calculateSpecialAttributes } from "../modules/monster/special-upgrade-domain.js";
 import { getCopyDropCatalog } from "../modules/monster/copy-drops-domain.js";
 import { decomposeEquipmentBatch, previewBatchDecomposition, getDecomposableEquipment } from "../modules/monster/bag-batch-domain.js";
 import { getItemSalePreview, sellBagItem } from "../modules/monster/bag-item-domain.js";
@@ -31,6 +32,47 @@ test("equipment comparison matches the actual replacement and inherited strength
   assert.deepEqual(collectEquipmentAttributes([preview.selected]), collectEquipmentAttributes([equipped]));
   assert.equal(preview.rows.find((entry) => entry.type === 9).delta, 4);
   assert.deepEqual(state, before);
+});
+
+test("equipment comparison uses each item's original roll, separately showing upgrades and inherited strength", () => {
+  const state = createNewGame(catalog);
+  const base = state.player.equipmentSets[0][0];
+  const row = items.find((entry) => entry.id === base.id);
+  const current = { ...withEquipmentStrength(base, 5, row), enchantment: { type: 1, value: 20 } };
+  const selected = { ...withEquipmentStrength({ ...base, scoreTier: 4, scoreValue: 87 }, 2, row), enchantment: { type: 2, value: 7 } };
+  state.player.equipmentSets[0][0] = current;
+  const result = compareEquipment({ state, item: selected, catalog });
+  const attack = result.rows.find((entry) => entry.type === 1);
+  const expectedSelected = withEquipmentStrength(selected, 0, row).mainAttribute.value;
+  const expectedCurrent = withEquipmentStrength(current, 0, row).mainAttribute.value;
+  assert.equal(attack.selectedValue, expectedSelected);
+  assert.equal(attack.currentValue, expectedCurrent);
+  assert.equal(attack.delta, expectedSelected - expectedCurrent);
+  assert.equal(attack.currentEnhancedValue, current.mainAttribute.value + 20);
+  assert.equal(attack.selectedEnhancedValue, selected.mainAttribute.value);
+  assert.equal(attack.selectedAfterValue, withEquipmentStrength(selected, 5, row).mainAttribute.value);
+  const defense = result.rows.find((entry) => entry.type === 2);
+  assert.equal(defense.selectedValue, 0);
+  assert.equal(defense.selectedEnhancedValue, 7);
+  assert.equal(defense.delta, 0);
+});
+
+test("badge comparison removes badge levels while preserving the current character's growth", async () => {
+  const templates = await read("equipment-templates");
+  const fullCatalog = { ...catalog, equipmentTemplates: templates };
+  const state = createNewGame(catalog);
+  state.player.level = 20;
+  const row = items.find((entry) => entry.id === 6801);
+  const badge = createCatalogEquipment({ row, template: templates[row.id] });
+  const current = { ...badge, strength: 4 };
+  current.attributes = calculateSpecialAttributes({ item: current, player: state.player, catalog: fullCatalog });
+  state.player.equipmentSets[0].push(current);
+  const preview = compareEquipment({ state, item: badge, catalog: fullCatalog });
+  for (const entry of preview.rows) {
+    assert.equal(entry.selectedValue, entry.currentValue);
+    assert.equal(entry.delta, 0);
+  }
+  assert.ok(preview.rows.some((entry) => entry.currentEnhancedValue > entry.currentValue));
 });
 
 test("bag counts distinguish owned inventory from equipped items", () => {
