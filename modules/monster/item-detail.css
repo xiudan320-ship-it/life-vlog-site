@@ -1,0 +1,9 @@
+.monster-item-information .monster-item-owned{color:#d6ef94;margin:4px 0}
+.monster-equipment-comparison{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0;text-align:left}
+.monster-comparison-card{min-width:0;padding:8px;background:#160e08b8;border:1px solid #795d2c}
+.monster-comparison-card h3{margin:0 0 5px;color:#ffd18b;font-size:14px;font-weight:400}
+.monster-comparison-card strong{display:block;min-height:2.7em;color:#f5e8ca;font-size:13px;line-height:1.35;overflow-wrap:anywhere}
+.monster-item-information .monster-comparison-stat{margin:3px 0;font-size:12px;line-height:1.4;overflow-wrap:anywhere}
+.monster-comparison-stat b{font-weight:400;color:#d8c49f}.monster-comparison-stat .is-positive{color:#a9dc8e}.monster-comparison-stat .is-negative{color:#ffab9b}
+.monster-result-loot-controls{position:absolute;inset:0;z-index:2;pointer-events:none}
+.monster-result-loot-controls button{position:absolute;min-width:0;min-height:0;padding:0;background:none;text-shadow:none;pointer-events:auto}

@@ -1,5 +1,7 @@
 import "./copy-scout.css";
+import "./copy-drops.css";
 import { element, picture } from "./visual-ui.js";
+import { getCopyDropCatalog } from "./copy-drops-domain.js";
 
 const attributes = [["attack", "攻击"], ["defense", "防御"], ["maxHp", "生命"], ["hit", "命中"],
   ["dodge", "闪避"], ["crit", "暴击"], ["critHurt", "暴击伤害"], ["resistance", "负面抵抗"], ["critResistance", "暴击抵抗"]];
@@ -47,6 +49,22 @@ export function renderCopyScout({ content, state, catalog, scout, copy, actions,
     for (const note of scout.notes || []) explanation.append(element("p", note, "monster-scout-note"));
     root.append(explanation);
   }
+  const drops = getCopyDropCatalog(copy, catalog);
+  const dropSection = element("section", undefined, "monster-scout-drops");
+  dropSection.setAttribute("aria-label", "关卡可掉落物品");
+  dropSection.append(element("h3", `可掉落物品 · ${drops.length} 种`));
+  dropSection.append(element("p", copy.type === 4 ? "随机遭遇该怪物后可获得以下物品。" : "本关怪物共享关卡结算掉落；随机遭遇和试炼领奖另计。", "monster-scout-note"));
+  if (drops.length) {
+    const list = element("div", undefined, "monster-scout-drop-list");
+    for (const drop of drops) {
+      const entry = element("div", undefined, "monster-scout-drop");
+      entry.dataset.dropItem = String(drop.id);
+      entry.append(picture(`icon/item/${drop.row.icon}`), element("span", drop.row.name), element("small", drop.conditions.join(" · ")));
+      list.append(entry);
+    }
+    dropSection.append(list);
+  } else dropSection.append(element("p", "本关没有普通结算物品掉落。", "monster-scout-note"));
+  root.append(dropSection);
   const controls = element("div", undefined, "monster-scout-controls");
   const back = element("button", "返回", "monster-image-button"); back.type = "button"; back.onclick = () => actions.closeCopyScout();
   const start = element("button", "开始挑战", "monster-image-button"); start.type = "button";

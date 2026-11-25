@@ -1,0 +1,1 @@
+.monster-result-list{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin:10px 0}.monster-result-list .monster-item{width:100%;min-width:0;min-height:52px}.monster-result-list .monster-item-name{display:none}

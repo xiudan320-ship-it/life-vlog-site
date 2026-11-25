@@ -16,7 +16,7 @@ export function renderTasks({ content, state, catalog, actions, now }) {
   explanation.append(element("span", "魔石 ×10 · 卷轴 ×5；领取后刷新任务。"), element("span", "每日 00:00（UTC+8）可领取。"));
   header.append(summary, explanation);
   content.append(header);
-  const pending = { 14: "寻宝玩法尚未接通", 16: "黑市玩法尚未接通", 17: "当前移植版不提供充值" };
+  const pending = { 14: "寻宝玩法尚未接通" };
   for (const [title, test] of [["等级任务", (entry) => entry.type <= 3], ["每日目标", (entry) => entry.type >= 11]]) {
     content.append(element("h3", title));
     for (const entry of state.taskBoard.entries.filter(test)) {

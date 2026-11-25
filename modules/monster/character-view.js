@@ -1,7 +1,9 @@
 import "./bag-equipment.css";
-import { element, picture, itemTile, showItem, petTile } from "./visual-ui.js";
+import { element, picture, itemTile, petTile } from "./visual-ui.js";
+import { showItem } from "./item-detail-view.js";
 import { renderBagReceipt } from "./bag-item-view.js";
 import { referencePower } from "./copy-scout-domain.js";
+import { sortBagEquipment } from "./bag-sort-domain.js";
 
 export function renderRole(content, state, catalog, actions) {
   content.className = "monster-character-content";
@@ -20,7 +22,7 @@ export function renderRole(content, state, catalog, actions) {
   const worn = [...state.player.equipmentSets[state.player.equipmentSetIndex], ...state.inventory.wings.filter((item) => item.id === state.player.wingId)];
   for (const [subtype, [left, top]] of Object.entries(positions)) {
     const item = worn.find((entry) => entry.subtype === Number(subtype));
-    const slot = item ? itemTile(item, catalog, { onClick: () => showItem(item, catalog, null, item.subtype <= 9 ? () => actions.upgrade({ source: "equipped", index: worn.indexOf(item), id: item.id }) : null) }) : element("div", undefined, "monster-empty-slot");
+    const slot = item ? itemTile(item, catalog, { onClick: () => showItem({ item, catalog, state, onUpgrade: item.subtype <= 9 ? () => actions.upgrade({ source: "equipped", index: worn.indexOf(item), id: item.id }) : null }) }) : element("div", undefined, "monster-empty-slot");
     slot.style.left = `${left}%`; slot.style.top = `${top}%`; doll.append(slot);
   }
   const skills = element("button", undefined, "monster-role-skills"); skills.type = "button"; skills.setAttribute("aria-label", "选择装备技能");
@@ -35,8 +37,10 @@ export function renderRole(content, state, catalog, actions) {
   const gems = element("section", undefined, "monster-gem-equipment monster-original-panel"); gems.setAttribute("aria-label", "特殊徽章装备");
   for (const [subtype, label] of [[11, "冒险者徽章"], [12, "深渊徽章"], [13, "铁匠徽章"], [14, "巅峰徽章"]]) {
     const slot = element("div"); const item = worn.find((entry) => entry.subtype === subtype);
-    slot.append(item ? itemTile(item, catalog, { onClick: () => showItem(item, catalog) }) : element("div", undefined, "monster-empty-slot"), element("small", label)); gems.append(slot);
+    slot.append(item ? itemTile(item, catalog, { onClick: () => showItem({ item, catalog, state }) }) : element("div", undefined, "monster-empty-slot"), element("small", label)); gems.append(slot);
   }
+  const title = catalog.achievements?.find((row) => row.type === 2 && row.id === state.achievementProgress?.titleId);
+  if (title) content.append(element("p", `当前称号：${title.name}`, "monster-panel-hint"));
   content.append(stats, doll, gems, element("p", "点击装备查看详情 · 点击技能槽装配技能", "monster-panel-hint"));
 }
 
@@ -47,29 +51,45 @@ export function renderBag(content, state, catalog, actions, { kind = "goods", re
   const panel = element("section", undefined, "monster-bag-grid monster-original-panel");
   const empty = element("p", undefined, "monster-empty-bag");
   const equipmentHint = element("p", "点装备查看详情，或直接按下方按钮穿戴 / 更换。", "monster-panel-hint monster-bag-equipment-hint");
+  const equipmentTools = element("div", undefined, "monster-bag-equipment-tools");
+  const sortLabel = element("label", "排序 ");
+  const sort = element("select"); sort.dataset.equipmentSort = ""; sort.setAttribute("aria-label", "装备排序");
+  for (const [value, label] of [["recent", "新获取（上线后记录）"], ["score", "评分从高到低"]]) {
+    const option = element("option", label); option.value = value; sort.append(option);
+  }
+  sortLabel.append(sort);
+  const quick = element("button", "快速分解", "monster-image-button"); quick.type = "button"; quick.dataset.quickDecompose = ""; quick.onclick = () => actions.bagBatch(false);
+  const all = element("button", "一键分解", "monster-image-button"); all.type = "button"; all.dataset.allDecompose = ""; all.onclick = () => actions.bagBatch(true);
+  equipmentTools.append(sortLabel, quick, all);
   const groups = [
     { name: "道具", kind: "goods", entries: state.inventory.goods, quantity: true },
     { name: "装备", kind: "equipment", entries: state.inventory.equipment },
-    { name: "翅膀", entries: state.inventory.wings },
+    { name: "翅膀", kind: "wings", entries: state.inventory.wings },
     { name: "宠物", kind: "pets", entries: state.inventory.pets, pets: true },
   ];
   function select(group) {
     for (const button of tabs.children) button.setAttribute("aria-pressed", String(button.textContent === group.name));
     panel.replaceChildren();
     equipmentHint.hidden = group.kind !== "equipment";
-    group.entries.forEach((item, index) => {
+    equipmentTools.hidden = group.kind !== "equipment";
+    const entries = group.kind === "equipment" ? sortBagEquipment(group.entries, sort.value) : group.entries.map((item, index) => ({ item, index }));
+    entries.forEach(({ item, index }) => {
       const wearable = group.kind === "equipment" && (item.subtype >= 1 && item.subtype <= 9 || item.subtype >= 11 && item.subtype <= 14);
+      const wing = group.kind === "wings";
+      const wearingWing = wing && state.player.wingId === item.id;
       const tile = group.pets ? petTile(item, catalog, () => actions.pets()) : itemTile(item, catalog, { quantity: group.quantity,
-        onClick: () => showItem(item, catalog, wearable ? () => actions.equip(index) : null,
-          group.kind === "equipment" && item.subtype <= 9 ? () => actions.upgrade({ source: "bag", index, id: item.id }) : null,
-          group.kind ? () => actions.bagItem({ kind: group.kind, index, id: item.id }) : null) });
-      if (!wearable) { panel.append(tile); return; }
+        onClick: () => showItem({ item, catalog, state, onEquip: wearable ? () => actions.equip(index) : wing && !wearingWing ? () => actions.equipWing(index) : null,
+          onUpgrade: group.kind === "equipment" && item.subtype <= 9 ? () => actions.upgrade({ source: "bag", index, id: item.id }) : null,
+          onManage: ["goods", "equipment"].includes(group.kind) ? () => actions.bagItem({ kind: group.kind, index, id: item.id }) : null }) });
+      if (!wearable && !wing) { panel.append(tile); return; }
       const cell = element("div", undefined, "monster-bag-equipment-cell");
-      const replacing = state.player.equipmentSets[state.player.equipmentSetIndex].some((worn) => worn.subtype === item.subtype);
-      const wear = element("button", replacing ? "更换" : "穿戴", "monster-image-button monster-bag-equip");
-      wear.type = "button"; wear.dataset.equipBagIndex = String(index);
-      wear.setAttribute("aria-label", `${replacing ? "更换为" : "穿戴"}${catalog.items.find((row) => row.id === item.id).name}`);
-      wear.onclick = () => actions.equip(index);
+      const replacing = wing || state.player.equipmentSets[state.player.equipmentSetIndex].some((worn) => worn.subtype === item.subtype);
+      const wear = element("button", wearingWing ? "使用中" : replacing ? "更换" : "穿戴", "monster-image-button monster-bag-equip");
+      wear.type = "button";
+      if (wing) wear.dataset.equipWingIndex = String(index); else wear.dataset.equipBagIndex = String(index);
+      wear.disabled = wearingWing;
+      wear.setAttribute("aria-label", `${wearingWing ? "正在使用" : replacing ? "更换为" : "穿戴"}${catalog.items.find((row) => row.id === item.id).name}`);
+      wear.onclick = () => wing ? actions.equipWing(index) : actions.equip(index);
       cell.append(tile, wear); panel.append(cell);
     });
     for (let index = group.entries.length; index < 30; index += 1) panel.append(element("div", undefined, "monster-empty-slot"));
@@ -78,7 +98,8 @@ export function renderBag(content, state, catalog, actions, { kind = "goods", re
   for (const group of groups) {
     const tab = element("button", group.name, "monster-image-button"); tab.type = "button"; tab.onclick = () => select(group); tabs.append(tab);
   }
-  content.append(tabs, equipmentHint, panel, empty); select(groups.find((group) => group.kind === kind) || groups[0]);
+  sort.onchange = () => select(groups.find((group) => group.kind === "equipment"));
+  content.append(tabs, equipmentHint, equipmentTools, panel, empty); select(groups.find((group) => group.kind === kind) || groups[0]);
 }
 
 export function renderSkills(content, state, catalog, actions) {

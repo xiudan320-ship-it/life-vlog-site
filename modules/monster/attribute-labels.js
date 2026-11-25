@@ -13,3 +13,8 @@ export function describeEquipmentAttribute({ type, value }) {
   const [name, unit, supported = true] = attributes[type] || [`属性 ${type}`, "", false];
   return `${name} +${value}${unit}${supported ? "" : "（暂未接通）"}`;
 }
+
+export function getEquipmentAttributeLabel(type) {
+  const [name, unit, supported = true] = attributes[type] || [`属性 ${type}`, "", false];
+  return { name, unit, supported };
+}

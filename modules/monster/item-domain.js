@@ -56,6 +56,9 @@ export function createCatalogEquipment({ row, template, scoreTier = 4, scoreValu
 export function createCopyDrops({ itemIds, catalog, copy, player, draw }) {
   const drops = [];
   for (const id of itemIds) {
+    // An original malformed drop list decodes an empty entry as item ID 0.
+    // Its selection roll has already been consumed, but it grants no item.
+    if (id === 0) continue;
     const row = catalog.items.find((item) => item.id === id);
     if (!row) throw new RangeError(`缺少原版物品 ${id}`);
     if (row.type === 1) {
@@ -71,9 +74,9 @@ export function createCopyDrops({ itemIds, catalog, copy, player, draw }) {
         attributes: gem.baseAttributes.map(([type, value]) => ({ type, value })) });
       continue;
     }
-    const score = row.subtype === 9 ? { scoreTier: 4, scoreValue: 50 } : rollEquipmentScore(draw);
+    const score = row.subtype >= 9 ? { scoreTier: 4, scoreValue: 50 } : rollEquipmentScore(draw);
     let god = null;
-    if (row.subtype !== 9 && row.quality === 5 && [1, 2, 4, 5, 6].includes(copy.type)) god = rollGodEquipment({ mode: copy.type === 2 && copy.id <= 2100 ? 4 : 6, mainValue: row.mainvalue, draw });
+    if (row.subtype <= 8 && row.quality === 5 && [1, 2, 4, 5, 6].includes(copy.type)) god = rollGodEquipment({ mode: copy.type === 2 && copy.id <= 2100 ? 4 : 6, mainValue: row.mainvalue, draw });
     const paragon = row.paragon ? rollParagonEquipment({ level: row.level, paragon: player.paragon, fixedAttributes: catalog.equipmentTemplates[id].attributes, draw }) : null;
     drops.push(createCatalogEquipment({ row, template: catalog.equipmentTemplates[id], ...score, god, paragon }));
   }

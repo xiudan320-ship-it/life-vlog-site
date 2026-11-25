@@ -211,6 +211,8 @@ pnpm preview
 
 `monster.html` 是独立的第二页面入口，由首页工具区进入，仅该页加载 `modules/monster/entry.js`、独立游戏样式、固定版 Cocos2d HTML5 引擎和 APK 原资源。构建保留原生 modulepreload 链接，关闭其额外 polyfill，避免多页面构建让首页新增一条共享兼容脚本请求。`public/monster/` 直接复制到构建产物，不导入首页模块图；`monster.html`、游戏 JS/CSS 和原资源全部排除出首页预缓存，工具入口图标仍按普通 UI 资源缓存。登录后开放全目录选关、单角色技能战斗、掉落及前台连续战斗；试炼支持三档难度、逐层推进、累计积分与结束领奖。尚未提供游戏完整离线缓存或 iOS 原生安装包，各迁移边界与验收见 `monster-port-status.md`。
 
+游戏存档新增 `inventory.acquisitionSequence` 与装备实例 `acquisitionOrder`，仅记录功能上线后的获取；换装沿用原有顺序，历史装备无法追溯。`equipmentTargets` 保存徽章、特殊徽章、翅膀和不可打造高品质掉落装备的目标 ID；来源从同一结算目录查询。`achievementProgress` 保存各条件计数、已完成 ID、积分与佩戴称号；奖励随行为同次保存，前台／离线共用战斗事件，称号参与角色属性重算。原表中依赖尚未移植玩法的条件明确标记不可完成；VIP 和四个兑换称号以移植版积分门槛解锁。可识别的付费商店／兑换物品与 VIP 翅膀增加副本掉落，七种兑换宠物加入难度 3、2000 积分的试炼奖励池；新增位置与概率是移植平衡，不声称为原版数据。
+
 游戏 HTML 与 Cocos 文本统一使用 Arial 及系统中文回退；图片中原有文字仍保留原资源。触摸或鼠标操作不保留焦点框，键盘操作保留可见焦点。
 
 游戏入口复用宿主认证键与会话备份，API 地址统一取 `APP_CONFIG.apiEndpoint`。`GET /api/monster/save` 返回当前用户的 `{userId, revision, updatedAt, state, serverTime}`，其中 `serverTime` 是服务器当前 ISO 时间，无档时为 revision 0、state null；`PUT` 提交 `{expectedRevision, state}`，响应递增后的版本。Worker 在认证后以服务器 user.id 读写 D1 `monster_saves(user_id PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, state_json CHECK(json_valid), revision CHECK(revision >= 1), updated_at)`，不接受客户端指定归属，也不授予同家庭成员访问。写入上限 1 MiB；首次 INSERT 和后续 UPDATE 使用原子 revision 条件，冲突为 409。

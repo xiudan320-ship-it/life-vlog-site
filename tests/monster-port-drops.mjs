@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
-import { addPortDrops } from "../modules/monster/port-drop-domain.js";
+import { addPortDrops, addPortTrialRewards } from "../modules/monster/port-drop-domain.js";
+import { selectTrialRewards, claimTrialRewards } from "../modules/monster/trial-domain.js";
 import { prepareCopyBattle } from "../modules/monster/copy-domain.js";
 import { settleCopyVictory } from "../modules/monster/adventure-domain.js";
 import { findMaterialSources } from "../modules/monster/material-source-domain.js";
@@ -9,6 +10,9 @@ import { createNewGame } from "../modules/monster/new-game-domain.js";
 import { getCraftRequirements } from "../modules/monster/craft-domain.js";
 import { upgradeSpecial } from "../modules/monster/special-upgrade-domain.js";
 import { selectCopyDropIds } from "../modules/monster/loot-domain.js";
+import { getCopyDropCatalog } from "../modules/monster/copy-drops-domain.js";
+import { equipWing } from "../modules/monster/loadout-domain.js";
+import { refreshGamePlayer } from "../modules/monster/player-refresh-domain.js";
 
 const read = async (name) => JSON.parse(await readFile(new URL(`../public/monster/data/${name}.json`, import.meta.url), "utf8"));
 const [items, skills, enemies, copies, chapters, groups, equipmentTemplates, trials, make] = await Promise.all(
@@ -43,8 +47,30 @@ test("supplemental catalog does not mutate the original groups", () => {
   const assembled = addPortDrops(copies, groups);
   assert.deepEqual(groups, before);
   assert.notStrictEqual(assembled.find((row) => row.id === 2015).dropGroups.percent10, groups[2015].percent10);
-  assert.deepEqual(assembled.find((row) => row.id === 2001).dropGroups, groups[2001]);
+  assert.deepEqual(assembled.find((row) => row.id === 2001).dropGroups.percent10.slice(0, groups[2001].percent10.length), groups[2001].percent10);
   assert.deepEqual(assembled.find((row) => row.id === 2015).dropGroups.percent10.slice(0, groups[2015].percent10.length), groups[2015].percent10);
+});
+
+test("identified premium shop items and VIP wings have in-game drop sources", async () => {
+  const shop = await read("shop");
+  const itemIds = new Set([...shop.map((offer) => offer.itemid), 5044, 5056, 5058, 5087, 5092, 5104, 5116,
+    6818, 6819, 6820, 6821, 6822, 6823, 6824, 6863, 6902, 6903, 6904, 6905, 6906, 6907]);
+  const available = new Set(catalog.copies.flatMap((copy) => getCopyDropCatalog(copy, catalog).map((entry) => entry.id)));
+  for (const id of itemIds) assert.ok(available.has(id), `missing drop source ${id}`);
+});
+
+test("a dropped VIP wing goes into the wing inventory and can be equipped", () => {
+  const state = createNewGame(catalog);
+  const copy = catalog.copies.find((entry) => entry.id === 2015);
+  Object.assign(state.player, { level: 80, paragon: 0, dropRate: 100, goldRate: 100, experienceRate: 100 });
+  const prepared = prepareCopyBattle({ copy, player: state.player, clearCount: 1, hard: 1, waves: 1, catalog, draw: () => 0 });
+  const dropped = settleCopyVictory({ state, copy, prepared, catalog, draw: () => 0 }).state;
+  const index = dropped.inventory.wings.findIndex((wing) => wing.id === 6907);
+  assert.ok(index >= 0);
+  const equipped = refreshGamePlayer(equipWing(dropped, index), catalog);
+  assert.equal(equipped.player.wingId, 6907);
+  assert.ok(equipped.player.attack > state.player.attack);
+  assert.equal(dropped.player.wingId, 6901);
 });
 
 test("victory awards complete badges that can each be upgraded for their recipes", () => {
@@ -67,4 +93,22 @@ test("victory awards complete badges that can each be upgraded for their recipes
     assert.equal(owner.inventory.equipment[0].strength, 5, String(id));
     assert.equal(getCraftRequirements({ state: owner, itemId: recipeId, catalog }).materials.find((material) => material.id === id).owned, 1, String(id));
   }
+});
+
+test("exchange pets have an obtainable trial reward pool and enter the pet inventory", async () => {
+  const pets = await read("pet");
+  const rows = addPortTrialRewards(trials), added = rows.at(-1);
+  assert.equal(trials.some((row) => row.id === added.id), false);
+  for (const [index, id] of JSON.parse(added.items).entries()) {
+    const rolls = [0, index];
+    assert.deepEqual(selectTrialRewards({ hard: 3, score: 2000, rows: [added], draw: () => rolls.shift() }), [{ type: 3, id }]);
+    const state = createNewGame(catalog);
+    state.trial = { hard: 3, level: 30, score: 2000, status: "ended", rewards: [], bestScores: {} };
+    const draws = [0, index];
+    const claimed = claimTrialRewards({ state, catalog: { ...catalog, pets, trials: [added] }, draw: () => draws.shift() });
+    assert.equal(claimed.inventory.pets[0].id, id);
+    assert.equal(claimed.trial.status, "claimed");
+  }
+  assert.deepEqual(selectTrialRewards({ hard: 2, score: 2000, rows: [added], draw: () => 0 }), []);
+  assert.deepEqual(selectTrialRewards({ hard: 3, score: 1999, rows: [added], draw: () => 0 }), []);
 });

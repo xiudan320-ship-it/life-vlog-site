@@ -1,5 +1,3 @@
-import { describeEquipmentAttribute } from "./attribute-labels.js";
-
 export const monsterAssets = "/monster/assets/";
 
 export function element(tag, text, className) {
@@ -38,38 +36,4 @@ export function itemTile(item, catalog, { onClick, quantity = false } = {}) {
   if (item.locked) tile.append(picture("bg/btn_lock2.png", "已锁定", "monster-item-lock"));
   if (quantity) tile.append(element("b", item.quantity ?? 1, "monster-item-quantity"));
   return tile;
-}
-
-export function showItem(item, catalog, onEquip, onUpgrade, onManage) {
-  const row = catalog.items.find((entry) => entry.id === item.id);
-  const dialog = document.getElementById("monsterItemDetails");
-  const content = dialog.querySelector(".monster-item-information");
-  content.replaceChildren(itemTile(item, catalog), element("h2", row.name));
-  if (onEquip) {
-    const equip = element("button", "穿戴 / 更换", "monster-image-button"); equip.type = "button";
-    equip.onclick = () => { dialog.close(); onEquip(); }; content.append(equip);
-    if (item.subtype <= 8) content.append(element("p", "穿戴时自动继承同部位较高的强化等级。"));
-  }
-  if (item.level) content.append(element("p", `等级 ${item.level}${item.paragonGrowth ? ` · 巅峰 ${item.paragonGrowth}` : ""}`));
-  if (item.scoreValue) content.append(element("p", `装备评分 ${item.scoreTier} / ${item.scoreValue}${item.godLevel ? ` · 神器 ${item.godLevel} 星` : ""}`));
-  if (row.describe && row.describe !== "null") content.append(element("p", row.describe));
-  if (item.subtype === 9 && item.attributes?.length) {
-    const effects = element("section", undefined, "monster-item-effects");
-    effects.append(element("h3", "徽章效果（穿戴后生效）"));
-    for (const attribute of item.attributes) effects.append(element("p", describeEquipmentAttribute(attribute)));
-    if (row.specialgrow) effects.append(element("small", "效果随角色等级与巅峰成长。"));
-    content.append(effects);
-  }
-  if (item.strength) content.append(element("p", `强化 +${item.strength}`));
-  if (item.enchantment) content.append(element("p", `附魔 ${["", "攻击", "防御", "生命", "命中", "闪避", "暴击", "暴击伤害", "负面抵抗"][item.enchantment.type]} +${item.enchantment.value}`));
-  if (onUpgrade) {
-    const upgrade = element("button", item.subtype === 9 ? "升级徽章" : "强化 / 重铸 / 附魔", "monster-image-button"); upgrade.type = "button";
-    upgrade.onclick = () => { dialog.close(); onUpgrade(); }; content.append(upgrade);
-  }
-  if (onManage) {
-    const manage = element("button", item.type === 1 ? "出售" : "分解 / 锁定", "monster-image-button"); manage.type = "button";
-    manage.dataset.manageBagItem = "";
-    manage.onclick = () => { dialog.close(); onManage(); }; content.append(manage);
-  }
-  if (!dialog.open) dialog.showModal();
 }

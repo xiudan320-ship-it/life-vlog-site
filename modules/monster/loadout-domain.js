@@ -28,3 +28,10 @@ export function equipBagItem(state, index, catalog) {
   return { ...state, player: { ...state.player, equipmentSets: state.player.equipmentSets.map((set, i) => i === setIndex ? next : set) },
     inventory: { ...state.inventory, equipment: bag } };
 }
+
+export function equipWing(state, index) {
+  const wing = state.inventory.wings[index];
+  if (!wing || wing.type !== 2 || wing.subtype !== 10) throw new RangeError("请选择背包中的翅膀");
+  if (state.player.level < wing.level) throw new RangeError("角色等级不足");
+  return { ...state, player: { ...state.player, wingId: wing.id } };
+}

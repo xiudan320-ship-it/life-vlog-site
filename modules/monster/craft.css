@@ -13,3 +13,4 @@
   .monster-craft-costs .monster-craft-source{flex:none;margin-left:0}
 }
 .monster-craft-badge-effects{margin:8px 0;padding:8px;border:1px solid #795d2c;background:#160e08a8}.monster-craft-badge-effects h4{margin:0 0 4px;color:#ffd18b;font-size:14px}.monster-craft-badge-effects p{margin:2px 0;color:#f1e1bd;font-size:13px}.monster-craft-badge-effects small{color:#d8c49f}
+.monster-craft-list{max-height:min(42vh,360px);min-height:250px}.monster-craft-detail{line-height:1.5}.monster-craft-comparison p{font-size:13px}

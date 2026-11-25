@@ -11,7 +11,12 @@ export function changeGold({ gold, delta }) {
 
 /** Goods stack by item ID; equipment instances remain separate bag entries. */
 export function addBagItem({ inventory, item }) {
-  if (item.type !== 1) return { ...inventory, equipment: [...inventory.equipment, { ...item }] };
+  if (item.type === 2 && item.subtype === 10) return { ...inventory, wings: [...inventory.wings, { ...item }] };
+  if (item.type !== 1) {
+    const acquisitionSequence = (inventory.acquisitionSequence || 0) + 1;
+    if (!Number.isSafeInteger(acquisitionSequence)) throw new RangeError("装备获取记录已达上限");
+    return { ...inventory, acquisitionSequence, equipment: [...inventory.equipment, { ...item, acquisitionOrder: acquisitionSequence }] };
+  }
   let matched = false;
   const goods = inventory.goods.map((entry) => {
     if (entry.id !== item.id) return entry;

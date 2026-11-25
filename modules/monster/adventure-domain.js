@@ -5,6 +5,7 @@ import { creditBattleLoot } from "./settlement-domain.js";
 import { recordRegularCopyVictory, incrementCopyClear } from "./copy-progress-domain.js";
 import { copyUsesParagon } from "./copy-domain.js";
 import { getPetCare, recordPartyPetKills } from "./pet-care-domain.js";
+import { recordBattleAchievements } from "./achievement-domain.js";
 import { applyPetPassiveAttributes } from "./pet-battle-domain.js";
 
 export function payCopyEntry(state, copy) {
@@ -78,6 +79,7 @@ export function settleCopyVictory(input) {
     const progress = recordRegularCopyVictory({ progress: state.progress, money: state.money, copy, chapter, enemyCount: prepared.enemyCount });
     state = { ...state, progress: progress.progress, money: progress.money };
   } else state = { ...state, progress: { ...state.progress, copies: incrementCopyClear({ copies: state.progress.copies, copyId: copy.id, amount: 1 }).copies } };
+  state = recordBattleAchievements({ state, catalog, copy, prepared, defeated: prepared.enemyCount, victory: true });
   return { state, reward };
 }
 
@@ -85,7 +87,7 @@ export function settleCopyVictory(input) {
 // Victory keeps its original calculations and random draw order unchanged.
 export function settleCopyDefeat({ state, copy, prepared, battle, catalog, draw }) {
   const defeated = battle.enemies.filter((enemy) => enemy.dead);
-  if (!defeated.length) return { state, reward: { gold: 0, experience: 0, honor: 0, items: [], partial: true, defeatedCount: 0 } };
+  if (!defeated.length) return { state: recordBattleAchievements({ state, catalog, copy, prepared, defeated: 0, victory: false }), reward: { gold: 0, experience: 0, honor: 0, items: [], partial: true, defeatedCount: 0 } };
   const earned = { ...prepared, enemyCount: defeated.length,
     rewardRate: getBattleQualityRewardRate(defeated.map((enemy) => enemy.quality)),
     encounterCopy: prepared.encounterCopy && battle.enemies.at(-1).dead ? prepared.encounterCopy : null };
@@ -94,5 +96,5 @@ export function settleCopyDefeat({ state, copy, prepared, battle, catalog, draw 
   const credited = creditBattleLoot(state, reward);
   if (credited.effects.petGrowth) reward.petGrowth = credited.effects.petGrowth;
   if (credited.effects.sidePetGrowth.length) reward.sidePetGrowth = credited.effects.sidePetGrowth;
-  return { state: credited.state, reward };
+  return { state: recordBattleAchievements({ state: credited.state, catalog, copy, prepared, defeated: defeated.length, victory: false }), reward };
 }

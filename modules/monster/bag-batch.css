@@ -1,0 +1,4 @@
+.monster-batch-header{padding:12px;margin-bottom:10px}.monster-batch-header h3{margin:0;color:#ffd18b;font-size:17px;font-weight:400}
+.monster-batch-header p{font-size:13px;line-height:1.5;color:#e8d4ae}.monster-batch-header>button{margin:3px 4px 3px 0}
+.monster-batch-confirm{display:flex;align-items:center;gap:8px;min-height:44px;font-size:14px}.monster-batch-confirm input,.monster-batch-item>input{width:24px;height:24px;accent-color:#b77b25}
+.monster-batch-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.monster-batch-item{display:flex;align-items:center;gap:6px;min-width:0;padding:5px;font-size:12px}.monster-batch-item>.monster-item{width:44px;flex:none}.monster-batch-item .monster-item-name{display:none}.monster-batch-item>span{min-width:0;overflow-wrap:anywhere}

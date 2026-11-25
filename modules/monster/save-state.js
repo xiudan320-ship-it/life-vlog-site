@@ -22,6 +22,24 @@ export function validateMonsterSave(state) {
   const mainPets = state.inventory.pets.filter((pet) => pet?.partyRole === 1);
   const sidePets = state.inventory.pets.filter((pet) => pet?.partyRole === 2);
   const equipment = [...state.inventory.equipment, ...player.equipmentSets.flat()];
+  if (state.inventory.acquisitionSequence === undefined ? equipment.some((item) => item.acquisitionOrder !== undefined)
+    : !integer(state.inventory.acquisitionSequence) || equipment.some((item) => item.acquisitionOrder !== undefined
+      && (!integer(item.acquisitionOrder, 1) || item.acquisitionOrder > state.inventory.acquisitionSequence))) {
+    throw new TypeError("装备获取顺序无效，请保留原存档并重试。");
+  }
+  if (state.equipmentTargets !== undefined && (!Array.isArray(state.equipmentTargets)
+    || !state.equipmentTargets.every((id) => integer(id, 1)) || new Set(state.equipmentTargets).size !== state.equipmentTargets.length)) {
+    throw new TypeError("装备目标数据无效，请保留原存档并重试。");
+  }
+  if (state.achievementProgress !== undefined) {
+    const progress = state.achievementProgress;
+    if (!progress || !progress.counters || typeof progress.counters !== "object" || Array.isArray(progress.counters)
+      || !Object.entries(progress.counters).every(([id, value]) => /^[1-9]\d*$/.test(id) && integer(value))
+      || !Array.isArray(progress.completed) || !progress.completed.every((id) => integer(id, 1))
+      || new Set(progress.completed).size !== progress.completed.length || !integer(progress.points) || !integer(progress.titleId)) {
+      throw new TypeError("成就存档数据无效，请保留原存档并重试。");
+    }
+  }
   if (equipment.some((item) => item?.subtype >= 1 && item.subtype <= 8 && (!integer(item.strength) || item.strength > MAX_EQUIPMENT_STRENGTH))) {
     throw new TypeError("装备强化数据无效，请保留原存档并重试。");
   }

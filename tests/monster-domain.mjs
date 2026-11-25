@@ -282,7 +282,11 @@ test("monster gold credit preserves 30 original ARM outputs including cap bounda
 test("monster bag credit preserves 12 original ARM outputs without mutating inputs", () => {
   for (const item of bagCreditCases) {
     const before = structuredClone(item.input);
-    assert.deepEqual(addBagItem(item.input), item.expected, JSON.stringify(item.input));
+    const result = addBagItem(item.input);
+    const { acquisitionSequence, ...native } = result;
+    native.equipment = native.equipment.map(({ acquisitionOrder, ...entry }) => entry);
+    assert.deepEqual(native, item.expected, JSON.stringify(item.input));
+    if (acquisitionSequence !== undefined) assert.equal(result.equipment.at(-1).acquisitionOrder, acquisitionSequence);
     assert.deepEqual(item.input, before);
   }
 });

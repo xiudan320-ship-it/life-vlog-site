@@ -45,6 +45,6 @@ export function renderTrial({ content, state, catalog, onStart, onClaim, initial
     receipt.append(trial.rewards.length ? grid : element("p", "本轮未抽中额外物品")); panel.append(receipt);
   }
   panel.append(element("p", "每层结束自动保存。可暂时返回，重新进入试炼后续层。战败保留已得积分及击杀收益；结束时按积分抽取物品，每轮结算一次。", "monster-panel-hint"));
-  panel.append(element("p", "宠物奖励可收藏在背包，宠物出战尚未接通。", "monster-panel-hint"));
+  panel.append(element("p", "难度 3 积分达到 2000 时，结算有机会获得凤凰、巨龙等特殊宠物。", "monster-panel-hint"));
   content.append(panel);
 }

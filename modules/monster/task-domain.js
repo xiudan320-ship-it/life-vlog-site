@@ -31,9 +31,16 @@ export function recordTaskBattle({ state, copy, prepared, battle }) {
     if (entry.type === 11 && close) amount = kills;
     if (entry.type === 12 && copy.type === 2 && close && victory) amount = 1;
     if (entry.type === 13 && [1, 2].includes(copy.type) && prepared.encounterCopy && battle.enemies.at(-1).dead) amount = 1;
+    if (entry.type === 17 && victory) amount = 1;
     return amount ? { ...entry, count: Math.min(entry.need, entry.count + amount) } : entry;
   });
   return { ...state, taskBoard: { ...state.taskBoard, entries } };
+}
+
+export function recordTaskShopPurchase(state) {
+  if (!state.taskBoard) return state;
+  return { ...state, taskBoard: { ...state.taskBoard, entries: state.taskBoard.entries.map((entry) =>
+    entry.type === 16 && !entry.claimed ? { ...entry, count: Math.min(entry.need, entry.count + 1) } : entry) } };
 }
 
 export function taskCount(entry, state) {

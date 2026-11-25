@@ -150,7 +150,7 @@ export function renderCopySelection({ content, state, catalog, settings, onStart
       bindCopyPress(button, () => idleMode ? onOffline(copy.id, selected()) : onStart(copy.id, selected()), () => onScout(copy.id, selected()));
       const details = element("button", "ⓘ", "monster-copy-details");
       details.type = "button"; details.dataset.copyDetails = copy.id;
-      details.setAttribute("aria-label", `查看${copy.name}的详情及战力对比`);
+      details.setAttribute("aria-label", `查看${copy.name}的详情及战力对比和掉落`);
       details.onclick = () => onScout(copy.id, selected());
       row.append(button, details); list.append(row);
     });

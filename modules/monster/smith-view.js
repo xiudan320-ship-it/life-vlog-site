@@ -8,18 +8,18 @@ const statNames = ["", "攻击", "防御", "生命", "命中", "闪避", "暴击
 export function renderWorkshop({ content, state, catalog, actions }) {
   content.className = "monster-workshop-content";
   const tools = element("nav", undefined, "monster-image-tabs"); tools.setAttribute("aria-label", "铁匠铺功能");
-  for (const [title, action] of [["打造与合成", () => actions.showCraft()], ["熔炼", () => actions.showSmelt()]]) {
+  for (const [title, action] of [["打造与合成", () => actions.showCraft()], ["熔炼", () => actions.showSmelt()], ["装备目标", () => actions.equipmentTargets()]]) {
     const button = element("button", title, "monster-image-button"); button.type = "button"; button.onclick = action; tools.append(button);
   }
   content.append(tools);
-  content.append(element("p", "选择装备进行强化、重铸和附魔。每次操作后自动保存到当前账号。", "monster-panel-hint"));
-  for (const [source, title, entries] of [["equipped", "已穿戴", state.player.equipmentSets[state.player.equipmentSetIndex]], ["bag", "背包装备", state.inventory.equipment]]) {
-    content.append(element("h3", title));
-    const grid = element("div", undefined, "monster-bag-grid monster-original-panel");
-    entries.forEach((item, index) => { if (item.subtype <= 9) grid.append(itemTile(item, catalog, { onClick: () => actions.upgrade({ source, index, id: item.id }) })); });
-    if (!grid.children.length) grid.append(element("p", "暂无可培养装备", "monster-panel-hint"));
-    content.append(grid);
-  }
+  content.append(element("p", "选择已穿戴装备进行培养；背包装备可在背包中培养。操作后自动保存。", "monster-panel-hint"));
+  content.append(element("h3", "已穿戴"));
+  const grid = element("div", undefined, "monster-bag-grid monster-original-panel");
+  state.player.equipmentSets[state.player.equipmentSetIndex].forEach((item, index) => {
+    if (item.subtype <= 9) grid.append(itemTile(item, catalog, { onClick: () => actions.upgrade({ source: "equipped", index, id: item.id }) }));
+  });
+  if (!grid.children.length) grid.append(element("p", "暂无可培养装备", "monster-panel-hint"));
+  content.append(grid);
 }
 
 export function renderUpgrade({ content, state, catalog, target, actions, receipt, session = {} }) {

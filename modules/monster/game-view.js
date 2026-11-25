@@ -10,6 +10,9 @@ import { renderSmelt } from "./smelt-view.js";
 import { renderSpecialUpgrade } from "./special-upgrade-view.js";
 import { renderGodUpgrade } from "./god-upgrade-view.js";
 import { renderBagItem } from "./bag-item-view.js";
+import { renderBagBatch } from "./bag-batch-view.js";
+import { renderEquipmentTargets } from "./equipment-target-view.js";
+import { renderAchievements } from "./achievement-view.js";
 import { renderPets } from "./pet-view.js";
 import { renderMaterialSources } from "./material-source-view.js";
 import { renderCopyScout } from "./copy-scout-view.js";
@@ -18,6 +21,8 @@ import { renderOffline } from "./offline-view.js";
 import { renderShop } from "./shop-view.js";
 import { MONSTER_FONT, unifyCanvasTypography } from "./typography.js";
 import { createBattleAnimations } from "./battle-animation-view.js";
+import { showItem } from "./item-detail-view.js";
+import { showResultLoot } from "./result-loot-view.js";
 
 const assets = "/monster/assets/";
 
@@ -25,6 +30,10 @@ export function createMonsterGameView({ warView }) {
   const { cc, ccui, ccs } = globalThis;
   const battleAnimations = createBattleAnimations({ cc, assets, reducedMotion: () => matchMedia("(prefers-reduced-motion: reduce)").matches });
   const frame = document.getElementById("monsterFrame");
+  const resultLootControls = document.createElement("div");
+  resultLootControls.className = "monster-result-loot-controls";
+  resultLootControls.hidden = true;
+  frame.append(resultLootControls);
   const status = document.getElementById("monsterStatus");
   const controls = Object.fromEntries(["Enter", "Adventure", "Role", "Skills", "Bag"].map((name) => [name, document.getElementById(`monster${name}`)]));
   const exitBattle = document.createElement("button");
@@ -52,11 +61,15 @@ export function createMonsterGameView({ warView }) {
   let homeHeader;
   let upgradeScreen;
   let craftSelection;
+  let equipmentTargetSelection = { filter: "all" };
+  let achievementSelection = { section: "achievements" };
   let shopSelection;
   let size = { width: 0, height: 0 };
 
   function stage(value) {
     phase = value;
+    resultLootControls.hidden = value !== "result";
+    if (value !== "result") resultLootControls.replaceChildren();
     document.body.dataset.monsterStage = value;
     exitBattle.hidden = value !== "battle" && !(value === "result" && repeating);
     battlePower.hidden = value !== "battle" && value !== "home";
@@ -179,7 +192,7 @@ export function createMonsterGameView({ warView }) {
     walk(content, (node) => {
       if (!(node instanceof ccui.Button)) return;
       const type = adventureButtons[node.getName()];
-      const handler = { btn_task: () => actions.tasks(), btn_blacksmith: () => actions.workshop(), btn_strength: () => actions.workshop(), btn_pet: () => actions.pets(), btn_shop: () => actions.shop() }[node.getName()];
+      const handler = { btn_task: () => actions.tasks(), btn_achievement: () => actions.achievements(), btn_blacksmith: () => actions.workshop(), btn_strength: () => actions.workshop(), btn_pet: () => actions.pets(), btn_shop: () => actions.shop() }[node.getName()];
       node.setVisible(Boolean(type || handler));
       if (type) { find(node, "img_lock")?.setVisible(false); click(node, () => actions.selectCopy(type)); }
       else if (handler) { find(node, "img_lock")?.setVisible(node.getName() === "btn_pet" && state.player.level < 35); click(node, handler); }
@@ -335,11 +348,13 @@ export function createMonsterGameView({ warView }) {
       label.setPosition(container.width / 2, container.height / 2);
       container.addChild(label, 20);
     }
-    text(widget, "text_endresult", loot.length ? "获得物品" : "未获得物品");
+    text(widget, "text_endresult", loot.length ? `获得物品 · 点击查看全部 ${reward.items.length} 项` : "未获得物品");
+    if (loot.length) find(widget, "text_endresult")?.setFontSize(24);
     if (reward.partial) {
       text(widget, "text_backtips", `战败 · 已保留 ${reward.defeatedCount} 只怪物收益\n点击返回`);
       find(widget, "text_backtips")?.setFontSize(24);
     }
+    const lootFrames = [];
     loot.forEach(({ item, row }, index) => {
       const frame = new ccui.ImageView(`${assets}bg/package_bg.png`);
       frame.setPosition(95 + index % 6 * 90, 410 - Math.floor(index / 6) * 100);
@@ -347,10 +362,33 @@ export function createMonsterGameView({ warView }) {
       icon.setScale(58 / Math.max(icon.width, icon.height)); icon.setPosition(frame.width / 2, frame.height / 2); frame.addChild(icon);
       const quantity = new ccui.Text(String(item.quantity ?? 1), MONSTER_FONT, 22); quantity.setPosition(frame.width - 12, 12); frame.addChild(quantity);
       widget.addChild(frame, 30);
+      lootFrames.push(frame);
     });
     text(widget, "text_backtips", reward.partial ? `战败 · 已保留 ${reward.defeatedCount} 只怪物收益\n点击返回关卡` : "点击返回关卡");
     click(widget, () => actions.returnToSelection());
     scene(widget, true);
+    resultLootControls.replaceChildren();
+    const bounds = frame.getBoundingClientRect();
+    loot.forEach(({ item, row }, index) => {
+      const box = nodeScreenBox(lootFrames[index], frame, cc);
+      const width = Math.max(44, box.right - box.left), height = Math.max(44, box.bottom - box.top);
+      const button = document.createElement("button"); button.type = "button";
+      button.dataset.resultItem = String(index);
+      button.dataset.itemId = String(item.id);
+      button.setAttribute("aria-label", `查看${row.name}的物品详情`);
+      Object.assign(button.style, { left: `${(box.left + box.right - width) / 2 - bounds.left}px`, top: `${(box.top + box.bottom - height) / 2 - bounds.top}px`, width: `${width}px`, height: `${height}px` });
+      button.onclick = () => showItem({ item, catalog, state });
+      resultLootControls.append(button);
+    });
+    if (loot.length) {
+      const box = nodeScreenBox(find(widget, "text_endresult"), frame, cc);
+      const width = Math.max(44, box.right - box.left), height = Math.max(44, box.bottom - box.top);
+      const all = document.createElement("button"); all.type = "button"; all.dataset.resultAll = "";
+      all.setAttribute("aria-label", `查看全部 ${reward.items.length} 项掉落`);
+      Object.assign(all.style, { left: `${(box.left + box.right - width) / 2 - bounds.left}px`, top: `${(box.top + box.bottom - height) / 2 - bounds.top}px`, width: `${width}px`, height: `${height}px` });
+      all.onclick = () => showResultLoot({ items: reward.items, catalog, state });
+      resultLootControls.append(all);
+    }
     lastRender = () => result(outcome, reward, state, catalog);
     stage("result");
     const pet = reward.petGrowth;
@@ -383,6 +421,13 @@ export function createMonsterGameView({ warView }) {
     renderRole(details(`角色属性 · Lv.${state.player.level}`, controls.Role), state, catalog, actions);
   }
   function bag(state, catalog, kind, receipt) { renderBag(details("背包", controls.Bag), state, catalog, actions, { kind, receipt }); }
+  function bagBatch(state, catalog, selectAll) { renderBagBatch({ content: details("批量分解", controls.Bag), state, catalog, actions, selectAll }); }
+  function equipmentTargets(state, catalog, receipt) {
+    if (!receipt) equipmentTargetSelection = { filter: "all" };
+    const content = details("装备目标", controls.Role);
+    renderEquipmentTargets({ content, state, catalog, actions, receipt, selection: equipmentTargetSelection });
+    content.scrollTop = 0;
+  }
   function bagItem(state, catalog, target, receipt) { renderBagItem({ content: details(target.kind === "equipment" ? "装备分解与锁定" : "道具出售", controls.Bag), state, catalog, target, actions, receipt }); }
   function pets(state, catalog, receipt) {
     const preserveIndex = receipt?.targetIndex ?? null;
@@ -448,6 +493,11 @@ export function createMonsterGameView({ warView }) {
       actions.scoutCopy(3101, { trialHard, repeat: false });
     }, onClaim: () => actions.claimTrial() });
   }
+  function achievements(state, catalog, receipt) {
+    if (!receipt) achievementSelection = { section: "achievements" };
+    const content = details("成就与称号", controls.Enter);
+    renderAchievements({ content, state, catalog, actions, selection: achievementSelection, receipt });
+  }
   function tasks(state, catalog, now) {
     renderTasks({ content: details("日常任务", controls.Enter), state, catalog, actions, now });
   }
@@ -495,7 +545,7 @@ export function createMonsterGameView({ warView }) {
   function specialUpgrade(state, catalog, target, receipt) { renderSpecialUpgrade({ content: details("徽章升级", controls.Role), state, catalog, target, actions, receipt }); }
   function godUpgrade(state, catalog, target, receipt) { renderGodUpgrade({ content: details("神器培养", controls.Role), state, catalog, target, actions, receipt }); }
   return {
-    menu, home, updateHome, battle, battleUpdate, result, role, bag, bagItem, pets, skills, selectCopy, offline, offlineProgress, closeOffline, resetOffline, copyScout, closeCopyScout, closeSelection, trial, tasks, shop, workshop, upgrade, updateUpgrade, craft, materialSources, closeMaterialSources, smelt, specialUpgrade, godUpgrade, notice,
+    menu, home, updateHome, battle, battleUpdate, result, role, bag, bagBatch, equipmentTargets, bagItem, pets, skills, selectCopy, offline, offlineProgress, closeOffline, resetOffline, copyScout, closeCopyScout, closeSelection, trial, tasks, achievements, shop, workshop, upgrade, updateUpgrade, craft, materialSources, closeMaterialSources, smelt, specialUpgrade, godUpgrade, notice,
     repeatStatus(enabled) { repeating = enabled; document.getElementById("monsterStop").hidden = !enabled; stage(phase); },
     exitPending(enabled) { exitPending = enabled; stage(phase); },
     loadError(message) { stage("error"); statusMessage(message); },

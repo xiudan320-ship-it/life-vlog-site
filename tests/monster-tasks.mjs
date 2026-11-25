@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
-import { selectLevelTasks, createTaskBoard, recordTaskBattle, claimTask, claimDailyReward, gameDay } from "../modules/monster/task-domain.js";
+import { selectLevelTasks, createTaskBoard, recordTaskBattle, recordTaskShopPurchase, claimTask, claimDailyReward, gameDay } from "../modules/monster/task-domain.js";
+import { adaptPortTasks } from "../modules/monster/port-task-domain.js";
 import { createNewGame } from "../modules/monster/new-game-domain.js";
 import { validateMonsterSave } from "../modules/monster/save-state.js";
 const read = async (path) => JSON.parse(await readFile(new URL(path, import.meta.url), "utf8"));
@@ -69,4 +70,22 @@ test("battle task credit retains completed kills on defeat and requires victory 
   fixture.copy = { id: 2001, type: 2, level: 1 }; fixture.battle.outcome = 3;
   state = recordTaskBattle({ state, ...fixture });
   assert.equal(state.taskBoard.entries.find((entry) => entry.type === 12).count, 1);
+});
+
+test("port daily goals replace recharge with victory and count actual shop purchases", () => {
+  const adapted = { ...catalog, tasks: adaptPortTasks(tasks) };
+  assert.equal(adapted.tasks.find((row) => row.id === 1007).name, "完成一次战斗");
+  assert.equal(adapted.tasks.find((row) => row.id === 1006).name, "在商店购买道具");
+  assert.equal(tasks.find((row) => row.id === 1007).name, "充值一次");
+  let state = createTaskBoard({ state: createNewGame(catalog), catalog: adapted, draw: () => 0 });
+  const input = { copy: { id: 1001, type: 1, level: 1 }, prepared: {}, battle: { outcome: 1, enemies: [{ dead: true }] } };
+  state = recordTaskBattle({ state, ...input });
+  assert.equal(state.taskBoard.entries.find((entry) => entry.id === 1007).count, 0);
+  input.battle.outcome = 3;
+  state = recordTaskBattle({ state, ...input });
+  assert.equal(state.taskBoard.entries.find((entry) => entry.id === 1007).count, 1);
+  state = recordTaskShopPurchase(state);
+  assert.equal(state.taskBoard.entries.find((entry) => entry.id === 1006).count, 1);
+  state = claimTask({ state, id: 1007, catalog: adapted });
+  assert.equal(state.taskBoard.entries.find((entry) => entry.id === 1007).claimed, 1);
 });

@@ -40,7 +40,7 @@ test("普通装备抽取评分、扣金币和材料并入背包，不改变原�
   assert.equal(result.state.gold, 88);
   assert.equal(result.state.money, 20);
   assert.equal(result.state.inventory.goods[0].quantity, 3);
-  assert.deepEqual(result.state.inventory.equipment, [result.item]);
+  assert.deepEqual(result.state.inventory.equipment, [{ ...result.item, acquisitionOrder: 1 }]);
   assert.deepEqual(input, before);
 });
 
