@@ -95,4 +95,4 @@
 
 ## 当前部署
 
-2026-11-19 已从 `main` 提交 `64701ea943b4c75ea7a14106e9ff619d201426e6` 发布选关、打造与战斗退出优化。preview `a2d3dfec-4a16-4b6d-8a45-f9484b0a8f27`、production `38d5e410-1682-4b8d-83fe-ae4ad0f7a926`，Worker 版本 `9de3ef4e-aa3c-4246-a45c-d5f1c83b2bba`。完整本地回归、预览／正式统一门禁与正式站 iPhone 13 条件 WebKit 专项通过；正式独立游戏 JS／CSS 校验值与本次构建一致。退出部分收益沿用现有账号存档结构，不需远程 D1 结构变更；所有测试使用隔离合成数据。部署身份、哈希及模拟边界见 CHANGELOG 的「2026-11-19 — 选关、打造与战斗退出」。
+2026-11-25 从 `main` 提交 `b1362632d2445a3c3b8fd1715d80db21f7e1979a` 发布装备目标、掉落详情、批量分解和成就称号。正式部署 `https://6e38d5fa.life-vlog-site.pages.dev`，Worker 版本 `3cc9b563-b5b3-42cf-bbc8-39ffe87fe224`；本地完整回归、预览／正式发布门禁及正式站 iPhone WebKit 专项通过。资源指纹与边界见 CHANGELOG 的「2026-11-25 — 黑暗传说装备、掉落与成就」。
