@@ -49,13 +49,13 @@ let keyboardChecked = false;
 const artifacts = resolve("artifacts/monster");
 await mkdir(artifacts, { recursive: true });
 
-async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, saveStatus = 0, defeat = false, trial = false, trialRewards = false, workshop = false, retention = false, navigation = false, taskNavigation = false, offline = false, offlineWeak = false, shop = false, sidePets = false, petParty = false, petGrowth = false, petCare = false, petPassives = false, petTraining = false, bagBatch = false, wingPreview = false, playerImage = "", pointShopFixture = false, lootFull = false, achievementsFixture = false, animationSkill = 0, colorScheme = "dark", reducedMotion = "no-preference" } = {}) {
+async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, saveStatus = 0, defeat = false, trial = false, trialRewards = false, workshop = false, retention = false, navigation = false, taskNavigation = false, offline = false, offlineWeak = false, shop = false, sidePets = false, petParty = false, petGrowth = false, petCare = false, petPassives = false, petTraining = false, bagBatch = false, wingPreview = false, playerImage = "", pointShopFixture = false, roleLayout = false, lootFull = false, achievementsFixture = false, animationSkill = 0, colorScheme = "dark", reducedMotion = "no-preference" } = {}) {
   const context = await browser.newContext({ ...(iphone13 ? devices["iPhone 13"] : {}), viewport: { width: 390, height: 844 }, screen: { width: 390, height: 844 }, colorScheme, reducedMotion });
   contexts.push(context);
   context.on("requestfailed", (request) => requestFailures.push({ url: request.url(), error: request.failure()?.errorText }));
   const fixture = createWorkerFixture({ origin });
   if (offline) fixture.serverTime = Date.UTC(2026, 0, 1);
-  if (trial || workshop || retention || navigation || taskNavigation || offline || shop || sidePets || petParty || petGrowth || petCare || petPassives || petTraining || bagBatch || wingPreview || playerImage || pointShopFixture || lootFull || achievementsFixture || animationSkill) {
+  if (trial || workshop || retention || navigation || taskNavigation || offline || shop || sidePets || petParty || petGrowth || petCare || petPassives || petTraining || bagBatch || wingPreview || playerImage || pointShopFixture || roleLayout || lootFull || achievementsFixture || animationSkill) {
     const [items, skills] = await Promise.all(["item", "skill"].map(async (name) => JSON.parse(await readFile(resolve(root, `monster/data/${name}.json`), "utf8"))));
     const seed = createNewGame({ items, skills }); seed.player.name = "功能测试勇者";
     if (playerImage) seed.player.image = playerImage;
@@ -166,6 +166,12 @@ async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, sa
       const achievements = JSON.parse(await readFile(resolve(root, "monster/data/achievement.json"), "utf8"));
       seed.achievementProgress = recordAchievements({ state: seed, catalog: { achievements } }).achievementProgress;
     }
+    if (roleLayout) {
+      const templates = JSON.parse(await readFile(resolve(root, "monster/data/equipment-templates.json"), "utf8"));
+      seed.player.level = 80; seed.achievementProgress.titleId = 101;
+      seed.player.equipmentSets[0][0].attributes.push({ type: 1, value: 1000000 }, { type: 2, value: 1000000 });
+      for (const id of [6911, 6912, 6913, 6914]) seed.player.equipmentSets[0].push({ ...createCatalogEquipment({ row: items.find((item) => item.id === id), template: templates[id] }), equipped: true });
+    }
     fixture.DB.database.prepare("insert into monster_saves values (?, ?, ?, ?)").run("owner", JSON.stringify(seed), 1, "2030-01-01T00:00:00Z");
     await context.addInitScript(() => {
       const schedule = window.setTimeout;
@@ -261,6 +267,7 @@ async function fight(page, copyId = 1001, controlled = false, waves = 1) {
   await page.locator("#monsterAdventure").click();
   if (waves > 1) await page.getByLabel("地图波数").selectOption(String(waves));
   await page.locator(`[data-copy-id="${copyId}"]`).click();
+  await page.locator(`[data-scout-start="${copyId}"]`).click();
   await stage(page, "battle");
   if (iphone13) {
     const top = await page.evaluate(() => {
@@ -385,7 +392,7 @@ async function checkPetPassives() {
       return schedule(callback, delay, ...args);
     };
   });
-  await page.locator("#monsterAdventure").click(); await page.locator('[data-copy-id="1001"]').click(); await stage(page, "battle");
+  await page.locator("#monsterAdventure").click(); await page.locator('[data-copy-id="1001"]').click(); await page.locator('[data-scout-start="1001"]').click(); await stage(page, "battle");
   await page.waitForFunction(() => typeof window.monsterFixturePendingBattle === "function");
   assert.match(await page.locator("#monsterBattlePower").textContent(), /助战 4/);
   assert.match(await page.locator("#monsterStatus").textContent(), /宠物助战 4 项/);
@@ -643,8 +650,7 @@ async function checkTaskNavigation() {
   await locked.waitFor();
   assert.equal(await locked.getAttribute("data-locked"), "true");
   await locked.click();
-  await page.locator("#monsterToast").filter({ hasText: "尚未解锁章节" }).waitFor();
-  await page.locator('[data-copy-details="1013"]').click();
+  assert.match(await page.locator(".monster-scout-locked").textContent(), /尚未解锁章节/);
   assert.equal(await page.locator('[data-scout-start="1013"]').isDisabled(), true);
   await page.locator(".monster-scout-controls button").first().click();
   await page.locator("#monsterDetailsClose").click(); await tapNative(page, "btn_task");
@@ -761,7 +767,7 @@ async function checkMapAndBadgeUi() {
   await page.locator(".monster-chapter-rail").evaluate((rail) => { rail.scrollLeft = 400; });
   await page.waitForTimeout(50);
   const chapterScroll = await page.locator(".monster-chapter-rail").evaluate((rail) => rail.scrollLeft);
-  await page.locator('[data-copy-id="1010"]').click(); await stage(page, "result");
+  await page.locator('[data-copy-id="1010"]').click(); await page.locator('[data-scout-start="1010"]').click(); await stage(page, "result");
   await tapNative(page, "text_backtips"); await page.locator(".monster-adventure-content").waitFor();
   assert.equal(await page.locator('[data-chapter-id="2"]').getAttribute("aria-current"), "true");
   assert.equal(await page.locator(".monster-chapter-rail").evaluate((rail) => rail.scrollLeft), chapterScroll);
@@ -799,7 +805,7 @@ async function checkBattleAnimation() {
       };
     });
     await page.locator("#monsterAdventure").click();
-    await page.locator('[data-copy-id="1001"]').click(); await stage(page, "battle");
+    await page.locator('[data-copy-id="1001"]').click(); await page.locator('[data-scout-start="1001"]').click(); await stage(page, "battle");
     await page.waitForFunction(() => typeof window.monsterFixturePendingBattle === "function");
     await page.evaluate(() => {
       function find(node, name) { if (node.getName?.() === name) return node; for (const child of node.getChildren?.() || []) { const result = find(child, name); if (result) return result; } }
@@ -846,12 +852,28 @@ async function checkItemInformation() {
   await page.locator("#monsterEnter").click(); await stage(page, "home");
   await page.locator("#monsterAdventure").click();
   await page.locator('[data-chapter-id="1"]').click();
-  await page.locator('[data-copy-details="1001"]').click();
+  const prevented = await page.locator('[data-copy-id="1001"] img').first().evaluate((img) => {
+    const event = new MouseEvent("contextmenu", { bubbles: true, cancelable: true }); img.dispatchEvent(event);
+    return { canceled: event.defaultPrevented, callout: getComputedStyle(img).getPropertyValue("-webkit-touch-callout"), supported: CSS.supports("-webkit-touch-callout", "none") };
+  });
+  assert.equal(prevented.canceled, true);
+  if (prevented.supported) assert.equal(prevented.callout, "none");
   await page.locator(".monster-scout-drops").waitFor();
   assert.ok(await page.locator('[data-drop-item="5003"]').count());
   assert.ok(await page.locator('[data-drop-item="5045"]').count());
   assert.match(await page.locator(".monster-scout-drops").textContent(), /共享关卡结算掉落/);
-  await page.locator("#monsterItemClose").click(); await page.locator("#monsterDetailsClose").click();
+  await page.locator('[data-drop-item="5003"]').click();
+  assert.match(await page.locator(".monster-item-information").textContent(), /普通强化石.*背包持有.*强化装备/s);
+  await page.getByRole("button", { name: "返回掉落预览" }).click();
+  assert.ok(await page.locator('[data-drop-item="5003"]').isVisible());
+  await page.locator("#monsterItemClose").click();
+  await page.locator('[data-copy-type="2"]').click(); await page.locator('[data-copy-details="2005"]').click();
+  while (!await page.locator('[data-drop-item="6807"]').count()) await page.getByRole("button", { name: "下一页掉落" }).click();
+  await page.locator('[data-drop-item="6807"]').click();
+  assert.match(await page.locator(".monster-item-information").textContent(), /背包持有.*徽章显示未升级.*徽章效果/s);
+  await page.getByRole("button", { name: "返回掉落预览" }).click();
+  assert.ok(await page.locator('[data-drop-item="6807"]').isVisible());
+  await page.locator("#monsterItemClose").click(); await page.locator('[data-copy-type="1"]').click(); await page.locator("#monsterDetailsClose").click();
   await fight(page, 1001, true, 10);
   await page.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-loot-result.png" : "loot-result.png") });
   const icon = page.locator("[data-result-item]").first();
@@ -1028,7 +1050,7 @@ async function checkPlayerImage() {
   await page.locator("#monsterRole").click();
   assert.match(await page.locator(".monster-role-character").getAttribute("src"), /ani\/2002\.png$/);
   await page.locator("#monsterDetailsClose").click();
-  await page.locator("#monsterAdventure").click(); await page.locator('[data-copy-id="1001"]').click(); await stage(page, "battle");
+  await page.locator("#monsterAdventure").click(); await page.locator('[data-copy-id="1001"]').click(); await page.locator('[data-scout-start="1001"]').click(); await stage(page, "battle");
   const texture = await page.evaluate(() => {
     let player;
     function walk(node) { if (node.getName?.() === "monster-battle-player") player = node; for (const child of node.getChildren?.() || []) walk(child); }
@@ -1038,6 +1060,76 @@ async function checkPlayerImage() {
   assert.match(texture, /ani\/2002\.png$/);
   assert.deepEqual(errors, []); await page.context().close();
   console.log(`Character model ${browserType.name()} passed: selection, real bonus, save retry, reload and battle appearance.`);
+}
+
+async function checkRoleLayout() {
+  const page = await pageFor({ roleLayout: true, reducedMotion: "reduce" });
+  await page.locator("#monsterEnter").click(); await stage(page, "home"); await page.locator("#monsterRole").click();
+  for (const [width, height] of [[375, 667], [375, 844], [390, 844], [430, 932]]) {
+    await page.setViewportSize({ width, height }); await noOverflow(page);
+    const layout = await page.evaluate(() => {
+      const content = document.querySelector("#monsterDetailsContent"), bounds = content.getBoundingClientRect();
+      const nodes = [...content.querySelectorAll(".monster-role-title,.monster-role-stats,.monster-paperdoll,.monster-gem-equipment,.monster-role-hint,.monster-role-model-button,.monster-role-skills,.monster-paperdoll>.monster-item,.monster-gem-equipment .monster-item")];
+      return { scrollHeight: content.scrollHeight, clientHeight: content.clientHeight, scrollTop: content.scrollTop,
+        elements: nodes.map((node) => { const box = node.getBoundingClientRect(); return { name: node.className, top: box.top - bounds.top, bottom: bounds.bottom - box.bottom, width: box.width, height: box.height }; }) };
+    });
+    assert.ok(layout.scrollHeight <= layout.clientHeight + 1 && layout.scrollTop === 0, JSON.stringify(layout));
+    assert.ok(layout.elements.every((box) => box.top >= -1 && box.bottom >= -1), JSON.stringify(layout));
+    assert.ok(layout.elements.filter((box) => String(box.name).includes("monster-item")).every((box) => box.width >= 44 && box.height >= 44), JSON.stringify(layout));
+  }
+  await page.setViewportSize({ width: 390, height: 844 }); await accessible(page);
+  await page.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-role-layout.png" : "role-layout.png") });
+  await page.locator(".monster-gem-equipment .monster-item").first().click();
+  assert.equal(await page.locator("#monsterItemDetails").evaluate((dialog) => dialog.open), true);
+  await page.locator("#monsterItemClose").click(); await page.locator("[data-character-models]").click();
+  assert.ok(await page.getByRole("button", { name: "使用暗影形象" }).isVisible());
+  assert.deepEqual(errors, []); await page.context().close();
+  console.log(`Role layout ${browserType.name()} passed: attributes, equipment, badges and model control fit on one screen.`);
+}
+
+async function checkScoutLayout() {
+  const page = await pageFor({ navigation: true, reducedMotion: "reduce" });
+  const before = await saved(page);
+  await page.locator("#monsterEnter").click(); await stage(page, "home");
+  assert.equal(await page.locator("#monsterCanvas").evaluate((canvas) => {
+    const event = new MouseEvent("contextmenu", { bubbles: true, cancelable: true }); canvas.dispatchEvent(event); return event.defaultPrevented;
+  }), true);
+  await page.locator("#monsterAdventure").click();
+  await page.locator('[data-chapter-id="1"]').click(); await page.locator('[data-copy-id="1001"]').click();
+  assert.equal(await page.locator("body").getAttribute("data-monster-stage"), "home");
+  async function fits() {
+    for (const [width, height] of [[375, 667], [390, 844], [430, 932]]) {
+      await page.setViewportSize({ width, height }); await noOverflow(page);
+      const layout = await page.evaluate(() => {
+        const dialog = document.querySelector("#monsterItemDetails"), root = dialog.querySelector(".monster-copy-scout"), bounds = root.getBoundingClientRect();
+        const nodes = [...root.querySelectorAll(".monster-scout-power,.monster-scout-mode,.monster-scout-groups,.monster-scout-drops,.monster-scout-controls,.monster-scout-drop,.monster-scout-enemy-choices button")];
+        return { scroll: root.scrollHeight, height: root.clientHeight, dialogScroll: dialog.scrollHeight, dialogHeight: dialog.clientHeight,
+          elements: nodes.map((node) => { const box = node.getBoundingClientRect(); return { name: node.className, top: box.top - bounds.top, bottom: bounds.bottom - box.bottom, width: box.width, height: box.height }; }) };
+      });
+      assert.ok(layout.scroll <= layout.height + 1 && layout.dialogScroll <= layout.dialogHeight + 1, JSON.stringify(layout));
+      assert.ok(layout.elements.every((box) => box.top >= -1 && box.bottom >= -1), JSON.stringify(layout));
+      assert.ok(layout.elements.filter((box) => String(box.name) === "monster-scout-drop").every((box) => box.height >= 44), JSON.stringify(layout));
+    }
+  }
+  await fits();
+  await page.locator("#monsterItemClose").click(); await page.locator('[data-copy-type="2"]').click();
+  await page.locator('[data-copy-id="2005"]').click(); await fits();
+  await page.getByRole("button", { name: "下一页掉落" }).click();
+  assert.ok(await page.getByRole("button", { name: "上一页掉落" }).isEnabled());
+  const enemies = page.locator(".monster-scout-enemy-choices button");
+  assert.ok(await enemies.count() > 1); await enemies.nth(1).click();
+  assert.equal(await enemies.nth(1).getAttribute("aria-pressed"), "true");
+  await enemies.nth(0).focus(); await page.keyboard.press("Enter");
+  assert.equal(await enemies.nth(0).evaluate((node) => node === document.activeElement), true);
+  const next = page.getByRole("button", { name: "下一页掉落" });
+  await next.focus(); await page.keyboard.press("Enter");
+  assert.equal(await page.evaluate(() => document.activeElement.getAttribute("aria-label")), "下一页掉落");
+  await page.setViewportSize({ width: 390, height: 844 }); await accessible(page);
+  await page.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-scout-layout.png" : "scout-layout.png") });
+  await page.locator("#monsterItemClose").click(); await page.locator('[data-copy-type="5"]').click();
+  await page.locator('[data-copy-id="5114"]').click(); await fits();
+  assert.deepEqual(await saved(page), before); assert.deepEqual(errors, []); await page.context().close();
+  console.log(`Scout layout ${browserType.name()} passed: tap for details, one-screen monster stats, drop pages and locked challenges.`);
 }
 
 async function checkPointShop() {
@@ -1102,7 +1194,7 @@ async function checkWingEquipment() {
   console.log(`Wing equipment ${browserType.name()} passed: direct change, stats and save retry.`);
 }
 try {
-  const focused = ["--offline-only", "--offline-retry-only", "--tasks-only", "--equipment-only", "--map-layout-only", "--animation-only", "--item-info-only", "--bag-batch-only", "--equipment-target-only", "--wing-only", "--player-image-only", "--point-shop-only", "--craft-layout-only", "--achievements-only", "--shop-only", "--side-pet-only", "--pet-passive-only", "--pet-training-only"];
+  const focused = ["--offline-only", "--offline-retry-only", "--tasks-only", "--equipment-only", "--map-layout-only", "--animation-only", "--item-info-only", "--bag-batch-only", "--equipment-target-only", "--wing-only", "--player-image-only", "--role-layout-only", "--scout-layout-only", "--point-shop-only", "--craft-layout-only", "--achievements-only", "--shop-only", "--side-pet-only", "--pet-passive-only", "--pet-training-only"];
   const selected = (flag) => !focused.some((option) => process.argv.includes(option)) || process.argv.includes(flag);
   if (selected("--offline-only")) await checkOfflineRun({ sidePets: process.argv.includes("--side-offline") });
   if (selected("--offline-retry-only")) await checkOfflineDefeatRetry();
@@ -1115,6 +1207,8 @@ try {
   if (selected("--equipment-target-only")) await checkEquipmentTargets();
   if (selected("--wing-only")) await checkWingEquipment();
   if (selected("--player-image-only")) await checkPlayerImage();
+  if (selected("--role-layout-only")) await checkRoleLayout();
+  if (selected("--scout-layout-only")) await checkScoutLayout();
   if (selected("--point-shop-only")) await checkPointShop();
   if (selected("--craft-layout-only")) await checkCraftLayout();
   if (selected("--achievements-only")) await checkAchievements();
@@ -1261,6 +1355,7 @@ try {
   await defeated.locator("#monsterAdventure").click();
   await defeated.getByLabel("连续自动战斗").check();
   await defeated.locator('[data-copy-id="1001"]').click();
+  await defeated.locator('[data-scout-start="1001"]').click();
   await stage(defeated, "result");
   assert.match(await defeated.locator("#monsterStatus").textContent(), /战败，已保留 1 只怪物收益/);
   const retained = await saved(defeated);
@@ -1274,6 +1369,7 @@ try {
   await auto.locator("#monsterAdventure").click();
   await auto.getByLabel("连续自动战斗").check();
   await auto.locator('[data-copy-id="1001"]').click();
+  await auto.locator('[data-scout-start="1001"]').click();
   await stage(auto, "result");
   await stage(auto, "battle");
   await auto.locator("#monsterStop").click();
@@ -1294,7 +1390,7 @@ try {
   await exitPage.locator("#monsterAdventure").click();
   await exitPage.locator('[data-chapter-id="1"]').click();
   await exitPage.getByLabel("连续自动战斗").check();
-  await exitPage.locator('[data-copy-id="1001"]').click(); await stage(exitPage, "battle");
+  await exitPage.locator('[data-copy-id="1001"]').click(); await exitPage.locator('[data-scout-start="1001"]').click(); await stage(exitPage, "battle");
   await exitPage.waitForFunction(() => typeof window.monsterFixturePendingBattle === "function");
   const exitBox = await exitPage.locator("#monsterExitBattle").boundingBox();
   assert.ok(exitBox.x < 15 && exitBox.y >= (iphone13 ? 47 : 0) && exitBox.width >= 44 && exitBox.height >= 44, JSON.stringify(exitBox));
@@ -1324,7 +1420,7 @@ try {
   });
   await partialExit.locator("#monsterAdventure").click(); await partialExit.locator('[data-chapter-id="1"]').click();
   await partialExit.getByLabel("地图波数").selectOption("3");
-  await partialExit.locator('[data-copy-id="1001"]').click(); await stage(partialExit, "battle");
+  await partialExit.locator('[data-copy-id="1001"]').click(); await partialExit.locator('[data-scout-start="1001"]').click(); await stage(partialExit, "battle");
   let defeatedEnemy = false;
   for (let turn = 0; turn < 12 && !defeatedEnemy; turn += 1) {
     await partialExit.waitForFunction(() => typeof window.monsterFixturePendingBattle === "function");
@@ -1351,7 +1447,7 @@ try {
   const navigationPage = await pageFor({ navigation: true, roll: 4, reducedMotion: "reduce" });
   await navigationPage.locator("#monsterEnter").click(); await stage(navigationPage, "home");
   await navigationPage.locator("#monsterAdventure").click();
-  assert.match(await navigationPage.locator(".monster-adventure-overview").textContent(), /当前战力.*点按挑战.*长按查看详情/);
+  assert.match(await navigationPage.locator(".monster-adventure-overview").textContent(), /当前战力.*点击怪物查看详情并挑战/);
   const currentMap = navigationPage.locator('[data-copy-id="1018"]');
   const mapVisible = await currentMap.evaluate((node) => {
     const rect = node.getBoundingClientRect(), view = node.closest(".monster-copy-viewport").getBoundingClientRect();
@@ -1399,6 +1495,7 @@ try {
   }));
   assert.ok(mapPosition.top === 0 && mapPosition.left > 0, JSON.stringify(mapPosition));
   if (iphone13) await challenge.tap(); else await challenge.click();
+  await navigationPage.locator('[data-scout-start="1010"]').click();
   await stage(navigationPage, "result");
   await tapNative(navigationPage, "text_backtips");
   await navigationPage.locator(".monster-adventure-content").waitFor();
@@ -1411,6 +1508,7 @@ try {
   assert.deepEqual(restoredPosition, mapPosition);
   await navigationPage.locator('[data-chapter-id="3"]').click();
   if (iphone13) await navigationPage.locator('[data-copy-id="1018"]').tap(); else await navigationPage.locator('[data-copy-id="1018"]').click();
+  await navigationPage.locator('[data-scout-start="1018"]').click();
   await stage(navigationPage, "result"); await tapNative(navigationPage, "text_backtips");
   await navigationPage.locator(".monster-adventure-content").waitFor();
   assert.equal(await navigationPage.locator('[data-copy-id="1019"]').evaluate((node) => {
@@ -1426,6 +1524,7 @@ try {
   await chapterAdvance.locator("#monsterEnter").click(); await stage(chapterAdvance, "home");
   await chapterAdvance.locator("#monsterAdventure").click();
   if (iphone13) await chapterAdvance.locator('[data-copy-id="1020"]').tap(); else await chapterAdvance.locator('[data-copy-id="1020"]').click();
+  await chapterAdvance.locator('[data-scout-start="1020"]').click();
   await stage(chapterAdvance, "result"); await tapNative(chapterAdvance, "text_backtips");
   await chapterAdvance.locator(".monster-adventure-content").waitFor();
   assert.equal(await chapterAdvance.locator('[data-chapter-id="4"]').getAttribute("aria-current"), "true");

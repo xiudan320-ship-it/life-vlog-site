@@ -467,7 +467,7 @@ export function createMonsterGameView({ warView }) {
   function selectCopy(state, catalog, settings) {
     document.getElementById("monsterItemDetails").close();
     const content = details("选择关卡", controls.Adventure);
-    renderCopySelection({ content, state, catalog, settings, onStart: (copyId, selected) => actions.startScoutedCopy(copyId, selected), onOffline: (copyId, selected) => actions.startOffline(copyId, selected), onScout: (copyId, selected) => actions.scoutCopy(copyId, selected), onClaim: () => actions.claimTrial() });
+    renderCopySelection({ content, state, catalog, settings, onOffline: (copyId, selected) => actions.startOffline(copyId, selected), onScout: (copyId, selected) => actions.scoutCopy(copyId, selected), onClaim: () => actions.claimTrial() });
   }
   function offline(state, catalog, options) {
     offlineBusy = options.phase === "calculating";

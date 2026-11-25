@@ -6,12 +6,14 @@ import { createMonsterSaveStore } from "./save-store.js";
 import { createMonsterGameController } from "./game-controller.js";
 import { createMonsterGameView } from "./game-view.js";
 import { trackFocusModality } from "./focus-modality.js";
+import { preventImageCallouts } from "./image-interaction.js";
 import { addPortDrops, addPortTrialRewards } from "./port-drop-domain.js";
 import { adaptPortTasks } from "./port-task-domain.js";
 import { APP_CONFIG } from "../app-config.js";
 import { createCloudflareBackend } from "../cloudflare-client.js";
 
 trackFocusModality(document);
+preventImageCallouts(document);
 
 async function json(path) {
   const response = await fetch(`/monster/${path}`);

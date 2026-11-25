@@ -4,17 +4,18 @@ import { describeEquipmentAttribute, getEquipmentAttributeLabel } from "./attrib
 import { compareEquipment, getBagItemCount } from "./item-comparison-domain.js";
 import { describeEquipmentScore } from "./bag-sort-domain.js";
 
-export function showItem({ item, catalog, state, onEquip, onUpgrade, onManage, onBack }) {
+export function showItem({ item, catalog, state, onEquip, onUpgrade, onManage, onBack, backLabel = "返回全部掉落", previewNote }) {
   const row = catalog.items.find((entry) => entry.id === item.id);
   const dialog = document.getElementById("monsterItemDetails");
   const content = dialog.querySelector(".monster-item-information");
   content.replaceChildren(itemTile(item, catalog), element("h2", row.name));
   if (onBack) {
-    const back = element("button", "返回全部掉落", "monster-image-button"); back.type = "button";
+    const back = element("button", backLabel, "monster-image-button"); back.type = "button";
     back.onclick = onBack; content.prepend(back);
   }
   const owned = getBagItemCount(state, item, row);
   if (owned !== null) content.append(element("p", `背包持有：${owned} 件`, "monster-item-owned"));
+  if (previewNote) content.append(element("p", previewNote, "monster-panel-hint"));
   if (onEquip) {
     const equip = element("button", "穿戴 / 更换", "monster-image-button"); equip.type = "button";
     equip.onclick = () => { dialog.close(); onEquip(); }; content.append(equip);

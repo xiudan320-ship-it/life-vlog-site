@@ -1,4 +1,5 @@
 import "./bag-equipment.css";
+import "./character-layout.css";
 import { element, picture, itemTile, petTile } from "./visual-ui.js";
 import { showItem } from "./item-detail-view.js";
 import { renderBagReceipt } from "./bag-item-view.js";
@@ -8,12 +9,11 @@ import { sortBagEquipment } from "./bag-sort-domain.js";
 export function renderRole(content, state, catalog, actions) {
   content.className = "monster-character-content";
   const models = element("button", "更换人物形象", "monster-image-button monster-role-model-button"); models.type = "button"; models.dataset.characterModels = ""; models.onclick = () => actions.characterModels();
-  content.append(models);
   const stats = element("section", undefined, "monster-role-stats monster-original-panel");
   stats.setAttribute("aria-label", "角色属性");
   const power = element("div", undefined, "monster-role-power");
   power.append(element("span", "参考战力"), element("b", referencePower(state.player).toLocaleString("zh-CN")));
-  stats.append(power);
+  stats.append(power, models);
   for (const [key, name] of [["maxHp", "生命"], ["critHurt", "暴击伤害"], ["attack", "攻击"], ["resistance", "负面抵抗"], ["defense", "防御"], ["regeneration", "生命回复"], ["hit", "命中"], ["dropRate", "物品掉落"], ["dodge", "闪避"], ["goldRate", "金币掉落"], ["crit", "暴击"], ["experienceRate", "经验获得"]]) {
     const line = element("div"); line.append(element("span", name), element("b", `${state.player[key] || 0}${key.endsWith("Rate") ? "%" : ""}`)); stats.append(line);
   }
@@ -42,8 +42,8 @@ export function renderRole(content, state, catalog, actions) {
     slot.append(item ? itemTile(item, catalog, { onClick: () => showItem({ item, catalog, state }) }) : element("div", undefined, "monster-empty-slot"), element("small", label)); gems.append(slot);
   }
   const title = catalog.achievements?.find((row) => row.type === 2 && row.id === state.achievementProgress?.titleId);
-  if (title) content.append(element("p", `当前称号：${title.name}`, "monster-panel-hint"));
-  content.append(stats, doll, gems, element("p", "点击装备查看详情 · 点击技能槽装配技能", "monster-panel-hint"));
+  if (title) content.append(element("p", `当前称号：${title.name}`, "monster-panel-hint monster-role-title"));
+  content.append(stats, doll, gems, element("p", "点击装备查看详情 · 点击技能槽装配技能", "monster-panel-hint monster-role-hint"));
 }
 
 export function renderBag(content, state, catalog, actions, { kind = "goods", receipt } = {}) {
