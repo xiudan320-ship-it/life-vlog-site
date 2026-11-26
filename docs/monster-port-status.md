@@ -100,4 +100,4 @@
 
 ## 当前部署
 
-2026-11-25 从 `main` 提交 `b1362632d2445a3c3b8fd1715d80db21f7e1979a` 发布装备目标、掉落详情、批量分解和成就称号。正式部署 `https://6e38d5fa.life-vlog-site.pages.dev`，Worker 版本 `3cc9b563-b5b3-42cf-bbc8-39ffe87fe224`；本地完整回归、预览／正式发布门禁及正式站 iPhone WebKit 专项通过。资源指纹与边界见 CHANGELOG 的「2026-11-25 — 黑暗传说装备、掉落与成就」。
+2026-11-26 从 `main` 提交 `1141a6df58d57b610afbed4ba25313bf812114ef` 发布参考战力与装备对比。正式部署为 `https://55d7c6db.life-vlog-site.pages.dev`，Worker 版本为 `cc6e2865-e8ac-41e3-8d51-529b567ddb22`。本地完整回归和线上发布门禁通过，预览和正式游戏页资源已核对。资源指纹见 CHANGELOG 的「2026-11-26 — 黑暗传说参考战力与装备对比」。

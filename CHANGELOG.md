@@ -12,8 +12,6 @@
 
 ### Changed
 
-- 黑暗传说参考战力纳入命中、闪避、暴击、暴伤、抵抗、回复与常驻战斗加成。角色页、战斗和关卡侦察使用同一套评分。
-- 黑暗传说装备详情将当前穿戴与选中装备并排展示，逐行对齐初始属性与带正负号的差值，并显示强化、附魔与换装继承后的数值。
 
 
 
@@ -62,6 +60,20 @@
 ### Fixed
 
 - 修复显式深链在断网启动时因初始路由状态提前切换而丢失隐藏缓存日记的问题；缓存画廊现在可在非 gallery 深链下先渲染并由路由控制显隐。
+
+## [2026-11-26] — 黑暗传说参考战力与装备对比
+
+### Changed
+
+- 黑暗传说参考战力纳入命中、闪避、暴击、暴伤、抵抗、回复与常驻战斗加成。角色页、战斗和关卡侦察使用同一套评分。
+- 黑暗传说装备详情将当前穿戴与选中装备并排展示，逐行对齐初始属性与带正负号的差值，并显示强化、附魔与换装继承后的数值。
+
+### Release
+
+- 从 `main` 提交 `1141a6df58d57b610afbed4ba25313bf812114ef` 发布至 [正式站](https://life-vlog-site.pages.dev/monster)。Pages deployment 为 `https://55d7c6db.life-vlog-site.pages.dev`，Worker 版本为 `cc6e2865-e8ac-41e3-8d51-529b567ddb22`。
+- 入口 `index-D9iGdFag.js` SHA-256 为 `f8019d744acda81d039305d2c8493b0d3d09d3ae05d7fff3aa16de912cd87a81`，`sw.js` SHA-256 为 `a2d9ff79482e1f7e7d00ea9c3d30ed876e600a28040fb057f088b0bced8115fe`。Workbox 预缓存 40 项。
+- 游戏 JS `monster-B7gndNLm.js` SHA-256 为 `8c35f5907e166d49d389a0ff7bc9621e0c3cf8a933e7efcda31b208e8a83e2ca`，CSS `monster-C7Qvr39W.css` SHA-256 为 `cf0c6c7fc02cb69280b0b99e740b3d70e361948e16dda95068d2893a77e06159`。预览和正式游戏页均已核对这两个资源。
+- 448 项单元测试、Chromium 和 iPhone WebKit 完整游戏回归、发布流程模拟、本地与预览和正式站的 Axe 和确定性 smoke，以及正式 Worker CORS 检查均通过。
 
 ## [2026-11-26] — 黑暗传说人物、积分与紧凑界面
 
