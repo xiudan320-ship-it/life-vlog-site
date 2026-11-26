@@ -3,10 +3,7 @@ import { element, itemTile } from "./visual-ui.js";
 import { getCraftRequirements, getCraftEquipmentComparison, getCraftHistoryCount, getCraftOwnedCount } from "./craft-domain.js";
 import { collectEquipmentAttributes } from "./attribute-domain.js";
 import { initialEquipment } from "./item-comparison-domain.js";
-import { describeEquipmentAttribute } from "./attribute-labels.js";
-
-const statNames = ["", "攻击", "防御", "生命", "命中", "闪避", "暴击", "暴击伤害", "负面抵抗"];
-const effectNames = { 9: "物品掉落", 10: "经验获取", 11: "生命回复", 12: "攻击加成", 13: "防御加成", 14: "生命加成", 16: "伤害加成", 17: "伤害减免", 19: "金币获取", 20: "特殊效果", 21: "触发加成", 22: "遭遇加成", 23: "暴击加成", 24: "暴击伤害加成", 25: "命中加成", 26: "闪避加成", 27: "负面抵抗加成", 30: "额外波数", 33: "伤害加成", 35: "熔炼加成", 36: "试炼积分", 40: "暴击抵抗" };
+import { describeEquipmentAttribute, getEquipmentAttributeLabel } from "./attribute-labels.js";
 
 /** Return a self-contained recipe browser. The controller owns crafting and saving. */
 export function renderCraft({ state, catalog, actions, receipt, selection = { category: "equipment", itemId: null } }) {
@@ -22,8 +19,11 @@ export function renderCraft({ state, catalog, actions, receipt, selection = { ca
   const workspace = element("div", undefined, "monster-craft-workspace");
   root.append(tabs);
   if (receipt) { const status = element("p", receipt, "monster-upgrade-receipt"); status.setAttribute("role", "status"); root.append(status); }
+  list.addEventListener("scroll", () => { scrollByCategory[selection.category] = list.scrollTop; });
+  detail.append(detailBody);
   workspace.append(list, detail); root.append(workspace);
 
+  const scrollByCategory = selection.scrollByCategory ||= {};
   function categoryOf(row) { return row.type === 1 ? "goods" : row.subtype === 9 ? "badge" : "equipment"; }
   function renderComparison(product) {
     const comparison = getCraftEquipmentComparison({ state, itemId: product.id, catalog });
@@ -33,23 +33,21 @@ export function renderCraft({ state, catalog, actions, receipt, selection = { ca
     section.append(element("h4", "同部位装备对比"));
     const { equipped, baseMin, baseMax, min, max } = comparison;
     const baseCurrent = initialEquipment(equipped, state, catalog);
-    const cards = element("div", undefined, "monster-craft-compare-cards");
-    const currentCard = element("div", undefined, "monster-craft-compare-card");
-    const nextCard = element("div", undefined, "monster-craft-compare-card");
-    if (equipped) {
-      const equippedRow = catalog.items.find((row) => row.id === equipped.id);
-      const equippedName = equippedRow?.name || `装备 ${equipped.id}`;
-      currentCard.append(element("strong", "当前穿戴"), element("p", `当前：${equippedName} +${equipped.strength}`));
-    } else currentCard.append(element("strong", "当前穿戴"), element("p", "此部位未穿戴装备"));
-    nextCard.append(element("strong", "打造预览"), element("p", product.name));
-    cards.append(currentCard, nextCard); section.append(cards);
+    const stats = element("table", undefined, "monster-craft-stat-grid");
+    stats.setAttribute("aria-label", "同部位装备对比");
+    const head = stats.createTHead().insertRow();
+    const equippedName = equipped ? catalog.items.find((row) => row.id === equipped.id).name : "未穿戴";
+    for (const [label, name] of [["属性"], ["当前穿戴", equippedName + (equipped?.strength ? " +" + equipped.strength : "")], ["打造预览", product.name]]) {
+      const heading = element("th", label); heading.scope = "col";
+      if (name) heading.append(element("span", name));
+      head.append(heading);
+    }
+    const body = stats.createTBody();
     const current = collectEquipmentAttributes(baseCurrent ? [baseCurrent] : []);
     const currentEnhanced = collectEquipmentAttributes(equipped ? [equipped] : []);
     const lowTags = collectEquipmentAttributes([baseMin]), highTags = collectEquipmentAttributes([baseMax]);
     const lowAfter = collectEquipmentAttributes([min]), highAfter = collectEquipmentAttributes([max]);
-    const stats = element("div", undefined, "monster-craft-stat-grid");
     const types = [...new Set([...current, ...currentEnhanced, ...lowTags, ...highTags, ...lowAfter, ...highAfter].map((attr) => attr.type))];
-    stats.append(element("strong", "初始属性"), element("strong", "当前 → 打造范围"));
     const value = (tags, type) => tags.find((tag) => tag.type === type)?.value || 0;
     const range = (low, high) => low === high ? String(low) : `${low}–${high}`;
     const signed = (number) => number > 0 ? `+${number}` : number === 0 ? "±0" : String(number);
@@ -57,23 +55,33 @@ export function renderCraft({ state, catalog, actions, receipt, selection = { ca
       const old = value(current, type), enhanced = value(currentEnhanced, type);
       const lo = value(lowTags, type), hi = value(highTags, type), afterLo = value(lowAfter, type), afterHi = value(highAfter, type);
       const delta = lo - old === hi - old ? signed(lo - old) : `${signed(lo - old)}～${signed(hi - old)}`;
-      const now = enhanced === old ? String(old) : `${old}（当前${enhanced}）`;
-      const after = afterLo === lo && afterHi === hi ? "" : `（换装后${range(afterLo, afterHi)}）`;
-      stats.append(element("span", statNames[type] || effectNames[type] || `属性 ${type}`), element("span", `${now} → ${range(lo, hi)}${after} · ${delta}`));
+      const { name, unit } = getEquipmentAttributeLabel(type);
+      const row = body.insertRow();
+      const label = element("th", name); label.scope = "row"; row.append(label);
+      const worn = row.insertCell(), crafted = row.insertCell();
+      worn.append(element("span", equipped ? old + unit : "—"));
+      crafted.append(element("span", range(lo, hi) + unit));
+      if (enhanced !== old) worn.append(element("small", "强化附魔后 " + enhanced + unit));
+      if (afterLo !== lo || afterHi !== hi) crafted.append(element("small", "换装后 " + range(afterLo, afterHi) + unit));
+      if (equipped && (lo !== old || hi !== old)) {
+        const tone = lo >= old ? "is-positive" : hi <= old ? "is-negative" : "";
+        crafted.append(element("small", "差值 " + delta + unit, tone));
+      }
     }
-    section.append(stats, element("p", "括号为强化、附魔后的数值；打造评分随机。"));
+    section.append(stats, element("p", "主值为初始属性。打造评分随机。"));
     detailBody.append(section);
   }
   function render() {
-    tabs.replaceChildren(); list.replaceChildren(); detailBody.replaceChildren(); detail.replaceChildren(detailBody); detailBody.scrollTop = 0;
+    tabs.replaceChildren(); list.replaceChildren();
     for (const [value, label] of [["equipment", "装备"], ["badge", "徽章"], ["goods", "材料"]]) {
       const button = element("button", label, "monster-image-button"); button.type = "button";
       button.setAttribute("aria-pressed", String(selection.category === value));
       button.onclick = (event) => {
+        scrollByCategory[selection.category] = list.scrollTop;
         selection.byCategory ||= {};
         selection.byCategory[selection.category] = selection.itemId;
         selection.category = value; selection.itemId = selection.byCategory[value] ?? null;
-        render(); revealSelection();
+        render();
         if (event.detail === 0) tabs.querySelector('[aria-pressed="true"]')?.focus();
       };
       tabs.append(button);
@@ -90,9 +98,12 @@ export function renderCraft({ state, catalog, actions, receipt, selection = { ca
     for (const recipe of visible) {
       const count = getCraftHistoryCount(state, recipe.itemid);
       const owned = getCraftOwnedCount(state, recipe.itemid);
-      const tile = itemTile({ id: recipe.itemid }, catalog, { onClick: (event) => {
-        selection.itemId = recipe.itemid; render();
-        if (event.detail === 0) list.querySelector('[aria-pressed="true"]')?.focus();
+      const tile = itemTile({ id: recipe.itemid }, catalog, { onClick: () => {
+        if (selection.itemId === recipe.itemid) return;
+        list.querySelector('[aria-pressed="true"]')?.setAttribute("aria-pressed", "false");
+        tile.setAttribute("aria-pressed", "true");
+        selection.itemId = recipe.itemid;
+        renderDetails();
       } });
       tile.dataset.recipeId = recipe.itemid;
       tile.setAttribute("aria-pressed", String(recipe.itemid === selection.itemId));
@@ -102,6 +113,14 @@ export function renderCraft({ state, catalog, actions, receipt, selection = { ca
       if (count) { const badge = element("b", `造${count}`, "monster-craft-made"); badge.setAttribute("aria-hidden", "true"); tile.append(badge); }
       list.append(tile);
     }
+    const previousTop = scrollByCategory[selection.category];
+    restoreListPosition(previousTop);
+    renderDetails();
+  }
+  function renderDetails() {
+    detailBody.replaceChildren();
+    detail.querySelector("[data-craft-item]")?.remove();
+    detailBody.scrollTop = 0;
     if (!selection.itemId) { detailBody.append(element("p", "暂无配方", "monster-panel-hint")); return; }
     const requirements = getCraftRequirements({ state, itemId: selection.itemId, catalog });
     const { product, materials, currency, price, affordable } = requirements;
@@ -146,15 +165,14 @@ export function renderCraft({ state, catalog, actions, receipt, selection = { ca
     button.onclick = async () => { button.disabled = true; try { await actions.craft(selection.itemId); } finally { if (button.isConnected) button.disabled = !affordable; } };
     detail.append(button);
   }
-  function revealSelection() { queueMicrotask(() => {
+  function restoreListPosition(previousTop) { queueMicrotask(() => {
     const selected = list.querySelector('[aria-pressed="true"]');
     if (!list.isConnected || !selected) return;
+    if (previousTop !== undefined) { list.scrollTop = previousTop; return; }
     const listBox = list.getBoundingClientRect(), selectedBox = selected.getBoundingClientRect();
     if (selectedBox.bottom > listBox.bottom) list.scrollTop += selectedBox.bottom - listBox.bottom + 10;
     else if (selectedBox.top < listBox.top) list.scrollTop -= listBox.top - selectedBox.top + 10;
   }); }
   render();
-  // A rebuild can restore the prior scroll position; only reveal a hidden selection.
-  revealSelection();
   return root;
 }

@@ -1,0 +1,102 @@
+#monsterHome {
+  position:absolute;
+  z-index:3;
+  inset:0 0 calc(var(--monster-safe-bottom) + 56px);
+  display:flex;
+  flex-direction:column;
+  gap:18px;
+  padding:calc(var(--monster-safe-top) + 58px) max(16px,var(--monster-safe-right)) 20px max(16px,var(--monster-safe-left));
+  overflow:auto;
+  overscroll-behavior:contain;
+  scrollbar-width:thin;
+  scrollbar-color:var(--monster-stroke) var(--monster-bg);
+  background:linear-gradient(165deg,#23150e6e 8%,#27190f82 55%,#1c120ce8 100%),url("/monster/assets/ui/bg/main_bg.jpg") center/cover;
+}
+body[data-monster-stage="home"] .monster-host-header span {
+  position:absolute;
+  top:6px;
+  right:0;
+  bottom:auto;
+  padding:7px 9px;
+}
+.monster-home-character {
+  display:grid;
+  gap:10px;
+  padding:14px;
+}
+.monster-home-identity {
+  display:grid;
+  grid-template-columns:58px minmax(0,1fr);
+  align-items:center;
+  gap:12px;
+}
+.monster-home-portrait {
+  display:block;
+  width:58px;
+  height:72px;
+  object-fit:contain;
+}
+.monster-home-profile h1 {
+  margin:0;
+  color:var(--monster-text);
+  font-size:clamp(21px,5vw,27px);
+  line-height:1.2;
+  overflow-wrap:anywhere;
+}
+.monster-home-level,.monster-home-power {
+  display:inline-block;
+  margin:5px 10px 0 0;
+  color:var(--monster-gold);
+  font-size:13px;
+}
+.monster-home-wallet {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+  margin:0;
+}
+.monster-home-wallet>div {
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:space-between;
+  gap:3px 8px;
+  align-items:baseline;
+  min-width:0;
+  padding:6px 8px;
+  border:1px solid var(--monster-stroke);
+  border-radius:6px;
+  background:var(--monster-bg);
+}
+.monster-home-wallet dt,.monster-home-experience { color:var(--monster-muted); font-size:12px; }
+.monster-home-wallet dd { margin:0; font-size:14px; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+.monster-home-experience { margin:0; }
+.monster-home-character progress { width:100%; height:6px; margin-top:-5px; appearance:none; border:0; border-radius:3px; overflow:hidden; background:var(--monster-bg); }
+.monster-home-character progress::-webkit-progress-bar { background:var(--monster-bg); }
+.monster-home-character progress::-webkit-progress-value { background:var(--monster-gold); }
+.monster-home-character progress::-moz-progress-bar { background:var(--monster-gold); }
+.monster-home-section h2 { margin:0 0 8px; color:var(--monster-gold); font-size:16px; font-weight:650; }
+.monster-home-shortcuts { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+.monster-home-shortcut {
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  min-width:0;
+  min-height:72px;
+  gap:4px;
+  padding:6px 4px;
+  background:var(--monster-panel);
+  font-size:13px;
+  line-height:1.2;
+}
+.monster-home-shortcut[data-home-action="map"] { background:#49291e; border-color:#a3683f; color:var(--monster-gold-strong); }
+.monster-home-shortcut img { width:28px; height:28px; object-fit:contain; }
+.monster-home-shortcut small { color:var(--monster-muted); font-size:11px; }
+.monster-controls #monsterEnter[aria-current="page"] { background:var(--monster-selected); border-color:#a37647; color:var(--monster-gold-strong); }
+@media (min-width:560px) {
+  #monsterHome { padding-inline:24px; }
+  .monster-home-shortcuts { grid-template-columns:repeat(5,minmax(0,1fr)); }
+}
+@media (hover:hover) {
+  .monster-home-shortcut:hover { background:var(--monster-raised); border-color:#a37647; }
+}

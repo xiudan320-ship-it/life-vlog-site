@@ -1,4 +1,6 @@
 .monster-item-information .monster-item-owned{color:#d6ef94;margin:4px 0}
+.monster-item-actions { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; margin-top:12px; }
+.monster-item-actions button { min-width:min(144px,100%); }
 #monsterItemDetails:has(.monster-equipment-comparison) {
   box-sizing:border-box;
   width:min(96vw,640px);
@@ -14,8 +16,8 @@
   table-layout:fixed;
   border-collapse:collapse;
   margin:12px 0;
-  background:#160e08;
-  border:1px solid #795d2c;
+  background:var(--monster-panel);
+  border:1px solid var(--monster-stroke);
   text-align:left;
   color:#f5e8ca;
   font-size:14px;
@@ -31,11 +33,11 @@
 }
 .monster-equipment-comparison :is(th,td) {
   padding:6px clamp(5px,1.5vw,12px);
-  border-bottom:1px solid #4f3c24;
+  border-bottom:1px solid var(--monster-stroke);
   vertical-align:top;
 }
 .monster-equipment-comparison thead th {
-  background:#2b1e12;
+  background:var(--monster-raised);
   color:#ffd18b;
 }
 .monster-equipment-comparison thead th:first-child {
@@ -43,8 +45,8 @@
   vertical-align:bottom;
 }
 .monster-equipment-comparison tr > :last-child {
-  border-left:1px solid #795d2c;
-  background:#2a1d12;
+  border-left:1px solid var(--monster-stroke);
+  background:var(--monster-selected);
 }
 .monster-comparison-side { display:block; margin-bottom:6px; }
 .monster-comparison-identity {

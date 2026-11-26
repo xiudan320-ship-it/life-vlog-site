@@ -29,6 +29,7 @@ export function addPortDrops(copies, dropGroups) {
     const extra = [...(additions[copy.id] || []), ...(premiumItems[copy.id] || []).filter((id) => !alreadyDropped.has(id))];
     return {
       ...copy,
+      ...(copy.id === 1006 && { clearRewardWing: 6902 }),
       dropGroups: extra.length ? { ...original, percent10: [...original.percent10, ...extra] } : original,
     };
   });

@@ -7,8 +7,8 @@ import { createMonsterGameController } from "../modules/monster/game-controller.
 import { canSmeltEquipment } from "../modules/monster/smelt-domain.js";
 
 const read = async (path) => JSON.parse(await readFile(new URL(path, import.meta.url), "utf8"));
-const [items, skills, native] = await Promise.all([read("../public/monster/data/item.json"), read("../public/monster/data/skill.json"), read("./fixtures/monster/native-item-sale-fixtures.json")]);
-const catalog = { items, skills };
+const [items, skills, pets, native] = await Promise.all([read("../public/monster/data/item.json"), read("../public/monster/data/skill.json"), read("../public/monster/data/pet.json"), read("./fixtures/monster/native-item-sale-fixtures.json")]);
+const catalog = { items, skills, pets };
 function fixture() {
   const state = createNewGame(catalog);
   state.inventory.goods = [{ id: 5003, type: 1, quantity: 30 }, { id: 5063, type: 1, quantity: 12 }];
@@ -77,6 +77,23 @@ test("locks protect decomposition and existing smelting; stale/equipped targets 
   const worn = { ...state, inventory: { ...state.inventory, equipment: [{ ...state.inventory.equipment[0], equipped: true }] } };
   assert.throws(() => sellBagItem({ state: worn, target: gear, catalog }), /当前背包/);
   assert.equal(sellBagItem({ state: { ...state, gold: 1999999999 }, target: gear, catalog }).state.gold, 2000000000);
+});
+
+test("only idle pets can be recycled, once per selected record", () => {
+  const state = fixture();
+  const pet = { id: 4001, type: 3, level: 1, quality: 2, experience: 0 };
+  state.inventory.pets = [{ ...pet, partyRole: 1 }, { ...pet, partyRole: 2 }, { ...pet, experience: 10 }];
+  const target = { kind: "pets", index: 2, id: pet.id };
+  for (const index of [0, 1]) assert.throws(() => sellBagItem({ state, catalog, target: { ...target, index } }), /正在出战/);
+  assert.throws(() => sellBagItem({ state, catalog, target, quantity: 2 }), /数量无效/);
+  const result = sellBagItem({ state, target, catalog });
+  assert.deepEqual(result.state.inventory.pets, state.inventory.pets.slice(0, 2));
+  assert.deepEqual(result.reward.items, [{ id: 5105, type: 1, quantity: 4 }]);
+  assert.deepEqual(result.state.inventory.goods.at(-1), result.reward.items[0]);
+  assert.throws(() => sellBagItem({ state: result.state, target, catalog }), /当前背包/);
+  state.inventory.goods.push({ id: 5105, type: 1, quantity: 0x7fffffff });
+  assert.throws(() => sellBagItem({ state, target, catalog }), /超过持有上限/);
+  assert.equal(state.inventory.pets.length, 3);
 });
 
 test("failed sale/lock saves block later mutations; retry persists the existing result once", async () => {

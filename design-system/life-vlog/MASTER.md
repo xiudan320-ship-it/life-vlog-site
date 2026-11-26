@@ -16,6 +16,10 @@ The current UI and the rules below define the project's visual baseline. Use Fig
 - Prefer clear grids, restrained rounded corners, and subtle surface separation.
 - Avoid glow, decorative gradients, heavy glass effects, emoji icons, and excessive borders.
 
+## 游戏界面
+
+《黑暗传说》的操作界面使用深棕纹理背景、暖金标题、暗红主按钮和高亮暖金键盘焦点。文字下方的面板使用实色底，配合现有游戏素材。面板、按钮、导航和对比表复用 `styles/monster.css` 中的 `--monster-*` 变量。常用操作用实心暗红按钮，次要操作保留边框。物品稀有度用边框色表达，数量与名称直接显示在背包格内。
+
 ## Core tokens
 
 以下 --lv-* 为设计参考，不是当前全局 CSS 变量契约。实际使用 styles/redesign-foundation.css 中的语义变量及组件最终层叠值：浅色背景 #f2f4ef、表面 #ffffff、文字 #151816、强调色 #5b9834；深色背景 #0d100f、表面 #171b19、文字 #f0f4ef、强调色 #8bc95f。不要为匹配参考 token 改写现有 UI。

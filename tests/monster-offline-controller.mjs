@@ -132,7 +132,7 @@ test("an existing offline run blocks battle, crafting and task rewards without c
   const before = clone(f.data.saved), priorWrites = f.data.writes.length;
   const attempts = [
     () => controller.startCopy(1001, { hard: 1, waves: 1, repeat: false }),
-    () => controller.startScoutedCopy(1001, { hard: 1, waves: 1, repeat: false }),
+    () => controller.challengeCopy(1001, { hard: 1, waves: 1, repeat: false }),
     () => controller.craft(6002),
     () => controller.claimTask(1),
     () => controller.claimDailyReward(),

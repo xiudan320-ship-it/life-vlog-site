@@ -17,6 +17,7 @@ export function getCopyDropCatalog(copy, catalog) {
     if (id === 5100 && ["percent300", "percent100", "percent10"].includes(key)) continue;
     add(id, "概率掉落");
   }
+  if (copy.clearRewardWing) add(copy.clearRewardWing, "未持有时通关固定获得");
   for (const id of ids(groups.paragondrop10)) add(id, "巅峰难度");
   if (copy.type === 5) {
     for (const id of ids(copy.specialdrop)) add(id, "通关奖励");

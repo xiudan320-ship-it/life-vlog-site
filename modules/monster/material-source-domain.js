@@ -36,6 +36,7 @@ export function findMaterialSources({ state, catalog, itemId }) {
     if (availability.ordinary) add(copy, "drop", "概率掉落");
     else if (availability.paragon) add(copy, "drop", "巅峰难度概率掉落", true);
 
+    if (copy.clearRewardWing === itemId) add(copy, "milestone", "未持有时通关固定获得");
     if (copy.type === 5) {
       const floor = copy.id - 5000;
       if ((item.type === 1 && ids(copy.specialdrop).includes(itemId))

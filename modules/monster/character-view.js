@@ -69,7 +69,17 @@ export function renderBag(content, state, catalog, actions, { kind = "goods", re
     { name: "翅膀", kind: "wings", entries: state.inventory.wings },
     { name: "宠物", kind: "pets", entries: state.inventory.pets, pets: true },
   ];
+  const wingRewardCopy = catalog.copies.find((copy) => copy.clearRewardWing && !state.inventory.wings.some((wing) => wing.id === copy.clearRewardWing));
+  const wingReward = element("div", undefined, "monster-wing-guide monster-original-panel");
+  if (wingRewardCopy) {
+    const name = catalog.items.find((row) => row.id === wingRewardCopy.clearRewardWing).name;
+    const locate = element("button", "查看获取关卡", "monster-image-button");
+    locate.type = "button";
+    locate.onclick = () => actions.goToRewardCopy(wingRewardCopy.id);
+    wingReward.append(element("p", `通关「${wingRewardCopy.name}」可固定获得${name}。`), locate);
+  }
   function select(group) {
+    wingReward.hidden = group.kind !== "wings" || !wingRewardCopy;
     for (const button of tabs.children) button.setAttribute("aria-pressed", String(button.textContent === group.name));
     panel.replaceChildren();
     equipmentHint.hidden = group.kind !== "equipment";
@@ -94,14 +104,14 @@ export function renderBag(content, state, catalog, actions, { kind = "goods", re
       wear.onclick = () => wing ? actions.equipWing(index) : actions.equip(index);
       cell.append(tile, wear); panel.append(cell);
     });
-    for (let index = group.entries.length; index < 30; index += 1) panel.append(element("div", undefined, "monster-empty-slot"));
+    panel.hidden = group.entries.length === 0;
     empty.textContent = group.entries.length ? `${group.name} ${group.entries.length} 件 · 点击图标查看` : "暂时没有材料或装备，冒险中获得的物品会保存在这里。";
   }
   for (const group of groups) {
     const tab = element("button", group.name, "monster-image-button"); tab.type = "button"; tab.onclick = () => select(group); tabs.append(tab);
   }
   sort.onchange = () => select(groups.find((group) => group.kind === "equipment"));
-  content.append(tabs, equipmentHint, equipmentTools, panel, empty); select(groups.find((group) => group.kind === kind) || groups[0]);
+  content.append(tabs, equipmentHint, equipmentTools, wingReward, panel, empty); select(groups.find((group) => group.kind === kind) || groups[0]);
 }
 
 export function renderSkills(content, state, catalog, actions) {

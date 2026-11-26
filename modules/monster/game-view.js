@@ -1,4 +1,4 @@
-import { getPlayerExperienceRequired } from "./progression-domain.js";
+import { createMonsterHomeView } from "./home-view.js";
 import { renderCopySelection } from "./copy-selection-view.js";
 import { renderCharacterModels } from "./character-model-view.js";
 import { renderRole, renderBag, renderSkills } from "./character-view.js";
@@ -32,6 +32,7 @@ export function createMonsterGameView({ warView }) {
   const { cc, ccui, ccs } = globalThis;
   const battleAnimations = createBattleAnimations({ cc, assets, reducedMotion: () => matchMedia("(prefers-reduced-motion: reduce)").matches });
   const frame = document.getElementById("monsterFrame");
+  const menuLogo = document.getElementById("monsterMenuLogo");
   const resultLootControls = document.createElement("div");
   resultLootControls.className = "monster-result-loot-controls";
   resultLootControls.hidden = true;
@@ -60,7 +61,8 @@ export function createMonsterGameView({ warView }) {
   let serial = 0;
   let nodes = new Map();
   let lastRender;
-  let homeHeader;
+  const homeRoot = document.getElementById("monsterHome");
+  let homeView;
   let upgradeScreen;
   let craftSelection;
   let equipmentTargetSelection = { filter: "all" };
@@ -75,7 +77,11 @@ export function createMonsterGameView({ warView }) {
     if (value !== "result") resultLootControls.replaceChildren();
     document.body.dataset.monsterStage = value;
     exitBattle.hidden = value !== "battle" && !(value === "result" && repeating);
-    battlePower.hidden = value !== "battle" && value !== "home";
+    battlePower.hidden = value !== "battle";
+    homeRoot.hidden = value !== "home";
+    menuLogo.hidden = value !== "menu";
+    if (value === "home") controls.Enter.setAttribute("aria-current", "page");
+    else controls.Enter.removeAttribute("aria-current");
     exitBattle.disabled = exitPending;
     controls.Enter.disabled = exitPending || repeating || value === "battle" || value === "loading" || value === "error";
     controls.Enter.textContent = value === "menu" ? hasSave ? "继续游戏" : "开始游戏" : "主页";
@@ -153,85 +159,25 @@ export function createMonsterGameView({ warView }) {
   }
   async function menu(saved) {
     hasSave = saved;
-    const request = ++serial;
-    const widget = await load("menu_layer");
-    await new Promise((resolve, reject) => cc.loader.load([`${assets}img/logo.png`], (error) => error ? reject(new Error(String(error))) : resolve()));
-    if (request !== serial) return;
-    find(widget, "img_gamelogo")?.setVisible(false);
-    find(widget, "btn_new")?.setVisible(false);
-    find(widget, "btn_changelanguage")?.setVisible(false);
-    find(widget, "btn_start")?.setTitleText(saved ? "继续游戏" : "开始游戏");
-    find(widget, "btn_start")?.setVisible(false);
-    click(find(widget, "btn_start"), enter);
-    const current = scene(widget);
-    const logo = new ccui.ImageView(`${assets}img/logo.png`);
-    logo.setPosition(320, cc.winSize.height * 0.76);
-    current.addChild(logo, 10);
-    lastRender = () => menu(saved);
+    ++serial;
+    lastRender = null;
+    if (phase !== "menu") cc.director.runScene(new cc.Scene());
     stage("menu");
     statusMessage("游戏进度随登录账号保存在云端，每场结算后自动保存。");
   }
-  function homeStats(header, state) {
-    battlePower.textContent = `参考战力 ${referencePower(state.player).toLocaleString("zh-CN")}`;
-    text(header, "label_name", state.player.name);
-    text(header, "text_level", `等级${state.player.level}`);
-    find(header, "label_level")?.setVisible(false);
-    text(header, "label_gold", state.gold);
-    text(header, "label_money", state.money);
-    text(header, "label_special", 0);
-    text(header, "label_exp", `${state.player.experience}/${getPlayerExperienceRequired(state.player.level)}`);
-    find(header, "bar_exp")?.setPercent(state.player.experience / getPlayerExperienceRequired(state.player.level) * 100);
+  function updateHome(state) {
+    if (phase === "home") homeView.update(state);
   }
-  function updateHome(state, catalog) {
-    if (phase !== "home" || !homeHeader) return;
-    homeStats(homeHeader, state);
-    lastRender = () => home(state, catalog);
-  }
-  async function home(state, catalog) {
-    const request = ++serial;
-    const [header, content] = await Promise.all([load("main_layer"), load("main_main_layer")]);
-    if (request !== serial) return;
-    const adventureButtons = { btn_map: 1, btn_copy: 2, btn_abyss: 5, btn_boss: 3, btn_trial: 6 };
-    walk(content, (node) => {
-      if (!(node instanceof ccui.Button)) return;
-      const type = adventureButtons[node.getName()];
-      const handler = { btn_task: () => actions.tasks(), btn_achievement: () => actions.achievements(), btn_blacksmith: () => actions.workshop(), btn_strength: () => actions.workshop(), btn_pet: () => actions.pets(), btn_shop: () => actions.shop() }[node.getName()];
-      node.setVisible(Boolean(type || handler));
-      if (type) { find(node, "img_lock")?.setVisible(false); click(node, () => actions.selectCopy(type)); }
-      else if (handler) { find(node, "img_lock")?.setVisible(node.getName() === "btn_pet" && state.player.level < 35); click(node, handler); }
-    });
-    homeHeader = header;
-    homeStats(header, state);
-    for (const name of ["label_achevement", "label_achevementdesc", "label_id", "btn_share", "btn_rename"]) find(header, name)?.setVisible(false);
-    walk(header, (node) => {
-      if (!(node instanceof ccui.Button)) return;
-      const handler = { btn_main: () => actions.continue(), btn_role: () => actions.role(), btn_bag: () => actions.bag(), btn_skill: () => actions.skills() }[node.getName()];
-      if (handler) click(node, handler);
-      else { node.setEnabled(false); node.setBright(false); }
-      if (["btn_main", "btn_role", "btn_bag", "btn_skill", "btn_others"].includes(node.getName())) node.setVisible(false);
-    });
-    const current = new cc.Scene();
-    const background = new cc.Sprite(`${assets}ui/bg/main_bg.jpg`);
-    background.setPosition(cc.winSize.width / 2, cc.winSize.height / 2);
-    background.setScale(Math.max(cc.winSize.width / background.width, cc.winSize.height / background.height));
-    current.addChild(background, -10);
-    current.addChild(content, 0);
-    current.addChild(header, 10);
-    let safeTop = readGameInsets().top * cc.winSize.height / frame.clientHeight;
-    content.removeBackGroundImage();
-    content.setBackGroundColorType(ccui.Layout.BG_COLOR_NONE);
-    const topNodes = header.getChildren().filter((child) => child.y > 650);
-    for (const child of topNodes) child.y += cc.winSize.height - 960 - safeTop;
-    const levelBox = nodeScreenBox(find(header, "text_level"), frame, cc);
-    const back = document.querySelector(".monster-host-header a").getBoundingClientRect();
-    const gap = Math.max(0, back.bottom + 8 - levelBox.top) * cc.winSize.height / frame.clientHeight;
-    for (const child of topNodes) child.y -= gap;
-    safeTop += gap;
-    for (const child of content.getChildren()) child.y = child.getName() === "img_titlebg" ? cc.winSize.height - 145 - safeTop : child.y + (cc.winSize.height - 960) / 2;
-    cc.director.runScene(current);
-    lastRender = () => home(state, catalog);
+  async function home(state) {
+    ++serial;
+    lastRender = null;
+    const enteringHome = phase !== "home";
+    if (enteringHome) cc.director.runScene(new cc.Scene());
+    homeView ||= createMonsterHomeView(homeRoot, actions);
+    homeView.update(state);
     stage("home");
-    statusMessage(`${state.player.name} · Lv.${state.player.level} · 金币 ${state.gold} · 已开放关卡 ${state.progress.levelId}`);
+    if (enteringHome) homeRoot.scrollTop = 0;
+    statusMessage(state.player.name + " · Lv." + state.player.level + " · 金币 " + state.gold + " · 已开放关卡 " + state.progress.levelId);
   }
   async function battle(initial, state, catalog) {
     document.getElementById("monsterDetails").close();
@@ -418,7 +364,8 @@ export function createMonsterGameView({ warView }) {
     content.className = "";
     const dialog = document.getElementById("monsterDetails");
     if (!dialog.open) {
-      dialog.addEventListener("close", () => opener.focus(), { once: true });
+      const origin = homeRoot.contains(document.activeElement) ? document.activeElement : opener;
+      dialog.addEventListener("close", () => origin.focus(), { once: true });
       dialog.showModal();
     }
     return content;
@@ -435,7 +382,7 @@ export function createMonsterGameView({ warView }) {
     renderEquipmentTargets({ content, state, catalog, actions, receipt, selection: equipmentTargetSelection });
     content.scrollTop = 0;
   }
-  function bagItem(state, catalog, target, receipt) { renderBagItem({ content: details(target.kind === "equipment" ? "装备分解与锁定" : "道具出售", controls.Bag), state, catalog, target, actions, receipt }); }
+  function bagItem(state, catalog, target, receipt) { renderBagItem({ content: details(target.kind === "pets" ? "回收宠物" : target.kind === "equipment" ? "装备分解与锁定" : "道具出售", controls.Bag), state, catalog, target, actions, receipt }); }
   function pets(state, catalog, receipt) {
     const preserveIndex = receipt?.targetIndex ?? null;
     const previousIndex = receipt?.previousTargetIndex ?? preserveIndex;
@@ -467,7 +414,7 @@ export function createMonsterGameView({ warView }) {
   function selectCopy(state, catalog, settings) {
     document.getElementById("monsterItemDetails").close();
     const content = details("选择关卡", controls.Adventure);
-    renderCopySelection({ content, state, catalog, settings, onOffline: (copyId, selected) => actions.startOffline(copyId, selected), onScout: (copyId, selected) => actions.scoutCopy(copyId, selected), onClaim: () => actions.claimTrial() });
+    renderCopySelection({ content, state, catalog, settings, onOffline: (copyId, selected) => actions.startOffline(copyId, selected), onScout: (copyId, selected) => actions.scoutCopy(copyId, selected), onChallenge: (copyId, selected) => actions.challengeCopy(copyId, selected), onClaim: () => actions.claimTrial() });
   }
   function offline(state, catalog, options) {
     offlineBusy = options.phase === "calculating";
@@ -589,7 +536,7 @@ export function createMonsterGameView({ warView }) {
         else actions.save();
       };
       document.getElementById("monsterNewCancel").onclick = () => document.getElementById("monsterNewGame").close();
-      document.getElementById("monsterNewGame").addEventListener("close", () => controls.Enter.focus());
+      document.getElementById("monsterNewGame").addEventListener("close", () => controls.Enter.focus({ preventScroll: true }));
       document.getElementById("monsterNewGameForm").onsubmit = (event) => { event.preventDefault(); const name = document.getElementById("monsterName").value.trim(); if (!name) return; hasSave = true; document.getElementById("monsterNewGame").close(); actions.create(name); };
       document.getElementById("monsterDetailsClose").onclick = () => { if (!offlineBusy) document.getElementById("monsterDetails").close(); };
       document.getElementById("monsterDetails").addEventListener("cancel", (event) => { if (offlineBusy) event.preventDefault(); });

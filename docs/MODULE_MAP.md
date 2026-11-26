@@ -12,7 +12,8 @@
 
 | 现象或功能 | 首要模组 | 相关视图 / 领域模组 |
 | --- | --- | --- |
-| 黑暗传说全屏试玩、原资源画面与控制器 | `monster.html`, `modules/monster/entry.js`, `modules/monster/game-controller.js`, `modules/monster/game-view.js`, `modules/monster/typography.js`, `modules/monster/focus-modality.js` | `styles/monster.css`, `public/monster/`, `tests/monster-browser.mjs`；统一页面与画布字体，触摸不留焦点框、键盘保留可见焦点；首页工具区进入，登录后独立加载引擎 |
+| 黑暗传说全屏试玩、原资源画面与控制器 | `monster.html`, `modules/monster/entry.js`, `modules/monster/game-controller.js`, `modules/monster/game-view.js`, `modules/monster/typography.js`, `modules/monster/focus-modality.js` | `styles/monster.css`, `public/monster/`, `tests/monster-browser.mjs`；页面使用系统字体，画布统一字体，触摸不留焦点框、键盘保留可见焦点；首页工具区进入，登录后独立加载引擎 |
+| 黑暗传说主页与快捷入口 | `modules/monster/home-view.js`, `modules/monster/home.css` | 角色状态、货币、经验和参考战力，冒险与养成入口；键盘可进入和退出弹窗 |
 | 黑暗传说战斗动作与技能特效 | `modules/monster/battle-animation-view.js` | 按参与战斗角色的技能加载原包 atlas，出手时播放突进和对应技能帧；减少动态效果时关闭，不参与伤害或存档计算；`tests/monster-browser.mjs --animation-only` |
 | 黑暗传说图形角色/背包/技能及物品详情 | `modules/monster/character-view.js`, `modules/monster/character-layout.css`, `modules/monster/visual-ui.js`, `modules/monster/bag-equipment.css` | 角色属性、装备和特殊徽章在手机一屏显示；背包可直接穿戴或更换装备；复用原图和可访问的 HTML 控件 |
 | 黑暗传说人物形象 | `modules/monster/character-model-domain.js`, `modules/monster/character-model-view.js`, `modules/monster/player-refresh-domain.js` | 角色页切换现有两种原包形象，共享进度并计入移植版形象加成；战斗和离线使用同一属性计算；`tests/monster-points-models.mjs` |
@@ -20,7 +21,7 @@
 | 黑暗传说掉落、物品详情与装备对比 | `modules/monster/copy-drops-domain.js`, `modules/monster/item-detail-view.js`, `modules/monster/item-comparison-domain.js`, `modules/monster/result-loot-view.js` | 地图共享掉落池、结算全部物品和当前库存；按未强化未附魔的初始属性比较，并展示强化、附魔与继承后的数值；`tests/monster-item-comparison.mjs` |
 | 黑暗传说装备目标 | `modules/monster/equipment-target-domain.js`, `modules/monster/equipment-target-view.js` | 全部徽章、特殊徽章、翅膀和不可打造的高品质掉落装备；目标保存、配方、地点与地图定位 |
 | 黑暗传说成就与称号 | `modules/monster/achievement-domain.js`, `modules/monster/achievement-view.js`, `public/monster/data/achievement.json` | 原表阈值／奖励、已接通玩法计数、称号属性重算；部分 VIP／兑换称号改为积分解锁；未接通条件保留提示；`tests/monster-achievements.mjs` |
-| 黑暗传说背包出售、分解和装备锁定 | `modules/monster/bag-item-domain.js`, `modules/monster/bag-item-view.js`, `modules/monster/bag-item.css` | 原生卖价与强化返还、按物品类型发金币／魔石／材料；锁定阻止分解和神器熔炼，打造保持原规则；背包内云档重试；`tests/monster-bag-items.mjs` |
+| 黑暗传说背包出售、分解、宠物回收和装备锁定 | `modules/monster/bag-item-domain.js`, `modules/monster/bag-item-view.js`, `modules/monster/bag-item.css` | 原生卖价与强化返还、按物品类型发金币／魔石／材料；锁定阻止分解和神器熔炼，打造保持原规则；未出战宠物回收为精魂，背包内云档重试；`tests/monster-bag-items.mjs` |
 | 黑暗传说魔石商店 | `modules/monster/shop-domain.js`, `modules/monster/shop-view.js`, `modules/monster/shop.css` | 原版商店目录中当前可用的 22 个商品包、金币直接入账、购买与扣款同次保存；材料来源可跳转；`tests/monster-shop.mjs` |
 | 黑暗传说任务积分商店 | `modules/monster/point-shop-domain.js`, `modules/monster/point-shop-view.js`, `public/monster/data/exchange.json` | 使用任务积分兑换已接通的原目录材料、徽章、宠物和称号，限制条件与兑换结果同次保存；`tests/monster-points-models.mjs` |
 | 黑暗传说主副宠选择与角色属性贡献 | `modules/monster/pet-domain.js`, `modules/monster/pet-view.js`, `modules/monster/pet.css` | 35 级开放一只主宠及最多四只副宠；按持有记录分别选择，选择与属性同次保存；353 组主宠及 82 组副宠原生贡献对照；`tests/monster-pets.mjs`、`monster-side-pets.mjs` |
@@ -34,7 +35,7 @@
 | 黑暗传说出手、技能/Buff、回血/吸血和单角色自动战斗 | `modules/monster/battle-turn-domain.js`, `modules/monster/battle-domain.js`, `modules/monster/skill-domain.js` | 技能与完整战斗合成原生对照；宠物独立行动、复活及原动画时序未接入 |
 | 黑暗传说选关、战前准备、随机遭遇、连续战斗及结算进度 | `modules/monster/copy-selection-view.js`, `modules/monster/copy-domain.js`, `modules/monster/encounter-domain.js`, `modules/monster/adventure-domain.js`, `modules/monster/copy-progress-domain.js` | 331 条目录、章节/等级/巅峰锁定；紧凑地图节点、当前位置自动定位与滚动记忆；主动退出按已击杀部分结算，连续战斗需要前台页面；`tests/monster-battle-exit.mjs` |
 | 黑暗传说账号离线挂机 | `modules/monster/offline-domain.js`, `modules/monster/offline-runner.js`, `modules/monster/monster-offline-worker.js`, `modules/monster/offline-view.js` | 已通关地图／副本等的独立模拟玩法，上限 20 小时；服务器时间、客户端 Worker 重用战斗与结算规则、账号版本保存；战败结算后重试，卷轴和存档容量可提前终止；`tests/monster-offline-domain.mjs`、`tests/monster-offline-controller.mjs`、`tests/monster-server-time.mjs` |
-| 黑暗传说关卡战力参考与怪物侦察 | `modules/monster/copy-scout-domain.js`, `modules/monster/copy-scout-view.js`, `modules/monster/copy-scout.css`, `modules/monster/image-interaction.js` | 点击怪物打开一屏详情并确认挑战，掉落分页并可查看物品介绍；图片与画布阻止系统保存菜单；不消耗游戏 RNG，锁定关卡仍可查看；`tests/monster-copy-scout.mjs` |
+| 黑暗传说关卡战力参考与怪物侦察 | `modules/monster/copy-scout-domain.js`, `modules/monster/copy-scout-view.js`, `modules/monster/copy-scout.css`, `modules/monster/image-interaction.js` | 点击可挑战怪物直接开战，详情按钮打开战力、掉落列表和物品介绍；图片与画布阻止系统保存菜单；不消耗游戏 RNG，锁定关卡仍可查看；`tests/monster-copy-scout.mjs` |
 | 黑暗传说试炼续层、积分、难度纪录与单次领奖 | `modules/monster/trial-domain.js`, `modules/monster/trial-view.js` | 原 28 条奖励表及移植新增特殊宠物池、90 组积分与 330 组抽奖原生对照；每层/领奖保存，失败重试不重抽；宠物奖励可配置为主宠或副宠；`tests/monster-trial.mjs` |
 | 黑暗传说任务与每日奖励 | `modules/monster/task-domain.js`, `modules/monster/task-view.js`, `modules/monster/task.css` | `public/monster/data/task.json`、`tests/monster-tasks.mjs`；任务板状态与领取写入账号云档，指定关卡任务可定位地图或副本，未接通条件见 `docs/monster-port-status.md` |
 | 黑暗传说普通装备强化、重铸和附魔 | `modules/monster/upgrade-domain.js`, `modules/monster/smith-view.js`, `modules/monster/upgrade.css` | 原位更新、紧凑双列及目标等级连续强化；每次尝试先保存再继续，关闭或后台停止；`tests/monster-upgrades.mjs`、`tests/monster-strengthening.mjs` |

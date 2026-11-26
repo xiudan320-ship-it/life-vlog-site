@@ -1,12 +1,13 @@
-import { element, itemTile, picture } from "./visual-ui.js";
+import { element, itemTile, petTile, picture } from "./visual-ui.js";
 import { getBagItem, getItemSalePreview } from "./bag-item-domain.js";
+import { getPetTraining } from "./pet-training-domain.js";
 import { renderSaveFeedback } from "./save-feedback-view.js";
 
 export function renderBagReceipt({ content, catalog, receipt, actions }) {
   const panel = element("section", undefined, "monster-original-panel monster-bag-item-panel");
   renderSaveFeedback({ content: panel, receipt, actions });
   if (receipt.reward) {
-    panel.append(element("p", `金币 +${receipt.reward.gold} · 魔石 +${receipt.reward.money}`));
+    if (receipt.reward.gold || receipt.reward.money) panel.append(element("p", `金币 +${receipt.reward.gold} · 魔石 +${receipt.reward.money}`));
     const rewards = element("div", undefined, "monster-bag-item-rewards");
     for (const item of receipt.reward.items) rewards.append(itemTile(item, catalog, { quantity: true }));
     panel.append(rewards);
@@ -16,7 +17,9 @@ export function renderBagReceipt({ content, catalog, receipt, actions }) {
 
 export function renderBagItem({ content, state, catalog, target, actions, receipt }) {
   content.className = "monster-bag-item-content";
-  const kind = target?.kind === "equipment" ? "equipment" : "goods";
+  const kind = target.kind;
+  const equipment = kind === "equipment", pet = kind === "pets";
+  const action = pet ? "回收" : equipment ? "分解" : "出售";
   const back = element("button", "返回背包", "monster-image-button monster-bag-item-back");
   back.type = "button";
   back.onclick = () => actions.bag(kind);
@@ -24,7 +27,6 @@ export function renderBagItem({ content, state, catalog, target, actions, receip
   let item, row;
   try {
     ({ item, row } = getBagItem({ state, target, catalog }));
-    if (!item || !row) throw new Error("找不到此物品，请返回背包重新选择");
   } catch (error) {
     const panel = element("section", undefined, "monster-original-panel monster-bag-item-panel");
     const message = element("p", error.message || "找不到此物品，请返回背包重新选择", "monster-bag-item-error");
@@ -33,10 +35,14 @@ export function renderBagItem({ content, state, catalog, target, actions, receip
     return;
   }
 
-  const equipment = kind === "equipment";
-  const owned = equipment ? 1 : item.quantity;
+  const owned = kind === "goods" ? item.quantity : 1;
   const panel = element("section", undefined, "monster-original-panel monster-bag-item-panel");
-  panel.append(itemTile(item, catalog, { quantity: !equipment }), element("h3", row.name), element("p", `持有 ${owned} 件`));
+  const title = element("h3", row.name);
+  panel.append(pet ? petTile(item, catalog) : itemTile(item, catalog, { quantity: kind === "goods" }), title);
+  if (pet) {
+    const { stars, growth } = getPetTraining(item);
+    panel.append(element("p", `第 ${target.index + 1} 只 · Lv.${item.level} · 品质 ${item.quality} · ${stars} 星 · 成长 ${growth}`));
+  } else panel.append(element("p", `持有 ${owned} 件`));
   if (row.describe && row.describe !== "null") panel.append(element("p", row.describe, "monster-panel-hint"));
   if (receipt) renderBagReceipt({ content: panel, catalog, receipt, actions });
 
@@ -55,22 +61,23 @@ export function renderBagItem({ content, state, catalog, target, actions, receip
     quantityInput = element("input"); quantityInput.type = "number"; quantityInput.min = "1"; quantityInput.max = String(owned); quantityInput.step = "1"; quantityInput.value = "1";
     quantityInput.dataset.saleQuantity = "";
     label.append(quantityInput); controls.append(label);
-  } else {
+  } else if (!pet) {
     controls.append(element("p", "出售数量：1", "monster-bag-item-fixed-quantity"));
   }
 
   const preview = element("div", undefined, "monster-bag-item-preview");
   preview.setAttribute("aria-live", "polite"); controls.append(preview);
-  if (equipment) {
+  if (equipment || pet) {
     const label = element("label", undefined, "monster-bag-item-confirm");
     confirmation = element("input"); confirmation.type = "checkbox"; confirmation.dataset.saleConfirm = "";
-    label.append(confirmation, element("span", "我确认分解这件装备")); controls.append(label);
+    label.append(confirmation, element("span", pet ? "我确认永久回收这只宠物" : "我确认分解这件装备")); controls.append(label);
   }
   const operationError = element("p", undefined, "monster-bag-item-error");
   operationError.setAttribute("role", "alert"); controls.append(operationError);
-  const sell = element("button", equipment ? "分解" : "出售", "monster-image-button monster-bag-item-sell");
+  const sell = element("button", action, "monster-image-button monster-bag-item-sell");
   sell.type = "button"; sell.dataset.sellItem = ""; controls.append(sell);
   content.append(panel, controls, back);
+  if (pet) { title.tabIndex = -1; title.focus(); }
 
   let valid = false;
   let pending = false;
@@ -89,8 +96,8 @@ export function renderBagItem({ content, state, catalog, target, actions, receip
     } else {
       try {
         const result = getItemSalePreview({ state, target, catalog, quantity: amount });
-        preview.append(element("h3", equipment ? "分解可获得" : "出售可获得"));
-        preview.append(element("p", `金币 ${result.gold} · 魔石 ${result.money}`));
+        preview.append(element("h3", `${action}可获得`));
+        if (!pet) preview.append(element("p", `金币 ${result.gold} · 魔石 ${result.money}`));
         if (result.items.length) {
           const items = element("div", undefined, "monster-bag-item-rewards");
           for (const reward of result.items) items.append(itemTile(reward, catalog, { quantity: true }));
@@ -101,7 +108,7 @@ export function renderBagItem({ content, state, catalog, target, actions, receip
         preview.append(element("p", error.message || "无法处理此物品", "monster-bag-item-error"));
       }
     }
-    sell.disabled = pending || !valid || (equipment && !confirmation.checked);
+    sell.disabled = pending || !valid || (confirmation && !confirmation.checked);
   }
   if (quantityInput) quantityInput.oninput = update;
   if (confirmation) confirmation.onchange = update;
@@ -125,7 +132,7 @@ export function renderBagItem({ content, state, catalog, target, actions, receip
   }
   sell.onclick = () => {
     const amount = quantity();
-    if (!valid || amount === null || (equipment && !confirmation.checked)) return;
+    if (!valid || amount === null || (confirmation && !confirmation.checked)) return;
     if (confirmation) confirmation.checked = false;
     void perform(() => actions.sellItem(target, amount));
   };

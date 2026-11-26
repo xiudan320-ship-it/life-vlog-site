@@ -1,6 +1,6 @@
 import { calculateRegularCopyRewards, calculateInstanceRewards, getBattleQualityRewardRate } from "./reward-domain.js";
 import { selectCopyDropIds, prepareCopyDropGroups, createAbyssMilestoneDrops } from "./loot-domain.js";
-import { createCopyDrops } from "./item-domain.js";
+import { createCatalogEquipment, createCopyDrops } from "./item-domain.js";
 import { creditBattleLoot } from "./settlement-domain.js";
 import { recordRegularCopyVictory, incrementCopyClear } from "./copy-progress-domain.js";
 import { copyUsesParagon } from "./copy-domain.js";
@@ -57,6 +57,10 @@ function createBattleReward({ state, copy, prepared, catalog, draw, partial = fa
 export function settleCopyVictory(input) {
   const { copy, prepared, catalog } = input;
   const reward = createBattleReward(input);
+  if (copy.clearRewardWing && ![...input.state.inventory.wings, ...reward.items].some((item) => item.id === copy.clearRewardWing)) {
+    const row = catalog.items.find((item) => item.id === copy.clearRewardWing);
+    reward.items.push(createCatalogEquipment({ row, template: catalog.equipmentTemplates[row.id] }));
+  }
   const cared = recordPartyPetKills(input.state, prepared.enemyCount);
   const previousPet = input.state.inventory.pets.find((pet) => pet.partyRole === 1);
   const currentPet = cared.inventory.pets.find((pet) => pet.partyRole === 1);

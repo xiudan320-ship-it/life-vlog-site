@@ -29,11 +29,18 @@ export function getEquipmentSaleRefund(item) {
 }
 
 export function getBagItem({ state, target, catalog }) {
+  const { kind, id, index } = target || {};
+  const { inventory } = state;
   let item;
-  if (target?.kind === "goods") item = state.inventory.goods.find((entry) => entry.id === target.id);
-  else if (target?.kind === "equipment" && Number.isSafeInteger(target.index) && target.index >= 0) item = state.inventory.equipment[target.index];
-  const row = item && catalog.items.find((entry) => entry.id === item.id);
-  if (!item || item.id !== target.id || !row || item.equipped || (target.kind === "goods" ? item.type !== 1 : item.type !== 2 || ![1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14].includes(item.subtype))) throw new RangeError("请选择当前背包持有的物品");
+  if (kind === "goods") item = inventory.goods.find((entry) => entry.id === id && entry.type === 1);
+  if (Number.isSafeInteger(index) && index >= 0) {
+    if (kind === "equipment") {
+      const equipment = inventory.equipment[index];
+      if (equipment?.type === 2 && !equipment.equipped && [1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14].includes(equipment.subtype)) item = equipment;
+    } else if (kind === "pets" && inventory.pets[index]?.type === 3) item = inventory.pets[index];
+  }
+  const row = item && (kind === "pets" ? catalog.pets : catalog.items).find((entry) => entry.id === item.id);
+  if (!item || item.id !== id || !row) throw new RangeError("请选择当前背包持有的物品");
   return { item, row };
 }
 
@@ -43,6 +50,12 @@ export function getItemSalePreview({ state, target, catalog, quantity = 1 }) {
   const reward = { gold: 0, money: 0, items: [] };
   if (item.type === 1) {
     reward[row.useid === 6 ? "money" : "gold"] = Math.imul(row.price, quantity);
+  } else if (target.kind === "pets") {
+    if (item.partyRole) throw new RangeError("宠物正在出战，请先卸下");
+    const quantity = item.quality * 2;
+    const owned = state.inventory.goods.find((entry) => entry.id === 5105)?.quantity || 0;
+    if (owned + quantity > 0x7fffffff) throw new RangeError("宠物精魂将超过持有上限");
+    reward.items.push({ id: 5105, type: 1, quantity });
   } else {
     if (item.locked) throw new RangeError("装备锁定中，请先解锁");
     const value = getEquipmentSaleValue(item, row);
@@ -59,13 +72,13 @@ export function getItemSalePreview({ state, target, catalog, quantity = 1 }) {
 export function sellBagItem({ state, target, catalog, quantity = 1 }) {
   const reward = getItemSalePreview({ state, target, catalog, quantity });
   let inventory = target.kind === "goods" ? spendGoods(state.inventory, [{ id: target.id, quantity }])
-    : { ...state.inventory, equipment: state.inventory.equipment.filter((_, index) => index !== target.index) };
+    : { ...state.inventory, [target.kind]: state.inventory[target.kind].filter((_, index) => index !== target.index) };
   for (const item of reward.items) inventory = addBagItem({ inventory, item });
   return { state: { ...state, inventory, gold: changeGold({ gold: state.gold, delta: reward.gold }).gold, money: (state.money + reward.money) | 0 }, reward };
 }
 
 export function toggleBagEquipmentLock({ state, target, catalog }) {
+  if (target?.kind !== "equipment") throw new RangeError("仅背包装备可以锁定");
   const { item } = getBagItem({ state, target, catalog });
-  if (item.type !== 2) throw new RangeError("仅装备可以锁定");
   return { ...state, inventory: { ...state.inventory, equipment: state.inventory.equipment.map((entry, index) => index === target.index ? { ...entry, locked: !entry.locked } : entry) } };
 }

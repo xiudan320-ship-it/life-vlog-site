@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { addPortDrops, addPortTrialRewards } from "../modules/monster/port-drop-domain.js";
 import { selectTrialRewards, claimTrialRewards } from "../modules/monster/trial-domain.js";
 import { prepareCopyBattle } from "../modules/monster/copy-domain.js";
-import { settleCopyVictory } from "../modules/monster/adventure-domain.js";
+import { settleCopyDefeat, settleCopyVictory } from "../modules/monster/adventure-domain.js";
 import { findMaterialSources } from "../modules/monster/material-source-domain.js";
 import { createNewGame } from "../modules/monster/new-game-domain.js";
 import { getCraftRequirements } from "../modules/monster/craft-domain.js";
@@ -57,6 +57,28 @@ test("identified premium shop items and VIP wings have in-game drop sources", as
     6818, 6819, 6820, 6821, 6822, 6823, 6824, 6863, 6902, 6903, 6904, 6905, 6906, 6907]);
   const available = new Set(catalog.copies.flatMap((copy) => getCopyDropCatalog(copy, catalog).map((entry) => entry.id)));
   for (const id of itemIds) assert.ok(available.has(id), `missing drop source ${id}`);
+});
+
+test("the first chapter boss awards a usable wing once, including to returning saves", () => {
+  const state = createNewGame(catalog);
+  state.progress.levelId = 6;
+  const copy = catalog.copies.find((row) => row.id === 1006);
+  const draw = () => 99;
+  const prepared = prepareCopyBattle({ copy, player: state.player, clearCount: 0, hard: 1, waves: 1, catalog, draw });
+  const input = { state, copy, prepared, catalog, draw };
+  assert.ok(getCopyDropCatalog(copy, catalog).find((drop) => drop.id === 6902).conditions.some((text) => /固定/.test(text)));
+  assert.ok(findMaterialSources({ state, catalog, itemId: 6902 }).some((source) => source.copyId === 1006 && source.kind === "milestone" && !source.locked));
+  const defeated = settleCopyDefeat({ ...input, battle: { enemies: prepared.battle.enemies.map((enemy) => ({ ...enemy, dead: true })) } });
+  assert.equal(defeated.reward.items.some((item) => item.id === 6902), false);
+  const first = settleCopyVictory(input);
+  assert.deepEqual(first.state.inventory.wings.map((wing) => wing.id), [6901, 6902]);
+  assert.equal(first.reward.items.filter((item) => item.id === 6902).length, 1);
+  const equipped = refreshGamePlayer(equipWing(first.state, 1), catalog);
+  assert.equal(equipped.player.wingId, 6902);
+  assert.ok(equipped.player.attack > state.player.attack);
+  assert.equal(settleCopyVictory({ ...input, state: first.state }).reward.items.some((item) => item.id === 6902), false);
+  const returning = { ...first.state, inventory: { ...first.state.inventory, wings: state.inventory.wings } };
+  assert.equal(settleCopyVictory({ ...input, state: returning }).reward.items.filter((item) => item.id === 6902).length, 1);
 });
 
 test("a dropped VIP wing goes into the wing inventory and can be equipped", () => {

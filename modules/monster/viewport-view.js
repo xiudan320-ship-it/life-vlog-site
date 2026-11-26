@@ -13,11 +13,12 @@ export function nodeScreenBox(node, frame, cc) {
     bottom: bounds.top + (cc.winSize.height - Math.min(a.y, b.y)) / cc.winSize.height * bounds.height };
 }
 
-// The on-screen keyboard changes the visual viewport, not always 100dvh.
-// Keep the full-bleed game intact while fitting native dialogs above it.
+// On iOS the visible viewport can move or shrink when browser chrome or the
+// keyboard changes. Use one rectangle for the shell, canvas and dialogs.
 export function observeVisibleViewport(update) {
   function refresh() {
     const viewport = window.visualViewport;
+    if (viewport.scale !== 1) return;
     document.documentElement.style.setProperty("--monster-visible-height", `${viewport.height}px`);
     document.documentElement.style.setProperty("--monster-visible-top", `${viewport.offsetTop}px`);
     update();

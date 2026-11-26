@@ -161,6 +161,13 @@ export function renderPets({ content, state, catalog, actions, receipt }) {
     partyActions.append(button, sideButton);
     const training = renderPetTraining({ state, catalog, target, actions, saveOperation });
     card.append(overview, partyActions, experience, care, training, details);
+    if (!selected && !side) {
+      const recycle = element("button", "回收宠物", "monster-image-button monster-pet-recycle-button");
+      recycle.type = "button";
+      recycle.setAttribute("aria-label", `回收第 ${index + 1} 只宠物 ${row.name}`);
+      recycle.onclick = () => actions.bagItem({ kind: "pets", ...target });
+      card.append(recycle);
+    }
     content.append(card);
   }
   const back = element("button", "返回背包", "monster-image-button monster-pets-back");

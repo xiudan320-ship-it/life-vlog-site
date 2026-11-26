@@ -10,20 +10,21 @@ const attributes = [["attack", "攻击"], ["defense", "防御"], ["maxHp", "生�
   ["dodge", "闪避"], ["crit", "暴击"], ["critHurt", "暴击伤害"], ["resistance", "负面抵抗"], ["critResistance", "暴击抵抗"]];
 const difficulty = ["", "普通", "困难", "噩梦", "巅峰 I", "巅峰 II", "巅峰 III"];
 const number = (value) => Number(value).toLocaleString("zh-CN");
-const perPage = 6;
 
-/** A compact, read-only encounter preview; the selected item and page are local UI state. */
-export function renderCopyScout({ content, state, catalog, scout, copy, actions, selected, selection = { enemy: 0, page: 0 } }) {
+/** A compact, read-only encounter preview; the selected enemy and scroll position are local UI state. */
+export function renderCopyScout({ content, state, catalog, scout, copy, actions, selected, selection = { enemy: 0, scrollTop: 0 } }) {
   const root = element("section", undefined, "monster-copy-scout");
   const dialog = content.closest("dialog");
+  const scroll = element("div", undefined, "monster-scout-scroll");
+  root.append(scroll);
   const restore = () => {
     content.replaceChildren();
     renderCopyScout({ content, state, catalog, scout, copy, actions, selected, selection });
   };
-  root.append(element("h2", copy.name));
-  if (scout.locked) root.append(element("p", `尚不可挑战：${scout.locked}`, "monster-scout-locked"));
+  scroll.append(element("h2", copy.name));
+  if (scout.locked) scroll.append(element("p", `尚不可挑战：${scout.locked}`, "monster-scout-locked"));
   if (scout.unavailable) {
-    root.append(element("p", scout.unavailable, "monster-scout-note"));
+    scroll.append(element("p", scout.unavailable, "monster-scout-note"));
   } else {
     const power = element("div", undefined, "monster-scout-power");
     power.append(element("p", `当前战力 ${number(scout.playerPower)} · 推荐战力 ${number(scout.recommendedPower)}`),
@@ -31,16 +32,17 @@ export function renderCopyScout({ content, state, catalog, scout, copy, actions,
     const explain = element("button", "战力说明", "monster-image-button monster-scout-explain");
     explain.type = "button";
     explain.onclick = () => {
+      selection.scrollTop = scroll.scrollTop;
       const back = element("button", "返回怪物详情", "monster-image-button"); back.type = "button";
-      back.onclick = restore;
+      back.onclick = () => { restore(); content.querySelector(".monster-scout-explain")?.focus({ preventScroll: true }); };
       content.replaceChildren(element("h2", "战力与随机说明"), ...scout.notes.map((note) => element("p", note)), back);
       dialog.scrollTop = 0;
     };
-    power.append(explain); root.append(power);
+    power.append(explain); scroll.append(power);
     const mode = scout.trialLevel != null
       ? `试炼第 ${scout.trialLevel} 层 · 难度 ${scout.trialHard}`
       : `实际难度 ${difficulty[scout.hard] || scout.hard}${scout.waves != null ? ` · ${scout.waves} 波` : ""}`;
-    root.append(element("p", `${mode} · 敌人 ${scout.enemyCount} 个`, "monster-scout-mode"));
+    scroll.append(element("p", `${mode} · 敌人 ${scout.enemyCount} 个`, "monster-scout-mode"));
     const groups = element("div", undefined, "monster-scout-groups");
     const choices = element("div", undefined, "monster-scout-enemy-choices");
     const detail = element("section", undefined, "monster-original-panel monster-scout-enemy");
@@ -66,7 +68,7 @@ export function renderCopyScout({ content, state, catalog, scout, copy, actions,
       }
       detail.append(heading, values, element("p", `技能：${enemy.skills.length ? enemy.skills.map((skill) => skill.name).join("、") : "无"}`, "monster-scout-skills"));
     }
-    groups.append(choices, detail); renderEnemy(); root.append(groups);
+    groups.append(choices, detail); renderEnemy(); scroll.append(groups);
   }
   const drops = getCopyDropCatalog(copy, catalog);
   const dropSection = element("section", undefined, "monster-scout-drops");
@@ -75,49 +77,37 @@ export function renderCopyScout({ content, state, catalog, scout, copy, actions,
   dropSection.append(element("p", copy.type === 4 ? "随机遭遇该怪物后可获得以下物品。" : "共享关卡结算掉落；点击物品查看详情。", "monster-scout-note"));
   if (drops.length) {
     const list = element("div", undefined, "monster-scout-drop-list");
-    const navigation = element("div", undefined, "monster-scout-drop-pages");
-    const pages = Math.ceil(drops.length / perPage);
-    function renderDrops() {
-      list.replaceChildren(); navigation.replaceChildren();
-      for (const drop of drops.slice(selection.page * perPage, (selection.page + 1) * perPage)) {
-        const entry = element("button", undefined, "monster-scout-drop"); entry.type = "button";
-        entry.dataset.dropItem = String(drop.id);
-        entry.setAttribute("aria-label", `查看${drop.row.name}的掉落详情`);
-        entry.append(picture(`icon/item/${drop.row.icon}`), element("span", drop.row.name), element("small", drop.conditions.join(" · ")));
-        entry.onclick = () => {
-          const row = drop.row;
-          let item = { id: row.id, type: row.type, level: row.level };
-          let previewNote;
-          if (row.type === 2 && row.subtype <= 10) {
-            item = createCatalogEquipment({ row, template: catalog.equipmentTemplates[row.id] });
-            if (row.subtype === 9) item.attributes = calculateSpecialAttributes({ item, player: state.player, catalog });
-            previewNote = row.subtype === 9 ? "徽章显示未升级时的效果。" : "装备属性为示例；实际评分和随机词条以掉落为准。";
-          } else if (row.type === 2) previewNote = "装备属性随机，以实际掉落为准。";
-          showItem({ item, catalog, state, previewNote, backLabel: "返回掉落预览", onBack: () => {
-            restore(); content.querySelector(`[data-drop-item="${drop.id}"]`)?.focus({ preventScroll: true });
-          } });
-          dialog.scrollTop = 0;
-        };
-        list.append(entry);
-      }
-      if (pages > 1) {
-        const previous = element("button", "上一页", "monster-image-button");
-        const next = element("button", "下一页", "monster-image-button");
-        previous.type = next.type = "button"; previous.disabled = selection.page === 0; next.disabled = selection.page === pages - 1;
-        previous.setAttribute("aria-label", "上一页掉落"); next.setAttribute("aria-label", "下一页掉落");
-        previous.onclick = (event) => { selection.page -= 1; renderDrops(); if (event.detail === 0) navigation.querySelector("button:not(:disabled)")?.focus(); };
-        next.onclick = (event) => { selection.page += 1; renderDrops(); if (event.detail === 0) [...navigation.querySelectorAll("button:not(:disabled)")].at(-1)?.focus(); };
-        navigation.append(previous, element("span", `${selection.page + 1} / ${pages}`), next);
-      }
+    for (const drop of drops) {
+      const entry = element("button", undefined, "monster-scout-drop"); entry.type = "button";
+      entry.dataset.dropItem = String(drop.id);
+      entry.setAttribute("aria-label", `查看${drop.row.name}的掉落详情`);
+      entry.append(picture(`icon/item/${drop.row.icon}`), element("span", drop.row.name), element("small", drop.conditions.join(" · ")));
+      entry.onclick = () => {
+        selection.scrollTop = scroll.scrollTop;
+        const row = drop.row;
+        let item = { id: row.id, type: row.type, level: row.level };
+        let previewNote;
+        if (row.type === 2 && row.subtype <= 10) {
+          item = createCatalogEquipment({ row, template: catalog.equipmentTemplates[row.id] });
+          if (row.subtype === 9) item.attributes = calculateSpecialAttributes({ item, player: state.player, catalog });
+          previewNote = row.subtype === 9 ? "徽章显示未升级时的效果。" : "装备属性为示例；实际评分和随机词条以掉落为准。";
+        } else if (row.type === 2) previewNote = "装备属性随机，以实际掉落为准。";
+        showItem({ item, catalog, state, previewNote, backLabel: "返回掉落预览", onBack: () => {
+          restore(); content.querySelector(`[data-drop-item="${drop.id}"]`)?.focus({ preventScroll: true });
+        } });
+        dialog.scrollTop = 0;
+      };
+      list.append(entry);
     }
-    renderDrops(); dropSection.append(list, navigation);
+    dropSection.append(list);
   } else dropSection.append(element("p", "本关没有普通结算物品掉落。", "monster-scout-note"));
-  root.append(dropSection);
+  scroll.append(dropSection);
   const controls = element("div", undefined, "monster-scout-controls");
   const back = element("button", "返回", "monster-image-button"); back.type = "button"; back.onclick = () => actions.closeCopyScout();
   const start = element("button", "开始挑战", "monster-image-button"); start.type = "button";
   start.dataset.scoutStart = copy.id; start.disabled = Boolean(scout.locked || scout.unavailable);
-  start.onclick = () => actions.startScoutedCopy(copy.id, selected);
+  start.onclick = () => actions.challengeCopy(copy.id, selected);
   controls.append(back, start); root.append(controls); content.append(root);
+  scroll.scrollTop = selection.scrollTop;
   return root;
 }

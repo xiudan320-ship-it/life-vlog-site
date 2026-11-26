@@ -214,6 +214,7 @@ export function createMonsterGameController({ catalog, store, view, random, wait
       openCopyLocation(copyId, source, false);
     },
     goToTaskCopy(copyId) { openCopyLocation(copyId, { focusReason: "task" }, true); },
+    goToRewardCopy(copyId) { openCopyLocation(copyId, {}, true); },
     startCopy,
     async startOffline(copyId, selected) {
       if (!state || active || unsaved || blockedByOffline()) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
@@ -278,7 +279,7 @@ export function createMonsterGameController({ catalog, store, view, random, wait
       if (copy) view.copyScout(state, catalog, copy, getCopyScout({ state, catalog, copy, settings: selected }), selected);
     },
     closeCopyScout() { view.closeCopyScout(); },
-    startScoutedCopy(copyId, selected) {
+    challengeCopy(copyId, selected) {
       if (!state || active) return;
       if (unsaved) { view.notice("请先重试保存当前进度，再继续战斗。"); return; }
       if (blockedByOffline()) return;
@@ -600,9 +601,9 @@ export function createMonsterGameController({ catalog, store, view, random, wait
       if (!state || active || unsaved || blockedByOffline()) { if (unsaved) view.notice("请先重试保存当前进度。"); return; }
       const serial = revision; active = true;
       try {
-        const result = sellBagItem({ state, target, quantity, catalog }); state = recordAchievements({ state: result.state, catalog, increments: { 21: Number(target.kind === "equipment") } });
+        const result = sellBagItem({ state, target, quantity, catalog }); state = target.kind === "pets" ? result.state : recordAchievements({ state: result.state, catalog, increments: { 21: Number(target.kind === "equipment") } });
         const saved = await save();
-        if (serial === revision) { view.updateHome(state, catalog); view.bag(state, catalog, target.kind, { message: target.kind === "equipment" ? "分解完成" : "出售完成", reward: result.reward, saved, status: saveErrorStatus }); }
+        if (serial === revision) { view.updateHome(state, catalog); view.bag(state, catalog, target.kind, { message: target.kind === "pets" ? "宠物已回收" : target.kind === "equipment" ? "分解完成" : "出售完成", reward: result.reward, saved, status: saveErrorStatus }); }
       } catch (error) { if (serial === revision) view.notice(error.message); }
       finally { if (serial === revision) active = false; }
     },
