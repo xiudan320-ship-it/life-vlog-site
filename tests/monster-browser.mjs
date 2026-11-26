@@ -229,7 +229,15 @@ async function pageFor({ roll = 0x13579bdf, corrupt = false, blocked = false, sa
   await page.waitForFunction(() => ["menu", "error"].includes(document.body.dataset.monsterStage));
   return page;
 }
-const stage = (page, value) => page.waitForFunction((value) => document.body.dataset.monsterStage === value, value);
+const stage = (page, value) => page.waitForFunction((value) => {
+  if (document.body.dataset.monsterStage !== value) return false;
+  if (value !== "battle") return true;
+  // Cocos installs the queued scene on its next frame.
+  function hasBattlePlayer(node) {
+    return node?.getName?.() === "monster-battle-player" || node?.getChildren?.().some(hasBattlePlayer);
+  }
+  return hasBattlePlayer(cc.director.getRunningScene());
+}, value);
 async function tapHomeAction(page, name) {
   const button = page.locator("[data-home-action=" + name + "]");
   if (iphone13) await button.tap();
@@ -281,7 +289,15 @@ async function fight(page, copyId = 1001, controlled = false, waves = 1) {
   await stage(page, "battle");
   if (iphone13) {
     const top = await page.evaluate(() => {
-      const tops = []; function walk(node) { if (node.getString?.().startsWith("Lv.")) { const p = node.convertToWorldSpace(cc.p(0, node.height)); tops.push((cc.winSize.height - p.y) / cc.winSize.height * innerHeight); } for (const child of node.getChildren?.() || []) walk(child); }
+      const frame = document.getElementById("monsterFrame").getBoundingClientRect();
+      const tops = [];
+      function walk(node) {
+        if (node.getString?.().startsWith("Lv.")) {
+          const position = node.convertToWorldSpace(cc.p(0, node.height));
+          tops.push(frame.top + (cc.winSize.height - position.y) / cc.winSize.height * frame.height);
+        }
+        for (const child of node.getChildren?.() || []) walk(child);
+      }
       walk(cc.director.getRunningScene()); return Math.min(...tops);
     });
     const back = await page.locator("#monsterExitBattle").boundingBox();
