@@ -1,11 +1,73 @@
 .monster-item-information .monster-item-owned{color:#d6ef94;margin:4px 0}
-.monster-equipment-comparison{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0;text-align:left}
-.monster-comparison-card{min-width:0;padding:8px;background:#160e08b8;border:1px solid #795d2c}
-.monster-comparison-card h3{margin:0 0 5px;color:#ffd18b;font-size:14px;font-weight:400}
-.monster-comparison-card strong{display:block;min-height:2.7em;color:#f5e8ca;font-size:13px;line-height:1.35;overflow-wrap:anywhere}
-.monster-item-information .monster-comparison-stat{margin:3px 0;font-size:12px;line-height:1.4;overflow-wrap:anywhere}
-.monster-comparison-stat b{font-weight:400;color:#d8c49f}.monster-comparison-stat .is-positive{color:#a9dc8e}.monster-comparison-stat .is-negative{color:#ffab9b}
+#monsterItemDetails:has(.monster-equipment-comparison) {
+  box-sizing:border-box;
+  width:min(96vw,640px);
+  padding:clamp(8px,3vw,20px);
+}
+#monsterItemDetails:has(.monster-equipment-comparison) .monster-item-close {
+  min-width:44px;
+  min-height:44px;
+}
+.monster-item-information:has(.monster-equipment-comparison)>h2 { margin:0 0 6px; }
+.monster-equipment-comparison {
+  width:100%;
+  table-layout:fixed;
+  border-collapse:collapse;
+  margin:12px 0;
+  background:#160e08;
+  border:1px solid #795d2c;
+  text-align:left;
+  color:#f5e8ca;
+  font-size:14px;
+  line-height:1.4;
+  overflow-wrap:anywhere;
+}
+.monster-equipment-comparison caption {
+  caption-side:bottom;
+  padding-top:8px;
+  text-align:left;
+  color:#ead8b6;
+  font-size:12px;
+}
+.monster-equipment-comparison :is(th,td) {
+  padding:6px clamp(5px,1.5vw,12px);
+  border-bottom:1px solid #4f3c24;
+  vertical-align:top;
+}
+.monster-equipment-comparison thead th {
+  background:#2b1e12;
+  color:#ffd18b;
+}
+.monster-equipment-comparison thead th:first-child {
+  width:22%;
+  vertical-align:bottom;
+}
+.monster-equipment-comparison tr > :last-child {
+  border-left:1px solid #795d2c;
+  background:#2a1d12;
+}
+.monster-comparison-side { display:block; margin-bottom:6px; }
+.monster-comparison-identity {
+  display:grid;
+  grid-template-columns:42px minmax(0,1fr);
+  align-items:center;
+  gap:6px;
+  color:#f5e8ca;
+}
+.monster-comparison-identity .monster-item { width:42px; }
+.monster-comparison-identity .monster-item-name { display:none; }
+.monster-comparison-card small,
+.monster-comparison-stat small {
+  display:block;
+  margin-top:2px;
+  color:#d8c49f;
+  font-size:12px;
+  font-weight:400;
+}
+.monster-comparison-stat th { font-weight:400; }
+.monster-comparison-stat td { font-variant-numeric:tabular-nums; }
+.monster-comparison-stat b { display:inline-block; margin-inline-start:0.4em; }
+.monster-comparison-stat .is-positive { color:#a9dc8e; }
+.monster-comparison-stat .is-negative { color:#ffab9b; }
 .monster-result-loot-controls{position:absolute;inset:0;z-index:2;pointer-events:none}
 .monster-result-loot-controls button{position:absolute;min-width:0;min-height:0;padding:0;background:none;text-shadow:none;pointer-events:auto}
-
-.monster-comparison-stat small{display:block;font-size:11px;color:#d8c49f}.monster-comparison-stat b{display:block}

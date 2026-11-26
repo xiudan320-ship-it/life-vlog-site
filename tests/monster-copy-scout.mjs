@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
-import { getCopyScout } from "../modules/monster/copy-scout-domain.js";
+import { getCopyScout, referencePower } from "../modules/monster/copy-scout-domain.js";
 import { prepareCopyBattle } from "../modules/monster/copy-domain.js";
 import { createNewGame } from "../modules/monster/new-game-domain.js";
 
@@ -39,6 +39,7 @@ test("first clear uses one normal wave and shows the native quality bounds witho
   for (const key of ["attack", "defense", "maxHp", "hit", "dodge", "crit", "critHurt", "resistance", "critResistance"]) {
     assert.equal(group.min[key], low[key], key); assert.equal(group.max[key], high[key], key);
   }
+  assert.equal(scout.recommendedPower, referencePower(high));
   assert.ok(high.attack > low.attack);
   assert.deepEqual(state, before);
 });
@@ -101,7 +102,22 @@ test("reference comparison labels are heuristic and do not promise a win", () =>
   assert.equal(comfortable.risk, "comfortable");
   assert.match(comfortable.notes.join(" "), /不预测胜负/);
   const closePlayer = structuredClone(state);
-  Object.assign(closePlayer.player, { attack: danger.recommendedPower, defense: 0, maxHp: 0 });
+  closePlayer.player = { level: 1, attack: danger.recommendedPower };
   const close = getCopyScout({ state: closePlayer, catalog, copy: copy(2001) });
   assert.equal(close.risk, "close");
+});
+
+test("reference power counts secondary attributes and permanent modifiers without changing battle stats", () => {
+  const { player } = fixture();
+  const baseline = referencePower(player);
+  for (const stat of ["defense", "hit", "dodge", "crit", "critHurt", "resistance", "regeneration", "critResistance", "buffResistance"]) {
+    assert.ok(referencePower({ ...player, [stat]: (player[stat] || 0) + 10 }) > baseline, stat);
+  }
+  for (const bonus of ["crit", "critHurt", "hit", "dodge", "hurtIncrease", "hurtDecrease"]) {
+    assert.ok(referencePower({ ...player, bonuses: { ...player.bonuses, [bonus]: 10 } }) > baseline, bonus);
+  }
+  assert.equal(referencePower({ ...player, flatCrit: 10, bonuses: { crit: 10 } }),
+    referencePower({ ...player, bonuses: { crit: 10 } }), "mirrored critical rate contributes once");
+  assert.equal(referencePower({ ...player, hp: 1, goldRate: 500, dropRate: 500, experienceRate: 500 }), baseline);
+  assert.equal(referencePower(player), baseline);
 });

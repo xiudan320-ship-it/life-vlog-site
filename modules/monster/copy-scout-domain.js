@@ -3,7 +3,21 @@ import { getCopyAccess, maximumCopyDifficulty, prepareCopyBattle } from "./copy-
 const attributes = ["attack", "defense", "maxHp", "hit", "dodge", "crit", "critHurt", "resistance", "critResistance"];
 const integer = (value, fallback) => Number.isFinite(value) ? Math.trunc(value) : fallback;
 const bound = (value, min, max) => Math.max(min, Math.min(max, value));
-export const referencePower = (role) => Math.round(role.attack + role.defense + role.maxHp / 10);
+/** A display-only score. Rating points use different scales, so weight each rating separately. */
+export function referencePower(role) {
+  const {
+    attack = 0, defense = 0, maxHp = 0, hit = 0, dodge = 0, crit = 0,
+    critHurt = 0, resistance = 0, critResistance = 0, critResistanceOffset = 0,
+    flatCrit = 0, regeneration = 0, buffResistance = 0, bonuses = {},
+  } = role;
+  const offense = attack + hit * 0.25 + crit * 0.6 + critHurt * 0.15;
+  const survival = defense + maxHp * 0.1 + dodge * 0.75 + resistance * 0.35 + regeneration * 0.5;
+  const offensiveBonus = ((bonuses.crit ?? flatCrit) + (bonuses.hit || 0) + (bonuses.critHurt || 0) * 0.25
+    + (bonuses.hurtIncrease || 0)) / 100;
+  const defensiveBonus = (critResistance + critResistanceOffset + buffResistance + (bonuses.dodge || 0)
+    + (bonuses.hurtDecrease || 0)) / 100;
+  return Math.round(offense * Math.max(0, 1 + offensiveBonus) + survival * Math.max(0, 1 + defensiveBonus));
+}
 
 /** Preview ordinary enemy bounds using deterministic preparation, never gameplay RNG. */
 export function getCopyScout({ state, catalog, copy, settings = {} }) {
@@ -42,13 +56,13 @@ export function getCopyScout({ state, catalog, copy, settings = {} }) {
     const row = catalog.enemies.find((enemy) => enemy.id === id);
     const min = Object.fromEntries(attributes.map((key) => [key, Math.min(lo[key] || 0, hi[key] || 0)]));
     const max = Object.fromEntries(attributes.map((key) => [key, Math.max(lo[key] || 0, hi[key] || 0)]));
-    return { id, name: row.name, image: row.img,
+    return { id, name: row.name, image: row.img, power: Math.max(referencePower(lo), referencePower(hi)),
       count: randomFormation ? null : low.battle.enemies.filter((enemy) => enemy.id === id).length,
       min, max, skills: lo.skillIds.map((skillId) => ({ id: skillId, name: catalog.skills.find((skill) => skill.id === skillId)?.name || `技能 ${skillId}` })) };
   });
   if (!prepared || !enemyGroups.length) return { locked, unavailable: "该关卡没有可预览的敌人。" };
   const playerPower = referencePower(player);
-  const maxEnemyPower = Math.max(...enemyGroups.map((group) => referencePower(group.max)));
+  const maxEnemyPower = Math.max(...enemyGroups.map((group) => group.power));
   const recommendedPower = Math.ceil(maxEnemyPower * Math.sqrt(prepared.enemyCount));
   const ratio = recommendedPower > 0 ? playerPower / recommendedPower : Infinity;
   const risk = ratio >= 1.3 ? "comfortable" : ratio >= 0.8 ? "close" : "danger";
@@ -61,8 +75,8 @@ export function getCopyScout({ state, catalog, copy, settings = {} }) {
     `角色生命 ${player.maxHp}、攻击 ${player.attack}、防御 ${player.defense}；敌人最高生命 ${maxEnemyHp}、攻击 ${maxEnemyAttack}、防御 ${maxEnemyDefense}。`,
   ];
   const notes = ["仅预览常规敌人的品质范围，不包含地图随机遭遇。",
-    "参考战力为攻击 + 防御 + 生命上限 ÷ 10；推荐值按最强敌人与敌人数量估算，仅供比较，不预测胜负。",
-    "技能、命中、暴击、恢复及随机效果均会影响结果。"];
+    "参考战力按攻击、防御、生命、命中、闪避、暴击、暴击伤害、负面抵抗与生命回复加权，并计入常驻命中、暴击、闪避、抵抗和伤害修正。",
+    "推荐值取最强敌人的参考战力，乘以敌人数量的平方根。技能搭配、临时助战和随机效果会影响实战，参考值不预测胜负。"];
   if (copy.type === 1 && clearCount === 0) notes.push("首次通关固定普通难度、单波。");
   if (randomFormation) notes.push("敌人从所列类型中随机抽取，单种数量不固定。");
   if (copy.type === 6) notes.push(`按试炼第 ${trialLevel} 层、难度 ${trialHard} 预览。`);

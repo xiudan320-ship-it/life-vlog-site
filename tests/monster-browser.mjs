@@ -900,17 +900,34 @@ async function checkItemInformation() {
   await comparison.locator("#monsterEnter").click(); await stage(comparison, "home");
   await comparison.locator("#monsterBag").click();
   await comparison.getByRole("button", { name: "装备", exact: true }).click();
-  await comparison.locator(".monster-bag-equipment-cell .monster-item").first().click();
-  assert.equal(await comparison.locator(".monster-comparison-card").count(), 2);
-  assert.match(await comparison.locator(".monster-equipment-comparison").textContent(), /选中装备.*当前穿戴/s);
-  assert.match(await comparison.locator(".monster-item-information").textContent(), /以初始属性对比/);
-  assert.match(await comparison.locator(".monster-equipment-comparison").textContent(), /初始差值/);
-  assert.match(await comparison.locator(".monster-equipment-comparison").textContent(), /换装后/);
-  assert.ok(await comparison.locator(".monster-comparison-stat b").count() > 0);
+  const sword = comparison.locator('.monster-bag-equipment-cell .monster-item[title="兽骨短剑"]');
+  await sword.press("Enter");
+  const table = comparison.locator(".monster-equipment-comparison");
+  assert.deepEqual(await table.locator(".monster-comparison-side").allTextContents(), ["当前穿戴", "选中装备"]);
+  assert.equal(await table.locator(".monster-comparison-card img").count(), 2);
+  assert.match(await table.locator("caption").textContent(), /以初始属性对比/);
+  const attack = table.getByRole("row").filter({ has: comparison.getByRole("rowheader", { name: "攻击", exact: true }) });
+  assert.equal(await attack.getByRole("cell").count(), 2);
+  assert.match(await attack.getByRole("cell").first().textContent(), /强化附魔后/);
+  assert.match(await attack.getByRole("cell").last().textContent(), /换装后/);
+  assert.match(await attack.locator("b").getAttribute("aria-label"), /初始差值 \+\d/);
   assert.match(await comparison.locator(".monster-item-information").textContent(), /换装后继承强化/);
-  for (const width of [375, 390, 430]) { await comparison.setViewportSize({ width, height: 844 }); await noOverflow(comparison); }
+  for (const width of [375, 390, 430, 1024]) {
+    await comparison.setViewportSize({ width, height: 844 });
+    await noOverflow(comparison);
+    assert.equal(await table.evaluate((node) => node.scrollWidth <= node.clientWidth + 1), true);
+    assert.equal(await comparison.locator("#monsterItemDetails").evaluate((node) => node.scrollWidth <= node.clientWidth + 1), true);
+  }
+  await comparison.setViewportSize({ width: 390, height: 844 });
+  await comparison.emulateMedia({ colorScheme: "light" });
   await accessible(comparison);
   await comparison.screenshot({ path: resolve(artifacts, iphone13 ? "iphone13-equipment-compare.png" : "equipment-compare.png") });
+  await comparison.keyboard.press("Escape");
+  assert.equal(await table.isVisible(), false);
+  assert.equal(await sword.evaluate((node) => node === document.activeElement), true);
+  await comparison.locator('.monster-bag-equipment-cell .monster-item[title="经验卷轴"]').click();
+  assert.match(await table.locator(".monster-comparison-card").first().textContent(), /未穿戴/);
+  assert.equal(await table.locator(".monster-comparison-stat .is-positive, .monster-comparison-stat .is-negative").count(), 0);
   assert.deepEqual(errors, []);
   await comparison.context().close();
   console.log(`Item information ${browserType.name()} passed: drop list, clickable results, bag count and inherited equipment comparison.`);
